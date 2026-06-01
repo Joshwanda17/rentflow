@@ -24,8 +24,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { roleToSlug } from '@/lib/roleRoutes';
-import { checkServerVersion, isVersionStaleSync } from '@/lib/versionGate';
-import { clearAndReload } from '@/lib/hardRecovery';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
@@ -142,8 +140,6 @@ export default function Auth() {
   const [otpLoginLoading, setOtpLoginLoading] = useState(false);
   const [otpLoginCountryCode, setOtpLoginCountryCode] = useState('256');
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
-  // Blocks SMS code requests while this device is running an outdated bundle.
-  const [otpVersionBlocked, setOtpVersionBlocked] = useState(false);
   // Permanent login by default. When unchecked the session is
   // ephemeral and OTP is required again after the browser is fully closed.
   const [rememberThisDevice, setRememberThisDevice] = useState(true);
@@ -176,36 +172,12 @@ export default function Auth() {
     return () => clearInterval(timer);
   }, [otpResendCooldown]);
 
-  // Verify the running bundle is current before the user can request a code.
-  // A stale bundle can break OTP contracts, so this check is universal.
-  useEffect(() => {
-    if (isVersionStaleSync()) {
-      setOtpVersionBlocked(true);
-      return;
-    }
-    let active = true;
-    checkServerVersion().then((state) => {
-      if (active && state.stale) setOtpVersionBlocked(true);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const getFullOtpPhone = useCallback((phoneVal: string, codeVal: string) => {
     const cleanDigits = phoneVal.replace(/\D/g, '');
     return cleanDigits.startsWith(codeVal) ? cleanDigits : codeVal + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
   }, []);
 
   const handleSendOtpForLogin = async () => {
-    // Never request a code on a stale bundle.
-    const stale = isVersionStaleSync()
-      ? true
-      : (await checkServerVersion()).stale;
-    if (stale) {
-      setOtpVersionBlocked(true);
-      return;
-    }
     const fullNum = getFullOtpPhone(otpLoginPhone, otpLoginCountryCode);
     if (fullNum.length < 10) {
       toast({ title: 'Error', description: 'Please enter a valid phone number', variant: 'destructive' });
@@ -709,25 +681,6 @@ export default function Auth() {
                       <p className="text-base font-semibold text-foreground">Enter your phone number</p>
                       <p className="text-sm text-muted-foreground mt-0.5">We will send you a 6-digit code</p>
                     </div>
-                    {otpVersionBlocked && (
-                      <div className="flex flex-col items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-center">
-                        <AlertCircle className="h-7 w-7 text-amber-600" />
-                        <div>
-                          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Update required</p>
-                          <p className="text-xs text-amber-600/90 dark:text-amber-400/80 mt-1">
-                            Your app is out of date, which is why codes were not working. Update now to receive a fresh, working code.
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={() => void clearAndReload('manual_reload')}
-                          className="w-full h-12 rounded-xl font-bold"
-                          style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
-                        >
-                          Update App
-                        </Button>
-                      </div>
-                    )}
                     <div className="flex items-center gap-2">
                       <Phone className="h-6 w-6 text-muted-foreground shrink-0" />
                       <div className="relative flex flex-1">
@@ -748,7 +701,7 @@ export default function Auth() {
                     <Button
                       type="button"
                       onClick={handleSendOtpForLogin}
-                      disabled={otpVersionBlocked || otpLoginLoading || otpLoginPhone.replace(/\D/g, '').length < 7}
+                      disabled={otpLoginLoading || otpLoginPhone.replace(/\D/g, '').length < 7}
                       className="w-full h-16 text-lg rounded-xl font-bold shadow-md touch-manipulation active:scale-[0.98] transition-transform"
                       style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                     >

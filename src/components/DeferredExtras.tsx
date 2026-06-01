@@ -1,8 +1,4 @@
 import { lazy, Suspense, useState, useEffect, Component, ReactNode } from "react";
-import { useLocation } from "react-router-dom";
-import { useForceRefresh } from "@/hooks/useForceRefresh";
-import { useAuth } from "@/hooks/useAuth";
-import UpdateAvailableToast from "@/components/UpdateAvailableToast";
 
 const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
 const IOSLinkHandler = lazy(() => import("@/components/IOSLinkHandler"));
@@ -19,11 +15,6 @@ class ExtrasBoundary extends Component<{ children: ReactNode }, { hasError: bool
 
 export default function DeferredExtras() {
   const [ready, setReady] = useState(false);
-  const { pathname } = useLocation();
-
-  useForceRefresh();
-
-  const { user } = useAuth();
 
   useEffect(() => {
     const activate = () => setReady(true);
@@ -37,8 +28,6 @@ export default function DeferredExtras() {
 
   return (
     <>
-      {/* Update prompt mounts immediately — higher priority than iOS extras */}
-      <UpdateAvailableToast />
       {ready && (
         <ExtrasBoundary>
           <Suspense fallback={null}>

@@ -1,7 +1,6 @@
 import React, { Component, ReactNode } from "react";
 import { RefreshCw, Home, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { clearAndReload } from "@/lib/hardRecovery";
 
 interface Props {
   children: ReactNode;
@@ -136,7 +135,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
     } catch {
       // ignore
     }
-    await clearAndReload("manual_reload");
+    window.location.reload();
   };
 
   handleGoHome = () => {
@@ -212,7 +211,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
               <button
-                onClick={() => void clearAndReload("manual_reload")}
+                onClick={() => window.location.reload()}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
               >
                 <RefreshCw className="w-4 h-4" />
