@@ -330,6 +330,81 @@ export default function WithdrawFlow({
     setCashCodeInput('');
     setCashCodeAcknowledged(false);
     setCashCodeError(null);
+    setOtpSent(false);
+    setOtpCode('');
+    setOtpVerified(false);
+    setSendingOtp(false);
+    setVerifyingOtp(false);
+    setOtpError(null);
+    setOtpSentAt(null);
+  };
+
+  // ─── OTP countdown + helpers ────────────────────────────────────────
+  // Mask the phone so the receipt screen doesn't print it in full.
+  const maskedPhone = (() => {
+    if (!profilePhone) return null;
+    const digits = profilePhone.replace(/\s/g, '');
+    if (digits.length <= 4) return digits;
+    return `${digits.slice(0, Math.max(0, digits.length - 4)).replace(/\d/g, '•')}${digits.slice(-4)}`;
+  })();
+
+  useEffect(() => {
+    if (!otpSent || otpSentAt === null) return;
+    const id = setInterval(() => setOtpTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [otpSent, otpSentAt]);
+
+  const otpResendRemaining = otpSentAt === null
+    ? 0
+    : Math.max(0, OTP_RESEND_SECONDS - Math.floor((otpTick - otpSentAt) / 1000));
+
+  const handleSendOtp = async () => {
+    if (!profilePhone) {
+      setOtpError('No phone number is on file for your account. Update your profile to withdraw.');
+      return;
+    }
+    if (sendingOtp || otpResendRemaining > 0) return;
+    setSendingOtp(true);
+    setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'send', phone: profilePhone },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setOtpSent(true);
+      setOtpVerified(false);
+      setOtpCode('');
+      setOtpSentAt(Date.now());
+      toast.success('Verification code sent to your phone.');
+    } catch (e: any) {
+      const msg = e?.message || 'Could not send the code. Please try again.';
+      setOtpError(msg);
+      toast.error(msg);
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!profilePhone || otpCode.trim().length !== 6 || verifyingOtp) return;
+    setVerifyingOtp(true);
+    setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'verify', phone: profilePhone, otp: otpCode.trim() },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setOtpVerified(true);
+      toast.success('Phone verified — you can now confirm your withdrawal.');
+    } catch (e: any) {
+      const msg = e?.message || 'Invalid code. Please try again.';
+      setOtpError(msg);
+      setOtpVerified(false);
+    } finally {
+      setVerifyingOtp(false);
+    }
   };
 
   // Drive the resend cooldown countdown once a cash code is on screen.
