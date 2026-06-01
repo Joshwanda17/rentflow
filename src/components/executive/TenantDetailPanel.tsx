@@ -432,10 +432,12 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       const outstanding = req ? Math.max(0, obligationFor(req) - Number(req.amount_repaid || 0)) : undefined;
       const totalCollected = Number(data.total_collected) || 0;
       const requestedAmount = Number(data.requested_amount) || (variables.amount ?? totalCollected);
-      // Prefer the server's remaining balance; fall back to local obligation math.
-      const remainingBalance = typeof data.remaining_balance === 'number'
-        ? Math.max(0, Number(data.remaining_balance))
-        : (outstanding !== undefined ? Math.max(0, outstanding - totalCollected) : undefined);
+      // Compute remaining on the SAME obligation basis the ledger validator uses
+      // (obligationFor → rent_amount / total_repayment), so a partial receipt
+      // reconciles cleanly. Server value is only a fallback.
+      const remainingBalance = outstanding !== undefined
+        ? Math.max(0, outstanding - totalCollected)
+        : (typeof data.remaining_balance === 'number' ? Math.max(0, Number(data.remaining_balance)) : undefined);
       const isPartial = Boolean(data.is_partial) || (remainingBalance !== undefined && remainingBalance > 0) || totalCollected < requestedAmount;
       setLastReceipt({
         reference: variables.rentRequestId,
