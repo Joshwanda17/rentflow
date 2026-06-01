@@ -7,8 +7,10 @@ Placement: very top of `WelileOperationsHub` (Tenant Ops → Welile Operations),
 
 Purpose: makes the three ranked priorities explicit and tells ops the single best next move from live data.
 - Priority 1 `list` — agents register landlords with empty houses (`house_listings`, status<>'rejected').
-- Priority 2 `place` — placed tenants = occupied houses = `landlords` rows with `tenant_id` set (NOT `house_listings.tenant_id`, which is effectively empty in production). Real placement signal.
+- Priority 2 `place` — placed tenants = the REAL agent→tenant→landlord chain in `rent_requests` with `status in ('funded','repaying','completed')` (active tenancies). Counts distinct `tenant_id`. This replaced the old `landlords.tenant_id` source (only 33) — rent_requests gives the full picture (~465 placed tenants, 38 agents, 415 landlords). `welile_mission_placements` joins rent_requests → landlords (landlord_id) + profiles (tenant/agent). Leaderboard `placements_count` = distinct placed tenants per agent from rent_requests.
 - Priority 3 `fund` — onboarded funders = `investor_portfolios` (Partner Ops) + `promissory_notes` combined.
+
+Agent network (driving force): `AgentNetworkCard` renders directly below the 3 priority cards. Fed by `welile_mission_agent_network(p_since)` (hook `useMissionAgentNetwork`, type `MissionAgentNetwork`) — single row: total_agents (distinct across all 3), listing_agents/placement_agents/funder_agents, houses_listed, tenants_placed, landlords_reached, funders_total, top_agent_id/name/score (highest combined contributions). Shows active-agent count, 3 per-priority stat tiles (value + agents), and a clickable "Top driver" row → agent `UserDrilldownDrawer`.
 
 Window filter: 7d / 30d / All (default 7d). Optional 15s live auto-refresh.
 

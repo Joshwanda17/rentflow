@@ -12,6 +12,7 @@ import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
+import { useMissionAgentNetwork, type MissionAgentNetwork } from '@/hooks/useWelileOpsCounters';
 import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
 import { useMissionPlacements, type MissionPlacementRow } from '@/hooks/useWelileOpsCounters';
 import { useMissionFunders, type MissionFunderRow } from '@/hooks/useWelileOpsCounters';
@@ -22,7 +23,7 @@ import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
-  ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2,
+  ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -88,6 +89,7 @@ export function WelileMissionBoard() {
   const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
   const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(win, showAgents, intervalMs);
   const agents: MissionAgentRow[] = agentData ?? [];
+  const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(win, intervalMs);
 
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
@@ -222,6 +224,13 @@ export function WelileMissionBoard() {
           );
         })}
       </div>
+
+      {/* Agent network — the driving force across all 3 priorities */}
+      <AgentNetworkCard
+        network={network}
+        loading={networkLoading}
+        onOpenAgent={(id) => setDrawer({ agentId: id, tab: 'agent' })}
+      />
 
       {/* Supply → placement funnel */}
       {summary && !isLoading && (
@@ -395,6 +404,65 @@ export function WelileMissionBoard() {
 }
 
 type EmptySort = 'rent_desc' | 'recent' | 'oldest' | 'area';
+
+// ===== Agent network card: the driving force across all 3 priorities =====
+
+function AgentNetworkCard({
+  network, loading, onOpenAgent,
+}: {
+  network: MissionAgentNetwork | null | undefined;
+  loading: boolean;
+  onOpenAgent: (id: string) => void;
+}) {
+  if (loading || !network) {
+    return <Skeleton className="h-28 w-full mt-2" />;
+  }
+  const stats: { icon: React.ElementType; label: string; value: number; agents: number; tone: string }[] = [
+    { icon: Home, label: 'Houses listed', value: network.houses_listed, agents: network.listing_agents, tone: 'text-[#9234EA]' },
+    { icon: Users, label: 'Tenants placed', value: network.tenants_placed, agents: network.placement_agents, tone: 'text-emerald-600' },
+    { icon: Handshake, label: 'Funders onboarded', value: network.funders_total, agents: network.funder_agents, tone: 'text-amber-600' },
+  ];
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-3 mt-2">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+          <Network className="h-3.5 w-3.5 text-primary" /> Agent network — the driving force
+        </span>
+        <div className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5">
+          <Zap className="h-3 w-3 text-primary" />
+          <span className="text-[11px] font-bold text-primary">{network.total_agents.toLocaleString()}</span>
+          <span className="text-[10px] text-muted-foreground">active agents</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {stats.map((s) => {
+          const Icon = s.icon;
+          return (
+            <div key={s.label} className="rounded-lg border border-border bg-card p-2 text-center">
+              <Icon className={cn('h-3.5 w-3.5 mx-auto', s.tone)} />
+              <p className="text-lg font-bold leading-none mt-1">{s.value.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{s.label}</p>
+              <p className="text-[9px] text-muted-foreground/80 mt-0.5">{s.agents.toLocaleString()} agents</p>
+            </div>
+          );
+        })}
+      </div>
+      {network.top_agent_id && (
+        <button
+          onClick={() => onOpenAgent(network.top_agent_id!)}
+          className="mt-2 w-full flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 hover:bg-amber-500/10 transition"
+        >
+          <Award className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+          <span className="text-[11px] font-medium truncate flex-1 text-left">
+            Top driver: <span className="font-bold">{network.top_agent_name || 'Agent'}</span>
+          </span>
+          <Badge variant="outline" className="text-[10px] shrink-0">{network.top_agent_score.toLocaleString()} contributions</Badge>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 function statusTone(status: string | null): string {
   switch ((status || '').toLowerCase()) {

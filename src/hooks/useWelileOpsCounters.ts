@@ -214,6 +214,37 @@ export function useMissionLeaderboard(win: CounterWindow, enabled: boolean, refe
   });
 }
 
+// ===== Agent network: aggregated driving-force stats across all 3 priorities =====
+
+export interface MissionAgentNetwork {
+  total_agents: number;
+  listing_agents: number;
+  placement_agents: number;
+  funder_agents: number;
+  houses_listed: number;
+  tenants_placed: number;
+  landlords_reached: number;
+  funders_total: number;
+  top_agent_id: string | null;
+  top_agent_name: string | null;
+  top_agent_score: number;
+}
+
+export function useMissionAgentNetwork(win: CounterWindow, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    queryKey: ['welile-mission-agent-network', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionAgentNetwork | null> => {
+      const { data, error } = await supabase.rpc('welile_mission_agent_network' as any, { p_since: since });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as MissionAgentNetwork | null;
+    },
+  });
+}
+
 export interface MissionEmptyHouseRow {
   listing_id: string;
   title: string | null;
