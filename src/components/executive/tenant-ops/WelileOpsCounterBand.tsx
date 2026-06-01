@@ -60,6 +60,7 @@ export function WelileOpsCounterBand() {
   const [collapsed, setCollapsed] = useState(false);
   const [items, setItems] = useState<{ agentId: string; agentName: string; kind: CounterKind } | null>(null);
   const [drawer, setDrawer] = useState<{ tenantId?: string | null; agentId?: string | null; landlordId?: string | null; tab: 'tenant' | 'agent' | 'landlord' } | null>(null);
+  const [funnel, setFunnel] = useState<{ path: CounterPath; label: string } | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshSec, setRefreshSec] = useState(10);
 
