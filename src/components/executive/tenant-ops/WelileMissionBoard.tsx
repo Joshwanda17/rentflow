@@ -734,6 +734,64 @@ function AgentNetworkDriverDialog({
           )}
         </div>
 
+        {/* Active filter chips */}
+        {(sourceAgent !== 'all' || sourceTenant !== 'all' || sourceLandlord !== 'all' || sourceFunder !== 'all') && (
+          <div className="px-4 pb-2 flex items-center gap-1.5 flex-wrap">
+            {sourceAgent !== 'all' && (
+              <Badge variant="secondary" className="text-[10px] gap-1 pl-2 pr-1 py-0.5 h-6">
+                Agent: {agents.find((a) => a.entity_id === sourceAgent)?.name || sourceAgent}
+                <button
+                  type="button"
+                  onClick={() => setSourceAgent('all')}
+                  className="ml-0.5 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                  aria-label="Clear agent filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {sourceTenant !== 'all' && (
+              <Badge variant="secondary" className="text-[10px] gap-1 pl-2 pr-1 py-0.5 h-6">
+                Tenant: {tenants.find((t) => t.entity_id === sourceTenant)?.name || sourceTenant}
+                <button
+                  type="button"
+                  onClick={() => setSourceTenant('all')}
+                  className="ml-0.5 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                  aria-label="Clear tenant filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {sourceLandlord !== 'all' && (
+              <Badge variant="secondary" className="text-[10px] gap-1 pl-2 pr-1 py-0.5 h-6">
+                Landlord: {landlords.find((l) => l.entity_id === sourceLandlord)?.name || sourceLandlord}
+                <button
+                  type="button"
+                  onClick={() => setSourceLandlord('all')}
+                  className="ml-0.5 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                  aria-label="Clear landlord filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {sourceFunder !== 'all' && (
+              <Badge variant="secondary" className="text-[10px] gap-1 pl-2 pr-1 py-0.5 h-6">
+                Funder: {funders.find((f) => f.entity_id === sourceFunder)?.name || sourceFunder}
+                <button
+                  type="button"
+                  onClick={() => setSourceFunder('all')}
+                  className="ml-0.5 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                  aria-label="Clear funder filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+          </div>
+        )}
+
         {!isLoading && rows.length > 0 && (
           <div className="px-4 pb-2">
             <Badge variant="outline" className="text-[10px]">{filtered.length} of {rows.length} shown</Badge>
