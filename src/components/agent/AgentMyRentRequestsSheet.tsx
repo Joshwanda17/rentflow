@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
 import { useToast } from '@/hooks/use-toast';
 import { AgentRejectedRequestsSection } from './AgentRejectedRequestsSection';
+import { RentRewardChips } from './RentRewardChips';
 
 interface AgentRentRequest {
   id: string;
@@ -33,6 +34,7 @@ interface AgentRentRequest {
   created_at: string;
   tenant_id: string;
   landlord_id: string;
+  house_listing_id?: string | null;
   registration_type?: string | null;
   initial_outstanding_balance?: number | null;
   outstanding_grace_days?: number | null;
