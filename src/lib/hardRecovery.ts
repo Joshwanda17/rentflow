@@ -313,10 +313,17 @@ export function reloadWithCacheBust(): void {
   });
   try {
     const url = new URL(window.location.href);
-    // Cache-bust the document fetch. Use a stable param name so repeated
-    // recoveries replace (not stack) the value.
-    url.searchParams.set("_v", Date.now().toString(36));
-    window.location.replace(url.toString());
+    // The `?_v=` document cache-buster was removed: on iOS it created a
+    // refresh loop (stale shell reloads to the same `_v` URL forever) and the
+    // app already exposes a manual red "clear cache" control in the profile/
+    // settings screen. Strip any leftover `_v` so the URL stays clean, then do
+    // a normal reload after the cache/SW purge above has done the real work.
+    if (url.searchParams.has("_v")) {
+      url.searchParams.delete("_v");
+      window.location.replace(url.toString());
+      return;
+    }
+    window.location.reload();
   } catch {
     window.location.reload();
   }
