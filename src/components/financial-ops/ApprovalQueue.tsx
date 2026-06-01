@@ -263,6 +263,8 @@ export function ApprovalQueue() {
   const renderItemCard = (item: QueueItem) => {
     const Icon = queueIcon[item.type];
     const isCashOut = item.type === 'wallet_withdrawals';
+    const isCashMissingCode = isCashOut && item.payoutDetails?.method === 'cash' && !item.payoutDetails?.payoutCode;
+    const isSelectedMissingCode = selected.has(item.id) && isCashMissingCode;
     const ageMinutes = Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 60000);
     const ageLabel = ageMinutes < 60 ? `${ageMinutes}m` : ageMinutes < 1440 ? `${Math.floor(ageMinutes / 60)}h` : `${Math.floor(ageMinutes / 1440)}d`;
 
@@ -270,7 +272,9 @@ export function ApprovalQueue() {
       <div
         key={item.id}
         className={`rounded-xl border-2 overflow-hidden transition-colors ${
-          isCashOut
+          isSelectedMissingCode
+            ? 'border-destructive/70 bg-gradient-to-r from-destructive/10 to-card shadow-sm shadow-destructive/10'
+            : isCashOut
             ? 'border-orange-500/40 bg-gradient-to-r from-orange-500/5 to-card'
             : `border-l-4 ${urgencyBg[item.urgency]} border-t border-r border-b border-border/60 bg-card`
         }`}
