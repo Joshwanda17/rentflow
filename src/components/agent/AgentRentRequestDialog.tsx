@@ -1354,61 +1354,68 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
       let landlordId: string;
 
-      // ===== Gate: landlord must already exist WITH a verified house =====
-      // Resolve the candidate landlord (without creating one) and confirm they
-      // own at least one verified house before allowing the rent request.
-      const gateLandlordId = (isOutstanding && selectedLandlord)
-        ? selectedLandlord.id
-        : (await supabase
+      if (!isOutstanding && selectedHouse?.landlord_id) {
+        // The agent selected an available house from the search. Its landlord is
+        // already on file and the house is usable immediately — no verification
+        // gate required (houses are available the moment they're listed).
+        landlordId = selectedHouse.landlord_id;
+      } else {
+        // ===== Gate: landlord must already exist WITH a verified house =====
+        // Resolve the candidate landlord (without creating one) and confirm they
+        // own at least one verified house before allowing the rent request.
+        const gateLandlordId = (isOutstanding && selectedLandlord)
+          ? selectedLandlord.id
+          : (await supabase
+              .from('landlords')
+              .select('id')
+              .eq('phone', cleanLandlordPhone)
+              .limit(1)
+              .maybeSingle()).data?.id ?? null;
+
+        const { count: verifiedHouseCount } = gateLandlordId
+          ? await supabase
+              .from('house_listings')
+              .select('id', { count: 'exact', head: true })
+              .eq('landlord_id', gateLandlordId)
+              .eq('verified', true)
+          : { count: 0 };
+
+        if (!gateLandlordId || !verifiedHouseCount || verifiedHouseCount < 1) {
+          toast.error('This landlord needs a listed house first', {
+            description: 'Search and select an available house above, or list a new one — it becomes available instantly.',
+          });
+          setShowRegisterLandlord(true);
+          setLoading(false);
+          return;
+        }
+
+        if (isOutstanding && selectedLandlord) {
+          landlordId = selectedLandlord.id;
+        } else {
+          const { data: existingLandlord } = await supabase
             .from('landlords')
             .select('id')
             .eq('phone', cleanLandlordPhone)
             .limit(1)
-            .maybeSingle()).data?.id ?? null;
+            .maybeSingle();
 
-      const { count: verifiedHouseCount } = gateLandlordId
-        ? await supabase
-            .from('house_listings')
-            .select('id', { count: 'exact', head: true })
-            .eq('landlord_id', gateLandlordId)
-            .eq('verified', true)
-        : { count: 0 };
+          if (existingLandlord) {
+            landlordId = existingLandlord.id;
+          } else {
+            const { data: landlord, error: landlordError } = await supabase
+              .from('landlords')
+              .insert({
+                name: landlordName.trim(),
+                phone: cleanLandlordPhone,
+                property_address: propertyAddress.trim(),
+                registered_by: user?.id,
+              })
+              .select('id')
+              .single();
 
-      if (!gateLandlordId || !verifiedHouseCount || verifiedHouseCount < 1) {
-        toast.error('This landlord needs a verified house first', {
-          description: 'Register the landlord and list a house — you can post this rent request once Landlord Ops verifies it.',
-        });
-        setShowRegisterLandlord(true);
-        setLoading(false);
-        return;
-      }
-
-      if (isOutstanding && selectedLandlord) {
-        landlordId = selectedLandlord.id;
-      } else {
-        const { data: existingLandlord } = await supabase
-          .from('landlords')
-          .select('id')
-          .eq('phone', cleanLandlordPhone)
-          .limit(1)
-          .maybeSingle();
-
-        if (existingLandlord) {
-          landlordId = existingLandlord.id;
-        } else {
-          const { data: landlord, error: landlordError } = await supabase
-            .from('landlords')
-            .insert({
-              name: landlordName.trim(),
-              phone: cleanLandlordPhone,
-              property_address: propertyAddress.trim(),
-              registered_by: user?.id,
-            })
-            .select('id')
-            .single();
-
-          if (landlordError) throw landlordError;
-          landlordId = landlord.id;
+            if (landlordError) throw landlordError;
+            landlordId = landlord.id;
+          }
         }
       }
 
