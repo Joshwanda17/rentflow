@@ -383,6 +383,7 @@ export function WelileOpsCounterBand() {
         refetchIntervalMs={intervalMs}
         onClose={() => setFunnel(null)}
         onOpenAgent={(agentId) => setDrawer({ agentId, tab: 'agent' })}
+        onOpenLandlord={(landlordId) => setDrawer({ landlordId, tab: 'landlord' })}
       />
 
       <UserDrilldownDrawer
