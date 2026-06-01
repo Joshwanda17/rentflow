@@ -316,6 +316,15 @@ export function FinOpsWithdrawalVerification() {
   // Approve with TID/Receipt/Bank Ref → approved (final) via ledger-first edge function
   const handleApprove = async () => {
     if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
+    // Cash payouts are gated by the one-time WPO-XXXXX pickup code and MUST be
+    // approved through ReceiptCodeEntry (which sends `payout_code`). If the
+    // operator switched the dropdown away from "cash", block here so we never
+    // hit the backend's CASH_CODE_REQUIRED 400.
+    if ((selected.payout_method || '').toLowerCase() === 'cash') {
+      toast.error('This is a cash payout — enter the WPO-XXXXX pickup code below to approve.');
+      setPaymentMethod('cash');
+      return;
+    }
     setProcessing(selected.id);
     try {
       const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
