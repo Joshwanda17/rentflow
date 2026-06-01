@@ -68,6 +68,34 @@ async function sendGmail(to: string, subject: string, body: string) {
 const fmtUGX = (n: number) =>
   `UGX ${Math.round(n).toLocaleString("en-UG")}`;
 
+// Append an audit-trail event. Never throws — auditing must not break the flow.
+async function logEvent(
+  admin: ReturnType<typeof createClient>,
+  row: {
+    verification_id?: string | null;
+    deposit_request_id?: string | null;
+    user_id?: string | null;
+    event_type: string;
+    amount?: number | null;
+    detail?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  try {
+    await admin.from("cash_deposit_verification_events").insert({
+      verification_id: row.verification_id ?? null,
+      deposit_request_id: row.deposit_request_id ?? null,
+      user_id: row.user_id ?? null,
+      event_type: row.event_type,
+      amount: row.amount ?? null,
+      detail: row.detail ?? null,
+      metadata: row.metadata ?? {},
+    } as any);
+  } catch (e) {
+    console.error("[cash-request-code] audit log failed", row.event_type, e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -150,14 +178,14 @@ Deno.serve(async (req) => {
     // 2) Generate + hash the receipt code, store the hash.
     const code = generateReceiptCode();
     const codeHash = await sha256Hex(code);
-    const { error: vErr } = await admin.from("cash_deposit_verifications").insert({
+    const { data: verRow, error: vErr } = await admin.from("cash_deposit_verifications").insert({
       deposit_request_id: depositId,
       user_id: user.id,
       amount,
       code_hash: codeHash,
       emailed_to: VERIFIER_EMAIL,
       status: "awaiting_code",
-    } as any);
+    } as any).select("id, max_attempts, expires_at").single();
     if (vErr) {
       console.error("[cash-request-code] verification insert failed", vErr);
       await admin.from("deposit_requests").delete().eq("id", depositId);
@@ -165,6 +193,21 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    await logEvent(admin, {
+      verification_id: (verRow as any)?.id ?? null,
+      deposit_request_id: depositId,
+      user_id: user.id,
+      event_type: "code_issued",
+      amount,
+      detail: "Receipt code generated and emailed to the cash verifier (24h expiry).",
+      metadata: {
+        emailed_to: VERIFIER_EMAIL,
+        max_attempts: (verRow as any)?.max_attempts ?? null,
+        expires_at: (verRow as any)?.expires_at ?? null,
+        deposit_purpose: depositPurpose,
+      },
+    });
 
     // 3) Email the code to the verifier.
     const subject = `Cash deposit code ${code} — ${fmtUGX(amount)} from ${depositorName}`;

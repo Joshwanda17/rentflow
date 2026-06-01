@@ -4322,6 +4322,56 @@ export type Database = {
           },
         ]
       }
+      cash_deposit_verification_events: {
+        Row: {
+          amount: number | null
+          attempt_no: number | null
+          attempts_remaining: number | null
+          created_at: string
+          deposit_request_id: string | null
+          detail: string | null
+          event_type: string
+          id: string
+          metadata: Json
+          user_id: string | null
+          verification_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          attempt_no?: number | null
+          attempts_remaining?: number | null
+          created_at?: string
+          deposit_request_id?: string | null
+          detail?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json
+          user_id?: string | null
+          verification_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          attempt_no?: number | null
+          attempts_remaining?: number | null
+          created_at?: string
+          deposit_request_id?: string | null
+          detail?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json
+          user_id?: string | null
+          verification_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_deposit_verification_events_verification_id_fkey"
+            columns: ["verification_id"]
+            isOneToOne: false
+            referencedRelation: "cash_deposit_verifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_deposit_verifications: {
         Row: {
           amount: number

@@ -60,6 +60,38 @@ async function sendGmail(to: string, subject: string, body: string) {
 const fmtUGX = (n: number) =>
   `UGX ${Math.round(Number(n) || 0).toLocaleString("en-UG")}`;
 
+// Append an audit-trail event. Never throws — auditing must not break the flow.
+async function logEvent(
+  admin: ReturnType<typeof createClient>,
+  row: {
+    verification_id?: string | null;
+    deposit_request_id?: string | null;
+    user_id?: string | null;
+    event_type: string;
+    attempt_no?: number | null;
+    attempts_remaining?: number | null;
+    amount?: number | null;
+    detail?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  try {
+    await admin.from("cash_deposit_verification_events").insert({
+      verification_id: row.verification_id ?? null,
+      deposit_request_id: row.deposit_request_id ?? null,
+      user_id: row.user_id ?? null,
+      event_type: row.event_type,
+      attempt_no: row.attempt_no ?? null,
+      attempts_remaining: row.attempts_remaining ?? null,
+      amount: row.amount ?? null,
+      detail: row.detail ?? null,
+      metadata: row.metadata ?? {},
+    } as any);
+  } catch (e) {
+    console.error("[cash-verify-code] audit log failed", row.event_type, e);
+  }
+}
+
 // Normalize the entered code so the user can be a little sloppy: uppercase,
 // strip spaces/dashes, and ensure the RCT prefix.
 function normalizeCode(input: string): string {
@@ -114,6 +146,11 @@ Deno.serve(async (req) => {
     }
 
     if (ver.status === "verified") {
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "already_verified", amount: Number(ver.amount),
+        detail: "Verify attempted on an already-verified deposit.",
+      });
       return json(200, { ok: true, already_verified: true, message: "This deposit was already verified." });
     }
 
@@ -124,12 +161,25 @@ Deno.serve(async (req) => {
       if (ver.status !== "expired") {
         await admin.from("cash_deposit_verifications").update({ status: "expired" }).eq("id", ver.id);
       }
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "expired", attempt_no: Number(ver.attempts), amount: Number(ver.amount),
+        detail: "Code entry rejected — verification window (24h) has expired.",
+        metadata: { expires_at: ver.expires_at },
+      });
       return json(410, { error: "expired", message: "This code has expired. Please start a new cash deposit." });
     }
 
     // ── Attempt limit ──
     if (Number(ver.attempts) >= Number(ver.max_attempts)) {
       await admin.from("cash_deposit_verifications").update({ status: "expired" }).eq("id", ver.id);
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "locked_out", attempt_no: Number(ver.attempts), attempts_remaining: 0,
+        amount: Number(ver.amount),
+        detail: "Verification locked — maximum attempts already reached.",
+        metadata: { max_attempts: Number(ver.max_attempts) },
+      });
       return json(429, { error: "too_many_attempts", message: "Too many incorrect attempts. Please start a new cash deposit." });
     }
 
@@ -143,6 +193,15 @@ Deno.serve(async (req) => {
         .from("cash_deposit_verifications")
         .update({ attempts: newAttempts, ...(lockNow ? { status: "expired" } : {}) })
         .eq("id", ver.id);
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: lockNow ? "locked_out" : "code_mismatch",
+        attempt_no: newAttempts, attempts_remaining: remaining, amount: Number(ver.amount),
+        detail: lockNow
+          ? "Incorrect code — verification locked after exhausting all attempts."
+          : `Incorrect code entered. ${remaining} attempt(s) remaining.`,
+        metadata: { max_attempts: Number(ver.max_attempts) },
+      });
       return json(400, {
         error: "code_mismatch",
         message: lockNow
@@ -167,8 +226,19 @@ Deno.serve(async (req) => {
 
     if (claimErr || !claimed) {
       // Another concurrent verify already claimed it.
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "already_verified", amount: Number(ver.amount),
+        detail: "Concurrent verification already claimed this deposit.",
+      });
       return json(200, { ok: true, already_verified: true, message: "This deposit was already verified." });
     }
+
+    await logEvent(admin, {
+      verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+      event_type: "verified", attempt_no: Number(ver.attempts) + 1, amount: Number(ver.amount),
+      detail: "Receipt code matched — verification successful.",
+    });
 
     // Stamp the verified RCT code onto the deposit request for traceability.
     await admin
@@ -199,11 +269,24 @@ Deno.serve(async (req) => {
         .update({ status: "awaiting_code", verified_at: null })
         .eq("id", ver.id);
       console.error("[cash-verify-code] approve-deposit failed", approveRes.status, approveJson);
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "credit_failed", amount: Number(ver.amount),
+        detail: "Code verified but wallet crediting failed — verification rolled back.",
+        metadata: { approve_status: approveRes.status, approve_response: approveJson },
+      });
       return json(502, {
         error: "credit_failed",
         message: "Code verified, but crediting your wallet failed. Please try again.",
       });
     }
+
+    await logEvent(admin, {
+      verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+      event_type: "credited", amount: Number(ver.amount),
+      detail: "Wallet credited successfully after verification.",
+      metadata: { receipt_code: enteredCode },
+    });
 
     // ── New balance for the confirmation email ──
     let newBalance: number | null = null;
