@@ -209,6 +209,12 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
     () => emptyHouses.find((h) => h.id === selectedHouseId) || null,
     [emptyHouses, selectedHouseId]
   );
+  const [previewHouseId, setPreviewHouseId] = useState<string>('');
+  const [housePreviewOpen, setHousePreviewOpen] = useState(false);
+  const previewHouse = useMemo(
+    () => emptyHouses.find((h) => h.id === previewHouseId) || null,
+    [emptyHouses, previewHouseId]
+  );
 
   const fetchEmptyHouses = async () => {
     setHousesLoading(true);
