@@ -169,6 +169,19 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     ? Math.max(0, Math.round((new Date(expiresAt).getTime() - now) / 1000))
     : null;
   const expired = secsLeft !== null && secsLeft <= 0;
+
+  // When the code expires, tell the user clearly and send them back to the
+  // start so they can request a fresh code.
+  useEffect(() => {
+    if (step !== 'pin' || !expired) return;
+    toast.error('Your confirmation code expired after 5 minutes. Please start over to get a new one.');
+    setStep('form');
+    setPin('');
+    setPinError('');
+    setSessionId(null);
+    setExpiresAt(null);
+  }, [step, expired]);
+
   const countdownLabel =
     secsLeft === null
       ? ''
