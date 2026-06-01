@@ -211,3 +211,38 @@ export function useMissionLeaderboard(win: CounterWindow, enabled: boolean, refe
     },
   });
 }
+
+export interface MissionEmptyHouseRow {
+  listing_id: string;
+  title: string | null;
+  status: string | null;
+  monthly_rent: number | null;
+  number_of_rooms: number | null;
+  area: string | null;
+  region: string | null;
+  district: string | null;
+  created_at: string;
+  last_activity: string | null;
+  verified: boolean;
+  landlord_id: string | null;
+  landlord_name: string | null;
+  landlord_phone: string | null;
+  agent_id: string | null;
+  agent_name: string | null;
+  agent_phone: string | null;
+}
+
+export function useMissionEmptyHouses(win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled,
+    queryKey: ['welile-mission-empty-houses', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionEmptyHouseRow[]> => {
+      const { data, error } = await supabase.rpc('welile_mission_empty_houses' as any, { p_since: since });
+      if (error) throw error;
+      return (data ?? []) as MissionEmptyHouseRow[];
+    },
+  });
+}
