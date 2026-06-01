@@ -293,6 +293,17 @@ export function WelileOpsCounterBand() {
                         <Badge className={cn('shrink-0 text-[10px]', rowHealth.cls)}>{rowHealth.label}</Badge>
                       )}
                       <Badge className="shrink-0">{row.total_count.toLocaleString()}</Badge>
+                      {!isAgent && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          title="View activation funnel"
+                          onClick={(e) => { e.stopPropagation(); setFunnel({ path: zonePathFor(row), label: row.bucket_label }); }}
+                        >
+                          <Activity className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {!isAgent && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                     </div>
                     {((row.rent_count ?? 0) > 0 || (row.distinct_agents ?? 0) > 0) && (
