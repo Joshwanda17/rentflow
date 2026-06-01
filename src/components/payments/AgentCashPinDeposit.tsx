@@ -231,7 +231,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 relative" ref={phoneWrapRef}>
               <Label className="text-sm font-medium flex items-center gap-1.5">
                 <Phone className="h-3.5 w-3.5" /> Agent's phone number
               </Label>
@@ -240,9 +240,37 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 inputMode="tel"
                 placeholder="e.g. 0772 123 456"
                 value={agentPhone}
-                onChange={(e) => setAgentPhone(e.target.value)}
+                onChange={(e) => onPhoneChange(e.target.value)}
+                onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                autoComplete="off"
                 className="h-12 text-base"
               />
+              {showSuggestions && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border rounded-lg shadow-lg overflow-hidden">
+                  {searching && (
+                    <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Searching agents…
+                    </div>
+                  )}
+                  {!searching && suggestions.length === 0 && (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No agents found</div>
+                  )}
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2.5 flex items-center gap-2 hover:bg-accent transition-colors"
+                      onClick={() => selectSuggestion(s.phone, s.full_name)}
+                    >
+                      <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{s.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{s.phone}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Button onClick={handleCreate} disabled={loading} className="w-full h-12 gap-2">
