@@ -33,7 +33,7 @@ interface AgentCashPinDepositProps {
 
 const QUICK_AMOUNTS = [10000, 50000, 100000, 250000];
 
-type Step = 'form' | 'pin' | 'success';
+type Step = 'form' | 'confirm' | 'pin' | 'success';
 
 /**
  * Cash-with-agent deposit secured by a 4-digit code.
@@ -63,6 +63,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [hasSearched, setHasSearched] = useState(false);
   const [phoneError, setPhoneError] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [selectedFromList, setSelectedFromList] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phoneWrapRef = useRef<HTMLDivElement>(null);
 
@@ -81,6 +82,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
     setSuggestions([]); setShowSuggestions(false); setPhoneError(''); setPhoneTouched(false);
+    setSelectedFromList(false);
   };
 
   const searchAgents = useCallback(async (query: string) => {
@@ -116,6 +118,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setAgentPhone(value);
     if (phoneTouched) setPhoneError(validatePhone(value));
     setShowSuggestions(false);
+    setSelectedFromList(false);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => searchAgents(value), 300);
   };
@@ -126,6 +129,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setPhoneError(validatePhone(phone));
     setShowSuggestions(false);
     setSuggestions([]);
+    setSelectedFromList(true);
   };
 
   const close = () => { reset(); onOpenChange(false); };
@@ -170,6 +174,17 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       setPhoneError(err);
       return;
     }
+    // If the depositor typed a number that isn't one of the matched agents,
+    // ask them to confirm the number before contacting the backend.
+    if (!selectedFromList) {
+      setShowSuggestions(false);
+      setStep('confirm');
+      return;
+    }
+    void submitDeposit();
+  };
+
+  const submitDeposit = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('agent-cash-deposit-create', {
@@ -329,6 +344,39 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
               Get confirmation code
             </Button>
+          </div>
+        )}
+
+        {step === 'confirm' && (
+          <div className="space-y-4">
+            <button onClick={() => setStep('form')} className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground">
+              <ChevronLeft className="h-3.5 w-3.5" /> Back
+            </button>
+            <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-sm space-y-1">
+              <div className="flex items-center gap-2 text-amber-700 font-medium">
+                <XCircle className="h-4 w-4 shrink-0" />
+                No matching agent found
+              </div>
+              <p className="text-muted-foreground">
+                We couldn't match this number to a saved agent. Please double-check it before continuing.
+              </p>
+            </div>
+            <div className="rounded-xl border p-4 space-y-1">
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Phone className="h-3.5 w-3.5" /> Agent's phone number
+              </p>
+              <p className="text-2xl font-bold tabular-nums tracking-wide">{agentPhone.trim()}</p>
+              <p className="text-sm text-muted-foreground">Amount: <span className="font-semibold text-foreground">{formatUGX(amountNum)}</span></p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => void submitDeposit()} disabled={loading} className="w-full h-12 gap-2">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                Yes, proceed with this number
+              </Button>
+              <Button variant="outline" onClick={() => setStep('form')} disabled={loading} className="w-full h-11">
+                Edit number
+              </Button>
+            </div>
           </div>
         )}
 
