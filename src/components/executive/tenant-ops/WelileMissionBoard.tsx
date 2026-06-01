@@ -272,7 +272,7 @@ export function WelileMissionBoard() {
                   {filteredAgents.map((a) => (
                     <li
                       key={a.agent_id}
-                      onClick={() => setDrawerAgent(a.agent_id)}
+                      onClick={() => setDrawer({ agentId: a.agent_id, tab: 'agent' })}
                       className="rounded-lg border border-border bg-card p-3 hover:bg-muted/40 cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
@@ -310,12 +310,21 @@ export function WelileMissionBoard() {
       </div>
 
       <UserDrilldownDrawer
-        open={!!drawerAgent}
-        onOpenChange={(v) => { if (!v) setDrawerAgent(null); }}
+        open={!!drawer}
+        onOpenChange={(v) => { if (!v) setDrawer(null); }}
         tenantId={null}
-        agentId={drawerAgent}
-        landlordId={null}
-        defaultTab="agent"
+        agentId={drawer?.agentId ?? null}
+        landlordId={drawer?.landlordId ?? null}
+        defaultTab={drawer?.tab ?? 'agent'}
+      />
+
+      <EmptyHousesDialog
+        open={emptyOpen}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setEmptyOpen(false)}
+        onOpenLandlord={(id) => { setEmptyOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
+        onOpenAgent={(id) => { setEmptyOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
       />
     </Card>
   );
