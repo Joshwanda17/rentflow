@@ -2108,6 +2108,34 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           {mode === 'credit' && (
           <div>
             <Label className="text-xs">Route as</Label>
+            {suggestedWallet.data && user && (
+              <div className="mt-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] flex items-start gap-1.5">
+                <History className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
+                <div className="flex-1">
+                  <p>
+                    Suggested:{' '}
+                    <span className="font-semibold">
+                      {suggestedWallet.data.suggested === 'operational_float' ? 'Operational Float' : 'Personal Deposit'}
+                    </span>{' '}
+                    <span className="text-muted-foreground">
+                      — {suggestedWallet.data.suggested === 'operational_float'
+                        ? suggestedWallet.data.floatCount
+                        : suggestedWallet.data.withdrawableCount}
+                      /{suggestedWallet.data.total} past deposits ({suggestedWallet.data.confidence}%)
+                    </span>
+                  </p>
+                  {route !== suggestedWallet.data.suggested && (
+                    <button
+                      type="button"
+                      onClick={() => setRoute(suggestedWallet.data!.suggested)}
+                      className="mt-0.5 font-medium text-primary underline underline-offset-2"
+                    >
+                      Use suggestion
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <RadioGroup value={route} onValueChange={(v) => setRoute(v as Route)} className="mt-1 space-y-2">
               <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
                 <RadioGroupItem value="personal_deposit" id="route-personal" className="mt-0.5" />
