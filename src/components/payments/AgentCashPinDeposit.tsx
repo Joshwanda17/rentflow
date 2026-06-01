@@ -87,7 +87,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
         setSuggestions([]);
       } else {
         setSuggestions((data ?? []) as Array<{ id: string; full_name: string; phone: string }>);
-        setShowSuggestions((data ?? []).length > 0);
+        setShowSuggestions(true);
       }
     } catch {
       setSuggestions([]);
