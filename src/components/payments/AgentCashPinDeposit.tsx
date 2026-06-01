@@ -67,6 +67,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [canResendAt, setCanResendAt] = useState<number | null>(null);
+  const [locked, setLocked] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
 
   // Agent phone search
   const [suggestions, setSuggestions] = useState<Array<{ id: string; full_name: string; phone: string }>>([]);
@@ -94,7 +96,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setPinError(''); setCreditedAmount(0); setExpiresAt(null);
     setSuggestions([]); setShowSuggestions(false); setPhoneError(''); setPhoneTouched(false);
-    setSelectedFromList(false); setCanResendAt(null);
+    setSelectedFromList(false); setCanResendAt(null); setLocked(false); setAttemptsLeft(null);
   };
 
   const searchAgents = useCallback(async (query: string) => {
