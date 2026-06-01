@@ -38,6 +38,51 @@ function useWalletBuckets(userId: string | null | undefined) {
   });
 }
 
+/**
+ * Automatic wallet matching: inspects a user's historical wallet-scope
+ * deposits (money-in legs) and works out which bucket they most often
+ * receive money into — so Financial Ops can pre-select the most likely
+ * "Route as" choice instead of guessing on every inbound email.
+ *
+ * Signal: last 50 user-facing `cash_in` wallet ledger legs grouped by
+ * `wallet_bucket`. Respects the user-facing ledger filter (no
+ * admin_correction / system_balance_correction). Returns null when the
+ * user has no deposit history to learn from.
+ */
+function useSuggestedWallet(userId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['route-email-suggested-wallet', userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('general_ledger') as any)
+        .select('wallet_bucket, amount, created_at')
+        .eq('user_id', userId)
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_in')
+        .in('wallet_bucket', ['withdrawable', 'float'])
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction')
+        .gt('amount', 0)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const rows = (data ?? []) as Array<{ wallet_bucket: 'withdrawable' | 'float' }>;
+      if (!rows.length) return null;
+      let withdrawableCount = 0;
+      let floatCount = 0;
+      for (const r of rows) {
+        if (r.wallet_bucket === 'float') floatCount += 1;
+        else withdrawableCount += 1;
+      }
+      const suggested: Route = floatCount > withdrawableCount ? 'operational_float' : 'personal_deposit';
+      const dominant = Math.max(withdrawableCount, floatCount);
+      const confidence = Math.round((dominant / rows.length) * 100);
+      return { suggested, withdrawableCount, floatCount, total: rows.length, confidence };
+    },
+    staleTime: 30_000,
+  });
+}
+
 function BucketDelta({ label, before, after, sign }: { label: string; before: number; after: number; sign: '+' | '−' }) {
   const tone = sign === '+' ? 'text-emerald-600' : 'text-destructive';
   return (
@@ -743,6 +788,24 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   const sourceBuckets = useWalletBuckets(transferFromUser ? sourceUser?.id : null);
   const destBuckets = useWalletBuckets(user?.id);
   const amtNum = Number(amount) || 0;
+
+  // Automatic wallet matching: suggest the most likely "Route as" bucket for
+  // the picked recipient based on their historical deposits. Pre-selects the
+  // suggestion once per user (in credit mode only) without overriding a
+  // manual change the operator makes afterwards.
+  const suggestedWallet = useSuggestedWallet(mode === 'credit' ? user?.id : null);
+  const autoRoutePickedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (mode !== 'credit' || !user?.id) {
+      autoRoutePickedFor.current = null;
+      return;
+    }
+    const s = suggestedWallet.data;
+    if (!s) return;
+    if (autoRoutePickedFor.current === user.id) return;
+    autoRoutePickedFor.current = user.id;
+    setRoute(s.suggested);
+  }, [mode, user?.id, suggestedWallet.data]);
 
   // Smart-pick the source bucket so Financial Ops doesn't have to guess.
   // When the operator selects a source user (or changes the amount), choose
@@ -2045,6 +2108,34 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           {mode === 'credit' && (
           <div>
             <Label className="text-xs">Route as</Label>
+            {suggestedWallet.data && user && (
+              <div className="mt-1 rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] flex items-start gap-1.5">
+                <History className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
+                <div className="flex-1">
+                  <p>
+                    Suggested:{' '}
+                    <span className="font-semibold">
+                      {suggestedWallet.data.suggested === 'operational_float' ? 'Operational Float' : 'Personal Deposit'}
+                    </span>{' '}
+                    <span className="text-muted-foreground">
+                      — {suggestedWallet.data.suggested === 'operational_float'
+                        ? suggestedWallet.data.floatCount
+                        : suggestedWallet.data.withdrawableCount}
+                      /{suggestedWallet.data.total} past deposits ({suggestedWallet.data.confidence}%)
+                    </span>
+                  </p>
+                  {route !== suggestedWallet.data.suggested && (
+                    <button
+                      type="button"
+                      onClick={() => setRoute(suggestedWallet.data!.suggested)}
+                      className="mt-0.5 font-medium text-primary underline underline-offset-2"
+                    >
+                      Use suggestion
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <RadioGroup value={route} onValueChange={(v) => setRoute(v as Route)} className="mt-1 space-y-2">
               <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
                 <RadioGroupItem value="personal_deposit" id="route-personal" className="mt-0.5" />
