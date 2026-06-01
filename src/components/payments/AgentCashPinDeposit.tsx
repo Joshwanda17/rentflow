@@ -113,6 +113,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
 
   const onPhoneChange = (value: string) => {
     setAgentPhone(value);
+    setPhoneError(validatePhone(value));
     setShowSuggestions(false);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => searchAgents(value), 300);
