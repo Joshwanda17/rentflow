@@ -12,6 +12,8 @@ Purpose: makes the three ranked priorities explicit and tells ops the single bes
 
 Agent network (driving force): `AgentNetworkCard` renders directly below the 3 priority cards. Fed by `welile_mission_agent_network(p_since)` (hook `useMissionAgentNetwork`, type `MissionAgentNetwork`) — single row: total_agents (distinct across all 3), listing_agents/placement_agents/funder_agents, houses_listed, tenants_placed, landlords_reached, funders_total, top_agent_id/name/score (highest combined contributions). Shows active-agent count, 3 per-priority stat tiles (value + agents), and a clickable "Top driver" row → agent `UserDrilldownDrawer`.
 
+Driver drill-down: each Agent Network stat tile (Houses listed=`list`, Tenants placed=`place`, Funders onboarded=`fund`) is a button opening `AgentNetworkDriverDialog`. Fed by `welile_mission_driver_entities(p_driver, p_since)` (hook `useMissionDriverEntities`, type `MissionDriverEntity`) returning grouped rows entity_type ('agent'|'tenant'|'landlord'|'funder'), entity_id, name, phone, detail (count/amount), created_at. `list`→agents+landlords (house_listings); `place`→agents+tenants+landlords (rent_requests placed); `fund`→agents+funders (promissory_notes+investor_portfolios). Dialog has search + type filter chips with counts; agent/tenant/landlord rows open `UserDrilldownDrawer` on the matching tab (drawer state now carries tenantId), funder rows are non-clickable.
+
 Window filter: 7d / 30d / All (default 7d). Optional 15s live auto-refresh.
 
 RPCs (SECURITY DEFINER, search_path=public, gated by `is_ops_role(auth.uid())`):

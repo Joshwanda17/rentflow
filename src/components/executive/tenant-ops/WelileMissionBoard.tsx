@@ -13,6 +13,7 @@ import {
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
 import { useMissionAgentNetwork, type MissionAgentNetwork } from '@/hooks/useWelileOpsCounters';
+import { useMissionDriverEntities, type MissionDriverKey, type MissionDriverEntity } from '@/hooks/useWelileOpsCounters';
 import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
 import { useMissionPlacements, type MissionPlacementRow } from '@/hooks/useWelileOpsCounters';
 import { useMissionFunders, type MissionFunderRow } from '@/hooks/useWelileOpsCounters';
@@ -80,10 +81,11 @@ export function WelileMissionBoard() {
   const [showAgents, setShowAgents] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<PriorityKey>('list');
-  const [drawer, setDrawer] = useState<{ agentId?: string | null; landlordId?: string | null; tab: 'agent' | 'landlord' } | null>(null);
+  const [drawer, setDrawer] = useState<{ agentId?: string | null; landlordId?: string | null; tenantId?: string | null; tab: 'agent' | 'landlord' | 'tenant' } | null>(null);
   const [emptyOpen, setEmptyOpen] = useState(false);
   const [placedOpen, setPlacedOpen] = useState(false);
   const [fundersOpen, setFundersOpen] = useState(false);
+  const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
@@ -230,6 +232,7 @@ export function WelileMissionBoard() {
         network={network}
         loading={networkLoading}
         onOpenAgent={(id) => setDrawer({ agentId: id, tab: 'agent' })}
+        onOpenDriver={(key, label) => setDriverOpen({ key, label })}
       />
 
       {/* Supply → placement funnel */}
@@ -368,7 +371,7 @@ export function WelileMissionBoard() {
       <UserDrilldownDrawer
         open={!!drawer}
         onOpenChange={(v) => { if (!v) setDrawer(null); }}
-        tenantId={null}
+        tenantId={drawer?.tenantId ?? null}
         agentId={drawer?.agentId ?? null}
         landlordId={drawer?.landlordId ?? null}
         defaultTab={drawer?.tab ?? 'agent'}
@@ -399,6 +402,18 @@ export function WelileMissionBoard() {
         onClose={() => setFundersOpen(false)}
         onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
       />
+
+      <AgentNetworkDriverDialog
+        driver={driverOpen?.key ?? null}
+        label={driverOpen?.label ?? ''}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        open={!!driverOpen}
+        onClose={() => setDriverOpen(null)}
+        onOpenAgent={(id) => { setDriverOpen(null); setDrawer({ agentId: id, tab: 'agent' }); }}
+        onOpenTenant={(id) => { setDriverOpen(null); setDrawer({ tenantId: id, tab: 'tenant' }); }}
+        onOpenLandlord={(id) => { setDriverOpen(null); setDrawer({ landlordId: id, tab: 'landlord' }); }}
+      />
     </Card>
   );
 }
@@ -408,19 +423,20 @@ type EmptySort = 'rent_desc' | 'recent' | 'oldest' | 'area';
 // ===== Agent network card: the driving force across all 3 priorities =====
 
 function AgentNetworkCard({
-  network, loading, onOpenAgent,
+  network, loading, onOpenAgent, onOpenDriver,
 }: {
   network: MissionAgentNetwork | null | undefined;
   loading: boolean;
   onOpenAgent: (id: string) => void;
+  onOpenDriver: (key: MissionDriverKey, label: string) => void;
 }) {
   if (loading || !network) {
     return <Skeleton className="h-28 w-full mt-2" />;
   }
-  const stats: { icon: React.ElementType; label: string; value: number; agents: number; tone: string }[] = [
-    { icon: Home, label: 'Houses listed', value: network.houses_listed, agents: network.listing_agents, tone: 'text-[#9234EA]' },
-    { icon: Users, label: 'Tenants placed', value: network.tenants_placed, agents: network.placement_agents, tone: 'text-emerald-600' },
-    { icon: Handshake, label: 'Funders onboarded', value: network.funders_total, agents: network.funder_agents, tone: 'text-amber-600' },
+  const stats: { key: MissionDriverKey; icon: React.ElementType; label: string; value: number; agents: number; tone: string }[] = [
+    { key: 'list', icon: Home, label: 'Houses listed', value: network.houses_listed, agents: network.listing_agents, tone: 'text-[#9234EA]' },
+    { key: 'place', icon: Users, label: 'Tenants placed', value: network.tenants_placed, agents: network.placement_agents, tone: 'text-emerald-600' },
+    { key: 'fund', icon: Handshake, label: 'Funders onboarded', value: network.funders_total, agents: network.funder_agents, tone: 'text-amber-600' },
   ];
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-3 mt-2">
@@ -438,12 +454,18 @@ function AgentNetworkCard({
         {stats.map((s) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="rounded-lg border border-border bg-card p-2 text-center">
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => onOpenDriver(s.key, s.label)}
+              className="rounded-lg border border-border bg-card p-2 text-center hover:bg-muted/40 hover:ring-1 hover:ring-primary/40 transition"
+              title={`View the agents, tenants & landlords behind ${s.label}`}
+            >
               <Icon className={cn('h-3.5 w-3.5 mx-auto', s.tone)} />
               <p className="text-lg font-bold leading-none mt-1">{s.value.toLocaleString()}</p>
               <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{s.label}</p>
-              <p className="text-[9px] text-muted-foreground/80 mt-0.5">{s.agents.toLocaleString()} agents</p>
-            </div>
+              <p className="text-[9px] text-primary/80 font-medium mt-0.5">{s.agents.toLocaleString()} agents →</p>
+            </button>
           );
         })}
       </div>
@@ -461,6 +483,149 @@ function AgentNetworkCard({
         </button>
       )}
     </div>
+  );
+}
+
+// ===== Agent network driver drill-down dialog =====
+
+const ENTITY_META: Record<MissionDriverEntity['entity_type'], { label: string; plural: string; icon: React.ElementType; tone: string; tab: 'agent' | 'tenant' | 'landlord' | null }> = {
+  agent: { label: 'Agent', plural: 'Agents', icon: Users, tone: 'text-blue-600 bg-blue-500/10', tab: 'agent' },
+  tenant: { label: 'Tenant', plural: 'Tenants', icon: UserPlus, tone: 'text-emerald-600 bg-emerald-500/10', tab: 'tenant' },
+  landlord: { label: 'Landlord', plural: 'Landlords', icon: Home, tone: 'text-[#9234EA] bg-[#9234EA]/10', tab: 'landlord' },
+  funder: { label: 'Funder', plural: 'Funders', icon: Handshake, tone: 'text-amber-600 bg-amber-500/10', tab: null },
+};
+
+const DRIVER_ORDER: MissionDriverEntity['entity_type'][] = ['agent', 'tenant', 'landlord', 'funder'];
+
+function AgentNetworkDriverDialog({
+  driver, label, win, refetchIntervalMs, open, onClose, onOpenAgent, onOpenTenant, onOpenLandlord,
+}: {
+  driver: MissionDriverKey | null;
+  label: string;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  open: boolean;
+  onClose: () => void;
+  onOpenAgent: (id: string) => void;
+  onOpenTenant: (id: string) => void;
+  onOpenLandlord: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [type, setType] = useState<'all' | MissionDriverEntity['entity_type']>('all');
+  const { data, isLoading } = useMissionDriverEntities(driver, win, open, refetchIntervalMs);
+  const rows: MissionDriverEntity[] = data ?? [];
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    rows.forEach((r) => { c[r.entity_type] = (c[r.entity_type] ?? 0) + 1; });
+    return c;
+  }, [rows]);
+
+  const presentTypes = useMemo(() => DRIVER_ORDER.filter((t) => (counts[t] ?? 0) > 0), [counts]);
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let r = [...rows];
+    if (type !== 'all') r = r.filter((x) => x.entity_type === type);
+    if (searchLower) {
+      r = r.filter((x) =>
+        (x.name?.toLowerCase().includes(searchLower) ?? false) ||
+        (x.phone?.toLowerCase().includes(searchLower) ?? false));
+    }
+    return r;
+  }, [rows, type, searchLower]);
+
+  const openEntity = (e: MissionDriverEntity) => {
+    if (!e.entity_id) return;
+    const tab = ENTITY_META[e.entity_type].tab;
+    if (tab === 'agent') onOpenAgent(e.entity_id);
+    else if (tab === 'tenant') onOpenTenant(e.entity_id);
+    else if (tab === 'landlord') onOpenLandlord(e.entity_id);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); setSearch(''); setType('all'); } }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Network className="h-4 w-4 text-primary" /> {label || 'Driver'} — agent network
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            The agents, tenants and landlords driving this priority. Tap any name to open their profile.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name or phone…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            <button
+              onClick={() => setType('all')}
+              className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                type === 'all' ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+            >
+              All {rows.length}
+            </button>
+            {presentTypes.map((t) => (
+              <button
+                key={t}
+                onClick={() => setType(t)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  type === t ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {ENTITY_META[t].plural} {counts[t]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {rows.length === 0 ? 'No activity for this driver in this window.' : 'Nothing matches your search.'}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((e, i) => {
+                const meta = ENTITY_META[e.entity_type];
+                const Icon = meta.icon;
+                const clickable = !!e.entity_id && !!meta.tab;
+                return (
+                  <li
+                    key={`${e.entity_type}:${e.entity_id ?? i}`}
+                    onClick={() => clickable && openEntity(e)}
+                    className={cn('rounded-lg border border-border bg-card p-3 flex items-center gap-2',
+                      clickable ? 'hover:bg-muted/40 cursor-pointer' : 'opacity-90')}
+                  >
+                    <div className={cn('p-1.5 rounded-lg shrink-0', meta.tone)}><Icon className="h-3.5 w-3.5" /></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-sm truncate">{e.name || `${meta.label}`}</span>
+                        <Badge variant="outline" className="text-[9px] shrink-0">{meta.label}</Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 text-[10px] text-muted-foreground mt-0.5">
+                        {e.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {e.phone}</span>}
+                        {e.detail && <span>{e.detail}</span>}
+                      </div>
+                    </div>
+                    {clickable && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
 }
 
