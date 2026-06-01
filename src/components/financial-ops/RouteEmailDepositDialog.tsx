@@ -1459,13 +1459,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         }
       }
 
-      const body = {
-        target_user_id: user.id,
-      };
       // The reference the backend reconciles against: the email's own TID
       // when present, otherwise the manual reference the operator typed in.
       const effectiveReference = (row.transaction_id?.trim() || manualReference.trim()) || null;
-      void effectiveReference;
+      const body = {
+        target_user_id: user.id,
         amount: amt,
         reason: reason.trim(),
         operation: 'credit' as const,
