@@ -525,14 +525,19 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   </span>
                 </div>
                 {!expired && (
-                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-1000 ease-linear ${
-                        secsLeft <= 60 ? 'bg-destructive' : secsLeft <= 120 ? 'bg-amber-500' : 'bg-emerald-500'
-                      }`}
-                      style={{ width: `${Math.min(100, Math.max(0, (secsLeft / 300) * 100))}%` }}
-                    />
-                  </div>
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Valid until <span className="font-semibold tabular-nums text-foreground">{expiryTimeLabel}</span>
+                    </p>
+                    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-1000 ease-linear ${
+                          secsLeft <= 60 ? 'bg-destructive' : secsLeft <= 120 ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(0, (secsLeft / 300) * 100))}%` }}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             )}
