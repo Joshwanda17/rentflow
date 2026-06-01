@@ -267,7 +267,19 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                     </div>
                   )}
                   {!searching && suggestions.length === 0 && (
-                    <div className="px-3 py-2 text-xs text-muted-foreground">No agents found</div>
+                    <div className="px-3 py-3 space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-destructive">
+                        <XCircle className="h-3.5 w-3.5" />
+                        <span className="font-medium">No agents found for this number.</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="w-full text-left text-xs text-primary font-medium hover:underline"
+                        onClick={() => setShowSuggestions(false)}
+                      >
+                        Continue with <span className="font-semibold">{agentPhone.trim() || 'this number'}</span> anyway
+                      </button>
+                    </div>
                   )}
                   {suggestions.map((s) => (
                     <button
@@ -285,6 +297,9 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   ))}
                 </div>
               )}
+              <p className="text-xs text-muted-foreground">
+                You can type any agent's phone number — it doesn't have to be in the list.
+              </p>
             </div>
 
             <Button onClick={handleCreate} disabled={loading} className="w-full h-12 gap-2">
