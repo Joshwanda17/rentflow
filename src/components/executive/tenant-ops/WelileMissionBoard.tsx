@@ -7,6 +7,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
@@ -512,6 +515,10 @@ function AgentNetworkDriverDialog({
 }) {
   const [search, setSearch] = useState('');
   const [type, setType] = useState<'all' | MissionDriverEntity['entity_type']>('all');
+  const [sourceAgent, setSourceAgent] = useState<string>('all');
+  const [sourceTenant, setSourceTenant] = useState<string>('all');
+  const [sourceLandlord, setSourceLandlord] = useState<string>('all');
+  const [sourceFunder, setSourceFunder] = useState<string>('all');
   const { data, isLoading } = useMissionDriverEntities(driver, win, open, refetchIntervalMs);
   const rows: MissionDriverEntity[] = data ?? [];
 
@@ -523,6 +530,11 @@ function AgentNetworkDriverDialog({
 
   const presentTypes = useMemo(() => DRIVER_ORDER.filter((t) => (counts[t] ?? 0) > 0), [counts]);
 
+  const agents = useMemo(() => rows.filter((r) => r.entity_type === 'agent'), [rows]);
+  const tenants = useMemo(() => rows.filter((r) => r.entity_type === 'tenant'), [rows]);
+  const landlords = useMemo(() => rows.filter((r) => r.entity_type === 'landlord'), [rows]);
+  const funders = useMemo(() => rows.filter((r) => r.entity_type === 'funder'), [rows]);
+
   const searchLower = search.trim().toLowerCase();
   const filtered = useMemo(() => {
     let r = [...rows];
@@ -532,8 +544,25 @@ function AgentNetworkDriverDialog({
         (x.name?.toLowerCase().includes(searchLower) ?? false) ||
         (x.phone?.toLowerCase().includes(searchLower) ?? false));
     }
+    if (sourceAgent !== 'all') {
+      r = r.filter((x) =>
+        (x.entity_type === 'agent' && x.entity_id === sourceAgent) ||
+        x.agent_id === sourceAgent
+      );
+    }
+    if (sourceTenant !== 'all') {
+      r = r.filter((x) => x.entity_type === 'tenant' && x.entity_id === sourceTenant);
+    }
+    if (sourceLandlord !== 'all') {
+      r = r.filter((x) => x.entity_type === 'landlord' && x.entity_id === sourceLandlord);
+    }
+    if (sourceFunder !== 'all') {
+      r = r.filter((x) => x.entity_type === 'funder' && x.entity_id === sourceFunder);
+    }
     return r;
-  }, [rows, type, searchLower]);
+  }, [rows, type, searchLower, sourceAgent, sourceTenant, sourceLandlord, sourceFunder]);
+
+  const hasActiveFilters = sourceAgent !== 'all' || sourceTenant !== 'all' || sourceLandlord !== 'all' || sourceFunder !== 'all';
 
   const openEntity = (e: MissionDriverEntity) => {
     if (!e.entity_id) return;
@@ -543,8 +572,17 @@ function AgentNetworkDriverDialog({
     else if (tab === 'landlord') onOpenLandlord(e.entity_id);
   };
 
+  const resetFilters = () => {
+    setSearch('');
+    setType('all');
+    setSourceAgent('all');
+    setSourceTenant('all');
+    setSourceLandlord('all');
+    setSourceFunder('all');
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); setSearch(''); setType('all'); } }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); resetFilters(); } }}>
       <DialogContent className="max-w-2xl p-0 gap-0">
         <DialogHeader className="p-4 pb-2">
           <DialogTitle className="text-base flex items-center gap-2">
@@ -586,12 +624,87 @@ function AgentNetworkDriverDialog({
           </div>
         </div>
 
+        {/* Source filters */}
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          {agents.length > 0 && (
+            <div className="flex-1 min-w-[140px]">
+              <Select value={sourceAgent} onValueChange={setSourceAgent}>
+                <SelectTrigger className="h-8 text-xs py-0 px-2.5 border-border bg-card">
+                  <SelectValue placeholder="Source agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All agents</SelectItem>
+                  {agents.map((a) => (
+                    <SelectItem key={a.entity_id} value={a.entity_id || 'unknown'}>{a.name || 'Agent'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {tenants.length > 0 && (
+            <div className="flex-1 min-w-[140px]">
+              <Select value={sourceTenant} onValueChange={setSourceTenant}>
+                <SelectTrigger className="h-8 text-xs py-0 px-2.5 border-border bg-card">
+                  <SelectValue placeholder="Source tenant" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All tenants</SelectItem>
+                  {tenants.map((t) => (
+                    <SelectItem key={t.entity_id} value={t.entity_id || 'unknown'}>{t.name || 'Tenant'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {landlords.length > 0 && (
+            <div className="flex-1 min-w-[140px]">
+              <Select value={sourceLandlord} onValueChange={setSourceLandlord}>
+                <SelectTrigger className="h-8 text-xs py-0 px-2.5 border-border bg-card">
+                  <SelectValue placeholder="Source landlord" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All landlords</SelectItem>
+                  {landlords.map((l) => (
+                    <SelectItem key={l.entity_id} value={l.entity_id || 'unknown'}>{l.name || 'Landlord'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {funders.length > 0 && (
+            <div className="flex-1 min-w-[140px]">
+              <Select value={sourceFunder} onValueChange={setSourceFunder}>
+                <SelectTrigger className="h-8 text-xs py-0 px-2.5 border-border bg-card">
+                  <SelectValue placeholder="Source funder" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All funders</SelectItem>
+                  {funders.map((f) => (
+                    <SelectItem key={f.entity_id} value={f.entity_id || 'unknown'}>{f.name || 'Funder'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="h-8 text-[11px] px-2" onClick={resetFilters}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+
+        {!isLoading && rows.length > 0 && (
+          <div className="px-4 pb-2">
+            <Badge variant="outline" className="text-[10px]">{filtered.length} of {rows.length} shown</Badge>
+          </div>
+        )}
+
         <ScrollArea className="max-h-[60vh] px-4 pb-4">
           {isLoading ? (
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
-              {rows.length === 0 ? 'No activity for this driver in this window.' : 'Nothing matches your search.'}
+              {rows.length === 0 ? 'No activity for this driver in this window.' : 'Nothing matches your filters.'}
             </p>
           ) : (
             <ul className="space-y-1.5">

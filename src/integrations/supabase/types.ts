@@ -19555,6 +19555,7 @@ export type Database = {
       welile_mission_driver_entities: {
         Args: { p_driver: string; p_since?: string }
         Returns: {
+          agent_id: string
           created_at: string
           detail: string
           entity_id: string
