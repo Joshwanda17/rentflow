@@ -13,12 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, 
   Sparkles, ArrowLeft, Shield, MapPin, Home, RefreshCw, AlertCircle, Heart,
-  Hash, Wallet, Zap, Droplets, ShieldCheck, XCircle
+  Hash, Wallet, Zap, Droplets, ShieldCheck, XCircle, ChevronsUpDown, KeyRound
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
