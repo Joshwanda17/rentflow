@@ -701,7 +701,12 @@ Password: ${createdInvite?.password}`;
                             key={h.id}
                             value={`${searchValue} ${h.id}`}
                             onSelect={() => {
-                              setSelectedHouseId(h.id === selectedHouseId ? '' : h.id);
+                              if (h.id === selectedHouseId) {
+                                setSelectedHouseId('');
+                              } else {
+                                setPreviewHouseId(h.id);
+                                setHousePreviewOpen(true);
+                              }
                               setHousePickerOpen(false);
                             }}
                             className="flex items-start gap-2"
