@@ -460,11 +460,11 @@ function AppRoutes() {
 }
 
 // Lightweight error boundary for deferred providers — falls back to rendering children without providers
-class DeferredErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class DeferredErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(err: Error) { console.warn('[DeferredProviders] Failed to load, continuing without:', err.message); }
-  render() { return this.state.failed ? <>{this.props.children}</> : this.props.children; }
+  render() { return this.state.failed ? (this.props.fallback ?? null) : this.props.children; }
 }
 
 // Deferred wrapper — loads providers after first paint via idle callback
@@ -484,7 +484,7 @@ function DeferredProviders({ children }: { children: ReactNode }) {
   if (!ready) return <>{children}</>;
   
   return (
-    <DeferredErrorBoundary>
+    <DeferredErrorBoundary fallback={<>{children}</>}>
       <Suspense fallback={<>{children}</>}>
         <PinAuthProvider>
           <BiometricAuthProvider>
