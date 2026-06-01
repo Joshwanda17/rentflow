@@ -302,12 +302,12 @@ function showErrorUI() {
   root.appendChild(container);
 }
 
-// Hard iOS "Update Required" gate. Shown INSTEAD of the cycling recovery screen
+// Hard "Update Required" gate. Shown INSTEAD of the cycling recovery screen
 // when a device is provably running an outdated bundle. There is no auto-reload
 // loop here — the user must explicitly update, which performs a full cache/SW
 // purge and a plain reload onto the current build.
 function showUpdateRequiredUI() {
-  logUpdateFailure('ios_version_gate', { details: { ui: 'update_required_gate' } });
+  logUpdateFailure('version_gate', { details: { ui: 'update_required_gate' } });
   root.textContent = '';
   const container = document.createElement('div');
   container.style.cssText = 'min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:16px;padding:24px;text-align:center';
