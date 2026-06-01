@@ -260,6 +260,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
           setNow(Date.now());
           setPin('');
           setPinError('');
+          setLocked(false);
+          setAttemptsLeft(null);
           setStep('pin');
           toast.info('You already have a pending deposit with this agent. Enter the code they gave you.');
           return;
@@ -275,6 +277,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       setAgentName(data.agent_name || 'the agent');
       setExpiresAt(data.expires_at ?? null);
       setNow(Date.now());
+      setLocked(false);
+      setAttemptsLeft(null);
       setStep('pin');
     } catch (e) {
       toast.error('Network error. Please try again.');
