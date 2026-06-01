@@ -148,6 +148,7 @@ import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
+import { AgentCashDepositCodesPanel } from '@/components/agent/AgentCashDepositCodesPanel';
 import { AgentVisitPaymentWizard } from '@/components/agent/AgentVisitPaymentWizard';
 import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTokenDialog';
 import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
