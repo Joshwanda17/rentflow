@@ -60,6 +60,38 @@ async function sendGmail(to: string, subject: string, body: string) {
 const fmtUGX = (n: number) =>
   `UGX ${Math.round(Number(n) || 0).toLocaleString("en-UG")}`;
 
+// Append an audit-trail event. Never throws — auditing must not break the flow.
+async function logEvent(
+  admin: ReturnType<typeof createClient>,
+  row: {
+    verification_id?: string | null;
+    deposit_request_id?: string | null;
+    user_id?: string | null;
+    event_type: string;
+    attempt_no?: number | null;
+    attempts_remaining?: number | null;
+    amount?: number | null;
+    detail?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  try {
+    await admin.from("cash_deposit_verification_events").insert({
+      verification_id: row.verification_id ?? null,
+      deposit_request_id: row.deposit_request_id ?? null,
+      user_id: row.user_id ?? null,
+      event_type: row.event_type,
+      attempt_no: row.attempt_no ?? null,
+      attempts_remaining: row.attempts_remaining ?? null,
+      amount: row.amount ?? null,
+      detail: row.detail ?? null,
+      metadata: row.metadata ?? {},
+    } as any);
+  } catch (e) {
+    console.error("[cash-verify-code] audit log failed", row.event_type, e);
+  }
+}
+
 // Normalize the entered code so the user can be a little sloppy: uppercase,
 // strip spaces/dashes, and ensure the RCT prefix.
 function normalizeCode(input: string): string {
