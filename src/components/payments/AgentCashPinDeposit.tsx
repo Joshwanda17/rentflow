@@ -273,7 +273,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 onChange={(e) => onPhoneChange(e.target.value)}
                 onFocus={() => { if (hasSearched) setShowSuggestions(true); }}
                 autoComplete="off"
-                className="h-12 text-base"
+                className={`h-12 text-base ${phoneError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               />
               {showSuggestions && (
                 <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border rounded-lg shadow-lg overflow-hidden">
