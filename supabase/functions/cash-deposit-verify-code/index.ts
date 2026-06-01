@@ -146,6 +146,11 @@ Deno.serve(async (req) => {
     }
 
     if (ver.status === "verified") {
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "already_verified", amount: Number(ver.amount),
+        detail: "Verify attempted on an already-verified deposit.",
+      });
       return json(200, { ok: true, already_verified: true, message: "This deposit was already verified." });
     }
 
@@ -156,12 +161,25 @@ Deno.serve(async (req) => {
       if (ver.status !== "expired") {
         await admin.from("cash_deposit_verifications").update({ status: "expired" }).eq("id", ver.id);
       }
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "expired", attempt_no: Number(ver.attempts), amount: Number(ver.amount),
+        detail: "Code entry rejected — verification window (24h) has expired.",
+        metadata: { expires_at: ver.expires_at },
+      });
       return json(410, { error: "expired", message: "This code has expired. Please start a new cash deposit." });
     }
 
     // ── Attempt limit ──
     if (Number(ver.attempts) >= Number(ver.max_attempts)) {
       await admin.from("cash_deposit_verifications").update({ status: "expired" }).eq("id", ver.id);
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "locked_out", attempt_no: Number(ver.attempts), attempts_remaining: 0,
+        amount: Number(ver.amount),
+        detail: "Verification locked — maximum attempts already reached.",
+        metadata: { max_attempts: Number(ver.max_attempts) },
+      });
       return json(429, { error: "too_many_attempts", message: "Too many incorrect attempts. Please start a new cash deposit." });
     }
 
@@ -175,6 +193,15 @@ Deno.serve(async (req) => {
         .from("cash_deposit_verifications")
         .update({ attempts: newAttempts, ...(lockNow ? { status: "expired" } : {}) })
         .eq("id", ver.id);
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: lockNow ? "locked_out" : "code_mismatch",
+        attempt_no: newAttempts, attempts_remaining: remaining, amount: Number(ver.amount),
+        detail: lockNow
+          ? "Incorrect code — verification locked after exhausting all attempts."
+          : `Incorrect code entered. ${remaining} attempt(s) remaining.`,
+        metadata: { max_attempts: Number(ver.max_attempts) },
+      });
       return json(400, {
         error: "code_mismatch",
         message: lockNow
@@ -199,8 +226,19 @@ Deno.serve(async (req) => {
 
     if (claimErr || !claimed) {
       // Another concurrent verify already claimed it.
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "already_verified", amount: Number(ver.amount),
+        detail: "Concurrent verification already claimed this deposit.",
+      });
       return json(200, { ok: true, already_verified: true, message: "This deposit was already verified." });
     }
+
+    await logEvent(admin, {
+      verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+      event_type: "verified", attempt_no: Number(ver.attempts) + 1, amount: Number(ver.amount),
+      detail: "Receipt code matched — verification successful.",
+    });
 
     // Stamp the verified RCT code onto the deposit request for traceability.
     await admin
