@@ -562,6 +562,51 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, step, incomeType, houseSearchedOnce]);
+
+  // ── Live conflict check ──────────────────────────────────────────────
+  // While a house is selected, re-verify in the background that it's still
+  // available (single-row lookup, cheap). If another agent reserved/occupied/
+  // hid it in the meantime, flip on an inline warning so the agent can pick a
+  // different one before submitting. Polls every 15s + re-checks on tab focus.
+  useEffect(() => {
+    const houseId = selectedHouse?.id;
+    if (!open || !houseId || incomeType === 'outstanding') return;
+
+    let cancelled = false;
+    const check = async () => {
+      setHouseConflictChecking(true);
+      try {
+        const { data, error } = await supabase
+          .from('house_listings')
+          .select('id, status, tenant_id, reserved_at, is_hidden')
+          .eq('id', houseId)
+          .maybeSingle();
+        if (cancelled || error) return;
+        const taken =
+          !data ||
+          (data as any).tenant_id !== null ||
+          (data as any).reserved_at !== null ||
+          (data as any).is_hidden === true ||
+          (data as any).status !== 'available';
+        setHouseConflict(taken);
+      } catch {
+        /* best-effort — never block the form */
+      } finally {
+        if (!cancelled) setHouseConflictChecking(false);
+      }
+    };
+
+    check();
+    const intervalId = window.setInterval(check, 15000);
+    const onFocus = () => check();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedHouse?.id, incomeType]);
   
   // Existing tenants this agent has already registered — used for the
   // one-tap auto-fill so agents don't re-key phone/National ID/photo.
