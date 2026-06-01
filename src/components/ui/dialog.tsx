@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useBackAwareOpenState } from "@/hooks/useBackGestureClose";
+import { useRestoreBodyPointerEvents } from "@/hooks/useRestoreBodyPointerEvents";
 
 const Dialog = (props: React.ComponentProps<typeof DialogPrimitive.Root>) => {
   const { rootProps, rest } = useBackAwareOpenState(props);
@@ -39,7 +40,11 @@ interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof Dialo
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, stable = false, ...props }, ref) => (
+>(({ className, children, stable = false, ...props }, ref) => {
+  // Guard against Radix leaving <body> stuck at pointer-events:none when this
+  // dialog is closed while/after a nested modal (confirm) was stacked on top.
+  useRestoreBodyPointerEvents();
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -61,7 +66,8 @@ const DialogContent = React.forwardRef<
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(

@@ -1,19 +1,15 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { isCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
 /**
- * Mobile PWA Cache Invalidation Hook - Works on iOS AND Android
- * 
- * Both iOS and Android in standalone (PWA) mode can have caching issues.
- * iOS is more aggressive, but Android also benefits from these strategies:
- * 
- * 1. Forces revalidation on app resume
- * 2. Uses multiple event listeners for maximum coverage
- * 3. Clears React Query cache on version mismatch
- * 4. Periodic background refresh while app is active
- * 5. Network restore detection
+ * Legacy compatibility hook.
+ *
+ * The old implementation used device-specific resume listeners and mobile-only
+ * cache rules. That path is intentionally retired: app freshness is now handled
+ * universally by `/version.json` checks and asset fingerprinting, not by OS.
+ * This hook remains only so older imports keep working and exposes a manual
+ * data refresh that never touches service workers, Cache Storage, or URLs.
  */
 
 interface MobileInfo {
@@ -24,48 +20,30 @@ interface MobileInfo {
 }
 
 function detectMobileInfo(): MobileInfo {
-  const ua = navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
-  const isAndroid = /Android/.test(ua);
-  const isStandalone = (window.navigator as any).standalone === true || 
-                       window.matchMedia('(display-mode: standalone)').matches;
-  
   return {
-    isIOS,
-    isAndroid,
-    isStandalone,
-    isMobilePWA: (isIOS || isAndroid) && isStandalone
+    isIOS: false,
+    isAndroid: false,
+    isStandalone: false,
+    isMobilePWA: false,
   };
 }
 
 export function useIOSCacheInvalidation() {
   const queryClient = useQueryClient();
-  const lastActiveRef = useRef<number>(Date.now());
   const lastRefreshRef = useRef<number>(Date.now());
-  const mobileInfoRef = useRef<MobileInfo>({ isIOS: false, isAndroid: false, isStandalone: false, isMobilePWA: false });
   const refreshInProgressRef = useRef<boolean>(false);
-
-  // Detect mobile platform
-  useEffect(() => {
-    const info = detectMobileInfo();
-    mobileInfoRef.current = info;
-    
-    if (info.isMobilePWA) {
-      console.log(`[Mobile Cache] ${info.isIOS ? 'iOS' : 'Android'} PWA detected - cache invalidation enabled`);
-    }
-  }, []);
 
   // Invalidate all queries to force fresh data
   const invalidateAllData = useCallback(async (silent: boolean = true) => {
     // Prevent multiple simultaneous refreshes
     if (refreshInProgressRef.current) {
-      console.log('[iOS Cache] Refresh already in progress, skipping...');
+      console.log('[App Refresh] Refresh already in progress, skipping...');
       return;
     }
 
     refreshInProgressRef.current = true;
     
-    console.log('[iOS Cache] Invalidating all cached data...');
+    console.log('[App Refresh] Invalidating cached query data...');
     
     try {
       // Just invalidate queries - don't clear completely to avoid blank states
@@ -76,7 +54,7 @@ export function useIOSCacheInvalidation() {
       
       lastRefreshRef.current = Date.now();
       
-      console.log('[iOS Cache] Cache invalidation complete');
+      console.log('[App Refresh] Query refresh complete');
       
       // Only show toast for manual refresh, never for automatic
       if (!silent) {
@@ -87,7 +65,7 @@ export function useIOSCacheInvalidation() {
         });
       }
     } catch (error) {
-      console.error('[iOS Cache] Error during cache invalidation:', error);
+      console.error('[App Refresh] Error during data refresh:', error);
     } finally {
       refreshInProgressRef.current = false;
     }
@@ -97,155 +75,26 @@ export function useIOSCacheInvalidation() {
   const quickRefresh = useCallback(async () => {
     if (refreshInProgressRef.current) return;
     
-    console.log('[iOS Cache] Quick refresh triggered');
+    console.log('[App Refresh] Quick refresh triggered');
     try {
       await queryClient.refetchQueries({ type: 'active' });
       lastRefreshRef.current = Date.now();
     } catch (error) {
-      console.error('[iOS Cache] Quick refresh error:', error);
+      console.error('[App Refresh] Quick refresh error:', error);
     }
   }, [queryClient]);
 
-  // Force service worker update check
-  const checkServiceWorkerUpdate = useCallback(async () => {
-    if (!('serviceWorker' in navigator)) return;
-    
-    try {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((registration) => registration.unregister()));
-    } catch (error) {
-      console.warn('[iOS Cache] Service worker cleanup failed:', error);
-    }
-  }, []);
-
-  // Handle visibility changes (app resume) - works for iOS and Android
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState !== 'visible') {
-        lastActiveRef.current = Date.now();
-        return;
-      }
-
-      const { isMobilePWA, isIOS } = mobileInfoRef.current;
-
-      // For non-PWA platforms, just do a quick check
-      if (!isMobilePWA) {
-        checkServiceWorkerUpdate();
-        return;
-      }
-
-      // If the user is mid-payment / mid-OTP, do NOT churn the cache or
-      // hot-swap the service worker — that visually looks like the app
-      // refreshed and threw away their in-flight payment.
-      if (isCriticalFlowActive()) {
-        console.log('[Mobile Cache] Critical flow active — skipping invalidation/SW update');
-        lastActiveRef.current = Date.now();
-        return;
-      }
-
-      const timeSinceActive = Date.now() - lastActiveRef.current;
-      const timeSinceRefresh = Date.now() - lastRefreshRef.current;
-      
-      // 5s was far shorter than entering a MoMo PIN or reading an SMS OTP,
-      // which made every payment look like the app "refreshed". 60s for
-      // iOS, 90s for Android — long enough to cover external app round
-      // trips, short enough to keep data fresh on real session resumes.
-      const STALE_THRESHOLD = isIOS ? 60 * 1000 : 90 * 1000;
-      const MIN_REFRESH_INTERVAL = 3 * 1000; // Don't refresh more than every 3 seconds
-
-      console.log(`[Mobile Cache] App resumed after ${Math.round(timeSinceActive / 1000)}s`);
-
-      // Prevent rapid-fire refreshes
-      if (timeSinceRefresh < MIN_REFRESH_INTERVAL) {
-        console.log('[Mobile Cache] Skipping refresh - too soon since last refresh');
-        return;
-      }
-
-      // Version detection + update prompting is owned solely by
-      // useServiceWorkerUpdate now — this hook only keeps data fresh on
-      // resume so an open wizard keeps its state.
-      if (timeSinceActive > STALE_THRESHOLD) {
-        console.log('[Mobile Cache] Data stale - quick refetch');
-      }
-      await quickRefresh();
-    };
-
-    // Handle page show event (reliable for both iOS bfcache and Android)
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (
-        event.persisted &&
-        mobileInfoRef.current.isMobilePWA &&
-        !isCriticalFlowActive()
-      ) {
-        console.log('[Mobile Cache] Page restored from cache - forcing refresh');
-        invalidateAllData(true);
-        checkServiceWorkerUpdate();
-      }
-    };
-
-    // Handle focus (when switching back to app from another app)
-    const handleFocus = () => {
-      if (!mobileInfoRef.current.isMobilePWA) return;
-      if (isCriticalFlowActive()) return;
-
-      const timeSinceActive = Date.now() - lastActiveRef.current;
-      const timeSinceRefresh = Date.now() - lastRefreshRef.current;
-      
-      // Only refresh if it's been a while
-      if (timeSinceActive > 10 * 1000 && timeSinceRefresh > 5 * 1000) {
-        console.log('[Mobile Cache] Focus regained - refreshing');
-        quickRefresh();
-      }
-    };
-
-    // Handle online event (network restored) - important for both platforms
-    const handleOnline = () => {
-      if (mobileInfoRef.current.isMobilePWA && !isCriticalFlowActive()) {
-        console.log('[Mobile Cache] Network restored - refreshing data');
-        invalidateAllData(true);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pageshow', handlePageShow);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('online', handleOnline);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pageshow', handlePageShow);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [queryClient, invalidateAllData, quickRefresh, checkServiceWorkerUpdate]);
-
-  // Periodic background refresh for mobile PWAs (every 24 hours — cost optimized)
-  useEffect(() => {
-    if (!mobileInfoRef.current.isMobilePWA) return;
-
-    const intervalId = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        const timeSinceRefresh = Date.now() - lastRefreshRef.current;
-        if (timeSinceRefresh > 23 * 60 * 60 * 1000) {
-          quickRefresh();
-        }
-      }
-    }, 24 * 60 * 60 * 1000);
-
-    return () => clearInterval(intervalId);
-  }, [quickRefresh]);
-
   // Expose manual refresh function
   const forceRefresh = useCallback(async () => {
-    await checkServiceWorkerUpdate();
     await invalidateAllData(false);
-  }, [checkServiceWorkerUpdate, invalidateAllData]);
+  }, [invalidateAllData]);
 
   return { 
     forceRefresh, 
-    isMobilePWA: mobileInfoRef.current.isMobilePWA,
-    isIOSStandalone: mobileInfoRef.current.isIOS && mobileInfoRef.current.isStandalone,
-    isAndroidPWA: mobileInfoRef.current.isAndroid && mobileInfoRef.current.isStandalone,
+    quickRefresh,
+    isMobilePWA: false,
+    isIOSStandalone: false,
+    isAndroidPWA: false,
     lastRefreshTime: lastRefreshRef.current
   };
 }
@@ -254,36 +103,14 @@ export function useIOSCacheInvalidation() {
  * Creates fetch options with mobile cache-busting headers
  */
 export function createIOSFetchOptions(existingOptions?: RequestInit): RequestInit {
-  const { isMobilePWA } = detectMobileInfo();
-
-  if (!isMobilePWA) {
-    return existingOptions || {};
-  }
-
-  return {
-    ...existingOptions,
-    headers: {
-      ...(existingOptions?.headers || {}),
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-    },
-    cache: 'no-store' as RequestCache,
-  };
+  return existingOptions || {};
 }
 
 /**
  * Add cache-busting query param for mobile PWAs
  */
 export function addIOSCacheBuster(url: string): string {
-  const { isMobilePWA } = detectMobileInfo();
-
-  if (!isMobilePWA) {
-    return url;
-  }
-
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}_t=${Date.now()}`;
+  return url;
 }
 
 // Re-export detectMobileInfo for use in other components

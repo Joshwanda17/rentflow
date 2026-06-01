@@ -4,14 +4,11 @@ import './lib/ephemeralGuard';
 import { createRoot } from 'react-dom/client';
 import {
   clearAndReload,
-  hardRecover,
-  recoveryExhausted,
   clearRecoveryAttempts,
 } from './lib/hardRecovery';
 import { logUpdateFailure } from './lib/updateTelemetry';
-import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
+import { refreshRolloutConfig } from './lib/rollout';
 import { checkServerVersion, isVersionStaleSync, isForceUpdateSync } from './lib/versionGate';
-import { installIOSFreshnessWatch } from './lib/iosFreshness';
 import {
   installForcedUpdateWatch,
   triggerForcedUpdate,
@@ -45,9 +42,9 @@ if (!isPreviewHost) {
   void refreshRolloutConfig();
 }
 
-// Kick off the hard iOS version check as early as possible (fire-and-forget) so
-// the recovery path below can make a definitive "is this device stale?" decision
-// instead of cycling the generic recovery screen forever.
+// Kick off the universal version check as early as possible (fire-and-forget) so
+// the recovery path below can make a definitive stale-build decision without
+// relying on device-specific cache logic.
 if (!isPreviewHost) {
   void checkServerVersion();
 }
@@ -86,7 +83,6 @@ try {
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }
 })();
-const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent || '') && !(window as any).MSStream;
 
 if (isPreviewHost || isInIframe) {
   navigator.serviceWorker?.getRegistrations().then((regs) => {
@@ -94,16 +90,9 @@ if (isPreviewHost || isInIframe) {
   });
 }
 
-// Proactively catch iPhones returning from background / bfcache onto a stale
-// app shell, and refresh them BEFORE they hit a missing-chunk retry splash.
-// iOS-only and no-op in preview/iframe.
-if (!isPreviewHost && !isInIframe) {
-  installIOSFreshnessWatch();
-}
-
-// Cross-platform, server-controlled forced-update gate. Runs everywhere (not
-// just iOS): when version.json demands a blocking update, it paints an
-// un-dismissible overlay and auto-fires the update flow. Off in preview/iframe.
+// Cross-platform, server-controlled refresh prompt. Runs everywhere (not just
+// iOS): when version.json detects an older bundle, it shows a dismissible top
+// banner with a refresh button. Off in preview/iframe.
 if (!isPreviewHost && !isInIframe) {
   installForcedUpdateWatch();
 }
@@ -238,52 +227,25 @@ const loadApp = async () => {
         details: { message: String((err as any)?.message || err), recentlyReloaded },
       });
     }
-    // Staged rollout gate: only devices in the active canary/ramp cohort run
-    // the aggressive auto cache-bust recovery. Devices outside the cohort fall
-    // through to the manual recovery UI, so the fix is verified on a small
-    // percentage before full deployment.
-    const emergencyIOSRecovery = isIOSDevice;
-    const inRolloutCohort = emergencyIOSRecovery || isRolloutEnabledForDevice();
-    // HARD iOS VERSION GATE: a stale iPhone must not keep cycling the recovery
-    // screen. When this device is provably running an outdated bundle, replace
-    // the recovery loop with a definitive "Update Required" gate that forces a
-    // clean refresh onto the current build. We confirm staleness against the
-    // network (no-store) before gating so we never trap an up-to-date device.
-    if (isChunkError && isIOSDevice) {
+    // Universal refresh prompt: when this browser is provably running an
+    // outdated bundle, show the top refresh banner instead of retry loops.
+    if (isChunkError) {
       const version = isVersionStaleSync()
         ? { stale: true }
         : await checkServerVersion();
       if (version.stale) {
-        logUpdateFailure('ios_version_gate', {
+        logUpdateFailure('version_gate', {
           chunk_mismatch: true,
-          details: { reason: 'stale bundle — hard update gate shown' },
+          details: { reason: 'stale bundle — forced update gate shown' },
         });
         triggerForcedUpdate('stale_chunk_error');
         return;
       }
-    }
-    // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
-    // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
-    // exhausted to avoid an endless "Updating…" loop.
-    if (isChunkError && inRolloutCohort && !recoveryExhausted()) {
-      try {
-        sessionStorage.setItem(reloadKey, String(Date.now()));
-      } catch {}
-      await hardRecover();
-      return;
-    }
-    if (isChunkError && !inRolloutCohort) {
       logUpdateFailure('chunk_error_detected', {
         chunk_mismatch: true,
-        details: { rolloutCohort: false, emergencyIOSRecovery, message: 'outside rollout cohort — manual recovery UI' },
+        details: { message: 'chunk error — refresh banner shown' },
       });
-    }
-    if (isChunkError && recoveryExhausted()) {
-      logUpdateFailure('recovery_exhausted', { chunk_mismatch: true });
-      // Terminal state: 3 hard-recovery attempts have failed. Hand off to the
-      // server-controlled forced-update gate, which runs the hardened SW rescue
-      // path automatically instead of leaving iPhone users hunting for a button.
-      triggerForcedUpdate('recovery_exhausted');
+      triggerForcedUpdate('chunk_error_refresh_prompt');
       return;
     }
     showErrorUI();
@@ -314,7 +276,7 @@ function showErrorUI() {
   heading.style.cssText = 'font-size:18px;font-weight:600;color:#1f2937;margin:0';
 
   const msg = document.createElement('p');
-    msg.textContent = 'Welile found an old iPhone cache. Tap below to clear it and load the latest app.';
+  msg.textContent = 'Welile found an older app file. Tap below to refresh and load the latest app.';
   msg.style.cssText = 'font-size:14px;color:#6b7280;margin:0;max-width:280px';
 
   const btn = document.createElement('button');
@@ -328,12 +290,12 @@ function showErrorUI() {
   root.appendChild(container);
 }
 
-// Hard iOS "Update Required" gate. Shown INSTEAD of the cycling recovery screen
+// Hard "Update Required" gate. Shown INSTEAD of the cycling recovery screen
 // when a device is provably running an outdated bundle. There is no auto-reload
 // loop here — the user must explicitly update, which performs a full cache/SW
-// purge and a cache-busted reload onto the current build.
+// purge and a plain reload onto the current build.
 function showUpdateRequiredUI() {
-  logUpdateFailure('ios_version_gate', { details: { ui: 'update_required_gate' } });
+  logUpdateFailure('version_gate', { details: { ui: 'update_required_gate' } });
   root.textContent = '';
   const container = document.createElement('div');
   container.style.cssText = 'min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:16px;padding:24px;text-align:center';

@@ -1,24 +1,11 @@
 // ============================================================================
-// Server-controlled FORCED update gate (cross-platform).
+// Universal refresh banner for stale app builds.
 //
-// `version.json` is served with `Cache-Control: no-store`, so a fetch always
-// returns the freshest deployed value — even on a device serving a stale shell
-// from its HTTP cache. That makes it a server-controlled switch: when the
-// deployed version (or an explicit `min` floor) is newer than the build baked
-// into the running bundle, the server can DEMAND a blocking update.
-//
-// Unlike the silent soft reload (see iosFreshness.ts), a forced update:
-//   • paints a full-screen, non-dismissible overlay ON TOP of everything so the
-//     old build can no longer be used, and
-//   • AUTOMATICALLY triggers the update flow (cache/SW purge + cache-busted
-//     reload) after a short countdown — the user never has to hunt for a
-//     button. A manual "Update now" button is shown only as a fallback in case
-//     the automatic reload is blocked.
-//
-// The server controls the behaviour via version.json:
-//   { "version": "2026-06-01-x" }                 → forced (default)
-//   { "version": "2026-06-01-x", "force": false } → soft/silent reload only
-//   { "version": "…", "min": "2026-05-15-x" }     → force builds below the floor
+// `/version.json` is served with `Cache-Control: no-store`, so a fetch returns
+// the freshest deployed value even when the current document was loaded from a
+// browser cache. When the running bundle is older than the deployed build, we
+// now show a dismissible top banner with an explicit Refresh action instead of
+// blocking the whole app or auto-reloading in a loop.
 // ============================================================================
 
 import {
@@ -28,132 +15,46 @@ import {
 } from "./hardRecovery";
 import { checkServerVersion, CURRENT_APP_VERSION, getVersionGateState, isForceUpdateSync } from "./versionGate";
 import { logUpdateFailure } from "./updateTelemetry";
-import { getRecoveryAttempts, MAX_RECOVERY_ATTEMPTS } from "./hardRecovery";
+import { getRecoveryAttempts } from "./hardRecovery";
 import {
   pushUpdateDebug,
   formatUpdateDebugLog,
 } from "./updateDebugLog";
 
-const OVERLAY_ID = "welile-forced-update";
-const ERROR_ID = `${OVERLAY_ID}-error`;
-const DEBUG_ID = `${OVERLAY_ID}-debug`;
-const INSTR_ID = `${OVERLAY_ID}-instructions`;
-// How long the blocking screen is shown before the update auto-fires. Short
-// enough that the user isn't left waiting, long enough to read the message.
-const AUTO_TRIGGER_DELAY_MS = 1800;
-// Foreground re-check cadence so a device that stays open is pulled onto a
-// newly-forced build without ever touching a missing chunk.
+const BANNER_ID = "welile-update-banner";
+const ERROR_ID = `${BANNER_ID}-error`;
+const DEBUG_ID = `${BANNER_ID}-debug`;
 const POLL_INTERVAL_MS = 5 * 60_000;
 const MIN_CHECK_INTERVAL_MS = 60_000;
-
-// ---------------------------------------------------------------------------
-// iPhone loop-breaker.
-//
-// Telemetry proved the failure mode: the cache/SW purge SUCCEEDS, but the
-// programmatic cache-busted reload (location.replace) still re-fetches iOS
-// Safari's HTTP-cached index.html, so the device boots the SAME stale bundle
-// and re-enters recovery forever. A programmatic reload can never win against
-// the document HTTP cache on these devices.
-//
-// The ONLY reliable escape is a navigation initiated from a real user gesture
-// (a tap), which WebKit revalidates against the network. So we allow a small
-// number of automatic reload attempts, and once those are spent we STOP
-// auto-reloading and present a static "Open latest version" button. Tapping it
-// performs the purge + reload inside a user-activation context, which defeats
-// the cached shell.
-// ---------------------------------------------------------------------------
-const FORCED_RELOAD_KEY = "welile_forced_auto_reloads";
-const FORCED_RELOAD_WINDOW_MS = 5 * 60_000;
-const MAX_FORCED_AUTO_RELOADS = 2;
-
-interface ForcedReloadRecord {
-  count: number;
-  first: number;
-}
-
-function readForcedReloads(): ForcedReloadRecord {
-  try {
-    const raw = localStorage.getItem(FORCED_RELOAD_KEY);
-    if (!raw) return { count: 0, first: Date.now() };
-    const parsed = JSON.parse(raw) as ForcedReloadRecord;
-    if (Date.now() - parsed.first > FORCED_RELOAD_WINDOW_MS) {
-      return { count: 0, first: Date.now() };
-    }
-    return parsed;
-  } catch {
-    return { count: 0, first: Date.now() };
-  }
-}
-
-/** How many automatic forced-update reloads have fired in the current window. */
-function forcedAutoReloadCount(): number {
-  return readForcedReloads().count;
-}
-
-function recordForcedAutoReload(): void {
-  try {
-    const current = readForcedReloads();
-    const next: ForcedReloadRecord = {
-      count: current.count + 1,
-      first: current.count === 0 ? Date.now() : current.first,
-    };
-    localStorage.setItem(FORCED_RELOAD_KEY, JSON.stringify(next));
-  } catch {
-    /* ignore */
-  }
-}
-
-/**
- * Clear the forced auto-reload counter. Call ONLY once the app has confirmably
- * mounted the fresh build (see main.tsx's 45s stability timer) — never on every
- * reload, or the cap can never be reached.
- */
-export function clearForcedAutoReloads(): void {
-  try {
-    localStorage.removeItem(FORCED_RELOAD_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
-/**
- * True while it is still safe to attempt an AUTOMATIC reload. Once the auto cap
- * (or the shared recovery cap) is hit we must hand off to a user-gesture button
- * instead of reloading again — a programmatic reload cannot beat the iOS HTTP
- * document cache, so looping is pointless and just burns the user's time.
- */
-function canAutoReload(): boolean {
-  return (
-    forcedAutoReloadCount() < MAX_FORCED_AUTO_RELOADS &&
-    getRecoveryAttempts() < MAX_RECOVERY_ATTEMPTS
-  );
-}
 
 let forcing = false;
 let installed = false;
 let lastCheckAt = 0;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-/** True once a forced update is in progress — other recovery paths should defer. */
+/** True once a refresh prompt is active — other recovery paths should defer. */
 export function isForcingUpdate(): boolean {
   return forcing;
 }
 
-/**
- * Purge caches + service workers, then reload — surfacing any purge failures on
- * the blocking overlay instead of silently reloading onto a still-stale shell.
- * When the purge fully succeeds we reload immediately; when it reports errors we
- * keep the screen up, show what went wrong, and let the user retry / hard-quit.
- */
+/** Kept for compatibility with the previous recovery counter API. */
+export function clearForcedAutoReloads(): void {
+  try {
+    localStorage.removeItem("welile_forced_auto_reloads");
+  } catch {
+    /* ignore */
+  }
+}
+
 async function purgeThenReload(): Promise<void> {
   let result: PurgeResult;
-  pushUpdateDebug("forced: purgeThenReload start", {
+  pushUpdateDebug("refresh-banner: purgeThenReload start", {
     reload_attempts: getRecoveryAttempts(),
   });
   try {
     result = await purgeCachesAndServiceWorkers();
   } catch (err) {
-    pushUpdateDebug("forced: purge threw", {
+    pushUpdateDebug("refresh-banner: purge threw", {
       error: err instanceof Error ? err.message : String(err),
     });
     showPurgeErrors([
@@ -162,20 +63,18 @@ async function purgeThenReload(): Promise<void> {
     renderDebugPanel();
     return;
   }
+
   if (result.errors.length > 0) {
-    pushUpdateDebug("forced: purge reported errors", {
+    pushUpdateDebug("refresh-banner: purge reported errors", {
       errors: result.errors,
     });
     showPurgeErrors(result.errors);
     renderDebugPanel();
-    // Do not trap users on the diagnostics screen forever. iOS may report a
-    // non-fatal cache/SW failure even after enough cleanup has completed for the
-    // next navigation to fetch the fresh app shell. Surface the errors briefly,
-    // then continue the rescue reload automatically.
     setTimeout(reloadWithCacheBust, 2200);
     return;
   }
-  pushUpdateDebug("forced: purge ok, reloading", {
+
+  pushUpdateDebug("refresh-banner: purge ok, reloading", {
     swUnregistered: result.swUnregistered,
     cachesDeleted: result.cachesDeleted,
     swReregistered: result.swReregistered,
@@ -183,41 +82,36 @@ async function purgeThenReload(): Promise<void> {
   reloadWithCacheBust();
 }
 
-/** Render purge failures inside the overlay and reset the button for a retry. */
 function showPurgeErrors(errors: string[]): void {
   try {
-    const overlay = document.getElementById(OVERLAY_ID);
-    if (!overlay) return;
+    const banner = document.getElementById(BANNER_ID);
+    if (!banner) return;
+
     let box = document.getElementById(ERROR_ID);
     if (!box) {
       box = document.createElement("div");
       box.id = ERROR_ID;
       box.style.cssText =
-        "max-width:320px;width:100%;margin-top:4px;padding:12px 14px;border-radius:10px;" +
+        "grid-column:1/-1;margin-top:8px;padding:10px 12px;border-radius:10px;" +
         "background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.35);" +
-        "color:#b91c1c;font-size:12.5px;line-height:1.5;text-align:left";
-      const btn = document.getElementById(`${OVERLAY_ID}-btn`);
-      if (btn && btn.parentElement === overlay) {
-        overlay.insertBefore(box, btn);
-      } else {
-        overlay.appendChild(box);
-      }
+        "color:#b91c1c;font-size:12px;line-height:1.45;text-align:left";
+      banner.appendChild(box);
     }
+
     const items = errors
-      .map((e) => `<li style="margin:0 0 2px">${escapeHtml(e)}</li>`)
+      .map((e) => `<li style=\"margin:0 0 2px\">${escapeHtml(e)}</li>`)
       .join("");
     box.innerHTML =
-      `<strong style="display:block;margin-bottom:6px;color:#991b1b">We couldn't fully clear old app data</strong>` +
-      `<ul style="margin:0;padding-left:18px">${items}</ul>` +
-      `<p style="margin:8px 0 0;color:#7f1d1d">Tap “Try again”. If it keeps failing, fully close the app and reopen it.</p>`;
+      `<strong style=\"display:block;margin-bottom:6px;color:#991b1b\">Refresh cleanup needs another try</strong>` +
+      `<ul style=\"margin:0;padding-left:18px\">${items}</ul>`;
 
-    const btn = document.getElementById(`${OVERLAY_ID}-btn`) as HTMLButtonElement | null;
+    const btn = document.getElementById(`${BANNER_ID}-btn`) as HTMLButtonElement | null;
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "Try again";
+      btn.textContent = "Try refresh again";
     }
   } catch {
-    /* overlay must never throw */
+    /* banner must never throw */
   }
 }
 
@@ -226,19 +120,13 @@ function escapeHtml(s: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/\"/g, "&quot;");
 }
 
-/**
- * Render (or refresh) the collapsible debug panel on the blocking overlay so an
- * iPhone user can read — and copy — the full update-flow trail: forced flag +
- * versions, purge attempts, and reload count. Survives reloads via
- * sessionStorage so the history isn't lost between cycles.
- */
 function renderDebugPanel(): void {
   try {
-    const overlay = document.getElementById(OVERLAY_ID);
-    if (!overlay) return;
+    const banner = document.getElementById(BANNER_ID);
+    if (!banner) return;
 
     const cached = getVersionGateState();
     const header =
@@ -254,12 +142,13 @@ function renderDebugPanel(): void {
       box = document.createElement("details");
       box.id = DEBUG_ID;
       box.style.cssText =
-        "max-width:340px;width:100%;margin-top:8px;text-align:left;font-size:11px;color:#475569";
+        "grid-column:1/-1;margin-top:8px;text-align:left;font-size:11px;color:#475569";
       box.innerHTML =
-        `<summary style="cursor:pointer;font-size:12px;color:#7c3aed;font-weight:600;list-style:none">Show troubleshooting details</summary>` +
-        `<pre id="${DEBUG_ID}-pre" style="margin:8px 0 0;padding:10px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word;background:rgba(15,23,42,0.05);border:1px solid rgba(15,23,42,0.12);border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.45"></pre>` +
-        `<button id="${DEBUG_ID}-copy" type="button" style="margin-top:6px;padding:8px 14px;background:#e2e8f0;color:#1f2937;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Copy details</button>`;
-      overlay.appendChild(box);
+        `<summary style=\"cursor:pointer;font-size:12px;color:#7c3aed;font-weight:600;list-style:none\">Show refresh details</summary>` +
+        `<pre id=\"${DEBUG_ID}-pre\" style=\"margin:8px 0 0;padding:10px;max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;background:rgba(15,23,42,0.05);border:1px solid rgba(15,23,42,0.12);border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;line-height:1.45\"></pre>` +
+        `<button id=\"${DEBUG_ID}-copy\" type=\"button\" style=\"margin-top:6px;padding:7px 12px;background:#e2e8f0;color:#1f2937;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer\">Copy details</button>`;
+      banner.appendChild(box);
+
       const copyBtn = document.getElementById(`${DEBUG_ID}-copy`);
       if (copyBtn) {
         copyBtn.addEventListener("click", () => {
@@ -281,288 +170,87 @@ function renderDebugPanel(): void {
     const pre = document.getElementById(`${DEBUG_ID}-pre`);
     if (pre) pre.textContent = text;
   } catch {
-    /* debug panel must never break the overlay */
+    /* debug panel must never break the banner */
   }
 }
 
-function renderBlockingOverlay(manual: boolean): void {
+function renderRefreshBanner(reason: string): void {
   try {
-    const existing = document.getElementById(OVERLAY_ID);
-    if (existing) {
-      // Already painted (e.g. auto-mode first, now switching to manual). Just
-      // upgrade it to the manual call-to-action instead of stacking overlays.
-      if (manual) applyManualOverlayState();
-      return;
-    }
-    const overlay = document.createElement("div");
-    overlay.id = OVERLAY_ID;
-    overlay.setAttribute("role", "alertdialog");
-    overlay.setAttribute("aria-live", "assertive");
-    overlay.style.cssText =
-      "position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;" +
-      "align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;" +
-      "background:#f8fafc;color:#1f2937;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+    const existing = document.getElementById(BANNER_ID);
+    if (existing) return;
 
-    overlay.innerHTML = `
-      <img src="/welile-logo.png" alt="Welile" width="56" height="56" style="border-radius:14px" />
-      <div id="${OVERLAY_ID}-spin" style="width:22px;height:22px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:wfu .6s linear infinite"></div>
-      <h2 id="${OVERLAY_ID}-h" style="font-size:20px;font-weight:700;margin:0">Updating Welile</h2>
-      <p id="${OVERLAY_ID}-p" style="font-size:14px;color:#6b7280;margin:0;max-width:300px;line-height:1.5">
-        A required update is installing automatically. This only takes a moment — please don't close the app.
-      </p>
-      <button id="${OVERLAY_ID}-btn" style="padding:14px 28px;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;min-height:48px">Update now</button>
+    const banner = document.createElement("div");
+    banner.id = BANNER_ID;
+    banner.setAttribute("role", "alert");
+    banner.setAttribute("aria-live", "polite");
+    banner.style.cssText =
+      "position:fixed;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));z-index:2147483647;" +
+      "display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;" +
+      "max-width:760px;margin:0 auto;padding:12px 12px 12px 14px;border-radius:14px;" +
+      "background:#ffffff;color:#111827;border:1px solid rgba(124,58,237,0.28);" +
+      "box-shadow:0 18px 40px rgba(15,23,42,0.18);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+
+    banner.innerHTML = `
+      <div aria-hidden="true" style="width:34px;height:34px;border-radius:999px;background:rgba(124,58,237,0.12);color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700">↻</div>
+      <div style="min-width:0;text-align:left">
+        <div style="font-size:14px;font-weight:700;line-height:1.25;margin:0">Refresh recommended</div>
+        <div style="font-size:12.5px;color:#6b7280;line-height:1.35;margin-top:2px">A newer Welile version is ready. You can keep working, or refresh now to load the latest files.</div>
+      </div>
+      <button id="${BANNER_ID}-btn" type="button" style="min-height:38px;padding:0 16px;border:none;border-radius:999px;background:#7c3aed;color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Refresh</button>
+      <button id="${BANNER_ID}-close" type="button" aria-label="Dismiss refresh notice" style="width:34px;height:34px;border:none;border-radius:999px;background:rgba(15,23,42,0.06);color:#374151;font-size:20px;line-height:1;cursor:pointer">×</button>
       <style>
-        @keyframes wfu{to{transform:rotate(360deg)}}
-        @media(prefers-color-scheme:dark){#${OVERLAY_ID}{background:#0f172a!important;color:#f8fafc!important}}
+        @media(max-width:520px){#${BANNER_ID}{left:8px!important;right:8px!important;grid-template-columns:auto 1fr auto!important;gap:8px!important;padding:10px!important}#${BANNER_ID}-btn{grid-column:2/4;width:100%;margin-top:2px}#${BANNER_ID}-close{grid-column:3;grid-row:1}}
+        @media(prefers-color-scheme:dark){#${BANNER_ID}{background:#0f172a!important;color:#f8fafc!important;border-color:rgba(167,139,250,.45)!important;box-shadow:0 18px 40px rgba(0,0,0,.38)!important}#${BANNER_ID} div div + div{color:#cbd5e1!important}#${BANNER_ID}-close{background:rgba(248,250,252,.12)!important;color:#f8fafc!important}}
       </style>`;
 
-    document.body.appendChild(overlay);
+    document.body.appendChild(banner);
 
-    const btn = document.getElementById(`${OVERLAY_ID}-btn`) as HTMLButtonElement | null;
+    const btn = document.getElementById(`${BANNER_ID}-btn`) as HTMLButtonElement | null;
     if (btn) {
       btn.onclick = () => {
         btn.disabled = true;
-        btn.textContent = "Updating…";
-        // A button tap is a genuine user-activation, so this navigation is
-        // revalidated against the network by WebKit — the one thing that beats
-        // the iOS HTTP-cached shell that programmatic reloads cannot.
+        btn.textContent = "Refreshing…";
         void purgeThenReload();
       };
     }
-    if (manual) applyManualOverlayState();
+
+    const close = document.getElementById(`${BANNER_ID}-close`) as HTMLButtonElement | null;
+    if (close) {
+      close.onclick = () => {
+        banner.remove();
+        pushUpdateDebug("refresh-banner: dismissed", { reason });
+      };
+    }
+
     renderDebugPanel();
   } catch {
-    /* overlay must never throw */
+    /* banner must never throw */
   }
 }
 
-/**
- * Switch the overlay from the silent "installing automatically" state into the
- * explicit user-gesture call-to-action. Used after the automatic reload budget
- * is spent and the device is still serving the stale shell.
- */
-type DeviceKind = "ios_inapp" | "ios_safari" | "ios_standalone" | "other";
-
-/**
- * Best-effort detection of the exact browser context so we can show the right
- * recovery steps. The trapped-iPhone complaints are dominated by IN-APP
- * browsers (WhatsApp/Facebook/Gmail WKWebViews) whose document cache won't
- * revalidate and which have NO address bar — those users must reopen the link
- * in real Safari. Standalone (home-screen) installs and real Safari need a
- * "clear website data" step instead.
- */
-function detectDeviceKind(): DeviceKind {
-  try {
-    const ua = navigator.userAgent || "";
-    const isIOS =
-      (/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream) ||
-      (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-    if (!isIOS) return "other";
-    const standalone =
-      (navigator as any).standalone === true ||
-      window.matchMedia?.("(display-mode: standalone)").matches === true;
-    if (standalone) return "ios_standalone";
-    // Real iOS Safari includes "Version/<n>" AND "Safari" in the UA. In-app
-    // WKWebViews (WhatsApp/FB/Instagram/Gmail/etc.) omit the "Version/" token
-    // or carry an explicit app token.
-    const inAppToken =
-      /(FBAN|FBAV|Instagram|Line|Twitter|MicroMessenger|GSA|WhatsApp|Snapchat|TikTok)/i.test(
-        ua,
-      );
-    const looksLikeSafari = /Safari/i.test(ua) && /Version\//i.test(ua);
-    if (inAppToken || !looksLikeSafari) return "ios_inapp";
-    return "ios_safari";
-  } catch {
-    return "other";
-  }
-}
-
-/** Ordered recovery steps tailored to the detected browser context. */
-function recoverySteps(kind: DeviceKind): { title: string; steps: string[] } {
-  switch (kind) {
-    case "ios_inapp":
-      return {
-        title: "You're in an in-app browser — open Welile in Safari",
-        steps: [
-          "Tap the ••• or share icon in the corner of this window.",
-          'Choose “Open in Safari” (or “Open in Browser”).',
-          "Welile will load the latest version in Safari.",
-          "Tip: bookmark or add Welile to your Home Screen so this doesn't happen again.",
-        ],
-      };
-    case "ios_standalone":
-      return {
-        title: "Clear Welile's saved data",
-        steps: [
-          "Open the iPhone Settings app.",
-          "Scroll down and tap Safari.",
-          "Tap “Clear History and Website Data”, then confirm.",
-          "Delete the Welile icon from your Home Screen, then re-add it from Safari.",
-        ],
-      };
-    case "ios_safari":
-      return {
-        title: "Clear Welile's website data in Safari",
-        steps: [
-          "Open the iPhone Settings app.",
-          "Scroll down and tap Safari.",
-          "Tap “Advanced” → “Website Data”.",
-          'Search “welile”, swipe left to Delete, then reopen welilereceipts.com.',
-        ],
-      };
-    default:
-      return {
-        title: "Clear your browser cache",
-        steps: [
-          "Open your browser settings.",
-          "Clear cached files / website data for welilereceipts.com.",
-          "Reopen welilereceipts.com in a fresh tab.",
-        ],
-      };
-  }
-}
-
-/**
- * Render the step-by-step "Open in Safari / Clear website data" recovery block
- * onto the blocking overlay. Shown only in the terminal manual state, because
- * by then we know a programmatic reload cannot rescue this device — the user
- * must act. Device-aware so in-app-browser users get the (very different)
- * "open in Safari" path and Safari users get the "clear website data" path.
- */
-function renderRecoveryInstructions(): void {
-  try {
-    const overlay = document.getElementById(OVERLAY_ID);
-    if (!overlay) return;
-    if (document.getElementById(INSTR_ID)) return;
-
-    const kind = detectDeviceKind();
-    const { title, steps } = recoverySteps(kind);
-    pushUpdateDebug("forced: recovery instructions shown", { kind });
-
-    const box = document.createElement("div");
-    box.id = INSTR_ID;
-    box.style.cssText =
-      "max-width:340px;width:100%;margin-top:4px;padding:14px 16px;border-radius:12px;text-align:left;" +
-      "background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.22);color:#1f2937";
-
-    const items = steps
-      .map(
-        (s) =>
-          `<li style="margin:0 0 8px;padding-left:4px;line-height:1.45">${escapeHtml(
-            s,
-          )}</li>`,
-      )
-      .join("");
-    box.innerHTML =
-      `<strong style="display:block;margin-bottom:10px;font-size:13.5px;color:#5b21b6">${escapeHtml(
-        title,
-      )}</strong>` +
-      `<ol style="margin:0;padding-left:20px;font-size:13px">${items}</ol>`;
-
-    // Insert below the action button so the button stays the primary action.
-    const btn = document.getElementById(`${OVERLAY_ID}-btn`);
-    if (btn && btn.parentElement === overlay && btn.nextSibling) {
-      overlay.insertBefore(box, btn.nextSibling);
-    } else {
-      overlay.appendChild(box);
-    }
-  } catch {
-    /* recovery instructions must never break the overlay */
-  }
-}
-
-function applyManualOverlayState(): void {
-  try {
-    const spin = document.getElementById(`${OVERLAY_ID}-spin`);
-    if (spin) spin.style.display = "none";
-    const h = document.getElementById(`${OVERLAY_ID}-h`);
-    if (h) h.textContent = "Almost there — tap to finish";
-    const p = document.getElementById(`${OVERLAY_ID}-p`);
-    if (p) {
-      p.textContent =
-        "Your iPhone is holding onto an old copy of Welile. Tap the button below to load the latest version.";
-    }
-    const btn = document.getElementById(`${OVERLAY_ID}-btn`) as HTMLButtonElement | null;
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = "Open latest version";
-      // Pulse so the user notices the action is now on them.
-      btn.style.boxShadow = "0 0 0 0 rgba(124,58,237,0.5)";
-      btn.style.animation = "wfu-pulse 1.4s ease-in-out infinite";
-      if (!document.getElementById(`${OVERLAY_ID}-pulse-style`)) {
-        const st = document.createElement("style");
-        st.id = `${OVERLAY_ID}-pulse-style`;
-        st.textContent =
-          "@keyframes wfu-pulse{0%{box-shadow:0 0 0 0 rgba(124,58,237,.45)}70%{box-shadow:0 0 0 12px rgba(124,58,237,0)}100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}}";
-        document.head.appendChild(st);
-      }
-    }
-    pushUpdateDebug("forced: manual mode (auto-reload budget spent)", {
-      forcedAutoReloads: forcedAutoReloadCount(),
-      reload_attempts: getRecoveryAttempts(),
-    });
-    renderRecoveryInstructions();
-  } catch {
-    /* overlay must never throw */
-  }
-}
-
-/**
- * Block the old build and auto-run the update flow. Idempotent — repeated calls
- * after the first are no-ops. Safe to call from the earliest startup path.
- */
 export function triggerForcedUpdate(reason: string): void {
   if (forcing) return;
+  forcing = true;
   const cached = getVersionGateState();
-  const autoOk = canAutoReload();
-  pushUpdateDebug("forced: triggerForcedUpdate", {
+  pushUpdateDebug("refresh-banner: trigger", {
     reason,
     forced: cached?.force ?? null,
     current: CURRENT_APP_VERSION,
     server: cached?.server ?? null,
     stale: cached?.stale ?? null,
     reload_attempts: getRecoveryAttempts(),
-    forcedAutoReloads: forcedAutoReloadCount(),
-    autoOk,
   });
-  if (autoOk && cached?.current && cached.current !== CURRENT_APP_VERSION) {
-    pushUpdateDebug("forced: cached version mismatch → immediate reload", {
-      cachedCurrent: cached.current,
-      current: CURRENT_APP_VERSION,
-    });
-    recordForcedAutoReload();
-    reloadWithCacheBust();
-    return;
-  }
-  forcing = true;
-  logUpdateFailure("ios_version_gate", {
+
+  logUpdateFailure("version_gate", {
     chunk_mismatch: true,
     details: {
-      forced: true,
+      forced: cached?.force ?? null,
       reason,
-      ui: autoOk ? "forced_update_gate_auto" : "forced_update_gate_manual",
-      forcedAutoReloads: forcedAutoReloadCount(),
+      ui: "refresh_banner",
     },
   });
-  renderBlockingOverlay(!autoOk);
-  if (autoOk) {
-    // Auto-fire the update so the user never has to hunt for the button — but
-    // only while we still have automatic-reload budget left. Mark the attempt
-    // BEFORE reloading so the counter survives the navigation.
-    recordForcedAutoReload();
-    setTimeout(() => {
-      void purgeThenReload();
-    }, AUTO_TRIGGER_DELAY_MS);
-  } else {
-    // Auto-reload budget spent and still stale: stop looping. The static
-    // "Open latest version" button now waits for a user gesture, which is the
-    // only reliable way past the iOS HTTP-cached shell.
-    logUpdateFailure("recovery_exhausted", {
-      chunk_mismatch: true,
-      reload_attempts: getRecoveryAttempts(),
-      details: { ui: "forced_update_gate_manual", reason },
-    });
-  }
+
+  renderRefreshBanner(reason);
 }
 
 async function checkAndForceIfRequired(reason: string): Promise<void> {
@@ -590,19 +278,12 @@ function stopPoll(): void {
   pollTimer = null;
 }
 
-/**
- * Install the cross-platform forced-update watcher. Checks on startup, on
- * foreground/bfcache restore, and on a foreground timer. Safe to call once on
- * boot; never throws and never blocks. Call ONLY off preview/iframe hosts.
- */
 export function installForcedUpdateWatch(): void {
   if (installed) return;
   installed = true;
   try {
     if (typeof window === "undefined" || typeof document === "undefined") return;
 
-    // If the last known server directive already demands a forced update, block
-    // immediately — before the old build can import a now-missing chunk.
     if (isForceUpdateSync()) {
       triggerForcedUpdate("startup_cached");
     } else {
@@ -626,6 +307,6 @@ export function installForcedUpdateWatch(): void {
 
     if (document.visibilityState === "visible") startPoll();
   } catch {
-    /* forced-update watch must never break the app */
+    /* refresh watch must never break the app */
   }
 }

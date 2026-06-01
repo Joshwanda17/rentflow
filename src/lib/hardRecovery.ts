@@ -9,8 +9,8 @@
 // To truly break the loop we must:
 //   1. Unregister all service workers.
 //   2. Delete ALL caches (not just welile-* — the stale shell may live in any).
-//   3. Reload to a cache-busted URL so iOS re-fetches a fresh document from
-//      the network instead of from its HTTP cache.
+//   3. Plain-reload after cleanup. Document URLs must never receive cache-
+//      busting query params; only static assets use cache-busting filenames.
 //
 // We also cap the number of automatic recovery attempts within a short window
 // so a genuinely broken state surfaces actionable UI instead of cycling forever.
@@ -43,27 +43,7 @@ export interface PurgeResult {
   errors: string[];
 }
 
-/** Static kill-switch workers kept for every path older builds may have used. */
-const KILL_SWITCH_SW_PATHS = ["/sw.js", "/service-worker.js"];
 const CACHE_DELETE_PASSES = 3;
-
-async function waitForWorkerActivation(reg: ServiceWorkerRegistration): Promise<void> {
-  const worker = reg.installing || reg.waiting || reg.active;
-  if (!worker || worker.state === "activated") return;
-  await new Promise<void>((resolve) => {
-    const timeout = setTimeout(resolve, 3000);
-    worker.addEventListener(
-      "statechange",
-      () => {
-        if (worker.state === "activated") {
-          clearTimeout(timeout);
-          resolve();
-        }
-      },
-      { once: false }
-    );
-  });
-}
 
 function describeError(prefix: string, err: unknown): string {
   const msg =
@@ -214,25 +194,9 @@ export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
     survivingCaches,
   });
 
-  // 3) Re-register/update every known kill-switch worker path so the very next
-  //    navigation is network-only even if an old install used /service-worker.js
-  //    instead of /sw.js. Best-effort: failure here must not block the reload.
-  try {
-    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-      for (const path of KILL_SWITCH_SW_PATHS) {
-        const reg = await navigator.serviceWorker.register(path, { scope: "/" });
-        try {
-          await reg.update();
-        } catch {
-          /* Safari may reject update() while activation is pending */
-        }
-        await waitForWorkerActivation(reg);
-      }
-      swReregistered = true;
-    }
-  } catch (err) {
-    errors.push(describeError("Kill-switch re-register failed", err));
-  }
+  // 3) Do not re-register a kill-switch worker. Fresh sessions should have no
+  //    service worker controlling navigation; public/sw.js remains only as a
+  //    passive uninstaller for devices that already had an old worker.
 
   pushUpdateDebug("purge: done", {
     swReregistered,
@@ -261,7 +225,7 @@ export async function purgeCachesAndServiceWorkers(): Promise<PurgeResult> {
   // unregistered or the kill-switch worker re-registered, AND no cache survived
   // the delete passes with no per-step errors. This lets us measure, per iOS
   // device, whether the rescue actually worked or the phone is still stale.
-  const killSwitchOk = serviceWorkerCount === 0 || (swUnregistered > 0 && swReregistered);
+  const killSwitchOk = serviceWorkerCount === 0 || swUnregistered >= serviceWorkerCount;
   const cachePurgeOk = survivingCaches.length === 0;
   const purgeSucceeded = killSwitchOk && cachePurgeOk && errors.length === 0;
   const reloadAttempts = getRecoveryAttempts();
@@ -313,10 +277,17 @@ export function reloadWithCacheBust(): void {
   });
   try {
     const url = new URL(window.location.href);
-    // Cache-bust the document fetch. Use a stable param name so repeated
-    // recoveries replace (not stack) the value.
-    url.searchParams.set("_v", Date.now().toString(36));
-    window.location.replace(url.toString());
+    // The `?_v=` document cache-buster was removed: on iOS it created a
+    // refresh loop (stale shell reloads to the same `_v` URL forever) and the
+    // app already exposes a manual red "clear cache" control in the profile/
+    // settings screen. Strip any leftover `_v` so the URL stays clean, then do
+    // a normal reload after the cache/SW purge above has done the real work.
+    if (url.searchParams.has("_v")) {
+      url.searchParams.delete("_v");
+      window.location.replace(url.toString());
+      return;
+    }
+    window.location.reload();
   } catch {
     window.location.reload();
   }
@@ -342,8 +313,8 @@ export async function clearAndReload(
 }
 
 /**
- * Full hard recovery: record the attempt, purge caches/SWs, then reload to a
- * cache-busted URL so iOS Safari fetches a fresh HTML shell from the network.
+ * Full hard recovery: record the attempt, purge caches/SWs, then plain reload.
+ * The document URL remains unchanged; built assets handle cache busting.
  */
 export async function hardRecover(): Promise<PurgeResult> {
   recordAttempt();

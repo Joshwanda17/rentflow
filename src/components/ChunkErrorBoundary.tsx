@@ -1,11 +1,7 @@
 import React, { Component, ReactNode } from "react";
-import { RefreshCw, Loader2, Home } from "lucide-react";
+import { RefreshCw, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  clearAndReload,
-  hardRecover,
-  recoveryExhausted,
-} from "@/lib/hardRecovery";
+import { clearAndReload } from "@/lib/hardRecovery";
 
 interface Props {
   children: ReactNode;
@@ -25,7 +21,10 @@ function classifyChunkError(error: Error): boolean {
   const stack = (error?.stack || "").toLowerCase();
   const full = `${msg} ${name} ${stack}`;
 
-  // Explicit keyword matches
+  // Explicit stale-asset/chunk matches only. Do NOT treat generic iOS
+  // TypeError/"Load failed" network errors as an old installed app version —
+  // that was sending healthy iPhones to the cache-clear screen after the app
+  // had already rendered.
   const keywords = [
     "failed to fetch dynamically imported module",
     "error loading dynamically imported module",
@@ -33,23 +32,14 @@ function classifyChunkError(error: Error): boolean {
     "loading css chunk",
     "dynamically imported",
     "unable to preload",
-    "failed to load",
-    "failed to fetch",
-    "network error",
-    "networkerror",
-    "timeout",
     "chunkerror",
     "loaderror",
     "importing a module script failed",
-    "importing",
   ];
   if (keywords.some((k) => full.includes(k))) return true;
 
   // Stack mentions an asset URL — almost certainly a chunk/asset load failure
   if (/\/(assets|src)\/[^\s)]+\.(m?js|tsx?|css)/i.test(stack)) return true;
-
-  // iOS Safari often throws bare TypeError with empty/short message on chunk fail
-  if (name === "typeerror" && msg.length < 30) return true;
 
   return false;
 }
@@ -71,7 +61,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       isChunkError,
-      exhausted: recoveryExhausted(),
+        exhausted: false,
       errorMessage: error?.message || error?.name || "Unknown error",
     };
   }
@@ -82,65 +72,37 @@ class ChunkErrorBoundary extends Component<Props, State> {
     // Best-effort remote log — never throw from here
     try {
       const payload = {
-        pathname:
-          typeof window !== "undefined"
-            ? window.location.pathname + window.location.search
-            : null,
-        user_agent:
-          typeof navigator !== "undefined" ? navigator.userAgent : null,
+        pathname: typeof window !== "undefined" ? window.location.pathname + window.location.search : null,
+        user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
         error_message: error?.message ?? "Unknown error",
-        error_stack:
-          (error?.stack || "") +
-          "\n--- componentStack ---\n" +
-          (info?.componentStack || ""),
+        error_stack: (error?.stack || "") + "\n--- componentStack ---\n" + (info?.componentStack || ""),
         metadata: {
           source: "ChunkErrorBoundary",
           isChunkError: classifyChunkError(error),
           href: typeof window !== "undefined" ? window.location.href : null,
           online: typeof navigator !== "undefined" ? navigator.onLine : null,
-          viewport:
-            typeof window !== "undefined"
-              ? { w: window.innerWidth, h: window.innerHeight }
-              : null,
+          viewport: typeof window !== "undefined" ? { w: window.innerWidth, h: window.innerHeight } : null,
         },
       };
       supabase
         .from("public_error_logs")
         .insert(payload as any)
-        .then(() => {}, () => {});
+        .then(
+          () => {},
+          () => {},
+        );
     } catch {
       // ignore
     }
 
-    // Auto-retry once for chunk errors — clears caches/SWs then reloads.
+    // Do not auto-reload on chunk errors. Surface a user-controlled refresh
+    // banner instead so stale files never trap the user in a reload loop.
     if (this.state.isChunkError || classifyChunkError(error)) {
-      // Stop auto-reloading once we've exhausted attempts in this window —
-      // otherwise iOS Safari can loop forever on a stale HTML shell. Show the
-      // manual recovery UI instead.
-      if (recoveryExhausted()) {
-        this.setState({ exhausted: true });
-        return;
-      }
-      setTimeout(() => {
-        this.handleRetry();
-      }, 800);
+      this.setState({ exhausted: true });
     }
   }
 
-  handleRetry = async () => {
-    this.setState({ isRetrying: true });
-    // Full hard recovery: purge ALL caches + SWs and reload to a cache-busted
-    // URL so iOS Safari fetches a fresh HTML shell instead of the stale one.
-    try {
-      localStorage.removeItem("welile_chunk_recovery_attempted");
-    } catch {
-      // ignore
-    }
-    await hardRecover();
-  };
-
-  // Last-resort manual recovery once auto-retries are exhausted: purge
-  // everything without incrementing the attempt counter, then plain reload.
+  // Manual refresh: purge stale app files, then plain reload.
   handleForceClear = async () => {
     this.setState({ isRetrying: true });
     try {
@@ -162,21 +124,20 @@ class ChunkErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      // Chunk error, but auto-recovery exhausted — stop looping, show manual UI
-      if (this.state.isChunkError && this.state.exhausted) {
+      if (this.state.isChunkError) {
         return (
-          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground p-6">
-            <div className="flex flex-col items-center gap-6 max-w-sm text-center">
-              <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center">
-                <RefreshCw className="w-7 h-7 text-primary" />
+          <div className="fixed left-3 right-3 top-3 z-[9999] mx-auto max-w-3xl rounded-xl border border-primary/25 bg-background p-3 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15">
+                <RefreshCw className="h-4 w-4 text-primary" />
               </div>
-              <div className="space-y-2">
-                <h1 className="text-xl font-semibold">Let's clear the cache</h1>
-                <p className="text-muted-foreground text-sm">
-                  The app found an old installed version. Tap below to clear the
-                  old app files and load the latest Welile version.
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground">Refresh recommended</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                  Welile found an older app file. Refresh to load the latest version.
                 </p>
               </div>
+<<<<<<< HEAD
               {this.state.isRetrying ? (
                 <button
                   key="retrying-btn"
@@ -217,27 +178,27 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 <p className="text-muted-foreground text-sm">
                   Welile is removing the stale version and loading the latest app.
                 </p>
+                {this.state.isRetrying ? (
+                  <button
+                    key="retrying-btn"
+                    disabled
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity opacity-50"
+                  >
+                    <Loader2 className="w-4 h-4 animate-spin" /> Refreshing...
+                  </button>
+                ) : (
+                  <button
+                    key="idle-btn"
+                    onClick={this.handleForceClear}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Clear & Reload Now
+                  </button>
+                )}
+                <p className="text-xs text-muted-foreground/60">
+                  If this repeats, close Safari completely and reopen welilereceipts.com.
+                </p>
               </div>
-              {this.state.isRetrying ? (
-                <button
-                  key="retrying-btn"
-                  disabled
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity opacity-50"
-                >
-                  <Loader2 className="w-4 h-4 animate-spin" /> Refreshing...
-                </button>
-              ) : (
-                <button
-                  key="idle-btn"
-                  onClick={this.handleRetry}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
-                >
-                  <RefreshCw className="w-4 h-4" /> Clear & Reload Now
-                </button>
-              )}
-              <p className="text-xs text-muted-foreground/60">
-                If this repeats, close Safari completely and reopen welilereceipts.com.
-              </p>
             </div>
           </div>
         );
@@ -274,17 +235,13 @@ class ChunkErrorBoundary extends Component<Props, State> {
             </div>
             {this.state.errorMessage && (
               <details className="w-full text-left">
-                <summary className="text-xs text-muted-foreground/60 cursor-pointer">
-                  Technical details
-                </summary>
+                <summary className="text-xs text-muted-foreground/60 cursor-pointer">Technical details</summary>
                 <p className="mt-2 text-xs text-muted-foreground/70 break-words font-mono bg-muted/40 p-2 rounded">
                   {this.state.errorMessage}
                 </p>
               </details>
             )}
-            <p className="text-xs text-muted-foreground/60">
-              If this keeps happening, contact support.
-            </p>
+            <p className="text-xs text-muted-foreground/60">If this keeps happening, contact support.</p>
           </div>
         </div>
       );

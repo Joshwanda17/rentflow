@@ -169,7 +169,7 @@ describe("iPhone background/foreground during OTP", () => {
     expect(clearSpy).not.toHaveBeenCalled();
   });
 
-  it("negative control: with NO critical flow active, the cache layer DOES refetch", async () => {
+  it("with NO critical flow active, background/foreground still does not auto-refresh by device", async () => {
     // Make sure no leftover flag from a sibling test
     setCriticalFlowActive("agent-float-payout", false);
     setCriticalFlowActive("agent-tenant-collect", false);
@@ -196,12 +196,10 @@ describe("iPhone background/foreground during OTP", () => {
       await new Promise((r) => setTimeout(r, 50));
     });
 
-    // Cache layer is allowed to refresh when no critical flow is open.
-    // (We don't assert exact counts — only that *some* refresh happened,
-    // which is what proves the guard in the first test is what spared
-    // the wizard, not just a dormant code path.)
+    // Cache freshness is now universal version checking + asset fingerprinting,
+    // not OS/device resume invalidation.
     expect(
       refetchSpy.mock.calls.length + invalidateSpy.mock.calls.length,
-    ).toBeGreaterThan(0);
+    ).toBe(0);
   });
 });

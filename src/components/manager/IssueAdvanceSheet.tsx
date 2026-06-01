@@ -8,9 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -49,7 +47,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
   const [monthlyRate, setMonthlyRate] = useState('0.33');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agentSearch, setAgentSearch] = useState('');
-  const [agentPopoverOpen, setAgentPopoverOpen] = useState(false);
+  const [agentListOpen, setAgentListOpen] = useState(false);
 
   // Fetch agents: join user_roles with profiles via a single query approach
   const { data: agents = [] } = useQuery({
@@ -166,54 +164,48 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
         </SheetHeader>
 
         <div className="space-y-5 mt-6">
-          {/* Agent Selector with Search */}
+          {/* Agent Selector with inline Search */}
           {!preselectedAgentId && (
             <div className="space-y-2">
               <Label>Select Agent</Label>
-              <Popover open={agentPopoverOpen} onOpenChange={setAgentPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={agentPopoverOpen}
-                    className="w-full justify-between font-normal"
-                  >
-                    {selectedAgent
-                      ? selectedAgent.full_name
-                      : 'Search agent by name...'}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command shouldFilter={false}>
-                    <CommandInput
-                      placeholder="Type agent name..."
-                      value={agentSearch}
-                      onValueChange={setAgentSearch}
-                    />
-                    <CommandList>
-                      <CommandEmpty>
-                        {agentSearch.length < 2 ? 'Type at least 2 characters to search...' : 'No agents found.'}
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {agents.map((a: any) => (
-                          <CommandItem
-                            key={a.id}
-                            value={a.id}
-                            onSelect={() => {
-                              setAgentId(a.id);
-                              setAgentPopoverOpen(false);
-                            }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", agentId === a.id ? "opacity-100" : "opacity-0")} />
-                            <span className="font-medium">{a.full_name}</span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder={selectedAgent ? selectedAgent.full_name : 'Search agent by name...'}
+                  value={agentSearch}
+                  onChange={(e) => setAgentSearch(e.target.value)}
+                  onFocus={() => setAgentListOpen(true)}
+                />
+              </div>
+              {agentListOpen && (
+                <div className="max-h-56 overflow-y-auto rounded-md border bg-popover">
+                  {agentSearch.trim().length < 2 ? (
+                    <p className="px-3 py-3 text-sm text-muted-foreground">Type at least 2 characters to search...</p>
+                  ) : agents.length === 0 ? (
+                    <p className="px-3 py-3 text-sm text-muted-foreground">No agents found.</p>
+                  ) : (
+                    agents.map((a: any) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => {
+                          setAgentId(a.id);
+                          setAgentSearch(a.full_name);
+                          setAgentListOpen(false);
+                        }}
+                        className={cn(
+                          'flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground',
+                          agentId === a.id && 'bg-accent/50'
+                        )}
+                      >
+                        <Check className={cn('mr-2 h-4 w-4', agentId === a.id ? 'opacity-100' : 'opacity-0')} />
+                        <span className="font-medium">{a.full_name}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           )}
 

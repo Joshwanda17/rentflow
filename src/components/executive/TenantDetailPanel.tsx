@@ -1,18 +1,24 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save, X, Loader2, ArrowRightLeft } from 'lucide-react';
+import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save, X, Loader2, ArrowRightLeft, Banknote, Wallet, FileText, FileSpreadsheet, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { Textarea } from '@/components/ui/textarea';
 import TenantAssignAgentDialog from '@/components/shared/TenantAssignAgentDialog';
+import {
+  downloadRentCollectionReceiptPdf,
+  downloadRentCollectionReceiptXlsx,
+  type RentCollectionReceiptData,
+} from '@/lib/rentCollectionReceipt';
 
 const statusColor = (s: string) => {
   const m: Record<string, string> = {
@@ -56,6 +62,23 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
   // Transfer agent dialog state
   const [transferReq, setTransferReq] = useState<{ id: string; agent_id: string | null } | null>(null);
+
+  // Rent collection state — collect outstanding from the tenant's wallet first,
+  // then fall back to a linked agent's wallet (for tenants without a smartphone).
+  const [collectingReqId, setCollectingReqId] = useState<string | null>(null);
+  const [collectReason, setCollectReason] = useState('');
+  // Custom UGX amount for partial collections — empty means collect the default
+  // daily charge. The collector can lower this to take only part of what's owed.
+  const [collectAmount, setCollectAmount] = useState('');
+  // Last successful collection receipt — drives the download (PDF/Excel) UI.
+  const [lastReceipt, setLastReceipt] = useState<RentCollectionReceiptData | null>(null);
+  const [downloadingReceipt, setDownloadingReceipt] = useState<'pdf' | 'xlsx' | null>(null);
+  // Receipt validation — confirms the receipt amounts (UGX), commission and
+  // remaining balance reconcile against the posted collection ledger before
+  // the receipt can be downloaded.
+  const [validating, setValidating] = useState(false);
+  const [validation, setValidation] = useState<{ ok: boolean; issues: string[] } | null>(null);
+  const [validationOverride, setValidationOverride] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
@@ -385,6 +408,184 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     }
   };
 
+  // --- Rent collection handler ---
+  // Collects the outstanding (capped at the daily charge) from the tenant's
+  // wallet, then from the linked agent's wallet for any shortfall.
+  const collectMutation = useMutation({
+    mutationFn: async ({ rentRequestId, reason, amount }: { rentRequestId: string; reason: string; amount?: number }) => {
+      const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
+        body: { rent_request_id: rentRequestId, reason, ...(amount != null ? { amount } : {}) },
+      });
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Collection failed. Please try again.');
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data: any, variables: { rentRequestId: string; reason: string; amount?: number }) => {
+      toast.success(
+        `Collected UGX ${Number(data.total_collected).toLocaleString()} — tenant UGX ${Number(data.tenant_deducted).toLocaleString()}, agent UGX ${Number(data.agent_deducted).toLocaleString()}`
+      );
+      // Build a downloadable receipt from the server-confirmed result.
+      const req = requests.find(r => r.id === variables.rentRequestId);
+      const outstanding = req ? Math.max(0, obligationFor(req) - Number(req.amount_repaid || 0)) : undefined;
+      const totalCollected = Number(data.total_collected) || 0;
+      const requestedAmount = Number(data.requested_amount) || (variables.amount ?? totalCollected);
+      // Compute remaining on the SAME obligation basis the ledger validator uses
+      // (obligationFor → rent_amount / total_repayment), so a partial receipt
+      // reconciles cleanly. Server value is only a fallback.
+      const remainingBalance = outstanding !== undefined
+        ? Math.max(0, outstanding - totalCollected)
+        : (typeof data.remaining_balance === 'number' ? Math.max(0, Number(data.remaining_balance)) : undefined);
+      const isPartial = Boolean(data.is_partial) || (remainingBalance !== undefined && remainingBalance > 0) || totalCollected < requestedAmount;
+      setLastReceipt({
+        reference: variables.rentRequestId,
+        tenantName: data.tenant_name || profile?.full_name || tenantName,
+        tenantPhone: profile?.phone || undefined,
+        agentName: req?.agent_name && req.agent_name !== 'Not Assigned' ? req.agent_name : undefined,
+        totalCollected,
+        tenantDeducted: Number(data.tenant_deducted) || 0,
+        agentDeducted: Number(data.agent_deducted) || 0,
+        commissionPaid: Number(data.commission_paid) || 0,
+        remainingBalance,
+        requestedAmount,
+        isPartial,
+        reason: variables.reason,
+        collectedBy: user?.email || undefined,
+        date: new Date(),
+        currency: 'UGX',
+      });
+      // Reset any prior validation — the new receipt must be reconciled fresh.
+      setValidation(null);
+      setValidationOverride(false);
+      setCollectingReqId(null);
+      setCollectReason('');
+      setCollectAmount('');
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+      queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
+    },
+    onError: (e: any) => toast.error(e.message || 'Collection failed'),
+  });
+
+  // Reconcile the receipt against the posted collection ledger. Checks that the
+  // tenant/agent UGX deductions, total collected, 10% commission, and remaining
+  // balance on the receipt match the double-entry ledger before download.
+  const validateReceiptAgainstLedger = async (): Promise<{ ok: boolean; issues: string[] }> => {
+    const r = lastReceipt;
+    if (!r) return { ok: false, issues: ['No receipt to validate.'] };
+    const issues: string[] = [];
+    const TOL = 1; // allow ≤1 UGX rounding difference
+    const near = (a: number, b: number) => Math.abs(Math.round(a) - Math.round(b)) <= TOL;
+    const ugx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+
+    // Fresh rent request — never trust the cache for high-stakes reconciliation.
+    const { data: rr, error: rrErr } = await supabase
+      .from('rent_requests')
+      .select('total_repayment, amount_repaid, rent_amount, registration_type, agent_id, assigned_agent_id, tenant_id')
+      .eq('id', r.reference)
+      .single();
+    if (rrErr || !rr) return { ok: false, issues: ['Could not load the rent request to reconcile.'] };
+
+    const agentId = (rr.assigned_agent_id || rr.agent_id) as string | null;
+    const since = new Date(r.date.getTime() - 15 * 60 * 1000).toISOString();
+    const { data: legs, error: legErr } = await supabase
+      .from('general_ledger')
+      .select('user_id, category, direction, amount, currency, created_at')
+      .eq('source_id', r.reference)
+      .eq('ledger_scope', 'wallet')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false });
+    if (legErr) return { ok: false, issues: ['Could not load the collection ledger to reconcile.'] };
+
+    const rows = legs || [];
+    if (rows.length === 0) {
+      return { ok: false, issues: ['No matching collection ledger entries were found for this receipt.'] };
+    }
+
+    // Currency must be UGX on every leg.
+    const badCurrency = rows.find((l: any) => (l.currency || 'UGX') !== 'UGX');
+    if (badCurrency) issues.push(`Ledger contains a non-UGX entry (${badCurrency.currency}).`);
+
+    const sum = (pred: (l: any) => boolean) =>
+      rows.filter(pred).reduce((s: number, l: any) => s + Number(l.amount || 0), 0);
+
+    const tenantLedger = sum((l) => l.category === 'tenant_repayment' && l.direction === 'cash_out' && l.user_id === rr.tenant_id);
+    const agentLedger = agentId
+      ? sum((l) => l.category === 'tenant_repayment' && l.direction === 'cash_out' && l.user_id === agentId)
+      : 0;
+    const commissionLedger = sum((l) => l.category === 'agent_commission_earned' && l.direction === 'cash_in');
+    const totalLedger = tenantLedger + agentLedger;
+
+    if (!near(tenantLedger, r.tenantDeducted))
+      issues.push(`Tenant deduction mismatch — receipt ${ugx(r.tenantDeducted)} vs ledger ${ugx(tenantLedger)}.`);
+    if (!near(agentLedger, r.agentDeducted))
+      issues.push(`Agent deduction mismatch — receipt ${ugx(r.agentDeducted)} vs ledger ${ugx(agentLedger)}.`);
+    if (!near(totalLedger, r.totalCollected))
+      issues.push(`Total collected mismatch — receipt ${ugx(r.totalCollected)} vs ledger ${ugx(totalLedger)}.`);
+    if (typeof r.commissionPaid === 'number' && !near(commissionLedger, r.commissionPaid))
+      issues.push(`Commission mismatch — receipt ${ugx(r.commissionPaid)} vs ledger ${ugx(commissionLedger)}.`);
+
+    // Remaining balance: fresh obligation minus fresh repaid.
+    const obligation = rr.registration_type === 'outstanding_balance'
+      ? Number(rr.total_repayment || 0)
+      : Number(rr.rent_amount || 0);
+    const ledgerRemaining = Math.max(0, obligation - Number(rr.amount_repaid || 0));
+    if (typeof r.remainingBalance === 'number' && !near(ledgerRemaining, r.remainingBalance))
+      issues.push(`Remaining balance mismatch — receipt ${ugx(r.remainingBalance)} vs ledger ${ugx(ledgerRemaining)}.`);
+
+    return { ok: issues.length === 0, issues };
+  };
+
+  const handleValidateReceipt = async () => {
+    if (!lastReceipt) return;
+    setValidating(true);
+    try {
+      const result = await validateReceiptAgainstLedger();
+      setValidation(result);
+      if (result.ok) toast.success('Receipt reconciled with the collection ledger');
+      else toast.error('Receipt does not match the ledger — review before downloading');
+    } catch (e: any) {
+      setValidation({ ok: false, issues: [e?.message || 'Validation failed'] });
+      toast.error('Could not validate the receipt');
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleDownloadReceipt = async (fmt: 'pdf' | 'xlsx') => {
+    if (!lastReceipt) return;
+    // Gate download on a successful ledger reconciliation (or explicit override).
+    if (!(validation?.ok || validationOverride)) {
+      toast.error('Verify the receipt against the ledger before downloading');
+      return;
+    }
+    setDownloadingReceipt(fmt);
+    try {
+      if (fmt === 'pdf') await downloadRentCollectionReceiptPdf(lastReceipt);
+      else await downloadRentCollectionReceiptXlsx(lastReceipt);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not generate receipt');
+    } finally {
+      setDownloadingReceipt(null);
+    }
+  };
+
+  const handleCollect = (rentRequestId: string, maxAmount: number) => {
+    const reason = collectReason.trim();
+    if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+    let amount: number | undefined;
+    const raw = collectAmount.trim();
+    if (raw !== '') {
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed) || parsed <= 0) { toast.error('Enter a valid collection amount'); return; }
+      if (parsed > maxAmount) { toast.error(`Amount cannot exceed the outstanding UGX ${maxAmount.toLocaleString()}`); return; }
+      amount = Math.round(parsed);
+    }
+    collectMutation.mutate({ rentRequestId, reason, amount });
+  };
+
   return (
     <div className="space-y-3">
       <Button variant="ghost" onClick={onBack} className="h-10 px-3 gap-2 text-sm font-semibold -ml-1">
@@ -653,6 +854,167 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                               {req.daily_repayment && <span>Daily: UGX {Number(req.daily_repayment).toLocaleString()}</span>}
                               {req.duration_days && <span>{req.duration_days}d</span>}
                             </div>
+                            {(() => {
+                              const status = String((req as any).status || '').toLowerCase();
+                              const isActive = !['completed', 'closed', 'cancelled', 'rejected', 'fully_repaid'].includes(status);
+                              const reqOutstanding = Number((req as any).total_repayment || 0) - Number(req.amount_repaid || 0);
+                              if (!isActive || reqOutstanding <= 0) return null;
+                              const chargeAmt = Math.min(reqOutstanding, Number(req.daily_repayment || 0) || reqOutstanding);
+                              const isOpen = collectingReqId === req.id;
+                              const partialEntered = collectAmount.trim() !== '' && Number(collectAmount) > 0;
+                              const plannedAmt = partialEntered
+                                ? Math.min(Math.round(Number(collectAmount)), reqOutstanding)
+                                : chargeAmt;
+                              return (
+                                <div className="pt-1">
+                                  {!isOpen ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 w-full text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                                      onClick={() => { setCollectingReqId(req.id); setCollectReason(''); setCollectAmount(''); }}
+                                    >
+                                      <Banknote className="h-3.5 w-3.5" />
+                                      Collect UGX {chargeAmt.toLocaleString()} from wallet
+                                    </Button>
+                                  ) : (
+                                    <div className="space-y-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                        <Wallet className="h-3 w-3" />
+                                        Charges the tenant's wallet first, then the linked agent's wallet for any shortfall.
+                                      </p>
+                                      <div>
+                                        <label className="text-[10px] text-muted-foreground">
+                                          Amount to collect (UGX) — leave blank for daily UGX {chargeAmt.toLocaleString()}
+                                        </label>
+                                        <Input
+                                          type="number"
+                                          inputMode="numeric"
+                                          value={collectAmount}
+                                          onChange={e => setCollectAmount(e.target.value)}
+                                          placeholder={`Partial amount (max ${reqOutstanding.toLocaleString()})`}
+                                          className="h-8 text-sm"
+                                          min={1}
+                                          max={reqOutstanding}
+                                        />
+                                        {partialEntered && plannedAmt < reqOutstanding && (
+                                          <p className="text-[10px] text-amber-600 mt-0.5">
+                                            Partial — UGX {(reqOutstanding - plannedAmt).toLocaleString()} will remain outstanding.
+                                          </p>
+                                        )}
+                                      </div>
+                                      <Textarea
+                                        value={collectReason}
+                                        onChange={e => setCollectReason(e.target.value)}
+                                        rows={2}
+                                        className="text-sm"
+                                        placeholder="Reason for collection (min 10 chars)…"
+                                        maxLength={500}
+                                      />
+                                      <div className="flex gap-2 justify-end">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-7 text-xs"
+                                          onClick={() => { setCollectingReqId(null); setCollectReason(''); setCollectAmount(''); }}
+                                          disabled={collectMutation.isPending}
+                                        >
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          className="h-7 text-xs gap-1"
+                                          onClick={() => handleCollect(req.id, reqOutstanding)}
+                                          disabled={collectMutation.isPending || collectReason.trim().length < 10}
+                                        >
+                                          {collectMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Banknote className="h-3 w-3" />}
+                                          Collect UGX {plannedAmt.toLocaleString()}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            {lastReceipt?.reference === req.id && (
+                              <div className="mt-1 space-y-2 rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                                <p className="text-[11px] font-medium text-emerald-800">
+                                  {lastReceipt.isPartial ? 'Partial — c' : 'C'}ollected UGX {Math.round(lastReceipt.totalCollected).toLocaleString()}
+                                  {lastReceipt.isPartial && typeof lastReceipt.remainingBalance === 'number'
+                                    ? ` · UGX ${Math.round(lastReceipt.remainingBalance).toLocaleString()} remaining`
+                                    : ''} · download receipt
+                                </p>
+
+                                {/* Step 1 — reconcile against the collection ledger */}
+                                {!validation?.ok && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-full text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                    onClick={handleValidateReceipt}
+                                    disabled={validating}
+                                  >
+                                    {validating ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+                                    {validating ? 'Verifying ledger…' : 'Verify against ledger'}
+                                  </Button>
+                                )}
+
+                                {validation?.ok && (
+                                  <p className="text-[11px] font-medium text-emerald-800 flex items-center gap-1">
+                                    <ShieldCheck className="h-3 w-3" /> Reconciled — amounts, commission & balance match the ledger
+                                  </p>
+                                )}
+
+                                {validation && !validation.ok && (
+                                  <div className="space-y-1 rounded border border-destructive/30 bg-destructive/5 p-1.5">
+                                    <p className="text-[11px] font-semibold text-destructive flex items-center gap-1">
+                                      <ShieldAlert className="h-3 w-3" /> Ledger mismatch
+                                    </p>
+                                    <ul className="list-disc pl-4 space-y-0.5">
+                                      {validation.issues.map((iss, i) => (
+                                        <li key={i} className="text-[10.5px] text-destructive">{iss}</li>
+                                      ))}
+                                    </ul>
+                                    {!validationOverride && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-full text-[10.5px] text-destructive hover:bg-destructive/10"
+                                        onClick={() => setValidationOverride(true)}
+                                      >
+                                        Download anyway (override)
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Step 2 — download once reconciled (or overridden) */}
+                                {(validation?.ok || validationOverride) && (
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                      onClick={() => handleDownloadReceipt('pdf')}
+                                      disabled={downloadingReceipt !== null}
+                                    >
+                                      {downloadingReceipt === 'pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+                                      PDF
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                      onClick={() => handleDownloadReceipt('xlsx')}
+                                      disabled={downloadingReceipt !== null}
+                                    >
+                                      {downloadingReceipt === 'xlsx' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSpreadsheet className="h-3 w-3" />}
+                                      Excel
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </>
                         )}
                       </div>

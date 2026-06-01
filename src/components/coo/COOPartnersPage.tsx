@@ -26,6 +26,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { generateNearingPayoutsPdf, downloadBlob as downloadNearingBlob } from '@/lib/nearingPayoutsPdf';
+import { sharePayoutCardViaWhatsApp, type PayoutCardData } from '@/lib/payoutShareCard';
 import { fetchAllUserIdsByRole, batchedQuery, fetchPaginatedSupporterIds, fetchSupporterSummary, fetchAllNearingPayoutPortfolios } from '@/lib/supabaseBatchUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -126,6 +127,12 @@ interface NearingPayoutPortfolio {
   dueToday: boolean;
   durationMonths: number;
   nextRoiDate: string | null;
+  paymentMethod?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
+  mobileNetwork?: string | null;
+  mobileMoneyNumber?: string | null;
+  bankName?: string | null;
+  bankAccountName?: string | null;
+  accountNumber?: string | null;
 }
 
 interface PortfolioRow {
@@ -717,6 +724,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           dueToday,
           durationMonths: Number((p as any).duration_months || 12),
           nextRoiDate: p.next_roi_date,
+          paymentMethod: (p as any).payment_method ?? null,
+          mobileNetwork: (p as any).mobile_network ?? null,
+          mobileMoneyNumber: (p as any).mobile_money_number ?? null,
+          bankName: (p as any).bank_name ?? null,
+          bankAccountName: (p as any).bank_account_name ?? null,
+          accountNumber: (p as any).account_number ?? null,
         });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
@@ -3676,6 +3689,75 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   };
 
+  // Share a branded WhatsApp payout card for a single partner. Resolves the
+  // freshest payment destination (portfolio route → saved method) so the
+  // mobile-money name / number on the card matches what Ops will actually pay.
+  const [sharingCardId, setSharingCardId] = useState<string | null>(null);
+  const handleShareCard = async (p: NearingPayoutPortfolio) => {
+    if (sharingCardId) return;
+    setSharingCardId(p.portfolioId);
+    try {
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
+      let cardData: PayoutCardData = {
+        partnerName: p.name,
+        portfolioName: p.portfolioName,
+        payoutDate: new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric',
+        }),
+        amount: roiAmount,
+        reference: p.portfolioId.slice(0, 8).toUpperCase(),
+      };
+
+      const { data: det } = await supabase
+        .from('investor_portfolios')
+        .select('payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number, account_name')
+        .eq('id', p.portfolioId)
+        .maybeSingle();
+
+      if (det?.payment_method === 'mobile_money') {
+        cardData = {
+          ...cardData, mode: 'mobile_money', provider: det.mobile_network || 'MoMo',
+          momoName: det.bank_account_name || p.name,
+          momoNumber: det.mobile_money_number || '',
+        };
+      } else if (det?.payment_method === 'bank_transfer') {
+        cardData = {
+          ...cardData, mode: 'bank_transfer', bankName: det.bank_name,
+          bankAccountName: det.bank_account_name || p.name, bankAccountNumber: det.account_number,
+        };
+      } else if (det?.payment_method === 'cash') {
+        cardData = { ...cardData, mode: 'cash' };
+      } else {
+        // Fall back to the partner's saved payout method.
+        const { data: saved } = await supabase
+          .from('saved_payout_methods' as never)
+          .select('*')
+          .eq('user_id', p.investorId)
+          .order('is_default', { ascending: false })
+          .order('last_used_at', { ascending: false, nullsFirst: false })
+          .limit(1);
+        const s: any = (saved ?? [])[0];
+        if (s?.payout_mode === 'mobile_money') {
+          cardData = { ...cardData, mode: 'mobile_money', provider: s.momo_provider, momoName: s.momo_name || p.name, momoNumber: s.momo_number };
+        } else if (s?.payout_mode === 'bank_transfer') {
+          cardData = { ...cardData, mode: 'bank_transfer', bankName: s.bank_name, bankAccountName: s.bank_account_name || p.name, bankAccountNumber: s.bank_account_number };
+        } else {
+          cardData = { ...cardData, mode: 'mobile_money', momoName: p.name };
+        }
+      }
+
+      const res = await sharePayoutCardViaWhatsApp(cardData);
+      if (res.method === 'downloaded') {
+        toast.success('Payout card ready', { description: 'Image downloaded — attach it in the WhatsApp chat that just opened.' });
+      }
+    } catch (err: any) {
+      console.error('Share payout card error:', err);
+      toast.error('Could not create card', { description: err?.message || 'Please try again.' });
+    } finally {
+      setSharingCardId(null);
+    }
+  };
+
   const handleCompound = async (p: NearingPayoutPortfolio, reason: string) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'compound' }));
     try {
@@ -4343,6 +4425,23 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                   const isProcessing = processing[p.portfolioId];
                   const isDone = completed[p.portfolioId];
                   const refPreview = `${p.portfolioId.slice(0, 8)}`;
+                  // Labelled payout destination (registered name + number).
+                  const destLabel =
+                    p.paymentMethod === 'bank_transfer' ? 'Account name'
+                    : p.paymentMethod === 'cash' ? 'Payout'
+                    : 'MoMo name';
+                  const destName =
+                    p.paymentMethod === 'bank_transfer'
+                      ? (p.bankAccountName || p.name)
+                      : p.paymentMethod === 'cash'
+                      ? 'Cash pickup'
+                      : (p.bankAccountName || p.name || 'Name not set');
+                  const destExtra =
+                    p.paymentMethod === 'bank_transfer'
+                      ? [p.bankName, p.accountNumber].filter(Boolean).join(' · ')
+                      : p.paymentMethod === 'cash'
+                      ? ''
+                      : [p.mobileNetwork, p.mobileMoneyNumber].filter(Boolean).join(' · ');
                   return (
                     <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5", isDone === 'split' && "opacity-70 border-violet-500/40 bg-violet-500/5")}>
                       <div className="flex items-start justify-between gap-2">
@@ -4410,6 +4509,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                         <span>{p.roiPercentage}% · {p.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
                         <span className="font-mono">{refPreview}</span>
                       </div>
+                      <div className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+                        <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{destLabel}</p>
+                        <p className="text-xs font-semibold">{destName}</p>
+                        {destExtra && <p className="text-[10px] text-muted-foreground">{destExtra}</p>}
+                      </div>
                       {/* Audit Reason + Action Buttons */}
                       {!isDone && (
                         <div className="space-y-2 pt-1">
@@ -4456,6 +4560,16 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                           </div>
                         </div>
                       )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full text-xs gap-1.5 text-muted-foreground hover:text-primary"
+                        disabled={sharingCardId === p.portfolioId}
+                        onClick={() => handleShareCard(p)}
+                      >
+                        {sharingCardId === p.portfolioId ? <Loader2 className="h-3 w-3 animate-spin" /> : <Share2 className="h-3 w-3" />}
+                        Share payout card
+                      </Button>
                     </div>
                   );
                 })

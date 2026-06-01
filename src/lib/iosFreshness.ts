@@ -19,7 +19,7 @@
 // proactive: when an iPhone returns to the foreground or is restored from
 // bfcache, it checks `/version.json` (always `no-store`) against the running
 // bundle and, if this device is provably running an outdated build, performs a
-// clean cache-busting reload onto the current shell BEFORE the user ever taps
+// clean reload onto the current shell BEFORE the user ever taps
 // something that loads a now-missing chunk and gets trapped on the splash.
 //
 // Android is intentionally excluded — Chrome revalidates the document on
@@ -75,7 +75,6 @@ async function checkAndRecoverIfStale(reason: string): Promise<void> {
       current: state.current,
     },
   });
-  
   // Show non-intrusive toast instead of ripping the UI away.
   showUpdateToast();
 }

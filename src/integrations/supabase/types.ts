@@ -7294,6 +7294,48 @@ export type Database = {
           },
         ]
       }
+      house_assignment_audit: {
+        Row: {
+          assigned_at: string
+          assigned_by_role: string | null
+          assigned_by_user_id: string | null
+          created_at: string
+          house_listing_id: string
+          id: string
+          invite_id: string | null
+          listing_agent_id: string | null
+          placement_bonus_paid_at: string | null
+          placement_bonus_status: string
+          tenant_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by_role?: string | null
+          assigned_by_user_id?: string | null
+          created_at?: string
+          house_listing_id: string
+          id?: string
+          invite_id?: string | null
+          listing_agent_id?: string | null
+          placement_bonus_paid_at?: string | null
+          placement_bonus_status?: string
+          tenant_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by_role?: string | null
+          assigned_by_user_id?: string | null
+          created_at?: string
+          house_listing_id?: string
+          id?: string
+          invite_id?: string | null
+          listing_agent_id?: string | null
+          placement_bonus_paid_at?: string | null
+          placement_bonus_status?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       house_listings: {
         Row: {
           access_fee: number
@@ -7335,6 +7377,8 @@ export type Database = {
           placement_bonus_paid_at: string | null
           platform_fee: number
           region: string
+          reserved_at: string | null
+          reserved_by: string | null
           short_code: string | null
           status: string
           sub_county: string | null
@@ -7388,6 +7432,8 @@ export type Database = {
           placement_bonus_paid_at?: string | null
           platform_fee?: number
           region: string
+          reserved_at?: string | null
+          reserved_by?: string | null
           short_code?: string | null
           status?: string
           sub_county?: string | null
@@ -7441,6 +7487,8 @@ export type Database = {
           placement_bonus_paid_at?: string | null
           platform_fee?: number
           region?: string
+          reserved_at?: string | null
+          reserved_by?: string | null
           short_code?: string | null
           status?: string
           sub_county?: string | null
@@ -12831,6 +12879,7 @@ export type Database = {
           funded_at: string | null
           house_category: string | null
           house_image_urls: string[] | null
+          house_listing_id: string | null
           id: string
           initial_outstanding_balance: number | null
           landlord_acknowledged: boolean | null
@@ -12940,6 +12989,7 @@ export type Database = {
           funded_at?: string | null
           house_category?: string | null
           house_image_urls?: string[] | null
+          house_listing_id?: string | null
           id?: string
           initial_outstanding_balance?: number | null
           landlord_acknowledged?: boolean | null
@@ -13049,6 +13099,7 @@ export type Database = {
           funded_at?: string | null
           house_category?: string | null
           house_image_urls?: string[] | null
+          house_listing_id?: string | null
           id?: string
           initial_outstanding_balance?: number | null
           landlord_acknowledged?: boolean | null
@@ -13153,6 +13204,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_house_listing_id_fkey"
+            columns: ["house_listing_id"]
+            isOneToOne: false
+            referencedRelation: "house_listings"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "rent_requests_landlord_id_fkey"
@@ -17266,6 +17324,7 @@ export type Database = {
           funded_at: string | null
           house_category: string | null
           house_image_urls: string[] | null
+          house_listing_id: string | null
           id: string
           initial_outstanding_balance: number | null
           landlord_acknowledged: boolean | null

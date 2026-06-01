@@ -273,16 +273,28 @@ Deno.serve(async (req) => {
     if (houseListingId && role === 'tenant') {
       const { data: houseRow } = await adminClient
         .from("house_listings")
-        .select("id, tenant_id, status")
+        .select("id, tenant_id, status, reserved_by, reserved_at")
         .eq("id", houseListingId)
         .maybeSingle();
-      if (houseRow && !houseRow.tenant_id && houseRow.status === 'available') {
-        validHouseListingId = houseRow.id;
-      } else if (houseRow && houseRow.tenant_id) {
+      if (houseRow && houseRow.tenant_id) {
         return new Response(JSON.stringify({ error: "That house already has a tenant. Pick another empty house." }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      } else if (
+        houseRow &&
+        houseRow.reserved_by &&
+        houseRow.reserved_by !== user.id &&
+        houseRow.reserved_at &&
+        Date.now() - new Date(houseRow.reserved_at).getTime() < 30 * 24 * 60 * 60 * 1000
+      ) {
+        // Another agent is already holding this house via a pending invite.
+        return new Response(JSON.stringify({ error: "That house was just reserved by another agent. Pick another empty house." }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } else if (houseRow && !houseRow.tenant_id && houseRow.status === 'available') {
+        validHouseListingId = houseRow.id;
       }
     }
 
@@ -321,6 +333,14 @@ Deno.serve(async (req) => {
       console.error("Invite error:", inviteError);
       
       if (inviteError.code === '23505') {
+        // Two agents racing for the same empty house — only one pending invite
+        // can hold a house (uniq_pending_invite_house_listing partial index).
+        if (inviteError.message?.includes('uniq_pending_invite_house_listing')) {
+          return new Response(JSON.stringify({ error: "That house was just reserved by another agent. Pick another empty house." }), {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         const isPhoneDuplicate = inviteError.message?.includes('phone') || 
                                   inviteError.message?.includes('idx_supporter_invites_phone_normalized');
         if (isPhoneDuplicate) {

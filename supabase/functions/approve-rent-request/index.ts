@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const AGENT_APPROVAL_BONUS = 5000;
+// Staged agent rewards are now paid by DB triggers + funding edge functions.
 
 // --- SMS Helper (Africa's Talking) ---
 function formatPhoneInternational(phone: string): string {
@@ -256,41 +256,11 @@ Deno.serve(async (req) => {
       // NOTE: Tenant obligation is tracked via rent_receivable_created in the bridge scope
       // when the rent is funded/disbursed. No direct ledger insert needed here.
 
-      // === PAY AGENT BONUS ===
-      if (rentRequest.agent_id && isManager) {
-        // Ensure agent wallet exists (trigger handles balance updates)
-        await adminClient
-          .from('wallets')
-          .upsert({ user_id: rentRequest.agent_id, balance: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
-
-        await adminClient.from('agent_earnings').insert({
-          agent_id: rentRequest.agent_id, amount: AGENT_APPROVAL_BONUS,
-          earning_type: 'approval_bonus', source_user_id: rentRequest.tenant_id,
-          rent_request_id: rent_request_id, description: `UGX 5,000 bonus for approved tenant registration`,
-        });
-
-        // Credit event bonus to commission accrual ledger (this inserts ledger entry, trigger updates wallet)
-        await adminClient.rpc('credit_agent_event_bonus', {
-          p_agent_id: rentRequest.agent_id,
-          p_tenant_id: rentRequest.tenant_id,
-          p_event_type: 'rent_request_posted',
-          p_source_id: rent_request_id,
-        }).then(({ error: bonusErr }) => {
-          if (bonusErr) console.error('[approve-rent-request] Event bonus ledger error:', bonusErr.message);
-          else console.log('[approve-rent-request] rent_request_posted bonus credited to ledger');
-        });
-
-        // Agent bonus notification
-        await adminClient.from('notifications').insert({
-          user_id: rentRequest.agent_id,
-          title: 'Approval Bonus Received!',
-          message: `You earned UGX ${AGENT_APPROVAL_BONUS.toLocaleString()} for ${tenantName}'s approved rent request.`,
-          type: 'earning',
-          metadata: { amount: AGENT_APPROVAL_BONUS, type: 'approval_bonus' },
-        });
-
-        console.log(`Agent ${rentRequest.agent_id} received UGX ${AGENT_APPROVAL_BONUS} bonus`);
-      }
+      // === AGENT REWARDS ===
+      // Staged agent rewards (UGX 1,000 on posting with a listed house, UGX 4,000 on
+      // landlord verification, UGX 5,000 on funding to the agent's landlord float) are
+      // now paid automatically by database triggers and the funding edge functions.
+      // No approval-time bonus is paid here anymore.
 
       // === IN-APP NOTIFICATIONS ===
       // Tenant approval notification
@@ -324,7 +294,7 @@ Deno.serve(async (req) => {
 
       // Agent SMS
       if (rentRequest.agent_id && agentPhone) {
-        const agentMsg = `WELILE: Rent request for ${tenantName} (UGX ${Number(rentRequest.rent_amount).toLocaleString()}) has been approved.${isManager ? ` You earned UGX ${AGENT_APPROVAL_BONUS.toLocaleString()} bonus.` : ''}`;
+        const agentMsg = `WELILE: Rent request for ${tenantName} (UGX ${Number(rentRequest.rent_amount).toLocaleString()}) has been approved.`;
         smsPromises.push(sendSMS(agentPhone, agentMsg));
       }
 
@@ -338,7 +308,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: true,
           message: 'Rent request approved with auto-charge subscription created',
-          agent_bonus_paid: rentRequest.agent_id && isManager ? AGENT_APPROVAL_BONUS : 0,
+          agent_bonus_paid: 0,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

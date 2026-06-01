@@ -77,6 +77,8 @@ export const RECRUITER_RATE = 0.02;        // Recruiter override: 2% (manager dr
 
 // Event-based fixed bonuses (UGX)
 export const EVENT_BONUSES = {
+  rent_posted_listed: 1000,
+  rent_landlord_verified: 4000,
   rent_request_posted: 5000,
   house_listed: 5000,
   tenant_replacement: 20000,

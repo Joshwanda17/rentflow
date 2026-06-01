@@ -61,7 +61,6 @@ import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeleton
 import { WalletHeroSkeleton } from '@/components/skeletons/SectionSkeletons';
 
 import { hapticTap } from '@/lib/haptics';
-import { clearAndReload } from '@/lib/hardRecovery';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
@@ -484,16 +483,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <div className="agent-dashboard-scroll flex-1 overflow-y-auto overflow-x-hidden pb-nav">
         <main className="agent-dashboard-main w-full min-w-0 px-4 pt-5 pb-16 space-y-5 max-w-lg mx-auto">
         <VerificationOpportunitiesButton />
-        {/* Always-visible "get the latest version" control */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => { hapticTap(); void clearAndReload('manual_reload'); }}
-          className="w-full h-9 gap-2 text-xs font-medium"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Refresh to latest version
-        </Button>
         {/* Offline Notice */}
         {!isOnline && (
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">

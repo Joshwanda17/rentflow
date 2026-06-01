@@ -209,6 +209,52 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
     () => emptyHouses.find((h) => h.id === selectedHouseId) || null,
     [emptyHouses, selectedHouseId]
   );
+  const [previewHouseId, setPreviewHouseId] = useState<string>('');
+  const [housePreviewOpen, setHousePreviewOpen] = useState(false);
+  const previewHouse = useMemo(
+    () => emptyHouses.find((h) => h.id === previewHouseId) || null,
+    [emptyHouses, previewHouseId]
+  );
+
+  // Advanced filters for the empty-house search
+  const [houseAreaFilter, setHouseAreaFilter] = useState<string>('all');
+  const [houseTypeFilter, setHouseTypeFilter] = useState<string>('all');
+  const [housePriceFilter, setHousePriceFilter] = useState<string>('all');
+
+  const houseAreaOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(emptyHouses.map((h) => (h.region || '').trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b)),
+    [emptyHouses]
+  );
+  const houseTypeOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(emptyHouses.map((h) => (h.house_category || '').trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b)),
+    [emptyHouses]
+  );
+  const PRICE_BANDS: { value: string; label: string; min: number; max: number }[] = [
+    { value: 'lt200', label: 'Under 200K', min: 0, max: 200_000 },
+    { value: '200-500', label: '200K – 500K', min: 200_000, max: 500_000 },
+    { value: '500-1m', label: '500K – 1M', min: 500_000, max: 1_000_000 },
+    { value: 'gt1m', label: 'Over 1M', min: 1_000_000, max: Infinity },
+  ];
+  const houseFiltersActive =
+    houseAreaFilter !== 'all' || houseTypeFilter !== 'all' || housePriceFilter !== 'all';
+  const filteredHouses = useMemo(() => {
+    return emptyHouses.filter((h) => {
+      if (houseAreaFilter !== 'all' && (h.region || '').trim() !== houseAreaFilter) return false;
+      if (houseTypeFilter !== 'all' && (h.house_category || '').trim() !== houseTypeFilter) return false;
+      if (housePriceFilter !== 'all') {
+        const band = PRICE_BANDS.find((b) => b.value === housePriceFilter);
+        const rent = h.monthly_rent ?? 0;
+        if (band && !(rent >= band.min && rent < band.max)) return false;
+      }
+      return true;
+    });
+  }, [emptyHouses, houseAreaFilter, houseTypeFilter, housePriceFilter]);
 
   const fetchEmptyHouses = async () => {
     setHousesLoading(true);
@@ -218,6 +264,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
         .select('id, title, address, region, house_category, monthly_rent, short_code')
         .eq('status', 'available')
         .is('tenant_id', null)
+        .is('reserved_at', null)
         .eq('is_hidden', false)
         .order('created_at', { ascending: false })
         .limit(200);
@@ -680,12 +727,62 @@ Password: ${createdInvite?.password}`;
                   filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}
                 >
                   <CommandInput placeholder="Search by name, area or code…" />
+                  <div className="flex flex-wrap items-center gap-1.5 border-b p-2">
+                    <Select value={houseAreaFilter} onValueChange={setHouseAreaFilter}>
+                      <SelectTrigger className="h-7 flex-1 min-w-[90px] text-[11px]">
+                        <SelectValue placeholder="Area" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All areas</SelectItem>
+                        {houseAreaOptions.map((a) => (
+                          <SelectItem key={a} value={a}>{a}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={houseTypeFilter} onValueChange={setHouseTypeFilter}>
+                      <SelectTrigger className="h-7 flex-1 min-w-[90px] text-[11px]">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All types</SelectItem>
+                        {houseTypeOptions.map((t) => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={housePriceFilter} onValueChange={setHousePriceFilter}>
+                      <SelectTrigger className="h-7 flex-1 min-w-[90px] text-[11px]">
+                        <SelectValue placeholder="Price" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any price</SelectItem>
+                        {PRICE_BANDS.map((b) => (
+                          <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {houseFiltersActive && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-[11px] text-muted-foreground"
+                        onClick={() => {
+                          setHouseAreaFilter('all');
+                          setHouseTypeFilter('all');
+                          setHousePriceFilter('all');
+                        }}
+                      >
+                        <XCircle className="h-3 w-3 mr-1" /> Clear
+                      </Button>
+                    )}
+                  </div>
                   <CommandList>
                     <CommandEmpty>
                       {housesLoading ? 'Loading…' : 'No available empty houses found.'}
                     </CommandEmpty>
                     <CommandGroup>
-                      {emptyHouses.map((h) => {
+                      {filteredHouses.map((h) => {
                         const searchValue = [h.title, h.address, h.region, h.house_category, h.short_code]
                           .filter(Boolean)
                           .join(' ');
@@ -694,7 +791,12 @@ Password: ${createdInvite?.password}`;
                             key={h.id}
                             value={`${searchValue} ${h.id}`}
                             onSelect={() => {
-                              setSelectedHouseId(h.id === selectedHouseId ? '' : h.id);
+                              if (h.id === selectedHouseId) {
+                                setSelectedHouseId('');
+                              } else {
+                                setPreviewHouseId(h.id);
+                                setHousePreviewOpen(true);
+                              }
                               setHousePickerOpen(false);
                             }}
                             className="flex items-start gap-2"
@@ -720,7 +822,22 @@ Password: ${createdInvite?.password}`;
                 </Command>
               </PopoverContent>
             </Popover>
-            {selectedHouse ? (
+            {selectedHouseId && !selectedHouse && !housesLoading ? (
+              <p className="text-[11px] text-destructive flex items-center gap-1.5">
+                <AlertCircle className="h-3 w-3" />
+                This house was just reserved by another agent. Please pick a different one.
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedHouseId('');
+                    setHousePickerOpen(true);
+                  }}
+                  className="ml-1 underline font-medium hover:text-foreground"
+                >
+                  Search again
+                </button>
+              </p>
+            ) : selectedHouse ? (
               <p className="text-[11px] text-success flex items-center gap-1.5">
                 <Check className="h-3 w-3" />
                 This house will be assigned to the tenant when they activate.
@@ -1021,6 +1138,109 @@ Password: ${createdInvite?.password}`;
             </Button>
           </div>
         </div>
+      )}
+
+      {/* House Assignment Preview */}
+      {selectedType === 'tenant' && (
+        <Dialog open={housePreviewOpen} onOpenChange={(open) => {
+          setHousePreviewOpen(open);
+          if (!open) setPreviewHouseId('');
+        }}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Home className="h-5 w-5 text-blue-500" />
+                Review House Assignment
+              </DialogTitle>
+              <DialogDescription>
+                Confirm this house before assigning it to the tenant
+              </DialogDescription>
+            </DialogHeader>
+            {previewHouse ? (
+              <div className="space-y-4 py-2">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4">
+                  <h3 className="font-bold text-lg">{previewHouse.title}</h3>
+                  {previewHouse.short_code && (
+                    <p className="text-xs text-muted-foreground font-mono mt-1">
+                      Code: {previewHouse.short_code}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Location</p>
+                      <p className="text-sm font-medium">
+                        {[previewHouse.address, previewHouse.region].filter(Boolean).join(', ') || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Home className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Rent Unit Type</p>
+                      <p className="text-sm font-medium">{previewHouse.house_category || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Wallet className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Monthly Rent</p>
+                      <p className="text-sm font-medium">
+                        {previewHouse.monthly_rent != null
+                          ? `UGX ${previewHouse.monthly_rent.toLocaleString('en-UG')}`
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Availability</p>
+                      <p className="text-sm font-medium text-green-600">Available now</p>
+                    </div>
+                  </div>
+                </div>
+                {selectedHouseId && selectedHouseId !== previewHouseId && selectedHouse && (
+                  <p className="text-xs text-amber-600 bg-amber-500/10 rounded-lg p-2.5 flex items-start gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    This will replace the currently selected house: {selectedHouse.title}
+                  </p>
+                )}
+                <div className="pt-2 space-y-2">
+                  <Button
+                    type="button"
+                    className="w-full h-12 rounded-xl font-semibold"
+                    onClick={() => {
+                      setSelectedHouseId(previewHouseId);
+                      setHousePreviewOpen(false);
+                      setPreviewHouseId('');
+                    }}
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Confirm Assignment
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 rounded-xl"
+                    onClick={() => {
+                      setHousePreviewOpen(false);
+                      setPreviewHouseId('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center text-muted-foreground text-sm">
+                No house selected for preview
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       )}
     </form>
   );

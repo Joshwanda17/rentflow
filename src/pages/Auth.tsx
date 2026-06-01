@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { roleToSlug } from '@/lib/roleRoutes';
-import { isIOS, checkServerVersion, isVersionStaleSync } from '@/lib/versionGate';
+import { checkServerVersion, isVersionStaleSync } from '@/lib/versionGate';
 import { clearAndReload } from '@/lib/hardRecovery';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
@@ -142,8 +142,7 @@ export default function Auth() {
   const [otpLoginLoading, setOtpLoginLoading] = useState(false);
   const [otpLoginCountryCode, setOtpLoginCountryCode] = useState('256');
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
-  // Hard iOS version gate: blocks SMS code requests while this device is running
-  // an outdated bundle (the root cause of the iPhone "invalid code" loop).
+  // Blocks SMS code requests while this device is running an outdated bundle.
   const [otpVersionBlocked, setOtpVersionBlocked] = useState(false);
   // Permanent login by default. When unchecked the session is
   // ephemeral and OTP is required again after the browser is fully closed.
@@ -177,11 +176,9 @@ export default function Auth() {
     return () => clearInterval(timer);
   }, [otpResendCooldown]);
 
-  // On iOS, verify the running bundle is current before the user can request a
-  // code. A stale bundle is the root cause of the "wrong code" loop, so we block
-  // upfront and force a refresh rather than minting codes the device can't use.
+  // Verify the running bundle is current before the user can request a code.
+  // A stale bundle can break OTP contracts, so this check is universal.
   useEffect(() => {
-    if (!isIOS()) return;
     if (isVersionStaleSync()) {
       setOtpVersionBlocked(true);
       return;
@@ -201,16 +198,13 @@ export default function Auth() {
   }, []);
 
   const handleSendOtpForLogin = async () => {
-    // Hard iOS version gate: never request a code on a stale bundle — the code
-    // would be unusable and trap the user in the "invalid code" loop.
-    if (isIOS()) {
-      const stale = isVersionStaleSync()
-        ? true
-        : (await checkServerVersion()).stale;
-      if (stale) {
-        setOtpVersionBlocked(true);
-        return;
-      }
+    // Never request a code on a stale bundle.
+    const stale = isVersionStaleSync()
+      ? true
+      : (await checkServerVersion()).stale;
+    if (stale) {
+      setOtpVersionBlocked(true);
+      return;
     }
     const fullNum = getFullOtpPhone(otpLoginPhone, otpLoginCountryCode);
     if (fullNum.length < 10) {
