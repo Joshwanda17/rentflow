@@ -114,6 +114,17 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
 
   const amountNum = parseFloat(amount);
 
+  // Close suggestions when clicking outside the phone field.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (phoneWrapRef.current && !phoneWrapRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // Tick the countdown while the depositor is on the PIN step.
   useEffect(() => {
     if (step !== 'pin' || !expiresAt) return;
