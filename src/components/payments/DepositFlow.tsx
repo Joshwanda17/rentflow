@@ -292,6 +292,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * the agent uploaded them late.
    */
   const [duplicateTidStatus, setDuplicateTidStatus] = useState<string | null>(null);
+  // Cash-with-agent live PIN deposit (separate self-contained dialog).
+  const [showAgentPinDeposit, setShowAgentPinDeposit] = useState(false);
 
   /**
    * Edit-mode fallback bookkeeping.
