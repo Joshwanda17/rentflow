@@ -19555,6 +19555,14 @@ export type Database = {
           id: string
         }[]
       }
+      search_agents_by_phone: {
+        Args: { p_limit?: number; p_phone_term?: string }
+        Returns: {
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       search_locations: {
         Args: { p_limit?: number; p_query: string }
         Returns: {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, Banknote, Phone, CheckCircle2, ShieldCheck, ChevronLeft } from 'lucide-react';
+import { Loader2, Banknote, Phone, CheckCircle2, ShieldCheck, ChevronLeft, User } from 'lucide-react';
 
 // Read the friendly `message` field our edge functions return on non-2xx.
 async function readEdgeMessage(error: any, fallback: string): Promise<string> {
@@ -56,14 +56,74 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
+  // Agent phone search
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; full_name: string; phone: string }>>([]);
+  const [searching, setSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const phoneWrapRef = useRef<HTMLDivElement>(null);
+
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
+    setSuggestions([]); setShowSuggestions(false);
+  };
+
+  const searchAgents = useCallback(async (query: string) => {
+    const digits = query.replace(/\D/g, '');
+    if (digits.length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const { data, error } = await supabase.rpc('search_agents_by_phone', {
+        p_phone_term: digits,
+        p_limit: 8,
+      });
+      if (error) {
+        console.error('search_agents_by_phone error:', error);
+        setSuggestions([]);
+      } else {
+        setSuggestions((data ?? []) as Array<{ id: string; full_name: string; phone: string }>);
+        setShowSuggestions((data ?? []).length > 0);
+      }
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const onPhoneChange = (value: string) => {
+    setAgentPhone(value);
+    setShowSuggestions(false);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => searchAgents(value), 300);
+  };
+
+  const selectSuggestion = (phone: string, name: string) => {
+    setAgentPhone(phone);
+    setAgentName(name);
+    setShowSuggestions(false);
+    setSuggestions([]);
   };
 
   const close = () => { reset(); onOpenChange(false); };
 
   const amountNum = parseFloat(amount);
+
+  // Close suggestions when clicking outside the phone field.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (phoneWrapRef.current && !phoneWrapRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Tick the countdown while the depositor is on the PIN step.
   useEffect(() => {
@@ -182,7 +242,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 relative" ref={phoneWrapRef}>
               <Label className="text-sm font-medium flex items-center gap-1.5">
                 <Phone className="h-3.5 w-3.5" /> Agent's phone number
               </Label>
@@ -191,9 +251,37 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 inputMode="tel"
                 placeholder="e.g. 0772 123 456"
                 value={agentPhone}
-                onChange={(e) => setAgentPhone(e.target.value)}
+                onChange={(e) => onPhoneChange(e.target.value)}
+                onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                autoComplete="off"
                 className="h-12 text-base"
               />
+              {showSuggestions && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border rounded-lg shadow-lg overflow-hidden">
+                  {searching && (
+                    <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Searching agents…
+                    </div>
+                  )}
+                  {!searching && suggestions.length === 0 && (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No agents found</div>
+                  )}
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2.5 flex items-center gap-2 hover:bg-accent transition-colors"
+                      onClick={() => selectSuggestion(s.phone, s.full_name)}
+                    >
+                      <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{s.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{s.phone}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Button onClick={handleCreate} disabled={loading} className="w-full h-12 gap-2">
