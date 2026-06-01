@@ -120,7 +120,7 @@ export function getVersionGateState(): VersionGateState | null {
 export async function checkServerVersion(): Promise<VersionGateState> {
   const current = CURRENT_APP_VERSION;
   try {
-    const res = await fetch(`${VERSION_URL}?_=${Date.now().toString(36)}`, {
+    const res = await fetch(VERSION_URL, {
       cache: "no-store",
       headers: { Accept: "application/json" },
     });
