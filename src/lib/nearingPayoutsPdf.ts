@@ -260,10 +260,9 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     return 0;
   });
 
-  // Body table
+  // Body table — only the columns the COO needs for nearing payouts.
   const head = [[
-    '#', 'Partner', 'Portfolio', 'Contact',
-    'Principal', 'ROI %', 'Returns Due', 'Mode', 'Payout Date', 'Due', 'Status', 'Payment Details',
+    '#', 'Partner', 'Returns Due', 'Due', 'Payment Details',
   ]];
   const body = sortedRows.map((r, idx) => {
     // Prefer FRESH database values over the row payload supplied by the
@@ -273,10 +272,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     const principal = det?.investment_amount ?? r.investmentAmount ?? 0;
     const roiPct = det?.roi_percentage ?? r.roiPercentage ?? 0;
     const roiMode = det?.roi_mode ?? r.roiMode;
-    const portfolioName = det?.account_name || r.portfolioName || '—';
-    const payoutDate = det?.next_roi_date || r.nextPayoutDate;
     const returnsDue = Math.round(principal * roiPct / 100);
-    const portfolioStatus = statusLabel(det?.status ?? r.status);
     const pm = r.investorId ? payoutMap.get(r.investorId) : undefined;
     // Prefer per-portfolio payout details on the portfolio record itself —
     // an edit on the portfolio's account/MoMo fields must show up here.
@@ -302,15 +298,8 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     return [
       String(idx + 1),
       r.name || '—',
-      portfolioName,
-      [r.phone || '', r.email || ''].filter(Boolean).join('\n') || '—',
-      formatUGX(principal),
-      `${roiPct}%`,
       formatUGX(returnsDue),
-      roiMode === 'monthly_compounding' ? 'Compound' : 'Payout',
-      fmtDate(payoutDate),
       dueLabel(r.daysUntil),
-      portfolioStatus,
       paymentCell,
     ];
   });
@@ -325,18 +314,14 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     alternateRowStyles: { fillColor: THEME_STRIPE },
     columnStyles: {
       0: { cellWidth: 8, halign: 'right' },
-      3: { cellWidth: 42 },
-      4: { halign: 'right' },
-      5: { halign: 'right', cellWidth: 12 },
-      6: { halign: 'right', fontStyle: 'bold' },
-      7: { halign: 'center', cellWidth: 16 },
-      9: { halign: 'center', cellWidth: 22 },
-      10: { halign: 'center', cellWidth: 20 },
-      11: { cellWidth: 52 },
+      1: { cellWidth: 50 },
+      2: { halign: 'right', fontStyle: 'bold', cellWidth: 32 },
+      3: { halign: 'center', cellWidth: 26 },
+      4: { cellWidth: 80 },
     },
     didParseCell: (data: any) => {
       // Highlight overdue / due-today rows in the Due column.
-      if (data.section === 'body' && data.column.index === 9) {
+      if (data.section === 'body' && data.column.index === 3) {
         const status = String(data.cell.raw || '');
         if (status === 'Due today') {
           data.cell.styles.textColor = [180, 83, 9];
@@ -348,7 +333,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
         }
       }
       // Subtle warning for missing payment methods
-      if (data.section === 'body' && data.column.index === 11) {
+      if (data.section === 'body' && data.column.index === 4) {
         const v = String(data.cell.raw || '');
         if (v.startsWith('Not set')) {
           data.cell.styles.textColor = [180, 83, 9];
