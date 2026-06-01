@@ -214,26 +214,33 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const handleConfirm = async (code: string) => {
     if (!sessionId || code.length !== 4) return;
     setLoading(true);
+    setPinError('');
     try {
       const { data, error } = await supabase.functions.invoke('agent-cash-deposit-confirm', {
         body: { session_id: sessionId, pin: code },
       });
       if (error) {
-        toast.error(await readEdgeMessage(error, 'Could not confirm the code'));
+        const msg = await readEdgeMessage(error, 'Could not confirm the code');
+        toast.error(msg);
         setPin('');
+        setPinError(msg);
         return;
       }
       if (!data?.ok) {
-        toast.error(data?.message || 'Incorrect code');
+        const msg = data?.message || 'That code is incorrect. Ask the agent to read it again.';
+        toast.error(msg);
         setPin('');
+        setPinError(msg);
         return;
       }
       setCreditedAmount(Number(data.amount ?? amountNum));
       setStep('success');
       onSuccess?.();
     } catch (e) {
-      toast.error('Network error. Please try again.');
+      const msg = 'Network error. Please try again.';
+      toast.error(msg);
       setPin('');
+      setPinError(msg);
     } finally {
       setLoading(false);
     }
