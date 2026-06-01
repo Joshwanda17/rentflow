@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, ChevronUp, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2, MessageCircle } from 'lucide-react';
-import { UserMinus } from 'lucide-react';
+import { UserMinus, Repeat } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -25,6 +25,7 @@ import { HouseBonusTimeline } from './HouseBonusTimeline';
 import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { HouseDetailSheet } from './HouseDetailSheet';
+import AgentRentRequestDialog from './AgentRentRequestDialog';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -50,6 +51,16 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [deleting, setDeleting] = useState(false);
   const [vacateTarget, setVacateTarget] = useState<HouseListing | null>(null);
   const [vacating, setVacating] = useState(false);
+  // "Swap tenant" flow: confirm → vacate current tenant → open rent request
+  // dialog with this house preselected so the new tenant is linked in one go.
+  const [swapTarget, setSwapTarget] = useState<HouseListing | null>(null);
+  const [swapping, setSwapping] = useState(false);
+  const [swapHouseForLink, setSwapHouseForLink] = useState<{
+    id: string; title: string; address: string | null; region: string | null;
+    district: string | null; house_category: string | null; monthly_rent: number | null;
+    short_code: string | null; latitude: number | null; longitude: number | null;
+    landlord_id: string | null; landlord_name: string | null; landlord_phone: string | null;
+  } | null>(null);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
@@ -189,6 +200,44 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
       toast({ title: 'Could not move tenant out', description: err.message, variant: 'destructive' });
     } finally {
       setVacating(false);
+    }
+  };
+
+  // Single "Swap tenant" flow: move the current tenant out and immediately open
+  // the rent request dialog with this house preselected so the agent links the
+  // new tenant without re-searching. One confirmation, then straight to the form.
+  const handleSwap = async () => {
+    if (!swapTarget || !user?.id) return;
+    setSwapping(true);
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ tenant_id: null, status: 'available' })
+        .eq('id', swapTarget.id)
+        .eq('agent_id', user.id);
+      if (error) throw error;
+      const landlord = swapTarget.landlord_id ? enrichment.landlords[swapTarget.landlord_id] : null;
+      setSwapHouseForLink({
+        id: swapTarget.id,
+        title: swapTarget.title,
+        address: swapTarget.address ?? null,
+        region: swapTarget.region ?? null,
+        district: swapTarget.district ?? null,
+        house_category: swapTarget.house_category ?? null,
+        monthly_rent: swapTarget.monthly_rent ?? null,
+        short_code: swapTarget.short_code ?? null,
+        latitude: swapTarget.latitude ?? null,
+        longitude: swapTarget.longitude ?? null,
+        landlord_id: swapTarget.landlord_id ?? null,
+        landlord_name: landlord?.name ?? null,
+        landlord_phone: landlord?.phone ?? null,
+      });
+      setSwapTarget(null);
+      refresh();
+    } catch (err: any) {
+      toast({ title: 'Could not swap tenant', description: err.message, variant: 'destructive' });
+    } finally {
+      setSwapping(false);
     }
   };
 
@@ -708,6 +757,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                           <UserMinus className="h-4 w-4 mr-2 text-amber-600" /> Move tenant out
                                         </DropdownMenuItem>
                                       )}
+                                      {l.tenant_id && (
+                                        <DropdownMenuItem onClick={() => setSwapTarget(l)}>
+                                          <Repeat className="h-4 w-4 mr-2 text-primary" /> Swap tenant
+                                        </DropdownMenuItem>
+                                      )}
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
                                         className="text-destructive focus:text-destructive"
@@ -766,6 +820,13 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                     onClick={() => setVacateTarget(l)}
                                   >
                                     <UserMinus className="h-3 w-3" /> Move out & replace
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="h-8 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                                    onClick={() => setSwapTarget(l)}
+                                  >
+                                    <Repeat className="h-3 w-3" /> Swap tenant
                                   </Button>
                                   {req && (
                                     <Button
@@ -910,6 +971,41 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    <AlertDialog open={!!swapTarget} onOpenChange={(o) => !o && !swapping && setSwapTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Swap the tenant in this house?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {swapTarget ? (
+              <>
+                The current tenant will be moved out of{' '}
+                <span className="font-medium text-foreground">{swapTarget.title}</span> and you'll go
+                straight to linking a new tenant — the house is already filled in for you.
+              </>
+            ) : null}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={swapping}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => { e.preventDefault(); handleSwap(); }}
+            disabled={swapping}
+            className="gap-2"
+          >
+            {swapping && <Loader2 className="h-4 w-4 animate-spin" />}
+            Swap tenant
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    {swapHouseForLink && (
+      <AgentRentRequestDialog
+        open={!!swapHouseForLink}
+        onOpenChange={(o) => { if (!o) setSwapHouseForLink(null); }}
+        onSuccess={() => { setSwapHouseForLink(null); refresh(); }}
+        preselectHouse={swapHouseForLink}
+      />
+    )}
     </>
   );
 }

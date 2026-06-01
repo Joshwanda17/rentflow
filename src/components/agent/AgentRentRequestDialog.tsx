@@ -76,6 +76,24 @@ interface AgentRentRequestDialogProps {
   /** Optional id of a saved draft this submission should resolve. On success
    *  the draft is marked `submitted` and linked to the new rent_request. */
   draftId?: string | null;
+  /** When provided, the dialog opens with this house already selected (used by
+   *  the "Swap tenant" flow after the previous tenant is moved out) so the
+   *  agent goes straight to linking the new tenant — no re-search needed. */
+  preselectHouse?: {
+    id: string;
+    title: string;
+    address: string | null;
+    region: string | null;
+    district: string | null;
+    house_category: string | null;
+    monthly_rent: number | null;
+    short_code: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    landlord_id: string | null;
+    landlord_name: string | null;
+    landlord_phone: string | null;
+  } | null;
 }
 
 type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
@@ -312,7 +330,7 @@ function formatCurrencyInput(raw: string): string {
   return Number(digits).toLocaleString('en-UG');
 }
 
-export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId }: AgentRentRequestDialogProps) {
+export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId, preselectHouse }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
   const { data: capMap } = useAgentCapacityMap(capIds);
@@ -554,6 +572,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setSelectedHouse(null);
     setHouseConflict(false);
   }, []);
+
+  // "Swap tenant" entry point: when the dialog is opened with a preselected
+  // house (the one just vacated), select it automatically so the agent skips
+  // the search and goes straight to entering the new tenant's details.
+  const preselectedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) {
+      preselectedRef.current = null;
+      return;
+    }
+    if (!preselectHouse) return;
+    if (preselectedRef.current === preselectHouse.id) return;
+    preselectedRef.current = preselectHouse.id;
+    selectHouse(preselectHouse);
+    setHouseSearchedOnce(true);
+  }, [open, preselectHouse, selectHouse]);
 
   // Auto-load available houses the first time the agent reaches the details
   // step in the standard flow, so the picker is ready immediately.
