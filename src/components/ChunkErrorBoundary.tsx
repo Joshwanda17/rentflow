@@ -166,21 +166,23 @@ class ChunkErrorBoundary extends Component<Props, State> {
                   Welile version.
                 </p>
               </div>
-              <button
-                onClick={this.handleForceClear}
-                disabled={this.state.isRetrying}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {this.state.isRetrying ? (
-                  <span key="retrying" className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Clearing...
-                  </span>
-                ) : (
-                  <span key="idle" className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4" /> Clear old app & reload
-                  </span>
-                )}
-              </button>
+              {this.state.isRetrying ? (
+                <button
+                  key="retrying-btn"
+                  disabled
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity opacity-50"
+                >
+                  <Loader2 className="w-4 h-4 animate-spin" /> Clearing...
+                </button>
+              ) : (
+                <button
+                  key="idle-btn"
+                  onClick={this.handleForceClear}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
+                >
+                  <RefreshCw className="w-4 h-4" /> Clear old app & reload
+                </button>
+              )}
               <p className="text-xs text-muted-foreground/60">
                 Still stuck? Close the tab completely and reopen welilereceipts.com, or remove the app from your Home
                 Screen and add it again.
@@ -205,21 +207,23 @@ class ChunkErrorBoundary extends Component<Props, State> {
                   Welile is removing the stale version and loading the latest app.
                 </p>
               </div>
-              <button
-                onClick={this.handleRetry}
-                disabled={this.state.isRetrying}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {this.state.isRetrying ? (
-                  <span key="retrying" className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Refreshing...
-                  </span>
-                ) : (
-                  <span key="idle" className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4" /> Clear & Reload Now
-                  </span>
-                )}
-              </button>
+              {this.state.isRetrying ? (
+                <button
+                  key="retrying-btn"
+                  disabled
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity opacity-50"
+                >
+                  <Loader2 className="w-4 h-4 animate-spin" /> Refreshing...
+                </button>
+              ) : (
+                <button
+                  key="idle-btn"
+                  onClick={this.handleRetry}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
+                >
+                  <RefreshCw className="w-4 h-4" /> Clear & Reload Now
+                </button>
+              )}
               <p className="text-xs text-muted-foreground/60">
                 If this repeats, close Safari completely and reopen welilereceipts.com.
               </p>
