@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -16,6 +17,7 @@ import {
 import {
   FileText, Home, UserCheck, Handshake, Globe, MapPin, ChevronRight,
   ChevronLeft, RefreshCw, User, ChevronDown, ChevronUp, Phone,
+  Search, ArrowUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOpsZoneAgents, useOpsZoneLandlords, type ZoneAgentRow, type ZoneLandlordRow } from '@/hooks/useWelileOpsCounters';
