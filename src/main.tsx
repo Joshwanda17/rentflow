@@ -4,12 +4,10 @@ import './lib/ephemeralGuard';
 import { createRoot } from 'react-dom/client';
 import {
   clearAndReload,
-  hardRecover,
-  recoveryExhausted,
   clearRecoveryAttempts,
 } from './lib/hardRecovery';
 import { logUpdateFailure } from './lib/updateTelemetry';
-import { refreshRolloutConfig, isRolloutEnabledForDevice } from './lib/rollout';
+import { refreshRolloutConfig } from './lib/rollout';
 import { checkServerVersion, isVersionStaleSync, isForceUpdateSync } from './lib/versionGate';
 import {
   installForcedUpdateWatch,
@@ -80,9 +78,9 @@ if (isPreviewHost || isInIframe) {
   });
 }
 
-// Cross-platform, server-controlled forced-update gate. Runs everywhere (not
-// just iOS): when version.json demands a blocking update, it paints an
-// un-dismissible overlay and auto-fires the update flow. Off in preview/iframe.
+// Cross-platform, server-controlled refresh prompt. Runs everywhere (not just
+// iOS): when version.json detects an older bundle, it shows a dismissible top
+// banner with a refresh button. Off in preview/iframe.
 if (!isPreviewHost && !isInIframe) {
   installForcedUpdateWatch();
 }
@@ -217,13 +215,8 @@ const loadApp = async () => {
         details: { message: String((err as any)?.message || err), recentlyReloaded },
       });
     }
-    // Staged rollout gate: only devices in the active canary/ramp cohort run
-    // the automatic cache cleanup recovery. Devices outside the cohort fall
-    // through to the manual recovery UI, so the fix is verified on a small
-    // percentage before full deployment.
-    const inRolloutCohort = isRolloutEnabledForDevice();
-    // Universal hard version gate: when this device is provably running an
-    // outdated bundle, replace retry loops with the forced update path.
+    // Universal refresh prompt: when this browser is provably running an
+    // outdated bundle, show the top refresh banner instead of retry loops.
     if (isChunkError) {
       const version = isVersionStaleSync()
         ? { stale: true }
@@ -236,28 +229,11 @@ const loadApp = async () => {
         triggerForcedUpdate('stale_chunk_error');
         return;
       }
-    }
-    // Stale-deploy recovery: purge caches/SWs and plain-reload. Stop once attempts are
-    // exhausted to avoid an endless "Updating…" loop.
-    if (isChunkError && inRolloutCohort && !recoveryExhausted()) {
-      try {
-        sessionStorage.setItem(reloadKey, String(Date.now()));
-      } catch {}
-      await hardRecover();
-      return;
-    }
-    if (isChunkError && !inRolloutCohort) {
       logUpdateFailure('chunk_error_detected', {
         chunk_mismatch: true,
-        details: { rolloutCohort: false, message: 'outside rollout cohort — manual recovery UI' },
+        details: { message: 'chunk error — refresh banner shown' },
       });
-    }
-    if (isChunkError && recoveryExhausted()) {
-      logUpdateFailure('recovery_exhausted', { chunk_mismatch: true });
-      // Terminal state: 3 hard-recovery attempts have failed. Hand off to the
-      // server-controlled forced-update gate, which runs the hardened SW rescue
-      // path automatically instead of leaving iPhone users hunting for a button.
-      triggerForcedUpdate('recovery_exhausted');
+      triggerForcedUpdate('chunk_error_refresh_prompt');
       return;
     }
     showErrorUI();
@@ -288,7 +264,7 @@ function showErrorUI() {
   heading.style.cssText = 'font-size:18px;font-weight:600;color:#1f2937;margin:0';
 
   const msg = document.createElement('p');
-    msg.textContent = 'Welile found an old iPhone cache. Tap below to clear it and load the latest app.';
+  msg.textContent = 'Welile found an older app file. Tap below to refresh and load the latest app.';
   msg.style.cssText = 'font-size:14px;color:#6b7280;margin:0;max-width:280px';
 
   const btn = document.createElement('button');
