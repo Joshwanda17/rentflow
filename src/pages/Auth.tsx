@@ -24,8 +24,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { roleToSlug } from '@/lib/roleRoutes';
-import { checkServerVersion, isVersionStaleSync } from '@/lib/versionGate';
-import { clearAndReload } from '@/lib/hardRecovery';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
@@ -142,8 +140,6 @@ export default function Auth() {
   const [otpLoginLoading, setOtpLoginLoading] = useState(false);
   const [otpLoginCountryCode, setOtpLoginCountryCode] = useState('256');
   const [otpResendCooldown, setOtpResendCooldown] = useState(0);
-  // Blocks SMS code requests while this device is running an outdated bundle.
-  const [otpVersionBlocked, setOtpVersionBlocked] = useState(false);
   // Permanent login by default. When unchecked the session is
   // ephemeral and OTP is required again after the browser is fully closed.
   const [rememberThisDevice, setRememberThisDevice] = useState(true);
@@ -176,36 +172,12 @@ export default function Auth() {
     return () => clearInterval(timer);
   }, [otpResendCooldown]);
 
-  // Verify the running bundle is current before the user can request a code.
-  // A stale bundle can break OTP contracts, so this check is universal.
-  useEffect(() => {
-    if (isVersionStaleSync()) {
-      setOtpVersionBlocked(true);
-      return;
-    }
-    let active = true;
-    checkServerVersion().then((state) => {
-      if (active && state.stale) setOtpVersionBlocked(true);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const getFullOtpPhone = useCallback((phoneVal: string, codeVal: string) => {
     const cleanDigits = phoneVal.replace(/\D/g, '');
     return cleanDigits.startsWith(codeVal) ? cleanDigits : codeVal + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
   }, []);
 
   const handleSendOtpForLogin = async () => {
-    // Never request a code on a stale bundle.
-    const stale = isVersionStaleSync()
-      ? true
-      : (await checkServerVersion()).stale;
-    if (stale) {
-      setOtpVersionBlocked(true);
-      return;
-    }
     const fullNum = getFullOtpPhone(otpLoginPhone, otpLoginCountryCode);
     if (fullNum.length < 10) {
       toast({ title: 'Error', description: 'Please enter a valid phone number', variant: 'destructive' });
