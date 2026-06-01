@@ -300,6 +300,8 @@ export default function WithdrawFlow({
     setSaveAsNew(true);
     setSavedNickname('');
     setCashPickupCode(null);
+    setCodeIssuedAt(null);
+    setResendingCode(false);
     setCashCodeInput('');
     setCashCodeAcknowledged(false);
     setCashCodeError(null);
