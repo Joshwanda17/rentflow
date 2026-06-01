@@ -446,15 +446,24 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
               read the code and enter it below.
             </div>
             {secsLeft !== null && (
-              <div
-                className={`flex items-center justify-center gap-1.5 text-xs font-medium ${
-                  expired ? 'text-destructive' : secsLeft <= 60 ? 'text-amber-600' : 'text-muted-foreground'
-                }`}
-              >
-                {expired ? (
-                  <>This code has expired — start a new cash deposit.</>
-                ) : (
-                  <>Code expires in <span className="tabular-nums font-semibold">{countdownLabel}</span></>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span className={expired ? 'text-destructive' : secsLeft <= 60 ? 'text-amber-600' : 'text-muted-foreground'}>
+                    {expired ? 'Code expired' : 'Code expires in'}
+                  </span>
+                  <span className={`tabular-nums font-bold ${expired ? 'text-destructive' : secsLeft <= 60 ? 'text-amber-600' : 'text-foreground'}`}>
+                    {countdownLabel}
+                  </span>
+                </div>
+                {!expired && (
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-1000 ease-linear ${
+                        secsLeft <= 60 ? 'bg-destructive' : secsLeft <= 120 ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.min(100, Math.max(0, (secsLeft / 300) * 100))}%` }}
+                    />
+                  </div>
                 )}
               </div>
             )}
