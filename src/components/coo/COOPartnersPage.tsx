@@ -4526,6 +4526,16 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                           </div>
                         </div>
                       )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full text-xs gap-1.5 text-muted-foreground hover:text-primary"
+                        disabled={sharingCardId === p.portfolioId}
+                        onClick={() => handleShareCard(p)}
+                      >
+                        {sharingCardId === p.portfolioId ? <Loader2 className="h-3 w-3 animate-spin" /> : <Share2 className="h-3 w-3" />}
+                        Share payout card
+                      </Button>
                     </div>
                   );
                 })
