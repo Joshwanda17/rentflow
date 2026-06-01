@@ -127,3 +127,6 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.credit-lc1-verification-bonus]
     verify_jwt = false
+
+[functions.cash-deposit-verify-code]
+verify_jwt = false

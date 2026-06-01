@@ -1,5 +1,5 @@
 import React, { Component, ReactNode } from "react";
-import { RefreshCw, Home } from "lucide-react";
+import { RefreshCw, Home, Loader2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { clearAndReload } from "@/lib/hardRecovery";
 
@@ -11,9 +11,18 @@ interface State {
   hasError: boolean;
   isChunkError: boolean;
   isRetrying: boolean;
-  exhausted: boolean;
   errorMessage: string;
+  /** Show the dismissible "refresh recommended" banner over the content. */
+  showChunkBanner: boolean;
+  /** User closed the banner — don't bring it back for this session view. */
+  bannerDismissed: boolean;
+  /** Bumping this remounts children after a chunk error so content stays visible. */
+  resetKey: number;
+  /** How many times we've remounted children to recover (capped to avoid loops). */
+  resetAttempts: number;
 }
+
+const MAX_RESET_ATTEMPTS = 1;
 
 function classifyChunkError(error: Error): boolean {
   const msg = (error?.message || "").toLowerCase();
@@ -51,17 +60,29 @@ class ChunkErrorBoundary extends Component<Props, State> {
       hasError: false,
       isChunkError: false,
       isRetrying: false,
-      exhausted: false,
       errorMessage: "",
+      showChunkBanner: false,
+      bannerDismissed: false,
+      resetKey: 0,
+      resetAttempts: 0,
     };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     const isChunkError = classifyChunkError(error);
+    if (isChunkError) {
+      // Keep content visible: don't flip into the full error screen. We show a
+      // dismissible banner instead and remount children (see componentDidCatch).
+      return {
+        hasError: false,
+        isChunkError: true,
+        showChunkBanner: true,
+        errorMessage: error?.message || error?.name || "Unknown error",
+      };
+    }
     return {
       hasError: true,
-      isChunkError,
-        exhausted: false,
+      isChunkError: false,
       errorMessage: error?.message || error?.name || "Unknown error",
     };
   }
@@ -95,10 +116,15 @@ class ChunkErrorBoundary extends Component<Props, State> {
       // ignore
     }
 
-    // Do not auto-reload on chunk errors. Surface a user-controlled refresh
-    // banner instead so stale files never trap the user in a reload loop.
-    if (this.state.isChunkError || classifyChunkError(error)) {
-      this.setState({ exhausted: true });
+    // Chunk error: try to remount children once so the user keeps seeing
+    // content behind the refresh banner. Capped to avoid a remount loop when
+    // the stale chunk truly can't load.
+    if (classifyChunkError(error)) {
+      this.setState((s) =>
+        s.resetAttempts < MAX_RESET_ATTEMPTS
+          ? { resetKey: s.resetKey + 1, resetAttempts: s.resetAttempts + 1 }
+          : null,
+      );
     }
   }
 
@@ -122,89 +148,56 @@ class ChunkErrorBoundary extends Component<Props, State> {
     window.location.href = "/";
   };
 
-  render() {
-    if (this.state.hasError) {
-      if (this.state.isChunkError) {
-        return (
-          <div className="fixed left-3 right-3 top-3 z-[9999] mx-auto max-w-3xl rounded-xl border border-primary/25 bg-background p-3 shadow-xl">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15">
-                <RefreshCw className="h-4 w-4 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-foreground">Refresh recommended</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  Welile found an older app file. Refresh to load the latest version.
-                </p>
-              </div>
-<<<<<<< HEAD
+  handleDismissBanner = () => {
+    this.setState({ showChunkBanner: false, bannerDismissed: true });
+  };
+
+  renderChunkBanner() {
+    if (!this.state.showChunkBanner || this.state.bannerDismissed) return null;
+    return (
+      <div className="fixed left-3 right-3 top-3 z-[9999] mx-auto max-w-3xl rounded-xl border border-primary/25 bg-background p-3 shadow-xl">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15">
+            <RefreshCw className="h-4 w-4 text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Refresh recommended</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+              Welile found an older app file. Refresh to load the latest version.
+            </p>
+            <div className="mt-2">
               {this.state.isRetrying ? (
                 <button
-                  key="retrying-btn"
                   disabled
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity opacity-50"
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground opacity-50"
                 >
-                  <Loader2 className="w-4 h-4 animate-spin" /> Clearing...
+                  <Loader2 className="h-4 w-4 animate-spin" /> Refreshing...
                 </button>
               ) : (
                 <button
-                  key="idle-btn"
                   onClick={this.handleForceClear}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
                 >
-                  <RefreshCw className="w-4 h-4" /> Clear old app & reload
+                  <RefreshCw className="h-4 w-4" /> Refresh now
                 </button>
               )}
-              <p className="text-xs text-muted-foreground/60">
-                Still stuck? Close the tab completely and reopen welilereceipts.com,
-                or remove the app from your Home Screen and add it again.
-              </p>
             </div>
           </div>
-        );
-      }
+          <button
+            onClick={this.handleDismissBanner}
+            aria-label="Dismiss"
+            className="-mr-1 -mt-1 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-      // Chunk error — auto-recovering "Updating" UI
-      if (this.state.isChunkError) {
-        return (
-          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground p-6">
-            <div className="flex flex-col items-center gap-6 max-w-sm text-center">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-muted animate-pulse" />
-                <Loader2 className="absolute inset-0 m-auto w-8 h-8 text-primary animate-spin" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-xl font-semibold">Clearing old iPhone cache...</h1>
-                <p className="text-muted-foreground text-sm">
-                  Welile is removing the stale version and loading the latest app.
-                </p>
-                {this.state.isRetrying ? (
-                  <button
-                    key="retrying-btn"
-                    disabled
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity opacity-50"
-                  >
-                    <Loader2 className="w-4 h-4 animate-spin" /> Refreshing...
-                  </button>
-                ) : (
-                  <button
-                    key="idle-btn"
-                    onClick={this.handleForceClear}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
-                  >
-                    <RefreshCw className="w-4 h-4" /> Clear & Reload Now
-                  </button>
-                )}
-                <p className="text-xs text-muted-foreground/60">
-                  If this repeats, close Safari completely and reopen welilereceipts.com.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      // Generic app error — friendly fallback with Home + Refresh + diagnostics
+  render() {
+    // Generic (non-chunk) app error — friendly full-screen fallback.
+    if (this.state.hasError) {
       return (
         <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground p-6">
           <div className="flex flex-col items-center gap-6 max-w-sm text-center">
@@ -247,7 +240,14 @@ class ChunkErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    // Chunk error (or healthy): keep rendering content; overlay the dismissible
+    // banner when a stale chunk was detected. resetKey remounts children once.
+    return (
+      <>
+        <React.Fragment key={this.state.resetKey}>{this.props.children}</React.Fragment>
+        {this.renderChunkBanner()}
+      </>
+    );
   }
 }
 
