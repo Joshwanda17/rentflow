@@ -707,6 +707,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // (subject + snippet) rather than typed by the operator. Drives the
   // "auto-detected" hint and is cleared the moment the operator edits it.
   const [autoExtractedRef, setAutoExtractedRef] = useState(false);
+  // Confidence + match-span metadata for an auto-extracted reference, plus
+  // the normalised source text it was pulled from. Lets the UI render a
+  // confidence meter and highlight exactly which characters of the email
+  // body produced the reference so operators can verify it at a glance.
+  const [refExtraction, setRefExtraction] = useState<ReferenceExtraction | null>(null);
+  const [refSourceText, setRefSourceText] = useState('');
   // Which bucket of the source user to debit when transferring.
   // 'withdrawable' = personal balance, 'float' = operational/landlord-payout float.
   const [transferFromBucket, setTransferFromBucket] = useState<'withdrawable' | 'float'>('withdrawable');
