@@ -7335,6 +7335,8 @@ export type Database = {
           placement_bonus_paid_at: string | null
           platform_fee: number
           region: string
+          reserved_at: string | null
+          reserved_by: string | null
           short_code: string | null
           status: string
           sub_county: string | null
@@ -7388,6 +7390,8 @@ export type Database = {
           placement_bonus_paid_at?: string | null
           platform_fee?: number
           region: string
+          reserved_at?: string | null
+          reserved_by?: string | null
           short_code?: string | null
           status?: string
           sub_county?: string | null
@@ -7441,6 +7445,8 @@ export type Database = {
           placement_bonus_paid_at?: string | null
           platform_fee?: number
           region?: string
+          reserved_at?: string | null
+          reserved_by?: string | null
           short_code?: string | null
           status?: string
           sub_county?: string | null
