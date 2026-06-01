@@ -44,12 +44,13 @@ export function windowToISO(w: CounterWindow): string | null {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 }
 
-export function useOpsCounterBreakdown(path: CounterPath, win: CounterWindow) {
+export function useOpsCounterBreakdown(path: CounterPath, win: CounterWindow, refetchIntervalMs?: number | false) {
   const level = counterLevel(path);
   const since = windowToISO(win);
   return useQuery({
     queryKey: ['welile-ops-counters', level, path.continent ?? null, path.country ?? null, path.city ?? null, win],
     staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
     queryFn: async (): Promise<CounterBreakdownRow[]> => {
       const { data, error } = await supabase.rpc('welile_ops_counter_breakdown' as any, {
         p_level: level,
@@ -64,12 +65,13 @@ export function useOpsCounterBreakdown(path: CounterPath, win: CounterWindow) {
   });
 }
 
-export function useOpsCounterItems(agentId: string | null, kind: CounterKind | null, win: CounterWindow) {
+export function useOpsCounterItems(agentId: string | null, kind: CounterKind | null, win: CounterWindow, refetchIntervalMs?: number | false) {
   const since = windowToISO(win);
   return useQuery({
     enabled: !!agentId && !!kind,
     queryKey: ['welile-ops-counter-items', agentId, kind, win],
     staleTime: 30_000,
+    refetchInterval: refetchIntervalMs || false,
     queryFn: async (): Promise<CounterItemRow[]> => {
       const { data, error } = await supabase.rpc('welile_ops_counter_items' as any, {
         p_agent_id: agentId,
