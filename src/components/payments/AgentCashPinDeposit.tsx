@@ -202,7 +202,21 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
         body: { amount: amountNum, agent_phone: agentPhone.trim() },
       });
       if (error) {
-        toast.error(await readEdgeMessage(error, 'Could not start the deposit'));
+        const body = await readEdgeBody(error);
+        // Already have a live pending session with this agent → resume it
+        // instead of dead-ending the user.
+        if (body?.error === 'session_in_progress' && body?.session_id) {
+          setSessionId(body.session_id);
+          setAgentName((prev) => prev || 'the agent');
+          setExpiresAt(null);
+          setNow(Date.now());
+          setPin('');
+          setPinError('');
+          setStep('pin');
+          toast.info('You already have a pending deposit with this agent. Enter the code they gave you.');
+          return;
+        }
+        toast.error(body?.message || body?.error || 'Could not start the deposit');
         return;
       }
       if (!data?.ok) {
