@@ -23,7 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, 
   Sparkles, ArrowLeft, Shield, MapPin, Home, RefreshCw, AlertCircle, Heart,
-  Hash, Wallet, Zap, Droplets, ShieldCheck, XCircle, ChevronsUpDown, KeyRound
+  Hash, Wallet, Zap, Droplets, ShieldCheck, XCircle, ChevronsUpDown
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
