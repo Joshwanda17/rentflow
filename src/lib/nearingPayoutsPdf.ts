@@ -157,7 +157,6 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   const generatedAt = input.generatedAt || new Date();
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 12;
 
   // Fetch payment methods + fresh portfolio details in parallel with logo.
