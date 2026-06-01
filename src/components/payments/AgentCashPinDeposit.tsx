@@ -75,8 +75,10 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     if (digits.length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setHasSearched(false);
       return;
     }
+    setHasSearched(true);
     setSearching(true);
     try {
       const { data, error } = await supabase.rpc('search_agents_by_phone', {
