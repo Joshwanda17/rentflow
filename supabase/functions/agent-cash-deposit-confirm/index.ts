@@ -214,9 +214,11 @@ Deno.serve(async (req) => {
         },
       } as any);
       await admin.from("system_events").insert({
-        event_type: "agent_cash_deposit.completed",
+        event_type: "funds_added",
         user_id: s.depositor_id,
-        metadata: { session_id: s.id, agent_id: s.agent_id, amount, txn_group_id: txnGroup },
+        related_entity_type: "wallet",
+        related_entity_id: s.id,
+        metadata: { kind: "agent_cash_deposit", session_id: s.id, agent_id: s.agent_id, amount, txn_group_id: txnGroup },
       } as any);
     } catch (_e) { /* non-fatal */ }
 
