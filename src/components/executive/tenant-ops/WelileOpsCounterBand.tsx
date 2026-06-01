@@ -18,6 +18,8 @@ import {
   ChevronLeft, RefreshCw, User, ChevronDown, ChevronUp, Phone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useOpsZoneAgents, type ZoneAgentRow } from '@/hooks/useWelileOpsCounters';
+import { Activity } from 'lucide-react';
 
 const KINDS: { kind: CounterKind; label: string; short: string; icon: React.ElementType; field: keyof CounterBreakdownRow; tone: string }[] = [
   { kind: 'rent', label: 'New rent requests', short: 'Rent', icon: FileText, field: 'rent_count', tone: 'text-emerald-600 bg-emerald-500/10' },
