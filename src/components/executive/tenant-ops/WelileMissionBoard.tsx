@@ -32,7 +32,7 @@ import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
-  ChevronsUpDown,
+  ChevronsUpDown, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
