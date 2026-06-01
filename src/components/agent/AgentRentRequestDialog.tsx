@@ -530,6 +530,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const selectHouse = useCallback(
     (h: AvailableHouse) => {
       setSelectedHouse(h);
+      setHouseConflict(false);
       if (h.monthly_rent) setRentAmount(String(h.monthly_rent));
       if (h.landlord_name) setLandlordName(h.landlord_name);
       if (h.landlord_phone) setLandlordPhone(formatPhoneInput(h.landlord_phone));
@@ -550,6 +551,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const clearSelectedHouse = useCallback(() => {
     setSelectedHouse(null);
+    setHouseConflict(false);
   }, []);
 
   // Auto-load available houses the first time the agent reaches the details
