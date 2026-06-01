@@ -1024,6 +1024,60 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_cash_deposit_sessions: {
+        Row: {
+          agent_id: string
+          agent_phone: string
+          amount: number
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          deposit_request_id: string | null
+          depositor_id: string
+          depositor_name: string | null
+          expires_at: string
+          id: string
+          ledger_txn_group: string | null
+          max_attempts: number
+          pin: string
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          agent_phone: string
+          amount: number
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          deposit_request_id?: string | null
+          depositor_id: string
+          depositor_name?: string | null
+          expires_at?: string
+          id?: string
+          ledger_txn_group?: string | null
+          max_attempts?: number
+          pin: string
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          agent_phone?: string
+          amount?: number
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          deposit_request_id?: string | null
+          depositor_id?: string
+          depositor_name?: string | null
+          expires_at?: string
+          id?: string
+          ledger_txn_group?: string | null
+          max_attempts?: number
+          pin?: string
+          status?: string
+        }
+        Relationships: []
+      }
       agent_collection_streaks: {
         Row: {
           agent_id: string
