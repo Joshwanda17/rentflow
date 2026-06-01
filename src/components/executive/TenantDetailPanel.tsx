@@ -693,6 +693,64 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                               {req.daily_repayment && <span>Daily: UGX {Number(req.daily_repayment).toLocaleString()}</span>}
                               {req.duration_days && <span>{req.duration_days}d</span>}
                             </div>
+                            {(() => {
+                              const status = String((req as any).status || '').toLowerCase();
+                              const isActive = !['completed', 'closed', 'cancelled', 'rejected', 'fully_repaid'].includes(status);
+                              const reqOutstanding = Number((req as any).total_repayment || 0) - Number(req.amount_repaid || 0);
+                              if (!isActive || reqOutstanding <= 0) return null;
+                              const chargeAmt = Math.min(reqOutstanding, Number(req.daily_repayment || 0) || reqOutstanding);
+                              const isOpen = collectingReqId === req.id;
+                              return (
+                                <div className="pt-1">
+                                  {!isOpen ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 w-full text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                                      onClick={() => { setCollectingReqId(req.id); setCollectReason(''); }}
+                                    >
+                                      <Banknote className="h-3.5 w-3.5" />
+                                      Collect UGX {chargeAmt.toLocaleString()} from wallet
+                                    </Button>
+                                  ) : (
+                                    <div className="space-y-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                        <Wallet className="h-3 w-3" />
+                                        Charges the tenant's wallet first, then the linked agent's wallet for any shortfall.
+                                      </p>
+                                      <Textarea
+                                        value={collectReason}
+                                        onChange={e => setCollectReason(e.target.value)}
+                                        rows={2}
+                                        className="text-sm"
+                                        placeholder="Reason for collection (min 10 chars)…"
+                                        maxLength={500}
+                                      />
+                                      <div className="flex gap-2 justify-end">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-7 text-xs"
+                                          onClick={() => { setCollectingReqId(null); setCollectReason(''); }}
+                                          disabled={collectMutation.isPending}
+                                        >
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          className="h-7 text-xs gap-1"
+                                          onClick={() => handleCollect(req.id)}
+                                          disabled={collectMutation.isPending || collectReason.trim().length < 10}
+                                        >
+                                          {collectMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Banknote className="h-3 w-3" />}
+                                          Collect UGX {chargeAmt.toLocaleString()}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </>
                         )}
                       </div>
