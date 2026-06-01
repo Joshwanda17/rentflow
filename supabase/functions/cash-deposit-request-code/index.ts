@@ -178,14 +178,14 @@ Deno.serve(async (req) => {
     // 2) Generate + hash the receipt code, store the hash.
     const code = generateReceiptCode();
     const codeHash = await sha256Hex(code);
-    const { error: vErr } = await admin.from("cash_deposit_verifications").insert({
+    const { data: verRow, error: vErr } = await admin.from("cash_deposit_verifications").insert({
       deposit_request_id: depositId,
       user_id: user.id,
       amount,
       code_hash: codeHash,
       emailed_to: VERIFIER_EMAIL,
       status: "awaiting_code",
-    } as any);
+    } as any).select("id, max_attempts, expires_at").single();
     if (vErr) {
       console.error("[cash-request-code] verification insert failed", vErr);
       await admin.from("deposit_requests").delete().eq("id", depositId);
@@ -193,6 +193,21 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    await logEvent(admin, {
+      verification_id: (verRow as any)?.id ?? null,
+      deposit_request_id: depositId,
+      user_id: user.id,
+      event_type: "code_issued",
+      amount,
+      detail: "Receipt code generated and emailed to the cash verifier (24h expiry).",
+      metadata: {
+        emailed_to: VERIFIER_EMAIL,
+        max_attempts: (verRow as any)?.max_attempts ?? null,
+        expires_at: (verRow as any)?.expires_at ?? null,
+        deposit_purpose: depositPurpose,
+      },
+    });
 
     // 3) Email the code to the verifier.
     const subject = `Cash deposit code ${code} — ${fmtUGX(amount)} from ${depositorName}`;
