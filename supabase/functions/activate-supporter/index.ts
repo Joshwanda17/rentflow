@@ -384,6 +384,16 @@ Deno.serve(async (req) => {
           .eq("id", invite.house_listing_id)
           .single();
 
+        // Resolve the role of whoever assigned the house (the invite creator).
+        let assignerRole: string | null = null;
+        if (invite.created_by) {
+          const { data: assignerRoles } = await adminClient
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", invite.created_by);
+          assignerRole = assignerRoles?.map((r) => r.role).join(", ") || null;
+        }
+
         let bonusStatus = "unknown";
         if (houseLinkError) {
           bonusStatus = "assignment_failed";
@@ -403,7 +413,7 @@ Deno.serve(async (req) => {
           tenant_id: userId,
           invite_id: invite.id,
           assigned_by_user_id: invite.created_by ?? null,
-          assigned_by_role: userRole ?? null,
+          assigned_by_role: assignerRole,
           listing_agent_id: listingAfter?.agent_id ?? null,
           placement_bonus_status: bonusStatus,
           placement_bonus_paid_at: listingAfter?.placement_bonus_paid_at ?? null,
