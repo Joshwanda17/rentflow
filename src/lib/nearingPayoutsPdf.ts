@@ -260,7 +260,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   // Body table
   const head = [[
     '#', 'Partner', 'Portfolio', 'Contact',
-    'Principal', 'ROI %', 'Returns Due', 'Mode', 'Payout Date', 'Status', 'Payment Details',
+    'Principal', 'ROI %', 'Returns Due', 'Mode', 'Payout Date', 'Due', 'Status', 'Payment Details',
   ]];
   const body = sortedRows.map((r, idx) => {
     // Prefer FRESH database values over the row payload supplied by the
@@ -273,6 +273,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     const portfolioName = det?.account_name || r.portfolioName || '—';
     const payoutDate = det?.next_roi_date || r.nextPayoutDate;
     const returnsDue = Math.round(principal * roiPct / 100);
+    const portfolioStatus = statusLabel(det?.status ?? r.status);
     const pm = r.investorId ? payoutMap.get(r.investorId) : undefined;
     // Prefer per-portfolio payout details on the portfolio record itself —
     // an edit on the portfolio's account/MoMo fields must show up here.
@@ -306,6 +307,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       roiMode === 'monthly_compounding' ? 'Compound' : 'Payout',
       fmtDate(payoutDate),
       dueLabel(r.daysUntil),
+      portfolioStatus,
       paymentCell,
     ];
   });
