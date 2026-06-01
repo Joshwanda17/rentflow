@@ -275,6 +275,19 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
                           {getStatusBadgeForRequest(req)}
                         </div>
 
+                        {/* Landlord verification status banner */}
+                        {req.landlord?.verified ? (
+                          <div className="mx-4 mb-1 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+                            <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                            <span className="font-medium">Landlord verified</span>
+                          </div>
+                        ) : (
+                          <div className="mx-4 mb-1 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                            <span className="font-medium">Landlord verification pending</span>
+                          </div>
+                        )}
+
                         {/* Details */}
                         <div className="px-4 pb-3 space-y-1 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
