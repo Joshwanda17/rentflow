@@ -2425,8 +2425,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               if (transferFromUser && !sourceUser) missing.push('pick source user');
               if (!amount || Number(amount) <= 0) missing.push('enter amount');
               if (reason.trim().length < 10) missing.push(`reason (${reason.trim().length}/10)`);
-              if (mode === 'credit' && !row?.transaction_id && manualReference.trim().length < 4) {
-                missing.push('enter transaction reference');
+              if (mode === 'credit' && !row?.transaction_id) {
+                const refCheck = validateTransactionReference(manualReference);
+                if (!refCheck.valid) {
+                  missing.push(autoExtractedRef ? 'verify auto-detected reference' : 'enter valid transaction reference');
+                }
               }
               if (bucketShort) missing.push(`insufficient ${debitRoute === 'landlord_float' ? 'Float' : 'Withdrawable'}`);
               if (sourceBucketShort) missing.push(`source ${transferFromBucket === 'withdrawable' ? 'Withdrawable' : 'Float'} short`);
