@@ -436,7 +436,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
             )}
             <div className="flex flex-col items-center gap-2">
               <Label className="text-sm font-medium">Enter the 4-digit code</Label>
-              <InputOTP maxLength={4} value={pin} disabled={expired || loading} onChange={(v) => { setPin(v); if (v.length === 4) void handleConfirm(v); }}>
+              <InputOTP maxLength={4} value={pin} disabled={expired || loading} onChange={(v) => { setPin(v); if (pinError) setPinError(''); if (v.length === 4) void handleConfirm(v); }}>
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
                   <InputOTPSlot index={1} />
@@ -447,6 +447,22 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
               {loading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
                   <Loader2 className="h-4 w-4 animate-spin" /> Crediting your wallet…
+                </div>
+              )}
+              {pinError && !loading && !expired && (
+                <div className="w-full mt-1 p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
+                  <p className="text-sm text-destructive flex items-start gap-1.5">
+                    <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{pinError}</span>
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={() => { setPin(''); setPinError(''); }}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" /> Try the code again
+                  </Button>
                 </div>
               )}
               {expired && !loading && (
