@@ -4322,6 +4322,66 @@ export type Database = {
           },
         ]
       }
+      cash_deposit_verifications: {
+        Row: {
+          amount: number
+          attempts: number
+          code_hash: string
+          created_at: string
+          deposit_request_id: string
+          emailed_to: string | null
+          expires_at: string
+          id: string
+          max_attempts: number
+          status: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          amount: number
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          deposit_request_id: string
+          emailed_to?: string | null
+          expires_at?: string
+          id?: string
+          max_attempts?: number
+          status?: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          amount?: number
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          deposit_request_id?: string
+          emailed_to?: string | null
+          expires_at?: string
+          id?: string
+          max_attempts?: number
+          status?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_deposit_verifications_deposit_request_id_fkey"
+            columns: ["deposit_request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_misrouted_deposits_preview"
+            referencedColumns: ["deposit_id"]
+          },
+          {
+            foreignKeyName: "cash_deposit_verifications_deposit_request_id_fkey"
+            columns: ["deposit_request_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cashout_agents: {
         Row: {
           agent_id: string
