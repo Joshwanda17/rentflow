@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import { WelileOpsCounterBand } from './tenant-ops/WelileOpsCounterBand';
+import { WelileMissionBoard } from './tenant-ops/WelileMissionBoard';
 import {
   Users, Home, UserCheck, Handshake, Search, ChevronRight, Phone, MapPin,
 } from 'lucide-react';
@@ -182,6 +183,9 @@ export function WelileOperationsHub() {
 
   return (
     <div className="space-y-4">
+      {/* Current mission: list empty houses → place tenants → onboard funders */}
+      <WelileMissionBoard />
+
       {/* Always-visible operations counter: new activity by continent → country → city → agent */}
       <WelileOpsCounterBand />
 
