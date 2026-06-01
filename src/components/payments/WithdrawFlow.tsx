@@ -566,6 +566,7 @@ export default function WithdrawFlow({
       const pickupCode = result?.payout_code ?? null;
       if (payoutMode === 'cash' && pickupCode && newId) {
         setCashPickupCode(pickupCode);
+        setCodeIssuedAt(Date.now());
         try {
           supabase.functions.invoke('send-transactional-email', {
             body: {
