@@ -791,6 +791,35 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                 </div>
                               );
                             })()}
+                            {lastReceipt?.reference === req.id && (
+                              <div className="mt-1 space-y-1.5 rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                                <p className="text-[11px] font-medium text-emerald-800">
+                                  Collected UGX {Math.round(lastReceipt.totalCollected).toLocaleString()} · download receipt
+                                </p>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                    onClick={() => handleDownloadReceipt('pdf')}
+                                    disabled={downloadingReceipt !== null}
+                                  >
+                                    {downloadingReceipt === 'pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+                                    PDF
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                    onClick={() => handleDownloadReceipt('xlsx')}
+                                    disabled={downloadingReceipt !== null}
+                                  >
+                                    {downloadingReceipt === 'xlsx' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSpreadsheet className="h-3 w-3" />}
+                                    Excel
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
