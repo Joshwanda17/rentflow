@@ -2844,6 +2844,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    <AgentCashPinDeposit
+      open={showAgentPinDeposit}
+      onOpenChange={setShowAgentPinDeposit}
+      onSuccess={() => { setShowAgentPinDeposit(false); onOpenChange(false); }}
+    />
     </>
   );
 }
