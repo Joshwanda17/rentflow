@@ -413,6 +413,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     },
   });
 
+  // One-time onboarding banner shown the first time an agent becomes a Merchant Agent
+  const merchantOnboardKey = `merchant-agent-onboarded:${user.id}`;
+  const [showMerchantOnboard, setShowMerchantOnboard] = useState(false);
+  useEffect(() => {
+    if (isCashoutAgent && typeof window !== 'undefined') {
+      setShowMerchantOnboard(localStorage.getItem(merchantOnboardKey) !== '1');
+    }
+  }, [isCashoutAgent, merchantOnboardKey]);
+  const dismissMerchantOnboard = () => {
+    try { localStorage.setItem(merchantOnboardKey, '1'); } catch { /* ignore */ }
+    setShowMerchantOnboard(false);
+  };
+
   const handleShareLandlordSignup = () => {
     hapticTap();
     setShareLandlordOpen(true);
