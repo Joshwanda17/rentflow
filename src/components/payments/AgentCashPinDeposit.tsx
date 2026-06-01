@@ -532,7 +532,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
             )}
             <div className="flex flex-col items-center gap-2">
               <Label className="text-sm font-medium">Enter the 4-digit code</Label>
-              <InputOTP maxLength={4} value={pin} disabled={expired || loading} onChange={(v) => { setPin(v); if (pinError) setPinError(''); if (v.length === 4) void handleConfirm(v); }}>
+              <InputOTP maxLength={4} value={pin} disabled={expired || loading || locked} onChange={(v) => { setPin(v); if (pinError) setPinError(''); if (v.length === 4) void handleConfirm(v); }}>
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
                   <InputOTPSlot index={1} />
@@ -540,6 +540,12 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   <InputOTPSlot index={3} />
                 </InputOTPGroup>
               </InputOTP>
+              {!locked && attemptsLeft !== null && attemptsLeft > 0 && (
+                <p className="text-xs text-amber-600 font-medium">
+                  {attemptsLeft} {attemptsLeft === 1 ? 'attempt' : 'attempts'} left before this code locks.
+                </p>
+              )}
+              {!locked && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -551,12 +557,29 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   ? `Resend code in ${resendCooldownLeft}s`
                   : 'Didn\'t get it? Resend code'}
               </Button>
+              )}
               {loading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
                   <Loader2 className="h-4 w-4 animate-spin" /> Crediting your wallet…
                 </div>
               )}
-              {pinError && !loading && !expired && (
+              {locked && !loading && (
+                <div className="w-full mt-1 p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
+                  <p className="text-sm text-destructive flex items-start gap-1.5">
+                    <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{pinError || 'Too many incorrect attempts. This code has been locked for your security.'}</span>
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={() => { setStep('form'); setPin(''); setPinError(''); setSessionId(null); setExpiresAt(null); setCanResendAt(null); setLocked(false); setAttemptsLeft(null); }}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" /> Start a new deposit
+                  </Button>
+                </div>
+              )}
+              {pinError && !loading && !expired && !locked && (
                 <div className="w-full mt-1 p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
                   <p className="text-sm text-destructive flex items-start gap-1.5">
                     <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
