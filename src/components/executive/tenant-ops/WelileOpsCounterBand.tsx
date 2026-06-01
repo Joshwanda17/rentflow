@@ -278,15 +278,16 @@ export function WelileOpsCounterBand() {
 }
 
 function ItemsDialog({
-  target, win, onClose, onOpenProfile,
+  target, win, refetchIntervalMs, onClose, onOpenProfile,
 }: {
   target: { agentId: string; agentName: string; kind: CounterKind } | null;
   win: CounterWindow;
+  refetchIntervalMs?: number | false;
   onClose: () => void;
   onOpenProfile: (row: import('@/hooks/useWelileOpsCounters').CounterItemRow) => void;
 }) {
   const meta = KINDS.find((k) => k.kind === target?.kind);
-  const { data, isLoading } = useOpsCounterItems(target?.agentId ?? null, target?.kind ?? null, win);
+  const { data, isLoading } = useOpsCounterItems(target?.agentId ?? null, target?.kind ?? null, win, refetchIntervalMs);
 
   return (
     <Dialog open={!!target} onOpenChange={(v) => { if (!v) onClose(); }}>
