@@ -255,7 +255,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 placeholder="e.g. 0772 123 456"
                 value={agentPhone}
                 onChange={(e) => onPhoneChange(e.target.value)}
-                onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                onFocus={() => { if (hasSearched) setShowSuggestions(true); }}
                 autoComplete="off"
                 className="h-12 text-base"
               />
