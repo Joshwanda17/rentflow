@@ -23,6 +23,7 @@ export type UpdateFailureEvent =
   | "recovery_exhausted"
   | "error_ui_shown"
   | "ios_version_gate"
+  | "version_gate"
   | "killswitch_purge_succeeded"
   | "killswitch_purge_failed"
   | "manual_reload";

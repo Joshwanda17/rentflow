@@ -154,10 +154,10 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 <RefreshCw className="w-7 h-7 text-primary" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-xl font-semibold">Let's clear the cache</h1>
+                <h1 className="text-xl font-semibold">Reload Welile</h1>
                 <p className="text-muted-foreground text-sm">
-                  The app found an old installed version. Tap below to clear the old app files and load the latest
-                  Welile version.
+                  Welile could not load one required app file. Tap below to clear old app files and reload the latest
+                  version.
                 </p>
               </div>
               {this.state.isRetrying ? (
@@ -174,12 +174,11 @@ class ChunkErrorBoundary extends Component<Props, State> {
                   onClick={this.handleForceClear}
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
                 >
-                  <RefreshCw className="w-4 h-4" /> Clear old app & reload
+                  <RefreshCw className="w-4 h-4" /> Reload latest version
                 </button>
               )}
               <p className="text-xs text-muted-foreground/60">
-                Still stuck? Close the tab completely and reopen welilereceipts.com, or remove the app from your Home
-                Screen and add it again.
+                Still stuck? Close the tab completely and reopen welilereceipts.com.
               </p>
             </div>
           </div>
@@ -196,7 +195,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 <Loader2 className="absolute inset-0 m-auto w-8 h-8 text-primary animate-spin" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-xl font-semibold">Clearing old iPhone cache...</h1>
+                <h1 className="text-xl font-semibold">Reloading latest version...</h1>
                 <p className="text-muted-foreground text-sm">
                   Welile is removing the stale version and loading the latest app.
                 </p>
@@ -219,7 +218,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 </button>
               )}
               <p className="text-xs text-muted-foreground/60">
-                If this repeats, close Safari completely and reopen welilereceipts.com.
+                If this repeats, close the browser completely and reopen welilereceipts.com.
               </p>
             </div>
           </div>

@@ -7,7 +7,7 @@
 // deployed version (or an explicit `min` floor) is newer than the build baked
 // into the running bundle, the server can DEMAND a blocking update.
 //
-// Unlike the silent soft reload (see iosFreshness.ts), a forced update:
+// Unlike the old device-specific soft reload path, a forced update:
 //   • paints a full-screen, non-dismissible overlay ON TOP of everything so the
 //     old build can no longer be used, and
 //   • AUTOMATICALLY triggers the update flow (cache/SW purge + plain reload)
@@ -535,7 +535,7 @@ export function triggerForcedUpdate(reason: string): void {
     return;
   }
   forcing = true;
-  logUpdateFailure("ios_version_gate", {
+  logUpdateFailure("version_gate", {
     chunk_mismatch: true,
     details: {
       forced: true,
