@@ -161,6 +161,7 @@ Deno.serve(async (req) => {
       .from("profiles").select("full_name").eq("id", depositor.id).maybeSingle();
 
     const pin = gen4DigitPin();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     const { data: session, error: insErr } = await admin
       .from("agent_cash_deposit_sessions")
       .insert({
@@ -171,6 +172,7 @@ Deno.serve(async (req) => {
         amount,
         pin,
         status: "pending",
+        expires_at: expiresAt,
       } as any)
       .select("id, expires_at")
       .single();
