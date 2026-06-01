@@ -266,6 +266,26 @@ Deno.serve(async (req) => {
     const invAccountName = typeof rawBody.account_name === 'string' ? rawBody.account_name.trim().slice(0, 200) : null;
     const invAccountNumber = typeof rawBody.account_number === 'string' ? rawBody.account_number.trim().slice(0, 50) : null;
 
+    // Validate the chosen empty house (tenant flow only): it must exist, be
+    // available and not already assigned to a tenant. Best-effort — never blocks
+    // registration if the lookup hiccups; just drops the invalid assignment.
+    let validHouseListingId: string | null = null;
+    if (houseListingId && role === 'tenant') {
+      const { data: houseRow } = await adminClient
+        .from("house_listings")
+        .select("id, tenant_id, status")
+        .eq("id", houseListingId)
+        .maybeSingle();
+      if (houseRow && !houseRow.tenant_id && houseRow.status === 'available') {
+        validHouseListingId = houseRow.id;
+      } else if (houseRow && houseRow.tenant_id) {
+        return new Response(JSON.stringify({ error: "That house already has a tenant. Pick another empty house." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const { data: invite, error: inviteError } = await adminClient
       .from("supporter_invites")
       .insert({
@@ -276,6 +296,7 @@ Deno.serve(async (req) => {
         role,
         created_by: user.id,
         parent_agent_id: parentAgentId,
+        house_listing_id: validHouseListingId,
         latitude: latitude || null,
         longitude: longitude || null,
         location_accuracy: locationAccuracy || null,
