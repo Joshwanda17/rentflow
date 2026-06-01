@@ -1,8 +1,7 @@
 // Welile service-worker kill switch — 2026-05-31 iPhone rescue
 //
 // Same cleanup worker as /sw.js for older installs that registered this path.
-
-const RESCUE_PARAM = "welile-sw-rescue";
+// It must not append cache-busting params to document URLs.
 
 async function deleteAllCaches() {
   try {
@@ -32,9 +31,7 @@ self.addEventListener("activate", (event) => {
 
     await Promise.all(clients.map((client) => {
       try {
-        const url = new URL(client.url);
-        url.searchParams.set(RESCUE_PARAM, Date.now().toString(36));
-        return client.navigate(url.toString());
+        return client.navigate(client.url);
       } catch {
         return Promise.resolve();
       }
@@ -50,9 +47,7 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith((async () => {
       await deleteAllCaches();
-      const url = new URL(request.url);
-      url.searchParams.set(RESCUE_PARAM, Date.now().toString(36));
-      return fetch(url.toString(), {
+      return fetch(request, {
         cache: "reload",
         credentials: "include",
         headers: { "Cache-Control": "no-cache" },
