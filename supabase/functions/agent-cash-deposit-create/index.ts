@@ -31,6 +31,41 @@ function gen4DigitPin(): string {
   return String(n).padStart(4, "0");
 }
 
+// Normalise a Ugandan phone to +256XXXXXXXXX for SMS delivery.
+function normalizePhone(raw: string): string {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (d.startsWith("0")) d = "256" + d.slice(1);
+  if (!d.startsWith("256") && d.length === 9) d = "256" + d;
+  return "+" + d;
+}
+
+// Send the cash code to the selected agent's phone via Africa's Talking.
+// Non-blocking: a failure here must never abort the session creation.
+async function sendSms(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) {
+    console.warn("[agent-cash-create] Missing Africa's Talking creds — skipping SMS");
+    return false;
+  }
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  try {
+    const params = new URLSearchParams({ username, to: phone, message, from: "WELILE" });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: { apiKey, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body: params.toString(),
+    });
+    return res.ok;
+  } catch (e) {
+    console.error("[agent-cash-create] SMS error:", e);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -145,11 +180,22 @@ Deno.serve(async (req) => {
       return json(400, { error: "create_failed", message: insErr?.message || "Could not start the deposit" });
     }
 
+    // ── Send the 4-digit confirmation code to the SELECTED agent's phone ──
+    // The depositor searched & tapped this agent; the code is texted to that
+    // exact number so the agent can confirm and release the cash. Float is
+    // debited on confirm (agent-cash-deposit-confirm).
+    const agentPhoneForSms = normalizePhone(agentProfile.phone ?? agentPhoneRaw);
+    const smsSent = await sendSms(
+      agentPhoneForSms,
+      `Welile: ${depositorProfile?.full_name ?? "A user"} is collecting UGX ${amount.toLocaleString()} cash from your float. Confirmation code: ${pin}. Share it ONLY after handing over the cash. Your float will reduce by this amount.`,
+    );
+
     return json(200, {
       ok: true,
       session_id: (session as any).id,
       agent_name: agentProfile.full_name ?? "Welile agent",
       expires_at: (session as any).expires_at,
+      sms_sent: smsSent,
     });
   } catch (e) {
     console.error("[agent-cash-create] error", e);
