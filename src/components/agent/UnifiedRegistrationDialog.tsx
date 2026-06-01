@@ -727,12 +727,62 @@ Password: ${createdInvite?.password}`;
                   filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}
                 >
                   <CommandInput placeholder="Search by name, area or code…" />
+                  <div className="flex flex-wrap items-center gap-1.5 border-b p-2">
+                    <Select value={houseAreaFilter} onValueChange={setHouseAreaFilter}>
+                      <SelectTrigger className="h-7 flex-1 min-w-[90px] text-[11px]">
+                        <SelectValue placeholder="Area" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All areas</SelectItem>
+                        {houseAreaOptions.map((a) => (
+                          <SelectItem key={a} value={a}>{a}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={houseTypeFilter} onValueChange={setHouseTypeFilter}>
+                      <SelectTrigger className="h-7 flex-1 min-w-[90px] text-[11px]">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All types</SelectItem>
+                        {houseTypeOptions.map((t) => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={housePriceFilter} onValueChange={setHousePriceFilter}>
+                      <SelectTrigger className="h-7 flex-1 min-w-[90px] text-[11px]">
+                        <SelectValue placeholder="Price" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any price</SelectItem>
+                        {PRICE_BANDS.map((b) => (
+                          <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {houseFiltersActive && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-[11px] text-muted-foreground"
+                        onClick={() => {
+                          setHouseAreaFilter('all');
+                          setHouseTypeFilter('all');
+                          setHousePriceFilter('all');
+                        }}
+                      >
+                        <XCircle className="h-3 w-3 mr-1" /> Clear
+                      </Button>
+                    )}
+                  </div>
                   <CommandList>
                     <CommandEmpty>
                       {housesLoading ? 'Loading…' : 'No available empty houses found.'}
                     </CommandEmpty>
                     <CommandGroup>
-                      {emptyHouses.map((h) => {
+                      {filteredHouses.map((h) => {
                         const searchValue = [h.title, h.address, h.region, h.house_category, h.short_code]
                           .filter(Boolean)
                           .join(' ');
