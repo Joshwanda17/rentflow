@@ -5,6 +5,11 @@
 // approve-deposit (system_auto_credit) and email the depositor a confirmation
 // with the verified amount and their updated balance (existing Gmail).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  evaluateAttempt,
+  normalizeCode,
+  sha256Hex,
+} from "../_shared/cash-verification-core.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,14 +18,6 @@ const corsHeaders = {
 };
 
 const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1";
-
-async function sha256Hex(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function b64url(input: string): string {
   return btoa(unescape(encodeURIComponent(input)))
