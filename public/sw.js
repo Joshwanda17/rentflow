@@ -1,10 +1,8 @@
 // Welile service-worker kill switch — 2026-05-31 iPhone rescue
 //
 // This worker replaces any old caching worker at /sw.js. It never serves cached
-// app files. For navigations it forces a network revalidation so iOS cannot keep
-// returning the stale index.html shell that points at deleted chunks.
-
-const RESCUE_PARAM = "welile-sw-rescue";
+// app files. Navigations are fetched from the network without adding URL query
+// parameters; only static assets should ever use cache-busting names/URLs.
 
 async function deleteAllCaches() {
   try {
@@ -34,9 +32,7 @@ self.addEventListener("activate", (event) => {
 
     await Promise.all(clients.map((client) => {
       try {
-        const url = new URL(client.url);
-        url.searchParams.set(RESCUE_PARAM, Date.now().toString(36));
-        return client.navigate(url.toString());
+        return client.navigate(client.url);
       } catch {
         return Promise.resolve();
       }
@@ -55,9 +51,7 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith((async () => {
       await deleteAllCaches();
-      const url = new URL(request.url);
-      url.searchParams.set(RESCUE_PARAM, Date.now().toString(36));
-      return fetch(url.toString(), {
+      return fetch(request, {
         cache: "reload",
         credentials: "include",
         headers: { "Cache-Control": "no-cache" },
