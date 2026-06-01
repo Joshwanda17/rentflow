@@ -67,6 +67,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // then fall back to a linked agent's wallet (for tenants without a smartphone).
   const [collectingReqId, setCollectingReqId] = useState<string | null>(null);
   const [collectReason, setCollectReason] = useState('');
+  // Last successful collection receipt — drives the download (PDF/Excel) UI.
+  const [lastReceipt, setLastReceipt] = useState<RentCollectionReceiptData | null>(null);
+  const [downloadingReceipt, setDownloadingReceipt] = useState<'pdf' | 'xlsx' | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
