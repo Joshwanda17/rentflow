@@ -637,16 +637,52 @@ function ZoneFunnelDialog({
               </>
               ) : (
               <>
+              {/* Search + sort controls */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    value={landlordSearch}
+                    onChange={(e) => setLandlordSearch(e.target.value)}
+                    placeholder="Search landlords, agents…"
+                    className="pl-7 h-8 text-xs"
+                  />
+                </div>
+                <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+                  {([
+                    { key: 'activity_desc', label: 'Recent' },
+                    { key: 'name_asc', label: 'A–Z' },
+                    { key: 'rent_desc', label: 'Rent' },
+                    { key: 'producing', label: 'Active' },
+                  ] as { key: LandlordSort; label: string }[]).map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => setLandlordSort(s.key)}
+                      className={cn(
+                        'px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                        landlordSort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40'
+                      )}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                Producing landlords {landlords.length > 0 ? `(${producingLandlords}/${landlords.length})` : ''}
+                Landlords {filteredLandlords.length > 0 ? `(${filteredLandlords.filter((l) => l.is_producing).length}/${filteredLandlords.length})` : ''}
+                {landlordSearch && filteredLandlords.length !== landlords.length && (
+                  <span className="font-normal normal-case ml-1">· {landlords.length} total</span>
+                )}
               </p>
               {landlordsLoading ? (
                 <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
-              ) : landlords.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No landlords in this window.</p>
+              ) : filteredLandlords.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  {landlords.length === 0 ? 'No landlords in this window.' : 'No landlords match your search.'}
+                </p>
               ) : (
                 <ul className="space-y-1.5">
-                  {landlords.map((l) => {
+                  {filteredLandlords.map((l) => {
                     const lFundedPct = pct(l.rent_funded_count, l.rent_count);
                     return (
                       <li
