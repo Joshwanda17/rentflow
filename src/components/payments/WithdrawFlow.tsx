@@ -1394,21 +1394,37 @@ export default function WithdrawFlow({
                   Read this code to Financial Ops to release {formatCurrency(amount, currency)}.
                   Your wallet is reduced the moment they enter it. A copy was also emailed to you.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-1"
-                  onClick={() => {
-                    try {
-                      navigator.clipboard?.writeText(cashPickupCode);
-                      toast.success('Code copied');
-                    } catch {
-                      /* clipboard unavailable — code is still visible on screen */
-                    }
-                  }}
-                >
-                  Copy code
-                </Button>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      try {
+                        navigator.clipboard?.writeText(cashPickupCode);
+                        toast.success('Code copied');
+                      } catch {
+                        /* clipboard unavailable — code is still visible on screen */
+                      }
+                    }}
+                  >
+                    Copy code
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={resendingCode || resendRemaining > 0}
+                    onClick={() => void handleResendCode()}
+                  >
+                    {resendingCode
+                      ? 'Sending…'
+                      : resendRemaining > 0
+                        ? `Resend in ${resendRemaining}s`
+                        : 'Resend code'}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-amber-700/80 dark:text-amber-200/70">
+                  A new code can be issued once this one expires or after a short wait.
+                </p>
               </div>
             )}
             {/* Server-confirmed receipt — shown immediately after the
