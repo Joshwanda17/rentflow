@@ -111,6 +111,13 @@ export function WelileOpsCounterBand() {
     else if (level === 'city') setPath({ ...path, city: row.bucket_key });
   };
 
+  const zonePathFor = (row: CounterBreakdownRow): CounterPath => {
+    if (level === 'continent') return { continent: row.bucket_key };
+    if (level === 'country') return { continent: path.continent, country: row.bucket_key };
+    if (level === 'city') return { ...path, city: row.bucket_key };
+    return { ...path };
+  };
+
   const goBack = () => {
     if (path.city) setPath({ continent: path.continent, country: path.country });
     else if (path.country) setPath({ continent: path.continent });
