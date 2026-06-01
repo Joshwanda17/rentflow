@@ -213,9 +213,22 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
               After you hand over <span className="font-semibold">{formatUGX(amountNum)}</span>, ask the agent to
               read the code and enter it below.
             </div>
+            {secsLeft !== null && (
+              <div
+                className={`flex items-center justify-center gap-1.5 text-xs font-medium ${
+                  expired ? 'text-destructive' : secsLeft <= 60 ? 'text-amber-600' : 'text-muted-foreground'
+                }`}
+              >
+                {expired ? (
+                  <>This code has expired — start a new cash deposit.</>
+                ) : (
+                  <>Code expires in <span className="tabular-nums font-semibold">{countdownLabel}</span></>
+                )}
+              </div>
+            )}
             <div className="flex flex-col items-center gap-2">
               <Label className="text-sm font-medium">Enter the 4-digit code</Label>
-              <InputOTP maxLength={4} value={pin} onChange={(v) => { setPin(v); if (v.length === 4) void handleConfirm(v); }}>
+              <InputOTP maxLength={4} value={pin} disabled={expired || loading} onChange={(v) => { setPin(v); if (v.length === 4) void handleConfirm(v); }}>
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
                   <InputOTPSlot index={1} />
@@ -227,6 +240,11 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
                   <Loader2 className="h-4 w-4 animate-spin" /> Crediting your wallet…
                 </div>
+              )}
+              {expired && !loading && (
+                <Button variant="outline" size="sm" className="mt-1" onClick={() => { setStep('form'); setPin(''); setExpiresAt(null); }}>
+                  Start a new deposit
+                </Button>
               )}
             </div>
           </div>
