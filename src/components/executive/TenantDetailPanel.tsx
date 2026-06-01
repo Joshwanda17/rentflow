@@ -891,32 +891,79 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                               );
                             })()}
                             {lastReceipt?.reference === req.id && (
-                              <div className="mt-1 space-y-1.5 rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                              <div className="mt-1 space-y-2 rounded-md border border-emerald-200 bg-emerald-50 p-2">
                                 <p className="text-[11px] font-medium text-emerald-800">
                                   Collected UGX {Math.round(lastReceipt.totalCollected).toLocaleString()} · download receipt
                                 </p>
-                                <div className="flex gap-2">
+
+                                {/* Step 1 — reconcile against the collection ledger */}
+                                {!validation?.ok && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
-                                    onClick={() => handleDownloadReceipt('pdf')}
-                                    disabled={downloadingReceipt !== null}
+                                    className="h-7 w-full text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                    onClick={handleValidateReceipt}
+                                    disabled={validating}
                                   >
-                                    {downloadingReceipt === 'pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
-                                    PDF
+                                    {validating ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+                                    {validating ? 'Verifying ledger…' : 'Verify against ledger'}
                                   </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
-                                    onClick={() => handleDownloadReceipt('xlsx')}
-                                    disabled={downloadingReceipt !== null}
-                                  >
-                                    {downloadingReceipt === 'xlsx' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSpreadsheet className="h-3 w-3" />}
-                                    Excel
-                                  </Button>
-                                </div>
+                                )}
+
+                                {validation?.ok && (
+                                  <p className="text-[11px] font-medium text-emerald-800 flex items-center gap-1">
+                                    <ShieldCheck className="h-3 w-3" /> Reconciled — amounts, commission & balance match the ledger
+                                  </p>
+                                )}
+
+                                {validation && !validation.ok && (
+                                  <div className="space-y-1 rounded border border-destructive/30 bg-destructive/5 p-1.5">
+                                    <p className="text-[11px] font-semibold text-destructive flex items-center gap-1">
+                                      <ShieldAlert className="h-3 w-3" /> Ledger mismatch
+                                    </p>
+                                    <ul className="list-disc pl-4 space-y-0.5">
+                                      {validation.issues.map((iss, i) => (
+                                        <li key={i} className="text-[10.5px] text-destructive">{iss}</li>
+                                      ))}
+                                    </ul>
+                                    {!validationOverride && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-full text-[10.5px] text-destructive hover:bg-destructive/10"
+                                        onClick={() => setValidationOverride(true)}
+                                      >
+                                        Download anyway (override)
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Step 2 — download once reconciled (or overridden) */}
+                                {(validation?.ok || validationOverride) && (
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                      onClick={() => handleDownloadReceipt('pdf')}
+                                      disabled={downloadingReceipt !== null}
+                                    >
+                                      {downloadingReceipt === 'pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+                                      PDF
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                      onClick={() => handleDownloadReceipt('xlsx')}
+                                      disabled={downloadingReceipt !== null}
+                                    >
+                                      {downloadingReceipt === 'xlsx' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSpreadsheet className="h-3 w-3" />}
+                                      Excel
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </>
