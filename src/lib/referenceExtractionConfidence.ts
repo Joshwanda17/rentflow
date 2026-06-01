@@ -110,21 +110,22 @@ export function extractReferenceWithConfidence(text: string): ReferenceExtractio
   const t = text.replace(/\s+/g, ' ').trim();
 
   // 1) Strong, provider-specific shapes (highest trust).
-  for (const { re, label } of STRONG_PATTERNS) {
-    const m = t.match(re);
+  for (const p of STRONG_PATTERNS) {
+    const m = t.match(p.re);
     if (!m) continue;
-    // The captured group (if any) is the bare ID; otherwise the full match.
-    const captured = m[1] ?? m[0];
-    const reference = re === STRONG_PATTERNS[1].re ? `TID${captured}` : captured.toUpperCase();
-    const span = m[1] ?? m[0];
+    // For "whole" patterns the entire match is the reference; otherwise the
+    // first capture group holds the bare value.
+    const captured = (p.whole ? m[0] : (m[1] ?? m[0])).trim();
+    const reference = (p.normalise ? p.normalise(captured) : captured).toUpperCase();
+    const span = p.whole ? m[0] : (m[1] ?? m[0]);
     const idx = t.indexOf(span, m.index ?? 0);
     const valid = validateTransactionReference(reference).valid;
     return {
       reference,
       confidence: valid ? 'high' : 'low',
       detail: valid
-        ? `Matched a ${label}.`
-        : `Looks like a ${label} but fails the reference check.`,
+        ? `Matched a ${p.label}.`
+        : `Looks like a ${p.label} but fails the reference check.`,
       matchIndex: idx,
       matchLength: span.length,
     };
