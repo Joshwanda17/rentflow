@@ -173,7 +173,6 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
       return;
     }
     setDeleting(true);
-    void 0;
     try {
       const { error } = await supabase.from('house_listings').delete().eq('id', deleteTarget.id);
       if (error) throw error;
