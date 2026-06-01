@@ -67,6 +67,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [canResendAt, setCanResendAt] = useState<number | null>(null);
+  const [locked, setLocked] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
 
   // Agent phone search
   const [suggestions, setSuggestions] = useState<Array<{ id: string; full_name: string; phone: string }>>([]);
@@ -94,7 +96,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setPinError(''); setCreditedAmount(0); setExpiresAt(null);
     setSuggestions([]); setShowSuggestions(false); setPhoneError(''); setPhoneTouched(false);
-    setSelectedFromList(false); setCanResendAt(null);
+    setSelectedFromList(false); setCanResendAt(null); setLocked(false); setAttemptsLeft(null);
   };
 
   const searchAgents = useCallback(async (query: string) => {
@@ -207,6 +209,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       setExpiresAt(data.expires_at ?? null);
       setNow(Date.now());
       setCanResendAt(Date.now() + 60_000); // 60-second cooldown
+      setLocked(false);
+      setAttemptsLeft(null);
       toast.success('A new confirmation code has been sent to the agent.');
     } catch (e) {
       toast.error('Network error. Please try again.');
@@ -258,6 +262,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
           setNow(Date.now());
           setPin('');
           setPinError('');
+          setLocked(false);
+          setAttemptsLeft(null);
           setStep('pin');
           toast.info('You already have a pending deposit with this agent. Enter the code they gave you.');
           return;
@@ -273,6 +279,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       setAgentName(data.agent_name || 'the agent');
       setExpiresAt(data.expires_at ?? null);
       setNow(Date.now());
+      setLocked(false);
+      setAttemptsLeft(null);
       setStep('pin');
     } catch (e) {
       toast.error('Network error. Please try again.');
@@ -290,10 +298,19 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
         body: { session_id: sessionId, pin: code },
       });
       if (error) {
-        const msg = await readEdgeMessage(error, 'Could not confirm the code');
+        const body = await readEdgeBody(error);
+        const msg = body?.message || (await readEdgeMessage(error, 'Could not confirm the code'));
+        // Session is locked: too many wrong attempts, or the final attempt
+        // just used up the allowance. Force a fresh start.
+        const isLocked =
+          body?.error === 'too_many_attempts' ||
+          body?.error === 'not_active' ||
+          (typeof body?.attempts_remaining === 'number' && body.attempts_remaining <= 0);
         toast.error(msg);
         setPin('');
         setPinError(msg);
+        if (typeof body?.attempts_remaining === 'number') setAttemptsLeft(body.attempts_remaining);
+        if (isLocked) setLocked(true);
         return;
       }
       if (!data?.ok) {
@@ -515,7 +532,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
             )}
             <div className="flex flex-col items-center gap-2">
               <Label className="text-sm font-medium">Enter the 4-digit code</Label>
-              <InputOTP maxLength={4} value={pin} disabled={expired || loading} onChange={(v) => { setPin(v); if (pinError) setPinError(''); if (v.length === 4) void handleConfirm(v); }}>
+              <InputOTP maxLength={4} value={pin} disabled={expired || loading || locked} onChange={(v) => { setPin(v); if (pinError) setPinError(''); if (v.length === 4) void handleConfirm(v); }}>
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
                   <InputOTPSlot index={1} />
@@ -523,6 +540,12 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   <InputOTPSlot index={3} />
                 </InputOTPGroup>
               </InputOTP>
+              {!locked && attemptsLeft !== null && attemptsLeft > 0 && (
+                <p className="text-xs text-amber-600 font-medium">
+                  {attemptsLeft} {attemptsLeft === 1 ? 'attempt' : 'attempts'} left before this code locks.
+                </p>
+              )}
+              {!locked && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -534,12 +557,29 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   ? `Resend code in ${resendCooldownLeft}s`
                   : 'Didn\'t get it? Resend code'}
               </Button>
+              )}
               {loading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
                   <Loader2 className="h-4 w-4 animate-spin" /> Crediting your wallet…
                 </div>
               )}
-              {pinError && !loading && !expired && (
+              {locked && !loading && (
+                <div className="w-full mt-1 p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
+                  <p className="text-sm text-destructive flex items-start gap-1.5">
+                    <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{pinError || 'Too many incorrect attempts. This code has been locked for your security.'}</span>
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={() => { setStep('form'); setPin(''); setPinError(''); setSessionId(null); setExpiresAt(null); setCanResendAt(null); setLocked(false); setAttemptsLeft(null); }}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" /> Start a new deposit
+                  </Button>
+                </div>
+              )}
+              {pinError && !loading && !expired && !locked && (
                 <div className="w-full mt-1 p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
                   <p className="text-sm text-destructive flex items-start gap-1.5">
                     <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
