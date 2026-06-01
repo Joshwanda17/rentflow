@@ -459,6 +459,11 @@ export function ApprovalQueue() {
       return;
     }
 
+    if (cashCodeMissingBlocked) {
+      toast.error('Cash payout is missing its WPO pickup code — cannot approve until the user resubmits.');
+      return;
+    }
+
     setProcessing(true);
     try {
       // Expand any grouped (paired-leg) items into their underlying ledger leg IDs.
