@@ -114,6 +114,15 @@ export default function WithdrawFlow({
   const [cashCodeInput, setCashCodeInput] = useState('');
   const [cashCodeAcknowledged, setCashCodeAcknowledged] = useState(false);
   const [cashCodeError, setCashCodeError] = useState<string | null>(null);
+  // ─── Resend code (cash pickup) ──────────────────────────────────────
+  // A fresh WPO code can only be issued once the current one has expired
+  // OR a cooldown has elapsed. The RPC `resend_payout_code` is the
+  // authoritative guard; this client-side cooldown is purely UX so the
+  // button visibly counts down instead of round-tripping to a rejection.
+  const RESEND_COOLDOWN_SECONDS = 90;
+  const [codeIssuedAt, setCodeIssuedAt] = useState<number | null>(null);
+  const [resendingCode, setResendingCode] = useState(false);
+  const [resendTick, setResendTick] = useState(() => Date.now());
   // Server-confirmed submission timestamp. Set the moment the
   // withdrawal_requests insert returns successfully so the success
   // receipt can display the exact processed date/time.
