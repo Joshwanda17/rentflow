@@ -68,6 +68,34 @@ async function sendGmail(to: string, subject: string, body: string) {
 const fmtUGX = (n: number) =>
   `UGX ${Math.round(n).toLocaleString("en-UG")}`;
 
+// Append an audit-trail event. Never throws — auditing must not break the flow.
+async function logEvent(
+  admin: ReturnType<typeof createClient>,
+  row: {
+    verification_id?: string | null;
+    deposit_request_id?: string | null;
+    user_id?: string | null;
+    event_type: string;
+    amount?: number | null;
+    detail?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  try {
+    await admin.from("cash_deposit_verification_events").insert({
+      verification_id: row.verification_id ?? null,
+      deposit_request_id: row.deposit_request_id ?? null,
+      user_id: row.user_id ?? null,
+      event_type: row.event_type,
+      amount: row.amount ?? null,
+      detail: row.detail ?? null,
+      metadata: row.metadata ?? {},
+    } as any);
+  } catch (e) {
+    console.error("[cash-request-code] audit log failed", row.event_type, e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
