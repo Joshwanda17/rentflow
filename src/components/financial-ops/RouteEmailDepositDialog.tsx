@@ -885,13 +885,18 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       // Auto-extract a reference from the email body when the email itself
       // carries no parsed transaction_id, so operators don't have to type it.
       if (!row.transaction_id) {
-        const parsed = parseSMS(`${row.subject ?? ''} ${row.snippet ?? ''}`);
-        const auto = parsed.transactionId?.trim() ?? '';
+        const sourceText = `${row.subject ?? ''} ${row.snippet ?? ''}`;
+        const extraction = extractReferenceWithConfidence(sourceText);
+        const auto = extraction.reference.trim();
+        setRefSourceText(sourceText.replace(/\s+/g, ' ').trim());
+        setRefExtraction(extraction.reference ? extraction : null);
         setManualReference(auto);
         setAutoExtractedRef(auto.length >= 4);
       } else {
         setManualReference('');
         setAutoExtractedRef(false);
+        setRefExtraction(null);
+        setRefSourceText('');
       }
       setAwaitingConfirm(false);
       setPendingAutoSubmit(null);
