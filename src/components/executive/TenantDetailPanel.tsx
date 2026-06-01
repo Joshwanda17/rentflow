@@ -412,9 +412,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Collects the outstanding (capped at the daily charge) from the tenant's
   // wallet, then from the linked agent's wallet for any shortfall.
   const collectMutation = useMutation({
-    mutationFn: async ({ rentRequestId, reason }: { rentRequestId: string; reason: string }) => {
+    mutationFn: async ({ rentRequestId, reason, amount }: { rentRequestId: string; reason: string; amount?: number }) => {
       const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
-        body: { rent_request_id: rentRequestId, reason },
+        body: { rent_request_id: rentRequestId, reason, ...(amount != null ? { amount } : {}) },
       });
       if (error) {
         const msg = await extractFromErrorObject(error, 'Collection failed. Please try again.');
@@ -423,7 +423,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data: any, variables: { rentRequestId: string; reason: string }) => {
+    onSuccess: (data: any, variables: { rentRequestId: string; reason: string; amount?: number }) => {
       toast.success(
         `Collected UGX ${Number(data.total_collected).toLocaleString()} — tenant UGX ${Number(data.tenant_deducted).toLocaleString()}, agent UGX ${Number(data.agent_deducted).toLocaleString()}`
       );
@@ -431,6 +431,12 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       const req = requests.find(r => r.id === variables.rentRequestId);
       const outstanding = req ? Math.max(0, obligationFor(req) - Number(req.amount_repaid || 0)) : undefined;
       const totalCollected = Number(data.total_collected) || 0;
+      const requestedAmount = Number(data.requested_amount) || (variables.amount ?? totalCollected);
+      // Prefer the server's remaining balance; fall back to local obligation math.
+      const remainingBalance = typeof data.remaining_balance === 'number'
+        ? Math.max(0, Number(data.remaining_balance))
+        : (outstanding !== undefined ? Math.max(0, outstanding - totalCollected) : undefined);
+      const isPartial = Boolean(data.is_partial) || (remainingBalance !== undefined && remainingBalance > 0) || totalCollected < requestedAmount;
       setLastReceipt({
         reference: variables.rentRequestId,
         tenantName: data.tenant_name || profile?.full_name || tenantName,
@@ -440,7 +446,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         tenantDeducted: Number(data.tenant_deducted) || 0,
         agentDeducted: Number(data.agent_deducted) || 0,
         commissionPaid: Number(data.commission_paid) || 0,
-        remainingBalance: outstanding !== undefined ? Math.max(0, outstanding - totalCollected) : undefined,
+        remainingBalance,
+        requestedAmount,
+        isPartial,
         reason: variables.reason,
         collectedBy: user?.email || undefined,
         date: new Date(),
@@ -451,6 +459,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       setValidationOverride(false);
       setCollectingReqId(null);
       setCollectReason('');
+      setCollectAmount('');
       queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
       queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
