@@ -4,6 +4,7 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { useBackAwareOpenState } from "@/hooks/useBackGestureClose";
+import { useRestoreBodyPointerEvents } from "@/hooks/useRestoreBodyPointerEvents";
 
 const AlertDialog = (props: React.ComponentProps<typeof AlertDialogPrimitive.Root>) => {
   const { rootProps, rest } = useBackAwareOpenState(props);
@@ -32,7 +33,11 @@ AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
->(({ className, ...props }, ref) => (
+>(({ className, ...props }, ref) => {
+  // Restore <body> interactivity when this (often stacked) confirm dialog
+  // closes, so the parent modal/screen never freezes.
+  useRestoreBodyPointerEvents();
+  return (
   <AlertDialogPortal>
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Content
@@ -44,7 +49,8 @@ const AlertDialogContent = React.forwardRef<
       {...props}
     />
   </AlertDialogPortal>
-));
+  );
+});
 AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName;
 
 const AlertDialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
