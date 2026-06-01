@@ -49,6 +49,14 @@ const dueLabel = (d: number) => {
   return `${d} days`;
 };
 
+// Human-readable portfolio lifecycle status (active / matured / paused …).
+const statusLabel = (s?: string | null) => {
+  if (!s) return '—';
+  return String(s)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 // Welile theme primary (HSL 271 100% 40% → RGB ≈ 102, 0, 204)
 const THEME_PRIMARY: [number, number, number] = [146, 52, 234];
 const THEME_PRIMARY_DARK: [number, number, number] = [108, 33, 196];
