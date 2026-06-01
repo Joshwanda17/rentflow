@@ -16,6 +16,8 @@ export interface RentCollectionReceiptData {
   agentDeducted: number;
   commissionPaid?: number;
   remainingBalance?: number;
+  requestedAmount?: number; // amount the collector tried to take (for partial collections)
+  isPartial?: boolean;      // true when this is a partial / shortfall collection
   reason: string;
   collectedBy?: string;
   date: Date;
