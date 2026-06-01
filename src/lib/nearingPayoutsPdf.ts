@@ -328,10 +328,11 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       6: { halign: 'right', fontStyle: 'bold' },
       7: { halign: 'center', cellWidth: 16 },
       9: { halign: 'center', cellWidth: 22 },
-      10: { cellWidth: 55 },
+      10: { halign: 'center', cellWidth: 20 },
+      11: { cellWidth: 52 },
     },
     didParseCell: (data: any) => {
-      // Highlight overdue / due-today rows in the Status column.
+      // Highlight overdue / due-today rows in the Due column.
       if (data.section === 'body' && data.column.index === 9) {
         const status = String(data.cell.raw || '');
         if (status === 'Due today') {
@@ -344,7 +345,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
         }
       }
       // Subtle warning for missing payment methods
-      if (data.section === 'body' && data.column.index === 10) {
+      if (data.section === 'body' && data.column.index === 11) {
         const v = String(data.cell.raw || '');
         if (v.startsWith('Not set')) {
           data.cell.styles.textColor = [180, 83, 9];
