@@ -209,6 +209,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       setExpiresAt(data.expires_at ?? null);
       setNow(Date.now());
       setCanResendAt(Date.now() + 60_000); // 60-second cooldown
+      setLocked(false);
+      setAttemptsLeft(null);
       toast.success('A new confirmation code has been sent to the agent.');
     } catch (e) {
       toast.error('Network error. Please try again.');
