@@ -1851,9 +1851,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   }}
                 />
                 <div className="text-xs">
-                  <p className="font-medium">Transfer from another user's wallet</p>
+                  <p className="font-medium">Move money from a wallet (same or another user)</p>
                   {!lowData && (
-                    <p className="text-muted-foreground">Debits the chosen source user's withdrawable balance and credits the recipient below for the same amount.</p>
+                    <p className="text-muted-foreground">Debits the chosen source user's bucket and credits the recipient below. Pick the <span className="font-medium">same user</span> as source and recipient to move their own Operational Float → Personal Deposit (or vice-versa) — no second credit is posted.</p>
                   )}
                 </div>
               </label>
