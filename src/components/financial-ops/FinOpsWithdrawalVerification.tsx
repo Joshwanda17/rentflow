@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { extractToPhones, normalizeUgPhone } from '@/components/financial-ops/emailExtraction';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import { ReceiptCodeEntry } from '@/components/financial-ops/ReceiptCodeEntry';
 
 interface WithdrawalRequest {
   id: string;
