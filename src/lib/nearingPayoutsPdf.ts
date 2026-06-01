@@ -137,36 +137,6 @@ async function fetchPortfolioDetailsMap(portfolioIds: string[]): Promise<Map<str
 }
 
 // Fetch edit-history rows from audit_logs for these portfolios
-async function fetchEditHistoryMap(portfolioIds: string[]): Promise<{
-  history: Map<string, any[]>;
-  editorNames: Map<string, string>;
-}> {
-  const history = new Map<string, any[]>();
-  const editorNames = new Map<string, string>();
-  if (portfolioIds.length === 0) return { history, editorNames };
-  const unique = Array.from(new Set(portfolioIds));
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select('id, user_id, action_type, record_id, metadata, created_at')
-    .eq('table_name', 'investor_portfolios')
-    .in('record_id', unique)
-    .order('created_at', { ascending: false })
-    .limit(500);
-  if (error || !data) return { history, editorNames };
-  const editorIds = new Set<string>();
-  (data as any[]).forEach(r => {
-    const arr = history.get(r.record_id) || [];
-    arr.push(r);
-    history.set(r.record_id, arr);
-    if (r.user_id) editorIds.add(r.user_id);
-  });
-  if (editorIds.size > 0) {
-    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', Array.from(editorIds));
-    (profs || []).forEach((p: any) => editorNames.set(p.id, p.full_name || ''));
-  }
-  return { history, editorNames };
-}
-
 const fmtVal = (v: any): string => {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
