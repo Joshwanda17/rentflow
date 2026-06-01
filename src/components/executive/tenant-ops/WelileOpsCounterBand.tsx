@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -38,15 +39,20 @@ const LEVEL_ICON: Record<string, React.ElementType> = {
   continent: Globe, country: MapPin, city: MapPin, agent: User,
 };
 
+const REFRESH_OPTIONS = [5, 10, 30];
+
 export function WelileOpsCounterBand() {
   const [win, setWin] = useState<CounterWindow>('7d');
   const [path, setPath] = useState<CounterPath>({});
   const [collapsed, setCollapsed] = useState(false);
   const [items, setItems] = useState<{ agentId: string; agentName: string; kind: CounterKind } | null>(null);
   const [drawer, setDrawer] = useState<{ tenantId?: string | null; agentId?: string | null; landlordId?: string | null; tab: 'tenant' | 'agent' | 'landlord' } | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshSec, setRefreshSec] = useState(10);
 
+  const intervalMs = autoRefresh ? refreshSec * 1000 : false;
   const level = counterLevel(path);
-  const { data: rows, isLoading, isFetching, refetch } = useOpsCounterBreakdown(path, win) as any;
+  const { data: rows, isLoading, isFetching, refetch } = useOpsCounterBreakdown(path, win, intervalMs) as any;
   const list: CounterBreakdownRow[] = rows ?? [];
 
   const totals = useMemo(() => {
@@ -94,6 +100,34 @@ export function WelileOpsCounterBand() {
           </p>
         </div>
         <div className="flex items-center gap-1.5">
+          {autoRefresh && (
+            <div className="flex items-center gap-1">
+              {REFRESH_OPTIONS.map((sec) => (
+                <button
+                  key={sec}
+                  onClick={() => setRefreshSec(sec)}
+                  className={cn(
+                    'px-1.5 py-0.5 rounded text-[10px] font-semibold border transition',
+                    refreshSec === sec
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card text-muted-foreground border-border hover:bg-muted/40',
+                  )}
+                >
+                  {sec}s
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-0.5 bg-card">
+            <span className={cn('text-[10px] font-semibold', autoRefresh ? 'text-emerald-600' : 'text-muted-foreground')}>
+              {autoRefresh ? 'Live' : 'Auto'}
+            </span>
+            <Switch
+              checked={autoRefresh}
+              onCheckedChange={setAutoRefresh}
+              className="scale-75"
+            />
+          </div>
           <div className="flex rounded-lg border border-border overflow-hidden">
             {WINDOWS.map((w) => (
               <button
@@ -109,7 +143,7 @@ export function WelileOpsCounterBand() {
             ))}
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()}>
-            <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
+            <RefreshCw className={cn('h-4 w-4', (isFetching || isLoading) && 'animate-spin')} />
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCollapsed((c) => !c)}>
             {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -222,6 +256,7 @@ export function WelileOpsCounterBand() {
       <ItemsDialog
         target={items}
         win={win}
+        refetchIntervalMs={intervalMs}
         onClose={() => setItems(null)}
         onOpenProfile={(row) => {
           if (row.drawer_tab === 'landlord') setDrawer({ landlordId: row.profile_id, tab: 'landlord' });
@@ -243,15 +278,16 @@ export function WelileOpsCounterBand() {
 }
 
 function ItemsDialog({
-  target, win, onClose, onOpenProfile,
+  target, win, refetchIntervalMs, onClose, onOpenProfile,
 }: {
   target: { agentId: string; agentName: string; kind: CounterKind } | null;
   win: CounterWindow;
+  refetchIntervalMs?: number | false;
   onClose: () => void;
   onOpenProfile: (row: import('@/hooks/useWelileOpsCounters').CounterItemRow) => void;
 }) {
   const meta = KINDS.find((k) => k.kind === target?.kind);
-  const { data, isLoading } = useOpsCounterItems(target?.agentId ?? null, target?.kind ?? null, win);
+  const { data, isLoading } = useOpsCounterItems(target?.agentId ?? null, target?.kind ?? null, win, refetchIntervalMs);
 
   return (
     <Dialog open={!!target} onOpenChange={(v) => { if (!v) onClose(); }}>
