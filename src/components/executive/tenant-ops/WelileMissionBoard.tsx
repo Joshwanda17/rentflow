@@ -505,6 +505,49 @@ const ENTITY_META: Record<MissionDriverEntity['entity_type'], { label: string; p
 
 const DRIVER_ORDER: MissionDriverEntity['entity_type'][] = ['agent', 'tenant', 'landlord', 'funder'];
 
+function SearchableEntityFilter({
+  value, onChange, options, placeholder, label,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: { id: string; name: string }[];
+  placeholder?: string;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedName = value === 'all' ? `All ${label?.toLowerCase() || 'items'}` : options.find((o) => o.id === value)?.name;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="h-8 text-xs w-full justify-between px-2.5 border-border bg-card font-normal" type="button">
+          <span className="truncate">{selectedName || placeholder || 'Select…'}</span>
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+        <Command>
+          <CommandInput placeholder={`Search ${label?.toLowerCase() || 'items'}…`} />
+          <CommandList>
+            <CommandEmpty>No results.</CommandEmpty>
+            <CommandItem value="__all__" onSelect={() => { onChange('all'); setOpen(false); }}>
+              <Check className={cn('mr-2 h-3.5 w-3.5', value === 'all' ? 'opacity-100' : 'opacity-0')} />
+              All {label?.toLowerCase() || 'items'}
+            </CommandItem>
+            <CommandGroup>
+              {options.map((o) => (
+                <CommandItem key={o.id} value={`${o.id}:${o.name}`} onSelect={() => { onChange(o.id); setOpen(false); }}>
+                  <Check className={cn('mr-2 h-3.5 w-3.5', value === o.id ? 'opacity-100' : 'opacity-0')} />
+                  {o.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function AgentNetworkDriverDialog({
   driver, label, win, refetchIntervalMs, open, onClose, onOpenAgent, onOpenTenant, onOpenLandlord,
 }: {
