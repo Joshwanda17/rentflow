@@ -822,7 +822,22 @@ Password: ${createdInvite?.password}`;
                 </Command>
               </PopoverContent>
             </Popover>
-            {selectedHouse ? (
+            {selectedHouseId && !selectedHouse && !housesLoading ? (
+              <p className="text-[11px] text-destructive flex items-center gap-1.5">
+                <AlertCircle className="h-3 w-3" />
+                This house was just reserved by another agent. Please pick a different one.
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedHouseId('');
+                    setHousePickerOpen(true);
+                  }}
+                  className="ml-1 underline font-medium hover:text-foreground"
+                >
+                  Search again
+                </button>
+              </p>
+            ) : selectedHouse ? (
               <p className="text-[11px] text-success flex items-center gap-1.5">
                 <Check className="h-3 w-3" />
                 This house will be assigned to the tenant when they activate.
