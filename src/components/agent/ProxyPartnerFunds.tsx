@@ -1419,7 +1419,7 @@ export function ProxyPartnerFunds() {
             ? (pInfo.bank_account_name || partner.partnerName)
             : pInfo?.payment_method === 'cash'
             ? 'Cash pickup'
-            : (pInfo?.bank_account_name || pInfo?.account_name || partner.partnerName);
+            : (pInfo?.bank_account_name || partner.partnerName || 'Name not set');
         const destExtra =
           pInfo?.payment_method === 'bank_transfer'
             ? [pInfo.bank_name, pInfo.account_number].filter(Boolean).join(' · ')
