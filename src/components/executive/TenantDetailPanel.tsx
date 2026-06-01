@@ -859,6 +859,10 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                               if (!isActive || reqOutstanding <= 0) return null;
                               const chargeAmt = Math.min(reqOutstanding, Number(req.daily_repayment || 0) || reqOutstanding);
                               const isOpen = collectingReqId === req.id;
+                              const partialEntered = collectAmount.trim() !== '' && Number(collectAmount) > 0;
+                              const plannedAmt = partialEntered
+                                ? Math.min(Math.round(Number(collectAmount)), reqOutstanding)
+                                : chargeAmt;
                               return (
                                 <div className="pt-1">
                                   {!isOpen ? (
@@ -866,7 +870,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                       variant="outline"
                                       size="sm"
                                       className="h-8 w-full text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                                      onClick={() => { setCollectingReqId(req.id); setCollectReason(''); }}
+                                      onClick={() => { setCollectingReqId(req.id); setCollectReason(''); setCollectAmount(''); }}
                                     >
                                       <Banknote className="h-3.5 w-3.5" />
                                       Collect UGX {chargeAmt.toLocaleString()} from wallet
@@ -877,6 +881,26 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                         <Wallet className="h-3 w-3" />
                                         Charges the tenant's wallet first, then the linked agent's wallet for any shortfall.
                                       </p>
+                                      <div>
+                                        <label className="text-[10px] text-muted-foreground">
+                                          Amount to collect (UGX) — leave blank for daily UGX {chargeAmt.toLocaleString()}
+                                        </label>
+                                        <Input
+                                          type="number"
+                                          inputMode="numeric"
+                                          value={collectAmount}
+                                          onChange={e => setCollectAmount(e.target.value)}
+                                          placeholder={`Partial amount (max ${reqOutstanding.toLocaleString()})`}
+                                          className="h-8 text-sm"
+                                          min={1}
+                                          max={reqOutstanding}
+                                        />
+                                        {partialEntered && plannedAmt < reqOutstanding && (
+                                          <p className="text-[10px] text-amber-600 mt-0.5">
+                                            Partial — UGX {(reqOutstanding - plannedAmt).toLocaleString()} will remain outstanding.
+                                          </p>
+                                        )}
+                                      </div>
                                       <Textarea
                                         value={collectReason}
                                         onChange={e => setCollectReason(e.target.value)}
@@ -890,7 +914,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                           variant="outline"
                                           size="sm"
                                           className="h-7 text-xs"
-                                          onClick={() => { setCollectingReqId(null); setCollectReason(''); }}
+                                          onClick={() => { setCollectingReqId(null); setCollectReason(''); setCollectAmount(''); }}
                                           disabled={collectMutation.isPending}
                                         >
                                           Cancel
@@ -898,11 +922,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                         <Button
                                           size="sm"
                                           className="h-7 text-xs gap-1"
-                                          onClick={() => handleCollect(req.id)}
+                                          onClick={() => handleCollect(req.id, reqOutstanding)}
                                           disabled={collectMutation.isPending || collectReason.trim().length < 10}
                                         >
                                           {collectMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Banknote className="h-3 w-3" />}
-                                          Collect UGX {chargeAmt.toLocaleString()}
+                                          Collect UGX {plannedAmt.toLocaleString()}
                                         </Button>
                                       </div>
                                     </div>
