@@ -1421,6 +1421,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
       let landlordId: string;
 
+      // ===== Final live conflict check (fresh DB read) =====
+      // High-stakes: re-verify the selected house is still available at submit
+      // time so two agents can't link the same house. Never trust the cached
+      // selection or the background poll alone.
+      if (!isOutstanding && selectedHouse?.id) {
+        const { data: freshHouse } = await supabase
+          .from('house_listings')
+          .select('id, status, tenant_id, reserved_at, is_hidden')
+          .eq('id', selectedHouse.id)
+          .maybeSingle();
+        const taken =
+          !freshHouse ||
+          (freshHouse as any).tenant_id !== null ||
+          (freshHouse as any).reserved_at !== null ||
+          (freshHouse as any).is_hidden === true ||
+          (freshHouse as any).status !== 'available';
+        if (taken) {
+          setHouseConflict(true);
+          toast.error('This house was just reserved by another agent', {
+            description: 'Please pick a different available house before submitting.',
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       if (!isOutstanding && selectedHouse?.landlord_id) {
         // The agent selected an available house from the search. Its landlord is
         // already on file and the house is usable immediately — no verification
