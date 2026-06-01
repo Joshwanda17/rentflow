@@ -538,7 +538,9 @@ export default function WithdrawFlow({
         // then proceed — so the button must remain clickable.
         return (
           ledgerAvailable !== null &&
-          amount <= maxAmount
+          amount <= maxAmount &&
+          // Mandatory SMS OTP gate — must be verified before submission.
+          otpVerified
         );
       default: return false;
     }
