@@ -573,6 +573,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setHouseConflict(false);
   }, []);
 
+  // "Swap tenant" entry point: when the dialog is opened with a preselected
+  // house (the one just vacated), select it automatically so the agent skips
+  // the search and goes straight to entering the new tenant's details.
+  const preselectedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) {
+      preselectedRef.current = null;
+      return;
+    }
+    if (!preselectHouse) return;
+    if (preselectedRef.current === preselectHouse.id) return;
+    preselectedRef.current = preselectHouse.id;
+    selectHouse(preselectHouse);
+    setHouseSearchedOnce(true);
+  }, [open, preselectHouse, selectHouse]);
+
   // Auto-load available houses the first time the agent reaches the details
   // step in the standard flow, so the picker is ready immediately.
   useEffect(() => {
