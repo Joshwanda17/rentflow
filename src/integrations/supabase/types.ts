@@ -17550,6 +17550,7 @@ export type Database = {
         Args: { _amount: number; _user_id: string }
         Returns: number
       }
+      country_to_continent: { Args: { p_country: string }; Returns: string }
       create_direct_conversation: {
         Args: { other_user_id: string }
         Returns: string
@@ -19494,6 +19495,36 @@ export type Database = {
       welile_default_agent_vouch_floor_ugx:
         | { Args: never; Returns: number }
         | { Args: { p_agent_id: string }; Returns: number }
+      welile_ops_counter_breakdown: {
+        Args: {
+          p_city?: string
+          p_continent?: string
+          p_country?: string
+          p_level?: string
+          p_since?: string
+        }
+        Returns: {
+          agent_count: number
+          agent_id: string
+          bucket_key: string
+          bucket_label: string
+          landlord_count: number
+          promissory_count: number
+          rent_count: number
+          total_count: number
+        }[]
+      }
+      welile_ops_counter_items: {
+        Args: { p_agent_id: string; p_kind: string; p_since?: string }
+        Returns: {
+          created_at: string
+          drawer_tab: string
+          item_id: string
+          profile_id: string
+          subtitle: string
+          title: string
+        }[]
+      }
       writedown_historical_drift: {
         Args: { p_amount: number; p_reason: string; p_review_id: string }
         Returns: string
