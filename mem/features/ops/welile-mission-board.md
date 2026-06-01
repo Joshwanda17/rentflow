@@ -11,7 +11,6 @@ Purpose: makes the three ranked priorities explicit and tells ops the single bes
 - Priority 3 `fund` — onboarded funders = `investor_portfolios` (Partner Ops) + `promissory_notes` combined.
 
 Agent network (driving force): `AgentNetworkCard` renders directly below the 3 priority cards. Fed by `welile_mission_agent_network(p_since)` (hook `useMissionAgentNetwork`, type `MissionAgentNetwork`) — single row: total_agents (distinct across all 3), listing_agents/placement_agents/funder_agents, houses_listed, tenants_placed, landlords_reached, funders_total, top_agent_id/name/score (highest combined contributions). Shows active-agent count, 3 per-priority stat tiles (value + agents), and a clickable "Top driver" row → agent `UserDrilldownDrawer`.
-- Priority 3 `fund` — onboarded funders = `investor_portfolios` (Partner Ops) + `promissory_notes` combined.
 
 Window filter: 7d / 30d / All (default 7d). Optional 15s live auto-refresh.
 
