@@ -632,6 +632,10 @@ export interface EmailRowForRouting {
    *  debit flow to compose a reason that names who actually received the
    *  money rather than the bank/MNO that sent the confirmation email. */
   counterparty?: string | null;
+  /** Raw email body / preview text. Used to auto-extract a MoMo / bank
+   *  transaction reference when the email carries no parsed transaction_id
+   *  of its own, so operators don't have to retype it manually. */
+  snippet?: string | null;
 }
 
 export interface PrefilledUser {
