@@ -7,7 +7,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, Banknote, Phone, CheckCircle2, ShieldCheck, ChevronLeft, User } from 'lucide-react';
+import { Loader2, Banknote, Phone, CheckCircle2, ShieldCheck, ChevronLeft, User, XCircle } from 'lucide-react';
 
 // Read the friendly `message` field our edge functions return on non-2xx.
 async function readEdgeMessage(error: any, fallback: string): Promise<string> {
