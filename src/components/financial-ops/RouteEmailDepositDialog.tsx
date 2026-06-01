@@ -860,6 +860,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
+      setManualReference('');
       setAwaitingConfirm(false);
       setPendingAutoSubmit(null);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
