@@ -7,7 +7,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, Banknote, Phone, CheckCircle2, ShieldCheck, ChevronLeft, User } from 'lucide-react';
+import { Loader2, Banknote, Phone, CheckCircle2, ShieldCheck, ChevronLeft, User, XCircle } from 'lucide-react';
 
 // Read the friendly `message` field our edge functions return on non-2xx.
 async function readEdgeMessage(error: any, fallback: string): Promise<string> {
@@ -60,6 +60,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [suggestions, setSuggestions] = useState<Array<{ id: string; full_name: string; phone: string }>>([]);
   const [searching, setSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phoneWrapRef = useRef<HTMLDivElement>(null);
 
@@ -74,8 +75,10 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     if (digits.length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setHasSearched(false);
       return;
     }
+    setHasSearched(true);
     setSearching(true);
     try {
       const { data, error } = await supabase.rpc('search_agents_by_phone', {
@@ -87,7 +90,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
         setSuggestions([]);
       } else {
         setSuggestions((data ?? []) as Array<{ id: string; full_name: string; phone: string }>);
-        setShowSuggestions((data ?? []).length > 0);
+        setShowSuggestions(true);
       }
     } catch {
       setSuggestions([]);
@@ -252,7 +255,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 placeholder="e.g. 0772 123 456"
                 value={agentPhone}
                 onChange={(e) => onPhoneChange(e.target.value)}
-                onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                onFocus={() => { if (hasSearched) setShowSuggestions(true); }}
                 autoComplete="off"
                 className="h-12 text-base"
               />
@@ -264,7 +267,19 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                     </div>
                   )}
                   {!searching && suggestions.length === 0 && (
-                    <div className="px-3 py-2 text-xs text-muted-foreground">No agents found</div>
+                    <div className="px-3 py-3 space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-destructive">
+                        <XCircle className="h-3.5 w-3.5" />
+                        <span className="font-medium">No agents found for this number.</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="w-full text-left text-xs text-primary font-medium hover:underline"
+                        onClick={() => setShowSuggestions(false)}
+                      >
+                        Continue with <span className="font-semibold">{agentPhone.trim() || 'this number'}</span> anyway
+                      </button>
+                    </div>
                   )}
                   {suggestions.map((s) => (
                     <button
@@ -282,6 +297,9 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   ))}
                 </div>
               )}
+              <p className="text-xs text-muted-foreground">
+                You can type any agent's phone number — it doesn't have to be in the list.
+              </p>
             </div>
 
             <Button onClick={handleCreate} disabled={loading} className="w-full h-12 gap-2">
