@@ -49,6 +49,19 @@ export interface ZoneAgentRow {
   is_producing: boolean;
 }
 
+export interface ZoneLandlordRow {
+  landlord_id: string;
+  landlord_name: string | null;
+  landlord_phone: string | null;
+  registered_by: string | null;
+  agent_name: string | null;
+  rent_count: number;
+  rent_funded_count: number;
+  first_activity: string | null;
+  last_activity: string | null;
+  is_producing: boolean;
+}
+
 export function counterLevel(path: CounterPath): CounterLevel {
   if (!path.continent) return 'continent';
   if (!path.country) return 'country';
