@@ -1408,6 +1408,25 @@ export function ProxyPartnerFunds() {
         const classification = classify(partner);
         const isSubmitting = submittingPartnerIds.has(partner.partnerId);
 
+        // Registered payout destination for this partner (clear, labelled).
+        const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
+        const destLabel =
+          pInfo?.payment_method === 'bank_transfer' ? 'Account name'
+          : pInfo?.payment_method === 'cash' ? 'Payout'
+          : 'MoMo name';
+        const destName =
+          pInfo?.payment_method === 'bank_transfer'
+            ? (pInfo.bank_account_name || partner.partnerName)
+            : pInfo?.payment_method === 'cash'
+            ? 'Cash pickup'
+            : (pInfo?.bank_account_name || pInfo?.account_name || partner.partnerName);
+        const destExtra =
+          pInfo?.payment_method === 'bank_transfer'
+            ? [pInfo.bank_name, pInfo.account_number].filter(Boolean).join(' · ')
+            : pInfo?.payment_method === 'cash'
+            ? ''
+            : [pInfo?.mobile_network, pInfo?.mobile_money_number].filter(Boolean).join(' · ');
+
         return (
           <Card
             key={cardKey}
