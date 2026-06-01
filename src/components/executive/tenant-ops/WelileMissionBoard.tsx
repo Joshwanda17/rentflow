@@ -373,6 +373,23 @@ export function WelileMissionBoard() {
         onOpenLandlord={(id) => { setEmptyOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
         onOpenAgent={(id) => { setEmptyOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
       />
+
+      <PlacedTenantsDialog
+        open={placedOpen}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setPlacedOpen(false)}
+        onOpenLandlord={(id) => { setPlacedOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
+        onOpenAgent={(id) => { setPlacedOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
+      />
+
+      <FundersDialog
+        open={fundersOpen}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setFundersOpen(false)}
+        onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
+      />
     </Card>
   );
 }
