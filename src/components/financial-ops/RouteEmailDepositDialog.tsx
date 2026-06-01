@@ -685,6 +685,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // to move money from one user's wallet to another's.
   const [sourceUser, setSourceUser] = useState<PrefilledUser | null>(null);
   const [transferFromUser, setTransferFromUser] = useState(false);
+  // Manual transaction reference supplied by the operator when the inbound
+  // email carried no MoMo / bank reference of its own. The backend refuses
+  // to credit a reference-less email (REFERENCE_MISSING) because it cannot
+  // reconcile or de-duplicate it — so we let Financial Ops type the physical
+  // receipt / TID number and forward it as the idempotency key.
+  const [manualReference, setManualReference] = useState('');
   // Which bucket of the source user to debit when transferring.
   // 'withdrawable' = personal balance, 'float' = operational/landlord-payout float.
   const [transferFromBucket, setTransferFromBucket] = useState<'withdrawable' | 'float'>('withdrawable');
