@@ -67,6 +67,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // then fall back to a linked agent's wallet (for tenants without a smartphone).
   const [collectingReqId, setCollectingReqId] = useState<string | null>(null);
   const [collectReason, setCollectReason] = useState('');
+  // Custom UGX amount for partial collections — empty means collect the default
+  // daily charge. The collector can lower this to take only part of what's owed.
+  const [collectAmount, setCollectAmount] = useState('');
   // Last successful collection receipt — drives the download (PDF/Excel) UI.
   const [lastReceipt, setLastReceipt] = useState<RentCollectionReceiptData | null>(null);
   const [downloadingReceipt, setDownloadingReceipt] = useState<'pdf' | 'xlsx' | null>(null);
