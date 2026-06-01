@@ -937,7 +937,10 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                             {lastReceipt?.reference === req.id && (
                               <div className="mt-1 space-y-2 rounded-md border border-emerald-200 bg-emerald-50 p-2">
                                 <p className="text-[11px] font-medium text-emerald-800">
-                                  Collected UGX {Math.round(lastReceipt.totalCollected).toLocaleString()} · download receipt
+                                  {lastReceipt.isPartial ? 'Partial — c' : 'C'}ollected UGX {Math.round(lastReceipt.totalCollected).toLocaleString()}
+                                  {lastReceipt.isPartial && typeof lastReceipt.remainingBalance === 'number'
+                                    ? ` · UGX ${Math.round(lastReceipt.remainingBalance).toLocaleString()} remaining`
+                                    : ''} · download receipt
                                 </p>
 
                                 {/* Step 1 — reconcile against the collection ledger */}
