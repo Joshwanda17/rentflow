@@ -269,11 +269,24 @@ Deno.serve(async (req) => {
         .update({ status: "awaiting_code", verified_at: null })
         .eq("id", ver.id);
       console.error("[cash-verify-code] approve-deposit failed", approveRes.status, approveJson);
+      await logEvent(admin, {
+        verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+        event_type: "credit_failed", amount: Number(ver.amount),
+        detail: "Code verified but wallet crediting failed — verification rolled back.",
+        metadata: { approve_status: approveRes.status, approve_response: approveJson },
+      });
       return json(502, {
         error: "credit_failed",
         message: "Code verified, but crediting your wallet failed. Please try again.",
       });
     }
+
+    await logEvent(admin, {
+      verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
+      event_type: "credited", amount: Number(ver.amount),
+      detail: "Wallet credited successfully after verification.",
+      metadata: { receipt_code: enteredCode },
+    });
 
     // ── New balance for the confirmation email ──
     let newBalance: number | null = null;
