@@ -106,7 +106,7 @@ export function RentRewardChips({ isListed, landlordVerified, status }: RentRewa
 
       <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
         <Banknote className="h-3 w-3 shrink-0" />
-        Paid automatically to your wallet at each stage.
+        Automatic expense from Welile platform funds — paid to your wallet at each stage.
       </p>
     </div>
   );
