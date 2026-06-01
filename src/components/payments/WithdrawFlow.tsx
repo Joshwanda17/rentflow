@@ -128,6 +128,21 @@ export default function WithdrawFlow({
   // receipt can display the exact processed date/time.
   const [submittedAt, setSubmittedAt] = useState<Date | null>(null);
 
+  // ─── SMS OTP gate (Verify step) ─────────────────────────────────────
+  // Every withdrawal must be confirmed with a one-time code sent to the
+  // phone number on file before the request can be submitted. This proves
+  // the person tapping Confirm controls the account's registered phone.
+  const OTP_RESEND_SECONDS = 60;
+  const [profilePhone, setProfilePhone] = useState<string | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
+  const [otpTick, setOtpTick] = useState(() => Date.now());
+
   // ─── Duplicate-submission guards ────────────────────────────────────
   // 1. Re-entrant lock: blocks double-tap on slow phones before the
   //    network round-trip even starts.
