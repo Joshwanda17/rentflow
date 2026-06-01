@@ -25,6 +25,16 @@ async function readEdgeMessage(error: any, fallback: string): Promise<string> {
   return error?.message || fallback;
 }
 
+// Read the full JSON body our edge functions return on non-2xx.
+async function readEdgeBody(error: any): Promise<any | null> {
+  try {
+    const ctx = error?.context;
+    if (ctx && typeof ctx.json === 'function') return await ctx.json();
+    if (ctx?.body) return typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+  } catch { /* ignore */ }
+  return null;
+}
+
 interface AgentCashPinDepositProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
