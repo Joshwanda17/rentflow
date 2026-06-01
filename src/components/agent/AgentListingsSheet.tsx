@@ -971,6 +971,41 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    <AlertDialog open={!!swapTarget} onOpenChange={(o) => !o && !swapping && setSwapTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Swap the tenant in this house?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {swapTarget ? (
+              <>
+                The current tenant will be moved out of{' '}
+                <span className="font-medium text-foreground">{swapTarget.title}</span> and you'll go
+                straight to linking a new tenant — the house is already filled in for you.
+              </>
+            ) : null}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={swapping}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => { e.preventDefault(); handleSwap(); }}
+            disabled={swapping}
+            className="gap-2"
+          >
+            {swapping && <Loader2 className="h-4 w-4 animate-spin" />}
+            Swap tenant
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    {swapHouseForLink && (
+      <AgentRentRequestDialog
+        open={!!swapHouseForLink}
+        onOpenChange={(o) => { if (!o) setSwapHouseForLink(null); }}
+        onSuccess={() => { setSwapHouseForLink(null); refresh(); }}
+        preselectHouse={swapHouseForLink}
+      />
+    )}
     </>
   );
 }
