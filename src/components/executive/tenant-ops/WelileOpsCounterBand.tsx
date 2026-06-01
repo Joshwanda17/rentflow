@@ -39,15 +39,20 @@ const LEVEL_ICON: Record<string, React.ElementType> = {
   continent: Globe, country: MapPin, city: MapPin, agent: User,
 };
 
+const REFRESH_OPTIONS = [5, 10, 30];
+
 export function WelileOpsCounterBand() {
   const [win, setWin] = useState<CounterWindow>('7d');
   const [path, setPath] = useState<CounterPath>({});
   const [collapsed, setCollapsed] = useState(false);
   const [items, setItems] = useState<{ agentId: string; agentName: string; kind: CounterKind } | null>(null);
   const [drawer, setDrawer] = useState<{ tenantId?: string | null; agentId?: string | null; landlordId?: string | null; tab: 'tenant' | 'agent' | 'landlord' } | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshSec, setRefreshSec] = useState(10);
 
+  const intervalMs = autoRefresh ? refreshSec * 1000 : false;
   const level = counterLevel(path);
-  const { data: rows, isLoading, isFetching, refetch } = useOpsCounterBreakdown(path, win) as any;
+  const { data: rows, isLoading, isFetching, refetch } = useOpsCounterBreakdown(path, win, intervalMs) as any;
   const list: CounterBreakdownRow[] = rows ?? [];
 
   const totals = useMemo(() => {
