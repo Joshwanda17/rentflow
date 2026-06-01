@@ -703,6 +703,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                           <MessageCircle className="h-4 w-4 mr-2 text-emerald-600" /> Share on WhatsApp
                                         </DropdownMenuItem>
                                       )}
+                                      {l.tenant_id && (
+                                        <DropdownMenuItem onClick={() => setVacateTarget(l)}>
+                                          <UserMinus className="h-4 w-4 mr-2 text-amber-600" /> Move tenant out
+                                        </DropdownMenuItem>
+                                      )}
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
                                         className="text-destructive focus:text-destructive"
