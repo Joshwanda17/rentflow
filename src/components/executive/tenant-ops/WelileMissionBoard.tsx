@@ -179,6 +179,16 @@ export function WelileMissionBoard() {
                     <span className="text-[11px] text-muted-foreground">{m.label}</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>
+                  {p.key === 'list' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-full mt-2 text-[11px] gap-1"
+                      onClick={() => setEmptyOpen(true)}
+                    >
+                      <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
