@@ -866,7 +866,7 @@ export function ProxyPartnerFunds() {
       if (pInfo?.payment_method === 'mobile_money') {
         cardData = {
           ...cardData, mode: 'mobile_money', provider: pInfo.mobile_network || 'MoMo',
-          momoName: pInfo.bank_account_name || pInfo.account_name || partner.partnerName,
+          momoName: pInfo.bank_account_name || partner.partnerName,
           momoNumber: pInfo.mobile_money_number || '',
         };
       } else if (pInfo?.payment_method === 'bank_transfer') {
