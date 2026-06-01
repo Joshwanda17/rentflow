@@ -488,7 +488,6 @@ function AgentNetworkCard({
 
 function statusTone(status: string | null): string {
   switch ((status || '').toLowerCase()) {
-    case 'driver': return '';
     case 'available': return 'text-emerald-600 bg-emerald-500/10';
     case 'pending': return 'text-amber-600 bg-amber-500/10';
     case 'reserved': return 'text-blue-600 bg-blue-500/10';
