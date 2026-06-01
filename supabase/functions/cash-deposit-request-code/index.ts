@@ -3,6 +3,7 @@
 // the depositor (after receiving the cash); the depositor enters it in the app
 // to auto-credit their wallet (see cash-deposit-verify-code).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sha256Hex } from "../_shared/cash-verification-core.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,14 +22,6 @@ function generateReceiptCode(): string {
   let s = "";
   for (const b of bytes) s += CODE_ALPHABET[b % CODE_ALPHABET.length];
   return `RCT${s}`;
-}
-
-async function sha256Hex(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 function b64url(input: string): string {
