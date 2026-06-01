@@ -370,6 +370,7 @@ function EmptyHousesDialog({
 }) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<EmptySort>('rent_desc');
+  const [targetFilter, setTargetFilter] = useState<'all' | 'targeted' | 'untargeted'>('all');
   const { data, isLoading } = useMissionEmptyHouses(win, open, refetchIntervalMs);
   const houses: MissionEmptyHouseRow[] = data ?? [];
   const { data: targets } = useLandlordOnboardingTargets(open);
@@ -404,6 +405,11 @@ function EmptyHousesDialog({
         (h.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
         (h.agent_name?.toLowerCase().includes(searchLower) ?? false));
     }
+    if (targetFilter === 'targeted') {
+      r = r.filter((h) => !!h.landlord_id && !!targets?.[h.landlord_id]);
+    } else if (targetFilter === 'untargeted') {
+      r = r.filter((h) => !h.landlord_id || !targets?.[h.landlord_id]);
+    }
     r.sort((a, b) => {
       switch (sort) {
         case 'rent_desc': return (b.monthly_rent || 0) - (a.monthly_rent || 0);
@@ -414,7 +420,7 @@ function EmptyHousesDialog({
       }
     });
     return r;
-  }, [houses, searchLower, sort]);
+  }, [houses, searchLower, sort, targetFilter, targets]);
 
   const unregistered = houses.filter((h) => !h.landlord_id).length;
   const targetedCount = houses.filter((h) => h.landlord_id && targets?.[h.landlord_id]).length;
