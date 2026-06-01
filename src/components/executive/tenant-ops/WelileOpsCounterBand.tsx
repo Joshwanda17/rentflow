@@ -256,6 +256,7 @@ export function WelileOpsCounterBand() {
       <ItemsDialog
         target={items}
         win={win}
+        refetchIntervalMs={intervalMs}
         onClose={() => setItems(null)}
         onOpenProfile={(row) => {
           if (row.drawer_tab === 'landlord') setDrawer({ landlordId: row.profile_id, tab: 'landlord' });
