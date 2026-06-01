@@ -182,7 +182,7 @@ export function ReceiptCodeEntry({
   );
   const inputDisabled = screen.kind === 'verifying' || screen.kind === 'verified' || terminal;
   const canVerify =
-    code.trim().length >= 3 &&
+    /^\d{4}$/.test(code.trim()) &&
     !inputDisabled &&
     attemptsRemaining > 0 &&
     !isExpiredByClock;
