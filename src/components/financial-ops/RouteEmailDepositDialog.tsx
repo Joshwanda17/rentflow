@@ -696,6 +696,10 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // reconcile or de-duplicate it — so we let Financial Ops type the physical
   // receipt / TID number and forward it as the idempotency key.
   const [manualReference, setManualReference] = useState('');
+  // True when `manualReference` was auto-extracted from the email body
+  // (subject + snippet) rather than typed by the operator. Drives the
+  // "auto-detected" hint and is cleared the moment the operator edits it.
+  const [autoExtractedRef, setAutoExtractedRef] = useState(false);
   // Which bucket of the source user to debit when transferring.
   // 'withdrawable' = personal balance, 'float' = operational/landlord-payout float.
   const [transferFromBucket, setTransferFromBucket] = useState<'withdrawable' | 'float'>('withdrawable');
