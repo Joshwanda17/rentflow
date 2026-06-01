@@ -46,7 +46,7 @@ export function WelileOpsCounterBand() {
   const [drawer, setDrawer] = useState<{ tenantId?: string | null; agentId?: string | null; landlordId?: string | null; tab: 'tenant' | 'agent' | 'landlord' } | null>(null);
 
   const level = counterLevel(path);
-  const { data: rows, isLoading, isფetching, refetch } = useOpsCounterBreakdown(path, win) as any;
+  const { data: rows, isLoading, isFetching, refetch } = useOpsCounterBreakdown(path, win) as any;
   const list: CounterBreakdownRow[] = rows ?? [];
 
   const totals = useMemo(() => {
@@ -109,7 +109,7 @@ export function WelileOpsCounterBand() {
             ))}
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()}>
-            <RefreshCw className={cn('h-4 w-4', isფetching && 'animate-spin')} />
+            <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCollapsed((c) => !c)}>
             {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
