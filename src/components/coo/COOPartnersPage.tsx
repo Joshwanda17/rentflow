@@ -3677,6 +3677,75 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   };
 
+  // Share a branded WhatsApp payout card for a single partner. Resolves the
+  // freshest payment destination (portfolio route → saved method) so the
+  // mobile-money name / number on the card matches what Ops will actually pay.
+  const [sharingCardId, setSharingCardId] = useState<string | null>(null);
+  const handleShareCard = async (p: NearingPayoutPortfolio) => {
+    if (sharingCardId) return;
+    setSharingCardId(p.portfolioId);
+    try {
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
+      let cardData: PayoutCardData = {
+        partnerName: p.name,
+        portfolioName: p.portfolioName,
+        payoutDate: new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric',
+        }),
+        amount: roiAmount,
+        reference: p.portfolioId.slice(0, 8).toUpperCase(),
+      };
+
+      const { data: det } = await supabase
+        .from('investor_portfolios')
+        .select('payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number, account_name')
+        .eq('id', p.portfolioId)
+        .maybeSingle();
+
+      if (det?.payment_method === 'mobile_money') {
+        cardData = {
+          ...cardData, mode: 'mobile_money', provider: det.mobile_network || 'MoMo',
+          momoName: det.bank_account_name || det.account_name || p.name,
+          momoNumber: det.mobile_money_number || '',
+        };
+      } else if (det?.payment_method === 'bank_transfer') {
+        cardData = {
+          ...cardData, mode: 'bank_transfer', bankName: det.bank_name,
+          bankAccountName: det.bank_account_name || p.name, bankAccountNumber: det.account_number,
+        };
+      } else if (det?.payment_method === 'cash') {
+        cardData = { ...cardData, mode: 'cash' };
+      } else {
+        // Fall back to the partner's saved payout method.
+        const { data: saved } = await supabase
+          .from('saved_payout_methods' as never)
+          .select('*')
+          .eq('user_id', p.investorId)
+          .order('is_default', { ascending: false })
+          .order('last_used_at', { ascending: false, nullsFirst: false })
+          .limit(1);
+        const s: any = (saved ?? [])[0];
+        if (s?.payout_mode === 'mobile_money') {
+          cardData = { ...cardData, mode: 'mobile_money', provider: s.momo_provider, momoName: s.momo_name || p.name, momoNumber: s.momo_number };
+        } else if (s?.payout_mode === 'bank_transfer') {
+          cardData = { ...cardData, mode: 'bank_transfer', bankName: s.bank_name, bankAccountName: s.bank_account_name || p.name, bankAccountNumber: s.bank_account_number };
+        } else {
+          cardData = { ...cardData, mode: 'mobile_money', momoName: p.name };
+        }
+      }
+
+      const res = await sharePayoutCardViaWhatsApp(cardData);
+      if (res.method === 'downloaded') {
+        toast.success('Payout card ready', { description: 'Image downloaded — attach it in the WhatsApp chat that just opened.' });
+      }
+    } catch (err: any) {
+      console.error('Share payout card error:', err);
+      toast.error('Could not create card', { description: err?.message || 'Please try again.' });
+    } finally {
+      setSharingCardId(null);
+    }
+  };
+
   const handleCompound = async (p: NearingPayoutPortfolio, reason: string) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'compound' }));
     try {
