@@ -4509,6 +4509,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                         <span>{p.roiPercentage}% · {p.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
                         <span className="font-mono">{refPreview}</span>
                       </div>
+                      <div className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+                        <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{destLabel}</p>
+                        <p className="text-xs font-semibold">{destName}</p>
+                        {destExtra && <p className="text-[10px] text-muted-foreground">{destExtra}</p>}
+                      </div>
                       {/* Audit Reason + Action Buttons */}
                       {!isDone && (
                         <div className="space-y-2 pt-1">
