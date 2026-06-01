@@ -1565,6 +1565,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       if (requestError) throw requestError;
 
+      // ===== Link the selected available house to this tenant + request =====
+      // Marks the house taken (so two agents can't grab the same one) and stores
+      // the house on the rent request for traceability. The `is('tenant_id', null)`
+      // guard makes this a no-op if another agent claimed it first. Best-effort —
+      // never blocks the rent request.
+      if (!isOutstanding && selectedHouse?.id && rentReq?.id) {
+        try {
+          await supabase
+            .from('house_listings')
+            .update({ tenant_id: tenantId, status: 'occupied' } as any)
+            .eq('id', selectedHouse.id)
+            .is('tenant_id', null);
+          await supabase
+            .from('rent_requests')
+            .update({ house_listing_id: selectedHouse.id } as any)
+            .eq('id', rentReq.id);
+        } catch (e) {
+          console.warn('Failed to link selected house to rent request', e);
+        }
+      }
+
       // If this submission resolved a saved draft, mark it submitted.
       if (draftId && rentReq?.id) {
         try {
