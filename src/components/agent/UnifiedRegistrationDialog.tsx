@@ -218,6 +218,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
         .select('id, title, address, region, house_category, monthly_rent, short_code')
         .eq('status', 'available')
         .is('tenant_id', null)
+        .is('reserved_at', null)
         .eq('is_hidden', false)
         .order('created_at', { ascending: false })
         .limit(200);
