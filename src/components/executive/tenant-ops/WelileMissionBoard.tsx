@@ -211,10 +211,15 @@ export function WelileMissionBoard() {
               <p className="text-[10px] text-muted-foreground mt-0.5">Houses listed</p>
             </div>
             <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex-1 rounded-lg bg-amber-500/10 py-2">
+            <button
+              type="button"
+              onClick={() => setEmptyOpen(true)}
+              className="flex-1 rounded-lg bg-amber-500/10 py-2 hover:bg-amber-500/20 transition cursor-pointer"
+              title="View the exact empty houses"
+            >
               <p className="text-lg font-bold leading-none text-amber-600">{summary.empty_houses_total.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Still empty</p>
-            </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Still empty →</p>
+            </button>
             <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
             <div className="flex-1 rounded-lg bg-emerald-500/10 py-2">
               <p className="text-lg font-bold leading-none text-emerald-600">{summary.placements_total.toLocaleString()}</p>
