@@ -757,6 +757,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                           <UserMinus className="h-4 w-4 mr-2 text-amber-600" /> Move tenant out
                                         </DropdownMenuItem>
                                       )}
+                                      {l.tenant_id && (
+                                        <DropdownMenuItem onClick={() => setSwapTarget(l)}>
+                                          <Repeat className="h-4 w-4 mr-2 text-primary" /> Swap tenant
+                                        </DropdownMenuItem>
+                                      )}
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
                                         className="text-destructive focus:text-destructive"
