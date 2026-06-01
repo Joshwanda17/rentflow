@@ -375,6 +375,163 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
+
+  // ===== House-search-first (standard flow) =====
+  // The agent first searches for an available empty house (by landlord name,
+  // region, or any house description) and selects it. Picking a house auto-fills
+  // the landlord + property details so they never re-key them. If nothing
+  // matches they can list a new house inline — it becomes available instantly
+  // (no verification needed) and they can then link the tenant to it.
+  type AvailableHouse = {
+    id: string;
+    title: string;
+    address: string | null;
+    region: string | null;
+    district: string | null;
+    house_category: string | null;
+    monthly_rent: number | null;
+    short_code: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    landlord_id: string | null;
+    landlord_name: string | null;
+    landlord_phone: string | null;
+  };
+  const [houseQuery, setHouseQuery] = useState('');
+  const [houseResults, setHouseResults] = useState<AvailableHouse[]>([]);
+  const [houseSearching, setHouseSearching] = useState(false);
+  const [houseSearchedOnce, setHouseSearchedOnce] = useState(false);
+  const [selectedHouse, setSelectedHouse] = useState<AvailableHouse | null>(null);
+  const [showListHouse, setShowListHouse] = useState(false);
+
+  // Map a house_listings category (underscored) to this form's category values.
+  const mapHouseCategory = (cat: string | null): string => {
+    switch ((cat || '').toLowerCase()) {
+      case 'single_room':
+      case 'studio':
+      case 'bedsitter':
+        return 'single-room';
+      case 'double_room':
+        return 'double-room';
+      case 'one_bedroom':
+        return '1-bed';
+      case 'two_bedroom':
+        return '2-bed';
+      case 'three_bedroom':
+        return '3-bed';
+      case 'shop':
+      case 'commercial':
+        return 'commercial';
+      default:
+        return '';
+    }
+  };
+
+  const HOUSE_SELECT =
+    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id, landlords(name, phone)';
+
+  const mapHouseRow = (r: any): AvailableHouse => ({
+    id: r.id,
+    title: r.title,
+    address: r.address,
+    region: r.region,
+    district: r.district,
+    house_category: r.house_category,
+    monthly_rent: r.monthly_rent,
+    short_code: r.short_code,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    landlord_id: r.landlord_id,
+    landlord_name: r.landlords?.name ?? null,
+    landlord_phone: r.landlords?.phone ?? null,
+  });
+
+  const searchAvailableHouses = useCallback(async () => {
+    const q = houseQuery.trim();
+    setHouseSearching(true);
+    setHouseSearchedOnce(true);
+    try {
+      let base = supabase
+        .from('house_listings')
+        .select(HOUSE_SELECT)
+        .eq('status', 'available')
+        .is('tenant_id', null)
+        .is('reserved_at', null)
+        .eq('is_hidden', false)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (q.length >= 2) {
+        base = base.or(
+          `title.ilike.%${q}%,address.ilike.%${q}%,region.ilike.%${q}%,description.ilike.%${q}%,short_code.ilike.%${q}%`,
+        );
+      }
+      const { data, error } = await base;
+      if (error) throw error;
+      let rows = (data || []) as any[];
+
+      // Also match by landlord name / phone (separate lookup, merged + de-duped).
+      if (q.length >= 2) {
+        const { data: lls } = await supabase
+          .from('landlords')
+          .select('id')
+          .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
+          .limit(20);
+        const llIds = (lls || []).map((l: any) => l.id);
+        if (llIds.length) {
+          const { data: byLl } = await supabase
+            .from('house_listings')
+            .select(HOUSE_SELECT)
+            .eq('status', 'available')
+            .is('tenant_id', null)
+            .is('reserved_at', null)
+            .eq('is_hidden', false)
+            .in('landlord_id', llIds)
+            .limit(50);
+          rows = [...rows, ...((byLl || []) as any[])];
+        }
+      }
+
+      const seen = new Set<string>();
+      const mapped: AvailableHouse[] = [];
+      for (const r of rows) {
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        mapped.push(mapHouseRow(r));
+      }
+      setHouseResults(mapped);
+    } catch (e) {
+      console.error('[AgentRentRequestDialog] house search failed', e);
+      toast.error('Could not search houses');
+    } finally {
+      setHouseSearching(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [houseQuery]);
+
+  const selectHouse = useCallback(
+    (h: AvailableHouse) => {
+      setSelectedHouse(h);
+      if (h.monthly_rent) setRentAmount(String(h.monthly_rent));
+      if (h.landlord_name) setLandlordName(h.landlord_name);
+      if (h.landlord_phone) setLandlordPhone(formatPhoneInput(h.landlord_phone));
+      if (h.address) setPropertyAddress(h.address);
+      if (h.district) setPropertyDistrict(normalizeDistrict(h.district));
+      if (h.region) setPropertyCity((c) => c || h.region || '');
+      const mappedCat = mapHouseCategory(h.house_category);
+      if (mappedCat) setHouseCategory(mappedCat);
+      if (h.latitude != null && h.longitude != null) {
+        setGpsLocation({ lat: Number(h.latitude), lng: Number(h.longitude), accuracy: 0 });
+      }
+      toast.success('House selected', {
+        description: 'Landlord and property details filled in automatically.',
+      });
+    },
+    [],
+  );
+
+  const clearSelectedHouse = useCallback(() => {
+    setSelectedHouse(null);
+  }, []);
   
   // Existing tenants this agent has already registered — used for the
   // one-tap auto-fill so agents don't re-key phone/National ID/photo.
