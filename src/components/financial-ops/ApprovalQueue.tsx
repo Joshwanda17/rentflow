@@ -860,6 +860,14 @@ export function ApprovalQueue() {
                 </div>
               </div>
             )}
+            {cashCodeMissingBlocked && (
+              <div className="p-3 rounded-lg bg-destructive/10 border-2 border-destructive/40 space-y-1">
+                <p className="text-sm font-bold text-destructive">⛔ Missing WPO pickup code</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedCashMissingCode.length} selected cash payout{selectedCashMissingCode.length !== 1 ? 's have' : ' has'} no WPO-XXXXX pickup code on file and cannot be approved. Reject and ask the user to resubmit so a fresh code is issued.
+                </p>
+              </div>
+            )}
             {bulkAction === 'approve' && activeQueue !== 'wallet_withdrawals' && (
               <Textarea
                 placeholder="Optional note…"
@@ -875,7 +883,7 @@ export function ApprovalQueue() {
               size="sm"
               variant={bulkAction === 'approve' ? 'default' : 'destructive'}
               onClick={handleBulkAction}
-              disabled={processing || (bulkAction === 'reject' && reason.length < 10) || walletWithdrawalApproveBlocked}
+              disabled={processing || (bulkAction === 'reject' && reason.length < 10) || approveBlocked}
               className="w-full sm:w-auto"
             >
               {processing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
