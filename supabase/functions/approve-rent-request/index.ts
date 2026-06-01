@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const AGENT_APPROVAL_BONUS = 5000;
+// Staged agent rewards are now paid by DB triggers + funding edge functions.
 
 // --- SMS Helper (Africa's Talking) ---
 function formatPhoneInternational(phone: string): string {
