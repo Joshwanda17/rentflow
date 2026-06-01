@@ -883,6 +883,33 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    <AlertDialog open={!!vacateTarget} onOpenChange={(o) => !o && !vacating && setVacateTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Move this tenant out?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {vacateTarget ? (
+              <>
+                The current tenant will be removed from{' '}
+                <span className="font-medium text-foreground">{vacateTarget.title}</span> and the house
+                will become available again. You can then post a new rent request to link a new tenant.
+              </>
+            ) : null}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={vacating}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => { e.preventDefault(); handleVacate(); }}
+            disabled={vacating}
+            className="bg-amber-600 text-white hover:bg-amber-700 gap-2"
+          >
+            {vacating && <Loader2 className="h-4 w-4 animate-spin" />}
+            Move tenant out
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
