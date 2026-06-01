@@ -1,7 +1,7 @@
 import React, { Component, ReactNode } from "react";
-import { RefreshCw, Loader2, Home } from "lucide-react";
+import { RefreshCw, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { clearAndReload, hardRecover, recoveryExhausted } from "@/lib/hardRecovery";
+import { clearAndReload } from "@/lib/hardRecovery";
 
 interface Props {
   children: ReactNode;
@@ -61,7 +61,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       isChunkError,
-      exhausted: recoveryExhausted(),
+        exhausted: false,
       errorMessage: error?.message || error?.name || "Unknown error",
     };
   }
@@ -102,20 +102,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
     }
   }
 
-  handleRetry = async () => {
-    this.setState({ isRetrying: true });
-    // Full hard recovery: purge ALL caches + SWs, then perform a plain reload.
-    // Document URLs must stay clean; only built static assets use cache busting.
-    try {
-      localStorage.removeItem("welile_chunk_recovery_attempted");
-    } catch {
-      // ignore
-    }
-    await hardRecover();
-  };
-
-  // Last-resort manual recovery once auto-retries are exhausted: purge
-  // everything without incrementing the attempt counter, then plain reload.
+  // Manual refresh: purge stale app files, then plain reload.
   handleForceClear = async () => {
     this.setState({ isRetrying: true });
     try {
@@ -157,86 +144,6 @@ class ChunkErrorBoundary extends Component<Props, State> {
               >
                 {this.state.isRetrying ? "Refreshing…" : "Refresh"}
               </button>
-            </div>
-          </div>
-        );
-      }
-
-      // Chunk error, but auto-recovery exhausted — stop looping, show manual UI
-      if (this.state.isChunkError && this.state.exhausted) {
-        return (
-          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground p-6">
-            <div className="flex flex-col items-center gap-6 max-w-sm text-center">
-              <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center">
-                <RefreshCw className="w-7 h-7 text-primary" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-xl font-semibold">Reload Welile</h1>
-                <p className="text-muted-foreground text-sm">
-                  Welile could not load one required app file. Tap below to clear old app files and reload the latest
-                  version.
-                </p>
-              </div>
-              {this.state.isRetrying ? (
-                <button
-                  key="retrying-btn"
-                  disabled
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity opacity-50"
-                >
-                  <Loader2 className="w-4 h-4 animate-spin" /> Clearing...
-                </button>
-              ) : (
-                <button
-                  key="idle-btn"
-                  onClick={this.handleForceClear}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
-                >
-                  <RefreshCw className="w-4 h-4" /> Reload latest version
-                </button>
-              )}
-              <p className="text-xs text-muted-foreground/60">
-                Still stuck? Close the tab completely and reopen welilereceipts.com.
-              </p>
-            </div>
-          </div>
-        );
-      }
-
-      // Chunk error — auto-recovering "Updating" UI
-      if (this.state.isChunkError) {
-        return (
-          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground p-6">
-            <div className="flex flex-col items-center gap-6 max-w-sm text-center">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-muted animate-pulse" />
-                <Loader2 className="absolute inset-0 m-auto w-8 h-8 text-primary animate-spin" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-xl font-semibold">Reloading latest version...</h1>
-                <p className="text-muted-foreground text-sm">
-                  Welile is removing the stale version and loading the latest app.
-                </p>
-              </div>
-              {this.state.isRetrying ? (
-                <button
-                  key="retrying-btn"
-                  disabled
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity opacity-50"
-                >
-                  <Loader2 className="w-4 h-4 animate-spin" /> Refreshing...
-                </button>
-              ) : (
-                <button
-                  key="idle-btn"
-                  onClick={this.handleRetry}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
-                >
-                  <RefreshCw className="w-4 h-4" /> Clear & Reload Now
-                </button>
-              )}
-              <p className="text-xs text-muted-foreground/60">
-                If this repeats, close the browser completely and reopen welilereceipts.com.
-              </p>
             </div>
           </div>
         );
