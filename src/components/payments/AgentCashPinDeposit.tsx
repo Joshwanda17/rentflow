@@ -61,13 +61,26 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [searching, setSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phoneWrapRef = useRef<HTMLDivElement>(null);
+
+  const validatePhone = (value: string): string => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 0) return '';
+    if (digits.length < 9) return 'Phone number is too short — needs at least 9 digits.';
+    if (digits.length > 15) return 'Phone number is too long.';
+    // Uganda check: if it starts with 0 it must be 10 digits; if 256 it should be 12
+    if (digits.startsWith('0') && digits.length !== 10) return 'Uganda numbers starting with 0 must be exactly 10 digits (e.g. 0772 123 456).';
+    if (digits.startsWith('256') && digits.length !== 12) return 'Numbers with 256 country code must be exactly 12 digits (e.g. 256772123456).';
+    return '';
+  };
 
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
-    setSuggestions([]); setShowSuggestions(false);
+    setSuggestions([]); setShowSuggestions(false); setPhoneError(''); setPhoneTouched(false);
   };
 
   const searchAgents = useCallback(async (query: string) => {
@@ -101,6 +114,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
 
   const onPhoneChange = (value: string) => {
     setAgentPhone(value);
+    if (phoneTouched) setPhoneError(validatePhone(value));
     setShowSuggestions(false);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => searchAgents(value), 300);
@@ -109,6 +123,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const selectSuggestion = (phone: string, name: string) => {
     setAgentPhone(phone);
     setAgentName(name);
+    setPhoneError(validatePhone(phone));
     setShowSuggestions(false);
     setSuggestions([]);
   };
@@ -149,8 +164,10 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       toast.error('Enter a valid amount (minimum UGX 500)');
       return;
     }
-    if (agentPhone.replace(/\D/g, '').length < 9) {
-      toast.error("Enter the agent's phone number");
+    const err = validatePhone(agentPhone);
+    if (err) {
+      toast.error(err);
+      setPhoneError(err);
       return;
     }
     setLoading(true);
@@ -256,8 +273,9 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 value={agentPhone}
                 onChange={(e) => onPhoneChange(e.target.value)}
                 onFocus={() => { if (hasSearched) setShowSuggestions(true); }}
+                onBlur={() => { setPhoneTouched(true); setPhoneError(validatePhone(agentPhone)); }}
                 autoComplete="off"
-                className="h-12 text-base"
+                className={`h-12 text-base ${phoneError && phoneTouched ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               />
               {showSuggestions && (
                 <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-popover border rounded-lg shadow-lg overflow-hidden">
@@ -275,7 +293,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                       <button
                         type="button"
                         className="w-full text-left text-xs text-primary font-medium hover:underline"
-                        onClick={() => setShowSuggestions(false)}
+                        onClick={() => { setShowSuggestions(false); setPhoneError(''); }}
                       >
                         Continue with <span className="font-semibold">{agentPhone.trim() || 'this number'}</span> anyway
                       </button>
@@ -296,6 +314,11 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                     </button>
                   ))}
                 </div>
+              )}
+              {phoneError && phoneTouched && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <XCircle className="h-3 w-3 shrink-0" /> {phoneError}
+                </p>
               )}
               <p className="text-xs text-muted-foreground">
                 You can type any agent's phone number — it doesn't have to be in the list.
