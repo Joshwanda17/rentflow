@@ -487,6 +487,8 @@ Password: ${createdInvite?.password}`;
     setMomoNumber('');
     setNwscMeter('');
     setUedclMeter('');
+    setSelectedHouseId('');
+    setHousePickerOpen(false);
   };
 
   const handleClose = () => {
