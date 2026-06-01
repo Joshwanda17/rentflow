@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import { toast } from "sonner";
+import { RefreshCw, X } from "lucide-react";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 
 /**
@@ -9,32 +8,37 @@ import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
  */
 export default function UpdateAvailableToast() {
   const { updateReady, applyUpdate, dismiss } = useServiceWorkerUpdate();
-  const toastIdRef = useRef<string | number | null>(null);
 
-  useEffect(() => {
-    if (!updateReady) {
-      if (toastIdRef.current !== null) {
-        toast.dismiss(toastIdRef.current);
-        toastIdRef.current = null;
-      }
-      return;
-    }
+  if (!updateReady) return null;
 
-    if (toastIdRef.current !== null) return;
-
-    toastIdRef.current = toast("New version available", {
-      description: "A new build is ready. Refresh to get the latest fixes.",
-      duration: Infinity,
-      action: {
-        label: "Refresh to latest version",
-        onClick: () => applyUpdate(),
-      },
-      cancel: {
-        label: "Later",
-        onClick: () => dismiss(),
-      },
-    });
-  }, [updateReady, applyUpdate, dismiss]);
-
-  return null;
+  return (
+    <div className="fixed left-3 right-3 top-3 z-[9999] mx-auto max-w-3xl rounded-xl border border-primary/25 bg-background p-3 text-foreground shadow-xl sm:top-4">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15">
+          <RefreshCw className="h-4 w-4 text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Refresh recommended</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+            A newer Welile version is ready. You can keep working, or refresh now to load the latest files.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={applyUpdate}
+          className="shrink-0 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"
+        >
+          Refresh
+        </button>
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Dismiss refresh notice"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
 }
