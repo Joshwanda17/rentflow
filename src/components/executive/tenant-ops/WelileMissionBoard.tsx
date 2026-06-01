@@ -6,13 +6,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
 import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
-import { useLandlordOnboardingTargets, useTargetLandlordForOnboarding } from '@/hooks/useWelileOpsCounters';
+import { useLandlordOnboardingTargets, useTargetLandlordForOnboarding, useBulkTargetLandlordsForOnboarding } from '@/hooks/useWelileOpsCounters';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
