@@ -414,10 +414,29 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: any, variables: { rentRequestId: string; reason: string }) => {
       toast.success(
         `Collected UGX ${Number(data.total_collected).toLocaleString()} — tenant UGX ${Number(data.tenant_deducted).toLocaleString()}, agent UGX ${Number(data.agent_deducted).toLocaleString()}`
       );
+      // Build a downloadable receipt from the server-confirmed result.
+      const req = requests.find(r => r.id === variables.rentRequestId);
+      const outstanding = req ? Math.max(0, obligationFor(req) - Number(req.amount_repaid || 0)) : undefined;
+      const totalCollected = Number(data.total_collected) || 0;
+      setLastReceipt({
+        reference: variables.rentRequestId,
+        tenantName: data.tenant_name || profile?.full_name || tenantName,
+        tenantPhone: profile?.phone || undefined,
+        agentName: req?.agent_name && req.agent_name !== 'Not Assigned' ? req.agent_name : undefined,
+        totalCollected,
+        tenantDeducted: Number(data.tenant_deducted) || 0,
+        agentDeducted: Number(data.agent_deducted) || 0,
+        commissionPaid: Number(data.commission_paid) || 0,
+        remainingBalance: outstanding !== undefined ? Math.max(0, outstanding - totalCollected) : undefined,
+        reason: variables.reason,
+        collectedBy: user?.email || undefined,
+        date: new Date(),
+        currency: 'UGX',
+      });
       setCollectingReqId(null);
       setCollectReason('');
       queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
@@ -426,6 +445,19 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     },
     onError: (e: any) => toast.error(e.message || 'Collection failed'),
   });
+
+  const handleDownloadReceipt = async (fmt: 'pdf' | 'xlsx') => {
+    if (!lastReceipt) return;
+    setDownloadingReceipt(fmt);
+    try {
+      if (fmt === 'pdf') await downloadRentCollectionReceiptPdf(lastReceipt);
+      else await downloadRentCollectionReceiptXlsx(lastReceipt);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not generate receipt');
+    } finally {
+      setDownloadingReceipt(null);
+    }
+  };
 
   const handleCollect = (rentRequestId: string) => {
     const reason = collectReason.trim();
