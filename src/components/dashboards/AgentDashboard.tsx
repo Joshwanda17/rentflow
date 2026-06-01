@@ -673,6 +673,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {isCashoutAgent && showMerchantOnboard && (
               <div className="w-full rounded-2xl border border-primary/30 bg-primary/5 p-4 relative animate-fade-in">
                 <button
+                  ref={merchantCloseBtnRef}
                   onClick={dismissMerchantOnboard}
                   aria-label="Dismiss"
                   className="absolute top-3 right-3 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors touch-manipulation"
