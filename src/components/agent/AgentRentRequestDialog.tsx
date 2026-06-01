@@ -1886,6 +1886,24 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   ? `Outstanding balance of ${formatUGX(amount)} recorded for ${tenantName}. Now active in your Owing tab — no approval needed.`
                   : 'The rent request is now visible to supporters'}
               </p>
+
+              {/* Landlord verification status — only for the standard rent flow */}
+              {incomeType !== 'outstanding' && (
+                landlordVerifiedAtSubmit ? (
+                  <div className="mx-auto max-w-xs flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-2.5 text-left text-xs text-success">
+                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                    <span className="font-medium">Landlord verified</span>
+                  </div>
+                ) : (
+                  <div className="mx-auto max-w-xs flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-left text-xs text-warning">
+                    <Loader2 className="h-4 w-4 shrink-0 mt-0.5 animate-spin" />
+                    <span>
+                      <span className="font-semibold">Landlord verification pending.</span>{' '}
+                      Landlord Ops will verify the landlord &amp; property. The request continues through review in the meantime.
+                    </span>
+                  </div>
+                )
+              )}
               {incomeType === 'outstanding' && (
                 <div className="mx-auto mt-2 p-3 rounded-xl bg-warning/10 border border-warning/20 text-left space-y-1 max-w-xs">
                   <div className="flex items-center justify-between text-xs">
