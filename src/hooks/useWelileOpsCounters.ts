@@ -101,3 +101,23 @@ export function useOpsCounterItems(agentId: string | null, kind: CounterKind | n
     },
   });
 }
+
+export function useOpsZoneAgents(path: CounterPath | null, win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled: enabled && !!path,
+    queryKey: ['welile-ops-zone-agents', path?.continent ?? null, path?.country ?? null, path?.city ?? null, win],
+    staleTime: 30_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<ZoneAgentRow[]> => {
+      const { data, error } = await supabase.rpc('welile_ops_zone_agents' as any, {
+        p_continent: path?.continent ?? null,
+        p_country: path?.country ?? null,
+        p_city: path?.city ?? null,
+        p_since: since,
+      });
+      if (error) throw error;
+      return (data ?? []) as ZoneAgentRow[];
+    },
+  });
+}
