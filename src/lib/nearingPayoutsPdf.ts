@@ -137,13 +137,6 @@ async function fetchPortfolioDetailsMap(portfolioIds: string[]): Promise<Map<str
 }
 
 // Fetch edit-history rows from audit_logs for these portfolios
-const fmtVal = (v: any): string => {
-  if (v === null || v === undefined || v === '') return '—';
-  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
-  if (typeof v === 'number') return v.toLocaleString();
-  return String(v);
-};
-
 /**
  * Build a CFO-style PDF report of portfolios nearing payout, honouring the
  * filter that was active in the Nearing Payouts dialog. The first column is
