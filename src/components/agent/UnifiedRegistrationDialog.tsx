@@ -216,6 +216,46 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
     [emptyHouses, previewHouseId]
   );
 
+  // Advanced filters for the empty-house search
+  const [houseAreaFilter, setHouseAreaFilter] = useState<string>('all');
+  const [houseTypeFilter, setHouseTypeFilter] = useState<string>('all');
+  const [housePriceFilter, setHousePriceFilter] = useState<string>('all');
+
+  const houseAreaOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(emptyHouses.map((h) => (h.region || '').trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b)),
+    [emptyHouses]
+  );
+  const houseTypeOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(emptyHouses.map((h) => (h.house_category || '').trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b)),
+    [emptyHouses]
+  );
+  const PRICE_BANDS: { value: string; label: string; min: number; max: number }[] = [
+    { value: 'lt200', label: 'Under 200K', min: 0, max: 200_000 },
+    { value: '200-500', label: '200K – 500K', min: 200_000, max: 500_000 },
+    { value: '500-1m', label: '500K – 1M', min: 500_000, max: 1_000_000 },
+    { value: 'gt1m', label: 'Over 1M', min: 1_000_000, max: Infinity },
+  ];
+  const houseFiltersActive =
+    houseAreaFilter !== 'all' || houseTypeFilter !== 'all' || housePriceFilter !== 'all';
+  const filteredHouses = useMemo(() => {
+    return emptyHouses.filter((h) => {
+      if (houseAreaFilter !== 'all' && (h.region || '').trim() !== houseAreaFilter) return false;
+      if (houseTypeFilter !== 'all' && (h.house_category || '').trim() !== houseTypeFilter) return false;
+      if (housePriceFilter !== 'all') {
+        const band = PRICE_BANDS.find((b) => b.value === housePriceFilter);
+        const rent = h.monthly_rent ?? 0;
+        if (band && !(rent >= band.min && rent < band.max)) return false;
+      }
+      return true;
+    });
+  }, [emptyHouses, houseAreaFilter, houseTypeFilter, housePriceFilter]);
+
   const fetchEmptyHouses = async () => {
     setHousesLoading(true);
     try {
@@ -687,12 +727,62 @@ Password: ${createdInvite?.password}`;
                   filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}
                 >
                   <CommandInput placeholder="Search by name, area or code…" />
+                  <div className="flex flex-wrap items-center gap-1.5 border-b p-2">
+                    <Select value={houseAreaFilter} onValueChange={setHouseAreaFilter}>
+                      <SelectTrigger className="h-7 flex-1 min-w-[90px] text-[11px]">
+                        <SelectValue placeholder="Area" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All areas</SelectItem>
+                        {houseAreaOptions.map((a) => (
+                          <SelectItem key={a} value={a}>{a}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={houseTypeFilter} onValueChange={setHouseTypeFilter}>
+                      <SelectTrigger className="h-7 flex-1 min-w-[90px] text-[11px]">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All types</SelectItem>
+                        {houseTypeOptions.map((t) => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={housePriceFilter} onValueChange={setHousePriceFilter}>
+                      <SelectTrigger className="h-7 flex-1 min-w-[90px] text-[11px]">
+                        <SelectValue placeholder="Price" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any price</SelectItem>
+                        {PRICE_BANDS.map((b) => (
+                          <SelectItem key={b.value} value={b.value}>{b.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {houseFiltersActive && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-[11px] text-muted-foreground"
+                        onClick={() => {
+                          setHouseAreaFilter('all');
+                          setHouseTypeFilter('all');
+                          setHousePriceFilter('all');
+                        }}
+                      >
+                        <XCircle className="h-3 w-3 mr-1" /> Clear
+                      </Button>
+                    )}
+                  </div>
                   <CommandList>
                     <CommandEmpty>
                       {housesLoading ? 'Loading…' : 'No available empty houses found.'}
                     </CommandEmpty>
                     <CommandGroup>
-                      {emptyHouses.map((h) => {
+                      {filteredHouses.map((h) => {
                         const searchValue = [h.title, h.address, h.region, h.house_category, h.short_code]
                           .filter(Boolean)
                           .join(' ');
