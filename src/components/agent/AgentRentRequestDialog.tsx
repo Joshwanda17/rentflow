@@ -8,6 +8,7 @@ import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentChe
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
+import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
