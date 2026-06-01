@@ -685,6 +685,12 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // to move money from one user's wallet to another's.
   const [sourceUser, setSourceUser] = useState<PrefilledUser | null>(null);
   const [transferFromUser, setTransferFromUser] = useState(false);
+  // Manual transaction reference supplied by the operator when the inbound
+  // email carried no MoMo / bank reference of its own. The backend refuses
+  // to credit a reference-less email (REFERENCE_MISSING) because it cannot
+  // reconcile or de-duplicate it — so we let Financial Ops type the physical
+  // receipt / TID number and forward it as the idempotency key.
+  const [manualReference, setManualReference] = useState('');
   // Which bucket of the source user to debit when transferring.
   // 'withdrawable' = personal balance, 'float' = operational/landlord-payout float.
   const [transferFromBucket, setTransferFromBucket] = useState<'withdrawable' | 'float'>('withdrawable');
@@ -854,6 +860,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
+      setManualReference('');
       setAwaitingConfirm(false);
       setPendingAutoSubmit(null);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
@@ -1452,6 +1459,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         }
       }
 
+      // The reference the backend reconciles against: the email's own TID
+      // when present, otherwise the manual reference the operator typed in.
+      const effectiveReference = (row.transaction_id?.trim() || manualReference.trim()) || null;
       const body = {
         target_user_id: user.id,
         amount: amt,
@@ -1462,13 +1472,13 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         financial_impact: 'neutral' as const,
         category_label: isFloat ? 'Operational Float (from email)' : 'Personal Deposit (from email)',
         recipient_type: isFloat ? 'operational_wallet' : 'user',
-        sub_category: row.transaction_id ?? null,
+        sub_category: effectiveReference,
         // Forwarded so the edge function's server-side idempotency guard can
         // reject a duplicate credit for the same email / TID even if the
         // client-side verify call was bypassed or stale.
         gmail_transaction_id: row.id ?? null,
         gmail_message_id: row.gmail_message_id ?? null,
-        email_tid: row.transaction_id ?? null,
+        email_tid: effectiveReference,
       };
       // ── Authoritative backend pre-flight ──────────────────────────
       // Re-checks credited status from the DB (not React Query cache)
@@ -1483,7 +1493,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             gmail_message_id: row.gmail_message_id ?? null,
             target_user_id: user.id,
             proposed_amount: amt,
-            proposed_reference: row.transaction_id ?? null,
+            proposed_reference: effectiveReference,
           },
         });
         const v = verify as any;
@@ -2105,6 +2115,27 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             )}
           </div>
 
+          {mode === 'credit' && !row?.transaction_id && (
+            <div>
+              <Label className="text-xs flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                Transaction reference (required)
+              </Label>
+              <Input
+                value={manualReference}
+                onChange={(e) => setManualReference(e.target.value)}
+                placeholder="MoMo / bank reference or receipt no."
+                className="h-11 mt-1 font-mono"
+                autoComplete="off"
+              />
+              {!lowData && (
+                <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                  This email has no reference of its own, so it can't be reconciled or de-duplicated automatically. Enter the physical MoMo / bank reference from the payment before crediting.
+                </p>
+              )}
+            </div>
+          )}
+
           {mode === 'credit' && (
           <div>
             <Label className="text-xs">Route as</Label>
@@ -2369,6 +2400,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               if (transferFromUser && !sourceUser) missing.push('pick source user');
               if (!amount || Number(amount) <= 0) missing.push('enter amount');
               if (reason.trim().length < 10) missing.push(`reason (${reason.trim().length}/10)`);
+              if (mode === 'credit' && !row?.transaction_id && manualReference.trim().length < 4) {
+                missing.push('enter transaction reference');
+              }
               if (bucketShort) missing.push(`insufficient ${debitRoute === 'landlord_float' ? 'Float' : 'Withdrawable'}`);
               if (sourceBucketShort) missing.push(`source ${transferFromBucket === 'withdrawable' ? 'Withdrawable' : 'Float'} short`);
               const ready = missing.length === 0 && !send.isPending;
