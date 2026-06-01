@@ -19558,6 +19558,23 @@ export type Database = {
           verified: boolean
         }[]
       }
+      welile_mission_funders: {
+        Args: { p_since?: string }
+        Returns: {
+          activated: boolean
+          agent_id: string
+          agent_name: string
+          amount: number
+          created_at: string
+          funder_key: string
+          investor_id: string
+          name: string
+          phone: string
+          reference: string
+          source: string
+          status: string
+        }[]
+      }
       welile_mission_leaderboard: {
         Args: { p_since?: string }
         Returns: {
@@ -19572,19 +19589,37 @@ export type Database = {
           promissory_count: number
         }[]
       }
+      welile_mission_placements: {
+        Args: { p_since?: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          created_at: string
+          landlord_id: string
+          landlord_name: string
+          landlord_phone: string
+          monthly_rent: number
+          property_address: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+          verified: boolean
+        }[]
+      }
       welile_mission_summary: {
         Args: { p_since?: string }
         Returns: {
           empty_houses_total: number
+          funders_activated: number
+          funders_amount: number
+          funders_new: number
+          funders_total: number
           listing_agents: number
           listings_new: number
           placement_agents: number
           placements_new: number
           placements_total: number
-          promissory_activated: number
-          promissory_amount: number
-          promissory_new: number
-          promissory_total: number
         }[]
       }
       welile_ops_counter_breakdown: {

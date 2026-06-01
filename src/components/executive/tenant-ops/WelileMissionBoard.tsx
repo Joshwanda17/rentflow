@@ -13,6 +13,8 @@ import {
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
 import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
+import { useMissionPlacements, type MissionPlacementRow } from '@/hooks/useWelileOpsCounters';
+import { useMissionFunders, type MissionFunderRow } from '@/hooks/useWelileOpsCounters';
 import { useLandlordOnboardingTargets, useTargetLandlordForOnboarding, useBulkTargetLandlordsForOnboarding } from '@/hooks/useWelileOpsCounters';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -64,9 +66,9 @@ function recommend(s: MissionSummary): { key: PriorityKey; text: string; severit
   if (s.empty_houses_total < 10) {
     return { key: 'list', severity: 'watch', text: `Only ${s.empty_houses_total.toLocaleString()} empty houses in inventory. Drive agents to list more landlords so there is supply to place tenants into.` };
   }
-  const fundActivation = pct(s.promissory_activated, s.promissory_total);
-  if (s.promissory_total > 0 && fundActivation < 60) {
-    return { key: 'fund', severity: 'watch', text: `${s.promissory_total - s.promissory_activated} promissory notes are not yet activated (${fundActivation}% active). Follow up funders to confirm and activate their notes.` };
+  const fundActivation = pct(s.funders_activated, s.funders_total);
+  if (s.funders_total > 0 && fundActivation < 60) {
+    return { key: 'fund', severity: 'watch', text: `${(s.funders_total - s.funders_activated).toLocaleString()} funders are not yet activated (${fundActivation}% active). Follow up funders to confirm and activate their commitments.` };
   }
   return { key: 'list', severity: 'good', text: 'Supply, placement and funding are all moving. Keep agents listing fresh inventory to sustain the funnel.' };
 }
@@ -79,6 +81,8 @@ export function WelileMissionBoard() {
   const [sort, setSort] = useState<PriorityKey>('list');
   const [drawer, setDrawer] = useState<{ agentId?: string | null; landlordId?: string | null; tab: 'agent' | 'landlord' } | null>(null);
   const [emptyOpen, setEmptyOpen] = useState(false);
+  const [placedOpen, setPlacedOpen] = useState(false);
+  const [fundersOpen, setFundersOpen] = useState(false);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
@@ -103,12 +107,12 @@ export function WelileMissionBoard() {
 
   const rec = summary ? recommend(summary) : null;
   const placementRate = summary ? pct(summary.placements_total, summary.placements_total + summary.empty_houses_total) : 0;
-  const fundActivation = summary ? pct(summary.promissory_activated, summary.promissory_total) : 0;
+  const fundActivation = summary ? pct(summary.funders_activated, summary.funders_total) : 0;
 
   const metricFor = (s: MissionSummary, key: PriorityKey) => {
     if (key === 'list') return { big: s.listings_new, label: 'new houses listed', extra: `${s.empty_houses_total.toLocaleString()} empty in stock · ${s.listing_agents} agents` };
     if (key === 'place') return { big: s.placements_new, label: 'tenants placed', extra: `${placementRate}% of listed houses occupied` };
-    return { big: s.promissory_new, label: 'new promissory notes', extra: `${formatUGX(s.promissory_amount)} committed · ${fundActivation}% active` };
+    return { big: s.funders_new, label: 'new funders', extra: `${formatUGX(s.funders_amount)} committed · ${fundActivation}% active` };
   };
 
   const recSeverityCls = rec?.severity === 'act'
@@ -192,6 +196,26 @@ export function WelileMissionBoard() {
                       <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
                     </Button>
                   )}
+                  {p.key === 'place' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-full mt-2 text-[11px] gap-1"
+                      onClick={() => setPlacedOpen(true)}
+                    >
+                      <Users className="h-3.5 w-3.5" /> View placed tenants
+                    </Button>
+                  )}
+                  {p.key === 'fund' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-full mt-2 text-[11px] gap-1"
+                      onClick={() => setFundersOpen(true)}
+                    >
+                      <Handshake className="h-3.5 w-3.5" /> View onboarded funders
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -224,10 +248,15 @@ export function WelileMissionBoard() {
               <p className="text-[10px] text-muted-foreground mt-0.5">Still empty →</p>
             </button>
             <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex-1 rounded-lg bg-emerald-500/10 py-2">
+            <button
+              type="button"
+              onClick={() => setPlacedOpen(true)}
+              className="flex-1 rounded-lg bg-emerald-500/10 py-2 hover:bg-emerald-500/20 transition cursor-pointer"
+              title="View the placed tenants / occupied houses"
+            >
               <p className="text-lg font-bold leading-none text-emerald-600">{summary.placements_total.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Tenants placed</p>
-            </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Tenants placed →</p>
+            </button>
           </div>
         </div>
       )}
@@ -343,6 +372,23 @@ export function WelileMissionBoard() {
         onClose={() => setEmptyOpen(false)}
         onOpenLandlord={(id) => { setEmptyOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
         onOpenAgent={(id) => { setEmptyOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
+      />
+
+      <PlacedTenantsDialog
+        open={placedOpen}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setPlacedOpen(false)}
+        onOpenLandlord={(id) => { setPlacedOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
+        onOpenAgent={(id) => { setPlacedOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
+      />
+
+      <FundersDialog
+        open={fundersOpen}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setFundersOpen(false)}
+        onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
       />
     </Card>
   );
@@ -665,6 +711,299 @@ function EmptyHousesDialog({
             </Button>
           </div>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== Placed tenants (occupied houses) dialog =====
+
+type PlacedSort = 'recent' | 'rent_desc' | 'name';
+
+function PlacedTenantsDialog({
+  open, win, refetchIntervalMs, onClose, onOpenLandlord, onOpenAgent,
+}: {
+  open: boolean;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  onClose: () => void;
+  onOpenLandlord: (id: string) => void;
+  onOpenAgent: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<PlacedSort>('recent');
+  const { data, isLoading } = useMissionPlacements(win, open, refetchIntervalMs);
+  const rows: MissionPlacementRow[] = data ?? [];
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let r = [...rows];
+    if (searchLower) {
+      r = r.filter((p) =>
+        (p.landlord_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.tenant_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.tenant_phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.property_address?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.agent_name?.toLowerCase().includes(searchLower) ?? false));
+    }
+    r.sort((a, b) => {
+      switch (sort) {
+        case 'rent_desc': return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+        case 'name': return (a.landlord_name || '~').localeCompare(b.landlord_name || '~');
+        case 'recent':
+        default: return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      }
+    });
+    return r;
+  }, [rows, searchLower, sort]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4 text-emerald-600" /> Placed tenants — occupied houses
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Each landlord linked to a tenant is an occupied house. Tap a landlord, tenant or agent to open their profile.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search landlord, tenant, agent…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'recent', label: 'Recent' },
+              { key: 'rent_desc', label: 'Rent' },
+              { key: 'name', label: 'Name' },
+            ] as { key: PlacedSort; label: string }[]).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSort(s.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!isLoading && rows.length > 0 && (
+          <div className="px-4 pb-2">
+            <Badge variant="outline" className="text-[10px]">{filtered.length} of {rows.length} occupied houses</Badge>
+          </div>
+        )}
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {rows.length === 0 ? 'No placed tenants in this window.' : 'No placements match your search.'}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((p) => (
+                <li key={p.landlord_id} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm truncate flex-1">{p.property_address || p.landlord_name || 'Occupied house'}</span>
+                    {p.verified && <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
+                    {p.monthly_rent ? <Badge className="text-[10px] shrink-0 text-foreground bg-muted">{formatUGX(p.monthly_rent)}/mo</Badge> : null}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                    <span>Placed {fmtDate(p.created_at)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <button
+                      onClick={() => onOpenLandlord(p.landlord_id)}
+                      className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-[#9234EA] bg-[#9234EA]/10 hover:ring-1 hover:ring-primary"
+                    >
+                      <Home className="h-3 w-3" /> {p.landlord_name || 'Landlord'}
+                      {p.landlord_phone && <span className="text-muted-foreground font-normal">· {p.landlord_phone}</span>}
+                    </button>
+                    <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-emerald-600 bg-emerald-500/10">
+                      <Users className="h-3 w-3" /> {p.tenant_name || 'Tenant'}
+                      {p.tenant_phone && <span className="text-muted-foreground font-normal">· {p.tenant_phone}</span>}
+                    </span>
+                    {p.agent_id && (
+                      <button
+                        onClick={() => onOpenAgent(p.agent_id!)}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-blue-600 bg-blue-500/10 hover:ring-1 hover:ring-primary"
+                      >
+                        <UserPlus className="h-3 w-3" /> {p.agent_name || 'Agent'}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== Funders dialog (Partner Ops portfolios + promissory notes) =====
+
+type FunderSort = 'recent' | 'amount_desc' | 'name';
+
+function FundersDialog({
+  open, win, refetchIntervalMs, onClose, onOpenAgent,
+}: {
+  open: boolean;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  onClose: () => void;
+  onOpenAgent: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<FunderSort>('recent');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'portfolio' | 'promissory'>('all');
+  const { data, isLoading } = useMissionFunders(win, open, refetchIntervalMs);
+  const rows: MissionFunderRow[] = data ?? [];
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let r = [...rows];
+    if (sourceFilter !== 'all') r = r.filter((f) => f.source === sourceFilter);
+    if (searchLower) {
+      r = r.filter((f) =>
+        (f.name?.toLowerCase().includes(searchLower) ?? false) ||
+        (f.phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (f.reference?.toLowerCase().includes(searchLower) ?? false) ||
+        (f.agent_name?.toLowerCase().includes(searchLower) ?? false));
+    }
+    r.sort((a, b) => {
+      switch (sort) {
+        case 'amount_desc': return (b.amount || 0) - (a.amount || 0);
+        case 'name': return (a.name || '~').localeCompare(b.name || '~');
+        case 'recent':
+        default: return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      }
+    });
+    return r;
+  }, [rows, searchLower, sort, sourceFilter]);
+
+  const activatedCount = rows.filter((f) => f.activated).length;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Handshake className="h-4 w-4 text-amber-600" /> Onboarded funders
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Funders from Partner Ops portfolios and promissory notes, with their committed amount and activation status.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search funder, agent, reference…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'recent', label: 'Recent' },
+              { key: 'amount_desc', label: 'Amount' },
+              { key: 'name', label: 'Name' },
+            ] as { key: FunderSort; label: string }[]).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSort(s.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'portfolio', label: 'Portfolios' },
+              { key: 'promissory', label: 'Notes' },
+            ] as { key: 'all' | 'portfolio' | 'promissory'; label: string }[]).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setSourceFilter(f.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sourceFilter === f.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!isLoading && rows.length > 0 && (
+          <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5">
+            <Badge variant="outline" className="text-[10px]">{filtered.length} of {rows.length} funders</Badge>
+            {activatedCount > 0 && (
+              <Badge className="text-[10px] text-emerald-600 bg-emerald-500/10">{activatedCount} activated</Badge>
+            )}
+          </div>
+        )}
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {rows.length === 0 ? 'No funders in this window.' : 'No funders match your search.'}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((f) => (
+                <li key={f.funder_key} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm truncate flex-1">{f.name || 'Funder'}</span>
+                    <Badge className={cn('text-[10px] shrink-0',
+                      f.source === 'portfolio' ? 'text-blue-600 bg-blue-500/10' : 'text-amber-600 bg-amber-500/10')}>
+                      {f.source === 'portfolio' ? 'Portfolio' : 'Note'}
+                    </Badge>
+                    {f.activated
+                      ? <Badge className="text-[10px] shrink-0 text-emerald-600 bg-emerald-500/10">Active</Badge>
+                      : <Badge className="text-[10px] shrink-0 text-muted-foreground bg-muted">Pending</Badge>}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                    {f.amount ? <span className="text-foreground font-semibold">{formatUGX(f.amount)} committed</span> : null}
+                    {f.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {f.phone}</span>}
+                    {f.reference && <span>Ref {f.reference}</span>}
+                    <span>Onboarded {fmtDate(f.created_at)}</span>
+                  </div>
+                  {f.agent_id && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      <button
+                        onClick={() => onOpenAgent(f.agent_id!)}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-blue-600 bg-blue-500/10 hover:ring-1 hover:ring-primary"
+                      >
+                        <UserPlus className="h-3 w-3" /> {f.agent_name || 'Agent'}
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
