@@ -403,6 +403,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [houseSearchedOnce, setHouseSearchedOnce] = useState(false);
   const [selectedHouse, setSelectedHouse] = useState<AvailableHouse | null>(null);
   const [showListHouse, setShowListHouse] = useState(false);
+  // Live conflict check: true when the selected house has been reserved /
+  // occupied / hidden by another agent since it was picked.
+  const [houseConflict, setHouseConflict] = useState(false);
+  const [houseConflictChecking, setHouseConflictChecking] = useState(false);
 
   // Map a house_listings category (underscored) to this form's category values.
   const mapHouseCategory = (cat: string | null): string => {
