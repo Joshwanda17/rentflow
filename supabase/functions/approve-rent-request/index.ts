@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
 
       // Agent SMS
       if (rentRequest.agent_id && agentPhone) {
-        const agentMsg = `WELILE: Rent request for ${tenantName} (UGX ${Number(rentRequest.rent_amount).toLocaleString()}) has been approved.${isManager ? ` You earned UGX ${AGENT_APPROVAL_BONUS.toLocaleString()} bonus.` : ''}`;
+        const agentMsg = `WELILE: Rent request for ${tenantName} (UGX ${Number(rentRequest.rent_amount).toLocaleString()}) has been approved.`;
         smsPromises.push(sendSMS(agentPhone, agentMsg));
       }
 
@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: true,
           message: 'Rent request approved with auto-charge subscription created',
-          agent_bonus_paid: rentRequest.agent_id && isManager ? AGENT_APPROVAL_BONUS : 0,
+          agent_bonus_paid: 0,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
