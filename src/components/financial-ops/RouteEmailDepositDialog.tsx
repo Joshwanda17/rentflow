@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 import { SOLVENCY_BYPASS_REASONS, type SolvencyBypassReasonCode } from '@/lib/solvencyBypassReasons';
-import { parseSMS } from '@/utils/smsParser';
 import { validateTransactionReference } from '@/lib/transactionReferenceValidator';
 import {
   extractReferenceWithConfidence,
