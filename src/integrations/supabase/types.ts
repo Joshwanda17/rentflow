@@ -7294,6 +7294,48 @@ export type Database = {
           },
         ]
       }
+      house_assignment_audit: {
+        Row: {
+          assigned_at: string
+          assigned_by_role: string | null
+          assigned_by_user_id: string | null
+          created_at: string
+          house_listing_id: string
+          id: string
+          invite_id: string | null
+          listing_agent_id: string | null
+          placement_bonus_paid_at: string | null
+          placement_bonus_status: string
+          tenant_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by_role?: string | null
+          assigned_by_user_id?: string | null
+          created_at?: string
+          house_listing_id: string
+          id?: string
+          invite_id?: string | null
+          listing_agent_id?: string | null
+          placement_bonus_paid_at?: string | null
+          placement_bonus_status?: string
+          tenant_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by_role?: string | null
+          assigned_by_user_id?: string | null
+          created_at?: string
+          house_listing_id?: string
+          id?: string
+          invite_id?: string | null
+          listing_agent_id?: string | null
+          placement_bonus_paid_at?: string | null
+          placement_bonus_status?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       house_listings: {
         Row: {
           access_fee: number
