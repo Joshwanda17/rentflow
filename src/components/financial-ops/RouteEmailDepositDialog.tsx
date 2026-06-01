@@ -2142,12 +2142,17 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               </Label>
               <Input
                 value={manualReference}
-                onChange={(e) => setManualReference(e.target.value)}
+                onChange={(e) => { setManualReference(e.target.value); setAutoExtractedRef(false); }}
                 placeholder="MoMo / bank reference or receipt no."
                 className="h-11 mt-1 font-mono"
                 autoComplete="off"
               />
-              {!lowData && (
+              {autoExtractedRef ? (
+                <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  Auto-detected from the email body — confirm it matches the physical receipt, or edit if wrong.
+                </p>
+              ) : !lowData && (
                 <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
                   This email has no reference of its own, so it can't be reconciled or de-duplicated automatically. Enter the physical MoMo / bank reference from the payment before crediting.
                 </p>
