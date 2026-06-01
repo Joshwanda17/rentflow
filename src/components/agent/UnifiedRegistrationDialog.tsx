@@ -325,6 +325,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
           role, 
           isSubAgent, 
           isSupporter,
+          houseListingId: selectedType === 'tenant' && selectedHouseId ? selectedHouseId : null,
           latitude: role === 'landlord' && capturedLocation ? capturedLocation.latitude : null,
           longitude: role === 'landlord' && capturedLocation ? capturedLocation.longitude : null,
           locationAccuracy: role === 'landlord' && capturedLocation ? capturedLocation.accuracy : null,
