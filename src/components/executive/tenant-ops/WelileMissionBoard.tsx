@@ -74,7 +74,8 @@ export function WelileMissionBoard() {
   const [showAgents, setShowAgents] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<PriorityKey>('list');
-  const [drawerAgent, setDrawerAgent] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState<{ agentId?: string | null; landlordId?: string | null; tab: 'agent' | 'landlord' } | null>(null);
+  const [emptyOpen, setEmptyOpen] = useState(false);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
