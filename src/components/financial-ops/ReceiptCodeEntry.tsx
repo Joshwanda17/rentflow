@@ -122,8 +122,8 @@ export function ReceiptCodeEntry({
   codeRef.current = code;
 
   const handleVerify = useCallback(async () => {
-    const entered = codeRef.current.trim().toUpperCase();
-    if (entered.length < 3) return;
+    const entered = codeRef.current.trim();
+    if (!/^\d{4}$/.test(entered)) return;
     if (attemptsRemaining <= 0) {
       setScreen({ kind: 'locked' });
       return;
