@@ -128,21 +128,6 @@ export default function WithdrawFlow({
   // receipt can display the exact processed date/time.
   const [submittedAt, setSubmittedAt] = useState<Date | null>(null);
 
-  // ─── SMS OTP gate (Verify step) ─────────────────────────────────────
-  // Every withdrawal must be confirmed with a one-time code sent to the
-  // phone number on file before the request can be submitted. This proves
-  // the person tapping Confirm controls the account's registered phone.
-  const OTP_RESEND_SECONDS = 60;
-  const [profilePhone, setProfilePhone] = useState<string | null>(null);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [sendingOtp, setSendingOtp] = useState(false);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
-  const [otpTick, setOtpTick] = useState(() => Date.now());
-
   // ─── Duplicate-submission guards ────────────────────────────────────
   // 1. Re-entrant lock: blocks double-tap on slow phones before the
   //    network round-trip even starts.
@@ -214,7 +199,6 @@ export default function WithdrawFlow({
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id),
-        // (ledger compute is the 3rd entry below)
         // Inline ledger compute — get_user_available_balance RPC is unreliable
         // (historically returned 0 because of a direction-value mismatch).
         // We compute the same numbers client-side so the WITHDRAW max always
@@ -227,15 +211,6 @@ export default function WithdrawFlow({
       setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
       if (ledger) setLedgerAvailable(ledger.available);
       if (ledger) setLedgerCheckedAt(Date.now());
-
-      // Fetch the registered phone for the OTP gate.
-      const { data: profileRow } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      setProfilePhone((profileRow?.phone as string | null) ?? null);
     })();
     return () => { cancelled = true; };
   }, [open, user]);
@@ -330,81 +305,6 @@ export default function WithdrawFlow({
     setCashCodeInput('');
     setCashCodeAcknowledged(false);
     setCashCodeError(null);
-    setOtpSent(false);
-    setOtpCode('');
-    setOtpVerified(false);
-    setSendingOtp(false);
-    setVerifyingOtp(false);
-    setOtpError(null);
-    setOtpSentAt(null);
-  };
-
-  // ─── OTP countdown + helpers ────────────────────────────────────────
-  // Mask the phone so the receipt screen doesn't print it in full.
-  const maskedPhone = (() => {
-    if (!profilePhone) return null;
-    const digits = profilePhone.replace(/\s/g, '');
-    if (digits.length <= 4) return digits;
-    return `${digits.slice(0, Math.max(0, digits.length - 4)).replace(/\d/g, '•')}${digits.slice(-4)}`;
-  })();
-
-  useEffect(() => {
-    if (!otpSent || otpSentAt === null) return;
-    const id = setInterval(() => setOtpTick(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [otpSent, otpSentAt]);
-
-  const otpResendRemaining = otpSentAt === null
-    ? 0
-    : Math.max(0, OTP_RESEND_SECONDS - Math.floor((otpTick - otpSentAt) / 1000));
-
-  const handleSendOtp = async () => {
-    if (!profilePhone) {
-      setOtpError('No phone number is on file for your account. Update your profile to withdraw.');
-      return;
-    }
-    if (sendingOtp || otpResendRemaining > 0) return;
-    setSendingOtp(true);
-    setOtpError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('sms-otp', {
-        body: { action: 'send', phone: profilePhone },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      setOtpSent(true);
-      setOtpVerified(false);
-      setOtpCode('');
-      setOtpSentAt(Date.now());
-      toast.success('Verification code sent to your phone.');
-    } catch (e: any) {
-      const msg = e?.message || 'Could not send the code. Please try again.';
-      setOtpError(msg);
-      toast.error(msg);
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!profilePhone || otpCode.trim().length !== 6 || verifyingOtp) return;
-    setVerifyingOtp(true);
-    setOtpError(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('sms-otp', {
-        body: { action: 'verify', phone: profilePhone, otp: otpCode.trim() },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      setOtpVerified(true);
-      toast.success('Phone verified — you can now confirm your withdrawal.');
-    } catch (e: any) {
-      const msg = e?.message || 'Invalid code. Please try again.';
-      setOtpError(msg);
-      setOtpVerified(false);
-    } finally {
-      setVerifyingOtp(false);
-    }
   };
 
   // Drive the resend cooldown countdown once a cash code is on screen.
@@ -538,9 +438,7 @@ export default function WithdrawFlow({
         // then proceed — so the button must remain clickable.
         return (
           ledgerAvailable !== null &&
-          amount <= maxAmount &&
-          // Mandatory SMS OTP gate — must be verified before submission.
-          otpVerified
+          amount <= maxAmount
         );
       default: return false;
     }
@@ -840,11 +738,6 @@ export default function WithdrawFlow({
       return; // let the stepper advance to step 2
     }
     if (currentStep === 4) {
-      // Hard OTP gate — never submit a withdrawal that wasn't phone-verified.
-      if (!otpVerified) {
-        toast.error('Enter the verification code sent to your phone before confirming.');
-        return false;
-      }
       // If our ledger snapshot is stale (or actively refreshing), don't
       // silently no-op — refresh first, then continue with the freshest
       // numbers. This makes Confirm "always work" from the user's POV.
@@ -1452,79 +1345,6 @@ export default function WithdrawFlow({
               total={{ label: "You'll Receive", value: formatCurrency(amount, currency) }}
               showSecurityNote={false}
             />
-
-            {/* ── Mandatory SMS OTP verification ───────────────────────── */}
-            <div className="rounded-xl border border-border bg-muted/20 p-4 text-left space-y-3">
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-primary" />
-                <h4 className="text-sm font-semibold">Verify it's you</h4>
-                {otpVerified && (
-                  <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-success">
-                    <BadgeCheck className="w-3.5 h-3.5" /> Verified
-                  </span>
-                )}
-              </div>
-
-              {!profilePhone ? (
-                <p className="text-xs text-destructive">
-                  No phone number is on file for your account. Add your phone in your profile to withdraw.
-                </p>
-              ) : otpVerified ? (
-                <p className="text-xs text-muted-foreground">
-                  Code confirmed for {maskedPhone}. Tap Confirm Withdrawal to submit.
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs text-muted-foreground">
-                    We'll send a 6-digit code by SMS to <span className="font-medium text-foreground">{maskedPhone}</span>.
-                  </p>
-
-                  {!otpSent ? (
-                    <Button
-                      type="button"
-                      onClick={handleSendOtp}
-                      disabled={sendingOtp}
-                      className="w-full"
-                    >
-                      {sendingOtp ? 'Sending…' : 'Send code'}
-                    </Button>
-                  ) : (
-                    <div className="space-y-2">
-                      <Input
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        maxLength={6}
-                        placeholder="Enter 6-digit code"
-                        value={otpCode}
-                        onChange={(e) => {
-                          setOtpError(null);
-                          setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6));
-                        }}
-                        className="text-center text-lg tracking-[0.4em] font-mono"
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleVerifyOtp}
-                        disabled={verifyingOtp || otpCode.trim().length !== 6}
-                        className="w-full"
-                      >
-                        {verifyingOtp ? 'Verifying…' : 'Verify code'}
-                      </Button>
-                      <button
-                        type="button"
-                        onClick={handleSendOtp}
-                        disabled={sendingOtp || otpResendRemaining > 0}
-                        className="w-full text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground disabled:opacity-50"
-                      >
-                        {otpResendRemaining > 0 ? `Resend code in ${otpResendRemaining}s` : 'Resend code'}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {otpError && <p className="text-xs text-destructive">{otpError}</p>}
-            </div>
           </div>
         );
 
