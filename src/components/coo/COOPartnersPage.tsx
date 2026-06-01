@@ -724,6 +724,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           dueToday,
           durationMonths: Number((p as any).duration_months || 12),
           nextRoiDate: p.next_roi_date,
+          status: (p as any).status ?? null,
           paymentMethod: (p as any).payment_method ?? null,
           mobileNetwork: (p as any).mobile_network ?? null,
           mobileMoneyNumber: (p as any).mobile_money_number ?? null,
