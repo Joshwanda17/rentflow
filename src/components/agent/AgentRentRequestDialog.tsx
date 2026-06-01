@@ -1487,35 +1487,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         // gate required (houses are available the moment they're listed).
         landlordId = selectedHouse.landlord_id;
       } else {
-        // ===== Gate: landlord must already exist WITH a verified house =====
-        // Resolve the candidate landlord (without creating one) and confirm they
-        // own at least one verified house before allowing the rent request.
-        const gateLandlordId = (isOutstanding && selectedLandlord)
-          ? selectedLandlord.id
-          : (await supabase
-              .from('landlords')
-              .select('id')
-              .eq('phone', cleanLandlordPhone)
-              .limit(1)
-              .maybeSingle()).data?.id ?? null;
-
-        const { count: verifiedHouseCount } = gateLandlordId
-          ? await supabase
-              .from('house_listings')
-              .select('id', { count: 'exact', head: true })
-              .eq('landlord_id', gateLandlordId)
-              .eq('verified', true)
-          : { count: 0 };
-
-        if (!gateLandlordId || !verifiedHouseCount || verifiedHouseCount < 1) {
-          toast.error('This landlord needs a listed house first', {
-            description: 'Search and select an available house above, or list a new one — it becomes available instantly.',
-          });
-          setShowRegisterLandlord(true);
-          setLoading(false);
-          return;
-        }
-
+        // The landlord no longer needs a verified house up-front. The rent
+        // request is allowed through and lands in the verification pipeline,
+        // where Landlord Ops verifies the landlord/property during review.
+        // We just resolve the landlord (creating one if needed) so the
+        // request can be linked.
         if (isOutstanding && selectedLandlord) {
           landlordId = selectedLandlord.id;
         } else {
