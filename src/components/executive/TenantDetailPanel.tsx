@@ -391,6 +391,40 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     }
   };
 
+  // --- Rent collection handler ---
+  // Collects the outstanding (capped at the daily charge) from the tenant's
+  // wallet, then from the linked agent's wallet for any shortfall.
+  const collectMutation = useMutation({
+    mutationFn: async ({ rentRequestId, reason }: { rentRequestId: string; reason: string }) => {
+      const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
+        body: { rent_request_id: rentRequestId, reason },
+      });
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Collection failed. Please try again.');
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(
+        `Collected UGX ${Number(data.total_collected).toLocaleString()} — tenant UGX ${Number(data.tenant_deducted).toLocaleString()}, agent UGX ${Number(data.agent_deducted).toLocaleString()}`
+      );
+      setCollectingReqId(null);
+      setCollectReason('');
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+      queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
+    },
+    onError: (e: any) => toast.error(e.message || 'Collection failed'),
+  });
+
+  const handleCollect = (rentRequestId: string) => {
+    const reason = collectReason.trim();
+    if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+    collectMutation.mutate({ rentRequestId, reason });
+  };
+
   return (
     <div className="space-y-3">
       <Button variant="ghost" onClick={onBack} className="h-10 px-3 gap-2 text-sm font-semibold -ml-1">
