@@ -15,6 +15,7 @@ import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 import { SOLVENCY_BYPASS_REASONS, type SolvencyBypassReasonCode } from '@/lib/solvencyBypassReasons';
 import { parseSMS } from '@/utils/smsParser';
+import { validateTransactionReference } from '@/lib/transactionReferenceValidator';
 
 /**
  * Fetches current wallet bucket balances (cache view) for a user so the
