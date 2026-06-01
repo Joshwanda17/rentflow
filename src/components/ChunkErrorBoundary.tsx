@@ -95,18 +95,10 @@ class ChunkErrorBoundary extends Component<Props, State> {
       // ignore
     }
 
-    // Auto-retry once for chunk errors — clears caches/SWs then reloads.
+    // Do not auto-reload on chunk errors. Surface a user-controlled refresh
+    // banner instead so stale files never trap the user in a reload loop.
     if (this.state.isChunkError || classifyChunkError(error)) {
-      // Stop auto-reloading once we've exhausted attempts in this window —
-      // otherwise iOS Safari can loop forever on a stale HTML shell. Show the
-      // manual recovery UI instead.
-      if (recoveryExhausted()) {
-        this.setState({ exhausted: true });
-        return;
-      }
-      setTimeout(() => {
-        this.handleRetry();
-      }, 800);
+      this.setState({ exhausted: true });
     }
   }
 
@@ -145,6 +137,31 @@ class ChunkErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      if (this.state.isChunkError) {
+        return (
+          <div className="fixed left-3 right-3 top-3 z-[9999] mx-auto max-w-3xl rounded-xl border border-primary/25 bg-background p-3 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15">
+                <RefreshCw className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground">Refresh recommended</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                  Welile found an older app file. Refresh to load the latest version.
+                </p>
+              </div>
+              <button
+                onClick={this.handleForceClear}
+                disabled={this.state.isRetrying}
+                className="shrink-0 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60"
+              >
+                {this.state.isRetrying ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       // Chunk error, but auto-recovery exhausted — stop looping, show manual UI
       if (this.state.isChunkError && this.state.exhausted) {
         return (
