@@ -789,6 +789,24 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   const destBuckets = useWalletBuckets(user?.id);
   const amtNum = Number(amount) || 0;
 
+  // Automatic wallet matching: suggest the most likely "Route as" bucket for
+  // the picked recipient based on their historical deposits. Pre-selects the
+  // suggestion once per user (in credit mode only) without overriding a
+  // manual change the operator makes afterwards.
+  const suggestedWallet = useSuggestedWallet(mode === 'credit' ? user?.id : null);
+  const autoRoutePickedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (mode !== 'credit' || !user?.id) {
+      autoRoutePickedFor.current = null;
+      return;
+    }
+    const s = suggestedWallet.data;
+    if (!s) return;
+    if (autoRoutePickedFor.current === user.id) return;
+    autoRoutePickedFor.current = user.id;
+    setRoute(s.suggested);
+  }, [mode, user?.id, suggestedWallet.data]);
+
   // Smart-pick the source bucket so Financial Ops doesn't have to guess.
   // When the operator selects a source user (or changes the amount), choose
   // whichever bucket actually has enough funds to cover the transfer. This
