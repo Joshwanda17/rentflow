@@ -127,6 +127,12 @@ interface NearingPayoutPortfolio {
   dueToday: boolean;
   durationMonths: number;
   nextRoiDate: string | null;
+  paymentMethod?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
+  mobileNetwork?: string | null;
+  mobileMoneyNumber?: string | null;
+  bankName?: string | null;
+  bankAccountName?: string | null;
+  accountNumber?: string | null;
 }
 
 interface PortfolioRow {
