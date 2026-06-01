@@ -292,10 +292,19 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
         body: { session_id: sessionId, pin: code },
       });
       if (error) {
-        const msg = await readEdgeMessage(error, 'Could not confirm the code');
+        const body = await readEdgeBody(error);
+        const msg = body?.message || (await readEdgeMessage(error, 'Could not confirm the code'));
+        // Session is locked: too many wrong attempts, or the final attempt
+        // just used up the allowance. Force a fresh start.
+        const isLocked =
+          body?.error === 'too_many_attempts' ||
+          body?.error === 'not_active' ||
+          (typeof body?.attempts_remaining === 'number' && body.attempts_remaining <= 0);
         toast.error(msg);
         setPin('');
         setPinError(msg);
+        if (typeof body?.attempts_remaining === 'number') setAttemptsLeft(body.attempts_remaining);
+        if (isLocked) setLocked(true);
         return;
       }
       if (!data?.ok) {
