@@ -3717,7 +3717,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       if (det?.payment_method === 'mobile_money') {
         cardData = {
           ...cardData, mode: 'mobile_money', provider: det.mobile_network || 'MoMo',
-          momoName: det.bank_account_name || det.account_name || p.name,
+          momoName: det.bank_account_name || p.name,
           momoNumber: det.mobile_money_number || '',
         };
       } else if (det?.payment_method === 'bank_transfer') {
