@@ -58,6 +58,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Transfer agent dialog state
   const [transferReq, setTransferReq] = useState<{ id: string; agent_id: string | null } | null>(null);
 
+  // Rent collection state — collect outstanding from the tenant's wallet first,
+  // then fall back to a linked agent's wallet (for tenants without a smartphone).
+  const [collectingReqId, setCollectingReqId] = useState<string | null>(null);
+  const [collectReason, setCollectReason] = useState('');
+
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
     queryFn: async () => {
