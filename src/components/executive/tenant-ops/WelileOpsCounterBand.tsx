@@ -460,16 +460,21 @@ function fmtDate(iso: string | null): string {
 }
 
 function ZoneFunnelDialog({
-  target, win, refetchIntervalMs, onClose, onOpenAgent,
+  target, win, refetchIntervalMs, onClose, onOpenAgent, onOpenLandlord,
 }: {
   target: { path: CounterPath; label: string } | null;
   win: CounterWindow;
   refetchIntervalMs?: number | false;
   onClose: () => void;
   onOpenAgent: (agentId: string) => void;
+  onOpenLandlord: (landlordId: string) => void;
 }) {
-  const { data, isLoading } = useOpsZoneAgents(target?.path ?? null, win, !!target, refetchIntervalMs);
-  const agents: ZoneAgentRow[] = data ?? [];
+  const [tab, setTab] = useState<'agents' | 'landlords'>('agents');
+  const { data: agentData, isLoading: agentsLoading } = useOpsZoneAgents(target?.path ?? null, win, !!target, refetchIntervalMs);
+  const { data: landlordData, isLoading: landlordsLoading } =
+    useOpsZoneLandlords(target?.path ?? null, win, !!target && tab === 'landlords', refetchIntervalMs);
+  const agents: ZoneAgentRow[] = agentData ?? [];
+  const landlords: ZoneLandlordRow[] = landlordData ?? [];
 
   const agg = agents.reduce(
     (a, r) => {
@@ -483,6 +488,7 @@ function ZoneFunnelDialog({
   const fundedPct = pct(agg.funded, agg.rent);
   const activationPct = pct(agg.producing, agg.distinct);
   const health = healthTone(fundedPct, agg.rent > 0);
+  const producingLandlords = landlords.filter((l) => l.is_producing).length;
 
   const FUNNEL_STAGES = [
     { label: 'Requests', value: agg.rent, tone: 'bg-emerald-500' },
@@ -501,7 +507,7 @@ function ZoneFunnelDialog({
           </DialogTitle>
         </DialogHeader>
         <ScrollArea className="max-h-[68vh] px-4 pb-4">
-          {isLoading ? (
+          {agentsLoading ? (
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
           ) : agents.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No activity in this window.</p>
@@ -538,7 +544,26 @@ function ZoneFunnelDialog({
                 </div>
               </div>
 
-              {/* Contributing agents */}
+              {/* Agents / Landlords toggle */}
+              <div className="flex rounded-lg border border-border overflow-hidden mb-2 w-full">
+                <button
+                  onClick={() => setTab('agents')}
+                  className={cn('flex-1 px-2.5 py-1.5 text-[11px] font-semibold transition flex items-center justify-center gap-1',
+                    tab === 'agents' ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+                >
+                  <UserCheck className="h-3.5 w-3.5" /> Agents ({agents.length})
+                </button>
+                <button
+                  onClick={() => setTab('landlords')}
+                  className={cn('flex-1 px-2.5 py-1.5 text-[11px] font-semibold transition flex items-center justify-center gap-1',
+                    tab === 'landlords' ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+                >
+                  <Home className="h-3.5 w-3.5" /> Landlords{landlords.length > 0 ? ` (${landlords.length})` : ''}
+                </button>
+              </div>
+
+              {tab === 'agents' ? (
+              <>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
                 Contributing agents ({agents.length})
               </p>
@@ -578,6 +603,54 @@ function ZoneFunnelDialog({
                   );
                 })}
               </ul>
+              </>
+              ) : (
+              <>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                Producing landlords {landlords.length > 0 ? `(${producingLandlords}/${landlords.length})` : ''}
+              </p>
+              {landlordsLoading ? (
+                <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+              ) : landlords.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No landlords in this window.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {landlords.map((l) => {
+                    const lFundedPct = pct(l.rent_funded_count, l.rent_count);
+                    return (
+                      <li
+                        key={l.landlord_id}
+                        onClick={() => onOpenLandlord(l.landlord_id)}
+                        className="rounded-lg border border-border bg-card p-3 hover:bg-muted/40 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm truncate flex-1">{l.landlord_name || 'Landlord'}</span>
+                          {l.is_producing ? (
+                            <Badge className="text-[10px] text-emerald-600 bg-emerald-500/10 shrink-0">Producing</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] shrink-0">Dormant</Badge>
+                          )}
+                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        </div>
+                        {l.landlord_phone && (
+                          <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3 w-3" /> {l.landlord_phone}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-muted-foreground">
+                          <span>Rent: <b className="text-foreground">{l.rent_funded_count}/{l.rent_count}</b> ({lFundedPct}%)</span>
+                          {l.agent_name && <span>By <b className="text-foreground">{l.agent_name}</b></span>}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          First {fmtDate(l.first_activity)} · Last {fmtDate(l.last_activity)}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              </>
+              )}
             </>
           )}
         </ScrollArea>
