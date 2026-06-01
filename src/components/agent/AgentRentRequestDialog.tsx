@@ -2151,6 +2151,146 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 </>
               ) : detailStep === 0 ? (
+              <>
+              {/* ===== 0. FIND THE HOUSE (search-first) ===== */}
+              <div className="space-y-3 p-4 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/40">
+                <h4 className="text-base font-extrabold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-500/20">
+                    <Home className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  🏠 Find the House
+                </h4>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Search an available house by landlord name, region, or any description, then select it.
+                </p>
+
+                {selectedHouse ? (
+                  <div className="rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 p-3 space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm truncate">{selectedHouse.title}</p>
+                        {selectedHouse.address && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">
+                              {selectedHouse.address}
+                              {selectedHouse.region ? `, ${selectedHouse.region}` : ''}
+                            </span>
+                          </p>
+                        )}
+                        <p className="text-xs mt-1">
+                          {selectedHouse.landlord_name && (
+                            <span className="font-semibold">{selectedHouse.landlord_name}</span>
+                          )}
+                          {selectedHouse.monthly_rent ? (
+                            <span className="text-emerald-700 dark:text-emerald-400 font-bold ml-2">
+                              {formatUGX(selectedHouse.monthly_rent)}/mo
+                            </span>
+                          ) : null}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs flex-shrink-0"
+                        onClick={clearSelectedHouse}
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" /> Change
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <Input
+                        value={houseQuery}
+                        onChange={(e) => setHouseQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            searchAvailableHouses();
+                          }
+                        }}
+                        placeholder="Landlord name, region, or description"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={searchAvailableHouses}
+                        disabled={houseSearching}
+                        className="flex-shrink-0"
+                      >
+                        {houseSearching ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto space-y-2">
+                      {houseSearching ? (
+                        <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" /> Searching…
+                        </div>
+                      ) : houseResults.length > 0 ? (
+                        houseResults.map((h) => (
+                          <button
+                            type="button"
+                            key={h.id}
+                            onClick={() => selectHouse(h)}
+                            className="w-full text-left rounded-xl border border-border bg-card hover:border-emerald-500/60 hover:bg-emerald-500/5 transition-colors p-3"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm truncate">{h.title}</p>
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <MapPin className="h-3 w-3 flex-shrink-0" />
+                                  <span className="truncate">
+                                    {h.address || 'No address'}
+                                    {h.region ? `, ${h.region}` : ''}
+                                  </span>
+                                </p>
+                                {h.landlord_name && (
+                                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                                    Landlord: {h.landlord_name}
+                                  </p>
+                                )}
+                              </div>
+                              {h.monthly_rent ? (
+                                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex-shrink-0">
+                                  {formatUGX(h.monthly_rent)}/mo
+                                </span>
+                              ) : null}
+                            </div>
+                          </button>
+                        ))
+                      ) : houseSearchedOnce ? (
+                        <div className="text-center py-4 text-sm text-muted-foreground">
+                          No available house found.
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-emerald-500/20">
+                      <p className="text-[11px] text-muted-foreground">
+                        Can&apos;t find it? List the house — it&apos;s available instantly.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs flex-shrink-0"
+                        onClick={() => setShowListHouse(true)}
+                      >
+                        <Home className="h-3.5 w-3.5 mr-1" /> List a house
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div className="space-y-3 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40">
                 <h4 className="text-base font-extrabold text-primary flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-primary/20">
@@ -2247,6 +2387,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 )}
               </div>
+              </>
               ) : null}
 
               {incomeType !== 'outstanding' && (
