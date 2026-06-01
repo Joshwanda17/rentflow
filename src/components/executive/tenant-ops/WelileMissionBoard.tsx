@@ -513,6 +513,28 @@ function EmptyHousesDialog({
                       </button>
                     )}
                   </div>
+                  {h.landlord_id && (() => {
+                    const isTargeted = !!targets?.[h.landlord_id!];
+                    const isBusy = targeting === h.landlord_id;
+                    return (
+                      <Button
+                        variant={isTargeted ? 'secondary' : 'outline'}
+                        size="sm"
+                        disabled={isBusy}
+                        onClick={() => handleTargetAndOpen(h.landlord_id!, h.listing_id)}
+                        className="h-7 w-full mt-2 text-[11px] gap-1"
+                      >
+                        {isBusy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : isTargeted ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Crosshair className="h-3.5 w-3.5" />
+                        )}
+                        {isTargeted ? 'Targeted — open profile' : 'Target landlord & open profile'}
+                      </Button>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>
