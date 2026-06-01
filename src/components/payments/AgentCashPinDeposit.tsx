@@ -291,7 +291,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                       <button
                         type="button"
                         className="w-full text-left text-xs text-primary font-medium hover:underline"
-                        onClick={() => setShowSuggestions(false)}
+                        onClick={() => { setShowSuggestions(false); setPhoneError(''); }}
                       >
                         Continue with <span className="font-semibold">{agentPhone.trim() || 'this number'}</span> anyway
                       </button>
