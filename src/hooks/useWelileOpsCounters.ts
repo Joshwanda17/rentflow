@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 export type CounterLevel = 'continent' | 'country' | 'city' | 'agent';
 export type CounterKind = 'rent' | 'landlord' | 'agent' | 'promissory';
