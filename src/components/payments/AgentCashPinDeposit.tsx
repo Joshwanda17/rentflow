@@ -80,7 +80,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
-    setSuggestions([]); setShowSuggestions(false); setPhoneError('');
+    setSuggestions([]); setShowSuggestions(false); setPhoneError(''); setPhoneTouched(false);
   };
 
   const searchAgents = useCallback(async (query: string) => {
