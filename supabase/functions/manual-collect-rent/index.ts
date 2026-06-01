@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { rent_request_id, reason } = body;
+    const { rent_request_id, reason, amount } = body;
 
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!rent_request_id || !UUID_REGEX.test(rent_request_id)) {
@@ -76,6 +76,22 @@ Deno.serve(async (req) => {
     const outstanding = Number(rr.total_repayment) - Number(rr.amount_repaid);
     if (outstanding <= 0) return new Response(JSON.stringify({ error: "No outstanding balance to collect" }), { status: 400, headers: corsContentType });
 
+    // Determine how much to attempt to collect:
+    // - When an explicit `amount` is supplied, this is a PARTIAL (or custom) collection.
+    //   It must be a positive number and is capped at the outstanding balance.
+    // - Otherwise default to the daily charge capped at outstanding (legacy behaviour).
+    const defaultCharge = Math.min(outstanding, Number(rr.daily_repayment) || outstanding);
+    let requestedAmount = defaultCharge;
+    let isPartial = false;
+    if (amount !== undefined && amount !== null && amount !== "") {
+      const parsed = Number(amount);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return new Response(JSON.stringify({ error: "Collection amount must be a positive number" }), { status: 400, headers: corsContentType });
+      }
+      requestedAmount = Math.min(Math.round(parsed), outstanding);
+      isPartial = requestedAmount < outstanding;
+    }
+
     const { data: tenantProfile } = await supabase.from("profiles").select("full_name, phone").eq("id", rr.tenant_id).single();
     const tenantName = tenantProfile?.full_name || "Unknown Tenant";
     const tenantPhone = tenantProfile?.phone || "";
@@ -85,7 +101,7 @@ Deno.serve(async (req) => {
 
     const { data: tenantWallet } = await supabase.from("wallets").select("balance").eq("user_id", rr.tenant_id).single();
     const tenantBalance = Number(tenantWallet?.balance || 0);
-    const chargeAmount = Math.min(outstanding, rr.daily_repayment || outstanding);
+    const chargeAmount = requestedAmount;
 
     let tenantDeducted = 0;
     let agentDeducted = 0;
@@ -229,7 +245,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true, total_collected: totalCollected, tenant_deducted: tenantDeducted,
       agent_deducted: agentDeducted, remaining_shortfall: shortfall, tenant_name: tenantName,
-      commission_paid: commission,
+      commission_paid: commission, requested_amount: requestedAmount,
+      is_partial: isPartial || (totalCollected < requestedAmount), remaining_balance: remainingBalance,
     }), { status: 200, headers: corsContentType });
 
   } catch (error) {
