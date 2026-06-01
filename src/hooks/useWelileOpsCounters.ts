@@ -248,3 +248,48 @@ export function useMissionEmptyHouses(win: CounterWindow, enabled: boolean, refe
     },
   });
 }
+
+// ===== Landlord onboarding targeting =====
+
+export interface LandlordOnboardingTarget {
+  id: string;
+  landlord_id: string;
+  listing_id: string | null;
+  status: string;
+  note: string | null;
+  created_at: string;
+}
+
+const TARGETS_KEY = ['landlord-onboarding-targets'];
+
+export function useLandlordOnboardingTargets(enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: TARGETS_KEY,
+    staleTime: 30_000,
+    queryFn: async (): Promise<Record<string, LandlordOnboardingTarget>> => {
+      const { data, error } = await supabase
+        .from('landlord_onboarding_targets' as any)
+        .select('id, landlord_id, listing_id, status, note, created_at');
+      if (error) throw error;
+      const map: Record<string, LandlordOnboardingTarget> = {};
+      ((data ?? []) as any[]).forEach((r) => { map[r.landlord_id] = r as LandlordOnboardingTarget; });
+      return map;
+    },
+  });
+}
+
+export function useTargetLandlordForOnboarding() {
+  const qc = useQueryClient();
+  return useCallback(async (landlordId: string, listingId?: string | null) => {
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from('landlord_onboarding_targets' as any)
+      .upsert(
+        { landlord_id: landlordId, listing_id: listingId ?? null, status: 'targeted', targeted_by: auth.user?.id ?? null },
+        { onConflict: 'landlord_id' },
+      );
+    if (error) throw error;
+    await qc.invalidateQueries({ queryKey: TARGETS_KEY });
+  }, [qc]);
+}
