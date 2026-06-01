@@ -313,6 +313,11 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   ))}
                 </div>
               )}
+              {phoneError && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <XCircle className="h-3 w-3 shrink-0" /> {phoneError}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
                 You can type any agent's phone number — it doesn't have to be in the list.
               </p>
