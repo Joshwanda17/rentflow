@@ -848,8 +848,64 @@ export function ProxyPartnerFunds() {
       });
   }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, agentStrictWithdrawable, managedPartnerIds, profiles, portfolioMap, dismissalMap, user?.id]);
 
+  // Share a branded WhatsApp payout card for a single partner so the proxy
+  // agent can confirm name / mobile-money number / amount with the partner.
+  const [sharingCardId, setSharingCardId] = useState<string | null>(null);
+  const handleShareCard = async (partner: PartnerBalance) => {
+    if (sharingCardId) return;
+    setSharingCardId(partner.partnerId);
+    try {
+      const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
+      let cardData: PayoutCardData = {
+        partnerName: partner.partnerName,
+        portfolioName: partner.accountName || partner.portfolioCode || undefined,
+        payoutDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        amount: partner.available,
+        reference: (partner.portfolioId || partner.partnerId).slice(0, 8).toUpperCase(),
+      };
+      if (pInfo?.payment_method === 'mobile_money') {
+        cardData = {
+          ...cardData, mode: 'mobile_money', provider: pInfo.mobile_network || 'MoMo',
+          momoName: pInfo.bank_account_name || pInfo.account_name || partner.partnerName,
+          momoNumber: pInfo.mobile_money_number || '',
+        };
+      } else if (pInfo?.payment_method === 'bank_transfer') {
+        cardData = {
+          ...cardData, mode: 'bank_transfer', bankName: pInfo.bank_name,
+          bankAccountName: pInfo.bank_account_name || partner.partnerName, bankAccountNumber: pInfo.account_number,
+        };
+      } else if (pInfo?.payment_method === 'cash') {
+        cardData = { ...cardData, mode: 'cash' };
+      } else {
+        const { data: saved } = await supabase
+          .from('saved_payout_methods' as never)
+          .select('*')
+          .eq('user_id', partner.partnerId)
+          .order('is_default', { ascending: false })
+          .order('last_used_at', { ascending: false, nullsFirst: false })
+          .limit(1);
+        const s: any = (saved ?? [])[0];
+        if (s?.payout_mode === 'mobile_money') {
+          cardData = { ...cardData, mode: 'mobile_money', provider: s.momo_provider, momoName: s.momo_name || partner.partnerName, momoNumber: s.momo_number };
+        } else if (s?.payout_mode === 'bank_transfer') {
+          cardData = { ...cardData, mode: 'bank_transfer', bankName: s.bank_name, bankAccountName: s.bank_account_name || partner.partnerName, bankAccountNumber: s.bank_account_number };
+        } else {
+          cardData = { ...cardData, mode: 'mobile_money', momoName: partner.partnerName };
+        }
+      }
+      const res = await sharePayoutCardViaWhatsApp(cardData);
+      if (res.method === 'downloaded') {
+        toast.success('Payout card ready', { description: 'Image downloaded — attach it in the WhatsApp chat that just opened.' });
+      }
+    } catch (err: any) {
+      console.error('Share payout card error:', err);
+      toast.error('Could not create card', { description: err?.message || 'Please try again.' });
+    } finally {
+      setSharingCardId(null);
+    }
+  };
+
   const handleWithdraw = async (partner: PartnerBalance) => {
-    // (defined below)
     setSelectedPartnerId(partner.partnerId);
     setPrefillAmount(partner.available);
 
