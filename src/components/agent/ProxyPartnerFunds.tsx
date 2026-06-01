@@ -849,6 +849,7 @@ export function ProxyPartnerFunds() {
   }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, agentStrictWithdrawable, managedPartnerIds, profiles, portfolioMap, dismissalMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
+    // (defined below)
     setSelectedPartnerId(partner.partnerId);
     setPrefillAmount(partner.available);
 
