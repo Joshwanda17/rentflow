@@ -528,7 +528,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 {!expired && (
                   <>
                     <p className="text-xs text-muted-foreground">
-                      Valid until <span className="font-semibold tabular-nums text-foreground">{expiryTimeLabel}</span>
+                      Valid until <span className="font-semibold tabular-nums text-foreground">{expiryTimeLabel}</span>{' '}
+                      <span className="tabular-nums">({TZ})</span>
                     </p>
                     <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                       <div
