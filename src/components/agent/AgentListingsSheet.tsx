@@ -51,6 +51,16 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [deleting, setDeleting] = useState(false);
   const [vacateTarget, setVacateTarget] = useState<HouseListing | null>(null);
   const [vacating, setVacating] = useState(false);
+  // "Swap tenant" flow: confirm → vacate current tenant → open rent request
+  // dialog with this house preselected so the new tenant is linked in one go.
+  const [swapTarget, setSwapTarget] = useState<HouseListing | null>(null);
+  const [swapping, setSwapping] = useState(false);
+  const [swapHouseForLink, setSwapHouseForLink] = useState<{
+    id: string; title: string; address: string | null; region: string | null;
+    district: string | null; house_category: string | null; monthly_rent: number | null;
+    short_code: string | null; latitude: number | null; longitude: number | null;
+    landlord_id: string | null; landlord_name: string | null; landlord_phone: string | null;
+  } | null>(null);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
