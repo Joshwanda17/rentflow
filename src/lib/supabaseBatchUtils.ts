@@ -199,6 +199,12 @@ export async function fetchAllNearingPayoutPortfolios(): Promise<{
     account_name: string | null;
     portfolio_code: string;
     duration_months: number;
+    payment_method?: 'mobile_money' | 'bank_transfer' | 'cash' | null;
+    mobile_network?: string | null;
+    mobile_money_number?: string | null;
+    bank_name?: string | null;
+    bank_account_name?: string | null;
+    account_number?: string | null;
   }>;
   profileMap: Map<string, { full_name: string; phone: string; email: string }>;
   supporterIds: Set<string>;
@@ -215,7 +221,7 @@ export async function fetchAllNearingPayoutPortfolios(): Promise<{
   while (hasMore) {
     const { data, error } = await supabase
       .from('investor_portfolios')
-      .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date, account_name, portfolio_code, duration_months')
+      .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date, account_name, portfolio_code, duration_months, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .range(offset, offset + PAGE - 1);

@@ -866,7 +866,7 @@ export function ProxyPartnerFunds() {
       if (pInfo?.payment_method === 'mobile_money') {
         cardData = {
           ...cardData, mode: 'mobile_money', provider: pInfo.mobile_network || 'MoMo',
-          momoName: pInfo.bank_account_name || pInfo.account_name || partner.partnerName,
+          momoName: pInfo.bank_account_name || partner.partnerName,
           momoNumber: pInfo.mobile_money_number || '',
         };
       } else if (pInfo?.payment_method === 'bank_transfer') {
@@ -1408,6 +1408,25 @@ export function ProxyPartnerFunds() {
         const classification = classify(partner);
         const isSubmitting = submittingPartnerIds.has(partner.partnerId);
 
+        // Registered payout destination for this partner (clear, labelled).
+        const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
+        const destLabel =
+          pInfo?.payment_method === 'bank_transfer' ? 'Account name'
+          : pInfo?.payment_method === 'cash' ? 'Payout'
+          : 'MoMo name';
+        const destName =
+          pInfo?.payment_method === 'bank_transfer'
+            ? (pInfo.bank_account_name || partner.partnerName)
+            : pInfo?.payment_method === 'cash'
+            ? 'Cash pickup'
+            : (pInfo?.bank_account_name || partner.partnerName || 'Name not set');
+        const destExtra =
+          pInfo?.payment_method === 'bank_transfer'
+            ? [pInfo.bank_name, pInfo.account_number].filter(Boolean).join(' · ')
+            : pInfo?.payment_method === 'cash'
+            ? ''
+            : [pInfo?.mobile_network, pInfo?.mobile_money_number].filter(Boolean).join(' · ');
+
         return (
           <Card
             key={cardKey}
@@ -1487,6 +1506,12 @@ export function ProxyPartnerFunds() {
                   <p className="text-[10px] text-muted-foreground">To Withdraw</p>
                   <p className="text-xs font-bold text-primary tabular-nums">{formatAmount(partner.available)}</p>
                 </div>
+              </div>
+
+              <div className="rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{destLabel}</p>
+                <p className="text-xs font-semibold text-foreground">{destName}</p>
+                {destExtra && <p className="text-[10px] text-muted-foreground">{destExtra}</p>}
               </div>
 
               {!statusBadge && classification.kind === 'reattempt' && (

@@ -270,17 +270,20 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     // an edit on the portfolio's account/MoMo fields must show up here.
     let paymentCell: string;
     if (det?.payment_method === 'bank_transfer') {
-      paymentCell = `BANK: ${det.bank_name || '—'}\n${det.bank_account_name || '—'}\nA/C ${det.account_number || '—'}`;
+      paymentCell = `BANK: ${det.bank_name || '—'}\nName: ${det.bank_account_name || '—'}\nA/C: ${det.account_number || '—'}`;
     } else if (det?.payment_method === 'mobile_money') {
       // The "name the mobile money shows" is stored on the portfolio's
       // bank_account_name field (reused as the registered account name for
       // both modes); fall back to the saved payout method's MoMo name.
       const momoName = det.bank_account_name || pm?.name || 'Name not set';
-      paymentCell = `${(det.mobile_network || 'MoMo').toUpperCase()} MOBILE MONEY\n${momoName}\n${det.mobile_money_number || '—'}`;
+      paymentCell = `${(det.mobile_network || 'MoMo').toUpperCase()} MOBILE MONEY\nName: ${momoName}\nNo: ${det.mobile_money_number || '—'}`;
     } else if (det?.payment_method === 'cash') {
       paymentCell = 'CASH PICKUP\n—';
     } else if (pm) {
-      paymentCell = `${pm.line1}\n${pm.line2}`;
+      // pm.line2 = "<name>\n<number>" — prefix with explicit labels.
+      paymentCell = pm.name
+        ? `${pm.line1}\nName: ${pm.name}\nNo: ${pm.line2.split('\n').slice(1).join(' ') || '—'}`
+        : `${pm.line1}\n${pm.line2}`;
     } else {
       paymentCell = 'Not set\nAdd payout method';
     }
