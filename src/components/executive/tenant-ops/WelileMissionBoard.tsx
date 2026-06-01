@@ -610,7 +610,7 @@ function AgentNetworkDriverDialog({
     return r;
   }, [rows, type, searchLower, sourceAgent, sourceTenant, sourceLandlord, sourceFunder]);
 
-  const hasActiveFilters = sourceAgent !== 'all' || sourceTenant !== 'all' || sourceLandlord !== 'all' || sourceFunder !== 'all';
+  const hasActiveFilters = search.trim().length > 0 || type !== 'all' || sourceAgent !== 'all' || sourceTenant !== 'all' || sourceLandlord !== 'all' || sourceFunder !== 'all';
 
   const openEntity = (e: MissionDriverEntity) => {
     if (!e.entity_id) return;
@@ -633,12 +633,21 @@ function AgentNetworkDriverDialog({
     <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); resetFilters(); } }}>
       <DialogContent className="max-w-2xl p-0 gap-0">
         <DialogHeader className="p-4 pb-2">
-          <DialogTitle className="text-base flex items-center gap-2">
-            <Network className="h-4 w-4 text-primary" /> {label || 'Driver'} — agent network
-          </DialogTitle>
-          <p className="text-[11px] text-muted-foreground">
-            The agents, tenants and landlords driving this priority. Tap any name to open their profile.
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <DialogTitle className="text-base flex items-center gap-2">
+                <Network className="h-4 w-4 text-primary" /> {label || 'Driver'} — agent network
+              </DialogTitle>
+              <p className="text-[11px] text-muted-foreground">
+                The agents, tenants and landlords driving this priority. Tap any name to open their profile.
+              </p>
+            </div>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" className="h-8 text-[11px] px-2 shrink-0 mt-0.5" onClick={resetFilters}>
+                Clear all
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
