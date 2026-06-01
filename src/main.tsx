@@ -227,7 +227,7 @@ const loadApp = async () => {
       });
     }
     // Staged rollout gate: only devices in the active canary/ramp cohort run
-    // the aggressive auto cache-bust recovery. Devices outside the cohort fall
+    // the automatic cache cleanup recovery. Devices outside the cohort fall
     // through to the manual recovery UI, so the fix is verified on a small
     // percentage before full deployment.
     const emergencyIOSRecovery = isIOSDevice;
@@ -250,8 +250,7 @@ const loadApp = async () => {
         return;
       }
     }
-    // Stale-deploy recovery: purge caches/SWs and reload to a cache-busted URL
-    // so iOS Safari fetches a fresh HTML shell. Stop once attempts are
+    // Stale-deploy recovery: purge caches/SWs and plain-reload. Stop once attempts are
     // exhausted to avoid an endless "Updating…" loop.
     if (isChunkError && inRolloutCohort && !recoveryExhausted()) {
       try {
@@ -319,7 +318,7 @@ function showErrorUI() {
 // Hard iOS "Update Required" gate. Shown INSTEAD of the cycling recovery screen
 // when a device is provably running an outdated bundle. There is no auto-reload
 // loop here — the user must explicitly update, which performs a full cache/SW
-// purge and a cache-busted reload onto the current build.
+// purge and a plain reload onto the current build.
 function showUpdateRequiredUI() {
   logUpdateFailure('ios_version_gate', { details: { ui: 'update_required_gate' } });
   root.textContent = '';

@@ -10,8 +10,8 @@
 // Unlike the silent soft reload (see iosFreshness.ts), a forced update:
 //   • paints a full-screen, non-dismissible overlay ON TOP of everything so the
 //     old build can no longer be used, and
-//   • AUTOMATICALLY triggers the update flow (cache/SW purge + cache-busted
-//     reload) after a short countdown — the user never has to hunt for a
+//   • AUTOMATICALLY triggers the update flow (cache/SW purge + plain reload)
+//     after a short countdown — the user never has to hunt for a
 //     button. A manual "Update now" button is shown only as a fallback in case
 //     the automatic reload is blocked.
 //
@@ -50,7 +50,7 @@ const MIN_CHECK_INTERVAL_MS = 60_000;
 // iPhone loop-breaker.
 //
 // Telemetry proved the failure mode: the cache/SW purge SUCCEEDS, but the
-// programmatic cache-busted reload (location.replace) still re-fetches iOS
+// programmatic reload (location.replace/reload) still re-fetches iOS
 // Safari's HTTP-cached index.html, so the device boots the SAME stale bundle
 // and re-enters recovery forever. A programmatic reload can never win against
 // the document HTTP cache on these devices.
