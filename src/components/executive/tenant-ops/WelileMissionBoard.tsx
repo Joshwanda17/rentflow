@@ -10,6 +10,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from '@/components/ui/command';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
@@ -28,6 +32,7 @@ import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -500,6 +505,49 @@ const ENTITY_META: Record<MissionDriverEntity['entity_type'], { label: string; p
 
 const DRIVER_ORDER: MissionDriverEntity['entity_type'][] = ['agent', 'tenant', 'landlord', 'funder'];
 
+function SearchableEntityFilter({
+  value, onChange, options, placeholder, label,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: { id: string; name: string }[];
+  placeholder?: string;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedName = value === 'all' ? `All ${label?.toLowerCase() || 'items'}` : options.find((o) => o.id === value)?.name;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="h-8 text-xs w-full justify-between px-2.5 border-border bg-card font-normal" type="button">
+          <span className="truncate">{selectedName || placeholder || 'Select…'}</span>
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+        <Command>
+          <CommandInput placeholder={`Search ${label?.toLowerCase() || 'items'}…`} />
+          <CommandList>
+            <CommandEmpty>No results.</CommandEmpty>
+            <CommandItem value="__all__" onSelect={() => { onChange('all'); setOpen(false); }}>
+              <Check className={cn('mr-2 h-3.5 w-3.5', value === 'all' ? 'opacity-100' : 'opacity-0')} />
+              All {label?.toLowerCase() || 'items'}
+            </CommandItem>
+            <CommandGroup>
+              {options.map((o) => (
+                <CommandItem key={o.id} value={`${o.id}:${o.name}`} onSelect={() => { onChange(o.id); setOpen(false); }}>
+                  <Check className={cn('mr-2 h-3.5 w-3.5', value === o.id ? 'opacity-100' : 'opacity-0')} />
+                  {o.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function AgentNetworkDriverDialog({
   driver, label, win, refetchIntervalMs, open, onClose, onOpenAgent, onOpenTenant, onOpenLandlord,
 }: {
@@ -628,62 +676,46 @@ function AgentNetworkDriverDialog({
         <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
           {agents.length > 0 && (
             <div className="flex-1 min-w-[140px]">
-              <Select value={sourceAgent} onValueChange={setSourceAgent}>
-                <SelectTrigger className="h-8 text-xs py-0 px-2.5 border-border bg-card">
-                  <SelectValue placeholder="Source agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All agents</SelectItem>
-                  {agents.map((a) => (
-                    <SelectItem key={a.entity_id} value={a.entity_id || 'unknown'}>{a.name || 'Agent'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableEntityFilter
+                value={sourceAgent}
+                onChange={setSourceAgent}
+                options={agents.map((a) => ({ id: a.entity_id || 'unknown', name: a.name || 'Agent' }))}
+                label="agents"
+                placeholder="Source agent"
+              />
             </div>
           )}
           {tenants.length > 0 && (
             <div className="flex-1 min-w-[140px]">
-              <Select value={sourceTenant} onValueChange={setSourceTenant}>
-                <SelectTrigger className="h-8 text-xs py-0 px-2.5 border-border bg-card">
-                  <SelectValue placeholder="Source tenant" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All tenants</SelectItem>
-                  {tenants.map((t) => (
-                    <SelectItem key={t.entity_id} value={t.entity_id || 'unknown'}>{t.name || 'Tenant'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableEntityFilter
+                value={sourceTenant}
+                onChange={setSourceTenant}
+                options={tenants.map((t) => ({ id: t.entity_id || 'unknown', name: t.name || 'Tenant' }))}
+                label="tenants"
+                placeholder="Source tenant"
+              />
             </div>
           )}
           {landlords.length > 0 && (
             <div className="flex-1 min-w-[140px]">
-              <Select value={sourceLandlord} onValueChange={setSourceLandlord}>
-                <SelectTrigger className="h-8 text-xs py-0 px-2.5 border-border bg-card">
-                  <SelectValue placeholder="Source landlord" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All landlords</SelectItem>
-                  {landlords.map((l) => (
-                    <SelectItem key={l.entity_id} value={l.entity_id || 'unknown'}>{l.name || 'Landlord'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableEntityFilter
+                value={sourceLandlord}
+                onChange={setSourceLandlord}
+                options={landlords.map((l) => ({ id: l.entity_id || 'unknown', name: l.name || 'Landlord' }))}
+                label="landlords"
+                placeholder="Source landlord"
+              />
             </div>
           )}
           {funders.length > 0 && (
             <div className="flex-1 min-w-[140px]">
-              <Select value={sourceFunder} onValueChange={setSourceFunder}>
-                <SelectTrigger className="h-8 text-xs py-0 px-2.5 border-border bg-card">
-                  <SelectValue placeholder="Source funder" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All funders</SelectItem>
-                  {funders.map((f) => (
-                    <SelectItem key={f.entity_id} value={f.entity_id || 'unknown'}>{f.name || 'Funder'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableEntityFilter
+                value={sourceFunder}
+                onChange={setSourceFunder}
+                options={funders.map((f) => ({ id: f.entity_id || 'unknown', name: f.name || 'Funder' }))}
+                label="funders"
+                placeholder="Source funder"
+              />
             </div>
           )}
           {hasActiveFilters && (
