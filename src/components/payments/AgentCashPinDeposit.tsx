@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,15 +53,33 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [agentName, setAgentName] = useState('');
   const [pin, setPin] = useState('');
   const [creditedAmount, setCreditedAmount] = useState(0);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
-    setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0);
+    setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
   };
 
   const close = () => { reset(); onOpenChange(false); };
 
   const amountNum = parseFloat(amount);
+
+  // Tick the countdown while the depositor is on the PIN step.
+  useEffect(() => {
+    if (step !== 'pin' || !expiresAt) return;
+    const iv = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(iv);
+  }, [step, expiresAt]);
+
+  const secsLeft = expiresAt
+    ? Math.max(0, Math.round((new Date(expiresAt).getTime() - now) / 1000))
+    : null;
+  const expired = secsLeft !== null && secsLeft <= 0;
+  const countdownLabel =
+    secsLeft === null
+      ? ''
+      : `${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, '0')}`;
 
   const handleCreate = async () => {
     if (!Number.isFinite(amountNum) || amountNum < 500) {
@@ -87,6 +105,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       }
       setSessionId(data.session_id);
       setAgentName(data.agent_name || 'the agent');
+      setExpiresAt(data.expires_at ?? null);
+      setNow(Date.now());
       setStep('pin');
     } catch (e) {
       toast.error('Network error. Please try again.');
@@ -193,9 +213,22 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
               After you hand over <span className="font-semibold">{formatUGX(amountNum)}</span>, ask the agent to
               read the code and enter it below.
             </div>
+            {secsLeft !== null && (
+              <div
+                className={`flex items-center justify-center gap-1.5 text-xs font-medium ${
+                  expired ? 'text-destructive' : secsLeft <= 60 ? 'text-amber-600' : 'text-muted-foreground'
+                }`}
+              >
+                {expired ? (
+                  <>This code has expired — start a new cash deposit.</>
+                ) : (
+                  <>Code expires in <span className="tabular-nums font-semibold">{countdownLabel}</span></>
+                )}
+              </div>
+            )}
             <div className="flex flex-col items-center gap-2">
               <Label className="text-sm font-medium">Enter the 4-digit code</Label>
-              <InputOTP maxLength={4} value={pin} onChange={(v) => { setPin(v); if (v.length === 4) void handleConfirm(v); }}>
+              <InputOTP maxLength={4} value={pin} disabled={expired || loading} onChange={(v) => { setPin(v); if (v.length === 4) void handleConfirm(v); }}>
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
                   <InputOTPSlot index={1} />
@@ -207,6 +240,11 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
                   <Loader2 className="h-4 w-4 animate-spin" /> Crediting your wallet…
                 </div>
+              )}
+              {expired && !loading && (
+                <Button variant="outline" size="sm" className="mt-1" onClick={() => { setStep('form'); setPin(''); setExpiresAt(null); }}>
+                  Start a new deposit
+                </Button>
               )}
             </div>
           </div>
