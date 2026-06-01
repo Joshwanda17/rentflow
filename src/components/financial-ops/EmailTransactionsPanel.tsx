@@ -2843,6 +2843,19 @@ export function EmailTransactionsPanel() {
                           {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
                         </Badge>
                       )}
+                      {/* Incoming deposit whose money never landed in any
+                          wallet (no credit + not routed). Flag it clearly so
+                          the operator knows to redirect it to a chosen wallet. */}
+                      {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 bg-orange-500/15 text-orange-700 border-orange-500/40"
+                          title="This deposit has not been credited to any wallet yet. Use Redirect deposit to send it to the right wallet."
+                        >
+                          <AlertTriangle className="h-3 w-3" />
+                          not in any wallet
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
                     {isCredited && (

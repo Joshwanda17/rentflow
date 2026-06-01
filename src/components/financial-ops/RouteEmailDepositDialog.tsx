@@ -1171,7 +1171,62 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       // user→user transfer tool.
       if (transferFromUser) {
         if (!sourceUser) throw new Error('Pick the source user to debit');
-        if (sourceUser.id === user.id) throw new Error('Source and recipient must be different users');
+        // ── Same-person bucket MOVE (Float ↔ Personal Deposit) ───────────
+        // When the operator picks the SAME user as both source and
+        // recipient, this is not a user→user transfer — it's a move between
+        // that single user's own buckets (e.g. Operational Float → Personal
+        // Deposit). Route it through the dedicated `ops-bucket-transfer`
+        // correction function so no second credit is ever posted.
+        if (sourceUser.id === user.id) {
+          const fromFloat = transferFromBucket === 'float';
+          const toFloat = route === 'operational_float';
+          if (fromFloat === toFloat) {
+            throw new Error(
+              `Source and destination buckets are the same (${fromFloat ? 'Float' : 'Personal Deposit'}). Pick a different destination to move funds.`,
+            );
+          }
+          const direction = fromFloat ? 'float_to_withdrawable' : 'withdrawable_to_float';
+          const moveReason =
+            `Same-user bucket move (${fromFloat ? 'Float→Personal Deposit' : 'Personal Deposit→Float'}) for ${user.full_name}: ${reason.trim()}`.slice(0, 480);
+          const { data: moveData, error: moveErr } = await supabase.functions.invoke('ops-bucket-transfer', {
+            body: {
+              target_user_id: user.id,
+              amount: amt,
+              direction,
+              reason: moveReason,
+            },
+          });
+          const moveErrMsg = (moveErr as any)?.message || (moveData as any)?.error;
+          if (moveErrMsg) throw new Error(`Bucket move failed: ${moveErrMsg}`);
+
+          // Best-effort routing-history so the move is auditable.
+          try {
+            const { data: me } = await supabase.auth.getUser();
+            if (me?.user?.id) {
+              await (supabase.from('email_routing_history') as any).insert({
+                gmail_transaction_id: row.id,
+                gmail_message_id: row.gmail_message_id ?? null,
+                transaction_id: row.transaction_id,
+                from_email: row.from_email,
+                from_name: row.from_name,
+                subject: row.subject,
+                amount: amt,
+                route: toFloat ? 'operational_float' : 'personal_deposit',
+                target_user_id: user.id,
+                target_user_name: user.full_name,
+                target_user_phone: user.phone,
+                reason: `BUCKET MOVE (${fromFloat ? 'Float→Personal Deposit' : 'Personal Deposit→Float'}): ${reason.trim()}`,
+                ledger_reference_id: (moveData as any)?.transaction_group_id ?? null,
+                routed_by: me.user.id,
+                routed_by_name: null,
+                sms_sent: false,
+                sms_error: null,
+              });
+            }
+          } catch (e) { console.warn('[RouteEmailDeposit] same-user bucket-move history insert failed', e); }
+
+          return { bucketMoved: true, movedToFloat: toFloat, moveAmount: amt };
+        }
         const fromFloat = transferFromBucket === 'float';
         const transferDebitBody = {
           target_user_id: sourceUser.id,
@@ -1796,9 +1851,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   }}
                 />
                 <div className="text-xs">
-                  <p className="font-medium">Transfer from another user's wallet</p>
+                  <p className="font-medium">Move money from a wallet (same or another user)</p>
                   {!lowData && (
-                    <p className="text-muted-foreground">Debits the chosen source user's withdrawable balance and credits the recipient below for the same amount.</p>
+                    <p className="text-muted-foreground">Debits the chosen source user's bucket and credits the recipient below. Pick the <span className="font-medium">same user</span> as source and recipient to move their own Operational Float → Personal Deposit (or vice-versa) — no second credit is posted.</p>
                   )}
                 </div>
               </label>
