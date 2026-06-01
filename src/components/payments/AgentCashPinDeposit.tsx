@@ -52,6 +52,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [agentName, setAgentName] = useState('');
   const [pin, setPin] = useState('');
+  const [pinError, setPinError] = useState('');
   const [creditedAmount, setCreditedAmount] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
