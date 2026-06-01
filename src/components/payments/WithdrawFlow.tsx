@@ -1302,82 +1302,40 @@ export default function WithdrawFlow({
         // self-cancel button while still pending.
         return (
           <div className="space-y-4">
-            {payoutMode === 'cash' && cashPickupCode && !cashCodeAcknowledged && (
-              <div className="rounded-xl border-2 border-amber-500/50 bg-amber-50 dark:bg-amber-500/10 p-4 space-y-3">
-                <div className="text-center">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
-                    One last step — confirm your cash pickup code
-                  </p>
-                  <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
-                    We emailed your WPO-XXXXX code. Open the email, then type the
-                    code below to complete this withdrawal request of {formatCurrency(amount, currency)}.
-                  </p>
-                </div>
-                <Label htmlFor="cash-pickup-code" className="text-xs">
-                  Enter pickup code
-                </Label>
-                <Input
-                  id="cash-pickup-code"
-                  value={cashCodeInput}
-                  onChange={(e) => {
-                    setCashCodeInput(e.target.value.toUpperCase());
-                    if (cashCodeError) setCashCodeError(null);
-                  }}
-                  placeholder="WPO-XXXXX"
-                  autoComplete="one-time-code"
-                  inputMode="text"
-                  className="font-mono tracking-[0.2em] text-center text-lg"
-                  maxLength={20}
-                />
-                {cashCodeError && (
-                  <p className="text-xs text-destructive text-center" role="alert">
-                    {cashCodeError}
-                  </p>
-                )}
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    const entered = cashCodeInput.trim().toUpperCase();
-                    const expected = (cashPickupCode ?? '').trim().toUpperCase();
-                    if (!entered) {
-                      setCashCodeError('Type the WPO code from your email to continue.');
-                      return;
-                    }
-                    if (entered !== expected) {
-                      setCashCodeError("That code doesn't match. Check your email and try again.");
-                      return;
-                    }
-                    setCashCodeAcknowledged(true);
-                    setCashCodeError(null);
-                    toast.success('Pickup code confirmed. Request is now reserved against your wallet.');
-                  }}
-                >
-                  Confirm code & complete request
-                </Button>
-                <p className="text-[10px] text-center text-amber-700">
-                  Sent to your email — also visible to Financial Ops under Money Out.
-                </p>
-              </div>
-            )}
-            {payoutMode === 'cash' && cashPickupCode && cashCodeAcknowledged && (
-              <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 text-center">
+            {payoutMode === 'cash' && cashPickupCode && (
+              <div className="rounded-xl border-2 border-amber-500/50 bg-amber-50 dark:bg-amber-500/10 p-4 text-center space-y-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
-                  Cash Pickup Code — present this to the agent
+                  Your withdrawal code — read it to Financial Ops
                 </p>
-                <p className="mt-2 font-mono text-3xl font-bold tracking-[0.2em] text-amber-900">
+                <p className="font-mono text-3xl font-bold tracking-[0.2em] text-amber-900 dark:text-amber-200">
                   {cashPickupCode}
                 </p>
-                <p className="mt-1 text-xs text-amber-700">
-                  Reserved against your pending request of {formatCurrency(amount, currency)}.
-                  A copy was emailed to Financial Ops.
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  Read this code to Financial Ops to release {formatCurrency(amount, currency)}.
+                  Your wallet is reduced the moment they enter it. A copy was also emailed to you.
                 </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-1"
+                  onClick={() => {
+                    try {
+                      navigator.clipboard?.writeText(cashPickupCode);
+                      toast.success('Code copied');
+                    } catch {
+                      /* clipboard unavailable — code is still visible on screen */
+                    }
+                  }}
+                >
+                  Copy code
+                </Button>
               </div>
             )}
             {/* Server-confirmed receipt — shown immediately after the
                 withdrawal_requests insert returns. Contains the
                 reference ID, processed date/time and verified amount.
                 Disbursement status continues to update live below. */}
-            {(payoutMode !== 'cash' || cashCodeAcknowledged) && (
+            {(
               <>
               <ReceiptCard
               status="pending"
