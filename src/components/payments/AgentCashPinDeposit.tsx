@@ -33,7 +33,7 @@ interface AgentCashPinDepositProps {
 
 const QUICK_AMOUNTS = [10000, 50000, 100000, 250000];
 
-type Step = 'form' | 'pin' | 'success';
+type Step = 'form' | 'confirm' | 'pin' | 'success';
 
 /**
  * Cash-with-agent deposit secured by a 4-digit code.
@@ -63,6 +63,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [hasSearched, setHasSearched] = useState(false);
   const [phoneError, setPhoneError] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [selectedFromList, setSelectedFromList] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phoneWrapRef = useRef<HTMLDivElement>(null);
 
@@ -81,6 +82,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
     setSuggestions([]); setShowSuggestions(false); setPhoneError(''); setPhoneTouched(false);
+    setSelectedFromList(false);
   };
 
   const searchAgents = useCallback(async (query: string) => {
@@ -116,6 +118,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setAgentPhone(value);
     if (phoneTouched) setPhoneError(validatePhone(value));
     setShowSuggestions(false);
+    setSelectedFromList(false);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => searchAgents(value), 300);
   };
@@ -126,6 +129,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setPhoneError(validatePhone(phone));
     setShowSuggestions(false);
     setSuggestions([]);
+    setSelectedFromList(true);
   };
 
   const close = () => { reset(); onOpenChange(false); };
@@ -170,6 +174,17 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       setPhoneError(err);
       return;
     }
+    // If the depositor typed a number that isn't one of the matched agents,
+    // ask them to confirm the number before contacting the backend.
+    if (!selectedFromList) {
+      setShowSuggestions(false);
+      setStep('confirm');
+      return;
+    }
+    void submitDeposit();
+  };
+
+  const submitDeposit = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('agent-cash-deposit-create', {
