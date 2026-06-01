@@ -443,6 +443,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         date: new Date(),
         currency: 'UGX',
       });
+      // Reset any prior validation — the new receipt must be reconciled fresh.
+      setValidation(null);
+      setValidationOverride(false);
       setCollectingReqId(null);
       setCollectReason('');
       queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
@@ -452,8 +455,98 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     onError: (e: any) => toast.error(e.message || 'Collection failed'),
   });
 
+  // Reconcile the receipt against the posted collection ledger. Checks that the
+  // tenant/agent UGX deductions, total collected, 10% commission, and remaining
+  // balance on the receipt match the double-entry ledger before download.
+  const validateReceiptAgainstLedger = async (): Promise<{ ok: boolean; issues: string[] }> => {
+    const r = lastReceipt;
+    if (!r) return { ok: false, issues: ['No receipt to validate.'] };
+    const issues: string[] = [];
+    const TOL = 1; // allow ≤1 UGX rounding difference
+    const near = (a: number, b: number) => Math.abs(Math.round(a) - Math.round(b)) <= TOL;
+    const ugx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+
+    // Fresh rent request — never trust the cache for high-stakes reconciliation.
+    const { data: rr, error: rrErr } = await supabase
+      .from('rent_requests')
+      .select('total_repayment, amount_repaid, rent_amount, registration_type, agent_id, assigned_agent_id, tenant_id')
+      .eq('id', r.reference)
+      .single();
+    if (rrErr || !rr) return { ok: false, issues: ['Could not load the rent request to reconcile.'] };
+
+    const agentId = (rr.assigned_agent_id || rr.agent_id) as string | null;
+    const since = new Date(r.date.getTime() - 15 * 60 * 1000).toISOString();
+    const { data: legs, error: legErr } = await supabase
+      .from('general_ledger')
+      .select('user_id, category, direction, amount, currency, created_at')
+      .eq('source_id', r.reference)
+      .eq('ledger_scope', 'wallet')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false });
+    if (legErr) return { ok: false, issues: ['Could not load the collection ledger to reconcile.'] };
+
+    const rows = legs || [];
+    if (rows.length === 0) {
+      return { ok: false, issues: ['No matching collection ledger entries were found for this receipt.'] };
+    }
+
+    // Currency must be UGX on every leg.
+    const badCurrency = rows.find((l: any) => (l.currency || 'UGX') !== 'UGX');
+    if (badCurrency) issues.push(`Ledger contains a non-UGX entry (${badCurrency.currency}).`);
+
+    const sum = (pred: (l: any) => boolean) =>
+      rows.filter(pred).reduce((s: number, l: any) => s + Number(l.amount || 0), 0);
+
+    const tenantLedger = sum((l) => l.category === 'tenant_repayment' && l.direction === 'cash_out' && l.user_id === rr.tenant_id);
+    const agentLedger = agentId
+      ? sum((l) => l.category === 'tenant_repayment' && l.direction === 'cash_out' && l.user_id === agentId)
+      : 0;
+    const commissionLedger = sum((l) => l.category === 'agent_commission_earned' && l.direction === 'cash_in');
+    const totalLedger = tenantLedger + agentLedger;
+
+    if (!near(tenantLedger, r.tenantDeducted))
+      issues.push(`Tenant deduction mismatch — receipt ${ugx(r.tenantDeducted)} vs ledger ${ugx(tenantLedger)}.`);
+    if (!near(agentLedger, r.agentDeducted))
+      issues.push(`Agent deduction mismatch — receipt ${ugx(r.agentDeducted)} vs ledger ${ugx(agentLedger)}.`);
+    if (!near(totalLedger, r.totalCollected))
+      issues.push(`Total collected mismatch — receipt ${ugx(r.totalCollected)} vs ledger ${ugx(totalLedger)}.`);
+    if (typeof r.commissionPaid === 'number' && !near(commissionLedger, r.commissionPaid))
+      issues.push(`Commission mismatch — receipt ${ugx(r.commissionPaid)} vs ledger ${ugx(commissionLedger)}.`);
+
+    // Remaining balance: fresh obligation minus fresh repaid.
+    const obligation = rr.registration_type === 'outstanding_balance'
+      ? Number(rr.total_repayment || 0)
+      : Number(rr.rent_amount || 0);
+    const ledgerRemaining = Math.max(0, obligation - Number(rr.amount_repaid || 0));
+    if (typeof r.remainingBalance === 'number' && !near(ledgerRemaining, r.remainingBalance))
+      issues.push(`Remaining balance mismatch — receipt ${ugx(r.remainingBalance)} vs ledger ${ugx(ledgerRemaining)}.`);
+
+    return { ok: issues.length === 0, issues };
+  };
+
+  const handleValidateReceipt = async () => {
+    if (!lastReceipt) return;
+    setValidating(true);
+    try {
+      const result = await validateReceiptAgainstLedger();
+      setValidation(result);
+      if (result.ok) toast.success('Receipt reconciled with the collection ledger');
+      else toast.error('Receipt does not match the ledger — review before downloading');
+    } catch (e: any) {
+      setValidation({ ok: false, issues: [e?.message || 'Validation failed'] });
+      toast.error('Could not validate the receipt');
+    } finally {
+      setValidating(false);
+    }
+  };
+
   const handleDownloadReceipt = async (fmt: 'pdf' | 'xlsx') => {
     if (!lastReceipt) return;
+    // Gate download on a successful ledger reconciliation (or explicit override).
+    if (!(validation?.ok || validationOverride)) {
+      toast.error('Verify the receipt against the ledger before downloading');
+      return;
+    }
     setDownloadingReceipt(fmt);
     try {
       if (fmt === 'pdf') await downloadRentCollectionReceiptPdf(lastReceipt);
