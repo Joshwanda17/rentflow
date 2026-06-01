@@ -49,12 +49,16 @@ async function renderPdf(data: RentCollectionReceiptData) {
   // Header
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
-  doc.text('Rent Collection Receipt', marginX, y);
+  doc.text(data.isPartial ? 'Partial Rent Collection Receipt' : 'Rent Collection Receipt', marginX, y);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(120);
   y += 18;
-  doc.text('Welile — server-confirmed collection', marginX, y);
+  doc.text(
+    data.isPartial ? 'Welile — server-confirmed partial collection' : 'Welile — server-confirmed collection',
+    marginX,
+    y,
+  );
   doc.setTextColor(0);
 
   // Amount block
@@ -98,17 +102,25 @@ async function renderPdf(data: RentCollectionReceiptData) {
   y += 4;
   doc.setDrawColor(210);
   doc.line(marginX, y - 8, pageWidth - marginX, y - 8);
+  if (typeof data.requestedAmount === 'number' && data.requestedAmount !== data.totalCollected) {
+    drawLine('Amount requested', fmt(data.requestedAmount, currency), { muted: true });
+  }
   drawLine('Total collected', fmt(data.totalCollected, currency), { bold: true });
   if (typeof data.commissionPaid === 'number' && data.commissionPaid > 0) {
     drawLine('Agent commission (10%)', fmt(data.commissionPaid, currency), { muted: true });
   }
   if (typeof data.remainingBalance === 'number') {
-    drawLine('Balance remaining', fmt(data.remainingBalance, currency), { muted: data.remainingBalance <= 0 });
+    drawLine(
+      data.remainingBalance > 0 ? 'Balance remaining (partial)' : 'Balance remaining',
+      fmt(data.remainingBalance, currency),
+      { bold: data.remainingBalance > 0, muted: data.remainingBalance <= 0 },
+    );
   }
 
   // Details
   const rows: Array<[string, string]> = [
     ['Reference', data.reference],
+    ['Collection type', data.isPartial ? 'Partial' : 'Full'],
     ['Tenant', data.tenantName],
     ...(data.tenantPhone ? [['Tenant phone', data.tenantPhone] as [string, string]] : []),
     ...(data.agentName ? [['Linked agent', data.agentName] as [string, string]] : []),
