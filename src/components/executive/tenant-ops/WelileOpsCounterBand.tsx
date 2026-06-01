@@ -377,6 +377,14 @@ export function WelileOpsCounterBand() {
         }}
       />
 
+      <ZoneFunnelDialog
+        target={funnel}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setFunnel(null)}
+        onOpenAgent={(agentId) => setDrawer({ agentId, tab: 'agent' })}
+      />
+
       <UserDrilldownDrawer
         open={!!drawer}
         onOpenChange={(v) => { if (!v) setDrawer(null); }}
