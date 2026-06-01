@@ -21,7 +21,10 @@ function classifyChunkError(error: Error): boolean {
   const stack = (error?.stack || "").toLowerCase();
   const full = `${msg} ${name} ${stack}`;
 
-  // Explicit keyword matches
+  // Explicit stale-asset/chunk matches only. Do NOT treat generic iOS
+  // TypeError/"Load failed" network errors as an old installed app version —
+  // that was sending healthy iPhones to the cache-clear screen after the app
+  // had already rendered.
   const keywords = [
     "failed to fetch dynamically imported module",
     "error loading dynamically imported module",
@@ -29,23 +32,14 @@ function classifyChunkError(error: Error): boolean {
     "loading css chunk",
     "dynamically imported",
     "unable to preload",
-    "failed to load",
-    "failed to fetch",
-    "network error",
-    "networkerror",
-    "timeout",
     "chunkerror",
     "loaderror",
     "importing a module script failed",
-    "importing",
   ];
   if (keywords.some((k) => full.includes(k))) return true;
 
   // Stack mentions an asset URL — almost certainly a chunk/asset load failure
   if (/\/(assets|src)\/[^\s)]+\.(m?js|tsx?|css)/i.test(stack)) return true;
-
-  // iOS Safari often throws bare TypeError with empty/short message on chunk fail
-  if (name === "typeerror" && msg.length < 30) return true;
 
   return false;
 }
@@ -118,8 +112,8 @@ class ChunkErrorBoundary extends Component<Props, State> {
 
   handleRetry = async () => {
     this.setState({ isRetrying: true });
-    // Full hard recovery: purge ALL caches + SWs and reload to a cache-busted
-    // URL so iOS Safari fetches a fresh HTML shell instead of the stale one.
+    // Full hard recovery: purge ALL caches + SWs, then perform a plain reload.
+    // Document URLs must stay clean; only built static assets use cache busting.
     try {
       localStorage.removeItem("welile_chunk_recovery_attempted");
     } catch {
