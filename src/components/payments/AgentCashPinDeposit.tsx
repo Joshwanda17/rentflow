@@ -377,12 +377,14 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
               <p className="text-sm text-muted-foreground">Amount: <span className="font-semibold text-foreground">{formatUGX(amountNum)}</span></p>
             </div>
             <div className="flex flex-col gap-2">
-              <Button onClick={() => void submitDeposit()} disabled={loading} className="w-full h-12 gap-2">
+              <Button autoFocus onClick={() => void submitDeposit()} disabled={loading} className="w-full h-12 gap-2">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                 Yes, proceed with this number
+                <span className="sr-only">Press Enter to confirm</span>
               </Button>
               <Button variant="outline" onClick={() => setStep('form')} disabled={loading} className="w-full h-11">
                 Edit number
+                <span className="sr-only">Press Escape to go back</span>
               </Button>
             </div>
           </div>
