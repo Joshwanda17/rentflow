@@ -34,6 +34,21 @@ export interface CounterItemRow {
   drawer_tab: 'tenant' | 'agent' | 'landlord';
 }
 
+export interface ZoneAgentRow {
+  agent_id: string;
+  agent_name: string | null;
+  agent_phone: string | null;
+  rent_count: number;
+  rent_funded_count: number;
+  landlord_count: number;
+  agent_count: number;
+  promissory_count: number;
+  total_count: number;
+  first_activity: string | null;
+  last_activity: string | null;
+  is_producing: boolean;
+}
+
 export function counterLevel(path: CounterPath): CounterLevel {
   if (!path.continent) return 'continent';
   if (!path.country) return 'country';
