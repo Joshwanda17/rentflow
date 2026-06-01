@@ -216,6 +216,46 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
     [emptyHouses, previewHouseId]
   );
 
+  // Advanced filters for the empty-house search
+  const [houseAreaFilter, setHouseAreaFilter] = useState<string>('all');
+  const [houseTypeFilter, setHouseTypeFilter] = useState<string>('all');
+  const [housePriceFilter, setHousePriceFilter] = useState<string>('all');
+
+  const houseAreaOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(emptyHouses.map((h) => (h.region || '').trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b)),
+    [emptyHouses]
+  );
+  const houseTypeOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(emptyHouses.map((h) => (h.house_category || '').trim()).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b)),
+    [emptyHouses]
+  );
+  const PRICE_BANDS: { value: string; label: string; min: number; max: number }[] = [
+    { value: 'lt200', label: 'Under 200K', min: 0, max: 200_000 },
+    { value: '200-500', label: '200K – 500K', min: 200_000, max: 500_000 },
+    { value: '500-1m', label: '500K – 1M', min: 500_000, max: 1_000_000 },
+    { value: 'gt1m', label: 'Over 1M', min: 1_000_000, max: Infinity },
+  ];
+  const houseFiltersActive =
+    houseAreaFilter !== 'all' || houseTypeFilter !== 'all' || housePriceFilter !== 'all';
+  const filteredHouses = useMemo(() => {
+    return emptyHouses.filter((h) => {
+      if (houseAreaFilter !== 'all' && (h.region || '').trim() !== houseAreaFilter) return false;
+      if (houseTypeFilter !== 'all' && (h.house_category || '').trim() !== houseTypeFilter) return false;
+      if (housePriceFilter !== 'all') {
+        const band = PRICE_BANDS.find((b) => b.value === housePriceFilter);
+        const rent = h.monthly_rent ?? 0;
+        if (band && !(rent >= band.min && rent < band.max)) return false;
+      }
+      return true;
+    });
+  }, [emptyHouses, houseAreaFilter, houseTypeFilter, housePriceFilter]);
+
   const fetchEmptyHouses = async () => {
     setHousesLoading(true);
     try {
