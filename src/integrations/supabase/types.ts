@@ -19495,6 +19495,28 @@ export type Database = {
       welile_default_agent_vouch_floor_ugx:
         | { Args: never; Returns: number }
         | { Args: { p_agent_id: string }; Returns: number }
+      welile_mission_empty_houses: {
+        Args: { p_since?: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          area: string
+          created_at: string
+          district: string
+          landlord_id: string
+          landlord_name: string
+          landlord_phone: string
+          last_activity: string
+          listing_id: string
+          monthly_rent: number
+          number_of_rooms: number
+          region: string
+          status: string
+          title: string
+          verified: boolean
+        }[]
+      }
       welile_mission_leaderboard: {
         Args: { p_since?: string }
         Returns: {
