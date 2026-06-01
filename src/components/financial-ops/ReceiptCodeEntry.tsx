@@ -122,8 +122,8 @@ export function ReceiptCodeEntry({
   codeRef.current = code;
 
   const handleVerify = useCallback(async () => {
-    const entered = codeRef.current.trim().toUpperCase();
-    if (entered.length < 3) return;
+    const entered = codeRef.current.trim();
+    if (!/^\d{4}$/.test(entered)) return;
     if (attemptsRemaining <= 0) {
       setScreen({ kind: 'locked' });
       return;
@@ -182,7 +182,7 @@ export function ReceiptCodeEntry({
   );
   const inputDisabled = screen.kind === 'verifying' || screen.kind === 'verified' || terminal;
   const canVerify =
-    code.trim().length >= 3 &&
+    /^\d{4}$/.test(code.trim()) &&
     !inputDisabled &&
     attemptsRemaining > 0 &&
     !isExpiredByClock;
@@ -297,12 +297,18 @@ export function ReceiptCodeEntry({
             </label>
             <Input
               autoFocus
-              placeholder="e.g. WPO-12345"
+              placeholder="e.g. 0428"
               value={code}
               disabled={inputDisabled}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => {
+                const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 4);
+                setCode(digitsOnly);
+              }}
               onKeyDown={(e) => { if (e.key === 'Enter' && canVerify) void handleVerify(); }}
               className="font-mono uppercase tracking-wider text-center text-lg"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
             />
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">Attempts remaining</span>
