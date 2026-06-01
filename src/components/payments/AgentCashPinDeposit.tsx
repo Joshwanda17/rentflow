@@ -81,7 +81,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
 
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
-    setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
+    setSessionId(null); setAgentName(''); setPin(''); setPinError(''); setCreditedAmount(0); setExpiresAt(null);
     setSuggestions([]); setShowSuggestions(false); setPhoneError(''); setPhoneTouched(false);
     setSelectedFromList(false);
   };
