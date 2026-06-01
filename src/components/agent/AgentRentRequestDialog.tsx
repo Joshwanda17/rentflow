@@ -41,6 +41,7 @@ import {
   Building2,
   Loader2,
   CheckCircle2,
+  ShieldCheck,
   FileText,
   Calculator,
   Calendar,
