@@ -24,6 +24,8 @@ const ROLE_LABELS: Record<string, string> = {
 const EVENT_LABELS: Record<string, string> = {
   repayment: 'Repayment',
   rent_request_posted: 'Rent Request',
+  rent_posted_listed: 'Listed Rent Posted',
+  rent_landlord_verified: 'Landlord Verified',
   house_listed: 'House Listed',
   tenant_replacement: 'Replacement',
   subagent_registration: 'Sub-Agent Reg',
