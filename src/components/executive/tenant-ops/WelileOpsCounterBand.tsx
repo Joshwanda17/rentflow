@@ -452,4 +452,137 @@ function ItemsDialog({
   );
 }
 
+function fmtDate(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' });
+}
+
+function ZoneFunnelDialog({
+  target, win, refetchIntervalMs, onClose, onOpenAgent,
+}: {
+  target: { path: CounterPath; label: string } | null;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  onClose: () => void;
+  onOpenAgent: (agentId: string) => void;
+}) {
+  const { data, isLoading } = useOpsZoneAgents(target?.path ?? null, win, !!target, refetchIntervalMs);
+  const agents: ZoneAgentRow[] = data ?? [];
+
+  const agg = agents.reduce(
+    (a, r) => {
+      a.rent += r.rent_count; a.funded += r.rent_funded_count;
+      a.landlord += r.landlord_count; a.agentReg += r.agent_count; a.promissory += r.promissory_count;
+      a.distinct += 1; if (r.is_producing) a.producing += 1;
+      return a;
+    },
+    { rent: 0, funded: 0, landlord: 0, agentReg: 0, promissory: 0, distinct: 0, producing: 0 },
+  );
+  const fundedPct = pct(agg.funded, agg.rent);
+  const activationPct = pct(agg.producing, agg.distinct);
+  const health = healthTone(fundedPct, agg.rent > 0);
+
+  const FUNNEL_STAGES = [
+    { label: 'Requests', value: agg.rent, tone: 'bg-emerald-500' },
+    { label: 'Funded', value: agg.funded, tone: 'bg-emerald-600' },
+    { label: 'Producing agents', value: agg.producing, tone: 'bg-blue-500' },
+  ];
+  const funnelMax = Math.max(agg.rent, 1);
+
+  return (
+    <Dialog open={!!target} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            Activation funnel · {target?.label}
+          </DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[68vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+          ) : agents.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No activity in this window.</p>
+          ) : (
+            <>
+              {/* Funnel summary */}
+              <div className="rounded-xl border border-border bg-card p-3 mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Funnel</span>
+                  <div className="flex items-center gap-1.5">
+                    <Badge className={cn('text-[10px]', health.cls)}>{health.label}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{fundedPct}% funded</Badge>
+                    <Badge variant="outline" className="text-[10px]">{activationPct}% active</Badge>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {FUNNEL_STAGES.map((s) => (
+                    <div key={s.label}>
+                      <div className="flex items-center justify-between text-[11px] mb-0.5">
+                        <span className="text-muted-foreground">{s.label}</span>
+                        <span className="font-semibold">{s.value.toLocaleString()}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div className={cn('h-full rounded-full transition-all', s.tone)} style={{ width: `${pct(s.value, funnelMax)}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2 text-[10px] text-muted-foreground">
+                  <span>Landlords: <b className="text-foreground">{agg.landlord}</b></span>
+                  <span>· Agents: <b className="text-foreground">{agg.agentReg}</b></span>
+                  <span>· Notes: <b className="text-foreground">{agg.promissory}</b></span>
+                  <span>· Agents: <b className="text-foreground">{agg.producing}/{agg.distinct} producing</b></span>
+                </div>
+              </div>
+
+              {/* Contributing agents */}
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                Contributing agents ({agents.length})
+              </p>
+              <ul className="space-y-1.5">
+                {agents.map((a) => {
+                  const aFundedPct = pct(a.rent_funded_count, a.rent_count);
+                  return (
+                    <li
+                      key={a.agent_id}
+                      onClick={() => onOpenAgent(a.agent_id)}
+                      className="rounded-lg border border-border bg-card p-3 hover:bg-muted/40 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm truncate flex-1">{a.agent_name || 'Unknown agent'}</span>
+                        {a.is_producing ? (
+                          <Badge className="text-[10px] text-emerald-600 bg-emerald-500/10 shrink-0">Producing</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] shrink-0">Dormant</Badge>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      </div>
+                      {a.agent_phone && (
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Phone className="h-3 w-3" /> {a.agent_phone}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-muted-foreground">
+                        <span>Rent: <b className="text-foreground">{a.rent_funded_count}/{a.rent_count}</b> ({aFundedPct}%)</span>
+                        <span>Landlords: <b className="text-foreground">{a.landlord_count}</b></span>
+                        <span>Agents: <b className="text-foreground">{a.agent_count}</b></span>
+                        <span>Notes: <b className="text-foreground">{a.promissory_count}</b></span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        First {fmtDate(a.first_activity)} · Last {fmtDate(a.last_activity)}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default WelileOpsCounterBand;
