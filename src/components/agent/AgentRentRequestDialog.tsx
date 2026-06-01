@@ -428,23 +428,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
 
   const HOUSE_SELECT =
-    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id, landlords(name, phone)';
-
-  const mapHouseRow = (r: any): AvailableHouse => ({
-    id: r.id,
-    title: r.title,
-    address: r.address,
-    region: r.region,
-    district: r.district,
-    house_category: r.house_category,
-    monthly_rent: r.monthly_rent,
-    short_code: r.short_code,
-    latitude: r.latitude,
-    longitude: r.longitude,
-    landlord_id: r.landlord_id,
-    landlord_name: r.landlords?.name ?? null,
-    landlord_phone: r.landlords?.phone ?? null,
-  });
+    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id';
 
   const searchAvailableHouses = useCallback(async () => {
     const q = houseQuery.trim();
@@ -492,12 +476,43 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
 
       const seen = new Set<string>();
-      const mapped: AvailableHouse[] = [];
+      const unique: any[] = [];
       for (const r of rows) {
         if (seen.has(r.id)) continue;
         seen.add(r.id);
-        mapped.push(mapHouseRow(r));
+        unique.push(r);
       }
+
+      // Resolve landlord names/phones in one batch (no FK relationship to embed).
+      const landlordIds = Array.from(
+        new Set(unique.map((r) => r.landlord_id).filter(Boolean)),
+      );
+      const llMap: Record<string, { name: string | null; phone: string | null }> = {};
+      if (landlordIds.length) {
+        const { data: llRows } = await supabase
+          .from('landlords')
+          .select('id, name, phone')
+          .in('id', landlordIds);
+        for (const l of llRows || []) {
+          llMap[(l as any).id] = { name: (l as any).name ?? null, phone: (l as any).phone ?? null };
+        }
+      }
+
+      const mapped: AvailableHouse[] = unique.map((r) => ({
+        id: r.id,
+        title: r.title,
+        address: r.address,
+        region: r.region,
+        district: r.district,
+        house_category: r.house_category,
+        monthly_rent: r.monthly_rent,
+        short_code: r.short_code,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        landlord_id: r.landlord_id,
+        landlord_name: r.landlord_id ? llMap[r.landlord_id]?.name ?? null : null,
+        landlord_phone: r.landlord_id ? llMap[r.landlord_id]?.phone ?? null : null,
+      }));
       setHouseResults(mapped);
     } catch (e) {
       console.error('[AgentRentRequestDialog] house search failed', e);
