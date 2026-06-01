@@ -164,10 +164,13 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 12;
 
+  // Exclude compounding partners — they do not receive cash payouts.
+  const rows = input.rows.filter((r) => r.roiMode !== 'monthly_compounding');
+
   // Fetch payment methods + fresh portfolio details in parallel with logo.
   // (Edit history / appendix removed — the export is the nearing-payout list only.)
-  const investorIds = input.rows.map((r) => r.investorId).filter((v): v is string => !!v);
-  const portfolioIds = input.rows.map((r) => r.portfolioId).filter((v): v is string => !!v);
+  const investorIds = rows.map((r) => r.investorId).filter((v): v is string => !!v);
+  const portfolioIds = rows.map((r) => r.portfolioId).filter((v): v is string => !!v);
   const [logoBase64, payoutMap, detailsMap] = await Promise.all([
     loadLogoBase64(),
     fetchPayoutMethodsMap(investorIds),
