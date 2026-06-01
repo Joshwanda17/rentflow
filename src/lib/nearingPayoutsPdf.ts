@@ -137,43 +137,6 @@ async function fetchPortfolioDetailsMap(portfolioIds: string[]): Promise<Map<str
 }
 
 // Fetch edit-history rows from audit_logs for these portfolios
-async function fetchEditHistoryMap(portfolioIds: string[]): Promise<{
-  history: Map<string, any[]>;
-  editorNames: Map<string, string>;
-}> {
-  const history = new Map<string, any[]>();
-  const editorNames = new Map<string, string>();
-  if (portfolioIds.length === 0) return { history, editorNames };
-  const unique = Array.from(new Set(portfolioIds));
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select('id, user_id, action_type, record_id, metadata, created_at')
-    .eq('table_name', 'investor_portfolios')
-    .in('record_id', unique)
-    .order('created_at', { ascending: false })
-    .limit(500);
-  if (error || !data) return { history, editorNames };
-  const editorIds = new Set<string>();
-  (data as any[]).forEach(r => {
-    const arr = history.get(r.record_id) || [];
-    arr.push(r);
-    history.set(r.record_id, arr);
-    if (r.user_id) editorIds.add(r.user_id);
-  });
-  if (editorIds.size > 0) {
-    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', Array.from(editorIds));
-    (profs || []).forEach((p: any) => editorNames.set(p.id, p.full_name || ''));
-  }
-  return { history, editorNames };
-}
-
-const fmtVal = (v: any): string => {
-  if (v === null || v === undefined || v === '') return '—';
-  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
-  if (typeof v === 'number') return v.toLocaleString();
-  return String(v);
-};
-
 /**
  * Build a CFO-style PDF report of portfolios nearing payout, honouring the
  * filter that was active in the Nearing Payouts dialog. The first column is
@@ -187,17 +150,16 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   const generatedAt = input.generatedAt || new Date();
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 12;
 
-  // Fetch payment methods, portfolio details, and edit history in parallel with logo
+  // Fetch payment methods + fresh portfolio details in parallel with logo.
+  // (Edit history / appendix removed — the export is the nearing-payout list only.)
   const investorIds = input.rows.map((r) => r.investorId).filter((v): v is string => !!v);
   const portfolioIds = input.rows.map((r) => r.portfolioId).filter((v): v is string => !!v);
-  const [logoBase64, payoutMap, detailsMap, { history, editorNames }] = await Promise.all([
+  const [logoBase64, payoutMap, detailsMap] = await Promise.all([
     loadLogoBase64(),
     fetchPayoutMethodsMap(investorIds),
     fetchPortfolioDetailsMap(portfolioIds),
-    fetchEditHistoryMap(portfolioIds),
   ]);
 
   // ── Themed Header Band ──
@@ -384,187 +346,6 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       doc.text(`Page ${current} of ${pageCount}`, pageWidth - margin, ph - 6, { align: 'right' });
     },
   });
-
-  // ═══ APPENDIX: full per-portfolio details + edit history ═══
-  const ensureSpace = (needed: number, cursorY: number): number => {
-    if (cursorY + needed > pageHeight - 15) {
-      doc.addPage();
-      return margin + 4;
-    }
-    return cursorY;
-  };
-
-  doc.addPage();
-  let cy = margin + 4;
-  doc.setFillColor(...THEME_PRIMARY);
-  doc.rect(0, 0, pageWidth, 14, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('Appendix · Portfolio Details, Account Details & Edit History', margin, 9);
-  cy = 22;
-  doc.setTextColor(15, 23, 42);
-
-  for (let i = 0; i < sortedRows.length; i++) {
-    const r = sortedRows[i];
-    const det = r.portfolioId ? detailsMap.get(r.portfolioId) : null;
-    const pm = r.investorId ? payoutMap.get(r.investorId) : undefined;
-    const audits = r.portfolioId ? (history.get(r.portfolioId) || []) : [];
-
-    cy = ensureSpace(40, cy);
-
-    // Section header per portfolio
-    doc.setFillColor(...THEME_STRIPE);
-    doc.rect(margin, cy, pageWidth - margin * 2, 7, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(...THEME_PRIMARY_DARK);
-    doc.text(
-      `${i + 1}. ${r.name || '—'} — ${det?.portfolio_code || r.portfolioCode || r.portfolioName || '—'}`,
-      margin + 2,
-      cy + 5,
-    );
-    doc.setTextColor(71, 85, 105);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text(
-      `Status: ${fmtVal(det?.status ?? r.status)}   ·   Due: ${fmtDate(r.nextPayoutDate)}   ·   ${dueLabel(r.daysUntil)}`,
-      pageWidth - margin - 2,
-      cy + 5,
-      { align: 'right' },
-    );
-    cy += 9;
-
-    // Two-column key/value details
-    const details: Array<[string, string]> = [
-      ['Portfolio Code', fmtVal(det?.portfolio_code ?? r.portfolioCode)],
-      ['Portfolio Name', fmtVal(det?.account_name ?? r.portfolioName)],
-      ['Partner', fmtVal(r.name)],
-      ['Phone', fmtVal(r.phone)],
-      ['Email', fmtVal(r.email)],
-      ['Principal', formatUGX(det?.investment_amount ?? r.investmentAmount ?? 0)],
-      ['Returns %', `${fmtVal(det?.roi_percentage ?? r.roiPercentage)}%`],
-      ['Returns Mode', fmtVal(det?.roi_mode ?? r.roiMode) === 'monthly_compounding' ? 'Monthly Compounding' : 'Monthly Payout'],
-      ['Duration (months)', fmtVal(det?.duration_months ?? r.durationMonths)],
-      ['Payout Day', fmtVal(det?.payout_day ?? r.payoutDay)],
-      ['Next Returns Date', fmtDate(det?.next_roi_date ?? r.nextRoiDate ?? r.nextPayoutDate)],
-      ['Maturity Date', fmtDate(det?.maturity_date ?? r.maturityDate ?? '')],
-      ['Total Returns Earned', formatUGX(det?.total_roi_earned ?? 0)],
-      ['Auto-reinvest', fmtVal(det?.auto_reinvest ?? r.autoReinvest ?? false)],
-      ['Display Currency', fmtVal(det?.display_currency ?? 'UGX')],
-      ['Created', fmtDate(det?.created_at ?? r.createdAt)],
-    ];
-    autoTable(doc, {
-      body: details.map(([k, v]) => [k, v]),
-      startY: cy,
-      margin: { left: margin, right: margin },
-      theme: 'grid',
-      styles: { fontSize: 7.5, cellPadding: 1.5 },
-      columnStyles: {
-        0: { cellWidth: 45, fontStyle: 'bold', fillColor: [248, 250, 252] },
-        1: { cellWidth: pageWidth - margin * 2 - 45 },
-      },
-      didDrawPage: () => { /* keep page hooks idle */ },
-    });
-    cy = (doc as any).lastAutoTable.finalY + 3;
-
-    // Account / payment details block
-    cy = ensureSpace(28, cy);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-    doc.text('Payout Account Details', margin, cy);
-    cy += 3;
-    const acct: Array<[string, string]> = [];
-    const method = (det?.payment_method ?? null) || (pm?.mode ?? null);
-    acct.push(['Payment Method', fmtVal(method)]);
-    if (method === 'mobile_money' || (!method && pm?.mode === 'mobile_money')) {
-      acct.push(['Network', fmtVal(det?.mobile_network)]);
-      acct.push(['Mobile Number', fmtVal(det?.mobile_money_number)]);
-    }
-    if (method === 'bank_transfer' || (!method && pm?.mode === 'bank_transfer')) {
-      acct.push(['Bank Name', fmtVal(det?.bank_name)]);
-      acct.push(['Account Holder', fmtVal(det?.bank_account_name)]);
-      acct.push(['Account Number', fmtVal(det?.account_number)]);
-    }
-    if (pm) {
-      acct.push(['Saved Method (default)', `${pm.line1}\n${pm.line2}`]);
-    }
-    autoTable(doc, {
-      body: acct.map(([k, v]) => [k, v]),
-      startY: cy,
-      margin: { left: margin, right: margin },
-      theme: 'grid',
-      styles: { fontSize: 7.5, cellPadding: 1.5, overflow: 'linebreak' },
-      columnStyles: {
-        0: { cellWidth: 45, fontStyle: 'bold', fillColor: [248, 250, 252] },
-        1: { cellWidth: pageWidth - margin * 2 - 45 },
-      },
-    });
-    cy = (doc as any).lastAutoTable.finalY + 3;
-
-    // Edit history
-    cy = ensureSpace(20, cy);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-    doc.text(`Edit History (${audits.length})`, margin, cy);
-    cy += 3;
-    if (audits.length === 0) {
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text('No edits recorded for this portfolio.', margin + 2, cy + 4);
-      cy += 8;
-    } else {
-      const auditBody = audits.map((a: any) => {
-        const editor = a.user_id ? (editorNames.get(a.user_id) || a.user_id.slice(0, 8)) : 'system';
-        const ts = a.created_at ? new Date(a.created_at).toLocaleString('en-GB') : '—';
-        const meta = a.metadata || {};
-        const changes = meta.changed_fields || meta.changes || {};
-        let summary = '';
-        if (changes && typeof changes === 'object') {
-          const keys = Object.keys(changes);
-          if (keys.length === 0) {
-            summary = a.action_type || '—';
-          } else {
-            summary = keys
-              .slice(0, 12)
-              .map((k) => {
-                const v = (changes as any)[k];
-                if (v && typeof v === 'object' && 'from' in v && 'to' in v) {
-                  return `${k}: ${fmtVal(v.from)} → ${fmtVal(v.to)}`;
-                }
-                return `${k}: ${fmtVal(v)}`;
-              })
-              .join('\n');
-            if (keys.length > 12) summary += `\n…and ${keys.length - 12} more`;
-          }
-        } else {
-          summary = a.action_type || '—';
-        }
-        return [ts, editor, a.action_type || '—', summary];
-      });
-      autoTable(doc, {
-        head: [['When', 'Edited by', 'Action', 'Changes']],
-        body: auditBody,
-        startY: cy,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak', valign: 'top' },
-        headStyles: { fillColor: THEME_PRIMARY, textColor: 255, fontSize: 7, halign: 'left' },
-        alternateRowStyles: { fillColor: THEME_STRIPE },
-        columnStyles: {
-          0: { cellWidth: 36 },
-          1: { cellWidth: 38 },
-          2: { cellWidth: 26 },
-          3: { cellWidth: pageWidth - margin * 2 - 100 },
-        },
-      });
-      cy = (doc as any).lastAutoTable.finalY + 5;
-    }
-
-    cy += 2;
-  }
 
   return doc.output('blob');
 }
