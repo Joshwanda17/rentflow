@@ -8053,6 +8053,47 @@ export type Database = {
           },
         ]
       }
+      landlord_onboarding_targets: {
+        Row: {
+          created_at: string
+          id: string
+          landlord_id: string
+          listing_id: string | null
+          note: string | null
+          status: string
+          targeted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          landlord_id: string
+          listing_id?: string | null
+          note?: string | null
+          status?: string
+          targeted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          listing_id?: string | null
+          note?: string | null
+          status?: string
+          targeted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_onboarding_targets_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: true
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landlord_payment_edits: {
         Row: {
           agent_dispute_note: string | null

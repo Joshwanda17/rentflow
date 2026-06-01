@@ -12,12 +12,14 @@ import {
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
 import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
+import { useLandlordOnboardingTargets, useTargetLandlordForOnboarding } from '@/hooks/useWelileOpsCounters';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
-  ShieldCheck, BedDouble, UserPlus,
+  ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -370,6 +372,24 @@ function EmptyHousesDialog({
   const [sort, setSort] = useState<EmptySort>('rent_desc');
   const { data, isLoading } = useMissionEmptyHouses(win, open, refetchIntervalMs);
   const houses: MissionEmptyHouseRow[] = data ?? [];
+  const { data: targets } = useLandlordOnboardingTargets(open);
+  const targetLandlord = useTargetLandlordForOnboarding();
+  const [targeting, setTargeting] = useState<string | null>(null);
+
+  const handleTargetAndOpen = async (landlordId: string, listingId: string) => {
+    setTargeting(landlordId);
+    try {
+      if (!targets?.[landlordId]) {
+        await targetLandlord(landlordId, listingId);
+        toast.success('Landlord marked as targeted for onboarding');
+      }
+      onOpenLandlord(landlordId);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not mark landlord as targeted');
+    } finally {
+      setTargeting(null);
+    }
+  };
 
   const searchLower = search.trim().toLowerCase();
   const filtered = useMemo(() => {
@@ -397,6 +417,7 @@ function EmptyHousesDialog({
   }, [houses, searchLower, sort]);
 
   const unregistered = houses.filter((h) => !h.landlord_id).length;
+  const targetedCount = houses.filter((h) => h.landlord_id && targets?.[h.landlord_id]).length;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -444,6 +465,9 @@ function EmptyHousesDialog({
             <Badge variant="outline" className="text-[10px]">{filtered.length} of {houses.length} shown</Badge>
             {unregistered > 0 && (
               <Badge className="text-[10px] text-amber-600 bg-amber-500/10">{unregistered} need landlord onboarding</Badge>
+            )}
+            {targetedCount > 0 && (
+              <Badge className="text-[10px] text-emerald-600 bg-emerald-500/10">{targetedCount} targeted for onboarding</Badge>
             )}
           </div>
         )}
@@ -493,6 +517,28 @@ function EmptyHousesDialog({
                       </button>
                     )}
                   </div>
+                  {h.landlord_id && (() => {
+                    const isTargeted = !!targets?.[h.landlord_id!];
+                    const isBusy = targeting === h.landlord_id;
+                    return (
+                      <Button
+                        variant={isTargeted ? 'secondary' : 'outline'}
+                        size="sm"
+                        disabled={isBusy}
+                        onClick={() => handleTargetAndOpen(h.landlord_id!, h.listing_id)}
+                        className="h-7 w-full mt-2 text-[11px] gap-1"
+                      >
+                        {isBusy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : isTargeted ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Crosshair className="h-3.5 w-3.5" />
+                        )}
+                        {isTargeted ? 'Targeted — open profile' : 'Target landlord & open profile'}
+                      </Button>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>
