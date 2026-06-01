@@ -293,3 +293,21 @@ export function useTargetLandlordForOnboarding() {
     await qc.invalidateQueries({ queryKey: TARGETS_KEY });
   }, [qc]);
 }
+
+export function useBulkTargetLandlordsForOnboarding() {
+  const qc = useQueryClient();
+  return useCallback(async (items: { landlordId: string; listingId?: string | null }[]) => {
+    const { data: auth } = await supabase.auth.getUser();
+    const rows = items.map((item) => ({
+      landlord_id: item.landlordId,
+      listing_id: item.listingId ?? null,
+      status: 'targeted',
+      targeted_by: auth.user?.id ?? null,
+    }));
+    const { error } = await supabase
+      .from('landlord_onboarding_targets' as any)
+      .upsert(rows, { onConflict: 'landlord_id' });
+    if (error) throw error;
+    await qc.invalidateQueries({ queryKey: TARGETS_KEY });
+  }, [qc]);
+}
