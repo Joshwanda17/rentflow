@@ -760,6 +760,13 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                   >
                                     <Pencil className="h-3 w-3" /> Change tenant profile
                                   </Button>
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="h-8 text-xs gap-1 border-amber-500/40 text-amber-700 hover:bg-amber-500/10"
+                                    onClick={() => setVacateTarget(l)}
+                                  >
+                                    <UserMinus className="h-3 w-3" /> Move out & replace
+                                  </Button>
                                   {req && (
                                     <Button
                                       size="sm" variant="outline" className="h-8 text-xs gap-1"
