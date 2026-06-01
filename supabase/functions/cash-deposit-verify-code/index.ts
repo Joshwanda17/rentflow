@@ -89,14 +89,6 @@ async function logEvent(
   }
 }
 
-// Normalize the entered code so the user can be a little sloppy: uppercase,
-// strip spaces/dashes, and ensure the RCT prefix.
-function normalizeCode(input: string): string {
-  let s = String(input || "").toUpperCase().replace(/[\s-]+/g, "").trim();
-  if (s && !s.startsWith("RCT")) s = `RCT${s}`;
-  return s;
-}
-
 const json = (status: number, payload: Record<string, unknown>) =>
   new Response(JSON.stringify(payload), {
     status,
