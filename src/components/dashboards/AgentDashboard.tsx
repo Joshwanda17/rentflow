@@ -435,6 +435,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     merchantBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setHighlightMerchant(true);
     window.setTimeout(() => setHighlightMerchant(false), 2200);
+    // Move keyboard focus to the button after smooth-scroll settles
+    window.setTimeout(() => merchantBtnRef.current?.focus(), 600);
   };
 
   const handleShareLandlordSignup = () => {
