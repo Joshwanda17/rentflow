@@ -41,6 +41,17 @@ const LEVEL_ICON: Record<string, React.ElementType> = {
 
 const REFRESH_OPTIONS = [5, 10, 30];
 
+// Funnel / activation health classification (Booking funded% + Airbnb activation)
+function pct(part: number, whole: number): number {
+  return whole > 0 ? Math.round((part / whole) * 100) : 0;
+}
+function healthTone(fundedPct: number, hasDemand: boolean) {
+  if (!hasDemand) return { label: 'No demand', cls: 'text-muted-foreground bg-muted', bar: 'bg-muted-foreground/40' };
+  if (fundedPct >= 70) return { label: 'Healthy', cls: 'text-emerald-600 bg-emerald-500/10', bar: 'bg-emerald-500' };
+  if (fundedPct >= 40) return { label: 'Watch', cls: 'text-amber-600 bg-amber-500/10', bar: 'bg-amber-500' };
+  return { label: 'Stalled', cls: 'text-red-600 bg-red-500/10', bar: 'bg-red-500' };
+}
+
 export function WelileOpsCounterBand() {
   const [win, setWin] = useState<CounterWindow>('7d');
   const [path, setPath] = useState<CounterPath>({});
@@ -60,11 +71,29 @@ export function WelileOpsCounterBand() {
       (acc, r) => {
         acc.rent += r.rent_count; acc.landlord += r.landlord_count;
         acc.agent += r.agent_count; acc.promissory += r.promissory_count;
+        acc.funded += r.rent_funded_count ?? 0;
         return acc;
       },
-      { rent: 0, landlord: 0, agent: 0, promissory: 0 },
+      { rent: 0, landlord: 0, agent: 0, promissory: 0, funded: 0 },
     );
   }, [list]);
+
+  // Zone-level agent activation is summed only at the agent level (distinct per bucket);
+  // at higher levels we approximate from the deepest distinct agents available.
+  const agentTotals = useMemo(() => {
+    return list.reduce(
+      (acc, r) => {
+        acc.distinct += r.distinct_agents ?? 0;
+        acc.active += r.active_agents ?? 0;
+        return acc;
+      },
+      { distinct: 0, active: 0 },
+    );
+  }, [list]);
+
+  const fundedPctAll = pct(totals.funded, totals.rent);
+  const activationPctAll = pct(agentTotals.active, agentTotals.distinct);
+  const healthAll = healthTone(fundedPctAll, totals.rent > 0);
 
   const crumbs: { label: string; onClick: () => void }[] = [
     { label: 'All', onClick: () => setPath({}) },
@@ -167,6 +196,38 @@ export function WelileOpsCounterBand() {
           );
         })}
       </div>
+
+      {/* Zone health: funnel (funded%) + activation (producing agents) */}
+      {!isLoading && (totals.rent > 0 || agentTotals.distinct > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+          <div className="rounded-xl border border-border bg-card p-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Rent funded</p>
+              <Badge className={cn('text-[10px]', healthAll.cls)}>{healthAll.label}</Badge>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-lg font-bold leading-none">{fundedPctAll}%</span>
+              <span className="text-[11px] text-muted-foreground">{totals.funded.toLocaleString()} / {totals.rent.toLocaleString()} requests</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted mt-1.5 overflow-hidden">
+              <div className={cn('h-full rounded-full transition-all', healthAll.bar)} style={{ width: `${fundedPctAll}%` }} />
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Agents producing</p>
+              <Badge variant="outline" className="text-[10px]">{activationPctAll}% active</Badge>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-lg font-bold leading-none">{agentTotals.active.toLocaleString()}</span>
+              <span className="text-[11px] text-muted-foreground">of {agentTotals.distinct.toLocaleString()} contributing agents funded ≥1</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted mt-1.5 overflow-hidden">
+              <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${activationPctAll}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {!collapsed && (
         <>
