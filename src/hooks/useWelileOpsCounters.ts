@@ -166,10 +166,10 @@ export interface MissionSummary {
   placements_new: number;
   placements_total: number;
   placement_agents: number;
-  promissory_new: number;
-  promissory_total: number;
-  promissory_activated: number;
-  promissory_amount: number;
+  funders_new: number;
+  funders_total: number;
+  funders_activated: number;
+  funders_amount: number;
 }
 
 export interface MissionAgentRow {
@@ -245,6 +245,71 @@ export function useMissionEmptyHouses(win: CounterWindow, enabled: boolean, refe
       const { data, error } = await supabase.rpc('welile_mission_empty_houses' as any, { p_since: since });
       if (error) throw error;
       return (data ?? []) as MissionEmptyHouseRow[];
+    },
+  });
+}
+
+// ===== Placed tenants (occupied houses = landlords linked to a tenant) =====
+
+export interface MissionPlacementRow {
+  landlord_id: string;
+  landlord_name: string | null;
+  landlord_phone: string | null;
+  property_address: string | null;
+  monthly_rent: number | null;
+  verified: boolean;
+  tenant_id: string | null;
+  tenant_name: string | null;
+  tenant_phone: string | null;
+  agent_id: string | null;
+  agent_name: string | null;
+  agent_phone: string | null;
+  created_at: string;
+}
+
+export function useMissionPlacements(win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled,
+    queryKey: ['welile-mission-placements', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionPlacementRow[]> => {
+      const { data, error } = await supabase.rpc('welile_mission_placements' as any, { p_since: since });
+      if (error) throw error;
+      return (data ?? []) as MissionPlacementRow[];
+    },
+  });
+}
+
+// ===== Funders (Partner Ops portfolios + promissory notes) =====
+
+export interface MissionFunderRow {
+  funder_key: string;
+  source: 'portfolio' | 'promissory';
+  name: string | null;
+  phone: string | null;
+  amount: number | null;
+  status: string | null;
+  activated: boolean;
+  reference: string | null;
+  agent_id: string | null;
+  agent_name: string | null;
+  investor_id: string | null;
+  created_at: string;
+}
+
+export function useMissionFunders(win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled,
+    queryKey: ['welile-mission-funders', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionFunderRow[]> => {
+      const { data, error } = await supabase.rpc('welile_mission_funders' as any, { p_since: since });
+      if (error) throw error;
+      return (data ?? []) as MissionFunderRow[];
     },
   });
 }
