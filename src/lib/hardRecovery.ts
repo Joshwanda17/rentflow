@@ -313,8 +313,8 @@ export async function clearAndReload(
 }
 
 /**
- * Full hard recovery: record the attempt, purge caches/SWs, then reload to a
- * cache-busted URL so iOS Safari fetches a fresh HTML shell from the network.
+ * Full hard recovery: record the attempt, purge caches/SWs, then plain reload.
+ * The document URL remains unchanged; built assets handle cache busting.
  */
 export async function hardRecover(): Promise<PurgeResult> {
   recordAttempt();
