@@ -88,8 +88,9 @@ const STRONG_PATTERNS: StrongPattern[] = [
   },
   // MTN reference code (legacy "MP…").
   { re: /\bMP[A-Z0-9]{8,}\b/i, label: 'MTN reference code', whole: true },
-  // Flutterwave (FLW / FW, optional dash/underscore).
-  { re: /\b(?:FLW|FW)[-_]?[A-Z0-9]{6,}\b/i, label: 'Flutterwave reference', whole: true },
+  // Flutterwave (FLW / FW), allowing internal dashes/underscores
+  // (e.g. "FLW-REF-998877").
+  { re: /\b(?:FLW|FW)[-_A-Z0-9]{5,}\b/i, label: 'Flutterwave reference', whole: true },
   // Card retrieval reference number (RRN) — common on bank card receipts.
   {
     re: new RegExp(String.raw`\bRRN` + SEP + String.raw`([A-Z0-9]{6,})\b`, 'i'),
@@ -99,11 +100,12 @@ const STRONG_PATTERNS: StrongPattern[] = [
   { re: /\b(?:FT|TXN|TRF|RIB|MMT|CR|DR)[-_]?[A-Z0-9]{6,}\b/i, label: 'bank reference', whole: true },
 ];
 
-// Generic labelled value. Label set is intentionally broad; SEP absorbs
-// trailing "No.", "Number", "Code", "#", "=", "-", ":" between label + value.
+// Generic labelled value. Label set is intentionally broad; SEP_GENERIC
+// requires a real marker (delimiter or No/Number/Code keyword) so prose
+// words like "confirmed" or "No reference here" don't match.
 const GENERIC_PATTERN = new RegExp(
   String.raw`\b(?:Txn\s?ID|Transaction\s?ID|Trans\s?ID|Reference|Ref|Receipt|Confirmation(?:\s?Code)?|Conf|Voucher|Token)` +
-    SEP +
+    SEP_GENERIC +
     String.raw`([A-Z0-9][A-Z0-9\-_/]{3,})\b`,
   'i',
 );
