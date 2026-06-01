@@ -5,6 +5,11 @@
 // approve-deposit (system_auto_credit) and email the depositor a confirmation
 // with the verified amount and their updated balance (existing Gmail).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  evaluateAttempt,
+  normalizeCode,
+  sha256Hex,
+} from "../_shared/cash-verification-core.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,14 +18,6 @@ const corsHeaders = {
 };
 
 const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1";
-
-async function sha256Hex(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function b64url(input: string): string {
   return btoa(unescape(encodeURIComponent(input)))
@@ -92,14 +89,6 @@ async function logEvent(
   }
 }
 
-// Normalize the entered code so the user can be a little sloppy: uppercase,
-// strip spaces/dashes, and ensure the RCT prefix.
-function normalizeCode(input: string): string {
-  let s = String(input || "").toUpperCase().replace(/[\s-]+/g, "").trim();
-  if (s && !s.startsWith("RCT")) s = `RCT${s}`;
-  return s;
-}
-
 const json = (status: number, payload: Record<string, unknown>) =>
   new Response(JSON.stringify(payload), {
     status,
@@ -145,7 +134,11 @@ Deno.serve(async (req) => {
       return json(404, { error: "not_found", message: "No pending cash deposit found for this code." });
     }
 
-    if (ver.status === "verified") {
+    // ── Pure decision: already-verified → expiry (24h) → attempt cap → hash ──
+    const enteredHash = await sha256Hex(enteredCode);
+    const decision = evaluateAttempt(ver as any, enteredHash, Date.now());
+
+    if (decision.kind === "already_verified") {
       await logEvent(admin, {
         verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
         event_type: "already_verified", amount: Number(ver.amount),
@@ -154,10 +147,7 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, already_verified: true, message: "This deposit was already verified." });
     }
 
-    // ── Expiry ──
-    const now = Date.now();
-    const expired = ver.status === "expired" || new Date(ver.expires_at).getTime() < now;
-    if (expired) {
+    if (decision.kind === "expired") {
       if (ver.status !== "expired") {
         await admin.from("cash_deposit_verifications").update({ status: "expired" }).eq("id", ver.id);
       }
@@ -170,8 +160,7 @@ Deno.serve(async (req) => {
       return json(410, { error: "expired", message: "This code has expired. Please start a new cash deposit." });
     }
 
-    // ── Attempt limit ──
-    if (Number(ver.attempts) >= Number(ver.max_attempts)) {
+    if (decision.kind === "too_many_attempts") {
       await admin.from("cash_deposit_verifications").update({ status: "expired" }).eq("id", ver.id);
       await logEvent(admin, {
         verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
@@ -183,12 +172,8 @@ Deno.serve(async (req) => {
       return json(429, { error: "too_many_attempts", message: "Too many incorrect attempts. Please start a new cash deposit." });
     }
 
-    // ── Compare hashes ──
-    const enteredHash = await sha256Hex(enteredCode);
-    if (enteredHash !== ver.code_hash) {
-      const newAttempts = Number(ver.attempts) + 1;
-      const remaining = Math.max(0, Number(ver.max_attempts) - newAttempts);
-      const lockNow = remaining <= 0;
+    if (decision.kind === "mismatch") {
+      const { newAttempts, attemptsRemaining: remaining, lock: lockNow } = decision;
       await admin
         .from("cash_deposit_verifications")
         .update({ attempts: newAttempts, ...(lockNow ? { status: "expired" } : {}) })
