@@ -290,6 +290,13 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
                           </div>
                         )}
 
+                        {/* Agent reward progress (1k → 4k → 5k) for listed-house requests */}
+                        <RentRewardChips
+                          isListed={!!req.house_listing_id}
+                          landlordVerified={!!req.landlord?.verified}
+                          status={req.status}
+                        />
+
                         {/* Details */}
                         <div className="px-4 pb-3 space-y-1 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
