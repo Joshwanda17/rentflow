@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,15 +53,33 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [agentName, setAgentName] = useState('');
   const [pin, setPin] = useState('');
   const [creditedAmount, setCreditedAmount] = useState(0);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
-    setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0);
+    setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
   };
 
   const close = () => { reset(); onOpenChange(false); };
 
   const amountNum = parseFloat(amount);
+
+  // Tick the countdown while the depositor is on the PIN step.
+  useEffect(() => {
+    if (step !== 'pin' || !expiresAt) return;
+    const iv = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(iv);
+  }, [step, expiresAt]);
+
+  const secsLeft = expiresAt
+    ? Math.max(0, Math.round((new Date(expiresAt).getTime() - now) / 1000))
+    : null;
+  const expired = secsLeft !== null && secsLeft <= 0;
+  const countdownLabel =
+    secsLeft === null
+      ? ''
+      : `${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, '0')}`;
 
   const handleCreate = async () => {
     if (!Number.isFinite(amountNum) || amountNum < 500) {
@@ -87,6 +105,8 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       }
       setSessionId(data.session_id);
       setAgentName(data.agent_name || 'the agent');
+      setExpiresAt(data.expires_at ?? null);
+      setNow(Date.now());
       setStep('pin');
     } catch (e) {
       toast.error('Network error. Please try again.');
