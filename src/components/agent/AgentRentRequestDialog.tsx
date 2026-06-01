@@ -76,6 +76,24 @@ interface AgentRentRequestDialogProps {
   /** Optional id of a saved draft this submission should resolve. On success
    *  the draft is marked `submitted` and linked to the new rent_request. */
   draftId?: string | null;
+  /** When provided, the dialog opens with this house already selected (used by
+   *  the "Swap tenant" flow after the previous tenant is moved out) so the
+   *  agent goes straight to linking the new tenant — no re-search needed. */
+  preselectHouse?: {
+    id: string;
+    title: string;
+    address: string | null;
+    region: string | null;
+    district: string | null;
+    house_category: string | null;
+    monthly_rent: number | null;
+    short_code: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    landlord_id: string | null;
+    landlord_name: string | null;
+    landlord_phone: string | null;
+  } | null;
 }
 
 type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
