@@ -225,6 +225,13 @@ export function WelileMissionBoard() {
         })}
       </div>
 
+      {/* Agent network — the driving force across all 3 priorities */}
+      <AgentNetworkCard
+        network={network}
+        loading={networkLoading}
+        onOpenAgent={(id) => setDrawer({ agentId: id, tab: 'agent' })}
+      />
+
       {/* Supply → placement funnel */}
       {summary && !isLoading && (
         <div className="rounded-xl border border-border bg-card p-3 mt-2">
