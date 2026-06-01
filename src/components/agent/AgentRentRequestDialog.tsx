@@ -51,6 +51,7 @@ import {
   MessageCircle,
   Home,
   AlertTriangle,
+  AlertCircle,
   Phone,
   Search,
   UserPlus,
@@ -403,6 +404,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [houseSearchedOnce, setHouseSearchedOnce] = useState(false);
   const [selectedHouse, setSelectedHouse] = useState<AvailableHouse | null>(null);
   const [showListHouse, setShowListHouse] = useState(false);
+  // Live conflict check: true when the selected house has been reserved /
+  // occupied / hidden by another agent since it was picked.
+  const [houseConflict, setHouseConflict] = useState(false);
+  const [houseConflictChecking, setHouseConflictChecking] = useState(false);
 
   // Map a house_listings category (underscored) to this form's category values.
   const mapHouseCategory = (cat: string | null): string => {
@@ -526,6 +531,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const selectHouse = useCallback(
     (h: AvailableHouse) => {
       setSelectedHouse(h);
+      setHouseConflict(false);
       if (h.monthly_rent) setRentAmount(String(h.monthly_rent));
       if (h.landlord_name) setLandlordName(h.landlord_name);
       if (h.landlord_phone) setLandlordPhone(formatPhoneInput(h.landlord_phone));
@@ -546,6 +552,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const clearSelectedHouse = useCallback(() => {
     setSelectedHouse(null);
+    setHouseConflict(false);
   }, []);
 
   // Auto-load available houses the first time the agent reaches the details
@@ -556,6 +563,51 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, step, incomeType, houseSearchedOnce]);
+
+  // ── Live conflict check ──────────────────────────────────────────────
+  // While a house is selected, re-verify in the background that it's still
+  // available (single-row lookup, cheap). If another agent reserved/occupied/
+  // hid it in the meantime, flip on an inline warning so the agent can pick a
+  // different one before submitting. Polls every 15s + re-checks on tab focus.
+  useEffect(() => {
+    const houseId = selectedHouse?.id;
+    if (!open || !houseId || incomeType === 'outstanding') return;
+
+    let cancelled = false;
+    const check = async () => {
+      setHouseConflictChecking(true);
+      try {
+        const { data, error } = await supabase
+          .from('house_listings')
+          .select('id, status, tenant_id, reserved_at, is_hidden')
+          .eq('id', houseId)
+          .maybeSingle();
+        if (cancelled || error) return;
+        const taken =
+          !data ||
+          (data as any).tenant_id !== null ||
+          (data as any).reserved_at !== null ||
+          (data as any).is_hidden === true ||
+          (data as any).status !== 'available';
+        setHouseConflict(taken);
+      } catch {
+        /* best-effort — never block the form */
+      } finally {
+        if (!cancelled) setHouseConflictChecking(false);
+      }
+    };
+
+    check();
+    const intervalId = window.setInterval(check, 15000);
+    const onFocus = () => check();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedHouse?.id, incomeType]);
   
   // Existing tenants this agent has already registered — used for the
   // one-tap auto-fill so agents don't re-key phone/National ID/photo.
@@ -1368,6 +1420,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       // so we use the selected ID directly. Other flows fall back to upsert-by-phone.
       const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
       let landlordId: string;
+
+      // ===== Final live conflict check (fresh DB read) =====
+      // High-stakes: re-verify the selected house is still available at submit
+      // time so two agents can't link the same house. Never trust the cached
+      // selection or the background poll alone.
+      if (!isOutstanding && selectedHouse?.id) {
+        const { data: freshHouse } = await supabase
+          .from('house_listings')
+          .select('id, status, tenant_id, reserved_at, is_hidden')
+          .eq('id', selectedHouse.id)
+          .maybeSingle();
+        const taken =
+          !freshHouse ||
+          (freshHouse as any).tenant_id !== null ||
+          (freshHouse as any).reserved_at !== null ||
+          (freshHouse as any).is_hidden === true ||
+          (freshHouse as any).status !== 'available';
+        if (taken) {
+          setHouseConflict(true);
+          toast.error('This house was just reserved by another agent', {
+            description: 'Please pick a different available house before submitting.',
+          });
+          setLoading(false);
+          return;
+        }
+      }
 
       if (!isOutstanding && selectedHouse?.landlord_id) {
         // The agent selected an available house from the search. Its landlord is
@@ -2242,6 +2320,29 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <X className="h-3.5 w-3.5 mr-1" /> Change
                       </Button>
                     </div>
+                    {houseConflict && (
+                      <div className="mt-2 rounded-lg border border-destructive/50 bg-destructive/10 p-2.5">
+                        <p className="text-xs font-semibold text-destructive flex items-start gap-1.5">
+                          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                          <span>
+                            This house was just reserved by another agent. Please pick a
+                            different one before submitting.
+                          </span>
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 px-2 text-xs mt-2"
+                          onClick={() => {
+                            clearSelectedHouse();
+                            searchAvailableHouses();
+                          }}
+                        >
+                          <Search className="h-3.5 w-3.5 mr-1" /> Pick another house
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
