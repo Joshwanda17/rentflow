@@ -532,6 +532,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const clearSelectedHouse = useCallback(() => {
     setSelectedHouse(null);
   }, []);
+
+  // Auto-load available houses the first time the agent reaches the details
+  // step in the standard flow, so the picker is ready immediately.
+  useEffect(() => {
+    if (open && step === 'details' && incomeType !== 'outstanding' && !houseSearchedOnce) {
+      searchAvailableHouses();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, step, incomeType, houseSearchedOnce]);
   
   // Existing tenants this agent has already registered — used for the
   // one-tap auto-fill so agents don't re-key phone/National ID/photo.
