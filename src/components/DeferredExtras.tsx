@@ -1,7 +1,6 @@
 import { lazy, Suspense, useState, useEffect, Component, ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
-import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 import UpdateAvailableToast from "@/components/UpdateAvailableToast";
 
@@ -23,7 +22,6 @@ export default function DeferredExtras() {
   const { pathname } = useLocation();
 
   useForceRefresh();
-  useIOSCacheInvalidation();
 
   const { user } = useAuth();
 
