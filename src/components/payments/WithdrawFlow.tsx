@@ -1452,6 +1452,79 @@ export default function WithdrawFlow({
               total={{ label: "You'll Receive", value: formatCurrency(amount, currency) }}
               showSecurityNote={false}
             />
+
+            {/* ── Mandatory SMS OTP verification ───────────────────────── */}
+            <div className="rounded-xl border border-border bg-muted/20 p-4 text-left space-y-3">
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-primary" />
+                <h4 className="text-sm font-semibold">Verify it's you</h4>
+                {otpVerified && (
+                  <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-success">
+                    <BadgeCheck className="w-3.5 h-3.5" /> Verified
+                  </span>
+                )}
+              </div>
+
+              {!profilePhone ? (
+                <p className="text-xs text-destructive">
+                  No phone number is on file for your account. Add your phone in your profile to withdraw.
+                </p>
+              ) : otpVerified ? (
+                <p className="text-xs text-muted-foreground">
+                  Code confirmed for {maskedPhone}. Tap Confirm Withdrawal to submit.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    We'll send a 6-digit code by SMS to <span className="font-medium text-foreground">{maskedPhone}</span>.
+                  </p>
+
+                  {!otpSent ? (
+                    <Button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={sendingOtp}
+                      className="w-full"
+                    >
+                      {sendingOtp ? 'Sending…' : 'Send code'}
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <Input
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        placeholder="Enter 6-digit code"
+                        value={otpCode}
+                        onChange={(e) => {
+                          setOtpError(null);
+                          setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                        }}
+                        className="text-center text-lg tracking-[0.4em] font-mono"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleVerifyOtp}
+                        disabled={verifyingOtp || otpCode.trim().length !== 6}
+                        className="w-full"
+                      >
+                        {verifyingOtp ? 'Verifying…' : 'Verify code'}
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={handleSendOtp}
+                        disabled={sendingOtp || otpResendRemaining > 0}
+                        className="w-full text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      >
+                        {otpResendRemaining > 0 ? `Resend code in ${otpResendRemaining}s` : 'Resend code'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {otpError && <p className="text-xs text-destructive">{otpError}</p>}
+            </div>
           </div>
         );
 
