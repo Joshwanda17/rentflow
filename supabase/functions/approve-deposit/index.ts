@@ -306,7 +306,25 @@ Deno.serve(async (req) => {
       ? 'System Auto-Credit'
       : (processorProfile?.full_name || "Manager");
 
-    if (!isManagerRole) {
+    // ── Cash-deposit system credit bypass ───────────────────────────────
+    // The cash-deposit-verify-code function calls us with the service-role
+    // key + system_auto_credit:true AFTER it has hashed + matched the
+    // depositor's receipt code, enforced expiry/attempt limits, and atomically
+    // claimed the verification row. The code check IS the authorization, so we
+    // skip the MoMo gmail re-verification / agent-ownership gate below — but
+    // ONLY for genuine cash deposits (every row provider='cash_deposit',
+    // pending) approved via the trusted service-role path. Any other provider
+    // still falls through to the existing checks.
+    const eligibleCashSystemCredit =
+      isSystemAutoCredit &&
+      action === 'approve' &&
+      depositRequests.every(
+        (d) =>
+          String(d.provider || '').toLowerCase() === 'cash_deposit' &&
+          String(d.status) === 'pending',
+      );
+
+    if (!isManagerRole && !eligibleCashSystemCredit) {
       // ── Auto-approve path (MoMo gmail match) ──────────────────────────
       // A regular user (typically an agent) can self-approve their OWN
       // pending deposit IF and ONLY IF:
