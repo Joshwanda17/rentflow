@@ -245,6 +245,34 @@ export function useMissionAgentNetwork(win: CounterWindow, refetchIntervalMs?: n
   });
 }
 
+// ===== Agent network driver drill-down (entities behind a priority) =====
+
+export type MissionDriverKey = 'list' | 'place' | 'fund';
+
+export interface MissionDriverEntity {
+  entity_type: 'agent' | 'tenant' | 'landlord' | 'funder';
+  entity_id: string | null;
+  name: string | null;
+  phone: string | null;
+  detail: string | null;
+  created_at: string;
+}
+
+export function useMissionDriverEntities(driver: MissionDriverKey | null, win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled: enabled && !!driver,
+    queryKey: ['welile-mission-driver-entities', driver, win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionDriverEntity[]> => {
+      const { data, error } = await supabase.rpc('welile_mission_driver_entities' as any, { p_driver: driver, p_since: since });
+      if (error) throw error;
+      return (data ?? []) as MissionDriverEntity[];
+    },
+  });
+}
+
 export interface MissionEmptyHouseRow {
   listing_id: string;
   title: string | null;
