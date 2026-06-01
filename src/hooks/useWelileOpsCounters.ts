@@ -20,6 +20,9 @@ export interface CounterBreakdownRow {
   agent_count: number;
   promissory_count: number;
   total_count: number;
+  rent_funded_count: number;
+  distinct_agents: number;
+  active_agents: number;
 }
 
 export interface CounterItemRow {
