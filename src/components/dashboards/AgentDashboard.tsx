@@ -429,12 +429,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   // Guided click: scroll to and briefly highlight the Merchant Payouts button
   const merchantBtnRef = useRef<HTMLButtonElement>(null);
+  const merchantCloseBtnRef = useRef<HTMLButtonElement>(null);
   const [highlightMerchant, setHighlightMerchant] = useState(false);
   const guideToMerchantButton = () => {
     hapticTap();
+    const previousFocus = document.activeElement as HTMLElement | null;
     merchantBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setHighlightMerchant(true);
-    window.setTimeout(() => setHighlightMerchant(false), 2200);
+    window.setTimeout(() => {
+      setHighlightMerchant(false);
+      // Restore focus to the banner close button or last focused element
+      (previousFocus && document.contains(previousFocus)
+        ? previousFocus
+        : merchantCloseBtnRef.current
+      )?.focus();
+    }, 2200);
     // Move keyboard focus to the button after smooth-scroll settles
     window.setTimeout(() => merchantBtnRef.current?.focus(), 600);
   };
