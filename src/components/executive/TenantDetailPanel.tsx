@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save, X, Loader2, ArrowRightLeft, Banknote, Wallet, FileText, FileSpreadsheet } from 'lucide-react';
+import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save, X, Loader2, ArrowRightLeft, Banknote, Wallet, FileText, FileSpreadsheet, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -70,6 +70,12 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Last successful collection receipt — drives the download (PDF/Excel) UI.
   const [lastReceipt, setLastReceipt] = useState<RentCollectionReceiptData | null>(null);
   const [downloadingReceipt, setDownloadingReceipt] = useState<'pdf' | 'xlsx' | null>(null);
+  // Receipt validation — confirms the receipt amounts (UGX), commission and
+  // remaining balance reconcile against the posted collection ledger before
+  // the receipt can be downloaded.
+  const [validating, setValidating] = useState(false);
+  const [validation, setValidation] = useState<{ ok: boolean; issues: string[] } | null>(null);
+  const [validationOverride, setValidationOverride] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
@@ -437,6 +443,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
         date: new Date(),
         currency: 'UGX',
       });
+      // Reset any prior validation — the new receipt must be reconciled fresh.
+      setValidation(null);
+      setValidationOverride(false);
       setCollectingReqId(null);
       setCollectReason('');
       queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
@@ -446,8 +455,98 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     onError: (e: any) => toast.error(e.message || 'Collection failed'),
   });
 
+  // Reconcile the receipt against the posted collection ledger. Checks that the
+  // tenant/agent UGX deductions, total collected, 10% commission, and remaining
+  // balance on the receipt match the double-entry ledger before download.
+  const validateReceiptAgainstLedger = async (): Promise<{ ok: boolean; issues: string[] }> => {
+    const r = lastReceipt;
+    if (!r) return { ok: false, issues: ['No receipt to validate.'] };
+    const issues: string[] = [];
+    const TOL = 1; // allow ≤1 UGX rounding difference
+    const near = (a: number, b: number) => Math.abs(Math.round(a) - Math.round(b)) <= TOL;
+    const ugx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+
+    // Fresh rent request — never trust the cache for high-stakes reconciliation.
+    const { data: rr, error: rrErr } = await supabase
+      .from('rent_requests')
+      .select('total_repayment, amount_repaid, rent_amount, registration_type, agent_id, assigned_agent_id, tenant_id')
+      .eq('id', r.reference)
+      .single();
+    if (rrErr || !rr) return { ok: false, issues: ['Could not load the rent request to reconcile.'] };
+
+    const agentId = (rr.assigned_agent_id || rr.agent_id) as string | null;
+    const since = new Date(r.date.getTime() - 15 * 60 * 1000).toISOString();
+    const { data: legs, error: legErr } = await supabase
+      .from('general_ledger')
+      .select('user_id, category, direction, amount, currency, created_at')
+      .eq('source_id', r.reference)
+      .eq('ledger_scope', 'wallet')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false });
+    if (legErr) return { ok: false, issues: ['Could not load the collection ledger to reconcile.'] };
+
+    const rows = legs || [];
+    if (rows.length === 0) {
+      return { ok: false, issues: ['No matching collection ledger entries were found for this receipt.'] };
+    }
+
+    // Currency must be UGX on every leg.
+    const badCurrency = rows.find((l: any) => (l.currency || 'UGX') !== 'UGX');
+    if (badCurrency) issues.push(`Ledger contains a non-UGX entry (${badCurrency.currency}).`);
+
+    const sum = (pred: (l: any) => boolean) =>
+      rows.filter(pred).reduce((s: number, l: any) => s + Number(l.amount || 0), 0);
+
+    const tenantLedger = sum((l) => l.category === 'tenant_repayment' && l.direction === 'cash_out' && l.user_id === rr.tenant_id);
+    const agentLedger = agentId
+      ? sum((l) => l.category === 'tenant_repayment' && l.direction === 'cash_out' && l.user_id === agentId)
+      : 0;
+    const commissionLedger = sum((l) => l.category === 'agent_commission_earned' && l.direction === 'cash_in');
+    const totalLedger = tenantLedger + agentLedger;
+
+    if (!near(tenantLedger, r.tenantDeducted))
+      issues.push(`Tenant deduction mismatch — receipt ${ugx(r.tenantDeducted)} vs ledger ${ugx(tenantLedger)}.`);
+    if (!near(agentLedger, r.agentDeducted))
+      issues.push(`Agent deduction mismatch — receipt ${ugx(r.agentDeducted)} vs ledger ${ugx(agentLedger)}.`);
+    if (!near(totalLedger, r.totalCollected))
+      issues.push(`Total collected mismatch — receipt ${ugx(r.totalCollected)} vs ledger ${ugx(totalLedger)}.`);
+    if (typeof r.commissionPaid === 'number' && !near(commissionLedger, r.commissionPaid))
+      issues.push(`Commission mismatch — receipt ${ugx(r.commissionPaid)} vs ledger ${ugx(commissionLedger)}.`);
+
+    // Remaining balance: fresh obligation minus fresh repaid.
+    const obligation = rr.registration_type === 'outstanding_balance'
+      ? Number(rr.total_repayment || 0)
+      : Number(rr.rent_amount || 0);
+    const ledgerRemaining = Math.max(0, obligation - Number(rr.amount_repaid || 0));
+    if (typeof r.remainingBalance === 'number' && !near(ledgerRemaining, r.remainingBalance))
+      issues.push(`Remaining balance mismatch — receipt ${ugx(r.remainingBalance)} vs ledger ${ugx(ledgerRemaining)}.`);
+
+    return { ok: issues.length === 0, issues };
+  };
+
+  const handleValidateReceipt = async () => {
+    if (!lastReceipt) return;
+    setValidating(true);
+    try {
+      const result = await validateReceiptAgainstLedger();
+      setValidation(result);
+      if (result.ok) toast.success('Receipt reconciled with the collection ledger');
+      else toast.error('Receipt does not match the ledger — review before downloading');
+    } catch (e: any) {
+      setValidation({ ok: false, issues: [e?.message || 'Validation failed'] });
+      toast.error('Could not validate the receipt');
+    } finally {
+      setValidating(false);
+    }
+  };
+
   const handleDownloadReceipt = async (fmt: 'pdf' | 'xlsx') => {
     if (!lastReceipt) return;
+    // Gate download on a successful ledger reconciliation (or explicit override).
+    if (!(validation?.ok || validationOverride)) {
+      toast.error('Verify the receipt against the ledger before downloading');
+      return;
+    }
     setDownloadingReceipt(fmt);
     try {
       if (fmt === 'pdf') await downloadRentCollectionReceiptPdf(lastReceipt);
@@ -792,32 +891,79 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                               );
                             })()}
                             {lastReceipt?.reference === req.id && (
-                              <div className="mt-1 space-y-1.5 rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                              <div className="mt-1 space-y-2 rounded-md border border-emerald-200 bg-emerald-50 p-2">
                                 <p className="text-[11px] font-medium text-emerald-800">
                                   Collected UGX {Math.round(lastReceipt.totalCollected).toLocaleString()} · download receipt
                                 </p>
-                                <div className="flex gap-2">
+
+                                {/* Step 1 — reconcile against the collection ledger */}
+                                {!validation?.ok && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
-                                    onClick={() => handleDownloadReceipt('pdf')}
-                                    disabled={downloadingReceipt !== null}
+                                    className="h-7 w-full text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                    onClick={handleValidateReceipt}
+                                    disabled={validating}
                                   >
-                                    {downloadingReceipt === 'pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
-                                    PDF
+                                    {validating ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+                                    {validating ? 'Verifying ledger…' : 'Verify against ledger'}
                                   </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
-                                    onClick={() => handleDownloadReceipt('xlsx')}
-                                    disabled={downloadingReceipt !== null}
-                                  >
-                                    {downloadingReceipt === 'xlsx' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSpreadsheet className="h-3 w-3" />}
-                                    Excel
-                                  </Button>
-                                </div>
+                                )}
+
+                                {validation?.ok && (
+                                  <p className="text-[11px] font-medium text-emerald-800 flex items-center gap-1">
+                                    <ShieldCheck className="h-3 w-3" /> Reconciled — amounts, commission & balance match the ledger
+                                  </p>
+                                )}
+
+                                {validation && !validation.ok && (
+                                  <div className="space-y-1 rounded border border-destructive/30 bg-destructive/5 p-1.5">
+                                    <p className="text-[11px] font-semibold text-destructive flex items-center gap-1">
+                                      <ShieldAlert className="h-3 w-3" /> Ledger mismatch
+                                    </p>
+                                    <ul className="list-disc pl-4 space-y-0.5">
+                                      {validation.issues.map((iss, i) => (
+                                        <li key={i} className="text-[10.5px] text-destructive">{iss}</li>
+                                      ))}
+                                    </ul>
+                                    {!validationOverride && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-full text-[10.5px] text-destructive hover:bg-destructive/10"
+                                        onClick={() => setValidationOverride(true)}
+                                      >
+                                        Download anyway (override)
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Step 2 — download once reconciled (or overridden) */}
+                                {(validation?.ok || validationOverride) && (
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                      onClick={() => handleDownloadReceipt('pdf')}
+                                      disabled={downloadingReceipt !== null}
+                                    >
+                                      {downloadingReceipt === 'pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />}
+                                      PDF
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 flex-1 text-xs gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                                      onClick={() => handleDownloadReceipt('xlsx')}
+                                      disabled={downloadingReceipt !== null}
+                                    >
+                                      {downloadingReceipt === 'xlsx' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSpreadsheet className="h-3 w-3" />}
+                                      Excel
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </>
