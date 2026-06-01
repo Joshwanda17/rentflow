@@ -203,6 +203,44 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
     }
   };
 
+  // Single "Swap tenant" flow: move the current tenant out and immediately open
+  // the rent request dialog with this house preselected so the agent links the
+  // new tenant without re-searching. One confirmation, then straight to the form.
+  const handleSwap = async () => {
+    if (!swapTarget || !user?.id) return;
+    setSwapping(true);
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ tenant_id: null, status: 'available' })
+        .eq('id', swapTarget.id)
+        .eq('agent_id', user.id);
+      if (error) throw error;
+      const landlord = swapTarget.landlord_id ? enrichment.landlords[swapTarget.landlord_id] : null;
+      setSwapHouseForLink({
+        id: swapTarget.id,
+        title: swapTarget.title,
+        address: swapTarget.address ?? null,
+        region: swapTarget.region ?? null,
+        district: swapTarget.district ?? null,
+        house_category: swapTarget.house_category ?? null,
+        monthly_rent: swapTarget.monthly_rent ?? null,
+        short_code: swapTarget.short_code ?? null,
+        latitude: swapTarget.latitude ?? null,
+        longitude: swapTarget.longitude ?? null,
+        landlord_id: swapTarget.landlord_id ?? null,
+        landlord_name: landlord?.name ?? null,
+        landlord_phone: landlord?.phone ?? null,
+      });
+      setSwapTarget(null);
+      refresh();
+    } catch (err: any) {
+      toast({ title: 'Could not swap tenant', description: err.message, variant: 'destructive' });
+    } finally {
+      setSwapping(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     if (deleteTarget.tenant_id) {
