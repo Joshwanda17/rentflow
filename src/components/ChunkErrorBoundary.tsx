@@ -183,9 +183,13 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {this.state.isRetrying ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Clearing...</>
+                  <span key="retrying" className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Clearing...
+                  </span>
                 ) : (
-                  <><RefreshCw className="w-4 h-4" /> Clear old app & reload</>
+                  <span key="idle" className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4" /> Clear old app & reload
+                  </span>
                 )}
               </button>
               <p className="text-xs text-muted-foreground/60">
@@ -218,9 +222,13 @@ class ChunkErrorBoundary extends Component<Props, State> {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {this.state.isRetrying ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Refreshing...</>
+                  <span key="retrying" className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Refreshing...
+                  </span>
                 ) : (
-                  <><RefreshCw className="w-4 h-4" /> Clear & Reload Now</>
+                  <span key="idle" className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4" /> Clear & Reload Now
+                  </span>
                 )}
               </button>
               <p className="text-xs text-muted-foreground/60">
