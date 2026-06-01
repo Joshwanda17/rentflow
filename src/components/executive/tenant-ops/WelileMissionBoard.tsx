@@ -12,6 +12,7 @@ import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
+import { useMissionAgentNetwork, type MissionAgentNetwork } from '@/hooks/useWelileOpsCounters';
 import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
 import { useMissionPlacements, type MissionPlacementRow } from '@/hooks/useWelileOpsCounters';
 import { useMissionFunders, type MissionFunderRow } from '@/hooks/useWelileOpsCounters';
@@ -22,7 +23,7 @@ import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
-  ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2,
+  ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -88,6 +89,7 @@ export function WelileMissionBoard() {
   const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
   const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(win, showAgents, intervalMs);
   const agents: MissionAgentRow[] = agentData ?? [];
+  const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(win, intervalMs);
 
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
