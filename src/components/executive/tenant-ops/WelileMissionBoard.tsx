@@ -372,6 +372,24 @@ function EmptyHousesDialog({
   const [sort, setSort] = useState<EmptySort>('rent_desc');
   const { data, isLoading } = useMissionEmptyHouses(win, open, refetchIntervalMs);
   const houses: MissionEmptyHouseRow[] = data ?? [];
+  const { data: targets } = useLandlordOnboardingTargets(open);
+  const targetLandlord = useTargetLandlordForOnboarding();
+  const [targeting, setTargeting] = useState<string | null>(null);
+
+  const handleTargetAndOpen = async (landlordId: string, listingId: string) => {
+    setTargeting(landlordId);
+    try {
+      if (!targets?.[landlordId]) {
+        await targetLandlord(landlordId, listingId);
+        toast.success('Landlord marked as targeted for onboarding');
+      }
+      onOpenLandlord(landlordId);
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not mark landlord as targeted');
+    } finally {
+      setTargeting(null);
+    }
+  };
 
   const searchLower = search.trim().toLowerCase();
   const filtered = useMemo(() => {
