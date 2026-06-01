@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 import { SOLVENCY_BYPASS_REASONS, type SolvencyBypassReasonCode } from '@/lib/solvencyBypassReasons';
+import { parseSMS } from '@/utils/smsParser';
 
 /**
  * Fetches current wallet bucket balances (cache view) for a user so the
@@ -631,6 +632,10 @@ export interface EmailRowForRouting {
    *  debit flow to compose a reason that names who actually received the
    *  money rather than the bank/MNO that sent the confirmation email. */
   counterparty?: string | null;
+  /** Raw email body / preview text. Used to auto-extract a MoMo / bank
+   *  transaction reference when the email carries no parsed transaction_id
+   *  of its own, so operators don't have to retype it manually. */
+  snippet?: string | null;
 }
 
 export interface PrefilledUser {
@@ -691,6 +696,10 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // reconcile or de-duplicate it — so we let Financial Ops type the physical
   // receipt / TID number and forward it as the idempotency key.
   const [manualReference, setManualReference] = useState('');
+  // True when `manualReference` was auto-extracted from the email body
+  // (subject + snippet) rather than typed by the operator. Drives the
+  // "auto-detected" hint and is cleared the moment the operator edits it.
+  const [autoExtractedRef, setAutoExtractedRef] = useState(false);
   // Which bucket of the source user to debit when transferring.
   // 'withdrawable' = personal balance, 'float' = operational/landlord-payout float.
   const [transferFromBucket, setTransferFromBucket] = useState<'withdrawable' | 'float'>('withdrawable');
@@ -860,7 +869,17 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
-      setManualReference('');
+      // Auto-extract a reference from the email body when the email itself
+      // carries no parsed transaction_id, so operators don't have to type it.
+      if (!row.transaction_id) {
+        const parsed = parseSMS(`${row.subject ?? ''} ${row.snippet ?? ''}`);
+        const auto = parsed.transactionId?.trim() ?? '';
+        setManualReference(auto);
+        setAutoExtractedRef(auto.length >= 4);
+      } else {
+        setManualReference('');
+        setAutoExtractedRef(false);
+      }
       setAwaitingConfirm(false);
       setPendingAutoSubmit(null);
       const tid = row.transaction_id ? ` TID ${row.transaction_id}` : '';
@@ -2123,12 +2142,17 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               </Label>
               <Input
                 value={manualReference}
-                onChange={(e) => setManualReference(e.target.value)}
+                onChange={(e) => { setManualReference(e.target.value); setAutoExtractedRef(false); }}
                 placeholder="MoMo / bank reference or receipt no."
                 className="h-11 mt-1 font-mono"
                 autoComplete="off"
               />
-              {!lowData && (
+              {autoExtractedRef ? (
+                <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  Auto-detected from the email body — confirm it matches the physical receipt, or edit if wrong.
+                </p>
+              ) : !lowData && (
                 <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
                   This email has no reference of its own, so it can't be reconciled or de-duplicated automatically. Enter the physical MoMo / bank reference from the payment before crediting.
                 </p>
