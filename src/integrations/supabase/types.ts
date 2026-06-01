@@ -19550,6 +19550,26 @@ export type Database = {
           total_count: number
         }[]
       }
+      welile_ops_zone_landlords: {
+        Args: {
+          p_city?: string
+          p_continent?: string
+          p_country?: string
+          p_since?: string
+        }
+        Returns: {
+          agent_name: string
+          first_activity: string
+          is_producing: boolean
+          landlord_id: string
+          landlord_name: string
+          landlord_phone: string
+          last_activity: string
+          registered_by: string
+          rent_count: number
+          rent_funded_count: number
+        }[]
+      }
       writedown_historical_drift: {
         Args: { p_amount: number; p_reason: string; p_review_id: string }
         Returns: string
