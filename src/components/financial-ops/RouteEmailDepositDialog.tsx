@@ -2176,10 +2176,60 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 }
                 if (autoExtractedRef && refCheck.valid) {
                   return (
-                    <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                      <Check className="h-3.5 w-3.5 shrink-0" />
-                      Auto-detected from the email body — confirm it matches the physical receipt, or edit if wrong.
-                    </p>
+                    <div className="mt-1.5 space-y-2">
+                      <p className="text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                        <Check className="h-3.5 w-3.5 shrink-0" />
+                        Auto-detected from the email body — confirm it matches the physical receipt, or edit if wrong.
+                      </p>
+                      {refExtraction && (() => {
+                        const meta = confidenceMeta(refExtraction.confidence);
+                        const barTone =
+                          meta.tone === 'success' ? 'bg-emerald-500'
+                            : meta.tone === 'warning' ? 'bg-amber-500'
+                              : meta.tone === 'danger' ? 'bg-destructive'
+                                : 'bg-muted-foreground/40';
+                        const textTone =
+                          meta.tone === 'success' ? 'text-emerald-700 dark:text-emerald-300'
+                            : meta.tone === 'warning' ? 'text-amber-700 dark:text-amber-300'
+                              : meta.tone === 'danger' ? 'text-destructive'
+                                : 'text-muted-foreground';
+                        const segments = buildHighlightSegments(
+                          refSourceText,
+                          refExtraction.matchIndex,
+                          refExtraction.matchLength,
+                          refExtraction.reference,
+                        );
+                        return (
+                          <div className="rounded-lg border bg-muted/20 p-2 space-y-1.5">
+                            {/* Confidence meter */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`text-[11px] font-semibold ${textTone}`}>{meta.label}</span>
+                              <span className="text-[10px] text-muted-foreground">{refExtraction.detail}</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                              <div className={`h-full rounded-full ${barTone}`} style={{ width: `${meta.percent}%` }} />
+                            </div>
+                            {/* Highlighted source text */}
+                            {segments.length > 0 && (
+                              <p className="text-[11px] leading-relaxed text-muted-foreground break-words">
+                                {segments.map((seg, i) =>
+                                  seg.match ? (
+                                    <mark
+                                      key={i}
+                                      className="rounded bg-amber-200 px-0.5 font-mono font-semibold text-amber-950 dark:bg-amber-400/30 dark:text-amber-200"
+                                    >
+                                      {seg.text}
+                                    </mark>
+                                  ) : (
+                                    <span key={i}>{seg.text}</span>
+                                  ),
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   );
                 }
                 if (!lowData) {
