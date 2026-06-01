@@ -163,8 +163,10 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
       toast.error('Enter a valid amount (minimum UGX 500)');
       return;
     }
-    if (agentPhone.replace(/\D/g, '').length < 9) {
-      toast.error("Enter the agent's phone number");
+    const err = validatePhone(agentPhone);
+    if (err) {
+      toast.error(err);
+      setPhoneError(err);
       return;
     }
     setLoading(true);
