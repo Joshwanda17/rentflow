@@ -232,6 +232,7 @@ export function WelileMissionBoard() {
         network={network}
         loading={networkLoading}
         onOpenAgent={(id) => setDrawer({ agentId: id, tab: 'agent' })}
+        onOpenDriver={(key, label) => setDriverOpen({ key, label })}
       />
 
       {/* Supply → placement funnel */}
