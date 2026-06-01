@@ -51,6 +51,7 @@ import {
   MessageCircle,
   Home,
   AlertTriangle,
+  AlertCircle,
   Phone,
   Search,
   UserPlus,
