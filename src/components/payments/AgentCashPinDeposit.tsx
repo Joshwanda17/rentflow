@@ -56,6 +56,13 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
+  // Agent phone search
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; full_name: string; phone: string }>>([]);
+  const [searching, setSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const phoneWrapRef = useRef<HTMLDivElement>(null);
+
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
