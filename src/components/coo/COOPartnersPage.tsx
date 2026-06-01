@@ -4435,7 +4435,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       ? (p.bankAccountName || p.name)
                       : p.paymentMethod === 'cash'
                       ? 'Cash pickup'
-                      : (p.bankAccountName || p.portfolioName || p.name || 'Name not set');
+                      : (p.bankAccountName || p.name || 'Name not set');
                   const destExtra =
                     p.paymentMethod === 'bank_transfer'
                       ? [p.bankName, p.accountNumber].filter(Boolean).join(' · ')
