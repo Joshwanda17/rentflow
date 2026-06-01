@@ -360,6 +360,22 @@ Deno.serve(async (req) => {
       })
       .eq("id", invite.id);
 
+    // If an agent assigned this tenant to an empty house at registration, link it
+    // now. Only fills a still-empty house (placement bonus trigger fires on the
+    // first tenant_id). Best-effort — never blocks activation.
+    if (invite.house_listing_id && invite.role === 'tenant') {
+      const { error: houseLinkError } = await adminClient
+        .from("house_listings")
+        .update({ tenant_id: userId, status: "occupied" })
+        .eq("id", invite.house_listing_id)
+        .is("tenant_id", null);
+      if (houseLinkError) {
+        console.error("[activate-supporter] House link error:", houseLinkError);
+      } else {
+        console.log("[activate-supporter] Linked house to tenant:", invite.house_listing_id);
+      }
+    }
+
     // Link investor portfolios created for this invite to the new user
     if (invite.id) {
       // Get portfolios before updating to capture their IDs
