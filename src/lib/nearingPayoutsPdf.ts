@@ -309,15 +309,16 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     body,
     startY: y + 6,
     margin: { left: margin, right: margin },
+    tableWidth: pageWidth - margin * 2,
     styles: { fontSize: 7.5, cellPadding: 1.8, overflow: 'linebreak', valign: 'middle' },
     headStyles: { fillColor: THEME_PRIMARY, textColor: 255, fontSize: 7.5, halign: 'left', fontStyle: 'bold' },
     alternateRowStyles: { fillColor: THEME_STRIPE },
     columnStyles: {
-      0: { cellWidth: 8, halign: 'right' },
-      1: { cellWidth: 50 },
-      2: { halign: 'right', fontStyle: 'bold', cellWidth: 32 },
-      3: { halign: 'center', cellWidth: 26 },
-      4: { cellWidth: 80 },
+      0: { cellWidth: 10, halign: 'right' },
+      1: { cellWidth: 60 },
+      2: { halign: 'right', fontStyle: 'bold', cellWidth: 42 },
+      3: { halign: 'center', cellWidth: 35 },
+      4: { cellWidth: 'auto' },
     },
     didParseCell: (data: any) => {
       // Highlight overdue / due-today rows in the Due column.
