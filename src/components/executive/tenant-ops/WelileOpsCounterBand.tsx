@@ -472,11 +472,40 @@ function ZoneFunnelDialog({
   onOpenLandlord: (landlordId: string) => void;
 }) {
   const [tab, setTab] = useState<'agents' | 'landlords'>('agents');
+  const [landlordSearch, setLandlordSearch] = useState('');
+  type LandlordSort = 'name_asc' | 'name_desc' | 'activity_desc' | 'activity_asc' | 'producing' | 'rent_desc';
+  const [landlordSort, setLandlordSort] = useState<LandlordSort>('activity_desc');
   const { data: agentData, isLoading: agentsLoading } = useOpsZoneAgents(target?.path ?? null, win, !!target, refetchIntervalMs);
   const { data: landlordData, isLoading: landlordsLoading } =
     useOpsZoneLandlords(target?.path ?? null, win, !!target && tab === 'landlords', refetchIntervalMs);
   const agents: ZoneAgentRow[] = agentData ?? [];
   const landlords: ZoneLandlordRow[] = landlordData ?? [];
+
+  const searchLower = landlordSearch.trim().toLowerCase();
+  const filteredLandlords = useMemo(() => {
+    let result = [...landlords];
+    if (searchLower) {
+      result = result.filter((l) =>
+        (l.landlord_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (l.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (l.agent_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (l.is_producing && searchLower === 'producing') ||
+        (!l.is_producing && searchLower === 'dormant')
+      );
+    }
+    result.sort((a, b) => {
+      switch (landlordSort) {
+        case 'name_asc': return (a.landlord_name || '').localeCompare(b.landlord_name || '');
+        case 'name_desc': return (b.landlord_name || '').localeCompare(a.landlord_name || '');
+        case 'activity_desc': return new Date(b.last_activity || 0).getTime() - new Date(a.last_activity || 0).getTime();
+        case 'activity_asc': return new Date(a.last_activity || 0).getTime() - new Date(b.last_activity || 0).getTime();
+        case 'producing': return (b.is_producing ? 1 : 0) - (a.is_producing ? 1 : 0);
+        case 'rent_desc': return (b.rent_count || 0) - (a.rent_count || 0);
+        default: return 0;
+      }
+    });
+    return result;
+  }, [landlords, searchLower, landlordSort]);
 
   const agg = agents.reduce(
     (a, r) => {
