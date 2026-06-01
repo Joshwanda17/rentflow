@@ -122,6 +122,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const selectSuggestion = (phone: string, name: string) => {
     setAgentPhone(phone);
     setAgentName(name);
+    setPhoneError(validatePhone(phone));
     setShowSuggestions(false);
     setSuggestions([]);
   };
