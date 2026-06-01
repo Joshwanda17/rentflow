@@ -1555,6 +1555,16 @@ export function ProxyPartnerFunds() {
                   {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-full gap-1 text-muted-foreground hover:text-primary"
+                onClick={() => handleShareCard(partner)}
+                disabled={sharingCardId === partner.partnerId}
+              >
+                {sharingCardId === partner.partnerId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                Share payout card
+              </Button>
             </CardContent>
           </Card>
         );
