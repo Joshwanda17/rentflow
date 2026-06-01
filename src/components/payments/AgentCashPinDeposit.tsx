@@ -181,7 +181,39 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
     setPinError('');
     setSessionId(null);
     setExpiresAt(null);
+    setCanResendAt(null);
   }, [step, expired]);
+
+  const resendCooldownLeft = canResendAt ? Math.max(0, Math.ceil((canResendAt - now) / 1000)) : 0;
+
+  const handleResend = async () => {
+    if (!sessionId || resendCooldownLeft > 0) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('agent-cash-deposit-resend', {
+        body: { session_id: sessionId },
+      });
+      if (error) {
+        const msg = await readEdgeMessage(error, 'Could not resend the code');
+        toast.error(msg);
+        return;
+      }
+      if (!data?.ok) {
+        toast.error(data?.message || 'Could not resend the code');
+        return;
+      }
+      setPin('');
+      setPinError('');
+      setExpiresAt(data.expires_at ?? null);
+      setNow(Date.now());
+      setCanResendAt(Date.now() + 60_000); // 60-second cooldown
+      toast.success('A new confirmation code has been sent to the agent.');
+    } catch (e) {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const countdownLabel =
     secsLeft === null
