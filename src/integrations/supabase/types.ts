@@ -12879,6 +12879,7 @@ export type Database = {
           funded_at: string | null
           house_category: string | null
           house_image_urls: string[] | null
+          house_listing_id: string | null
           id: string
           initial_outstanding_balance: number | null
           landlord_acknowledged: boolean | null
@@ -12988,6 +12989,7 @@ export type Database = {
           funded_at?: string | null
           house_category?: string | null
           house_image_urls?: string[] | null
+          house_listing_id?: string | null
           id?: string
           initial_outstanding_balance?: number | null
           landlord_acknowledged?: boolean | null
@@ -13097,6 +13099,7 @@ export type Database = {
           funded_at?: string | null
           house_category?: string | null
           house_image_urls?: string[] | null
+          house_listing_id?: string | null
           id?: string
           initial_outstanding_balance?: number | null
           landlord_acknowledged?: boolean | null
@@ -13201,6 +13204,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_house_listing_id_fkey"
+            columns: ["house_listing_id"]
+            isOneToOne: false
+            referencedRelation: "house_listings"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "rent_requests_landlord_id_fkey"
@@ -17314,6 +17324,7 @@ export type Database = {
           funded_at: string | null
           house_category: string | null
           house_image_urls: string[] | null
+          house_listing_id: string | null
           id: string
           initial_outstanding_balance: number | null
           landlord_acknowledged: boolean | null
