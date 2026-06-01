@@ -154,3 +154,60 @@ export function useOpsZoneLandlords(path: CounterPath | null, win: CounterWindow
     },
   });
 }
+
+// ===== Mission Board: priority funnel (list empty houses → place tenants → onboard funders) =====
+
+export interface MissionSummary {
+  empty_houses_total: number;
+  listings_new: number;
+  listing_agents: number;
+  placements_new: number;
+  placements_total: number;
+  placement_agents: number;
+  promissory_new: number;
+  promissory_total: number;
+  promissory_activated: number;
+  promissory_amount: number;
+}
+
+export interface MissionAgentRow {
+  agent_id: string;
+  agent_name: string | null;
+  agent_phone: string | null;
+  listings_count: number;
+  empty_listings: number;
+  placements_count: number;
+  promissory_count: number;
+  promissory_amount: number;
+  last_activity: string | null;
+}
+
+export function useMissionSummary(win: CounterWindow, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    queryKey: ['welile-mission-summary', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionSummary | null> => {
+      const { data, error } = await supabase.rpc('welile_mission_summary' as any, { p_since: since });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as MissionSummary | null;
+    },
+  });
+}
+
+export function useMissionLeaderboard(win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled,
+    queryKey: ['welile-mission-leaderboard', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionAgentRow[]> => {
+      const { data, error } = await supabase.rpc('welile_mission_leaderboard' as any, { p_since: since });
+      if (error) throw error;
+      return (data ?? []) as MissionAgentRow[];
+    },
+  });
+}
