@@ -417,6 +417,7 @@ function EmptyHousesDialog({
   }, [houses, searchLower, sort]);
 
   const unregistered = houses.filter((h) => !h.landlord_id).length;
+  const targetedCount = houses.filter((h) => h.landlord_id && targets?.[h.landlord_id]).length;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -464,6 +465,9 @@ function EmptyHousesDialog({
             <Badge variant="outline" className="text-[10px]">{filtered.length} of {houses.length} shown</Badge>
             {unregistered > 0 && (
               <Badge className="text-[10px] text-amber-600 bg-amber-500/10">{unregistered} need landlord onboarding</Badge>
+            )}
+            {targetedCount > 0 && (
+              <Badge className="text-[10px] text-emerald-600 bg-emerald-500/10">{targetedCount} targeted for onboarding</Badge>
             )}
           </div>
         )}
