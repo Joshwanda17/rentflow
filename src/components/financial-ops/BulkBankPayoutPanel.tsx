@@ -51,8 +51,14 @@ export function BulkBankPayoutPanel() {
       .gte('internal_date', since)
       .order('internal_date', { ascending: false })
       .limit(40);
-    setEmails((data as BulkEmail[]) || []);
+    const rows = (data as BulkEmail[]) || [];
+    setEmails(rows);
     setLoading(false);
+    // Auto-expand the most recent batch so the allocation breakdown is
+    // immediately visible under Bulk Bank Payouts without an extra click.
+    if (rows.length) {
+      void loadAllocations(rows[0].id);
+    }
   };
 
   useEffect(() => {
@@ -64,11 +70,7 @@ export function BulkBankPayoutPanel() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const toggle = async (emailId: string) => {
-    if (open[emailId]) {
-      setOpen((p) => { const n = { ...p }; delete n[emailId]; return n; });
-      return;
-    }
+  const loadAllocations = async (emailId: string) => {
     setOpen((p) => ({ ...p, [emailId]: 'loading' }));
     const { data } = await supabase
       .from('bulk_bank_payout_allocations')
@@ -86,6 +88,14 @@ export function BulkBankPayoutPanel() {
       });
     }
     setOpen((p) => ({ ...p, [emailId]: allocs }));
+  };
+
+  const toggle = async (emailId: string) => {
+    if (open[emailId]) {
+      setOpen((p) => { const n = { ...p }; delete n[emailId]; return n; });
+      return;
+    }
+    await loadAllocations(emailId);
   };
 
   return (
