@@ -52,6 +52,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [agentName, setAgentName] = useState('');
   const [pin, setPin] = useState('');
+  const [pinError, setPinError] = useState('');
   const [creditedAmount, setCreditedAmount] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -80,7 +81,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
 
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
-    setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
+    setSessionId(null); setAgentName(''); setPin(''); setPinError(''); setCreditedAmount(0); setExpiresAt(null);
     setSuggestions([]); setShowSuggestions(false); setPhoneError(''); setPhoneTouched(false);
     setSelectedFromList(false);
   };
@@ -213,26 +214,33 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const handleConfirm = async (code: string) => {
     if (!sessionId || code.length !== 4) return;
     setLoading(true);
+    setPinError('');
     try {
       const { data, error } = await supabase.functions.invoke('agent-cash-deposit-confirm', {
         body: { session_id: sessionId, pin: code },
       });
       if (error) {
-        toast.error(await readEdgeMessage(error, 'Could not confirm the code'));
+        const msg = await readEdgeMessage(error, 'Could not confirm the code');
+        toast.error(msg);
         setPin('');
+        setPinError(msg);
         return;
       }
       if (!data?.ok) {
-        toast.error(data?.message || 'Incorrect code');
+        const msg = data?.message || 'That code is incorrect. Ask the agent to read it again.';
+        toast.error(msg);
         setPin('');
+        setPinError(msg);
         return;
       }
       setCreditedAmount(Number(data.amount ?? amountNum));
       setStep('success');
       onSuccess?.();
     } catch (e) {
-      toast.error('Network error. Please try again.');
+      const msg = 'Network error. Please try again.';
+      toast.error(msg);
       setPin('');
+      setPinError(msg);
     } finally {
       setLoading(false);
     }
@@ -428,7 +436,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
             )}
             <div className="flex flex-col items-center gap-2">
               <Label className="text-sm font-medium">Enter the 4-digit code</Label>
-              <InputOTP maxLength={4} value={pin} disabled={expired || loading} onChange={(v) => { setPin(v); if (v.length === 4) void handleConfirm(v); }}>
+              <InputOTP maxLength={4} value={pin} disabled={expired || loading} onChange={(v) => { setPin(v); if (pinError) setPinError(''); if (v.length === 4) void handleConfirm(v); }}>
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
                   <InputOTPSlot index={1} />
@@ -439,6 +447,22 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
               {loading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
                   <Loader2 className="h-4 w-4 animate-spin" /> Crediting your wallet…
+                </div>
+              )}
+              {pinError && !loading && !expired && (
+                <div className="w-full mt-1 p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
+                  <p className="text-sm text-destructive flex items-start gap-1.5">
+                    <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{pinError}</span>
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={() => { setPin(''); setPinError(''); }}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" /> Try the code again
+                  </Button>
                 </div>
               )}
               {expired && !loading && (
