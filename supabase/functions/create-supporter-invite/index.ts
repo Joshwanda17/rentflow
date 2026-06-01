@@ -120,6 +120,12 @@ Deno.serve(async (req) => {
     const propertyAddress = typeof rawBody.propertyAddress === 'string' ? rawBody.propertyAddress.trim().slice(0, 500) : 
                            typeof rawBody.address === 'string' ? rawBody.address.trim().slice(0, 500) : null;
 
+    // Optional: an available empty house the agent is assigning this tenant to.
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const houseListingId = typeof rawBody.houseListingId === 'string' && uuidRe.test(rawBody.houseListingId.trim())
+      ? rawBody.houseListingId.trim()
+      : null;
+
     // fullName and email are optional - validated if present
     let email = rawBody.email ? validateEmail(rawBody.email) : null;
     let fullName = rawBody.fullName ? validateFullName(rawBody.fullName) : null;
