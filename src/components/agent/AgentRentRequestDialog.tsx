@@ -1525,6 +1525,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
 
+      // Determine whether the linked landlord is already verified — drives the
+      // "Landlord verification pending" status shown on the success screen.
+      try {
+        const { data: landlordRow } = await supabase
+          .from('landlords')
+          .select('verified')
+          .eq('id', landlordId)
+          .maybeSingle();
+        setLandlordVerifiedAtSubmit(!!landlordRow?.verified);
+      } catch {
+        setLandlordVerifiedAtSubmit(false);
+      }
+
       // ===== LC1 upsert (skipped entirely for outstanding — already linked to landlord) =====
       let lc1Id: string | null = null;
       const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
