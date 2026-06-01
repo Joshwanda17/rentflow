@@ -372,11 +372,14 @@ function EmptyHousesDialog({
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<EmptySort>('rent_desc');
   const [targetFilter, setTargetFilter] = useState<'all' | 'targeted' | 'untargeted'>('all');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const { data, isLoading } = useMissionEmptyHouses(win, open, refetchIntervalMs);
   const houses: MissionEmptyHouseRow[] = data ?? [];
   const { data: targets } = useLandlordOnboardingTargets(open);
   const targetLandlord = useTargetLandlordForOnboarding();
+  const bulkTarget = useBulkTargetLandlordsForOnboarding();
   const [targeting, setTargeting] = useState<string | null>(null);
+  const [bulkTargeting, setBulkTargeting] = useState(false);
 
   const handleTargetAndOpen = async (landlordId: string, listingId: string) => {
     setTargeting(landlordId);
@@ -423,11 +426,66 @@ function EmptyHousesDialog({
     return r;
   }, [houses, searchLower, sort, targetFilter, targets]);
 
+  const selectable = useMemo(() => {
+    const ids = new Set<string>();
+    filtered.forEach((h) => {
+      if (h.landlord_id && !targets?.[h.landlord_id]) ids.add(h.landlord_id);
+    });
+    return ids;
+  }, [filtered, targets]);
+
+  const allSelected = selectable.size > 0 && [...selectable].every((id) => selected.has(id));
+
+  const toggleSelectAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        selectable.forEach((id) => next.delete(id));
+      } else {
+        selectable.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleOne = (landlordId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(landlordId)) next.delete(landlordId);
+      else next.add(landlordId);
+      return next;
+    });
+  };
+
+  const handleBulkTarget = async () => {
+    if (selected.size === 0) return;
+    setBulkTargeting(true);
+    try {
+      const items = filtered
+        .filter((h) => h.landlord_id && selected.has(h.landlord_id))
+        .map((h) => ({ landlordId: h.landlord_id!, listingId: h.listing_id }));
+      // deduplicate by landlordId
+      const seen = new Set<string>();
+      const deduped = items.filter((i) => {
+        if (seen.has(i.landlordId)) return false;
+        seen.add(i.landlordId);
+        return true;
+      });
+      await bulkTarget(deduped);
+      toast.success(`${deduped.length} landlord${deduped.length === 1 ? '' : 's'} marked as targeted`);
+      setSelected(new Set());
+    } catch (e: any) {
+      toast.error(e?.message || 'Bulk targeting failed');
+    } finally {
+      setBulkTargeting(false);
+    }
+  };
+
   const unregistered = houses.filter((h) => !h.landlord_id).length;
   const targetedCount = houses.filter((h) => h.landlord_id && targets?.[h.landlord_id]).length;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); setSelected(new Set()); } }}>
       <DialogContent className="max-w-2xl p-0 gap-0">
         <DialogHeader className="p-4 pb-2">
           <DialogTitle className="text-base flex items-center gap-2">
@@ -484,13 +542,23 @@ function EmptyHousesDialog({
         </div>
 
         {!isLoading && houses.length > 0 && (
-          <div className="px-4 pb-2 flex flex-wrap gap-1.5 text-[10px]">
+          <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5 text-[10px]">
             <Badge variant="outline" className="text-[10px]">{filtered.length} of {houses.length} shown</Badge>
             {unregistered > 0 && (
               <Badge className="text-[10px] text-amber-600 bg-amber-500/10">{unregistered} need landlord onboarding</Badge>
             )}
             {targetedCount > 0 && (
               <Badge className="text-[10px] text-emerald-600 bg-emerald-500/10">{targetedCount} targeted for onboarding</Badge>
+            )}
+            {selectable.size > 0 && (
+              <label className="flex items-center gap-1.5 ml-auto cursor-pointer select-none">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all targetable landlords"
+                />
+                <span className="text-[10px] font-medium text-muted-foreground">Select all {selectable.size}</span>
+              </label>
             )}
           </div>
         )}
@@ -504,69 +572,99 @@ function EmptyHousesDialog({
             </p>
           ) : (
             <ul className="space-y-1.5">
-              {filtered.map((h) => (
-                <li key={h.listing_id} className="rounded-lg border border-border bg-card p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm truncate flex-1">{h.title || 'Untitled house'}</span>
-                    {h.verified && <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
-                    <Badge className={cn('text-[10px] shrink-0', statusTone(h.status))}>{h.status || 'unknown'}</Badge>
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {h.area || 'Unspecified area'}</span>
-                    {h.monthly_rent ? <span className="text-foreground font-semibold">{formatUGX(h.monthly_rent)}/mo</span> : null}
-                    {h.number_of_rooms ? <span className="flex items-center gap-1"><BedDouble className="h-3 w-3" /> {h.number_of_rooms} rm</span> : null}
-                    <span>Last activity {fmtDate(h.last_activity)}</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                    {h.landlord_id ? (
-                      <button
-                        onClick={() => onOpenLandlord(h.landlord_id!)}
-                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-[#9234EA] bg-[#9234EA]/10 hover:ring-1 hover:ring-primary"
-                      >
-                        <Home className="h-3 w-3" /> {h.landlord_name || 'Landlord'}
-                        {h.landlord_phone && <span className="text-muted-foreground font-normal">· {h.landlord_phone}</span>}
-                      </button>
-                    ) : (
-                      <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-amber-500/40 text-amber-600 bg-amber-500/10">
-                        <UserPlus className="h-3 w-3" /> Landlord not onboarded
-                      </span>
-                    )}
-                    {h.agent_id && (
-                      <button
-                        onClick={() => onOpenAgent(h.agent_id!)}
-                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-blue-600 bg-blue-500/10 hover:ring-1 hover:ring-primary"
-                      >
-                        <Users className="h-3 w-3" /> {h.agent_name || 'Agent'}
-                      </button>
-                    )}
-                  </div>
-                  {h.landlord_id && (() => {
-                    const isTargeted = !!targets?.[h.landlord_id!];
-                    const isBusy = targeting === h.landlord_id;
-                    return (
-                      <Button
-                        variant={isTargeted ? 'secondary' : 'outline'}
-                        size="sm"
-                        disabled={isBusy}
-                        onClick={() => handleTargetAndOpen(h.landlord_id!, h.listing_id)}
-                        className="h-7 w-full mt-2 text-[11px] gap-1"
-                      >
-                        {isBusy ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : isTargeted ? (
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        ) : (
-                          <Crosshair className="h-3.5 w-3.5" />
-                        )}
-                        {isTargeted ? 'Targeted — open profile' : 'Target landlord & open profile'}
-                      </Button>
-                    );
-                  })()}
-                </li>
-              ))}
+              {filtered.map((h) => {
+                const canSelect = !!h.landlord_id && !targets?.[h.landlord_id];
+                const isSelected = !!h.landlord_id && selected.has(h.landlord_id);
+                return (
+                  <li key={h.listing_id} className={cn('rounded-lg border bg-card p-3', isSelected ? 'border-primary ring-1 ring-primary/30' : 'border-border')}>
+                    <div className="flex items-center gap-2">
+                      {canSelect && (
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleOne(h.landlord_id!)}
+                          aria-label={`Select ${h.landlord_name || 'landlord'}`}
+                          className="shrink-0"
+                        />
+                      )}
+                      <span className="font-semibold text-sm truncate flex-1">{h.title || 'Untitled house'}</span>
+                      {h.verified && <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
+                      <Badge className={cn('text-[10px] shrink-0', statusTone(h.status))}>{h.status || 'unknown'}</Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {h.area || 'Unspecified area'}</span>
+                      {h.monthly_rent ? <span className="text-foreground font-semibold">{formatUGX(h.monthly_rent)}/mo</span> : null}
+                      {h.number_of_rooms ? <span className="flex items-center gap-1"><BedDouble className="h-3 w-3" /> {h.number_of_rooms} rm</span> : null}
+                      <span>Last activity {fmtDate(h.last_activity)}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {h.landlord_id ? (
+                        <button
+                          onClick={() => onOpenLandlord(h.landlord_id!)}
+                          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-[#9234EA] bg-[#9234EA]/10 hover:ring-1 hover:ring-primary"
+                        >
+                          <Home className="h-3 w-3" /> {h.landlord_name || 'Landlord'}
+                          {h.landlord_phone && <span className="text-muted-foreground font-normal">· {h.landlord_phone}</span>}
+                        </button>
+                      ) : (
+                        <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-amber-500/40 text-amber-600 bg-amber-500/10">
+                          <UserPlus className="h-3 w-3" /> Landlord not onboarded
+                        </span>
+                      )}
+                      {h.agent_id && (
+                        <button
+                          onClick={() => onOpenAgent(h.agent_id!)}
+                          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-blue-600 bg-blue-500/10 hover:ring-1 hover:ring-primary"
+                        >
+                          <Users className="h-3 w-3" /> {h.agent_name || 'Agent'}
+                        </button>
+                      )}
+                    </div>
+                    {h.landlord_id && (() => {
+                      const isTargeted = !!targets?.[h.landlord_id!];
+                      const isBusy = targeting === h.landlord_id;
+                      return (
+                        <Button
+                          variant={isTargeted ? 'secondary' : 'outline'}
+                          size="sm"
+                          disabled={isBusy}
+                          onClick={() => handleTargetAndOpen(h.landlord_id!, h.listing_id)}
+                          className="h-7 w-full mt-2 text-[11px] gap-1"
+                        >
+                          {isBusy ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : isTargeted ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          ) : (
+                            <Crosshair className="h-3.5 w-3.5" />
+                          )}
+                          {isTargeted ? 'Targeted — open profile' : 'Target landlord & open profile'}
+                        </Button>
+                      );
+                    })()}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </ScrollArea>
+
+        {/* Bulk action bar */}
+        {selected.size > 0 && (
+          <div className="border-t border-border bg-muted/40 px-4 py-3 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              {selected.size} landlord{selected.size === 1 ? '' : 's'} selected
+            </span>
+            <Button
+              size="sm"
+              disabled={bulkTargeting}
+              onClick={handleBulkTarget}
+              className="h-8 text-[11px] gap-1"
+            >
+              {bulkTargeting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crosshair className="h-3.5 w-3.5" />}
+              Mark {selected.size} as targeted
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
