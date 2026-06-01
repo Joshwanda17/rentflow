@@ -543,6 +543,92 @@ const App = () => {
   <HelmetProvider>
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+}
+
+// Lightweight error boundary for deferred providers — falls back to rendering children without providers
+class DeferredErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(err: Error) { console.warn('[DeferredProviders] Failed to load, continuing without:', err.message); }
+  render() { return this.state.failed ? <>{this.props.children}</> : this.props.children; }
+}
+
+// Deferred wrapper — loads providers after first paint via idle callback
+function DeferredProviders({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
+  
+  useEffect(() => {
+    const activate = () => setReady(true);
+    if ('requestIdleCallback' in window) {
+      const id = (window as any).requestIdleCallback(activate, { timeout: 800 });
+      return () => (window as any).cancelIdleCallback(id);
+    }
+    const id = setTimeout(activate, 100);
+    return () => clearTimeout(id);
+  }, []);
+  
+  if (!ready) return <>{children}</>;
+  
+  return (
+    <DeferredErrorBoundary>
+      <Suspense fallback={<>{children}</>}>
+        <PinAuthProvider>
+          <BiometricAuthProvider>
+            <OfflineProvider>
+              <FeatureFlagsProvider>
+                <CartProvider>
+                  <ComparisonProvider>
+                    {children}
+                  </ComparisonProvider>
+                </CartProvider>
+              </FeatureFlagsProvider>
+            </OfflineProvider>
+          </BiometricAuthProvider>
+        </PinAuthProvider>
+      </Suspense>
+    </DeferredErrorBoundary>
+  );
+}
+
+// Lazy-load the public RecordRent shell (no auth, no settings, no realtime)
+const PublicRecordRent = lazy(() => import('./pages/RecordRent'));
+const RecordRentErrorBoundary = lazy(() => import('./components/public/RecordRentErrorBoundary'));
+
+/**
+ * Standalone shell for /record-rent — bypasses AuthProvider, CombinedSettingsProvider,
+ * realtime, theme chain, PWA prompt, etc. This is critical for in-app browsers
+ * (WhatsApp, Instagram, Facebook) where storage access can be restricted and
+ * cause the full app shell to crash.
+ */
+const PublicRecordRentApp = () => (
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <Suspense fallback={<PageLoader />}>
+        <RecordRentErrorBoundary>
+          <BrowserRouter>
+            <PublicRecordRent />
+          </BrowserRouter>
+        </RecordRentErrorBoundary>
+      </Suspense>
+    </QueryClientProvider>
+  </HelmetProvider>
+);
+
+const isPublicRecordRentRoute = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname === '/record-rent' || window.location.pathname.startsWith('/record-rent/');
+};
+
+const App = () => {
+  // Early exit for public rent recorder — must run before any provider initializes
+  if (isPublicRecordRentRoute()) {
+    return <PublicRecordRentApp />;
+  }
+
+  return (
+  <HelmetProvider>
+  <ChunkErrorBoundary>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <CombinedSettingsProvider>
@@ -556,15 +642,17 @@ const App = () => {
                         <AppRoutes />
                         <MaintenanceLockScreen />
                       </DeferredProviders>
-                      <Suspense fallback={null}>
-                        <DeferredExtras />
-                        <FloatingToolbar />
-                        <AgentNavFAB />
-                        <PWAInstallPrompt />
-                        <Toaster />
-                        <SonnerToaster />
-                        <ProfileCompletionGate />
-                      </Suspense>
+                      <DeferredErrorBoundary>
+                        <Suspense fallback={null}>
+                          <DeferredExtras />
+                          <FloatingToolbar />
+                          <AgentNavFAB />
+                          <PWAInstallPrompt />
+                          <Toaster />
+                          <SonnerToaster />
+                          <ProfileCompletionGate />
+                        </Suspense>
+                      </DeferredErrorBoundary>
                     </CurrencyProvider>
                   </LanguageProvider>
                 </Suspense>
@@ -578,4 +666,4 @@ const App = () => {
   </HelmetProvider>
   );
 };
-export default App;
+export default App;
