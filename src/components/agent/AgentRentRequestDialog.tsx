@@ -2293,6 +2293,29 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <X className="h-3.5 w-3.5 mr-1" /> Change
                       </Button>
                     </div>
+                    {houseConflict && (
+                      <div className="mt-2 rounded-lg border border-destructive/50 bg-destructive/10 p-2.5">
+                        <p className="text-xs font-semibold text-destructive flex items-start gap-1.5">
+                          <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                          <span>
+                            This house was just reserved by another agent. Please pick a
+                            different one before submitting.
+                          </span>
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 px-2 text-xs mt-2"
+                          onClick={() => {
+                            clearSelectedHouse();
+                            searchAvailableHouses();
+                          }}
+                        >
+                          <Search className="h-3.5 w-3.5 mr-1" /> Pick another house
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
