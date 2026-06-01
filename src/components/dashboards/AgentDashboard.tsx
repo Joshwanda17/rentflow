@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
@@ -425,6 +425,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const dismissMerchantOnboard = () => {
     try { localStorage.setItem(merchantOnboardKey, '1'); } catch { /* ignore */ }
     setShowMerchantOnboard(false);
+  };
+
+  // Guided click: scroll to and briefly highlight the Merchant Payouts button
+  const merchantBtnRef = useRef<HTMLButtonElement>(null);
+  const [highlightMerchant, setHighlightMerchant] = useState(false);
+  const guideToMerchantButton = () => {
+    hapticTap();
+    merchantBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightMerchant(true);
+    window.setTimeout(() => setHighlightMerchant(false), 2200);
   };
 
   const handleShareLandlordSignup = () => {
