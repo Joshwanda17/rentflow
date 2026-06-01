@@ -239,7 +239,15 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
+    <Dialog open={open} onOpenChange={(o) => {
+      if (!o) {
+        if (step === 'confirm') {
+          setStep('form');
+        } else {
+          close();
+        }
+      }
+    }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
