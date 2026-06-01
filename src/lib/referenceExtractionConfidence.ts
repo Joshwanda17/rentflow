@@ -142,7 +142,7 @@ export function extractReferenceWithConfidence(text: string): ReferenceExtractio
 
   // 2) Generic "Ref / Receipt / Confirmation" labelled value (medium trust).
   const g = t.match(GENERIC_PATTERN);
-  if (g && g[1]) {
+  if (g && g[1] && /[0-9]/.test(g[1])) {
     const reference = g[1].toUpperCase();
     const idx = t.indexOf(g[1], g.index ?? 0);
     const valid = validateTransactionReference(reference).valid;
