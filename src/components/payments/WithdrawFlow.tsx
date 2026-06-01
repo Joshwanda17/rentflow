@@ -114,6 +114,15 @@ export default function WithdrawFlow({
   const [cashCodeInput, setCashCodeInput] = useState('');
   const [cashCodeAcknowledged, setCashCodeAcknowledged] = useState(false);
   const [cashCodeError, setCashCodeError] = useState<string | null>(null);
+  // ─── Resend code (cash pickup) ──────────────────────────────────────
+  // A fresh WPO code can only be issued once the current one has expired
+  // OR a cooldown has elapsed. The RPC `resend_payout_code` is the
+  // authoritative guard; this client-side cooldown is purely UX so the
+  // button visibly counts down instead of round-tripping to a rejection.
+  const RESEND_COOLDOWN_SECONDS = 90;
+  const [codeIssuedAt, setCodeIssuedAt] = useState<number | null>(null);
+  const [resendingCode, setResendingCode] = useState(false);
+  const [resendTick, setResendTick] = useState(() => Date.now());
   // Server-confirmed submission timestamp. Set the moment the
   // withdrawal_requests insert returns successfully so the success
   // receipt can display the exact processed date/time.
@@ -291,9 +300,79 @@ export default function WithdrawFlow({
     setSaveAsNew(true);
     setSavedNickname('');
     setCashPickupCode(null);
+    setCodeIssuedAt(null);
+    setResendingCode(false);
     setCashCodeInput('');
     setCashCodeAcknowledged(false);
     setCashCodeError(null);
+  };
+
+  // Drive the resend cooldown countdown once a cash code is on screen.
+  useEffect(() => {
+    if (!cashPickupCode || codeIssuedAt === null) return;
+    const id = setInterval(() => setResendTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [cashPickupCode, codeIssuedAt]);
+
+  const resendRemaining = codeIssuedAt === null
+    ? 0
+    : Math.max(0, RESEND_COOLDOWN_SECONDS - Math.floor((resendTick - codeIssuedAt) / 1000));
+
+  // Request a fresh pickup code. The RPC only issues one when the previous
+  // code is expired or the cooldown has elapsed — otherwise it tells us how
+  // long to wait, which we mirror into the local countdown.
+  const handleResendCode = async () => {
+    if (!createdRequestId || resendingCode || resendRemaining > 0) return;
+    setResendingCode(true);
+    try {
+      const { data, error } = await supabase.rpc('resend_payout_code' as any, {
+        p_withdrawal_request_id: createdRequestId,
+      });
+      if (error) throw error;
+      const res = (data ?? {}) as {
+        success?: boolean;
+        code?: string;
+        payout_code?: string;
+        retry_after_seconds?: number;
+        message?: string;
+      };
+      if (res.success && res.payout_code) {
+        setCashPickupCode(res.payout_code);
+        setCodeIssuedAt(Date.now());
+        toast.success('New code issued — read this one to Financial Ops');
+        try {
+          supabase.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'cash-withdrawal-code',
+              idempotencyKey: `cash-code-resend-${createdRequestId}-${res.payout_code}`,
+              purpose: 'transactional',
+              data: {
+                payoutCode: res.payout_code,
+                amountUgx: amount,
+                userName: (user as any)?.user_metadata?.full_name || user?.email || 'Welile user',
+                userPhone: (user as any)?.phone || (user as any)?.user_metadata?.phone || '',
+                requestReference: withdrawalRef,
+                agentLocation: 'Nearest Agent',
+                requestedAt: new Date().toISOString(),
+              },
+            },
+          }).catch((e) => console.warn('[WithdrawFlow] resend code email failed', e));
+        } catch (e) {
+          console.warn('[WithdrawFlow] resend code email dispatch threw', e);
+        }
+      } else if (res.code === 'cooldown_active') {
+        const wait = Math.max(0, Number(res.retry_after_seconds) || 0);
+        // Re-anchor the countdown so the button reflects the server's wait.
+        setCodeIssuedAt(Date.now() - (RESEND_COOLDOWN_SECONDS - wait) * 1000);
+        toast.message(res.message || `Your current code is still valid. Try again in ${wait}s.`);
+      } else {
+        toast.error(res.message || 'Could not issue a new code right now.');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not issue a new code right now.');
+    } finally {
+      setResendingCode(false);
+    }
   };
 
   /**
@@ -557,6 +636,7 @@ export default function WithdrawFlow({
       const pickupCode = result?.payout_code ?? null;
       if (payoutMode === 'cash' && pickupCode && newId) {
         setCashPickupCode(pickupCode);
+        setCodeIssuedAt(Date.now());
         try {
           supabase.functions.invoke('send-transactional-email', {
             body: {
@@ -1314,21 +1394,37 @@ export default function WithdrawFlow({
                   Read this code to Financial Ops to release {formatCurrency(amount, currency)}.
                   Your wallet is reduced the moment they enter it. A copy was also emailed to you.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-1"
-                  onClick={() => {
-                    try {
-                      navigator.clipboard?.writeText(cashPickupCode);
-                      toast.success('Code copied');
-                    } catch {
-                      /* clipboard unavailable — code is still visible on screen */
-                    }
-                  }}
-                >
-                  Copy code
-                </Button>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      try {
+                        navigator.clipboard?.writeText(cashPickupCode);
+                        toast.success('Code copied');
+                      } catch {
+                        /* clipboard unavailable — code is still visible on screen */
+                      }
+                    }}
+                  >
+                    Copy code
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={resendingCode || resendRemaining > 0}
+                    onClick={() => void handleResendCode()}
+                  >
+                    {resendingCode
+                      ? 'Sending…'
+                      : resendRemaining > 0
+                        ? `Resend in ${resendRemaining}s`
+                        : 'Resend code'}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-amber-700/80 dark:text-amber-200/70">
+                  A new code can be issued once this one expires or after a short wait.
+                </p>
               </div>
             )}
             {/* Server-confirmed receipt — shown immediately after the

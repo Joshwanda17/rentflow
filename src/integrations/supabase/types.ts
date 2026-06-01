@@ -19440,6 +19440,10 @@ export type Database = {
         Args: { p_dry_run?: boolean; p_max_users?: number }
         Returns: Json
       }
+      resend_payout_code: {
+        Args: { p_cooldown_seconds?: number; p_withdrawal_request_id: string }
+        Returns: Json
+      }
       reset_agent_float_if_stale: {
         Args: { p_agent_id: string }
         Returns: undefined
