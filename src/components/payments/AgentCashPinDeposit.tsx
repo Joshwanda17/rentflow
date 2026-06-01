@@ -315,7 +315,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   ))}
                 </div>
               )}
-              {phoneError && (
+              {phoneError && phoneTouched && (
                 <p className="text-xs text-destructive flex items-center gap-1">
                   <XCircle className="h-3 w-3 shrink-0" /> {phoneError}
                 </p>
