@@ -19504,13 +19504,16 @@ export type Database = {
           p_since?: string
         }
         Returns: {
+          active_agents: number
           agent_count: number
           agent_id: string
           bucket_key: string
           bucket_label: string
+          distinct_agents: number
           landlord_count: number
           promissory_count: number
           rent_count: number
+          rent_funded_count: number
           total_count: number
         }[]
       }
