@@ -191,6 +191,51 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
   const [nwscMeter, setNwscMeter] = useState('');
   const [uedclMeter, setUedclMeter] = useState('');
 
+  // Empty-house assignment for tenant registrations
+  type EmptyHouse = {
+    id: string;
+    title: string;
+    address: string | null;
+    region: string | null;
+    house_category: string | null;
+    monthly_rent: number | null;
+    short_code: string | null;
+  };
+  const [emptyHouses, setEmptyHouses] = useState<EmptyHouse[]>([]);
+  const [housesLoading, setHousesLoading] = useState(false);
+  const [selectedHouseId, setSelectedHouseId] = useState<string>('');
+  const [housePickerOpen, setHousePickerOpen] = useState(false);
+  const selectedHouse = useMemo(
+    () => emptyHouses.find((h) => h.id === selectedHouseId) || null,
+    [emptyHouses, selectedHouseId]
+  );
+
+  const fetchEmptyHouses = async () => {
+    setHousesLoading(true);
+    try {
+      const { data } = await supabase
+        .from('house_listings')
+        .select('id, title, address, region, house_category, monthly_rent, short_code')
+        .eq('status', 'available')
+        .is('tenant_id', null)
+        .eq('is_hidden', false)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      setEmptyHouses((data as EmptyHouse[]) || []);
+    } catch {
+      setEmptyHouses([]);
+    } finally {
+      setHousesLoading(false);
+    }
+  };
+
+  // Load available empty houses once the agent picks the tenant flow.
+  useEffect(() => {
+    if (selectedType === 'tenant' && emptyHouses.length === 0 && !housesLoading) {
+      fetchEmptyHouses();
+    }
+  }, [selectedType]);
+
   // Name matching (MoMo name vs phone-holder name)
   const nameMatchScore = useMemo(() => {
     if (!momoName.trim() || !formData.phone.trim()) return null;
