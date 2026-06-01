@@ -49,6 +49,14 @@ const dueLabel = (d: number) => {
   return `${d} days`;
 };
 
+// Human-readable portfolio lifecycle status (active / matured / paused …).
+const statusLabel = (s?: string | null) => {
+  if (!s) return '—';
+  return String(s)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 // Welile theme primary (HSL 271 100% 40% → RGB ≈ 102, 0, 204)
 const THEME_PRIMARY: [number, number, number] = [146, 52, 234];
 const THEME_PRIMARY_DARK: [number, number, number] = [108, 33, 196];
@@ -252,7 +260,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   // Body table
   const head = [[
     '#', 'Partner', 'Portfolio', 'Contact',
-    'Principal', 'ROI %', 'Returns Due', 'Mode', 'Payout Date', 'Status', 'Payment Details',
+    'Principal', 'ROI %', 'Returns Due', 'Mode', 'Payout Date', 'Due', 'Status', 'Payment Details',
   ]];
   const body = sortedRows.map((r, idx) => {
     // Prefer FRESH database values over the row payload supplied by the
@@ -265,6 +273,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     const portfolioName = det?.account_name || r.portfolioName || '—';
     const payoutDate = det?.next_roi_date || r.nextPayoutDate;
     const returnsDue = Math.round(principal * roiPct / 100);
+    const portfolioStatus = statusLabel(det?.status ?? r.status);
     const pm = r.investorId ? payoutMap.get(r.investorId) : undefined;
     // Prefer per-portfolio payout details on the portfolio record itself —
     // an edit on the portfolio's account/MoMo fields must show up here.
@@ -298,6 +307,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       roiMode === 'monthly_compounding' ? 'Compound' : 'Payout',
       fmtDate(payoutDate),
       dueLabel(r.daysUntil),
+      portfolioStatus,
       paymentCell,
     ];
   });
@@ -318,10 +328,11 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       6: { halign: 'right', fontStyle: 'bold' },
       7: { halign: 'center', cellWidth: 16 },
       9: { halign: 'center', cellWidth: 22 },
-      10: { cellWidth: 55 },
+      10: { halign: 'center', cellWidth: 20 },
+      11: { cellWidth: 52 },
     },
     didParseCell: (data: any) => {
-      // Highlight overdue / due-today rows in the Status column.
+      // Highlight overdue / due-today rows in the Due column.
       if (data.section === 'body' && data.column.index === 9) {
         const status = String(data.cell.raw || '');
         if (status === 'Due today') {
@@ -334,7 +345,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
         }
       }
       // Subtle warning for missing payment methods
-      if (data.section === 'body' && data.column.index === 10) {
+      if (data.section === 'body' && data.column.index === 11) {
         const v = String(data.cell.raw || '');
         if (v.startsWith('Not set')) {
           data.cell.styles.textColor = [180, 83, 9];
