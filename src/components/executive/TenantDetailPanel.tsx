@@ -70,6 +70,12 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Last successful collection receipt — drives the download (PDF/Excel) UI.
   const [lastReceipt, setLastReceipt] = useState<RentCollectionReceiptData | null>(null);
   const [downloadingReceipt, setDownloadingReceipt] = useState<'pdf' | 'xlsx' | null>(null);
+  // Receipt validation — confirms the receipt amounts (UGX), commission and
+  // remaining balance reconcile against the posted collection ledger before
+  // the receipt can be downloaded.
+  const [validating, setValidating] = useState(false);
+  const [validation, setValidation] = useState<{ ok: boolean; issues: string[] } | null>(null);
+  const [validationOverride, setValidationOverride] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
