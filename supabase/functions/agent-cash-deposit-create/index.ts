@@ -145,19 +145,6 @@ Deno.serve(async (req) => {
       return json(400, { error: "create_failed", message: insErr?.message || "Could not start the deposit" });
     }
 
-    // Best-effort trust/system event — never blocks the flow.
-    try {
-      await admin.from("system_events").insert({
-        event_type: "agent_cash_deposit.requested",
-        user_id: depositor.id,
-        metadata: {
-          session_id: (session as any).id,
-          agent_id: agentProfile.id,
-          amount,
-        },
-      } as any);
-    } catch (_e) { /* ignore */ }
-
     return json(200, {
       ok: true,
       session_id: (session as any).id,
