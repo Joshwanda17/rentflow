@@ -7,12 +7,23 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from '@/components/ui/command';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
+import { useMissionAgentNetwork, type MissionAgentNetwork } from '@/hooks/useWelileOpsCounters';
+import { useMissionDriverEntities, type MissionDriverKey, type MissionDriverEntity } from '@/hooks/useWelileOpsCounters';
 import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
+import { useMissionPlacements, type MissionPlacementRow } from '@/hooks/useWelileOpsCounters';
+import { useMissionFunders, type MissionFunderRow } from '@/hooks/useWelileOpsCounters';
 import { useLandlordOnboardingTargets, useTargetLandlordForOnboarding, useBulkTargetLandlordsForOnboarding } from '@/hooks/useWelileOpsCounters';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -20,7 +31,8 @@ import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
-  ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2,
+  ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
+  ChevronsUpDown, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -64,9 +76,9 @@ function recommend(s: MissionSummary): { key: PriorityKey; text: string; severit
   if (s.empty_houses_total < 10) {
     return { key: 'list', severity: 'watch', text: `Only ${s.empty_houses_total.toLocaleString()} empty houses in inventory. Drive agents to list more landlords so there is supply to place tenants into.` };
   }
-  const fundActivation = pct(s.promissory_activated, s.promissory_total);
-  if (s.promissory_total > 0 && fundActivation < 60) {
-    return { key: 'fund', severity: 'watch', text: `${s.promissory_total - s.promissory_activated} promissory notes are not yet activated (${fundActivation}% active). Follow up funders to confirm and activate their notes.` };
+  const fundActivation = pct(s.funders_activated, s.funders_total);
+  if (s.funders_total > 0 && fundActivation < 60) {
+    return { key: 'fund', severity: 'watch', text: `${(s.funders_total - s.funders_activated).toLocaleString()} funders are not yet activated (${fundActivation}% active). Follow up funders to confirm and activate their commitments.` };
   }
   return { key: 'list', severity: 'good', text: 'Supply, placement and funding are all moving. Keep agents listing fresh inventory to sustain the funnel.' };
 }
@@ -77,13 +89,17 @@ export function WelileMissionBoard() {
   const [showAgents, setShowAgents] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<PriorityKey>('list');
-  const [drawer, setDrawer] = useState<{ agentId?: string | null; landlordId?: string | null; tab: 'agent' | 'landlord' } | null>(null);
+  const [drawer, setDrawer] = useState<{ agentId?: string | null; landlordId?: string | null; tenantId?: string | null; tab: 'agent' | 'landlord' | 'tenant' } | null>(null);
   const [emptyOpen, setEmptyOpen] = useState(false);
+  const [placedOpen, setPlacedOpen] = useState(false);
+  const [fundersOpen, setFundersOpen] = useState(false);
+  const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
   const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(win, showAgents, intervalMs);
   const agents: MissionAgentRow[] = agentData ?? [];
+  const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(win, intervalMs);
 
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
@@ -103,12 +119,12 @@ export function WelileMissionBoard() {
 
   const rec = summary ? recommend(summary) : null;
   const placementRate = summary ? pct(summary.placements_total, summary.placements_total + summary.empty_houses_total) : 0;
-  const fundActivation = summary ? pct(summary.promissory_activated, summary.promissory_total) : 0;
+  const fundActivation = summary ? pct(summary.funders_activated, summary.funders_total) : 0;
 
   const metricFor = (s: MissionSummary, key: PriorityKey) => {
     if (key === 'list') return { big: s.listings_new, label: 'new houses listed', extra: `${s.empty_houses_total.toLocaleString()} empty in stock · ${s.listing_agents} agents` };
     if (key === 'place') return { big: s.placements_new, label: 'tenants placed', extra: `${placementRate}% of listed houses occupied` };
-    return { big: s.promissory_new, label: 'new promissory notes', extra: `${formatUGX(s.promissory_amount)} committed · ${fundActivation}% active` };
+    return { big: s.funders_new, label: 'new funders', extra: `${formatUGX(s.funders_amount)} committed · ${fundActivation}% active` };
   };
 
   const recSeverityCls = rec?.severity === 'act'
@@ -192,12 +208,40 @@ export function WelileMissionBoard() {
                       <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
                     </Button>
                   )}
+                  {p.key === 'place' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-full mt-2 text-[11px] gap-1"
+                      onClick={() => setPlacedOpen(true)}
+                    >
+                      <Users className="h-3.5 w-3.5" /> View placed tenants
+                    </Button>
+                  )}
+                  {p.key === 'fund' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 w-full mt-2 text-[11px] gap-1"
+                      onClick={() => setFundersOpen(true)}
+                    >
+                      <Handshake className="h-3.5 w-3.5" /> View onboarded funders
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
           );
         })}
       </div>
+
+      {/* Agent network — the driving force across all 3 priorities */}
+      <AgentNetworkCard
+        network={network}
+        loading={networkLoading}
+        onOpenAgent={(id) => setDrawer({ agentId: id, tab: 'agent' })}
+        onOpenDriver={(key, label) => setDriverOpen({ key, label })}
+      />
 
       {/* Supply → placement funnel */}
       {summary && !isLoading && (
@@ -224,10 +268,15 @@ export function WelileMissionBoard() {
               <p className="text-[10px] text-muted-foreground mt-0.5">Still empty →</p>
             </button>
             <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex-1 rounded-lg bg-emerald-500/10 py-2">
+            <button
+              type="button"
+              onClick={() => setPlacedOpen(true)}
+              className="flex-1 rounded-lg bg-emerald-500/10 py-2 hover:bg-emerald-500/20 transition cursor-pointer"
+              title="View the placed tenants / occupied houses"
+            >
               <p className="text-lg font-bold leading-none text-emerald-600">{summary.placements_total.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Tenants placed</p>
-            </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Tenants placed →</p>
+            </button>
           </div>
         </div>
       )}
@@ -330,7 +379,7 @@ export function WelileMissionBoard() {
       <UserDrilldownDrawer
         open={!!drawer}
         onOpenChange={(v) => { if (!v) setDrawer(null); }}
-        tenantId={null}
+        tenantId={drawer?.tenantId ?? null}
         agentId={drawer?.agentId ?? null}
         landlordId={drawer?.landlordId ?? null}
         defaultTab={drawer?.tab ?? 'agent'}
@@ -344,11 +393,453 @@ export function WelileMissionBoard() {
         onOpenLandlord={(id) => { setEmptyOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
         onOpenAgent={(id) => { setEmptyOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
       />
+
+      <PlacedTenantsDialog
+        open={placedOpen}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setPlacedOpen(false)}
+        onOpenLandlord={(id) => { setPlacedOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
+        onOpenAgent={(id) => { setPlacedOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
+      />
+
+      <FundersDialog
+        open={fundersOpen}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setFundersOpen(false)}
+        onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
+      />
+
+      <AgentNetworkDriverDialog
+        driver={driverOpen?.key ?? null}
+        label={driverOpen?.label ?? ''}
+        win={win}
+        refetchIntervalMs={intervalMs}
+        open={!!driverOpen}
+        onClose={() => setDriverOpen(null)}
+        onOpenAgent={(id) => { setDriverOpen(null); setDrawer({ agentId: id, tab: 'agent' }); }}
+        onOpenTenant={(id) => { setDriverOpen(null); setDrawer({ tenantId: id, tab: 'tenant' }); }}
+        onOpenLandlord={(id) => { setDriverOpen(null); setDrawer({ landlordId: id, tab: 'landlord' }); }}
+      />
     </Card>
   );
 }
 
 type EmptySort = 'rent_desc' | 'recent' | 'oldest' | 'area';
+
+// ===== Agent network card: the driving force across all 3 priorities =====
+
+function AgentNetworkCard({
+  network, loading, onOpenAgent, onOpenDriver,
+}: {
+  network: MissionAgentNetwork | null | undefined;
+  loading: boolean;
+  onOpenAgent: (id: string) => void;
+  onOpenDriver: (key: MissionDriverKey, label: string) => void;
+}) {
+  if (loading || !network) {
+    return <Skeleton className="h-28 w-full mt-2" />;
+  }
+  const stats: { key: MissionDriverKey; icon: React.ElementType; label: string; value: number; agents: number; tone: string }[] = [
+    { key: 'list', icon: Home, label: 'Houses listed', value: network.houses_listed, agents: network.listing_agents, tone: 'text-[#9234EA]' },
+    { key: 'place', icon: Users, label: 'Tenants placed', value: network.tenants_placed, agents: network.placement_agents, tone: 'text-emerald-600' },
+    { key: 'fund', icon: Handshake, label: 'Funders onboarded', value: network.funders_total, agents: network.funder_agents, tone: 'text-amber-600' },
+  ];
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-3 mt-2">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+          <Network className="h-3.5 w-3.5 text-primary" /> Agent network — the driving force
+        </span>
+        <div className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5">
+          <Zap className="h-3 w-3 text-primary" />
+          <span className="text-[11px] font-bold text-primary">{network.total_agents.toLocaleString()}</span>
+          <span className="text-[10px] text-muted-foreground">active agents</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {stats.map((s) => {
+          const Icon = s.icon;
+          return (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => onOpenDriver(s.key, s.label)}
+              className="rounded-lg border border-border bg-card p-2 text-center hover:bg-muted/40 hover:ring-1 hover:ring-primary/40 transition"
+              title={`View the agents, tenants & landlords behind ${s.label}`}
+            >
+              <Icon className={cn('h-3.5 w-3.5 mx-auto', s.tone)} />
+              <p className="text-lg font-bold leading-none mt-1">{s.value.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{s.label}</p>
+              <p className="text-[9px] text-primary/80 font-medium mt-0.5">{s.agents.toLocaleString()} agents →</p>
+            </button>
+          );
+        })}
+      </div>
+      {network.top_agent_id && (
+        <button
+          onClick={() => onOpenAgent(network.top_agent_id!)}
+          className="mt-2 w-full flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 hover:bg-amber-500/10 transition"
+        >
+          <Award className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+          <span className="text-[11px] font-medium truncate flex-1 text-left">
+            Top driver: <span className="font-bold">{network.top_agent_name || 'Agent'}</span>
+          </span>
+          <Badge variant="outline" className="text-[10px] shrink-0">{network.top_agent_score.toLocaleString()} contributions</Badge>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ===== Agent network driver drill-down dialog =====
+
+const ENTITY_META: Record<MissionDriverEntity['entity_type'], { label: string; plural: string; icon: React.ElementType; tone: string; tab: 'agent' | 'tenant' | 'landlord' | null }> = {
+  agent: { label: 'Agent', plural: 'Agents', icon: Users, tone: 'text-blue-600 bg-blue-500/10', tab: 'agent' },
+  tenant: { label: 'Tenant', plural: 'Tenants', icon: UserPlus, tone: 'text-emerald-600 bg-emerald-500/10', tab: 'tenant' },
+  landlord: { label: 'Landlord', plural: 'Landlords', icon: Home, tone: 'text-[#9234EA] bg-[#9234EA]/10', tab: 'landlord' },
+  funder: { label: 'Funder', plural: 'Funders', icon: Handshake, tone: 'text-amber-600 bg-amber-500/10', tab: null },
+};
+
+const DRIVER_ORDER: MissionDriverEntity['entity_type'][] = ['agent', 'tenant', 'landlord', 'funder'];
+
+function SearchableEntityFilter({
+  value, onChange, options, placeholder, label,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: { id: string; name: string }[];
+  placeholder?: string;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedName = value === 'all' ? `All ${label?.toLowerCase() || 'items'}` : options.find((o) => o.id === value)?.name;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="h-8 text-xs w-full justify-between px-2.5 border-border bg-card font-normal" type="button">
+          <span className="truncate">{selectedName || placeholder || 'Select…'}</span>
+          <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+        <Command>
+          <CommandInput placeholder={`Search ${label?.toLowerCase() || 'items'}…`} />
+          <CommandList>
+            <CommandEmpty>No results.</CommandEmpty>
+            <CommandItem value="__all__" onSelect={() => { onChange('all'); setOpen(false); }}>
+              <Check className={cn('mr-2 h-3.5 w-3.5', value === 'all' ? 'opacity-100' : 'opacity-0')} />
+              All {label?.toLowerCase() || 'items'}
+            </CommandItem>
+            <CommandGroup>
+              {options.map((o) => (
+                <CommandItem key={o.id} value={`${o.id}:${o.name}`} onSelect={() => { onChange(o.id); setOpen(false); }}>
+                  <Check className={cn('mr-2 h-3.5 w-3.5', value === o.id ? 'opacity-100' : 'opacity-0')} />
+                  {o.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function AgentNetworkDriverDialog({
+  driver, label, win, refetchIntervalMs, open, onClose, onOpenAgent, onOpenTenant, onOpenLandlord,
+}: {
+  driver: MissionDriverKey | null;
+  label: string;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  open: boolean;
+  onClose: () => void;
+  onOpenAgent: (id: string) => void;
+  onOpenTenant: (id: string) => void;
+  onOpenLandlord: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [type, setType] = useState<'all' | MissionDriverEntity['entity_type']>('all');
+  const [sourceAgent, setSourceAgent] = useState<string>('all');
+  const [sourceTenant, setSourceTenant] = useState<string>('all');
+  const [sourceLandlord, setSourceLandlord] = useState<string>('all');
+  const [sourceFunder, setSourceFunder] = useState<string>('all');
+  const { data, isLoading } = useMissionDriverEntities(driver, win, open, refetchIntervalMs);
+  const rows: MissionDriverEntity[] = data ?? [];
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    rows.forEach((r) => { c[r.entity_type] = (c[r.entity_type] ?? 0) + 1; });
+    return c;
+  }, [rows]);
+
+  const presentTypes = useMemo(() => DRIVER_ORDER.filter((t) => (counts[t] ?? 0) > 0), [counts]);
+
+  const agents = useMemo(() => rows.filter((r) => r.entity_type === 'agent'), [rows]);
+  const tenants = useMemo(() => rows.filter((r) => r.entity_type === 'tenant'), [rows]);
+  const landlords = useMemo(() => rows.filter((r) => r.entity_type === 'landlord'), [rows]);
+  const funders = useMemo(() => rows.filter((r) => r.entity_type === 'funder'), [rows]);
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let r = [...rows];
+    if (type !== 'all') r = r.filter((x) => x.entity_type === type);
+    if (searchLower) {
+      r = r.filter((x) =>
+        (x.name?.toLowerCase().includes(searchLower) ?? false) ||
+        (x.phone?.toLowerCase().includes(searchLower) ?? false));
+    }
+    if (sourceAgent !== 'all') {
+      r = r.filter((x) =>
+        (x.entity_type === 'agent' && x.entity_id === sourceAgent) ||
+        x.agent_id === sourceAgent
+      );
+    }
+    if (sourceTenant !== 'all') {
+      r = r.filter((x) => x.entity_type === 'tenant' && x.entity_id === sourceTenant);
+    }
+    if (sourceLandlord !== 'all') {
+      r = r.filter((x) => x.entity_type === 'landlord' && x.entity_id === sourceLandlord);
+    }
+    if (sourceFunder !== 'all') {
+      r = r.filter((x) => x.entity_type === 'funder' && x.entity_id === sourceFunder);
+    }
+    return r;
+  }, [rows, type, searchLower, sourceAgent, sourceTenant, sourceLandlord, sourceFunder]);
+
+  const hasActiveFilters = search.trim().length > 0 || type !== 'all' || sourceAgent !== 'all' || sourceTenant !== 'all' || sourceLandlord !== 'all' || sourceFunder !== 'all';
+
+  const openEntity = (e: MissionDriverEntity) => {
+    if (!e.entity_id) return;
+    const tab = ENTITY_META[e.entity_type].tab;
+    if (tab === 'agent') onOpenAgent(e.entity_id);
+    else if (tab === 'tenant') onOpenTenant(e.entity_id);
+    else if (tab === 'landlord') onOpenLandlord(e.entity_id);
+  };
+
+  const resetFilters = () => {
+    setSearch('');
+    setType('all');
+    setSourceAgent('all');
+    setSourceTenant('all');
+    setSourceLandlord('all');
+    setSourceFunder('all');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); resetFilters(); } }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <DialogTitle className="text-base flex items-center gap-2">
+                <Network className="h-4 w-4 text-primary" /> {label || 'Driver'} — agent network
+              </DialogTitle>
+              <p className="text-[11px] text-muted-foreground">
+                The agents, tenants and landlords driving this priority. Tap any name to open their profile.
+              </p>
+            </div>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" className="h-8 text-[11px] px-2 shrink-0 mt-0.5" onClick={resetFilters}>
+                Clear all
+              </Button>
+            )}
+          </div>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name or phone…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            <button
+              onClick={() => setType('all')}
+              className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                type === 'all' ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+            >
+              All {rows.length}
+            </button>
+            {presentTypes.map((t) => (
+              <button
+                key={t}
+                onClick={() => setType(t)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  type === t ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {ENTITY_META[t].plural} {counts[t]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Source filters */}
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          {agents.length > 0 && (
+            <div className="flex-1 min-w-[140px]">
+              <SearchableEntityFilter
+                value={sourceAgent}
+                onChange={setSourceAgent}
+                options={agents.map((a) => ({ id: a.entity_id || 'unknown', name: a.name || 'Agent' }))}
+                label="agents"
+                placeholder="Source agent"
+              />
+            </div>
+          )}
+          {tenants.length > 0 && (
+            <div className="flex-1 min-w-[140px]">
+              <SearchableEntityFilter
+                value={sourceTenant}
+                onChange={setSourceTenant}
+                options={tenants.map((t) => ({ id: t.entity_id || 'unknown', name: t.name || 'Tenant' }))}
+                label="tenants"
+                placeholder="Source tenant"
+              />
+            </div>
+          )}
+          {landlords.length > 0 && (
+            <div className="flex-1 min-w-[140px]">
+              <SearchableEntityFilter
+                value={sourceLandlord}
+                onChange={setSourceLandlord}
+                options={landlords.map((l) => ({ id: l.entity_id || 'unknown', name: l.name || 'Landlord' }))}
+                label="landlords"
+                placeholder="Source landlord"
+              />
+            </div>
+          )}
+          {funders.length > 0 && (
+            <div className="flex-1 min-w-[140px]">
+              <SearchableEntityFilter
+                value={sourceFunder}
+                onChange={setSourceFunder}
+                options={funders.map((f) => ({ id: f.entity_id || 'unknown', name: f.name || 'Funder' }))}
+                label="funders"
+                placeholder="Source funder"
+              />
+            </div>
+          )}
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="h-8 text-[11px] px-2" onClick={resetFilters}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+
+        {/* Active filter chips */}
+        {(sourceAgent !== 'all' || sourceTenant !== 'all' || sourceLandlord !== 'all' || sourceFunder !== 'all') && (
+          <div className="px-4 pb-2 flex items-center gap-1.5 flex-wrap">
+            {sourceAgent !== 'all' && (
+              <Badge variant="secondary" className="text-[10px] gap-1 pl-2 pr-1 py-0.5 h-6">
+                Agent: {agents.find((a) => a.entity_id === sourceAgent)?.name || sourceAgent}
+                <button
+                  type="button"
+                  onClick={() => setSourceAgent('all')}
+                  className="ml-0.5 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                  aria-label="Clear agent filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {sourceTenant !== 'all' && (
+              <Badge variant="secondary" className="text-[10px] gap-1 pl-2 pr-1 py-0.5 h-6">
+                Tenant: {tenants.find((t) => t.entity_id === sourceTenant)?.name || sourceTenant}
+                <button
+                  type="button"
+                  onClick={() => setSourceTenant('all')}
+                  className="ml-0.5 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                  aria-label="Clear tenant filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {sourceLandlord !== 'all' && (
+              <Badge variant="secondary" className="text-[10px] gap-1 pl-2 pr-1 py-0.5 h-6">
+                Landlord: {landlords.find((l) => l.entity_id === sourceLandlord)?.name || sourceLandlord}
+                <button
+                  type="button"
+                  onClick={() => setSourceLandlord('all')}
+                  className="ml-0.5 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                  aria-label="Clear landlord filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {sourceFunder !== 'all' && (
+              <Badge variant="secondary" className="text-[10px] gap-1 pl-2 pr-1 py-0.5 h-6">
+                Funder: {funders.find((f) => f.entity_id === sourceFunder)?.name || sourceFunder}
+                <button
+                  type="button"
+                  onClick={() => setSourceFunder('all')}
+                  className="ml-0.5 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                  aria-label="Clear funder filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {!isLoading && rows.length > 0 && (
+          <div className="px-4 pb-2">
+            <Badge variant="outline" className="text-[10px]">{filtered.length} of {rows.length} shown</Badge>
+          </div>
+        )}
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {rows.length === 0 ? 'No activity for this driver in this window.' : 'Nothing matches your filters.'}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((e, i) => {
+                const meta = ENTITY_META[e.entity_type];
+                const Icon = meta.icon;
+                const clickable = !!e.entity_id && !!meta.tab;
+                return (
+                  <li
+                    key={`${e.entity_type}:${e.entity_id ?? i}`}
+                    onClick={() => clickable && openEntity(e)}
+                    className={cn('rounded-lg border border-border bg-card p-3 flex items-center gap-2',
+                      clickable ? 'hover:bg-muted/40 cursor-pointer' : 'opacity-90')}
+                  >
+                    <div className={cn('p-1.5 rounded-lg shrink-0', meta.tone)}><Icon className="h-3.5 w-3.5" /></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-sm truncate">{e.name || `${meta.label}`}</span>
+                        <Badge variant="outline" className="text-[9px] shrink-0">{meta.label}</Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-x-3 text-[10px] text-muted-foreground mt-0.5">
+                        {e.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {e.phone}</span>}
+                        {e.detail && <span>{e.detail}</span>}
+                      </div>
+                    </div>
+                    {clickable && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function statusTone(status: string | null): string {
   switch ((status || '').toLowerCase()) {
@@ -665,6 +1156,299 @@ function EmptyHousesDialog({
             </Button>
           </div>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== Placed tenants (occupied houses) dialog =====
+
+type PlacedSort = 'recent' | 'rent_desc' | 'name';
+
+function PlacedTenantsDialog({
+  open, win, refetchIntervalMs, onClose, onOpenLandlord, onOpenAgent,
+}: {
+  open: boolean;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  onClose: () => void;
+  onOpenLandlord: (id: string) => void;
+  onOpenAgent: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<PlacedSort>('recent');
+  const { data, isLoading } = useMissionPlacements(win, open, refetchIntervalMs);
+  const rows: MissionPlacementRow[] = data ?? [];
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let r = [...rows];
+    if (searchLower) {
+      r = r.filter((p) =>
+        (p.landlord_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.tenant_name?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.tenant_phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.property_address?.toLowerCase().includes(searchLower) ?? false) ||
+        (p.agent_name?.toLowerCase().includes(searchLower) ?? false));
+    }
+    r.sort((a, b) => {
+      switch (sort) {
+        case 'rent_desc': return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+        case 'name': return (a.landlord_name || '~').localeCompare(b.landlord_name || '~');
+        case 'recent':
+        default: return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      }
+    });
+    return r;
+  }, [rows, searchLower, sort]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4 text-emerald-600" /> Placed tenants — occupied houses
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Each landlord linked to a tenant is an occupied house. Tap a landlord, tenant or agent to open their profile.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search landlord, tenant, agent…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'recent', label: 'Recent' },
+              { key: 'rent_desc', label: 'Rent' },
+              { key: 'name', label: 'Name' },
+            ] as { key: PlacedSort; label: string }[]).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSort(s.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!isLoading && rows.length > 0 && (
+          <div className="px-4 pb-2">
+            <Badge variant="outline" className="text-[10px]">{filtered.length} of {rows.length} occupied houses</Badge>
+          </div>
+        )}
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {rows.length === 0 ? 'No placed tenants in this window.' : 'No placements match your search.'}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((p) => (
+                <li key={p.landlord_id} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm truncate flex-1">{p.property_address || p.landlord_name || 'Occupied house'}</span>
+                    {p.verified && <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
+                    {p.monthly_rent ? <Badge className="text-[10px] shrink-0 text-foreground bg-muted">{formatUGX(p.monthly_rent)}/mo</Badge> : null}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                    <span>Placed {fmtDate(p.created_at)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <button
+                      onClick={() => onOpenLandlord(p.landlord_id)}
+                      className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-[#9234EA] bg-[#9234EA]/10 hover:ring-1 hover:ring-primary"
+                    >
+                      <Home className="h-3 w-3" /> {p.landlord_name || 'Landlord'}
+                      {p.landlord_phone && <span className="text-muted-foreground font-normal">· {p.landlord_phone}</span>}
+                    </button>
+                    <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-emerald-600 bg-emerald-500/10">
+                      <Users className="h-3 w-3" /> {p.tenant_name || 'Tenant'}
+                      {p.tenant_phone && <span className="text-muted-foreground font-normal">· {p.tenant_phone}</span>}
+                    </span>
+                    {p.agent_id && (
+                      <button
+                        onClick={() => onOpenAgent(p.agent_id!)}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-blue-600 bg-blue-500/10 hover:ring-1 hover:ring-primary"
+                      >
+                        <UserPlus className="h-3 w-3" /> {p.agent_name || 'Agent'}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== Funders dialog (Partner Ops portfolios + promissory notes) =====
+
+type FunderSort = 'recent' | 'amount_desc' | 'name';
+
+function FundersDialog({
+  open, win, refetchIntervalMs, onClose, onOpenAgent,
+}: {
+  open: boolean;
+  win: CounterWindow;
+  refetchIntervalMs?: number | false;
+  onClose: () => void;
+  onOpenAgent: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<FunderSort>('recent');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'portfolio' | 'promissory'>('all');
+  const { data, isLoading } = useMissionFunders(win, open, refetchIntervalMs);
+  const rows: MissionFunderRow[] = data ?? [];
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    let r = [...rows];
+    if (sourceFilter !== 'all') r = r.filter((f) => f.source === sourceFilter);
+    if (searchLower) {
+      r = r.filter((f) =>
+        (f.name?.toLowerCase().includes(searchLower) ?? false) ||
+        (f.phone?.toLowerCase().includes(searchLower) ?? false) ||
+        (f.reference?.toLowerCase().includes(searchLower) ?? false) ||
+        (f.agent_name?.toLowerCase().includes(searchLower) ?? false));
+    }
+    r.sort((a, b) => {
+      switch (sort) {
+        case 'amount_desc': return (b.amount || 0) - (a.amount || 0);
+        case 'name': return (a.name || '~').localeCompare(b.name || '~');
+        case 'recent':
+        default: return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      }
+    });
+    return r;
+  }, [rows, searchLower, sort, sourceFilter]);
+
+  const activatedCount = rows.filter((f) => f.activated).length;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Handshake className="h-4 w-4 text-amber-600" /> Onboarded funders
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Funders from Partner Ops portfolios and promissory notes, with their committed amount and activation status.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search funder, agent, reference…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'recent', label: 'Recent' },
+              { key: 'amount_desc', label: 'Amount' },
+              { key: 'name', label: 'Name' },
+            ] as { key: FunderSort; label: string }[]).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSort(s.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sort === s.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'portfolio', label: 'Portfolios' },
+              { key: 'promissory', label: 'Notes' },
+            ] as { key: 'all' | 'portfolio' | 'promissory'; label: string }[]).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setSourceFilter(f.key)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  sourceFilter === f.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!isLoading && rows.length > 0 && (
+          <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5">
+            <Badge variant="outline" className="text-[10px]">{filtered.length} of {rows.length} funders</Badge>
+            {activatedCount > 0 && (
+              <Badge className="text-[10px] text-emerald-600 bg-emerald-500/10">{activatedCount} activated</Badge>
+            )}
+          </div>
+        )}
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {rows.length === 0 ? 'No funders in this window.' : 'No funders match your search.'}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((f) => (
+                <li key={f.funder_key} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm truncate flex-1">{f.name || 'Funder'}</span>
+                    <Badge className={cn('text-[10px] shrink-0',
+                      f.source === 'portfolio' ? 'text-blue-600 bg-blue-500/10' : 'text-amber-600 bg-amber-500/10')}>
+                      {f.source === 'portfolio' ? 'Portfolio' : 'Note'}
+                    </Badge>
+                    {f.activated
+                      ? <Badge className="text-[10px] shrink-0 text-emerald-600 bg-emerald-500/10">Active</Badge>
+                      : <Badge className="text-[10px] shrink-0 text-muted-foreground bg-muted">Pending</Badge>}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                    {f.amount ? <span className="text-foreground font-semibold">{formatUGX(f.amount)} committed</span> : null}
+                    {f.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {f.phone}</span>}
+                    {f.reference && <span>Ref {f.reference}</span>}
+                    <span>Onboarded {fmtDate(f.created_at)}</span>
+                  </div>
+                  {f.agent_id && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      <button
+                        onClick={() => onOpenAgent(f.agent_id!)}
+                        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium border border-border text-blue-600 bg-blue-500/10 hover:ring-1 hover:ring-primary"
+                      >
+                        <UserPlus className="h-3 w-3" /> {f.agent_name || 'Agent'}
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

@@ -166,10 +166,10 @@ export interface MissionSummary {
   placements_new: number;
   placements_total: number;
   placement_agents: number;
-  promissory_new: number;
-  promissory_total: number;
-  promissory_activated: number;
-  promissory_amount: number;
+  funders_new: number;
+  funders_total: number;
+  funders_activated: number;
+  funders_amount: number;
 }
 
 export interface MissionAgentRow {
@@ -214,6 +214,66 @@ export function useMissionLeaderboard(win: CounterWindow, enabled: boolean, refe
   });
 }
 
+// ===== Agent network: aggregated driving-force stats across all 3 priorities =====
+
+export interface MissionAgentNetwork {
+  total_agents: number;
+  listing_agents: number;
+  placement_agents: number;
+  funder_agents: number;
+  houses_listed: number;
+  tenants_placed: number;
+  landlords_reached: number;
+  funders_total: number;
+  top_agent_id: string | null;
+  top_agent_name: string | null;
+  top_agent_score: number;
+}
+
+export function useMissionAgentNetwork(win: CounterWindow, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    queryKey: ['welile-mission-agent-network', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionAgentNetwork | null> => {
+      const { data, error } = await supabase.rpc('welile_mission_agent_network' as any, { p_since: since });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as MissionAgentNetwork | null;
+    },
+  });
+}
+
+// ===== Agent network driver drill-down (entities behind a priority) =====
+
+export type MissionDriverKey = 'list' | 'place' | 'fund';
+
+export interface MissionDriverEntity {
+  entity_type: 'agent' | 'tenant' | 'landlord' | 'funder';
+  entity_id: string | null;
+  name: string | null;
+  phone: string | null;
+  detail: string | null;
+  created_at: string;
+  agent_id: string | null;
+}
+
+export function useMissionDriverEntities(driver: MissionDriverKey | null, win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled: enabled && !!driver,
+    queryKey: ['welile-mission-driver-entities', driver, win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionDriverEntity[]> => {
+      const { data, error } = await supabase.rpc('welile_mission_driver_entities' as any, { p_driver: driver, p_since: since });
+      if (error) throw error;
+      return (data ?? []) as MissionDriverEntity[];
+    },
+  });
+}
+
 export interface MissionEmptyHouseRow {
   listing_id: string;
   title: string | null;
@@ -245,6 +305,71 @@ export function useMissionEmptyHouses(win: CounterWindow, enabled: boolean, refe
       const { data, error } = await supabase.rpc('welile_mission_empty_houses' as any, { p_since: since });
       if (error) throw error;
       return (data ?? []) as MissionEmptyHouseRow[];
+    },
+  });
+}
+
+// ===== Placed tenants (occupied houses = landlords linked to a tenant) =====
+
+export interface MissionPlacementRow {
+  landlord_id: string;
+  landlord_name: string | null;
+  landlord_phone: string | null;
+  property_address: string | null;
+  monthly_rent: number | null;
+  verified: boolean;
+  tenant_id: string | null;
+  tenant_name: string | null;
+  tenant_phone: string | null;
+  agent_id: string | null;
+  agent_name: string | null;
+  agent_phone: string | null;
+  created_at: string;
+}
+
+export function useMissionPlacements(win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled,
+    queryKey: ['welile-mission-placements', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionPlacementRow[]> => {
+      const { data, error } = await supabase.rpc('welile_mission_placements' as any, { p_since: since });
+      if (error) throw error;
+      return (data ?? []) as MissionPlacementRow[];
+    },
+  });
+}
+
+// ===== Funders (Partner Ops portfolios + promissory notes) =====
+
+export interface MissionFunderRow {
+  funder_key: string;
+  source: 'portfolio' | 'promissory';
+  name: string | null;
+  phone: string | null;
+  amount: number | null;
+  status: string | null;
+  activated: boolean;
+  reference: string | null;
+  agent_id: string | null;
+  agent_name: string | null;
+  investor_id: string | null;
+  created_at: string;
+}
+
+export function useMissionFunders(win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled,
+    queryKey: ['welile-mission-funders', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionFunderRow[]> => {
+      const { data, error } = await supabase.rpc('welile_mission_funders' as any, { p_since: since });
+      if (error) throw error;
+      return (data ?? []) as MissionFunderRow[];
     },
   });
 }

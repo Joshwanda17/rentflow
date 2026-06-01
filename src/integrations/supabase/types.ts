@@ -14373,6 +14373,7 @@ export type Database = {
           district_city: string | null
           email: string
           full_name: string
+          house_listing_id: string | null
           id: string
           latitude: number | null
           location_accuracy: number | null
@@ -14404,6 +14405,7 @@ export type Database = {
           district_city?: string | null
           email: string
           full_name: string
+          house_listing_id?: string | null
           id?: string
           latitude?: number | null
           location_accuracy?: number | null
@@ -14435,6 +14437,7 @@ export type Database = {
           district_city?: string | null
           email?: string
           full_name?: string
+          house_listing_id?: string | null
           id?: string
           latitude?: number | null
           location_accuracy?: number | null
@@ -14453,7 +14456,15 @@ export type Database = {
           status?: string
           temp_password?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "supporter_invites_house_listing_id_fkey"
+            columns: ["house_listing_id"]
+            isOneToOne: false
+            referencedRelation: "house_listings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supporter_referrals: {
         Row: {
@@ -19536,6 +19547,34 @@ export type Database = {
       welile_default_agent_vouch_floor_ugx:
         | { Args: never; Returns: number }
         | { Args: { p_agent_id: string }; Returns: number }
+      welile_mission_agent_network: {
+        Args: { p_since?: string }
+        Returns: {
+          funder_agents: number
+          funders_total: number
+          houses_listed: number
+          landlords_reached: number
+          listing_agents: number
+          placement_agents: number
+          tenants_placed: number
+          top_agent_id: string
+          top_agent_name: string
+          top_agent_score: number
+          total_agents: number
+        }[]
+      }
+      welile_mission_driver_entities: {
+        Args: { p_driver: string; p_since?: string }
+        Returns: {
+          agent_id: string
+          created_at: string
+          detail: string
+          entity_id: string
+          entity_type: string
+          name: string
+          phone: string
+        }[]
+      }
       welile_mission_empty_houses: {
         Args: { p_since?: string }
         Returns: {
@@ -19558,6 +19597,23 @@ export type Database = {
           verified: boolean
         }[]
       }
+      welile_mission_funders: {
+        Args: { p_since?: string }
+        Returns: {
+          activated: boolean
+          agent_id: string
+          agent_name: string
+          amount: number
+          created_at: string
+          funder_key: string
+          investor_id: string
+          name: string
+          phone: string
+          reference: string
+          source: string
+          status: string
+        }[]
+      }
       welile_mission_leaderboard: {
         Args: { p_since?: string }
         Returns: {
@@ -19572,19 +19628,37 @@ export type Database = {
           promissory_count: number
         }[]
       }
+      welile_mission_placements: {
+        Args: { p_since?: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          created_at: string
+          landlord_id: string
+          landlord_name: string
+          landlord_phone: string
+          monthly_rent: number
+          property_address: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+          verified: boolean
+        }[]
+      }
       welile_mission_summary: {
         Args: { p_since?: string }
         Returns: {
           empty_houses_total: number
+          funders_activated: number
+          funders_amount: number
+          funders_new: number
+          funders_total: number
           listing_agents: number
           listings_new: number
           placement_agents: number
           placements_new: number
           placements_total: number
-          promissory_activated: number
-          promissory_amount: number
-          promissory_new: number
-          promissory_total: number
         }[]
       }
       welile_ops_counter_breakdown: {

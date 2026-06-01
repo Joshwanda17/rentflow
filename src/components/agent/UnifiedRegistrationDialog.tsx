@@ -13,12 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, 
   Sparkles, ArrowLeft, Shield, MapPin, Home, RefreshCw, AlertCircle, Heart,
-  Hash, Wallet, Zap, Droplets, ShieldCheck, XCircle
+  Hash, Wallet, Zap, Droplets, ShieldCheck, XCircle, ChevronsUpDown
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -186,6 +191,51 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
   const [nwscMeter, setNwscMeter] = useState('');
   const [uedclMeter, setUedclMeter] = useState('');
 
+  // Empty-house assignment for tenant registrations
+  type EmptyHouse = {
+    id: string;
+    title: string;
+    address: string | null;
+    region: string | null;
+    house_category: string | null;
+    monthly_rent: number | null;
+    short_code: string | null;
+  };
+  const [emptyHouses, setEmptyHouses] = useState<EmptyHouse[]>([]);
+  const [housesLoading, setHousesLoading] = useState(false);
+  const [selectedHouseId, setSelectedHouseId] = useState<string>('');
+  const [housePickerOpen, setHousePickerOpen] = useState(false);
+  const selectedHouse = useMemo(
+    () => emptyHouses.find((h) => h.id === selectedHouseId) || null,
+    [emptyHouses, selectedHouseId]
+  );
+
+  const fetchEmptyHouses = async () => {
+    setHousesLoading(true);
+    try {
+      const { data } = await supabase
+        .from('house_listings')
+        .select('id, title, address, region, house_category, monthly_rent, short_code')
+        .eq('status', 'available')
+        .is('tenant_id', null)
+        .eq('is_hidden', false)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      setEmptyHouses((data as EmptyHouse[]) || []);
+    } catch {
+      setEmptyHouses([]);
+    } finally {
+      setHousesLoading(false);
+    }
+  };
+
+  // Load available empty houses once the agent picks the tenant flow.
+  useEffect(() => {
+    if (selectedType === 'tenant' && emptyHouses.length === 0 && !housesLoading) {
+      fetchEmptyHouses();
+    }
+  }, [selectedType]);
+
   // Name matching (MoMo name vs phone-holder name)
   const nameMatchScore = useMemo(() => {
     if (!momoName.trim() || !formData.phone.trim()) return null;
@@ -275,6 +325,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
           role, 
           isSubAgent, 
           isSupporter,
+          houseListingId: selectedType === 'tenant' && selectedHouseId ? selectedHouseId : null,
           latitude: role === 'landlord' && capturedLocation ? capturedLocation.latitude : null,
           longitude: role === 'landlord' && capturedLocation ? capturedLocation.longitude : null,
           locationAccuracy: role === 'landlord' && capturedLocation ? capturedLocation.accuracy : null,
@@ -436,6 +487,8 @@ Password: ${createdInvite?.password}`;
     setMomoNumber('');
     setNwscMeter('');
     setUedclMeter('');
+    setSelectedHouseId('');
+    setHousePickerOpen(false);
   };
 
   const handleClose = () => {
@@ -577,6 +630,115 @@ Password: ${createdInvite?.password}`;
             </p>
           )}
         </div>
+
+        {/* Assign to an available empty house - Only for tenants */}
+        {selectedType === 'tenant' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium flex items-center gap-1">
+                <Home className="h-3.5 w-3.5 text-blue-500" /> Move into a house
+                <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={fetchEmptyHouses}
+                disabled={housesLoading}
+                className="h-7 px-2 text-[11px] gap-1"
+              >
+                <RefreshCw className={`h-3 w-3 ${housesLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+            <Popover open={housePickerOpen} onOpenChange={setHousePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={housePickerOpen}
+                  className="w-full h-14 justify-between rounded-xl text-left font-normal"
+                >
+                  {selectedHouse ? (
+                    <span className="flex flex-col items-start min-w-0">
+                      <span className="truncate max-w-full text-sm font-medium">{selectedHouse.title}</span>
+                      <span className="truncate max-w-full text-[11px] text-muted-foreground">
+                        {[selectedHouse.address, selectedHouse.region].filter(Boolean).join(' · ') || 'Empty house'}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {housesLoading ? 'Loading empty houses…' : 'Search an available empty house'}
+                    </span>
+                  )}
+                  <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+                <Command
+                  filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}
+                >
+                  <CommandInput placeholder="Search by name, area or code…" />
+                  <CommandList>
+                    <CommandEmpty>
+                      {housesLoading ? 'Loading…' : 'No available empty houses found.'}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {emptyHouses.map((h) => {
+                        const searchValue = [h.title, h.address, h.region, h.house_category, h.short_code]
+                          .filter(Boolean)
+                          .join(' ');
+                        return (
+                          <CommandItem
+                            key={h.id}
+                            value={`${searchValue} ${h.id}`}
+                            onSelect={() => {
+                              setSelectedHouseId(h.id === selectedHouseId ? '' : h.id);
+                              setHousePickerOpen(false);
+                            }}
+                            className="flex items-start gap-2"
+                          >
+                            <Check
+                              className={cn(
+                                'h-4 w-4 mt-0.5 shrink-0',
+                                selectedHouseId === h.id ? 'opacity-100' : 'opacity-0'
+                              )}
+                            />
+                            <span className="flex flex-col min-w-0">
+                              <span className="truncate text-sm font-medium">{h.title}</span>
+                              <span className="truncate text-[11px] text-muted-foreground">
+                                {[h.address, h.region, h.house_category].filter(Boolean).join(' · ')}
+                                {h.short_code ? ` · ${h.short_code}` : ''}
+                              </span>
+                            </span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {selectedHouse ? (
+              <p className="text-[11px] text-success flex items-center gap-1.5">
+                <Check className="h-3 w-3" />
+                This house will be assigned to the tenant when they activate.
+                <button
+                  type="button"
+                  onClick={() => setSelectedHouseId('')}
+                  className="ml-1 underline text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </button>
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Optionally place this tenant in an empty house you manage.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Number of Rentals & Category - Only for landlords */}
         {selectedType === 'landlord' && (
