@@ -523,6 +523,17 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                   <InputOTPSlot index={3} />
                 </InputOTPGroup>
               </InputOTP>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                disabled={loading || resendCooldownLeft > 0 || expired}
+                onClick={() => void handleResend()}
+              >
+                {resendCooldownLeft > 0
+                  ? `Resend code in ${resendCooldownLeft}s`
+                  : 'Didn\'t get it? Resend code'}
+              </Button>
               {loading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
                   <Loader2 className="h-4 w-4 animate-spin" /> Crediting your wallet…
@@ -545,7 +556,7 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
                 </div>
               )}
               {expired && !loading && (
-                <Button variant="outline" size="sm" className="mt-1" onClick={() => { setStep('form'); setPin(''); setExpiresAt(null); }}>
+                <Button variant="outline" size="sm" className="mt-1" onClick={() => { setStep('form'); setPin(''); setExpiresAt(null); setCanResendAt(null); }}>
                   Start a new deposit
                 </Button>
               )}
