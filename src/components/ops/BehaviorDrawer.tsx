@@ -1,9 +1,12 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTenantBehavior } from '@/hooks/useTenantBehavior';
 import { format } from 'date-fns';
-import { TrendingUp, TrendingDown, Activity, MapPin, ShieldCheck, ShieldAlert, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Activity, MapPin, ShieldCheck, ShieldAlert, Sparkles, Settings2 } from 'lucide-react';
+import { TenantDetailPanel } from '@/components/executive/TenantDetailPanel';
 
 interface Props {
   tenantId: string | null;
@@ -15,6 +18,10 @@ const fmtUGX = (n: number) => `UGX ${Math.round(n || 0).toLocaleString()}`;
 export function BehaviorDrawer({ tenantId, onOpenChange }: Props) {
   const { data, isLoading } = useTenantBehavior(tenantId);
   const open = !!tenantId;
+  const [mode, setMode] = useState<'behavior' | 'manage'>('behavior');
+
+  // Reset to the behaviour view whenever a different tenant (or none) is opened.
+  useEffect(() => { setMode('behavior'); }, [tenantId]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -22,11 +29,19 @@ export function BehaviorDrawer({ tenantId, onOpenChange }: Props) {
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            Tenant Behaviour
+            {mode === 'manage' ? 'Manage Tenant' : 'Tenant Behaviour'}
           </SheetTitle>
         </SheetHeader>
 
-        {isLoading || !data ? (
+        {mode === 'manage' && tenantId ? (
+          <div className="mt-4 pb-8">
+            <TenantDetailPanel
+              tenantId={tenantId}
+              tenantName={data?.header.full_name || 'Tenant'}
+              onBack={() => setMode('behavior')}
+            />
+          </div>
+        ) : isLoading || !data ? (
           <div className="space-y-4 mt-4">
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />
@@ -34,6 +49,11 @@ export function BehaviorDrawer({ tenantId, onOpenChange }: Props) {
           </div>
         ) : (
           <div className="space-y-5 mt-4 pb-8">
+            {/* Drill-down: edit, collect rent, and update outstanding balance */}
+            <Button className="w-full gap-2" onClick={() => setMode('manage')}>
+              <Settings2 className="h-4 w-4" />
+              Manage · edit, collect rent & outstanding
+            </Button>
             {/* Header */}
             <div className="rounded-xl border border-border p-4 bg-card">
               <p className="font-semibold text-base truncate">{data.header.full_name || 'Unknown'}</p>
