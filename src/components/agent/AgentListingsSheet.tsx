@@ -821,6 +821,13 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                   >
                                     <UserMinus className="h-3 w-3" /> Move out & replace
                                   </Button>
+                                  <Button
+                                    size="sm"
+                                    className="h-8 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                                    onClick={() => setSwapTarget(l)}
+                                  >
+                                    <Repeat className="h-3 w-3" /> Swap tenant
+                                  </Button>
                                   {req && (
                                     <Button
                                       size="sm" variant="outline" className="h-8 text-xs gap-1"
