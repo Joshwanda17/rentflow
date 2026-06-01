@@ -3676,6 +3676,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           durationMonths: p.durationMonths,
           nextRoiDate: p.nextRoiDate,
           payoutDay: p.payoutDay,
+          status: (p as any).status,
         })),
       });
       const stamp = new Date().toISOString().slice(0, 10);
