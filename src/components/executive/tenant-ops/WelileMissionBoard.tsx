@@ -13,6 +13,8 @@ import {
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
 import { useMissionEmptyHouses, type MissionEmptyHouseRow } from '@/hooks/useWelileOpsCounters';
+import { useMissionPlacements, type MissionPlacementRow } from '@/hooks/useWelileOpsCounters';
+import { useMissionFunders, type MissionFunderRow } from '@/hooks/useWelileOpsCounters';
 import { useLandlordOnboardingTargets, useTargetLandlordForOnboarding, useBulkTargetLandlordsForOnboarding } from '@/hooks/useWelileOpsCounters';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -64,9 +66,9 @@ function recommend(s: MissionSummary): { key: PriorityKey; text: string; severit
   if (s.empty_houses_total < 10) {
     return { key: 'list', severity: 'watch', text: `Only ${s.empty_houses_total.toLocaleString()} empty houses in inventory. Drive agents to list more landlords so there is supply to place tenants into.` };
   }
-  const fundActivation = pct(s.promissory_activated, s.promissory_total);
-  if (s.promissory_total > 0 && fundActivation < 60) {
-    return { key: 'fund', severity: 'watch', text: `${s.promissory_total - s.promissory_activated} promissory notes are not yet activated (${fundActivation}% active). Follow up funders to confirm and activate their notes.` };
+  const fundActivation = pct(s.funders_activated, s.funders_total);
+  if (s.funders_total > 0 && fundActivation < 60) {
+    return { key: 'fund', severity: 'watch', text: `${(s.funders_total - s.funders_activated).toLocaleString()} funders are not yet activated (${fundActivation}% active). Follow up funders to confirm and activate their commitments.` };
   }
   return { key: 'list', severity: 'good', text: 'Supply, placement and funding are all moving. Keep agents listing fresh inventory to sustain the funnel.' };
 }
@@ -79,6 +81,8 @@ export function WelileMissionBoard() {
   const [sort, setSort] = useState<PriorityKey>('list');
   const [drawer, setDrawer] = useState<{ agentId?: string | null; landlordId?: string | null; tab: 'agent' | 'landlord' } | null>(null);
   const [emptyOpen, setEmptyOpen] = useState(false);
+  const [placedOpen, setPlacedOpen] = useState(false);
+  const [fundersOpen, setFundersOpen] = useState(false);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
@@ -103,12 +107,12 @@ export function WelileMissionBoard() {
 
   const rec = summary ? recommend(summary) : null;
   const placementRate = summary ? pct(summary.placements_total, summary.placements_total + summary.empty_houses_total) : 0;
-  const fundActivation = summary ? pct(summary.promissory_activated, summary.promissory_total) : 0;
+  const fundActivation = summary ? pct(summary.funders_activated, summary.funders_total) : 0;
 
   const metricFor = (s: MissionSummary, key: PriorityKey) => {
     if (key === 'list') return { big: s.listings_new, label: 'new houses listed', extra: `${s.empty_houses_total.toLocaleString()} empty in stock · ${s.listing_agents} agents` };
     if (key === 'place') return { big: s.placements_new, label: 'tenants placed', extra: `${placementRate}% of listed houses occupied` };
-    return { big: s.promissory_new, label: 'new promissory notes', extra: `${formatUGX(s.promissory_amount)} committed · ${fundActivation}% active` };
+    return { big: s.funders_new, label: 'new funders', extra: `${formatUGX(s.funders_amount)} committed · ${fundActivation}% active` };
   };
 
   const recSeverityCls = rec?.severity === 'act'
