@@ -3381,6 +3381,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           toast.success('Landlord registered. Search to select them now.');
         }}
       />
+      <ListEmptyHouseDialog
+        open={showListHouse}
+        onOpenChange={setShowListHouse}
+        initialLandlordName={landlordName || undefined}
+        initialLandlordPhone={landlordPhone || undefined}
+        onSuccess={() => {
+          setShowListHouse(false);
+          // The new house is available instantly — refresh the picker so the
+          // agent can select it and link the tenant they're registering.
+          setHouseSearchedOnce(false);
+          searchAvailableHouses();
+          toast.success('House listed and available — search to select it now.');
+        }}
+      />
       <AlertDialog open={confirmCloseDialog} onOpenChange={setConfirmCloseDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
