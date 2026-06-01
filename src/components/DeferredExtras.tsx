@@ -1,6 +1,4 @@
 import { lazy, Suspense, useState, useEffect, Component, ReactNode } from "react";
-import { useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 
 const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
 const IOSLinkHandler = lazy(() => import("@/components/IOSLinkHandler"));
@@ -17,9 +15,6 @@ class ExtrasBoundary extends Component<{ children: ReactNode }, { hasError: bool
 
 export default function DeferredExtras() {
   const [ready, setReady] = useState(false);
-  const { pathname } = useLocation();
-
-  const { user } = useAuth();
 
   useEffect(() => {
     const activate = () => setReady(true);
