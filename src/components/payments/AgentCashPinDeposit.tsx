@@ -66,6 +66,48 @@ export default function AgentCashPinDeposit({ open, onOpenChange, onSuccess }: A
   const reset = () => {
     setStep('form'); setAmount(''); setAgentPhone(''); setLoading(false);
     setSessionId(null); setAgentName(''); setPin(''); setCreditedAmount(0); setExpiresAt(null);
+    setSuggestions([]); setShowSuggestions(false);
+  };
+
+  const searchAgents = useCallback(async (query: string) => {
+    const digits = query.replace(/\D/g, '');
+    if (digits.length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const { data, error } = await supabase.rpc('search_agents_by_phone', {
+        p_phone_term: digits,
+        p_limit: 8,
+      });
+      if (error) {
+        console.error('search_agents_by_phone error:', error);
+        setSuggestions([]);
+      } else {
+        setSuggestions((data ?? []) as Array<{ id: string; full_name: string; phone: string }>);
+        setShowSuggestions((data ?? []).length > 0);
+      }
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  const onPhoneChange = (value: string) => {
+    setAgentPhone(value);
+    setShowSuggestions(false);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => searchAgents(value), 300);
+  };
+
+  const selectSuggestion = (phone: string, name: string) => {
+    setAgentPhone(phone);
+    setAgentName(name);
+    setShowSuggestions(false);
+    setSuggestions([]);
   };
 
   const close = () => { reset(); onOpenChange(false); };
