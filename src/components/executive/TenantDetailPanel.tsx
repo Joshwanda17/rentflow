@@ -570,10 +570,18 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
     }
   };
 
-  const handleCollect = (rentRequestId: string) => {
+  const handleCollect = (rentRequestId: string, maxAmount: number) => {
     const reason = collectReason.trim();
     if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
-    collectMutation.mutate({ rentRequestId, reason });
+    let amount: number | undefined;
+    const raw = collectAmount.trim();
+    if (raw !== '') {
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed) || parsed <= 0) { toast.error('Enter a valid collection amount'); return; }
+      if (parsed > maxAmount) { toast.error(`Amount cannot exceed the outstanding UGX ${maxAmount.toLocaleString()}`); return; }
+      amount = Math.round(parsed);
+    }
+    collectMutation.mutate({ rentRequestId, reason, amount });
   };
 
   return (
