@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, ChevronUp, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2, MessageCircle } from 'lucide-react';
+import { UserMinus } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -47,6 +48,8 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
   const [editingListing, setEditingListing] = useState<HouseListing | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HouseListing | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [vacateTarget, setVacateTarget] = useState<HouseListing | null>(null);
+  const [vacating, setVacating] = useState(false);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
@@ -160,6 +163,32 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
       toast({ title: 'Failed', description: err.message, variant: 'destructive' });
     } finally {
       setRelisting(null);
+    }
+  };
+
+  // Move the current tenant out of a house, freeing it so the agent can place a
+  // new tenant. Clears tenant_id and flips the listing back to "available" — the
+  // rent request flow's house search then finds it again for re-assignment.
+  const handleVacate = async () => {
+    if (!vacateTarget || !user?.id) return;
+    setVacating(true);
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ tenant_id: null, status: 'available' })
+        .eq('id', vacateTarget.id)
+        .eq('agent_id', user.id);
+      if (error) throw error;
+      toast({
+        title: 'Tenant moved out',
+        description: `${vacateTarget.title} is now available — post a new rent request to link a new tenant.`,
+      });
+      setVacateTarget(null);
+      refresh();
+    } catch (err: any) {
+      toast({ title: 'Could not move tenant out', description: err.message, variant: 'destructive' });
+    } finally {
+      setVacating(false);
     }
   };
 
@@ -674,6 +703,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                           <MessageCircle className="h-4 w-4 mr-2 text-emerald-600" /> Share on WhatsApp
                                         </DropdownMenuItem>
                                       )}
+                                      {l.tenant_id && (
+                                        <DropdownMenuItem onClick={() => setVacateTarget(l)}>
+                                          <UserMinus className="h-4 w-4 mr-2 text-amber-600" /> Move tenant out
+                                        </DropdownMenuItem>
+                                      )}
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
                                         className="text-destructive focus:text-destructive"
@@ -725,6 +759,13 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                     onClick={() => setViewingTenantId(l.tenant_id!)}
                                   >
                                     <Pencil className="h-3 w-3" /> Change tenant profile
+                                  </Button>
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="h-8 text-xs gap-1 border-amber-500/40 text-amber-700 hover:bg-amber-500/10"
+                                    onClick={() => setVacateTarget(l)}
+                                  >
+                                    <UserMinus className="h-3 w-3" /> Move out & replace
                                   </Button>
                                   {req && (
                                     <Button
@@ -838,6 +879,33 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
           >
             {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
             Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    <AlertDialog open={!!vacateTarget} onOpenChange={(o) => !o && !vacating && setVacateTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Move this tenant out?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {vacateTarget ? (
+              <>
+                The current tenant will be removed from{' '}
+                <span className="font-medium text-foreground">{vacateTarget.title}</span> and the house
+                will become available again. You can then post a new rent request to link a new tenant.
+              </>
+            ) : null}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={vacating}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => { e.preventDefault(); handleVacate(); }}
+            disabled={vacating}
+            className="bg-amber-600 text-white hover:bg-amber-700 gap-2"
+          >
+            {vacating && <Loader2 className="h-4 w-4 animate-spin" />}
+            Move tenant out
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
