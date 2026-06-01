@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import { WelileOpsCounterBand } from './tenant-ops/WelileOpsCounterBand';
 import {
   Users, Home, UserCheck, Handshake, Search, ChevronRight, Phone, MapPin,
 } from 'lucide-react';
@@ -181,6 +182,9 @@ export function WelileOperationsHub() {
 
   return (
     <div className="space-y-4">
+      {/* Always-visible operations counter: new activity by continent → country → city → agent */}
+      <WelileOpsCounterBand />
+
       <div>
         <h2 className="text-lg font-extrabold leading-tight">Welile Operations</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
