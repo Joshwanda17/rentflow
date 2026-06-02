@@ -248,6 +248,35 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
                   {attemptsLeft} {attemptsLeft === 1 ? 'attempt' : 'attempts'} left before this code locks.
                 </p>
               )}
+              {!locked && !loading && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Try a sample code:</span>
+                {['1234', '4821', '9075'].map((ex) => (
+                  <button
+                    key={ex}
+                    type="button"
+                    onClick={() => {
+                      setCode(ex);
+                      void copyToClipboard(ex);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-mono bg-muted px-2 py-0.5 rounded-md hover:bg-primary/10 hover:text-primary transition-colors group"
+                  >
+                    {ex}
+                    {copiedExample === ex ? (
+                      <Check className="h-3 w-3 text-green-600" />
+                    ) : (
+                      <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+              {!locked && !loading && (
+              <p className="text-xs text-muted-foreground">
+                The code is exactly 4 digits. Spaces, dashes, or extra characters are automatically removed.
+              </p>
+            )}
             </div>
 
             {loading && (
