@@ -661,6 +661,19 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn('[gmail-poll] auto-approve bank batch failed (non-fatal):', e);
         }
+        // Event-driven auto-debit: the instant a parsed OUTGOING payout email
+        // matches a known recipient with available balance, charge it against
+        // their wallet automatically — no dependency on a manual CFO click in
+        // the Financial Ops panel.
+        try {
+          await tryAutoDebitPayout(supabase, {
+            parsed,
+            internalMs,
+            gmailMessageId: m.id,
+          });
+        } catch (e) {
+          console.warn('[gmail-poll] auto-debit payout failed (non-fatal):', e);
+        }
       }
     }
 
