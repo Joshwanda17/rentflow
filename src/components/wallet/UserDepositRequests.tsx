@@ -12,6 +12,7 @@ import {
   DepositAutoMatchAudit,
   type DepositAutoMatchAuditPayload,
 } from '@/components/wallet/DepositAutoMatchAudit';
+import DepositStatusTracker, { type DepositStage } from '@/components/payments/DepositStatusTracker';
 
 // Lazy — DepositFlow pulls a heavy form tree we don't want on first paint
 // of every wallet view; the edit button only opens it on demand.
@@ -29,6 +30,13 @@ interface DepositRequest {
   deposit_purpose?: string | null;
   purpose_audit?: { chosen_purpose?: string } | null;
   auto_match_audit?: DepositAutoMatchAuditPayload | null;
+  provider?: string | null;
+  approved_at?: string | null;
+}
+
+interface CashVerification {
+  status: string; // awaiting_code | verified | expired
+  verified_at: string | null;
 }
 
 const PURPOSE_LABELS: Record<string, string> = {
@@ -60,6 +68,9 @@ export function UserDepositRequests() {
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Maps deposit_request_id → its code-verification state, used to render
+  // the pending → code verified → auto-approved tracker for cash deposits.
+  const [verifications, setVerifications] = useState<Record<string, CashVerification>>({});
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -97,8 +108,28 @@ export function UserDepositRequests() {
         })) as DepositRequest[];
 
         setRequests(enrichedRequests);
+
+        // Pull verification state for code-verified cash deposits so we can
+        // show the full lifecycle (pending → code verified → auto-approved).
+        const cashIds = enrichedRequests
+          .filter((r) => r.provider === 'cash_deposit')
+          .map((r) => r.id);
+        if (cashIds.length > 0) {
+          const { data: vers } = await supabase
+            .from('cash_deposit_verifications')
+            .select('deposit_request_id, status, verified_at')
+            .in('deposit_request_id', cashIds);
+          const map: Record<string, CashVerification> = {};
+          (vers ?? []).forEach((v: any) => {
+            map[v.deposit_request_id] = { status: v.status, verified_at: v.verified_at };
+          });
+          setVerifications(map);
+        } else {
+          setVerifications({});
+        }
       } else {
         setRequests([]);
+        setVerifications({});
       }
     } catch (error) {
       console.error('Error fetching deposit requests:', error);
@@ -130,6 +161,17 @@ export function UserDepositRequests() {
       default:
         return <Clock className="h-4 w-4 text-yellow-500" />;
     }
+  };
+
+  // Derive the 3-stage cash-deposit lifecycle from the request + its
+  // verification row. Only meaningful for provider === 'cash_deposit'.
+  const computeStage = (req: DepositRequest): DepositStage => {
+    if (req.status === 'rejected') return 'rejected';
+    if (req.status === 'approved') return 'approved';
+    const ver = verifications[req.id];
+    if (ver?.status === 'expired') return 'expired';
+    if (ver?.status === 'verified') return 'verified';
+    return 'pending';
   };
 
   const getStatusBadge = (req: DepositRequest) => {
@@ -310,6 +352,19 @@ export function UserDepositRequests() {
                             Edit allocations
                           </Button>
                         )}
+                  {request.provider === 'cash_deposit' && !isAutoCancelledDuplicate(request) && (
+                    <div className="mt-3 pt-3 border-t border-border/60">
+                      <DepositStatusTracker
+                        stage={computeStage(request)}
+                        compact
+                        timestamps={{
+                          pendingAt: request.created_at,
+                          verifiedAt: verifications[request.id]?.verified_at ?? null,
+                          approvedAt: request.status === 'approved' ? request.approved_at ?? null : null,
+                        }}
+                      />
+                    </div>
+                  )}
                   <DepositAutoMatchAudit audit={request.auto_match_audit} />
                 </motion.div>
               ))}
