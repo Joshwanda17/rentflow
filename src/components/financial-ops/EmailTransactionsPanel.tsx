@@ -2206,11 +2206,11 @@ export function EmailTransactionsPanel() {
       {(() => {
         // Unrouted money-out banner. Counts every payable outgoing row in the
         // active date/search window that has NOT yet been routed to a wallet.
-        // The "Auto-debit" button acts on rows whose top recipient match is at
-        // or above the auto-debit threshold (TID = 100, "to/from <phone>" = 90,
-        // name match = 75). 75% is the floor so a strong name match alone can
-        // trigger an automatic wallet reduction.
-        const AUTO_DEBIT_MIN_SCORE = 75;
+        // The "Auto-debit" button acts on EVERY row that has a possible
+        // recipient match — as soon as the system detects a possible recipient
+        // (TID = 100, "to/from <phone>" = 90, name match = 75, weak match = 60),
+        // the wallet is eligible for an automatic reduction.
+        const AUTO_DEBIT_MIN_SCORE = 0;
         const outRows = filteredRows.filter(
           (r) => isCountable(r) && (r.direction === 'out' || r.direction === 'charge'),
         );
@@ -2350,7 +2350,7 @@ export function EmailTransactionsPanel() {
                 {unrouted.length > 0 ? (
                   <>
                     Unrouted total <strong className="font-mono text-foreground/80">{fmtUgx(unroutedAmt)}</strong>
-                    {' '}· {highConf.length} of them match a user ≥ 75%
+                    {' '}· {highConf.length} of them have a possible recipient
                     {highConf.length > 0 && <> ({fmtUgx(highConfAmt)})</>}.
                     {' '}Until they're routed, no user wallet is reduced for these payouts.
                   </>
@@ -2373,10 +2373,10 @@ export function EmailTransactionsPanel() {
                 className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
                 disabled={autoDebitBusy}
                 onClick={() => setReviewOpen(true)}
-                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) matched to a user ≥ 75%.`}
+                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) with a possible recipient.`}
               >
                 {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                Review {highConf.length} match{highConf.length === 1 ? '' : 'es'} ≥ 75%
+                Review {highConf.length} possible recipient{highConf.length === 1 ? '' : 's'}
               </Button>
             )}
 
