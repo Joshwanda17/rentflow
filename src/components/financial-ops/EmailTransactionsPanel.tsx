@@ -2240,7 +2240,6 @@ export function EmailTransactionsPanel() {
 
         const runAutoDebit = async () => {
           if (!highConf.length) return;
-          setReviewOpen(false);
           setAutoDebitBusy(true);
           setAutoDebitProgress({ done: 0, total: highConf.length, ok: 0, failed: 0 });
           let okCount = 0;
@@ -2296,6 +2295,21 @@ export function EmailTransactionsPanel() {
               if (debitErr) throw new Error((debitErr as any)?.message || 'Debit failed');
               if ((debitData as any)?.error) throw new Error((debitData as any).error);
               const referenceId = (debitData as any)?.reference_id ?? null;
+              // Capture the wallet impact: re-read the strict available balance
+              // after the debit so the row can show how much is left.
+              let newAvail: number | null = null;
+              try {
+                const { data: afterRaw } = await (supabase.rpc as any)(
+                  'get_user_available_balance',
+                  { p_user_id: top.id },
+                );
+                const n = Number(afterRaw);
+                newAvail = Number.isFinite(n) ? n : null;
+              } catch { /* ignore — impact display is best-effort */ }
+              setAutoDebitResults((prev) => ({
+                ...prev,
+                [row.id]: { amount: amt, newAvail, userName: top.full_name },
+              }));
               // Best-effort history insert so the row immediately shows as routed.
               if (me?.id) {
                 try {
@@ -2330,6 +2344,9 @@ export function EmailTransactionsPanel() {
             setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
           }
           setAutoDebitBusy(false);
+          // Refresh routing history so every debited row immediately shows the
+          // "auto-debited" badge without a manual reload.
+          try { await loadRoutingHistory(); } catch { /* ignore */ }
           toast({
             title: `Auto-debit complete`,
             description: `${okCount} succeeded, ${failCount} skipped/failed of ${highConf.length}. Skips usually mean the matched user has 0 withdrawable balance — see console for details.`,
