@@ -337,6 +337,7 @@ function BalanceHistory({ rentRequestId, tenantName }: { rentRequestId: string; 
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const rows = data ?? [];
   const editors = useMemo(() => {
