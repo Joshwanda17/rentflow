@@ -675,6 +675,55 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     setSheetTo(iso(today));
   };
 
+  // Live preview of what the repayment sheet will contain for the chosen window.
+  const sheetPreview = useMemo(() => {
+    let totalRentToLandlord = 0, totalAccess = 0, totalReg = 0, totalDue = 0, totalRepaid = 0, totalOutstanding = 0;
+    for (const r of requests) {
+      const isOB = r.registration_type === 'outstanding_balance';
+      if (isOB) {
+        const due = Number(r.initial_outstanding_balance ?? r.total_repayment ?? 0);
+        totalRentToLandlord += due;
+        totalDue += due;
+        totalRepaid += Number(r.amount_repaid || 0);
+        totalOutstanding += Math.max(0, due - Number(r.amount_repaid || 0));
+      } else {
+        const rent = Number(r.rent_amount || 0);
+        const reg = calculateRequestFee(rent);
+        const due = Number(r.total_repayment || 0);
+        const access = Math.max(0, due - rent - reg);
+        totalRentToLandlord += rent;
+        totalReg += reg;
+        totalAccess += access;
+        totalDue += due;
+        totalRepaid += Number(r.amount_repaid || 0);
+        totalOutstanding += Math.max(0, due - Number(r.amount_repaid || 0));
+      }
+    }
+
+    const fromMs = sheetFrom ? new Date(sheetFrom).getTime() : null;
+    const toMs = sheetTo ? new Date(sheetTo + 'T23:59:59').getTime() : null;
+    const periodTxns = repayments.filter((rp) => {
+      const ms = new Date(rp.created_at).getTime();
+      if (fromMs !== null && ms < fromMs) return false;
+      if (toMs !== null && ms > toMs) return false;
+      return true;
+    });
+    const collectedInPeriod = periodTxns.reduce((s, t) => s + Number(t.amount || 0), 0);
+
+    return {
+      isAllTime: !sheetFrom && !sheetTo,
+      totalRentToLandlord,
+      totalAccess,
+      totalReg,
+      totalDue,
+      totalRepaid,
+      totalOutstanding,
+      collectionRate: totalDue > 0 ? Math.round((totalRepaid / totalDue) * 100) : 0,
+      periodCount: periodTxns.length,
+      collectedInPeriod,
+    };
+  }, [requests, repayments, sheetFrom, sheetTo]);
+
   const availableRolesToAdd = ['agent', 'supporter', 'landlord'].filter(r => !userRoles.includes(r));
 
   if (loading) {
