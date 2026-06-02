@@ -602,10 +602,12 @@ export function EmailTransactionsPanel() {
   // a batch run is in flight; `autoDebitProgress` drives the inline counter.
   const [autoDebitBusy, setAutoDebitBusy] = useState(false);
   const [autoDebitProgress, setAutoDebitProgress] = useState<{ done: number; total: number; ok: number; failed: number } | null>(null);
-  // Match-review gate: the operator must review the full list of matched
-  // money-out emails (detected user, confidence, amount) in a dialog and
-  // press a single confirm button before any wallet reduction is posted.
-  const [reviewOpen, setReviewOpen] = useState(false);
+  // Per-row auto-debit outcome captured at run time so the row can show the
+  // live impact on the matched user's wallet (amount taken + balance left).
+  // Keyed by gmail transaction row id.
+  const [autoDebitResults, setAutoDebitResults] = useState<
+    Record<string, { amount: number; newAvail: number | null; userName: string }>
+  >({});
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
   // Mobile-only collapsibles: keep filters & stats hidden by default on small screens
@@ -2238,7 +2240,6 @@ export function EmailTransactionsPanel() {
 
         const runAutoDebit = async () => {
           if (!highConf.length) return;
-          setReviewOpen(false);
           setAutoDebitBusy(true);
           setAutoDebitProgress({ done: 0, total: highConf.length, ok: 0, failed: 0 });
           let okCount = 0;
@@ -2294,6 +2295,21 @@ export function EmailTransactionsPanel() {
               if (debitErr) throw new Error((debitErr as any)?.message || 'Debit failed');
               if ((debitData as any)?.error) throw new Error((debitData as any).error);
               const referenceId = (debitData as any)?.reference_id ?? null;
+              // Capture the wallet impact: re-read the strict available balance
+              // after the debit so the row can show how much is left.
+              let newAvail: number | null = null;
+              try {
+                const { data: afterRaw } = await (supabase.rpc as any)(
+                  'get_user_available_balance',
+                  { p_user_id: top.id },
+                );
+                const n = Number(afterRaw);
+                newAvail = Number.isFinite(n) ? n : null;
+              } catch { /* ignore — impact display is best-effort */ }
+              setAutoDebitResults((prev) => ({
+                ...prev,
+                [row.id]: { amount: amt, newAvail, userName: top.full_name },
+              }));
               // Best-effort history insert so the row immediately shows as routed.
               if (me?.id) {
                 try {
@@ -2372,83 +2388,13 @@ export function EmailTransactionsPanel() {
                 variant="default"
                 className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
                 disabled={autoDebitBusy}
-                onClick={() => setReviewOpen(true)}
+                onClick={runAutoDebit}
                 title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) with a possible recipient.`}
               >
                 {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                Review {highConf.length} possible recipient{highConf.length === 1 ? '' : 's'}
+                Auto-debit {highConf.length} possible recipient{highConf.length === 1 ? '' : 's'}
               </Button>
             )}
-
-            {/* Match review step — lists every matched money-out email with the
-                detected user, confidence score, and extracted amount. No wallet
-                is reduced until the single confirm button below is pressed. */}
-            <Dialog open={reviewOpen} onOpenChange={(o) => { if (!autoDebitBusy) setReviewOpen(o); }}>
-              <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <ShieldAlert className="h-5 w-5 text-rose-600" />
-                    Review {highConf.length} wallet reduction{highConf.length === 1 ? '' : 's'}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Each row below will post a withdrawable debit via CFO Direct Debit for the
-                    amount the email shows leaving. Review the detected user, confidence, and
-                    amount. No wallet is reduced until you press confirm.
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-2">
-                  {highConf.map(({ row, top, score }) => (
-                    <div key={row.id} className="rounded-lg border bg-muted/30 p-3 text-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold truncate">{top.full_name}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {top.phone || top.mobile_money_number || 'no phone'} · matched on {top.matched_on}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                            From {row.from_name || row.from_email || 'provider'}
-                            {row.transaction_id ? ` · TID ${row.transaction_id}` : ''}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-mono font-semibold text-rose-700 dark:text-rose-300">
-                            −{fmtUgx(row.amount)}
-                          </p>
-                          <Badge
-                            variant="outline"
-                            className={`mt-1 ${score >= 90 ? 'border-emerald-400 text-emerald-700 dark:text-emerald-300' : 'border-amber-400 text-amber-700 dark:text-amber-300'}`}
-                          >
-                            {score}% match
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border-t pt-3 flex items-center justify-between gap-3">
-                  <p className="text-sm">
-                    Total to reduce:{' '}
-                    <strong className="font-mono text-rose-700 dark:text-rose-300">{fmtUgx(highConfAmt)}</strong>
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" disabled={autoDebitBusy} onClick={() => setReviewOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
-                      disabled={autoDebitBusy || highConf.length === 0}
-                      onClick={runAutoDebit}
-                    >
-                      {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                      Confirm &amp; reduce {highConf.length} wallet{highConf.length === 1 ? '' : 's'}
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
         );
       })()}
@@ -2636,6 +2582,14 @@ export function EmailTransactionsPanel() {
                 const history = routingHistory[r.id] ?? [];
                 const isRouted = history.length > 0;
                 const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
+                // Auto-debited rows: a withdrawable debit posted by the
+                // auto-debit run. Detected from the routing history reason
+                // (prefixed "DEBIT (auto, ...)") so the badge survives reloads.
+                const autoDebitEntry = history.find(
+                  (h) => h.route === 'withdrawable_debit' && /auto/i.test(h.reason || ''),
+                );
+                const isAutoDebited = !!autoDebitEntry && !isReversed;
+                const autoImpact = autoDebitResults[r.id];
                 // Already-credited incoming deposit (linked to a non-terminal
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
@@ -2890,6 +2844,25 @@ export function EmailTransactionsPanel() {
                           {isReversed ? 'rerouted · reversed' : 'routed'}
                           {history.length > 1 && (
                             <span className="font-mono tabular-nums opacity-80">×{history.length}</span>
+                          )}
+                        </Badge>
+                      )}
+                      {isAutoDebited && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 bg-rose-600/15 text-rose-700 border-rose-600/40"
+                          title={[
+                            `Auto-debited from ${autoDebitEntry?.target_user_name || autoImpact?.userName || 'matched user'}'s withdrawable wallet`,
+                            `Amount taken: ${fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}`,
+                            autoImpact && autoImpact.newAvail !== null
+                              ? `Wallet left: ${fmtUgx(autoImpact.newAvail)}`
+                              : null,
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <Zap className="h-3 w-3" />
+                          auto-debited −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
+                          {autoImpact && autoImpact.newAvail !== null && (
+                            <span className="opacity-80">· left {fmtUgx(autoImpact.newAvail)}</span>
                           )}
                         </Badge>
                       )}
