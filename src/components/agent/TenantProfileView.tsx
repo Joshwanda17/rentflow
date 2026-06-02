@@ -186,6 +186,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [sheetRangeOpen, setSheetRangeOpen] = useState(false);
   const [sheetFrom, setSheetFrom] = useState<string>('');
   const [sheetTo, setSheetTo] = useState<string>('');
+  const [sheetConfirm, setSheetConfirm] = useState(false);
 
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [addingRole, setAddingRole] = useState(false);
@@ -1715,7 +1716,13 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         )}
 
         {/* ── Repayment sheet PDF — pick a period, then generate ── */}
-        <Popover open={sheetRangeOpen} onOpenChange={setSheetRangeOpen}>
+        <Popover
+          open={sheetRangeOpen}
+          onOpenChange={(open) => {
+            setSheetRangeOpen(open);
+            if (!open) setSheetConfirm(false);
+          }}
+        >
           <PopoverTrigger asChild>
             <Button
               variant="default"
@@ -1729,86 +1736,152 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
             </Button>
           </PopoverTrigger>
           <PopoverContent align="center" className="w-[min(92vw,22rem)] p-4 space-y-3">
-            <div>
-              <p className="text-sm font-bold text-foreground">Choose a period</p>
-              <p className="text-xs text-muted-foreground">
-                Leave blank for all-time. Transactions are filtered to this window.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('all')}>All time</Button>
-              <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('thisMonth')}>This month</Button>
-              <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('30d')}>Last 30 days</Button>
-              <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('90d')}>Last 90 days</Button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="text-xs font-medium text-muted-foreground space-y-1">
-                <span>From</span>
-                <input
-                  type="date"
-                  value={sheetFrom}
-                  max={sheetTo || undefined}
-                  onChange={(e) => setSheetFrom(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
-                />
-              </label>
-              <label className="text-xs font-medium text-muted-foreground space-y-1">
-                <span>To</span>
-                <input
-                  type="date"
-                  value={sheetTo}
-                  min={sheetFrom || undefined}
-                  onChange={(e) => setSheetTo(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
-                />
-              </label>
-            </div>
-            {/* Live preview of the selected window before generating */}
-            <div className="rounded-xl border border-border/60 bg-muted/40 p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preview</p>
-                <Badge variant="outline" className="text-[10px]">
-                  {sheetPreview.isAllTime
-                    ? 'All time'
-                    : `${sheetFrom ? format(new Date(sheetFrom), 'dd MMM yyyy') : '…'} – ${sheetTo ? format(new Date(sheetTo), 'dd MMM yyyy') : '…'}`}
-                </Badge>
-              </div>
-              <div className="rounded-lg bg-success/10 px-3 py-2">
-                <p className="text-[11px] text-muted-foreground">
-                  Collected in period ({sheetPreview.periodCount} payment{sheetPreview.periodCount === 1 ? '' : 's'})
-                </p>
-                <p className="text-lg font-black font-mono text-success">{formatUGX(sheetPreview.collectedInPeriod)}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                <span className="text-muted-foreground">Rent to landlords</span>
-                <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalRentToLandlord)}</span>
-                <span className="text-muted-foreground">Access fees</span>
-                <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalAccess)}</span>
-                <span className="text-muted-foreground">Registration fees</span>
-                <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalReg)}</span>
-                <span className="text-muted-foreground">Total due</span>
-                <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalDue)}</span>
-                <span className="text-muted-foreground">Total repaid</span>
-                <span className="text-right font-semibold font-mono text-success">{formatUGX(sheetPreview.totalRepaid)}</span>
-                <span className="text-muted-foreground">Outstanding</span>
-                <span className={`text-right font-semibold font-mono ${sheetPreview.totalOutstanding > 0 ? 'text-destructive' : 'text-success'}`}>{formatUGX(sheetPreview.totalOutstanding)}</span>
-                <span className="text-muted-foreground">Collection rate</span>
-                <span className="text-right font-semibold font-mono">{sheetPreview.collectionRate}%</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-snug">
-                Fee &amp; balance totals cover all rent plans; only the “collected in period” figure and the PDF transaction log are filtered to the selected dates.
-              </p>
-            </div>
-            <Button
-              variant="default"
-              size="lg"
-              onClick={handleGenerateRepaymentSheet}
-              disabled={generatingSheet}
-              className="w-full h-11 rounded-xl gap-2 font-semibold"
-            >
-              {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
-              {generatingSheet ? 'Generating…' : 'Generate PDF'}
-            </Button>
+            {!sheetConfirm ? (
+              <>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Choose a period</p>
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank for all-time. Transactions are filtered to this window.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('all')}>All time</Button>
+                  <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('thisMonth')}>This month</Button>
+                  <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('30d')}>Last 30 days</Button>
+                  <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('90d')}>Last 90 days</Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs font-medium text-muted-foreground space-y-1">
+                    <span>From</span>
+                    <input
+                      type="date"
+                      value={sheetFrom}
+                      max={sheetTo || undefined}
+                      onChange={(e) => setSheetFrom(e.target.value)}
+                      className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-muted-foreground space-y-1">
+                    <span>To</span>
+                    <input
+                      type="date"
+                      value={sheetTo}
+                      min={sheetFrom || undefined}
+                      onChange={(e) => setSheetTo(e.target.value)}
+                      className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
+                    />
+                  </label>
+                </div>
+                {/* Live preview of the selected window before generating */}
+                <div className="rounded-xl border border-border/60 bg-muted/40 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preview</p>
+                    <Badge variant="outline" className="text-[10px]">
+                      {sheetPreview.isAllTime
+                        ? 'All time'
+                        : `${sheetFrom ? format(new Date(sheetFrom), 'dd MMM yyyy') : '…'} – ${sheetTo ? format(new Date(sheetTo), 'dd MMM yyyy') : '…'}`}
+                    </Badge>
+                  </div>
+                  <div className="rounded-lg bg-success/10 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">
+                      Collected in period ({sheetPreview.periodCount} payment{sheetPreview.periodCount === 1 ? '' : 's'})
+                    </p>
+                    <p className="text-lg font-black font-mono text-success">{formatUGX(sheetPreview.collectedInPeriod)}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                    <span className="text-muted-foreground">Rent to landlords</span>
+                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalRentToLandlord)}</span>
+                    <span className="text-muted-foreground">Access fees</span>
+                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalAccess)}</span>
+                    <span className="text-muted-foreground">Registration fees</span>
+                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalReg)}</span>
+                    <span className="text-muted-foreground">Total due</span>
+                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalDue)}</span>
+                    <span className="text-muted-foreground">Total repaid</span>
+                    <span className="text-right font-semibold font-mono text-success">{formatUGX(sheetPreview.totalRepaid)}</span>
+                    <span className="text-muted-foreground">Outstanding</span>
+                    <span className={`text-right font-semibold font-mono ${sheetPreview.totalOutstanding > 0 ? 'text-destructive' : 'text-success'}`}>{formatUGX(sheetPreview.totalOutstanding)}</span>
+                    <span className="text-muted-foreground">Collection rate</span>
+                    <span className="text-right font-semibold font-mono">{sheetPreview.collectionRate}%</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Fee &amp; balance totals cover all rent plans; only the “collected in period” figure and the PDF transaction log are filtered to the selected dates.
+                  </p>
+                </div>
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={() => setSheetConfirm(true)}
+                  disabled={generatingSheet}
+                  className="w-full h-11 rounded-xl gap-2 font-semibold"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                  Review &amp; Confirm
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  <p className="text-sm font-bold text-foreground">Confirm Repayment Sheet</p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/40 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Period</p>
+                    <Badge variant="outline" className="text-[10px]">
+                      {sheetPreview.isAllTime
+                        ? 'All time'
+                        : `${sheetFrom ? format(new Date(sheetFrom), 'dd MMM yyyy') : '…'} – ${sheetTo ? format(new Date(sheetTo), 'dd MMM yyyy') : '…'}`}
+                    </Badge>
+                  </div>
+                  <div className="rounded-lg bg-success/10 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">
+                      Collected in period ({sheetPreview.periodCount} payment{sheetPreview.periodCount === 1 ? '' : 's'})
+                    </p>
+                    <p className="text-lg font-black font-mono text-success">{formatUGX(sheetPreview.collectedInPeriod)}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                    <span className="text-muted-foreground">Rent to landlords</span>
+                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalRentToLandlord)}</span>
+                    <span className="text-muted-foreground">Access fees</span>
+                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalAccess)}</span>
+                    <span className="text-muted-foreground">Registration fees</span>
+                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalReg)}</span>
+                    <span className="text-muted-foreground">Total due</span>
+                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalDue)}</span>
+                    <span className="text-muted-foreground">Total repaid</span>
+                    <span className="text-right font-semibold font-mono text-success">{formatUGX(sheetPreview.totalRepaid)}</span>
+                    <span className="text-muted-foreground">Outstanding</span>
+                    <span className={`text-right font-semibold font-mono ${sheetPreview.totalOutstanding > 0 ? 'text-destructive' : 'text-success'}`}>{formatUGX(sheetPreview.totalOutstanding)}</span>
+                    <span className="text-muted-foreground">Collection rate</span>
+                    <span className="text-right font-semibold font-mono">{sheetPreview.collectionRate}%</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Review the figures above. Once confirmed, the PDF will be generated and downloaded immediately.
+                  </p>
+                </div>
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={handleGenerateRepaymentSheet}
+                  disabled={generatingSheet}
+                  className="w-full h-11 rounded-xl gap-2 font-semibold"
+                >
+                  {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+                  {generatingSheet ? 'Generating…' : 'Confirm &amp; Download PDF'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSheetConfirm(false)}
+                  disabled={generatingSheet}
+                  className="w-full h-9 rounded-xl gap-2 text-xs"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Edit
+                </Button>
+              </>
+            )}
           </PopoverContent>
         </Popover>
 
