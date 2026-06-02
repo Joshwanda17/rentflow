@@ -282,9 +282,10 @@ export default function HouseDetail() {
             </button>
             <div className="flex items-center gap-2">
               <SaveHouseButton houseId={listing.id} variant="icon" />
-              <button onClick={handleShare}
-                className="bg-background/80 backdrop-blur-sm text-foreground rounded-full p-2.5 shadow-lg active:scale-95 transition-transform">
-                {copied ? <Check className="h-5 w-5 text-success" /> : <Share2 className="h-5 w-5" />}
+              <button onClick={handleCopyLink}
+                className="bg-background/80 backdrop-blur-sm text-foreground rounded-full p-2.5 shadow-lg active:scale-95 transition-transform"
+                title="Copy share link">
+                {copied ? <Check className="h-5 w-5 text-success" /> : <Copy className="h-5 w-5" />}
               </button>
             </div>
           </div>
