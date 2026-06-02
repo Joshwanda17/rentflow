@@ -13,7 +13,7 @@ import {
   Loader2, ArrowLeft, Phone, Mail, MapPin, Home, User, Shield, Calendar,
   CreditCard, TrendingUp, Copy, CheckCircle2, Wallet, Banknote, History,
   UserCheck, Star, AlertTriangle, ChevronDown, ChevronUp, Navigation, Share2, Smartphone,
-  MessageCircle, Pencil, UsersRound, Zap, Bot, RefreshCw,
+  MessageCircle, Pencil, UsersRound, Zap, Bot, RefreshCw, FileText,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
@@ -24,6 +24,7 @@ import { ReverseAllocationDialog } from './ReverseAllocationDialog';
 import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { Undo2 } from 'lucide-react';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
+import { shareOrDownloadRepaymentSheet, type RepaymentSheetData } from '@/lib/agentRepaymentSheetPdf';
 import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
 import { EditTenantDialog } from './EditTenantDialog';
@@ -181,6 +182,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   const [sharingLink, setSharingLink] = useState(false);
   const [sharingProfile, setSharingProfile] = useState(false);
+  const [generatingSheet, setGeneratingSheet] = useState(false);
 
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [addingRole, setAddingRole] = useState(false);
@@ -610,6 +612,41 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   const visibleRepayments = showAllRepayments ? repayments : repayments.slice(0, PAGE_SIZE);
   const visibleRequests = showAllRequests ? requests : requests.slice(0, PAGE_SIZE);
+
+  const handleGenerateRepaymentSheet = async () => {
+    if (!profile) return;
+    setGeneratingSheet(true);
+    try {
+      const sheet: RepaymentSheetData = {
+        aiId,
+        tenantName: profile.full_name,
+        phone: profile.phone,
+        agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
+        plans: requests.map((r) => ({
+          date: r.created_at,
+          disbursedAt: r.disbursed_at,
+          durationDays: r.duration_days,
+          status: r.status || 'unknown',
+          registrationType: r.registration_type,
+          rentAmount: r.rent_amount,
+          totalRepayment: r.total_repayment,
+          amountRepaid: r.amount_repaid,
+          initialOutstanding: r.initial_outstanding_balance,
+          landlordName: r.landlord?.name ?? null,
+          propertyAddress: r.landlord?.property_address ?? null,
+        })),
+        transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
+      };
+      await shareOrDownloadRepaymentSheet(sheet);
+      toast({ title: '📄 Repayment sheet ready' });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast({ title: 'Failed to generate sheet', description: err?.message, variant: 'destructive' });
+      }
+    } finally {
+      setGeneratingSheet(false);
+    }
+  };
 
   const availableRolesToAdd = ['agent', 'supporter', 'landlord'].filter(r => !userRoles.includes(r));
 
@@ -1600,6 +1637,19 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
             <p className="text-2xl sm:text-3xl font-black font-mono text-primary">{formatUGX(profile.monthly_rent)}</p>
           </SectionCard>
         )}
+
+        {/* ── Repayment sheet PDF — full allocation vs expected breakdown ── */}
+        <Button
+          variant="default"
+          size="lg"
+          onClick={handleGenerateRepaymentSheet}
+          disabled={generatingSheet || requests.length === 0}
+          className="w-full h-12 rounded-xl gap-2 text-base font-semibold"
+          aria-label="Generate repayment sheet PDF"
+        >
+          {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+          {generatingSheet ? 'Generating…' : 'Repayment Sheet (PDF)'}
+        </Button>
 
         {/* ── Bottom "Back to Tenants" so agents don't scroll back up ── */}
         <Button
