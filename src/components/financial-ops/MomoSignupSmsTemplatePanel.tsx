@@ -118,6 +118,32 @@ export function MomoSignupSmsTemplatePanel() {
     }
   };
 
+  const sendTest = async () => {
+    const phone = testPhone.trim();
+    if (!/\d{9,}/.test(phone.replace(/\D/g, ''))) {
+      toast.error('Enter a valid phone number', { description: 'e.g. 0777123456 or +256777123456' });
+      return;
+    }
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-test-send', {
+        body: { phone, message: preview },
+      });
+      if (error) throw error;
+      if (data?.ok) {
+        toast.success('Test SMS sent', { description: `Delivered to ${data.formattedPhone ?? phone}. Check the phone.` });
+      } else {
+        toast.error('Test SMS not delivered', {
+          description: data?.reason || data?.recipients?.[0]?.status || 'The SMS gateway rejected the message.',
+        });
+      }
+    } catch (e) {
+      toast.error('Could not send test SMS', { description: (e as Error).message });
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
