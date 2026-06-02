@@ -24,7 +24,7 @@ import { motion } from 'framer-motion';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Check, ArrowLeft, Star,
-  Eye, Navigation, Copy,
+  Eye, Navigation, Copy, MessageCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -366,6 +366,35 @@ export default function HouseDetail() {
             </button>
           </motion.div>
 
+          {/* ── One-tap Share on WhatsApp ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <button
+              onClick={async () => {
+                const richUrl = listing ? ogShareUrl : shareUrl;
+                const msg = listing
+                  ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
+                  : richUrl;
+                try {
+                  await navigator.clipboard.writeText(msg);
+                  setCopied(true);
+                  toast({ title: 'Link copied — opening WhatsApp!', description: 'Paste the link in the chat if it is not pre-filled.' });
+                  setTimeout(() => setCopied(false), 2500);
+                } catch {
+                  toast({ title: 'Could not copy link', variant: 'destructive' });
+                }
+                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+              }}
+              className="w-full flex items-center justify-center gap-2.5 min-h-[48px] px-6 py-3 rounded-xl bg-[#25D366] text-white font-bold text-sm shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Share on WhatsApp
+            </button>
+          </motion.div>
+
           {/* ── Room & Amenities grid ── */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -529,6 +558,28 @@ export default function HouseDetail() {
               <p className="text-lg font-black text-success leading-tight">{formatUGX(listing.daily_rate)}<span className="text-xs font-medium text-muted-foreground">/day</span></p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={async () => {
+                  const richUrl = listing ? ogShareUrl : shareUrl;
+                  const msg = listing
+                    ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
+                    : richUrl;
+                  try {
+                    await navigator.clipboard.writeText(msg);
+                    setCopied(true);
+                    toast({ title: 'Link copied — opening WhatsApp!', description: 'Paste the link in the chat if it is not pre-filled.' });
+                    setTimeout(() => setCopied(false), 2500);
+                  } catch {
+                    toast({ title: 'Could not copy link', variant: 'destructive' });
+                  }
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                }}
+                className="h-11 px-3 rounded-xl bg-[#25D366] text-white flex items-center gap-1.5 text-xs font-bold active:scale-95 transition-transform touch-manipulation"
+                title="Share on WhatsApp"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Share
+              </button>
               <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
               <button onClick={handleCopyLink}
                 className="h-11 w-11 rounded-xl border border-border bg-card flex items-center justify-center active:scale-95 transition-transform"

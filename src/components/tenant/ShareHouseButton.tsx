@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Share2, Check, Copy, MessageCircle } from 'lucide-react';
+import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -14,8 +15,8 @@ interface ShareHouseButtonProps {
   shortCode?: string | null;
   /** 'icon' = small icon button, 'full' = full-width button with WhatsApp */
   variant?: 'icon' | 'full';
-  /** 'share' = try native share first (default), 'copy' = copy to clipboard immediately */
-  mode?: 'share' | 'copy';
+  /** 'share' = try native share first (default), 'copy' = copy to clipboard immediately, 'whatsapp' = copy link + open WhatsApp in one tap */
+  mode?: 'share' | 'copy' | 'whatsapp';
 }
 
 export function ShareHouseButton({ listingId, title, region, dailyRate, shortCode, variant = 'icon', mode = 'share' }: ShareHouseButtonProps) {
@@ -48,6 +49,20 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
+  const handleShareOnWhatsApp = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    hapticTap();
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      toast({ title: 'Link copied — opening WhatsApp!', description: 'Paste the link in the chat if it is not pre-filled.' });
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast({ title: 'Could not copy link', variant: 'destructive' });
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   const handleNativeShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (navigator.share) {
@@ -61,6 +76,17 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
 
   // Icon variant — small overlay button
   if (variant === 'icon') {
+    if (mode === 'whatsapp') {
+      return (
+        <button
+          onClick={handleShareOnWhatsApp}
+          className="p-1.5 rounded-full bg-[#25D366]/15 border border-[#25D366]/40 shadow-sm hover:bg-[#25D366]/25 transition-colors touch-manipulation"
+          title="Share on WhatsApp"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />}
+        </button>
+      );
+    }
     const isCopy = mode === 'copy';
     return (
       <button
