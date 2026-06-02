@@ -3402,7 +3402,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <p className="text-[10px] text-primary/60 italic">e.g. Kira Zone A</p>
                     <Input
                       value={lc1Village}
-                      onChange={(e) => setLc1Village(e.target.value)}
+                      onChange={(e) => setLc1Village(formatNameInput(e.target.value))}
                       placeholder="Village"
                      
                       required
@@ -3423,7 +3423,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <p className="text-[10px] text-primary/60 italic">e.g. Entebbe, Kampala, Jinja</p>
                     <Input
                       value={propertyCity}
-                      onChange={(e) => setPropertyCity(e.target.value)}
+                      onChange={(e) => setPropertyCity(formatNameInput(e.target.value))}
                       placeholder="e.g. Entebbe, Kampala, Jinja"
                       className={`h-10 ${hasFieldError('city') ? 'border-destructive border-2' : ''}`}
                       required
