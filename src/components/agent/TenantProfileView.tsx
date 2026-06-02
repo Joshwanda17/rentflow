@@ -224,6 +224,14 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     loadLastAllocation();
   }, [tenantId, user?.id]);
 
+  // When opened in "edit" mode (e.g. the prominent Edit button on a tenant
+  // card), pop the edit dialog as soon as the profile has loaded.
+  useEffect(() => {
+    if (autoEdit && profile && !loading) {
+      setEditDialogOpen(true);
+    }
+  }, [autoEdit, profile, loading]);
+
   const loadFullProfile = async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
