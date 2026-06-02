@@ -2297,9 +2297,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   )}
 
                   {submissionError && validationErrors.length === 0 && (
-                    <div ref={errorSummaryRef} className="p-4 rounded-2xl bg-destructive/10 border-2 border-destructive/40 text-sm font-semibold text-destructive flex items-start gap-2 scroll-mt-4">
-                      <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                      <span>{submissionError}</span>
+                    <div ref={errorSummaryRef} className="p-4 rounded-2xl bg-destructive/10 border-2 border-destructive/40 space-y-3 scroll-mt-4">
+                      <div className="flex items-start gap-2 text-sm font-semibold text-destructive">
+                        <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                        <span>{submissionError}</span>
+                      </div>
+                      <p className="text-xs text-destructive/80">
+                        Everything you typed is still here — just tap to try again.
+                      </p>
+                      <Button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        variant="destructive"
+                        className="w-full"
+                      >
+                        {loading ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Trying again…</>
+                        ) : (
+                          <><RefreshCw className="h-4 w-4 mr-2" />Try again</>
+                        )}
+                      </Button>
                     </div>
                   )}
 
