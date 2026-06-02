@@ -1,7 +1,7 @@
 /// <reference types="google.maps" />
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Home, DoorOpen, Navigation, Loader2, ExternalLink } from 'lucide-react';
+import { MapPin, Home, DoorOpen, Navigation, Loader2, ExternalLink, List } from 'lucide-react';
 import { useGoogleMapsLoader } from '@/hooks/useGoogleMapsLoader';
 import { formatUGX } from '@/lib/rentCalculations';
 import type { HouseListing } from '@/hooks/useHouseListings';
