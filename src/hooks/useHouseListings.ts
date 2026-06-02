@@ -64,6 +64,16 @@ async function enrichWithAgentInfo(listings: HouseListing[]): Promise<HouseListi
   });
 }
 
+/**
+ * A listing is only shown to tenants / the public if it has at least one real
+ * uploaded photo. Listings with no photos (e.g. empty houses logged by agents
+ * before photographing them) are hidden from the marketplace until a photo is
+ * added. Agents still see their own photo-less listings in their own views.
+ */
+export function listingHasRealPhoto(l: { image_urls?: string[] | null }): boolean {
+  return Array.isArray(l.image_urls) && l.image_urls.some(u => typeof u === 'string' && u.trim().length > 0);
+}
+
 interface UseHouseListingsOptions {
   region?: string;
   category?: string;
