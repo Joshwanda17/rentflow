@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X } from 'lucide-react';
+import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
@@ -15,6 +15,8 @@ import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { regionLabel } from '@/lib/ugandaDistricts';
+import { HousesMapView } from '@/components/tenant/HousesMapView';
+import { useNavigate } from 'react-router-dom';
 
 interface AvailableHousesSheetProps {
   open: boolean;
@@ -258,10 +260,12 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
 export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesSheetProps) {
   const geo = useGeolocation(true);
   const announceMap = useMapLinkAnnouncer();
+  const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
+  const [view, setView] = useState<'list' | 'map'>('list');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -313,12 +317,32 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
         }}
       >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
-          <SheetTitle className="flex items-center gap-2">
-            <Home className="h-5 w-5 text-primary" />
-            {hasGPS && geo.city
-              ? `Houses Near ${geo.city}`
-              : 'Available Houses — Daily Rent'}
-          </SheetTitle>
+          <div className="flex items-center justify-between gap-2">
+            <SheetTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5 text-primary" />
+              {hasGPS && geo.city
+                ? `Houses Near ${geo.city}`
+                : 'Available Houses'}
+            </SheetTitle>
+            <div className="flex items-center rounded-full border border-border bg-muted/40 p-0.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                aria-pressed={view === 'list'}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                <List className="h-3.5 w-3.5" /> List
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('map')}
+                aria-pressed={view === 'map'}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${view === 'map' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                <MapIcon className="h-3.5 w-3.5" /> Map
+              </button>
+            </div>
+          </div>
 
           <form
             role="search"
@@ -396,6 +420,15 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           </div>
         </SheetHeader>
 
+        {view === 'map' ? (
+          <div className="flex-1 min-h-0">
+            <HousesMapView
+              listings={filtered}
+              userCoords={hasGPS ? { lat: geo.latitude!, lng: geo.longitude! } : null}
+              onSelectHouse={(l) => { onOpenChange(false); navigate(`/house/${l.id}`); }}
+            />
+          </div>
+        ) : (
         <div ref={resultsRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
@@ -425,7 +458,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </>
           )}
         </div>
-        {(() => {
+        )}
+        {view === 'list' && (() => {
           const target = filtered.find(l => l.latitude && l.longitude);
           const mapHref = target
             ? `https://www.google.com/maps/search/?api=1&query=${target.latitude},${target.longitude}`
