@@ -492,6 +492,9 @@ export default function Settings() {
                 {roles.includes('agent') && (
                   <LazySection name="AgentCapacityBreakdown"><AgentCapacityBreakdownPanel /></LazySection>
                 )}
+                {roles.includes('manager') && (
+                  <LazySection name="MapKeySettings"><MapKeySettingsCard /></LazySection>
+                )}
               </div>
             )}
 
