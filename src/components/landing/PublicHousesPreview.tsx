@@ -132,6 +132,7 @@ export function PublicHousesPreview() {
                     region={house.region}
                     dailyRate={house.daily_rate}
                     shortCode={house.short_code}
+                    mode="copy"
                   />
                 </span>
               </div>
