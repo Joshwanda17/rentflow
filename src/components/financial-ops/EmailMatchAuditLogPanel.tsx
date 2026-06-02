@@ -165,7 +165,7 @@ export function EmailMatchAuditLogPanel() {
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {(['all','auto_claim','manual_link','approve','bulk_approve','skip','unclaim','auto_reject'] as const).map((k) => (
+          {(['all','auto_claim','tid_auto_credited','manual_link','approve','bulk_approve','skip','unclaim','auto_reject'] as const).map((k) => (
             <button
               key={k}
               type="button"
