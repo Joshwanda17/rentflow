@@ -643,6 +643,9 @@ export function EmailTransactionsPanel() {
   // so the actual email list lands above the fold. On sm+ they're always expanded.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
+  // Unparsed-email queue: collapsed by default so it never pushes the main
+  // list below the fold, but one click surfaces every skipped Gmail row.
+  const [unparsedOpen, setUnparsedOpen] = useState(false);
   const persistUserRules = (next: StoredUserRule[]) => {
     writeStoredUserRules(next);
     refreshUserRules();
