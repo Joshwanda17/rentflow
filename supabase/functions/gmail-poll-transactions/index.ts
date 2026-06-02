@@ -650,6 +650,18 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn('[gmail-poll] auto-credit failed (non-fatal):', e);
         }
+        // Thank the MoMo sender and invite them to open a free Welile Wallet.
+        // Fires for any parsed INCOMING MTN/Airtel receipt whose sender phone
+        // we can read — independent of whether they're a known user.
+        try {
+          await tryThankSenderMomoSignupSms(supabase, {
+            parsed,
+            internalMs,
+            text: combined,
+          });
+        } catch (e) {
+          console.warn('[gmail-poll] sender thank-you SMS failed (non-fatal):', e);
+        }
         try {
           await tryAutoApproveMomoWithdrawal(supabase, {
             parsed,
