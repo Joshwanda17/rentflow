@@ -232,13 +232,14 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
             <div className="space-y-2">
               <Label className="text-sm font-medium">Receipt code</Label>
               <Input
-                placeholder="e.g. RCTXXXXXXX"
+                placeholder="e.g. 1234"
                 value={code}
                 disabled={loading || locked}
+                inputMode="numeric"
+                maxLength={4}
                 onChange={(e) => { setCode(normalizeReceiptCode(e.target.value)); if (codeError) setCodeError(''); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') void handleVerify(); }}
-                className="font-mono text-lg tracking-wider h-12 text-center"
-                autoCapitalize="characters"
+                className="font-mono text-2xl tracking-[0.5em] h-12 text-center"
                 autoComplete="off"
                 autoFocus
               />
