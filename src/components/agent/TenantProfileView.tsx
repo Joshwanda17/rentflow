@@ -158,7 +158,7 @@ function Stat({
 
 /* ---------- Main component ---------- */
 
-export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) {
+export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const { floatBalance: agentFloatBalance, isLoading: floatLoading, error: floatError, refetch: refetchFloat } = useAgentLandlordFloat(user?.id);
