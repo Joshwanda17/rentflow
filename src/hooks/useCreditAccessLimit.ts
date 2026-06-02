@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logCreditLoading } from '@/lib/creditLoadingDebug';
 
 export interface CreditAccessLimit {
   totalLimit: number;
@@ -133,6 +134,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
       setLimit(existing.data);
       hasLoadedOnce.current = true;
       setLoading(false);
+      logCreditLoading('cache-hit', { userId, loading: false, note: 'served from memory cache' });
       return existing.data;
     }
 
@@ -148,6 +150,9 @@ export function useCreditAccessLimit(userId: string | undefined) {
     // refreshes is what made the card blink/shake.
     if (!hasLoadedOnce.current && !existing && !persisted) {
       setLoading(true);
+      logCreditLoading('cold-load', { userId, loading: true, note: 'no cache — showing skeleton' });
+    } else {
+      logCreditLoading('background-refresh', { userId, loading: false, note: forceFresh ? 'forced refresh' : 'recalc refresh' });
     }
     try {
       // Recalculate and fetch in one go
@@ -181,6 +186,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
       console.error('[useCreditAccessLimit] Error:', err);
     } finally {
       setLoading(false);
+      logCreditLoading('done', { userId, loading: false, note: 'fetch settled' });
     }
   }, [userId]);
 
@@ -191,6 +197,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
   const refetchRow = useCallback(async () => {
     if (!userId) return;
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    logCreditLoading('realtime-refetch', { userId, loading: false, note: 'row changed — silent re-read' });
     try {
       const { data } = await supabase
         .from('credit_access_limits')
