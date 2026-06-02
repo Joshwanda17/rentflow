@@ -2204,7 +2204,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               key="details"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="space-y-4 [&_label]:text-[15px] [&_label]:font-bold [&_input]:h-12 [&_input]:text-base [&_[role=combobox]]:h-12 [&_[role=combobox]]:text-base"
+              className="min-w-0 break-words space-y-4 [&_label]:text-[15px] [&_label]:font-bold [&_input]:h-12 [&_input]:text-base [&_[role=combobox]]:h-12 [&_[role=combobox]]:text-base"
             >
               {/* Guided wizard progress (standard flow only) */}
               {incomeType !== 'outstanding' && (
