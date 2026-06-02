@@ -28,11 +28,12 @@ function record(overrides: Partial<VerificationRecord> = {}): VerificationRecord
 }
 
 // ── Hashing / normalization ───────────────────────────────────────────────
-Deno.test("normalizeCode uppercases, strips spaces/dashes, ensures RCT prefix", () => {
-  assertEquals(normalizeCode(" rct abc-123 "), "RCTABC123");
-  assertEquals(normalizeCode("abc123"), "RCTABC123");
-  assertEquals(normalizeCode("RCTABC123"), "RCTABC123");
-  assertEquals(normalizeCode("r-c-t-a b c"), "RCTABC"); // 'rct' letters survive normalization
+Deno.test("normalizeCode keeps only digits, max 4", () => {
+  assertEquals(normalizeCode(" 12 34 "), "1234");
+  assertEquals(normalizeCode("48-21"), "4821");
+  assertEquals(normalizeCode("9075"), "9075");
+  assertEquals(normalizeCode("123456"), "1234"); // truncated to 4
+  assertEquals(normalizeCode("ab12cd34"), "1234"); // non-digits stripped
 });
 
 Deno.test("normalizeCode handles empty / nullish input without adding a prefix", () => {
@@ -52,8 +53,8 @@ Deno.test("sha256Hex is deterministic, 64-hex chars, and collision-distinct", as
 });
 
 Deno.test("normalized variants of the same code hash identically (end-to-end)", async () => {
-  const stored = await sha256Hex(normalizeCode("RCTABC123"));
-  const sloppy = await sha256Hex(normalizeCode("  abc-123 "));
+  const stored = await sha256Hex(normalizeCode("1234"));
+  const sloppy = await sha256Hex(normalizeCode("  12-34 "));
   assertEquals(sloppy, stored);
 });
 
