@@ -250,9 +250,20 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
             )}
 
             {codeError && !loading && !locked && (
-              <p className="text-sm text-destructive flex items-start gap-1.5">
-                <XCircle className="h-4 w-4 shrink-0 mt-0.5" /> <span>{codeError}</span>
-              </p>
+              <div className="rounded-xl bg-destructive/5 border border-destructive/20 p-3 space-y-2">
+                <p className="text-sm text-destructive flex items-start gap-1.5">
+                  <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{codeError}</span>
+                </p>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>
+                    <span className="font-semibold text-foreground">Expected format:</span> A 4-character (or longer) receipt code — for example <span className="font-mono text-foreground">RCT1234</span>.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-foreground">How to fix:</span> Ask Financial Ops to read the code slowly and clearly, then type it exactly as given. Make sure you are entering the code for this deposit request.
+                  </p>
+                </div>
+              </div>
             )}
 
             {!locked && (
