@@ -183,6 +183,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [sharingLink, setSharingLink] = useState(false);
   const [sharingProfile, setSharingProfile] = useState(false);
   const [generatingSheet, setGeneratingSheet] = useState(false);
+  const [sheetRangeOpen, setSheetRangeOpen] = useState(false);
+  const [sheetFrom, setSheetFrom] = useState<string>('');
+  const [sheetTo, setSheetTo] = useState<string>('');
 
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [addingRole, setAddingRole] = useState(false);
