@@ -1,7 +1,7 @@
 /// <reference types="google.maps" />
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Home, DoorOpen, Navigation, Loader2, ExternalLink } from 'lucide-react';
+import { MapPin, Home, DoorOpen, Navigation, Loader2, ExternalLink, List } from 'lucide-react';
 import { useGoogleMapsLoader } from '@/hooks/useGoogleMapsLoader';
 import { formatUGX } from '@/lib/rentCalculations';
 import type { HouseListing } from '@/hooks/useHouseListings';
@@ -10,11 +10,12 @@ interface HousesMapViewProps {
   listings: HouseListing[];
   userCoords: { lat: number; lng: number } | null;
   onSelectHouse?: (listing: HouseListing) => void;
+  onSwitchToList?: () => void;
 }
 
 const KAMPALA: google.maps.LatLngLiteral = { lat: 0.3476, lng: 32.5825 };
 
-export function HousesMapView({ listings, userCoords, onSelectHouse }: HousesMapViewProps) {
+export function HousesMapView({ listings, userCoords, onSelectHouse, onSwitchToList }: HousesMapViewProps) {
   const navigate = useNavigate();
   const { isReady, isError, hasKey } = useGoogleMapsLoader(true);
   const mapEl = useRef<HTMLDivElement>(null);
@@ -99,9 +100,25 @@ export function HousesMapView({ listings, userCoords, onSelectHouse }: HousesMap
 
   if (!hasKey || isError) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
-        <MapPin className="h-10 w-10 text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground">The map couldn't load right now. Switch to the list view to browse houses.</p>
+      <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
+        <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+          <MapPin className="h-8 w-8 text-muted-foreground/50" />
+        </div>
+        <div className="space-y-1 max-w-xs">
+          <p className="text-base font-semibold text-foreground">Map unavailable</p>
+          <p className="text-sm text-muted-foreground">
+            The map couldn't load right now. Switch to the list view to keep browsing houses.
+          </p>
+        </div>
+        {onSwitchToList && (
+          <button
+            type="button"
+            onClick={onSwitchToList}
+            className="inline-flex items-center gap-2 min-h-[44px] px-5 rounded-full bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform"
+          >
+            <List className="h-4 w-4" /> Switch to List view
+          </button>
+        )}
       </div>
     );
   }
