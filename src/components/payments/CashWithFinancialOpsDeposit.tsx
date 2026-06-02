@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
-  Loader2, Building2, CheckCircle2, ShieldCheck, XCircle, Mail,
+  Loader2, Building2, CheckCircle2, ShieldCheck, XCircle, Mail, Copy, Check,
 } from 'lucide-react';
 import DepositStatusTracker from './DepositStatusTracker';
 
