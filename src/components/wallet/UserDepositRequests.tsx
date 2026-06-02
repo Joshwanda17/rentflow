@@ -360,7 +360,7 @@ export function UserDepositRequests() {
                         timestamps={{
                           pendingAt: request.created_at,
                           verifiedAt: verifications[request.id]?.verified_at ?? null,
-                          approvedAt: request.status === 'approved' ? request.reviewed_at ?? null : null,
+                          approvedAt: request.status === 'approved' ? request.approved_at ?? null : null,
                         }}
                       />
                     </div>
