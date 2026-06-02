@@ -95,9 +95,18 @@ export function MomoSignupSmsTemplatePanel() {
 
   const save = async () => {
     setSaving(true);
+    const value = {
+      enabled: tpl.enabled,
+      thank_you_text: tpl.thank_you_text,
+      signup_prompt: tpl.signup_prompt,
+      signup_link: tpl.signup_link,
+      address: tpl.address,
+      website: tpl.website,
+      support_email: tpl.support_email,
+    };
     const { error } = await supabase
       .from('system_config')
-      .update({ value: tpl as unknown as Record<string, unknown>, updated_at: new Date().toISOString() })
+      .update({ value, updated_at: new Date().toISOString() })
       .eq('key', CONFIG_KEY);
     setSaving(false);
     if (error) {
