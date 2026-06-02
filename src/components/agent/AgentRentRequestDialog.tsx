@@ -347,6 +347,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [savingDraft, setSavingDraft] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Synchronous submit lock — blocks duplicate rapid taps on touch devices
+  // before React has a chance to re-render and disable the button.
+  const submitLockRef = useRef(false);
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
