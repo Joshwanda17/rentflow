@@ -659,6 +659,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // straight to it — ordinary agents on small phones often miss a toast.
   const errorSummaryRef = useRef<HTMLDivElement>(null);
 
+  // Touch-device feedback: whenever a submission error appears (including ones
+  // raised asynchronously inside handleSubmit's catch block), pull the agent's
+  // view straight to the message. On small phones the button sits at the very
+  // bottom, so an error rendered above it can land off-screen and feel like
+  // "nothing happened". This guarantees the agent always sees the reason.
+  useEffect(() => {
+    if (!submissionError) return;
+    requestAnimationFrame(() => {
+      errorSummaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [submissionError]);
+
   // FIX #9: house category for outstanding flow
   const [outstandingHouseCategory, setOutstandingHouseCategory] = useState('');
 
@@ -2315,6 +2327,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                     </Button>
                   </div>
+                  {loading && (
+                    <p
+                      role="status"
+                      aria-live="polite"
+                      className="flex items-center justify-center gap-2 pt-2 text-sm font-semibold text-primary"
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Sending your request… please wait.
+                    </p>
+                  )}
                 </>
               ) : detailStep === 0 ? (
               <>
@@ -3522,6 +3544,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               {detailStep === DETAIL_STEPS.length - 1 && amount > 0 && amount < 50000 && (
                 <p className="text-xs font-semibold text-warning text-center -mt-1">
                   Rent amount must be at least UGX 50,000 to post.
+                </p>
+              )}
+              {loading && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="flex items-center justify-center gap-2 pt-2 text-sm font-semibold text-primary"
+                >
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Sending your request… please wait.
                 </p>
               )}
               </>
