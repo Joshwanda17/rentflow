@@ -2373,19 +2373,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <MapPin className="h-3 w-3" /> {selectedLandlord.property_address}
                       </p>
                     )}
+                    {!selectedLandlord && hasFieldError('landlord') && (
+                      <FieldError message="Select a landlord before posting this rent request." />
+                    )}
                     <div className="flex items-center justify-between gap-2 pt-1">
                       <p className="text-[11px] text-muted-foreground">
-                        Can't find the landlord?
+                        No landlord to select?
                       </p>
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
                         className="h-8 text-xs"
-                        onClick={() => setShowRegisterLandlord(true)}
+                        onClick={() => setShowListHouse(true)}
                       >
-                        <Building2 className="h-3.5 w-3.5 mr-1" />
-                        Register new landlord
+                        <Home className="h-3.5 w-3.5 mr-1" />
+                        List a house
                       </Button>
                     </div>
                   </div>
