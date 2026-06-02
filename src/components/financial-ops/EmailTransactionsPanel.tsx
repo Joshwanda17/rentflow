@@ -2311,18 +2311,23 @@ export function EmailTransactionsPanel() {
                 { p_user_id: top.id },
               );
               const avail = Number(availRaw ?? 0);
-              if (!Number.isFinite(avail) || avail < amt) {
+              // Nothing to take — skip cleanly.
+              if (!Number.isFinite(avail) || avail <= 0) {
                 failCount++;
                 console.warn(
-                  `[auto-debit] skip ${row.id}: ${top.full_name} has UGX ${avail.toLocaleString()} available, needs UGX ${amt.toLocaleString()}`,
+                  `[auto-debit] skip ${row.id}: ${top.full_name} has UGX ${Math.max(0, avail).toLocaleString()} available, needs UGX ${amt.toLocaleString()}`,
                 );
                 setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
                 continue;
               }
+              // The ledger blocks negative wallets, so never try to debit more
+              // than the strict available balance — clamp to drain to zero.
+              const debitAmt = Math.min(amt, Math.floor(avail));
+              const isPartial = debitAmt < amt;
               const { data: debitData, error: debitErr } = await supabase.functions.invoke('cfo-direct-credit', {
                 body: {
                   target_user_id: top.id,
-                  amount: amt,
+                  amount: debitAmt,
                   reason,
                   operation: 'debit' as const,
                   wallet_category: 'wallet_transfer',
@@ -2336,6 +2341,11 @@ export function EmailTransactionsPanel() {
               if (debitErr) throw new Error((debitErr as any)?.message || 'Debit failed');
               if ((debitData as any)?.error) throw new Error((debitData as any).error);
               const referenceId = (debitData as any)?.reference_id ?? null;
+              if (isPartial) {
+                console.warn(
+                  `[auto-debit] partial ${row.id}: debited UGX ${debitAmt.toLocaleString()} of UGX ${amt.toLocaleString()} (wallet drained to zero)`,
+                );
+              }
               // Capture the wallet impact: re-read the strict available balance
               // after the debit so the row can show how much is left.
               let newAvail: number | null = null;
@@ -2349,7 +2359,7 @@ export function EmailTransactionsPanel() {
               } catch { /* ignore — impact display is best-effort */ }
               setAutoDebitResults((prev) => ({
                 ...prev,
-                [row.id]: { amount: amt, newAvail, userName: top.full_name },
+                [row.id]: { amount: debitAmt, newAvail, userName: top.full_name },
               }));
               // Best-effort history insert so the row immediately shows as routed.
               if (me?.id) {
@@ -2361,12 +2371,12 @@ export function EmailTransactionsPanel() {
                     from_email: row.from_email,
                     from_name: row.from_name,
                     subject: row.subject,
-                    amount: amt,
+                    amount: debitAmt,
                     route: 'withdrawable_debit',
                     target_user_id: top.id,
                     target_user_name: top.full_name,
                     target_user_phone: top.phone,
-                    reason: `DEBIT (auto, ${matchedLabel}): ${reason}`,
+                    reason: `DEBIT (auto, ${matchedLabel}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${amt.toLocaleString()}` : ''}): ${reason}`,
                     ledger_reference_id: referenceId,
                     routed_by: me.id,
                     routed_by_name: routedByName,
