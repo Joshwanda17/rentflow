@@ -2372,10 +2372,10 @@ export function EmailTransactionsPanel() {
                 className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
                 disabled={autoDebitBusy}
                 onClick={runAutoDebit}
-                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} high-confidence payout(s).`}
+                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) matched to a user ≥ 75%.`}
               >
                 {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                Auto-debit {highConf.length} high-confidence
+                Auto-debit {highConf.length} matched ≥ 75%
               </Button>
             )}
           </div>
