@@ -235,7 +235,7 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
                 placeholder="e.g. RCTXXXXXXX"
                 value={code}
                 disabled={loading || locked}
-                onChange={(e) => { setCode(e.target.value.toUpperCase()); if (codeError) setCodeError(''); }}
+                onChange={(e) => { setCode(normalizeReceiptCode(e.target.value)); if (codeError) setCodeError(''); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') void handleVerify(); }}
                 className="font-mono text-lg tracking-wider h-12 text-center"
                 autoCapitalize="characters"
