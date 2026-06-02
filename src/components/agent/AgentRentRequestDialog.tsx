@@ -2752,7 +2752,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           <Loader2 className="h-4 w-4 animate-spin mr-2" /> Searching…
                         </div>
                       ) : houseResults.length > 0 ? (
-                        houseResults.map((h) => (
+                       houseResults.map((h) => (
                           <button
                             type="button"
                             key={h.id}
@@ -2761,7 +2761,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="font-semibold text-sm truncate">{h.title}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-sm truncate">{h.title}</p>
+                                  {h.tenant_id ? (
+                                    <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                      Has Tenants
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                                      Empty
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                                   <MapPin className="h-3 w-3 flex-shrink-0" />
                                   <span className="truncate">
