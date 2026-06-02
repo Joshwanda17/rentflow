@@ -67,6 +67,13 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
     }
   };
 
+  /** Strip spaces/hyphens, uppercase, auto-prefix RCT. */
+  const normalizeReceiptCode = (raw: string): string => {
+    let cleaned = raw.toUpperCase().replace(/[\s\-]/g, '');
+    if (!cleaned.startsWith('RCT')) cleaned = 'RCT' + cleaned;
+    return cleaned;
+  };
+
   const amountNum = parseFloat(amount);
 
   const reset = () => {
@@ -111,7 +118,7 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   };
 
   const handleVerify = async () => {
-    const entered = code.trim();
+    const entered = normalizeReceiptCode(code);
     if (!depositId || entered.length < 4) {
       setCodeError('Enter the receipt code Financial Ops gave you.');
       return;
@@ -228,7 +235,7 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
                 placeholder="e.g. RCTXXXXXXX"
                 value={code}
                 disabled={loading || locked}
-                onChange={(e) => { setCode(e.target.value.toUpperCase()); if (codeError) setCodeError(''); }}
+                onChange={(e) => { setCode(normalizeReceiptCode(e.target.value)); if (codeError) setCodeError(''); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') void handleVerify(); }}
                 className="font-mono text-lg tracking-wider h-12 text-center"
                 autoCapitalize="characters"
