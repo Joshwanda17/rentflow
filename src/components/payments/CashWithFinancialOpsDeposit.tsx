@@ -222,6 +222,7 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
                 className="font-mono text-lg tracking-wider h-12 text-center"
                 autoCapitalize="characters"
                 autoComplete="off"
+                autoFocus
               />
               {!locked && attemptsLeft !== null && attemptsLeft > 0 && (
                 <p className="text-xs text-amber-600 font-medium text-center">
