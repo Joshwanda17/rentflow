@@ -574,6 +574,11 @@ export function EmailTransactionsPanel() {
     auto_approved: boolean | null;
     deposit_purpose: string | null;
     credited_at: string | null;
+    /** True when this deposit was matched to the email by its transaction
+     *  reference (TID) rather than an explicit gmail link / auto_match_audit. */
+    matched_by_tid?: boolean;
+    /** The normalized transaction reference that matched, for display. */
+    matched_tid?: string | null;
   }
   const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
 
