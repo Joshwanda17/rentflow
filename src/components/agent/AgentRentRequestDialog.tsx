@@ -1455,6 +1455,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const handleSubmit = async () => {
     setSubmissionError(null);
+    setErrorDetails(null);
 
     if (!user) {
       toast.error('You must be signed in to submit a request');
