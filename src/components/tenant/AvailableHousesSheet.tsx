@@ -420,6 +420,15 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
           </div>
         </SheetHeader>
 
+        {view === 'map' ? (
+          <div className="flex-1 min-h-0">
+            <HousesMapView
+              listings={filtered}
+              userCoords={hasGPS ? { lat: geo.latitude!, lng: geo.longitude! } : null}
+              onSelectHouse={(l) => { onOpenChange(false); navigate(`/house/${l.id}`); }}
+            />
+          </div>
+        ) : (
         <div ref={resultsRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
@@ -449,7 +458,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </>
           )}
         </div>
-        {(() => {
+        )}
+        {view === 'list' && (() => {
           const target = filtered.find(l => l.latitude && l.longitude);
           const mapHref = target
             ? `https://www.google.com/maps/search/?api=1&query=${target.latitude},${target.longitude}`
