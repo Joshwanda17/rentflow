@@ -118,8 +118,8 @@ Deno.serve(async (req) => {
     if (!UUID_RE.test(depositId)) {
       return json(400, { error: "invalid_request", message: "Missing deposit reference" });
     }
-    if (!enteredCode || enteredCode.length < 4) {
-      return json(400, { error: "invalid_code", message: "Enter the receipt code" });
+    if (!enteredCode || enteredCode.length !== 4) {
+      return json(400, { error: "invalid_code", message: "Enter the 4-digit receipt code" });
     }
 
     // ── Load the verification row (scoped to this user) ──
