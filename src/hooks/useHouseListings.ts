@@ -198,7 +198,8 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         });
 
         if (!rpcError && data) {
-          const enriched = await enrichWithAgentInfo((data as any[]) || []);
+          const rows = (((data as any[]) || []) as HouseListing[]).filter(listingHasRealPhoto);
+          const enriched = await enrichWithAgentInfo(rows);
           setListings(enriched);
           usedRpc = true;
         }
@@ -223,7 +224,8 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
 
         const { data, error: fetchError } = await query;
         if (fetchError) throw fetchError;
-        const enriched = await enrichWithAgentInfo((data as any[]) || []);
+        const rows = (((data as any[]) || []) as HouseListing[]).filter(listingHasRealPhoto);
+        const enriched = await enrichWithAgentInfo(rows);
         setListings(enriched);
       }
     } catch (err: any) {
