@@ -56,6 +56,35 @@ const fmtUgx = (n: number | null) =>
   n === null || n === undefined ? '—' : `UGX ${Math.round(n).toLocaleString()}`;
 
 /**
+ * Mirror of the parser's skip-reason logic in `gmail-poll-transactions`.
+ * A Gmail row is treated as "unparsed / skipped" when it never produced a
+ * usable amount (parsed=false, or amount is null). This recomputes the exact
+ * reason(s) the parser would have logged, straight from the stored columns,
+ * so Financial Ops can see WHY each row was skipped without re-running the
+ * edge function.
+ */
+function isUnparsedRow(r: { parsed: boolean; amount: number | null }): boolean {
+  return !r.parsed || r.amount === null || r.amount === undefined;
+}
+
+function parseFailureReasons(r: {
+  amount: number | null;
+  transaction_id: string | null;
+  direction: string | null;
+  channel: string | null;
+}): string[] {
+  const reasons: string[] = [];
+  if (r.amount === null || r.amount === undefined || !Number.isFinite(r.amount) || (r.amount as number) <= 0) {
+    reasons.push('No amount detected in the email body');
+  }
+  if (!r.transaction_id) reasons.push('No transaction ID / reference detected');
+  if (!r.direction) reasons.push('No direction keyword (money in / out / charge)');
+  if (!r.channel || r.channel === 'other') reasons.push('Channel could not be identified');
+  if (reasons.length === 0) reasons.push('Did not match any known transaction format');
+  return reasons;
+}
+
+/**
  * Convert a wall-clock date+time string (e.g. "2026-05-18", "00:00:00") interpreted
  * in the given IANA timezone into a UTC epoch ms. Uses Intl.DateTimeFormat to
  * discover the zone's offset at that instant — no dependency on date-fns-tz.
