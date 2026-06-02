@@ -4,11 +4,10 @@
 // cash-deposit-verify-code import from here so the tests exercise the real code.
 
 // ── Code normalization ────────────────────────────────────────────────────
-// Let the user be a little sloppy: uppercase, strip spaces/dashes, ensure RCT.
+// Receipt codes are 4 numeric digits. Strip everything that is not a digit and
+// keep at most the first 4, so pasted codes with spaces/dashes still validate.
 export function normalizeCode(input: unknown): string {
-  let s = String(input ?? "").toUpperCase().replace(/[\s-]+/g, "").trim();
-  if (s && !s.startsWith("RCT")) s = `RCT${s}`;
-  return s;
+  return String(input ?? "").replace(/\D+/g, "").slice(0, 4);
 }
 
 // ── Hashing ───────────────────────────────────────────────────────────────

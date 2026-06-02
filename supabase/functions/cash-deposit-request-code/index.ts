@@ -14,14 +14,13 @@ const corsHeaders = {
 const VERIFIER_EMAIL = "weliletenants@gmail.com";
 const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1";
 
-// Unambiguous alphabet (no 0/O/1/I) for the receipt code.
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+// 4-digit numeric receipt code (0000–9999).
 function generateReceiptCode(): string {
-  const bytes = new Uint8Array(7);
+  const bytes = new Uint8Array(4);
   crypto.getRandomValues(bytes);
   let s = "";
-  for (const b of bytes) s += CODE_ALPHABET[b % CODE_ALPHABET.length];
-  return `RCT${s}`;
+  for (const b of bytes) s += (b % 10).toString();
+  return s;
 }
 
 function b64url(input: string): string {
