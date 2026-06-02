@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -186,9 +186,8 @@ export function WalletBreakdownReadOnly() {
                 filtered.map((row) => {
                   const isOpen = expanded === row.user_id;
                   return (
-                    <>
+                    <Fragment key={row.user_id}>
                       <tr
-                        key={row.user_id}
                         onClick={() => setExpanded(isOpen ? null : row.user_id)}
                         className="border-t border-border/60 hover:bg-muted/30 cursor-pointer"
                       >
@@ -206,7 +205,7 @@ export function WalletBreakdownReadOnly() {
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">{row.locked > 0 ? formatUGX(row.locked) : '—'}</td>
                       </tr>
                       {isOpen && (
-                        <tr key={`${row.user_id}-detail`} className="border-t border-border/60">
+                        <tr className="border-t border-border/60">
                           <td colSpan={7} className="p-0">
                             <WalletBucketLedgerDetail
                               userId={row.user_id}
@@ -217,7 +216,7 @@ export function WalletBreakdownReadOnly() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })
               )}
