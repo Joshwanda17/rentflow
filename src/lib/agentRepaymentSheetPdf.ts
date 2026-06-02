@@ -136,6 +136,17 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
   pdf.text(`Generated: ${(data.generatedAt ?? new Date()).toLocaleString('en-UG')}`, pw - margin, y, { align: 'right' });
   y += 8;
 
+  // ─── Reporting period banner ───
+  const periodLabel =
+    data.periodFrom || data.periodTo
+      ? `Reporting period: ${fmtDate(data.periodFrom)} — ${fmtDate(data.periodTo)}`
+      : 'Reporting period: All time';
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(59, 130, 246);
+  pdf.text(periodLabel, margin, y);
+  y += 7;
+
   // ─── Tenant / agent identity ───
   const idRow = (label: string, value: string, x: number) => {
     pdf.setFontSize(8);
