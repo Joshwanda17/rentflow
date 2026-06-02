@@ -295,6 +295,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [duplicateTidStatus, setDuplicateTidStatus] = useState<string | null>(null);
   // Cash-with-agent live PIN deposit (separate self-contained dialog).
   const [showAgentPinDeposit, setShowAgentPinDeposit] = useState(false);
+  // Cash-with-Financial-Ops code deposit (separate self-contained dialog).
+  const [showFinOpsCashDeposit, setShowFinOpsCashDeposit] = useState(false);
 
   /**
    * Edit-mode fallback bookkeeping.
