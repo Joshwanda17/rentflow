@@ -515,9 +515,10 @@ export default function HouseDetail() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
-              <button onClick={handleShare}
-                className="h-11 w-11 rounded-xl border border-border bg-card flex items-center justify-center active:scale-95 transition-transform">
-                {copied ? <Check className="h-4 w-4 text-success" /> : <Share2 className="h-4 w-4" />}
+              <button onClick={handleCopyLink}
+                className="h-11 w-11 rounded-xl border border-border bg-card flex items-center justify-center active:scale-95 transition-transform"
+                title="Copy share link">
+                {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
               </button>
             </div>
           </div>
