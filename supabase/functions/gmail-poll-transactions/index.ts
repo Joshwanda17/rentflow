@@ -176,7 +176,12 @@ function parseTransaction(text: string): {
     // comes AFTER the number, so a prefix-only pattern (UGX 5000) misses
     // them entirely and the row ends up with amount=null / parsed=false.
     const prefixRe = /(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/gi;
-    const suffixRe = /([\d][\d,]*(?:\.\d+)?)\s*(?:UGX|USh|UShs|Shs)\b/gi;
+    // The leading negative lookbehind prevents matching digits that are glued
+    // to a preceding letter/digit — e.g. an Airtel "SMS2Email" body of the form
+    // "TID148696910218 UGX 2,400,000" where the transaction-id digits sit
+    // directly before " UGX". Without it the TID is mistaken for a suffix-
+    // currency amount and surfaces as a multi-billion-shilling transaction.
+    const suffixRe = /(?<![A-Za-z0-9])([\d][\d,]*(?:\.\d+)?)\s*(?:UGX|USh|UShs|Shs)\b/gi;
     const skipRe = /(bal(?:ance)?|charge|fee|fees|tax|levy|new\s*balance)\s*[:.\-]?\s*$/i;
     const cands: { n: number; idx: number }[] = [];
     for (const m of t.matchAll(prefixRe)) {
