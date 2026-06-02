@@ -297,31 +297,24 @@ Deno.serve(async (req) => {
       if (bal != null) newBalance = Number(bal);
     } catch (_) { /* non-fatal */ }
 
-    // ── Confirmation email to the depositor (verified amount + new balance) ──
-    const recipientEmail = user.email;
-    if (recipientEmail) {
-      try {
-        const { data: profile } = await admin
-          .from("profiles").select("full_name").eq("id", user.id).maybeSingle();
-        const name = profile?.full_name || "there";
-        const subject = `Cash deposit confirmed — ${fmtUGX(ver.amount)}`;
-        const lines = [
-          `Hi ${name},`,
-          "",
-          "Your cash deposit has been verified and credited to your Welile wallet.",
-          "",
-          `Amount credited:  ${fmtUGX(ver.amount)}`,
-          `Receipt code:     ${enteredCode}`,
-          newBalance != null ? `New balance:      ${fmtUGX(newBalance)}` : "",
-          `Confirmed:        ${new Date().toLocaleString("en-UG")}`,
-          "",
-          "Thank you for using Welile.",
-        ].filter(Boolean).join("\n");
-        await sendGmail(recipientEmail, subject, lines);
-      } catch (mailErr) {
-        // Non-fatal: the money is already credited.
-        console.error("[cash-verify-code] confirmation email failed", mailErr);
+    // ── Confirmation SMS to the depositor (verified amount + new balance) ──
+    try {
+      const { data: profile } = await admin
+        .from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle();
+      const phone = (profile as any)?.phone || "";
+      if (phone) {
+        const balanceLine = newBalance != null ? ` New balance ${fmtUGX(newBalance)}.` : "";
+        const smsBody =
+          `Welile: Cash deposit confirmed. ${fmtUGX(ver.amount)} credited to your wallet ` +
+          `(receipt ${enteredCode}).${balanceLine} Thank you.`;
+        const sent = await sendSMS(phone, smsBody);
+        if (!sent) console.error("[cash-verify-code] confirmation SMS not sent");
+      } else {
+        console.error("[cash-verify-code] no phone on file for confirmation SMS");
       }
+    } catch (smsErr) {
+      // Non-fatal: the money is already credited.
+      console.error("[cash-verify-code] confirmation SMS failed", smsErr);
     }
 
     return json(200, {
