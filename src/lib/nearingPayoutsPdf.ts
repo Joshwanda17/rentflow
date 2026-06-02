@@ -164,8 +164,9 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 12;
 
-  // Exclude compounding partners — they do not receive cash payouts.
-  const rows = input.rows.filter((r) => r.roiMode !== 'monthly_compounding');
+  // Include ALL portfolios — compounding ones are listed too, but flagged in
+  // the "Due" column as "Compounding" (they reinvest instead of cashing out).
+  const rows = input.rows;
 
   // Fetch payment methods + fresh portfolio details in parallel with logo.
   // (Edit history / appendix removed — the export is the nearing-payout list only.)
@@ -176,6 +177,17 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     fetchPayoutMethodsMap(investorIds),
     fetchPortfolioDetailsMap(portfolioIds),
   ]);
+
+  // Effective ROI mode prefers the fresh DB record over the (possibly stale)
+  // row payload, mirroring the per-row logic used in the table body below.
+  const isCompounding = (r: NearingPayoutPdfRow) => {
+    const det = r.portfolioId ? detailsMap.get(r.portfolioId) : null;
+    return (det?.roi_mode ?? r.roiMode) === 'monthly_compounding';
+  };
+  // Cash-payout rows only — used for monetary + overdue/today totals, since
+  // compounding portfolios do not receive a cash payout.
+  const payoutRows = rows.filter((r) => !isCompounding(r));
+  const compoundingCount = rows.length - payoutRows.length;
 
   // ── Themed Header Band ──
   doc.setFillColor(...THEME_PRIMARY);
@@ -218,18 +230,19 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
   doc.setTextColor(71, 85, 105);
   const parts = [
     `${rows.length} of ${input.totalCount} portfolios`,
+    compoundingCount > 0 ? `${compoundingCount} compounding` : null,
     input.searchQuery ? `Search: "${input.searchQuery}"` : null,
   ].filter(Boolean) as string[];
   doc.text(parts.join('   ·   '), margin, y);
 
-  // Aggregate totals
-  const totalPrincipal = rows.reduce((s, r) => s + (r.investmentAmount || 0), 0);
-  const totalReturns = rows.reduce(
+  // Aggregate totals — cash figures cover payout rows only.
+  const totalPrincipal = payoutRows.reduce((s, r) => s + (r.investmentAmount || 0), 0);
+  const totalReturns = payoutRows.reduce(
     (s, r) => s + Math.round((r.investmentAmount || 0) * (r.roiPercentage || 0) / 100),
     0,
   );
-  const overdueCount = rows.filter((r) => r.daysUntil < 0).length;
-  const todayCount = rows.filter((r) => r.daysUntil === 0).length;
+  const overdueCount = payoutRows.filter((r) => r.daysUntil < 0).length;
+  const todayCount = payoutRows.filter((r) => r.daysUntil === 0).length;
 
   y += 6;
   doc.setTextColor(15, 23, 42);
@@ -272,6 +285,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
     const principal = det?.investment_amount ?? r.investmentAmount ?? 0;
     const roiPct = det?.roi_percentage ?? r.roiPercentage ?? 0;
     const roiMode = det?.roi_mode ?? r.roiMode;
+    const compounding = roiMode === 'monthly_compounding';
     const returnsDue = Math.round(principal * roiPct / 100);
     const pm = r.investorId ? payoutMap.get(r.investorId) : undefined;
     // Prefer per-portfolio payout details on the portfolio record itself —
@@ -299,7 +313,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       String(idx + 1),
       r.name || '—',
       formatUGX(returnsDue),
-      dueLabel(r.daysUntil),
+      compounding ? 'Compounding' : dueLabel(r.daysUntil),
       paymentCell,
     ];
   });
@@ -324,7 +338,11 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       // Highlight overdue / due-today rows in the Due column.
       if (data.section === 'body' && data.column.index === 3) {
         const status = String(data.cell.raw || '');
-        if (status === 'Due today') {
+        if (status === 'Compounding') {
+          // Reinvesting — flag in the brand purple, not a cash-due colour.
+          data.cell.styles.textColor = [...THEME_PRIMARY_DARK];
+          data.cell.styles.fontStyle = 'bold';
+        } else if (status === 'Due today') {
           data.cell.styles.textColor = [180, 83, 9];
           data.cell.styles.fontStyle = 'bold';
         } else if (/^\d+\s+days$/.test(status)) {
