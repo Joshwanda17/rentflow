@@ -1001,6 +1001,21 @@ export function EmailTransactionsPanel() {
           if (list.length) next[r.id] = list;
         }
         if (!cancelled) setCreditedDeposits(next);
+        // Audit every TID-only "Already Credited — No Routing Needed" match
+        // (idempotent; recordTidAutoCreditAudit skips already-logged pairs).
+        const tidPairs = Object.entries(next).flatMap(([rowId, list]) =>
+          list
+            .filter((c) => c.matched_by_tid)
+            .map((c) => ({
+              gmail_transaction_id: rowId,
+              deposit_request_id: c.deposit_id,
+              amount: c.amount,
+              tid: c.matched_tid ?? null,
+              user_name: c.user_name,
+              status: c.status,
+            })),
+        );
+        if (tidPairs.length) void recordTidAutoCreditAudit(tidPairs);
       } catch {
         if (!cancelled) setCreditedDeposits({});
       }
