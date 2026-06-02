@@ -76,6 +76,17 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
 
   // Icon variant — small overlay button
   if (variant === 'icon') {
+    if (mode === 'whatsapp') {
+      return (
+        <button
+          onClick={handleShareOnWhatsApp}
+          className="p-1.5 rounded-full bg-[#25D366]/15 border border-[#25D366]/40 shadow-sm hover:bg-[#25D366]/25 transition-colors touch-manipulation"
+          title="Share on WhatsApp"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />}
+        </button>
+      );
+    }
     const isCopy = mode === 'copy';
     return (
       <button
