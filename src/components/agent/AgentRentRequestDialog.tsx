@@ -3113,6 +3113,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <Label className="text-sm font-semibold flex items-center gap-1">
                     <MapPin className="h-4 w-4 text-primary" /> Where is the house?
                   </Label>
+                  <p className="text-xs text-muted-foreground leading-snug">The village, road or area people use to find it.</p>
                   <Input
                     value={propertyAddress}
                     onChange={(e) => setPropertyAddress(e.target.value)}
