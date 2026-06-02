@@ -2536,10 +2536,10 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
+                          onClick={(e) => { e.stopPropagation(); setProfileAutoEdit(true); setProfileTenantId(tenant.id); }}
                           className="h-11 gap-1.5 rounded-lg text-sm font-bold border-2 border-primary/40 text-primary hover:bg-primary/10"
                         >
-                          <Eye className="h-4 w-4" />
+                          <SlidersHorizontal className="h-4 w-4" />
                           Edit
                         </Button>
                         <Button
