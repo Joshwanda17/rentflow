@@ -123,9 +123,9 @@ function MiniHouseCard({ listing, onSelectHouse }: { listing: HouseListing; onSe
             <Home className="h-8 w-8 text-muted-foreground/30" />
           </div>
         )}
-        {/* Share button */}
+        {/* Copy link button */}
         <div className="absolute bottom-1 left-1">
-          <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} shortCode={listing.short_code} />
+          <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} shortCode={listing.short_code} mode="copy" />
         </div>
         {dist !== undefined && dist < 9999 && (
           <span className="absolute top-1 left-1 text-[10px] font-medium text-white bg-primary/80 px-1.5 py-0.5 rounded-full">
