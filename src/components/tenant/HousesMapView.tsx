@@ -1,3 +1,4 @@
+/// <reference types="google.maps" />
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Home, DoorOpen, Navigation, Loader2, ExternalLink } from 'lucide-react';
