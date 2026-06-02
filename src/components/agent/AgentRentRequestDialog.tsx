@@ -3193,6 +3193,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     className="h-12 text-base"
                     required
                   />
+                  <FieldError message={vPlace(propertyAddress, 'Kira Town, near Total')} />
                 </div>
 
                 {/* GPS Capture */}
