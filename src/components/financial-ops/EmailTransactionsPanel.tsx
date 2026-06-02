@@ -10,6 +10,7 @@ import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } 
 import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
 import { Info } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
@@ -3266,6 +3267,34 @@ export function EmailTransactionsPanel() {
                           {hasUserMatch ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                           Depositing user
                         </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[10px] gap-1 border-orange-500/40 text-orange-700 hover:bg-orange-500/10"
+                          title="Manually map this unmatched email to the correct wallet using the details above (MoMo TID, receipt code, depositing user)."
+                          onClick={() => {
+                            const matches = userMatches[r.id] ?? [];
+                            const top = matches
+                              .map((u) => ({
+                                u,
+                                s: u.matched_on.startsWith('reference ') ? 100
+                                  : u.matched_on.startsWith('from ') ? 90
+                                  : u.matched_on.startsWith('to ') ? 90
+                                  : u.matched_on.startsWith('name-') ? 75
+                                  : 60,
+                              }))
+                              .sort((a, b) => b.s - a.s)[0]?.u;
+                            const matchedPhone = top?.matched_on.startsWith('from ') || top?.matched_on.startsWith('to ') || top?.matched_on.startsWith('phone ')
+                              ? top.matched_on.replace(/^(from|to|phone)\s+/, '')
+                              : null;
+                            setRoutingSuggestedUser(top ? { id: top.id, full_name: top.full_name, phone: top.phone ?? '', matched_phone: matchedPhone } : null);
+                            setRoutingMode('credit');
+                            setRoutingRow(r);
+                          }}
+                        >
+                          <Wrench className="h-3 w-3" />
+                          Manually resolve
+                        </Button>
                       </div>
                     )}
                     {isCredited && (
