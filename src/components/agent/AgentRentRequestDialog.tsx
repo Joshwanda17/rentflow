@@ -3423,6 +3423,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       placeholder="e.g. Wakiso"
                      
                     />
+                    <FieldError message={vPlace(propertyDistrict, 'Wakiso')} />
                     {districtWarning(propertyDistrict) && (
                       <p className="text-[10px] text-warning leading-tight">
                         {districtWarning(propertyDistrict)}
