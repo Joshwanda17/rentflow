@@ -55,6 +55,17 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   const [locked, setLocked] = useState(false);
   // Confirms an intentional cancel of the blocking code-entry screen.
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [copiedExample, setCopiedExample] = useState<string | null>(null);
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedExample(text);
+      setTimeout(() => setCopiedExample((prev) => (prev === text ? null : prev)), 1500);
+    } catch {
+      // silent fail
+    }
+  };
 
   const amountNum = parseFloat(amount);
 
