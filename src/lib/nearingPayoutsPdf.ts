@@ -323,7 +323,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       String(idx + 1),
       r.name || '—',
       formatUGX(returnsDue),
-      compounding ? 'Compounding' : dueLabel(r.daysUntil),
+      compounding ? 'Compounding' : dueLabel(r.daysUntil, det?.next_roi_date ?? r.nextPayoutDate ?? r.nextRoiDate ?? ''),
       paymentCell,
     ];
   });
