@@ -1456,6 +1456,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
 
     setValidationErrors([]);
+
+    // Synchronous duplicate-tap guard — refs update instantly, unlike React state.
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+
     setLoading(true);
 
     try {
