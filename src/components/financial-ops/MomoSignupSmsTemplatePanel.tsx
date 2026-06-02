@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { MessageSquare, Loader2, Save, RotateCcw, Send } from 'lucide-react';
+import { MessageSquare, Loader2, Save, RotateCcw, Send, History, CheckCircle2, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -30,6 +30,16 @@ const DEFAULTS: MomoSignupSmsTemplate = {
   website: 'welile.com',
   support_email: 'info@welile.com',
 };
+
+interface TestSmsRecord {
+  id: string;
+  phone: string;
+  formattedPhone?: string;
+  message: string;
+  at: string;
+  ok: boolean;
+  response: string;
+}
 
 /** Live preview of the exact SMS body the edge function assembles. */
 export function buildPreview(t: MomoSignupSmsTemplate): string {
@@ -58,6 +68,7 @@ export function MomoSignupSmsTemplatePanel() {
   const [tpl, setTpl] = useState<MomoSignupSmsTemplate>(DEFAULTS);
   const [testPhone, setTestPhone] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
+  const [history, setHistory] = useState<TestSmsRecord[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -125,11 +136,30 @@ export function MomoSignupSmsTemplatePanel() {
       return;
     }
     setSendingTest(true);
+    const messageSent = preview;
     try {
       const { data, error } = await supabase.functions.invoke('sms-test-send', {
-        body: { phone, message: preview },
+        body: { phone, message: messageSent },
       });
       if (error) throw error;
+      const ok = !!data?.ok;
+      const response =
+        data?.recipients?.[0]?.status ||
+        data?.reason ||
+        (typeof data?.raw === 'string' ? data.raw : JSON.stringify(data?.raw ?? data ?? {})) ||
+        (ok ? 'Accepted by gateway' : 'Rejected by gateway');
+      setHistory((prev) => [
+        {
+          id: crypto.randomUUID(),
+          phone,
+          formattedPhone: data?.formattedPhone,
+          message: messageSent,
+          at: new Date().toISOString(),
+          ok,
+          response: String(response),
+        },
+        ...prev,
+      ].slice(0, 25));
       if (data?.ok) {
         toast.success('Test SMS sent', { description: `Delivered to ${data.formattedPhone ?? phone}. Check the phone.` });
       } else {
@@ -138,6 +168,17 @@ export function MomoSignupSmsTemplatePanel() {
         });
       }
     } catch (e) {
+      setHistory((prev) => [
+        {
+          id: crypto.randomUUID(),
+          phone,
+          message: messageSent,
+          at: new Date().toISOString(),
+          ok: false,
+          response: (e as Error).message,
+        },
+        ...prev,
+      ].slice(0, 25));
       toast.error('Could not send test SMS', { description: (e as Error).message });
     } finally {
       setSendingTest(false);
@@ -287,6 +328,47 @@ export function MomoSignupSmsTemplatePanel() {
           </div>
         </CardContent>
       </Card>
+
+      {history.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="h-4 w-4 text-primary" />
+              Test SMS history
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Most recent test sends this session — phone, the exact resolved message, time, and the
+              gateway's response.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {history.map((h) => (
+              <div key={h.id} className="rounded-lg border p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    {h.ok ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    )}
+                    {h.formattedPhone || h.phone}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(h.at).toLocaleString()}
+                  </span>
+                </div>
+                <div className="rounded-md bg-muted p-2 text-xs leading-relaxed whitespace-pre-wrap">
+                  {h.message}
+                </div>
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Gateway response: </span>
+                  <span className={h.ok ? 'text-green-600' : 'text-destructive'}>{h.response}</span>
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
