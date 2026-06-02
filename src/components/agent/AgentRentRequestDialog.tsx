@@ -2150,7 +2150,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               }
                             }}
                             className={`
-                              flex flex-col items-center justify-center gap-1 w-full min-w-0
+                              relative flex flex-col items-center justify-center gap-1 w-full min-w-0
                               rounded-xl px-1 py-2.5 transition-all active:scale-[0.96]
                               ${isActive
                                 ? 'bg-primary text-primary-foreground shadow-md'
