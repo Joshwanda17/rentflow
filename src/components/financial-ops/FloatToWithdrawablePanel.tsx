@@ -326,6 +326,63 @@ export function FloatToWithdrawablePanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Recent reclassifications */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            Recent Reclassifications
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : recent.length === 0 ? (
+            <div className="text-center text-sm text-muted-foreground py-6">
+              No Float → Withdrawable moves yet.
+            </div>
+          ) : (
+            <ScrollArea className="max-h-[400px]">
+              <div className="space-y-2">
+                {recent.map((row) => {
+                  const meta = row.metadata || {};
+                  const amt = Number(meta.amount ?? 0);
+                  return (
+                    <div
+                      key={row.id}
+                      className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="mt-0.5 shrink-0">
+                        <Badge className="bg-primary/10 text-primary border-0 text-[10px] px-1.5 py-0">
+                          {amt > 0 ? fmt(amt) : '—'}
+                        </Badge>
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <p className="text-sm font-medium truncate">
+                          {meta.target_name || 'Unknown user'}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {meta.reason || 'No reason provided'}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60">
+                          By <span className="font-medium">{row.actor_name}</span>
+                          {' · '}
+                          {formatDistanceToNow(new Date(row.created_at), { addSuffix: true })}
+                          {' · '}
+                          {format(new Date(row.created_at), 'dd/MM/yyyy HH:mm')}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
