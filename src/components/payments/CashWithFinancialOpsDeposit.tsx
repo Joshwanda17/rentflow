@@ -197,6 +197,11 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
             <button onClick={() => { setStep('form'); setCode(''); }} className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground">
               <ChevronLeft className="h-3.5 w-3.5" /> Back
             </button>
+            <DepositStatusTracker
+              stage={locked ? 'expired' : 'pending'}
+              busyStage={loading ? 'verified' : null}
+              timestamps={{ pendingAt: new Date().toISOString() }}
+            />
             <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-sm">
               Your request for <span className="font-semibold">{formatUGX(amountNum)}</span> has been sent to Financial Ops.
               After you hand over the cash, ask them for the <span className="font-semibold">receipt code</span> and enter it below.
