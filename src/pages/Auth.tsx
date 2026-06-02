@@ -90,7 +90,8 @@ export default function Auth() {
   // Internship funnel: auto-fill from query params and switch to signup
   useEffect(() => {
     const source = searchParams.get('source');
-    if (source === 'internship') {
+    const wantsSignup = source === 'internship' || searchParams.get('signup') === '1';
+    if (wantsSignup) {
       setIsSignUp(true);
       const nameParam = searchParams.get('name');
       const phoneParam = searchParams.get('phone');
