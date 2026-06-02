@@ -915,7 +915,15 @@ export function EmailTransactionsPanel() {
           (linkByRow.get(r.id) ?? []).forEach((id) => ids.add(id));
           if (r.gmail_message_id) (linkByMsg.get(r.gmail_message_id) ?? []).forEach((id) => ids.add(id));
           const normTid = tidByRow.get(r.id);
-          if (normTid) (linkByTid.get(normTid) ?? []).forEach((id) => ids.add(id));
+          const tidDepIds = new Set<string>();
+          if (normTid) (linkByTid.get(normTid) ?? []).forEach((id) => { ids.add(id); tidDepIds.add(id); });
+          // Deposits matched ONLY by reference (not by explicit gmail link /
+          // auto_match_audit) are flagged so the row can show the clear
+          // "Already Credited — No Routing Needed" status.
+          const explicitDepIds = new Set<string>([
+            ...(linkByRow.get(r.id) ?? []),
+            ...(r.gmail_message_id ? (linkByMsg.get(r.gmail_message_id) ?? []) : []),
+          ]);
           if (!ids.size) continue;
           const list: CreditedDeposit[] = [];
           for (const depId of ids) {
@@ -933,6 +941,8 @@ export function EmailTransactionsPanel() {
               auto_approved: d.auto_approved ?? null,
               deposit_purpose: d.deposit_purpose ?? null,
               credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
+              matched_by_tid: tidDepIds.has(depId) && !explicitDepIds.has(depId),
+              matched_tid: tidDepIds.has(depId) ? (normTid ?? null) : null,
             });
           }
           if (list.length) next[r.id] = list;
