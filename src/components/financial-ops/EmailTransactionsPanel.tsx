@@ -965,6 +965,37 @@ export function EmailTransactionsPanel() {
             }
           }
         }
+        // 3b) Cash-deposit RECEIPT-CODE fallback. "Cash deposit code 8829 —
+        //     UGX 9,999 from …" emails credit the wallet the instant the agent
+        //     reads the code back, but the email itself never carries a MoMo
+        //     TID. The short receipt code IS the deposit_request.transaction_id,
+        //     so match it EXACTLY (no normalization / length guard) — these
+        //     codes are issued per-deposit and never collide.
+        const linkByReceipt = new Map<string, string[]>(); // receipt code -> deposit ids
+        const receiptByRow = new Map<string, string>();     // row id -> receipt code
+        const receiptCodes = new Set<string>();
+        for (const r of incoming) {
+          const code = extractCashReceiptCode(r);
+          if (!code) continue;
+          receiptByRow.set(r.id, code);
+          receiptCodes.add(code);
+        }
+        if (receiptCodes.size) {
+          const { data: rcDeps } = await (supabase.from('deposit_requests') as any)
+            .select('id, status, transaction_id')
+            .in('transaction_id', Array.from(receiptCodes));
+          for (const d of (rcDeps ?? []) as Array<{ id: string; status: string; transaction_id: string | null }>) {
+            if (!d.transaction_id) continue;
+            if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
+            const code = d.transaction_id.trim();
+            const arr = linkByReceipt.get(code) ?? [];
+            if (!arr.includes(d.id)) {
+              arr.push(d.id);
+              linkByReceipt.set(code, arr);
+              depIds.add(d.id);
+            }
+          }
+        }
         if (!depIds.size) { if (!cancelled) setCreditedDeposits({}); return; }
         const { data: deps } = await (supabase.from('deposit_requests') as any)
           .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at')
