@@ -2847,6 +2847,25 @@ export function EmailTransactionsPanel() {
                           )}
                         </Badge>
                       )}
+                      {isAutoDebited && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 bg-rose-600/15 text-rose-700 border-rose-600/40"
+                          title={[
+                            `Auto-debited from ${autoDebitEntry?.target_user_name || autoImpact?.userName || 'matched user'}'s withdrawable wallet`,
+                            `Amount taken: ${fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}`,
+                            autoImpact && autoImpact.newAvail !== null
+                              ? `Wallet left: ${fmtUgx(autoImpact.newAvail)}`
+                              : null,
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <Zap className="h-3 w-3" />
+                          auto-debited −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
+                          {autoImpact && autoImpact.newAvail !== null && (
+                            <span className="opacity-80">· left {fmtUgx(autoImpact.newAvail)}</span>
+                          )}
+                        </Badge>
+                      )}
                       {isCredited && (
                         <Badge
                           variant="outline"
