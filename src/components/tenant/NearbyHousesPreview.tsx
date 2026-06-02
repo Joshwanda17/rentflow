@@ -6,6 +6,7 @@ import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, 
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import HouseRatingBadge from '@/components/house/HouseRatingBadge';
+import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -169,6 +170,9 @@ function MiniHouseCard({ listing, onSelectHouse }: { listing: HouseListing; onSe
           <p className="text-lg font-black text-success leading-none">{formatUGX(listing.daily_rate)}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5">per day · pay as you stay</p>
         </div>
+
+        {/* Move-in offer — first 7 days free on every listed house */}
+        <MoveInOfferBadge className="w-full justify-center" />
 
         {/* Mini map */}
         <MiniMapThumb lat={listing.latitude} lng={listing.longitude} title={listing.title} />
