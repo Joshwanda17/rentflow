@@ -36,6 +36,20 @@ const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
  * function, which posts a balanced double-entry wallet ledger transaction. This
  * component never touches wallet columns directly.
  */
+interface ReclassRow {
+  id: string;
+  user_id: string;
+  created_at: string;
+  metadata: {
+    target_user_id?: string;
+    target_name?: string;
+    amount?: number;
+    reason?: string;
+    reference_id?: string;
+  };
+  actor_name?: string;
+}
+
 export function FloatToWithdrawablePanel() {
   const [term, setTerm] = useState('');
   const [searching, setSearching] = useState(false);
@@ -45,6 +59,35 @@ export function FloatToWithdrawablePanel() {
   const [reason, setReason] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const { data: recent = [], isLoading: recentLoading } = useQuery({
+    queryKey: ['float-to-withdrawable-recent'],
+    queryFn: async () => {
+      const { data: logs, error } = await supabase
+        .from('audit_logs')
+        .select('id, user_id, created_at, metadata')
+        .eq('action_type', 'admin_float_to_withdrawable')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error || !logs?.length) return [];
+
+      const adminIds = [...new Set(logs.map((l) => l.user_id).filter(Boolean))];
+      const adminMap = new Map<string, string>();
+      if (adminIds.length) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', adminIds);
+        profiles?.forEach((p) => adminMap.set(p.id, p.full_name || 'Unknown'));
+      }
+
+      return logs.map((l) => ({
+        ...l,
+        actor_name: l.user_id ? adminMap.get(l.user_id) || 'Unknown' : 'System',
+      })) as ReclassRow[];
+    },
+    staleTime: 15000,
+  });
 
   const search = async () => {
     const q = term.trim();
