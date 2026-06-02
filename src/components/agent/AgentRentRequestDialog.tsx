@@ -2358,6 +2358,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                          
                           required
                         />
+                        <FieldError message={vName(tenantName)} />
                       </div>
                       <div className="space-y-1">
                         <Label >Tenant Phone *</Label>
@@ -2371,9 +2372,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           maxLength={12}
                           required
                         />
-                        {tenantPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(tenantPhone.replace(/\s/g, '')) && (
-                          <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
-                        )}
+                        <FieldError message={vPhone(tenantPhone)} />
                       </div>
                     </div>
 
