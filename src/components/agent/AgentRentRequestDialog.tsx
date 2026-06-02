@@ -1227,7 +1227,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     try {
       if (t.full_name) setTenantName(t.full_name);
       if (t.phone) setTenantPhone(formatPhoneInput(t.phone));
-      if (t.national_id) setTenantNationalId(t.national_id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase());
+      if (t.national_id) setTenantNationalId(cleanNationalIdInput(t.national_id));
 
       if (t.avatar_url) {
         try {
