@@ -3252,11 +3252,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               <>
               {/* ===== 5. LC1 DETAILS ===== */}
               <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                  <Users className="h-3 w-3" />
+                <h4 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Users className="h-4 w-4" />
                   LC1 Chairperson Details
                 </h4>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <Label >Name *</Label>
                     <Input
@@ -3303,7 +3303,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* Town/City + District — keeps tenant rolled up under a real
                     location in Tenant Ops drill-down instead of the
                     "Entebbe (please verify)" placeholder. */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <Label className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> Town / City *
