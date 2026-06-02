@@ -2966,18 +2966,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <p className="text-[10px] text-primary/60 italic">e.g. CM12345678901</p>
                   <Input
                     id="tenantNationalId"
-                    value={tenantNationalId}
-                    onChange={(e) => setTenantNationalId(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
-                    placeholder="e.g. CM12345678901"
-                    className="font-mono uppercase"
-                    maxLength={14}
+                    value={formatNationalIdDisplay(tenantNationalId)}
+                    onChange={(e) => setTenantNationalId(cleanNationalIdInput(e.target.value))}
+                    placeholder="e.g. CM12 3456 7890 12"
+                    className="font-mono uppercase tracking-wider"
+                    inputMode="text"
+                    autoCapitalize="characters"
+                    maxLength={17}
                     required
-                  />
-                  <Input
-                    id="tenantNationalIdHidden"
-                    type="hidden"
-                    value={tenantNationalId}
-                    readOnly
                   />
                   <FieldError message={vNationalId(tenantNationalId)} />
                 </div>
