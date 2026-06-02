@@ -401,9 +401,17 @@ function BalanceHistory({ rentRequestId, tenantName }: { rentRequestId: string; 
     <div className="mt-3 space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{filtered.length} of {rows.length} edits</span>
-        <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1.5" onClick={() => setShowFilters((s) => !s)}>
-          <Filter className="h-3 w-3" /> {showFilters ? 'Hide' : 'Filter'}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1.5" disabled={isExporting} onClick={handleExportCsv}>
+            <Download className="h-3 w-3" /> CSV
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1.5" disabled={isExporting} onClick={handleExportPdf}>
+            {isExporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1.5" onClick={() => setShowFilters((s) => !s)}>
+            <Filter className="h-3 w-3" /> {showFilters ? 'Hide' : 'Filter'}
+          </Button>
+        </div>
       </div>
 
       {showFilters && (
