@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
-  Loader2, Building2, CheckCircle2, ShieldCheck, ChevronLeft, XCircle, Mail,
+  Loader2, Building2, CheckCircle2, ShieldCheck, XCircle, Mail,
 } from 'lucide-react';
 import DepositStatusTracker from './DepositStatusTracker';
 
@@ -53,12 +53,15 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   const [creditedAmount, setCreditedAmount] = useState(0);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [locked, setLocked] = useState(false);
+  // Confirms an intentional cancel of the blocking code-entry screen.
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const amountNum = parseFloat(amount);
 
   const reset = () => {
     setStep('form'); setAmount(''); setLoading(false); setDepositId(null);
     setCode(''); setCodeError(''); setCreditedAmount(0); setAttemptsLeft(null); setLocked(false);
+    setConfirmCancel(false);
   };
 
   const close = () => { reset(); onOpenChange(false); };
@@ -141,7 +144,11 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent
+        className={`max-w-md ${step === 'code' ? '[&>button.absolute]:hidden' : ''}`}
+        onInteractOutside={(e) => { if (step === 'code') e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (step === 'code') e.preventDefault(); }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-blue-600" />
@@ -194,9 +201,6 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
 
         {step === 'code' && (
           <div className="space-y-4">
-            <button onClick={() => { setStep('form'); setCode(''); }} className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground">
-              <ChevronLeft className="h-3.5 w-3.5" /> Back
-            </button>
             <DepositStatusTracker
               stage={locked ? 'expired' : 'pending'}
               busyStage={loading ? 'verified' : null}
@@ -256,6 +260,35 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
                 Verify code & credit wallet
               </Button>
             )}
+
+            {!confirmCancel ? (
+              <Button
+                variant="ghost"
+                disabled={loading}
+                onClick={() => setConfirmCancel(true)}
+                className="w-full h-10 text-muted-foreground hover:text-destructive"
+              >
+                Cancel deposit
+              </Button>
+            ) : (
+              <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
+                <p className="text-sm text-foreground text-center font-medium">
+                  Cancel this deposit? You'll need to start again to deposit cash.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={() => setConfirmCancel(false)} disabled={loading}>
+                    Keep waiting
+                  </Button>
+                  <Button variant="destructive" onClick={close} disabled={loading}>
+                    Yes, cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <p className="text-[11px] text-center text-muted-foreground">
+              This screen stays open until you enter the code or cancel.
+            </p>
           </div>
         )}
 
