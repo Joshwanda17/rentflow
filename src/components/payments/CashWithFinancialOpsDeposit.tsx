@@ -53,12 +53,15 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   const [creditedAmount, setCreditedAmount] = useState(0);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [locked, setLocked] = useState(false);
+  // Confirms an intentional cancel of the blocking code-entry screen.
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const amountNum = parseFloat(amount);
 
   const reset = () => {
     setStep('form'); setAmount(''); setLoading(false); setDepositId(null);
     setCode(''); setCodeError(''); setCreditedAmount(0); setAttemptsLeft(null); setLocked(false);
+    setConfirmCancel(false);
   };
 
   const close = () => { reset(); onOpenChange(false); };
