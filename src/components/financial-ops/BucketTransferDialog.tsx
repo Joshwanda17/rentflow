@@ -56,9 +56,29 @@ export default function BucketTransferDialog({ open, onOpenChange }: BucketTrans
         .eq('user_id', user!.id)
         .maybeSingle();
       if (error) throw error;
+
+      // Cached buckets can drift ABOVE the real ledger position. The ledger
+      // (create_ledger_transaction) enforces the strict net, so gate on the
+      // ledger-backed figure to avoid LEDGER_FAILED on submit.
+      const { data: legs } = await (supabase.from('general_ledger') as any)
+        .select('direction, amount, wallet_bucket')
+        .eq('user_id', user!.id)
+        .eq('ledger_scope', 'wallet')
+        .in('wallet_bucket', ['withdrawable', 'float'])
+        .limit(10000);
+      let ledgerW = 0;
+      let ledgerF = 0;
+      for (const l of (legs ?? []) as any[]) {
+        const signed = (l.direction === 'cash_in' ? 1 : -1) * Number(l.amount ?? 0);
+        if (l.wallet_bucket === 'withdrawable') ledgerW += signed;
+        else if (l.wallet_bucket === 'float') ledgerF += signed;
+      }
       return {
         withdrawable: Number(data?.withdrawable_balance ?? 0),
         float: Number(data?.float_balance ?? 0),
+        // Spendable = min(cache, ledger net), never below 0.
+        withdrawableSpendable: Math.max(0, Math.min(Number(data?.withdrawable_balance ?? 0), ledgerW)),
+        floatSpendable: Math.max(0, Math.min(Number(data?.float_balance ?? 0), ledgerF)),
       };
     },
     staleTime: 5_000,
@@ -67,7 +87,8 @@ export default function BucketTransferDialog({ open, onOpenChange }: BucketTrans
   const isW2F = direction === 'withdrawable_to_float';
   const fromLabel = isW2F ? 'Personal (Withdrawable)' : 'Operational Float';
   const toLabel = isW2F ? 'Operational Float' : 'Personal (Withdrawable)';
-  const fromBalance = buckets ? (isW2F ? buckets.withdrawable : buckets.float) : 0;
+  // Gate on the strict ledger-backed spendable, not the (possibly drifted) cache.
+  const fromBalance = buckets ? (isW2F ? buckets.withdrawableSpendable : buckets.floatSpendable) : 0;
 
   const numericAmount = Number(amount);
   const amountValid = Number.isFinite(numericAmount) && numericAmount > 0;
