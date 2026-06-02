@@ -602,6 +602,10 @@ export function EmailTransactionsPanel() {
   // a batch run is in flight; `autoDebitProgress` drives the inline counter.
   const [autoDebitBusy, setAutoDebitBusy] = useState(false);
   const [autoDebitProgress, setAutoDebitProgress] = useState<{ done: number; total: number; ok: number; failed: number } | null>(null);
+  // Match-review gate: the operator must review the full list of matched
+  // money-out emails (detected user, confidence, amount) in a dialog and
+  // press a single confirm button before any wallet reduction is posted.
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
   // Mobile-only collapsibles: keep filters & stats hidden by default on small screens
@@ -2234,10 +2238,7 @@ export function EmailTransactionsPanel() {
 
         const runAutoDebit = async () => {
           if (!highConf.length) return;
-          const ok = window.confirm(
-            `Auto-debit ${highConf.length} payout${highConf.length === 1 ? '' : 's'} totalling ${fmtUgx(highConfAmt)} from the matched user wallets?\n\nRows whose top recipient match scores ≥ 75% (TID, "to <phone>", or a strong name match) will run. Each posts a withdrawable debit via CFO Direct Debit for the amount the email shows leaving. This cannot be undone in bulk.`,
-          );
-          if (!ok) return;
+          setReviewOpen(false);
           setAutoDebitBusy(true);
           setAutoDebitProgress({ done: 0, total: highConf.length, ok: 0, failed: 0 });
           let okCount = 0;
@@ -2371,13 +2372,83 @@ export function EmailTransactionsPanel() {
                 variant="default"
                 className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
                 disabled={autoDebitBusy}
-                onClick={runAutoDebit}
+                onClick={() => setReviewOpen(true)}
                 title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) matched to a user ≥ 75%.`}
               >
                 {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                Auto-debit {highConf.length} matched ≥ 75%
+                Review {highConf.length} match{highConf.length === 1 ? '' : 'es'} ≥ 75%
               </Button>
             )}
+
+            {/* Match review step — lists every matched money-out email with the
+                detected user, confidence score, and extracted amount. No wallet
+                is reduced until the single confirm button below is pressed. */}
+            <Dialog open={reviewOpen} onOpenChange={(o) => { if (!autoDebitBusy) setReviewOpen(o); }}>
+              <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <ShieldAlert className="h-5 w-5 text-rose-600" />
+                    Review {highConf.length} wallet reduction{highConf.length === 1 ? '' : 's'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Each row below will post a withdrawable debit via CFO Direct Debit for the
+                    amount the email shows leaving. Review the detected user, confidence, and
+                    amount. No wallet is reduced until you press confirm.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-2">
+                  {highConf.map(({ row, top, score }) => (
+                    <div key={row.id} className="rounded-lg border bg-muted/30 p-3 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold truncate">{top.full_name}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {top.phone || top.mobile_money_number || 'no phone'} · matched on {top.matched_on}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            From {row.from_name || row.from_email || 'provider'}
+                            {row.transaction_id ? ` · TID ${row.transaction_id}` : ''}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-mono font-semibold text-rose-700 dark:text-rose-300">
+                            −{fmtUgx(row.amount)}
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className={`mt-1 ${score >= 90 ? 'border-emerald-400 text-emerald-700 dark:text-emerald-300' : 'border-amber-400 text-amber-700 dark:text-amber-300'}`}
+                          >
+                            {score}% match
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t pt-3 flex items-center justify-between gap-3">
+                  <p className="text-sm">
+                    Total to reduce:{' '}
+                    <strong className="font-mono text-rose-700 dark:text-rose-300">{fmtUgx(highConfAmt)}</strong>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled={autoDebitBusy} onClick={() => setReviewOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
+                      disabled={autoDebitBusy || highConf.length === 0}
+                      onClick={runAutoDebit}
+                    >
+                      {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                      Confirm &amp; reduce {highConf.length} wallet{highConf.length === 1 ? '' : 's'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         );
       })()}
