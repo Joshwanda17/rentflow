@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,8 @@ export function MapKeySettingsCard() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const mapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -41,7 +43,7 @@ export function MapKeySettingsCard() {
     return () => { active = false; };
   }, []);
 
-  const reset = () => setCheck(null);
+  const reset = () => { setCheck(null); setShowPreview(false); };
 
   const test = async (): Promise<boolean> => {
     const trimmed = value.trim();
@@ -55,10 +57,12 @@ export function MapKeySettingsCard() {
     setTesting(false);
     if (!result.ok) {
       setCheck({ ok: false, message: result.message ?? 'Key could not be verified.' });
+      setShowPreview(false);
       // "already-loaded" is not a real failure of the key; allow saving anyway.
       return result.reason === 'already-loaded';
     }
     setCheck({ ok: true, message: 'Key verified — the map will work on this website.' });
+    setShowPreview(true);
     return true;
   };
 
