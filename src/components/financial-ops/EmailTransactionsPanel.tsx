@@ -2238,10 +2238,7 @@ export function EmailTransactionsPanel() {
 
         const runAutoDebit = async () => {
           if (!highConf.length) return;
-          const ok = window.confirm(
-            `Auto-debit ${highConf.length} payout${highConf.length === 1 ? '' : 's'} totalling ${fmtUgx(highConfAmt)} from the matched user wallets?\n\nRows whose top recipient match scores ≥ 75% (TID, "to <phone>", or a strong name match) will run. Each posts a withdrawable debit via CFO Direct Debit for the amount the email shows leaving. This cannot be undone in bulk.`,
-          );
-          if (!ok) return;
+          setReviewOpen(false);
           setAutoDebitBusy(true);
           setAutoDebitProgress({ done: 0, total: highConf.length, ok: 0, failed: 0 });
           let okCount = 0;
