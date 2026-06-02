@@ -2294,6 +2294,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <div className="space-y-1">
                         <Label >Tenant Name *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">The tenant's name as on their ID.</p>
+                        <p className="text-[10px] text-primary/60 italic">e.g. John Mukasa</p>
                         <Input
                           value={tenantName}
                           onChange={(e) => setTenantName(e.target.value)}
@@ -2305,6 +2306,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <div className="space-y-1">
                         <Label >Tenant Phone *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">The number they answer calls on.</p>
+                        <p className="text-[10px] text-primary/60 italic">e.g. 0783 123 456</p>
                         <Input
                           value={tenantPhone}
                           onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
@@ -2322,6 +2324,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="space-y-1">
                       <Label >Preferred Language *</Label>
                       <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
+                      <p className="text-[10px] text-primary/60 italic">e.g. Luganda</p>
                       <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select tenant language" />
@@ -2346,6 +2349,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <div className="space-y-1">
                         <Label className="font-semibold">Rent Amount (UGX) *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">The full monthly rent for this house.</p>
+                        <p className="text-[10px] text-primary/60 italic">e.g. 300,000 UGX per month</p>
                         <Input
                           value={formatCurrencyInput(outstandingRentAmount)}
                           onChange={(e) => setOutstandingRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
@@ -2357,6 +2361,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <div className="space-y-1">
                         <Label className="font-semibold">Repayment Duration *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">How many days the tenant has to pay it back.</p>
+                        <p className="text-[10px] text-primary/60 italic">e.g. 30 days</p>
                         <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
                           <SelectTrigger>
                             <SelectValue />
@@ -2373,6 +2378,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="space-y-1">
                       <Label className="font-semibold">Outstanding Balance (UGX) *</Label>
                       <p className="text-xs text-muted-foreground leading-snug">How much rent the tenant still owes right now.</p>
+                        <p className="text-[10px] text-primary/60 italic">e.g. 150,000 UGX</p>
                       <Input
                         value={formatCurrencyInput(outstandingBalance)}
                         onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
@@ -2846,6 +2852,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label htmlFor="tenantName" >Full Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">Write the tenant's name as it is on their ID.</p>
+                    <p className="text-[10px] text-primary/60 italic">e.g. Sarah Nalwoga</p>
                     <Input
                       id="tenantName"
                       value={tenantName}
@@ -2858,6 +2865,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" >Phone *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The number they answer calls on.</p>
+                        <p className="text-[10px] text-primary/60 italic">e.g. 0783 123 456</p>
                     <Input
                       id="tenantPhone"
                       value={tenantPhone}
@@ -2876,6 +2884,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <div className="space-y-1">
                   <Label htmlFor="tenantNationalId" >National ID *</Label>
                   <p className="text-xs text-muted-foreground leading-snug">Copy the long number from their national ID card.</p>
+                  <p className="text-[10px] text-primary/60 italic">e.g. CM12345678901</p>
                   <Input
                     id="tenantNationalId"
                     value={tenantNationalId}
@@ -2893,6 +2902,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <div className="space-y-1">
                   <Label >Preferred Language *</Label>
                   <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
+                      <p className="text-[10px] text-primary/60 italic">e.g. Luganda</p>
                   <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select tenant language" />
@@ -2917,6 +2927,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   House Category *
                 </h4>
                 <p className="text-xs text-muted-foreground leading-snug">Pick what kind of house this is (single room, two rooms, etc.).</p>
+                <p className="text-[10px] text-primary/60 italic">e.g. Single Room</p>
                 <Select value={houseCategory} onValueChange={setHouseCategory}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select house type" />
@@ -3120,6 +3131,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <MapPin className="h-4 w-4 text-primary" /> Where is the house?
                   </Label>
                   <p className="text-xs text-muted-foreground leading-snug">The village, road or area people use to find it.</p>
+                  <p className="text-[10px] text-primary/60 italic">e.g. Kira Town, near Total petrol station</p>
                   <Input
                     value={propertyAddress}
                     onChange={(e) => setPropertyAddress(e.target.value)}
@@ -3272,6 +3284,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label >Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The local council (LC1) chairperson for that area.</p>
+                    <p className="text-[10px] text-primary/60 italic">e.g. Mr. Ssemwanga</p>
                     <Input
                       value={lc1Name}
                       onChange={(e) => setLc1Name(e.target.value)}
@@ -3283,6 +3296,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label >Phone *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">A number that can confirm the tenant lives there.</p>
+                    <p className="text-[10px] text-primary/60 italic">e.g. 0701 987 654</p>
                     <Input
                       value={lc1Phone}
                       onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
@@ -3305,6 +3319,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label >Village *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The village or zone the LC1 looks after.</p>
+                    <p className="text-[10px] text-primary/60 italic">e.g. Kira Zone A</p>
                     <Input
                       value={lc1Village}
                       onChange={(e) => setLc1Village(e.target.value)}
@@ -3324,6 +3339,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <MapPin className="h-3 w-3" /> Town / City *
                     </Label>
                     <p className="text-xs text-muted-foreground leading-snug">The town or city where the house is.</p>
+                    <p className="text-[10px] text-primary/60 italic">e.g. Entebbe, Kampala, Jinja</p>
                     <Input
                       value={propertyCity}
                       onChange={(e) => setPropertyCity(e.target.value)}
@@ -3335,6 +3351,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label >District</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The district the house is in, like Wakiso.</p>
+                    <p className="text-[10px] text-primary/60 italic">e.g. Wakiso</p>
                     <Input
                       value={propertyDistrict}
                       onChange={(e) => setPropertyDistrict(e.target.value)}
