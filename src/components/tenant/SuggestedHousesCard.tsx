@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { motion } from 'framer-motion';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -150,6 +151,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                       )}
                     </div>
                   </div>
+                  <MoveInOfferBadge />
                 </div>
               </div>
             </CardContent>
