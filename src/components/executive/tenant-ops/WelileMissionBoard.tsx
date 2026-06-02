@@ -1217,20 +1217,22 @@ function PlacedTenantsDialog({
           </p>
         </DialogHeader>
 
-        <div className="px-4 pb-2 flex rounded-lg border border-border overflow-hidden">
-          {([
-            { key: 'browse', label: 'Occupied houses' },
-            { key: 'edit', label: 'Search & edit balances' },
-          ] as { key: 'browse' | 'edit'; label: string }[]).map((m) => (
-            <button
-              key={m.key}
-              onClick={() => setMode(m.key)}
-              className={cn('flex-1 px-2 py-1.5 text-[11px] font-semibold transition',
-                mode === m.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
-            >
-              {m.label}
-            </button>
-          ))}
+        <div className="px-4 pb-2">
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            {([
+              { key: 'browse', label: 'Occupied houses' },
+              { key: 'edit', label: 'Search & edit balances' },
+            ] as { key: 'browse' | 'edit'; label: string }[]).map((m) => (
+              <button
+                key={m.key}
+                onClick={() => setMode(m.key)}
+                className={cn('flex-1 px-2 py-1.5 text-[11px] font-semibold transition',
+                  mode === m.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {mode === 'edit' ? (
