@@ -68,6 +68,9 @@ export function UserDepositRequests() {
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Maps deposit_request_id → its code-verification state, used to render
+  // the pending → code verified → auto-approved tracker for cash deposits.
+  const [verifications, setVerifications] = useState<Record<string, CashVerification>>({});
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
