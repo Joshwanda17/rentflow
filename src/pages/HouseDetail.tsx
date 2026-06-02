@@ -85,7 +85,13 @@ export default function HouseDetail() {
     fetchListing();
   }, [id]);
 
-  const shareUrl = `${SITE_URL}/house/${id}`;
+  const shareUrl = `${SITE_URL}/house/${listing?.short_code || id}`;
+  // Rich-preview link routed through the OG edge function so WhatsApp/Facebook
+  // show the house image + details, then redirect into the full house page.
+  const OG_FUNCTION_URL = `https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house`;
+  const ogShareUrl = listing?.short_code
+    ? `${OG_FUNCTION_URL}?c=${listing.short_code}`
+    : `${OG_FUNCTION_URL}?id=${id}`;
   const images = listing?.image_urls || [];
   const lightboxImages = useMemo(() =>
     images.map((url, i) => ({ id: `detail-${i}`, image_url: url })),
@@ -94,19 +100,20 @@ export default function HouseDetail() {
   );
 
   const handleShare = async () => {
+    const richUrl = listing ? ogShareUrl : shareUrl;
     const shareData = {
       title: listing ? `${listing.title} — Daily Rent | Welile` : 'House for Rent | Welile',
       text: listing
         ? `Check out this house: ${listing.title} in ${listing.region} for ${formatUGX(listing.daily_rate)}/day on Welile!`
         : 'Check out this house on Welile!',
-      url: shareUrl,
+      url: richUrl,
     };
     if (navigator.share) {
       try { await navigator.share(shareData); } catch {}
     } else {
       const shareText = listing
-        ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${shareUrl}`
-        : shareUrl;
+        ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
+        : richUrl;
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
       toast({ title: 'Link copied!', description: 'Share it with friends & family.' });

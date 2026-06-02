@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
+import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 
 interface PublicHouse {
   id: string;
@@ -17,6 +18,7 @@ interface PublicHouse {
   daily_rate: number;
   monthly_rent: number;
   image_urls: string[] | null;
+  short_code: string | null;
 }
 
 export function PublicHousesPreview() {
@@ -31,7 +33,7 @@ export function PublicHousesPreview() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase as any)
           .from('house_listings')
-          .select('id, title, region, district, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls')
+          .select('id, title, region, district, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls, short_code')
           .eq('status', 'available')
           .eq('is_hidden', false)
           .is('tenant_id', null)
@@ -95,10 +97,13 @@ export function PublicHousesPreview() {
       ) : (
         <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 scrollbar-hide snap-x snap-mandatory">
           {houses.map(house => (
-            <button
+            <div
               key={house.id}
+              role="button"
+              tabIndex={0}
               onClick={goExplore}
-              className="shrink-0 w-44 snap-start text-left rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all touch-manipulation"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') goExplore(); }}
+              className="shrink-0 w-44 snap-start text-left rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all touch-manipulation cursor-pointer"
             >
               <div className="relative w-full h-28 bg-muted">
                 {house.image_urls?.[0] ? (
@@ -116,6 +121,19 @@ export function PublicHousesPreview() {
                 <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-background/85 backdrop-blur text-[9px] font-bold text-foreground">
                   {house.number_of_rooms} rm
                 </span>
+                <span
+                  className="absolute top-1.5 right-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                  role="presentation"
+                >
+                  <ShareHouseButton
+                    listingId={house.id}
+                    title={house.title}
+                    region={house.region}
+                    dailyRate={house.daily_rate}
+                    shortCode={house.short_code}
+                  />
+                </span>
               </div>
               <div className="p-2.5 space-y-1">
                 <p className="font-semibold text-xs truncate">{house.title}</p>
@@ -131,7 +149,7 @@ export function PublicHousesPreview() {
                 </p>
                 <MoveInOfferBadge className="mt-1" />
               </div>
-            </button>
+            </div>
           ))}
 
           <button
