@@ -142,6 +142,14 @@ const AGENT_RENT_CAP_UGX = 100_000_000;
 // Guided wizard steps for the standard (non-outstanding) rent request flow.
 const DETAIL_STEPS = ['Rent', 'Tenant', 'Property', 'Officials', 'Review'] as const;
 
+const DETAIL_STEP_META = [
+  { label: 'Rent', emoji: '💰', icon: Calculator },
+  { label: 'Tenant', emoji: '👤', icon: User },
+  { label: 'Property', emoji: '🏠', icon: Home },
+  { label: 'Officials', emoji: '🛡️', icon: ShieldCheck },
+  { label: 'Review', emoji: '✅', icon: CheckCircle2 },
+] as const;
+
 function AgentCapacityBanner({ agentId }: { agentId?: string }) {
   const [exposure, setExposure] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
