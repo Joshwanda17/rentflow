@@ -661,6 +661,19 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn('[gmail-poll] auto-approve bank batch failed (non-fatal):', e);
         }
+        // Event-driven auto-debit: the instant a parsed OUTGOING payout email
+        // matches a known recipient with available balance, charge it against
+        // their wallet automatically — no dependency on a manual CFO click in
+        // the Financial Ops panel.
+        try {
+          await tryAutoDebitPayout(supabase, {
+            parsed,
+            internalMs,
+            gmailMessageId: m.id,
+          });
+        } catch (e) {
+          console.warn('[gmail-poll] auto-debit payout failed (non-fatal):', e);
+        }
       }
     }
 
@@ -708,6 +721,195 @@ Deno.serve(async (req) => {
 
 // ── Helper: auto-credit operational float for matched user ───────────
 async function tryAutoCreditOperationalFloat(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    parsed: ReturnType<typeof parseTransaction>;
+    fromEmail: string | null;
+    internalMs: number;
+    gmailMessageId: string;
+  },
+): Promise<void> {
+  return await _tryAutoCreditOperationalFloat(supabase, args);
+}
+
+// ── Helper: event-driven auto-debit of outgoing payout emails ────────
+// When a parsed OUTGOING payout email (bank "sent to NAME", MTN/Airtel
+// "sent to PHONE") matches exactly one known platform user who has
+// withdrawable balance, debit their wallet automatically via the
+// cfo-direct-credit system path. No manual click required.
+async function tryAutoDebitPayout(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    parsed: ReturnType<typeof parseTransaction>;
+    internalMs: number;
+    gmailMessageId: string;
+  },
+): Promise<void> {
+  const { parsed, internalMs, gmailMessageId } = args;
+
+  // Eligibility gates
+  if (parsed.direction !== 'out') return;
+  if (!parsed.amount || parsed.amount <= 0) return;
+  // Only act on recent payouts (mirror the 7-day window used elsewhere).
+  if (internalMs && internalMs < Date.now() - 7 * 24 * 3600 * 1000) return;
+
+  // Locate the row we just inserted so we can link the routing record.
+  const { data: gmailRow } = await supabase
+    .from('gmail_transactions')
+    .select('id, from_name, from_email, subject')
+    .eq('gmail_message_id', gmailMessageId)
+    .maybeSingle();
+  if (!gmailRow?.id) return;
+
+  // Idempotency: never debit the same email twice. A prior auto-debit (or a
+  // manual route) leaves a row in email_routing_history for this gmail row.
+  const { data: existingRoute } = await supabase
+    .from('email_routing_history')
+    .select('id')
+    .eq('gmail_transaction_id', gmailRow.id)
+    .limit(1)
+    .maybeSingle();
+  if (existingRoute?.id) return;
+
+  // ── Resolve the recipient ────────────────────────────────────────────
+  // The parser stores the recipient in `counterparty`: a phone for MTN/Airtel
+  // payouts, a NAME for bank payouts.
+  const cp = (parsed.counterparty ?? '').toString().trim();
+  if (!cp) return;
+
+  let profile: { id: string; full_name: string | null; phone: string | null } | null = null;
+  let matchMethod: 'phone' | 'name' = 'phone';
+
+  const phoneDigits = cp.replace(/[^0-9]/g, '');
+  const looksLikePhone = /\d/.test(cp) && phoneDigits.length >= 9;
+
+  if (looksLikePhone) {
+    const last9 = phoneDigits.slice(-9);
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .or(`phone.ilike.%${last9},mobile_money_number.ilike.%${last9}`)
+      .limit(2);
+    // Require exactly one match to avoid charging the wrong wallet.
+    if (data && data.length === 1 && data[0]?.id) {
+      profile = data[0] as any;
+      matchMethod = 'phone';
+    }
+  } else {
+    // Name match: require ≥ 2 word tokens and EXACTLY one matching profile.
+    const rawName = cp.replace(/\s+/g, ' ').trim();
+    const tokens = rawName.split(' ').filter((t) => t.length > 1);
+    if (/[A-Za-z]/.test(rawName) && tokens.length >= 2) {
+      const { data: nameMatches } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .ilike('full_name', rawName)
+        .limit(2);
+      if (nameMatches && nameMatches.length === 1 && nameMatches[0]?.id) {
+        profile = nameMatches[0] as any;
+        matchMethod = 'name';
+      }
+    }
+  }
+
+  if (!profile?.id) {
+    console.log(`[gmail-poll] auto-debit: no unique recipient for "${cp}" — leaving for manual review`);
+    return;
+  }
+
+  // ── Strict available balance gate ────────────────────────────────────
+  // The ledger blocks negative wallets, so never debit more than the strict
+  // available balance. Clamp to drain to zero (partial debit) instead.
+  const { data: availRaw } = await (supabase.rpc as any)('get_user_available_balance', {
+    p_user_id: profile.id,
+  });
+  const avail = Number(availRaw ?? 0);
+  if (!Number.isFinite(avail) || avail <= 0) {
+    console.warn(
+      `[gmail-poll] auto-debit skip: ${profile.full_name} has UGX ${Math.max(0, avail).toLocaleString()} available, needs UGX ${parsed.amount.toLocaleString()}`,
+    );
+    return;
+  }
+  const debitAmt = Math.min(parsed.amount, Math.floor(avail));
+  const isPartial = debitAmt < parsed.amount;
+
+  const reason =
+    `Auto-debit (${matchMethod} match) — outgoing payment email from ` +
+    `${gmailRow.from_name || gmailRow.from_email || 'provider'}` +
+    `${parsed.transaction_id ? ` TID ${parsed.transaction_id}` : ''} charged against ` +
+    `${profile.full_name}'s wallet.` +
+    `${isPartial ? ` Partial: ${debitAmt.toLocaleString()}/${parsed.amount.toLocaleString()} (wallet drained to zero).` : ''}`;
+
+  // ── Post the debit through cfo-direct-credit's system path ────────────
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  let referenceId: string | null = null;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/cfo-direct-credit`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        system_auto_debit: true,
+        target_user_id: profile.id,
+        amount: debitAmt,
+        reason,
+        operation: 'debit',
+        wallet_category: 'wallet_transfer',
+        platform_category: 'wallet_transfer',
+        financial_impact: 'neutral',
+        category_label: 'Email charge → Withdrawable (auto)',
+        recipient_type: 'user',
+        sub_category: parsed.transaction_id ?? null,
+      }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || (out as any)?.error) {
+      console.warn('[gmail-poll] auto-debit cfo-direct-credit failed:', res.status, JSON.stringify(out).slice(0, 300));
+      return;
+    }
+    referenceId = (out as any)?.reference_id ?? null;
+    console.log(
+      `[gmail-poll] auto-debited UGX ${debitAmt.toLocaleString()} from ${profile.full_name} ` +
+      `(${matchMethod}) tid=${parsed.transaction_id ?? 'n/a'} ref=${referenceId}`,
+    );
+  } catch (e) {
+    console.warn('[gmail-poll] auto-debit cfo-direct-credit invoke failed:', e);
+    return;
+  }
+
+  // Record the routing so the panel shows the row as auto-debited and the
+  // idempotency guard above blocks any re-run.
+  try {
+    await supabase.from('email_routing_history').insert({
+      gmail_transaction_id: gmailRow.id,
+      gmail_message_id: gmailMessageId,
+      transaction_id: parsed.transaction_id ?? null,
+      from_email: gmailRow.from_email,
+      from_name: gmailRow.from_name,
+      subject: gmailRow.subject,
+      amount: debitAmt,
+      route: 'withdrawable_debit',
+      target_user_id: profile.id,
+      target_user_name: profile.full_name,
+      target_user_phone: profile.phone,
+      reason: `DEBIT (auto, ${matchMethod}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${parsed.amount.toLocaleString()}` : ''}): ${reason}`,
+      ledger_reference_id: referenceId,
+      routed_by: profile.id,
+      routed_by_name: 'System Auto-Debit',
+      sms_sent: false,
+      sms_error: null,
+    });
+  } catch (e) {
+    console.warn('[gmail-poll] auto-debit routing-history insert failed (non-fatal):', e);
+  }
+}
+
+// ── Helper: auto-credit operational float for matched user (impl) ─────
+async function _tryAutoCreditOperationalFloat(
   supabase: ReturnType<typeof createClient>,
   args: {
     parsed: ReturnType<typeof parseTransaction>;
