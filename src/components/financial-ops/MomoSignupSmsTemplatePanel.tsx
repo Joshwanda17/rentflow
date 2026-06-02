@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { MessageSquare, Loader2, Save, RotateCcw } from 'lucide-react';
+import { MessageSquare, Loader2, Save, RotateCcw, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -56,6 +56,8 @@ export function MomoSignupSmsTemplatePanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [tpl, setTpl] = useState<MomoSignupSmsTemplate>(DEFAULTS);
+  const [testPhone, setTestPhone] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +115,32 @@ export function MomoSignupSmsTemplatePanel() {
       toast.error('Save failed', { description: error.message });
     } else {
       toast.success('SMS template saved', { description: 'New senders will receive the updated message.' });
+    }
+  };
+
+  const sendTest = async () => {
+    const phone = testPhone.trim();
+    if (!/\d{9,}/.test(phone.replace(/\D/g, ''))) {
+      toast.error('Enter a valid phone number', { description: 'e.g. 0777123456 or +256777123456' });
+      return;
+    }
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-test-send', {
+        body: { phone, message: preview },
+      });
+      if (error) throw error;
+      if (data?.ok) {
+        toast.success('Test SMS sent', { description: `Delivered to ${data.formattedPhone ?? phone}. Check the phone.` });
+      } else {
+        toast.error('Test SMS not delivered', {
+          description: data?.reason || data?.recipients?.[0]?.status || 'The SMS gateway rejected the message.',
+        });
+      }
+    } catch (e) {
+      toast.error('Could not send test SMS', { description: (e as Error).message });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -232,6 +260,30 @@ export function MomoSignupSmsTemplatePanel() {
         <CardContent>
           <div className="rounded-lg bg-muted p-4 text-sm leading-relaxed whitespace-pre-wrap">
             {preview}
+          </div>
+
+          <div className="mt-4 space-y-2 rounded-lg border p-3">
+            <Label htmlFor="test_phone" className="text-sm font-medium">
+              Send test SMS
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Sends this exact preview (with placeholders resolved) to a real phone so you can verify
+              wording and the signup link.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="test_phone"
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value)}
+                placeholder="e.g. 0777123456"
+                inputMode="tel"
+                className="sm:max-w-xs"
+              />
+              <Button onClick={sendTest} disabled={sendingTest || !testPhone.trim()}>
+                {sendingTest ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Send test SMS
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
