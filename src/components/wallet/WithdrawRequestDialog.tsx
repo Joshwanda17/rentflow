@@ -218,7 +218,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   useEffect(() => {
     if (!open || !prefillPayout) return;
     if (prefillPayout.payoutMode) setPayoutMode(prefillPayout.payoutMode);
-    if (prefillPayout.momoNumber !== undefined) setMomoNumber(prefillPayout.momoNumber);
+    if (prefillPayout.momoNumber !== undefined) setMomoNumber(normalizeUgMomoNumber(prefillPayout.momoNumber));
     if (prefillPayout.momoName !== undefined) setMomoName(prefillPayout.momoName);
     if (prefillPayout.bankName !== undefined) setBankName(prefillPayout.bankName);
     if (prefillPayout.bankAccountName !== undefined) setBankAccountName(prefillPayout.bankAccountName);
