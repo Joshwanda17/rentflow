@@ -375,6 +375,28 @@ function BalanceHistory({ rentRequestId, tenantName }: { rentRequestId: string; 
 
   const dateFmtOpts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
 
+  const handleExportCsv = () => {
+    if (filtered.length === 0) { toast.info('Nothing to export — adjust your filters'); return; }
+    const csv = buildCsv(filtered);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const name = tenantName ? `${tenantName.replace(/\s+/g, '_')}-balance-history` : 'tenant-balance-history';
+    downloadBlob(`${name}.csv`, blob);
+    toast.success(`CSV exported (${filtered.length} rows)`);
+  };
+
+  const handleExportPdf = async () => {
+    if (filtered.length === 0) { toast.info('Nothing to export — adjust your filters'); return; }
+    setIsExporting(true);
+    try {
+      await exportHistoryToPdf(filtered, tenantName || 'Tenant');
+      toast.success(`PDF exported (${filtered.length} rows)`);
+    } catch (e: any) {
+      toast.error(e?.message || 'PDF export failed');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="mt-3 space-y-2">
       <div className="flex items-center justify-between">
