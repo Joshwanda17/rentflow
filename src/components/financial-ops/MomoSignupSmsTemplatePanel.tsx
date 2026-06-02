@@ -136,11 +136,30 @@ export function MomoSignupSmsTemplatePanel() {
       return;
     }
     setSendingTest(true);
+    const messageSent = preview;
     try {
       const { data, error } = await supabase.functions.invoke('sms-test-send', {
-        body: { phone, message: preview },
+        body: { phone, message: messageSent },
       });
       if (error) throw error;
+      const ok = !!data?.ok;
+      const response =
+        data?.recipients?.[0]?.status ||
+        data?.reason ||
+        (typeof data?.raw === 'string' ? data.raw : JSON.stringify(data?.raw ?? data ?? {})) ||
+        (ok ? 'Accepted by gateway' : 'Rejected by gateway');
+      setHistory((prev) => [
+        {
+          id: crypto.randomUUID(),
+          phone,
+          formattedPhone: data?.formattedPhone,
+          message: messageSent,
+          at: new Date().toISOString(),
+          ok,
+          response: String(response),
+        },
+        ...prev,
+      ].slice(0, 25));
       if (data?.ok) {
         toast.success('Test SMS sent', { description: `Delivered to ${data.formattedPhone ?? phone}. Check the phone.` });
       } else {
@@ -149,6 +168,17 @@ export function MomoSignupSmsTemplatePanel() {
         });
       }
     } catch (e) {
+      setHistory((prev) => [
+        {
+          id: crypto.randomUUID(),
+          phone,
+          message: messageSent,
+          at: new Date().toISOString(),
+          ok: false,
+          response: (e as Error).message,
+        },
+        ...prev,
+      ].slice(0, 25));
       toast.error('Could not send test SMS', { description: (e as Error).message });
     } finally {
       setSendingTest(false);
