@@ -201,9 +201,6 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
 
         {step === 'code' && (
           <div className="space-y-4">
-            <button onClick={() => { setStep('form'); setCode(''); }} className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground">
-              <ChevronLeft className="h-3.5 w-3.5" /> Back
-            </button>
             <DepositStatusTracker
               stage={locked ? 'expired' : 'pending'}
               busyStage={loading ? 'verified' : null}
