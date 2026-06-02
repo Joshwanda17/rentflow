@@ -6,6 +6,7 @@ import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, User, UserCo
 import { HouseListing } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
 import { HouseActivityTimeline } from '@/components/shared/HouseActivityTimeline';
+import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 
 interface HouseDetailSheetProps {
   open: boolean;
@@ -89,6 +90,9 @@ export function HouseDetailSheet({
               <p className="font-bold text-sm text-success">{formatUGX(listing.daily_rate)}</p>
             </div>
           </section>
+
+          {/* Move-in offer — tell tenants their first 7 days are free */}
+          <MoveInOfferBadge variant="banner" />
 
           {/* Tenant */}
           <section className="space-y-2">
