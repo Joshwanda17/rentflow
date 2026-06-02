@@ -3383,6 +3383,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <><RefreshCw className="h-4 w-4 mr-2" />Try again</>
                     )}
                   </Button>
+                  {errorDetails && (
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="error-details" className="border-0">
+                        <AccordionTrigger className="text-xs text-destructive/80 hover:no-underline py-2">
+                          View technical details
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <pre className="text-[11px] leading-relaxed whitespace-pre-wrap bg-destructive/5 rounded-lg p-3 text-destructive/90 font-mono">
+                            {errorDetails}
+                          </pre>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  )}
                 </div>
               )}
 
