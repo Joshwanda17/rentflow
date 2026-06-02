@@ -873,6 +873,13 @@ function EmptyHousesDialog({
   const bulkTarget = useBulkTargetLandlordsForOnboarding();
   const [targeting, setTargeting] = useState<string | null>(null);
   const [bulkTargeting, setBulkTargeting] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState<Set<string>>(new Set());
+  const togglePhotos = (listingId: string) =>
+    setPhotosOpen((prev) => {
+      const next = new Set(prev);
+      next.has(listingId) ? next.delete(listingId) : next.add(listingId);
+      return next;
+    });
 
   const handleTargetAndOpen = async (landlordId: string, listingId: string) => {
     setTargeting(landlordId);
