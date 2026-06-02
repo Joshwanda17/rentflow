@@ -851,6 +851,42 @@ export function EmailTransactionsPanel() {
             }
           }
         }
+        // 3) Reference (TID) fallback. Cash deposits verified via finance are
+        //    auto-approved and credited to the wallet, but the matching
+        //    deposit_request often never gets stamped with the gmail link or
+        //    auto_match_audit. Match the email's normalized transaction
+        //    reference against deposit_requests.transaction_id so these
+        //    already-landed deposits still surface as "credited — do not
+        //    route again".
+        const linkByTid = new Map<string, string[]>(); // normalized TID -> deposit ids
+        const tidByRow = new Map<string, string>();     // row id -> normalized TID
+        const rawTids = new Set<string>();
+        for (const r of incoming) {
+          const raw = (r.transaction_id ?? '').trim();
+          if (!raw) continue;
+          const norm = normalizeMomoTid(raw);
+          if (norm.length < 6) continue; // avoid spurious short-tail collisions
+          tidByRow.set(r.id, norm);
+          rawTids.add(raw);
+          rawTids.add(norm);
+        }
+        if (rawTids.size) {
+          const { data: tidDeps } = await (supabase.from('deposit_requests') as any)
+            .select('id, status, transaction_id')
+            .in('transaction_id', Array.from(rawTids));
+          for (const d of (tidDeps ?? []) as Array<{ id: string; status: string; transaction_id: string | null }>) {
+            if (!d.transaction_id) continue;
+            if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
+            const norm = normalizeMomoTid(d.transaction_id);
+            if (norm.length < 6) continue;
+            const arr = linkByTid.get(norm) ?? [];
+            if (!arr.includes(d.id)) {
+              arr.push(d.id);
+              linkByTid.set(norm, arr);
+              depIds.add(d.id);
+            }
+          }
+        }
         if (!depIds.size) { if (!cancelled) setCreditedDeposits({}); return; }
         const { data: deps } = await (supabase.from('deposit_requests') as any)
           .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at')
@@ -873,6 +909,8 @@ export function EmailTransactionsPanel() {
           const ids = new Set<string>();
           (linkByRow.get(r.id) ?? []).forEach((id) => ids.add(id));
           if (r.gmail_message_id) (linkByMsg.get(r.gmail_message_id) ?? []).forEach((id) => ids.add(id));
+          const normTid = tidByRow.get(r.id);
+          if (normTid) (linkByTid.get(normTid) ?? []).forEach((id) => ids.add(id));
           if (!ids.size) continue;
           const list: CreditedDeposit[] = [];
           for (const depId of ids) {
