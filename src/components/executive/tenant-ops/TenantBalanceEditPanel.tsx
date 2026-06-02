@@ -239,7 +239,88 @@ function BalanceEditForm({ row, onDone }: { row: TenantRentRow; onDone: () => vo
   );
 }
 
-function BalanceHistory({ rentRequestId }: { rentRequestId: string }) {
+function escapeCsvCell(val: string | number | null): string {
+  const str = String(val ?? '');
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function buildCsv(rows: BalanceEditRow[]): string {
+  const headers = ['Date', 'Editor', 'Old Rent', 'New Rent', 'Old Balance', 'New Balance', 'Old Daily', 'New Daily', 'Reason'];
+  const lines = [headers.map(escapeCsvCell).join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.created_at,
+      r.editor_name ?? '',
+      r.old_rent_amount ?? '',
+      r.new_rent_amount ?? '',
+      r.old_outstanding ?? '',
+      r.new_outstanding ?? '',
+      r.old_daily_repayment ?? '',
+      r.new_daily_repayment ?? '',
+      r.reason,
+    ].map(escapeCsvCell).join(','));
+  }
+  return lines.join('\n');
+}
+
+function downloadBlob(filename: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function exportHistoryToPdf(rows: BalanceEditRow[], title: string) {
+  const [{ jsPDF }, autoTableMod] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+  const autoTable = (autoTableMod as any).default || autoTableMod;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pw = pdf.internal.pageSize.getWidth();
+  const margin = 14;
+
+  pdf.setFontSize(16);
+  pdf.text('Tenant Balance Edit History', margin, 18);
+  pdf.setFontSize(10);
+  pdf.setTextColor(100);
+  pdf.text(title, margin, 24);
+  pdf.text(`Exported: ${new Date().toLocaleString()}`, margin, 29);
+
+  const body = rows.map((r) => [
+    new Date(r.created_at).toLocaleString(),
+    r.editor_name ?? '-',
+    formatUGX(r.old_rent_amount || 0),
+    formatUGX(r.new_rent_amount || 0),
+    formatUGX(r.old_outstanding || 0),
+    formatUGX(r.new_outstanding || 0),
+    formatUGX(r.old_daily_repayment || 0),
+    formatUGX(r.new_daily_repayment || 0),
+    r.reason,
+  ]);
+
+  autoTable(pdf, {
+    startY: 34,
+    head: [['Date', 'Editor', 'Old Rent', 'New Rent', 'Old Balance', 'New Balance', 'Old Daily', 'New Daily', 'Reason']],
+    body,
+    styles: { fontSize: 8, cellPadding: 1.5 },
+    headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+    margin: { left: margin, right: margin },
+    tableWidth: pw - margin * 2,
+  });
+
+  pdf.save('tenant-balance-history.pdf');
+}
+
+function BalanceHistory({ rentRequestId, tenantName }: { rentRequestId: string; tenantName?: string | null }) {
   const { data, isLoading } = useQuery({
     queryKey: ['ops-balance-history', rentRequestId],
     staleTime: 15_000,
