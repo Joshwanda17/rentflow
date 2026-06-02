@@ -2349,7 +2349,7 @@ export function EmailTransactionsPanel() {
                 {unrouted.length > 0 ? (
                   <>
                     Unrouted total <strong className="font-mono text-foreground/80">{fmtUgx(unroutedAmt)}</strong>
-                    {' '}· {highConf.length} of them have a high-confidence recipient
+                    {' '}· {highConf.length} of them match a user ≥ 75%
                     {highConf.length > 0 && <> ({fmtUgx(highConfAmt)})</>}.
                     {' '}Until they're routed, no user wallet is reduced for these payouts.
                   </>
