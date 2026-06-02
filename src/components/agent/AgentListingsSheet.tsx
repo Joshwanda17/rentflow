@@ -780,6 +780,8 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                 <span className="font-bold text-success">{formatUGX(l.daily_rate)}/day</span>
                               </div>
 
+                              <MoveInOfferBadge className="w-full justify-center" />
+
                               {!l.tenant_id && l.status === 'available' && (
                                 <div onClick={(e) => e.stopPropagation()}>
                                   <Button
