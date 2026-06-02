@@ -332,6 +332,49 @@ function formatCurrencyInput(raw: string): string {
   return Number(digits).toLocaleString('en-UG');
 }
 
+/** Prominent banner that always shows the current request state so the agent
+ *  never wonders whether their tap did anything on a touch device. */
+function RequestStateBanner({ state }: { state: 'idle' | 'submitting' | 'success' | 'error' }) {
+  if (state === 'idle') return null;
+
+  const configs = {
+    submitting: {
+      icon: <Loader2 className="h-5 w-5 animate-spin" />,
+      label: 'In-flight',
+      body: 'Submitting your request — please wait…',
+      classes: 'bg-primary/10 border-primary/30 text-primary',
+      iconBg: 'bg-primary/20',
+    },
+    success: {
+      icon: <CheckCircle2 className="h-5 w-5" />,
+      label: 'Success',
+      body: 'Request posted successfully.',
+      classes: 'bg-success/10 border-success/30 text-success',
+      iconBg: 'bg-success/20',
+    },
+    error: {
+      icon: <AlertTriangle className="h-5 w-5" />,
+      label: 'Failed',
+      body: 'Submission failed — see details below.',
+      classes: 'bg-destructive/10 border-destructive/30 text-destructive',
+      iconBg: 'bg-destructive/20',
+    },
+  };
+
+  const cfg = configs[state];
+  return (
+    <div className={`rounded-xl border p-3 flex items-center gap-3 ${cfg.classes}`} role="status" aria-live="polite">
+      <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${cfg.iconBg}`}>
+        {cfg.icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold">{cfg.label}</p>
+        <p className="text-xs opacity-90 leading-snug">{cfg.body}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId, preselectHouse }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
