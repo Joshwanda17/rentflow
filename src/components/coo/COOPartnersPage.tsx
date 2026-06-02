@@ -344,6 +344,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [awaitingVerification, setAwaitingVerification] = useState<Record<string, { count: number; total: number }>>({});
   // Top-ups approved and parked until next ROI cycle (status: approved)
   const [approvedTopUps, setApprovedTopUps] = useState<Record<string, { count: number; total: number }>>({});
+  // Top-ups automatically merged into principal at the ROI cycle
+  // (status: completed, reviewed_by: system:roi-merge). Surfaced as a green
+  // "✅ Auto-applied" badge so COO knows the parked capital is now active.
+  const [autoAppliedTopUps, setAutoAppliedTopUps] = useState<Record<string, { count: number; total: number }>>({});
   const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
   // Merge dialog state
   const [mergeDialogPortfolioId, setMergeDialogPortfolioId] = useState<string | null>(null);
