@@ -49,6 +49,20 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
+  const handleShareOnWhatsApp = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    hapticTap();
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      toast({ title: 'Link copied — opening WhatsApp!', description: 'Paste the link in the chat if it is not pre-filled.' });
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast({ title: 'Could not copy link', variant: 'destructive' });
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   const handleNativeShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (navigator.share) {
