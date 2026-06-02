@@ -1371,6 +1371,76 @@ function formatPhoneIntl(phone: string): string {
   return `+${d}`;
 }
 
+// ── Helper: thank a MoMo sender and invite them to open a Welile Wallet ──
+// Whenever someone sends money to us via MTN MoMo or Airtel Money, text the
+// SENDING number a professional thank-you plus a one-tap link to open a free
+// Welile Wallet with any phone number. Skips numbers that already belong to a
+// Welile user (they receive their own credit notification instead).
+function extractSenderPhoneFromText(text: string): string | null {
+  if (!text) return null;
+  // Prefer a phone that appears right after "from" (the sender), e.g.
+  // "received UGX 9,999 from +256700000000" / "from 0700000000" / "(0700...)".
+  const near = text.match(/\bfrom\b[^0-9+]{0,20}(\+?256\d{9}|0\d{9}|\d{9})\b/i);
+  if (near?.[1]) return near[1];
+  // Fallback: a parenthesised sender phone like "JOHN DOE (0700123456)".
+  const paren = text.match(/\((\+?256\d{9}|0\d{9})\)/);
+  if (paren?.[1]) return paren[1];
+  return null;
+}
+
+async function tryThankSenderMomoSignupSms(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    parsed: ReturnType<typeof parseTransaction>;
+    internalMs: number;
+    text: string;
+  },
+): Promise<void> {
+  const { parsed, internalMs, text } = args;
+
+  // Eligibility: parsed INCOMING MoMo receipt with a real amount, recent.
+  if (!parsed.amount || parsed.amount <= 0) return;
+  if (parsed.direction !== 'in') return;
+  if (parsed.channel !== 'mtn_momo' && parsed.channel !== 'airtel_money') return;
+  if (internalMs && internalMs < Date.now() - 7 * 24 * 3600 * 1000) return;
+
+  // Find the sender's phone — first from the parsed counterparty, then from
+  // the raw email text. Without a phone we have no one to text.
+  const cp = (parsed.counterparty ?? '').toString();
+  const cpPhone = cp.match(/(?:\+?256|0)?\d{9,12}/);
+  const rawPhone = cpPhone?.[0] ?? extractSenderPhoneFromText(text);
+  if (!rawPhone) return;
+  const digits = rawPhone.replace(/[^0-9]/g, '');
+  const last9 = digits.length >= 9 ? digits.slice(-9) : null;
+  if (!last9) return;
+
+  // Skip senders who are already Welile users — they get the credit SMS and
+  // an invite to "sign up" would look wrong.
+  try {
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .or(`phone.ilike.%${last9},mobile_money_number.ilike.%${last9}`)
+      .limit(1)
+      .maybeSingle();
+    if (existing) return;
+  } catch (_e) {
+    // If the lookup fails, err on the side of NOT texting to avoid spamming users.
+    return;
+  }
+
+  const providerLabel = parsed.channel === 'mtn_momo' ? 'MTN MoMo' : 'Airtel Money';
+  const amount = `UGX ${Math.round(parsed.amount).toLocaleString('en-UG')}`;
+  const link = 'https://welilereceipts.com/auth?signup=1';
+  const msg =
+    `WELILE: Thank you for sending ${amount} via ${providerLabel}. ` +
+    `Open your free Welile Wallet with any phone number here: ${link} . ` +
+    `Welile HQ, P.O. Box 167564, Palm Lane, Kabaale, Entebbe - Uganda. ` +
+    `info@welile.com | welile.com`;
+
+  await sendSmsViaAfricasTalking(rawPhone, msg);
+}
+
 async function sendSmsViaAfricasTalking(phone: string, message: string): Promise<boolean> {
   const apiKey = Deno.env.get('AFRICASTALKING_API_KEY');
   const username = Deno.env.get('AFRICASTALKING_USERNAME');
