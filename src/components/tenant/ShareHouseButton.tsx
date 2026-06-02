@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Share2, Check, Copy, MessageCircle } from 'lucide-react';
+import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 
