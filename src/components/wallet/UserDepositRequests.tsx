@@ -31,7 +31,7 @@ interface DepositRequest {
   purpose_audit?: { chosen_purpose?: string } | null;
   auto_match_audit?: DepositAutoMatchAuditPayload | null;
   provider?: string | null;
-  reviewed_at?: string | null;
+  approved_at?: string | null;
 }
 
 interface CashVerification {
