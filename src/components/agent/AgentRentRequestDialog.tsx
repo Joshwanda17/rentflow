@@ -2973,6 +2973,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     maxLength={14}
                     required
                   />
+                  <Input
+                    id="tenantNationalIdHidden"
+                    type="hidden"
+                    value={tenantNationalId}
+                    readOnly
+                  />
                   <FieldError message={vNationalId(tenantNationalId)} />
                 </div>
 
