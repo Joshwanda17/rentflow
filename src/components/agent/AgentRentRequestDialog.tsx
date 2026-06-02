@@ -681,6 +681,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         landlord_id: r.landlord_id,
         landlord_name: r.landlord_id ? llMap[r.landlord_id]?.name ?? null : null,
         landlord_phone: r.landlord_id ? llMap[r.landlord_id]?.phone ?? null : null,
+        tenant_id: r.tenant_id ?? null,
       }));
       setHouseResults(mapped);
     } catch (e) {
