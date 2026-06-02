@@ -28,6 +28,9 @@ export interface RepaymentSheetData {
   generatedAt?: Date;
   plans: RepaymentSheetPlan[];
   transactions: RepaymentSheetTxn[];
+  /** Optional reporting window. When set, transactions are filtered to it. */
+  periodFrom?: string | null;
+  periodTo?: string | null;
 }
 
 async function loadLogoAsBase64(): Promise<string | null> {
