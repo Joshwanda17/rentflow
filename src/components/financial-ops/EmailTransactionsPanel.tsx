@@ -2902,6 +2902,16 @@ export function EmailTransactionsPanel() {
                 // "Already Credited — No Routing Needed" status.
                 const matchedByTid = credited.some((c) => c.matched_by_tid);
                 const matchedTid = credited.find((c) => c.matched_tid)?.matched_tid ?? null;
+                // ── "Not Matched Yet" diagnostics ─────────────────────────
+                // For an incoming deposit email that hasn't been credited or
+                // routed, surface WHY it can't auto-map to a wallet: which of
+                // the two reference signals (MoMo TID vs cash receipt code) the
+                // email carries, and whether a depositing user was matched.
+                const normTidForRow = normalizeMomoTid(r.transaction_id ?? '');
+                const hasMomoTid = normTidForRow.length >= 6;
+                const receiptCodeForRow = extractCashReceiptCode(r);
+                const hasReceiptCode = !!receiptCodeForRow;
+                const hasUserMatch = (userMatches[r.id]?.length ?? 0) > 0;
                 // ── Insufficient-funds warning for outgoing payouts ───────
                 // When an outgoing email (sent / charge) is matched to a
                 // user wallet whose current balance cannot cover the payout
@@ -3209,20 +3219,55 @@ export function EmailTransactionsPanel() {
                         </Badge>
                       )}
                       {/* Incoming deposit whose money never landed in any
-                          wallet (no credit + not routed). Flag it clearly so
-                          the operator knows to redirect it to a chosen wallet. */}
+                          wallet (no credit + not routed). Flag it clearly and
+                          explain which reference fields are missing so the
+                          operator knows why it couldn't auto-map. */}
                       {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
                         <Badge
                           variant="outline"
                           className="text-[10px] gap-1 bg-orange-500/15 text-orange-700 border-orange-500/40"
-                          title="This deposit has not been credited to any wallet yet. Use Redirect deposit to send it to the right wallet."
+                          title={[
+                            'Not Matched Yet — this deposit has not been credited to any wallet.',
+                            `MoMo TID: ${hasMomoTid ? normTidForRow : 'missing'}`,
+                            `Receipt code: ${hasReceiptCode ? receiptCodeForRow : 'missing'}`,
+                            `Depositing user: ${hasUserMatch ? 'matched' : 'not matched'}`,
+                            'Use Redirect deposit to send it to the right wallet.',
+                          ].join('\n')}
                         >
                           <AlertTriangle className="h-3 w-3" />
-                          not in any wallet
+                          Not Matched Yet
                         </Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
+                    {/* "Not Matched Yet" details: show which reference signals
+                        are present vs missing so reviewers know what to fix. */}
+                    {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span className="uppercase tracking-wide font-semibold text-orange-600/90">Missing to match:</span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono ${hasMomoTid ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-orange-500/40 bg-orange-500/10 text-orange-700'}`}
+                          title={hasMomoTid ? `MoMo TID present: ${normTidForRow}` : 'No MoMo transaction ID parsed from this email'}
+                        >
+                          {hasMomoTid ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          MoMo TID
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono ${hasReceiptCode ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-orange-500/40 bg-orange-500/10 text-orange-700'}`}
+                          title={hasReceiptCode ? `Receipt code present: ${receiptCodeForRow}` : 'No cash receipt code found in this email'}
+                        >
+                          {hasReceiptCode ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          Receipt code
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 ${hasUserMatch ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-orange-500/40 bg-orange-500/10 text-orange-700'}`}
+                          title={hasUserMatch ? 'A depositing user was matched' : 'No depositing user matched'}
+                        >
+                          {hasUserMatch ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          Depositing user
+                        </span>
+                      </div>
+                    )}
                     {isCredited && (
                       <div className="mt-1.5 space-y-1">
                         {credited.map((c, i) => (
