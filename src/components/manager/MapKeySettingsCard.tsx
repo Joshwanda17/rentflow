@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,8 @@ export function MapKeySettingsCard() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const mapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -41,7 +43,22 @@ export function MapKeySettingsCard() {
     return () => { active = false; };
   }, []);
 
-  const reset = () => setCheck(null);
+  const reset = () => { setCheck(null); setShowPreview(false); };
+
+  // Once a key tests successfully, validateGoogleMapsKey has loaded the Maps JS
+  // API onto the page, so we can render a real map to visually confirm it works.
+  useEffect(() => {
+    if (!showPreview || !mapRef.current) return;
+    const g = (window as unknown as { google?: typeof google }).google;
+    if (!g?.maps) return;
+    const map = new g.maps.Map(mapRef.current, {
+      center: { lat: 0.3476, lng: 32.5825 }, // Kampala, UGX base market
+      zoom: 12,
+      disableDefaultUI: true,
+      gestureHandling: 'cooperative',
+    });
+    new g.maps.Marker({ position: { lat: 0.3476, lng: 32.5825 }, map });
+  }, [showPreview]);
 
   const test = async (): Promise<boolean> => {
     const trimmed = value.trim();
@@ -55,10 +72,12 @@ export function MapKeySettingsCard() {
     setTesting(false);
     if (!result.ok) {
       setCheck({ ok: false, message: result.message ?? 'Key could not be verified.' });
+      setShowPreview(false);
       // "already-loaded" is not a real failure of the key; allow saving anyway.
       return result.reason === 'already-loaded';
     }
     setCheck({ ok: true, message: 'Key verified — the map will work on this website.' });
+    setShowPreview(true);
     return true;
   };
 
@@ -167,6 +186,18 @@ export function MapKeySettingsCard() {
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save key'}
               </Button>
             </div>
+            {showPreview && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Live map preview</Label>
+                <div
+                  ref={mapRef}
+                  className="h-44 w-full rounded-lg overflow-hidden border border-border/40 bg-muted/40"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  If you can see the map tiles above, this key renders correctly on this website.
+                </p>
+              </div>
+            )}
           </>
         )}
       </CardContent>
