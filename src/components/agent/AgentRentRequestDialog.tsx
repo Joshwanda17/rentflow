@@ -1925,6 +1925,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           </DialogDescription>
         </DialogHeader>
 
+        <RequestStateBanner state={requestState} />
+
         {!isOnline && !success && (
           <div className="flex items-start gap-2 rounded-xl border-2 border-warning/50 bg-warning/10 p-3 text-warning-foreground">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-warning" />
