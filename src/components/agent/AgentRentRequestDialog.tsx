@@ -2680,7 +2680,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                   💰 Rent Details
                 </h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <Label className="font-semibold text-primary/80">Rent Amount (UGX) *</Label>
                     <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
