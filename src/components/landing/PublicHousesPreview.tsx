@@ -37,17 +37,22 @@ export function PublicHousesPreview() {
           .eq('status', 'available')
           .eq('is_hidden', false)
           .is('tenant_id', null)
+          .not('image_urls', 'is', null)
+          .neq('image_urls', '{}')
           .order('created_at', { ascending: false })
           .limit(6),
-        supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any)
           .from('house_listings')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'available')
           .eq('is_hidden', false)
-          .is('tenant_id', null),
+          .is('tenant_id', null)
+          .not('image_urls', 'is', null)
+          .neq('image_urls', '{}'),
       ]);
       if (!mounted) return;
-      setHouses((listRes.data as PublicHouse[]) || []);
+      setHouses(((listRes.data as PublicHouse[]) || []).filter(h => Array.isArray(h.image_urls) && h.image_urls.some(u => typeof u === 'string' && u.trim().length > 0)));
       setTotalCount(countRes.count ?? null);
     })();
     return () => { mounted = false; };

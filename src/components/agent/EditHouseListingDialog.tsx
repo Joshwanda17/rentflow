@@ -8,7 +8,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { HouseListing, calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 
 interface EditHouseListingDialogProps {
   open: boolean;
@@ -17,14 +19,21 @@ interface EditHouseListingDialogProps {
   onSaved?: () => void;
 }
 
+const MAX_PHOTOS = 5;
+
 export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }: EditHouseListingDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [address, setAddress] = useState('');
   const [region, setRegion] = useState('');
   const [monthlyRent, setMonthlyRent] = useState<number>(0);
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
+  // Photos already stored on the listing (kept unless the agent removes them).
+  const [existingUrls, setExistingUrls] = useState<string[]>([]);
+  // Newly captured/selected photos pending upload.
+  const [newImages, setNewImages] = useState<HouseImageFile[]>([]);
 
   useEffect(() => {
     if (listing) {
@@ -33,12 +42,16 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
       setRegion(listing.region);
       setMonthlyRent(listing.monthly_rent);
       setDescription(listing.description ?? '');
+      setExistingUrls(Array.isArray(listing.image_urls) ? listing.image_urls.filter(Boolean) : []);
+      setNewImages([]);
     }
   }, [listing]);
 
   if (!listing) return null;
 
   const calc = monthlyRent > 0 ? calculateDailyRentalRate(monthlyRent) : null;
+  const totalPhotos = existingUrls.length + newImages.length;
+  const remainingSlots = Math.max(0, MAX_PHOTOS - existingUrls.length);
 
   const handleSave = async () => {
     if (!title.trim() || !address.trim() || !region.trim() || monthlyRent <= 0) {
@@ -47,12 +60,24 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
     }
     setSaving(true);
     try {
+      // Upload any newly added photos and merge with the ones the agent kept.
+      let imageUrls = [...existingUrls];
+      if (newImages.length && user?.id) {
+        const uploaded = await uploadHouseImages(
+          user.id,
+          listing.id,
+          newImages.map(i => i.file),
+          newImages.map(i => i.thumbnailFile),
+        );
+        imageUrls = [...imageUrls, ...uploaded];
+      }
       const updates: any = {
         title: title.trim(),
         address: address.trim(),
         region: region.trim(),
         description: description.trim() || null,
         monthly_rent: monthlyRent,
+        image_urls: imageUrls,
       };
       if (calc) {
         updates.access_fee = calc.accessFee;
@@ -110,6 +135,44 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
           <div className="space-y-1">
             <Label htmlFor="edit-desc">Description (optional)</Label>
             <Textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+          </div>
+
+          {/* Photos: existing (removable) + add new */}
+          <div className="space-y-2 pt-1">
+            <Label className="text-xs">Photos ({totalPhotos}/{MAX_PHOTOS})</Label>
+            {existingUrls.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {existingUrls.map((url) => (
+                  <div key={url} className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-border">
+                    <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    <button
+                      type="button"
+                      onClick={() => setExistingUrls((prev) => prev.filter((u) => u !== url))}
+                      className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                      aria-label="Remove photo"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <HouseImageUploader
+              images={newImages}
+              onChange={setNewImages}
+              maxImages={remainingSlots}
+              region={region}
+              district={listing.district ?? undefined}
+              village={listing.village ?? undefined}
+            />
+            {totalPhotos === 0 && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                  Houses without a real photo are hidden from tenants. Add at least one photo so this listing appears.
+                </p>
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter className="gap-2">

@@ -64,6 +64,16 @@ async function enrichWithAgentInfo(listings: HouseListing[]): Promise<HouseListi
   });
 }
 
+/**
+ * A listing is only shown to tenants / the public if it has at least one real
+ * uploaded photo. Listings with no photos (e.g. empty houses logged by agents
+ * before photographing them) are hidden from the marketplace until a photo is
+ * added. Agents still see their own photo-less listings in their own views.
+ */
+export function listingHasRealPhoto(l: { image_urls?: string[] | null }): boolean {
+  return Array.isArray(l.image_urls) && l.image_urls.some(u => typeof u === 'string' && u.trim().length > 0);
+}
+
 interface UseHouseListingsOptions {
   region?: string;
   category?: string;
@@ -123,7 +133,13 @@ export function useHouseListings(options: UseHouseListingsOptions = {}) {
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
-      const enriched = await enrichWithAgentInfo((data as any[]) || []);
+      let rows = ((data as any[]) || []) as HouseListing[];
+      // Public/marketplace views must only show houses that have real photos.
+      // Agents viewing their own listings still see everything so they can add photos.
+      if (!options.agentId) {
+        rows = rows.filter(listingHasRealPhoto);
+      }
+      const enriched = await enrichWithAgentInfo(rows);
       setListings(enriched);
     } catch (err: any) {
       setError(err.message);
@@ -182,7 +198,8 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         });
 
         if (!rpcError && data) {
-          const enriched = await enrichWithAgentInfo((data as any[]) || []);
+          const rows = (((data as any[]) || []) as HouseListing[]).filter(listingHasRealPhoto);
+          const enriched = await enrichWithAgentInfo(rows);
           setListings(enriched);
           usedRpc = true;
         }
@@ -207,7 +224,8 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
 
         const { data, error: fetchError } = await query;
         if (fetchError) throw fetchError;
-        const enriched = await enrichWithAgentInfo((data as any[]) || []);
+        const rows = (((data as any[]) || []) as HouseListing[]).filter(listingHasRealPhoto);
+        const enriched = await enrichWithAgentInfo(rows);
         setListings(enriched);
       }
     } catch (err: any) {
