@@ -42,9 +42,19 @@ const fmtDate = (iso: string) => {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const dueLabel = (d: number) => {
-  if (d < 0) return `${Math.abs(d)} days`;
+// Format an ISO date (YYYY-MM-DD) as "{day}/{Month}/{Year}" e.g. "2/June/2026".
+const dueDateLabel = (iso: string) => {
+  if (!iso) return '—';
+  const d = iso.length === 10 ? new Date(iso + 'T00:00:00') : new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const month = d.toLocaleDateString('en-GB', { month: 'long' });
+  return `${d.getDate()}/${month}/${d.getFullYear()}`;
+};
+
+const dueLabel = (d: number, iso: string) => {
   if (d === 0) return 'Due today';
+  // Overdue (past due) — show the exact date they are to be paid.
+  if (d < 0) return dueDateLabel(iso);
   if (d === 1) return 'Tomorrow';
   return `${d} days`;
 };
@@ -313,7 +323,7 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
       String(idx + 1),
       r.name || '—',
       formatUGX(returnsDue),
-      compounding ? 'Compounding' : dueLabel(r.daysUntil),
+      compounding ? 'Compounding' : dueLabel(r.daysUntil, r.nextPayoutDate ?? det?.next_roi_date ?? r.nextRoiDate ?? ''),
       paymentCell,
     ];
   });
@@ -345,8 +355,8 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
         } else if (status === 'Due today') {
           data.cell.styles.textColor = [180, 83, 9];
           data.cell.styles.fontStyle = 'bold';
-        } else if (/^\d+\s+days$/.test(status)) {
-          // Overdue rows render as "{n} days"
+        } else if (/^\d{1,2}\/[A-Za-z]+\/\d{4}$/.test(status)) {
+          // Overdue rows render as the payout date "{day}/{Month}/{Year}".
           data.cell.styles.textColor = [220, 38, 38];
           data.cell.styles.fontStyle = 'bold';
         }
