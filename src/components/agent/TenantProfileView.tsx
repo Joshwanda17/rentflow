@@ -625,6 +625,8 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         tenantName: profile.full_name,
         phone: profile.phone,
         agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
+        periodFrom: sheetFrom || null,
+        periodTo: sheetTo || null,
         plans: requests.map((r) => ({
           date: r.created_at,
           disbursedAt: r.disbursed_at,
@@ -641,6 +643,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
       };
       await shareOrDownloadRepaymentSheet(sheet);
+      setSheetRangeOpen(false);
       toast({ title: '📄 Repayment sheet ready' });
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
@@ -649,6 +652,27 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     } finally {
       setGeneratingSheet(false);
     }
+  };
+
+  // Quick presets for the repayment-sheet reporting window.
+  const applySheetPreset = (preset: 'all' | 'thisMonth' | '30d' | '90d') => {
+    const today = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    if (preset === 'all') {
+      setSheetFrom('');
+      setSheetTo('');
+      return;
+    }
+    if (preset === 'thisMonth') {
+      setSheetFrom(iso(new Date(today.getFullYear(), today.getMonth(), 1)));
+      setSheetTo(iso(today));
+      return;
+    }
+    const days = preset === '30d' ? 30 : 90;
+    const from = new Date(today);
+    from.setDate(from.getDate() - days);
+    setSheetFrom(iso(from));
+    setSheetTo(iso(today));
   };
 
   const availableRolesToAdd = ['agent', 'supporter', 'landlord'].filter(r => !userRoles.includes(r));
