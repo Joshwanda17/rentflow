@@ -68,6 +68,7 @@ export function MomoSignupSmsTemplatePanel() {
   const [tpl, setTpl] = useState<MomoSignupSmsTemplate>(DEFAULTS);
   const [testPhone, setTestPhone] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
+  const [history, setHistory] = useState<TestSmsRecord[]>([]);
 
   useEffect(() => {
     let cancelled = false;
