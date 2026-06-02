@@ -2208,69 +2208,80 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             >
               {/* Guided wizard progress (standard flow only) */}
               {incomeType !== 'outstanding' && (
-                <div className="space-y-3 select-none">
-                  {/* Step icon strip — big tappable circles so agents can skim where they are */}
-                  <div className="flex items-center gap-1.5">
+                <div className="space-y-4 select-none">
+                  {/* Clean step rail — one refined icon per step, joined by a thin track */}
+                  <div className="flex items-start">
                     {DETAIL_STEP_META.map((meta, idx) => {
                       const Icon = meta.icon;
                       const isDone = idx < detailStep;
                       const isActive = idx === detailStep;
+                      const reachable = idx <= detailStep;
                       return (
-                        <div key={meta.label} className="flex items-center flex-1 min-w-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              // Allow jumping back to earlier steps, but not forward past unvisited steps
-                              if (idx <= detailStep) {
-                                setDetailStep(idx);
-                                scrollDialogTop();
-                              }
-                            }}
-                            className={`
-                              relative flex flex-col items-center justify-center gap-1 w-full min-w-0
-                              rounded-xl px-1 py-2.5 transition-all active:scale-[0.96]
-                              ${isActive
-                                ? 'bg-primary text-primary-foreground shadow-md'
-                                : isDone
-                                ? 'bg-success/15 text-success border border-success/30'
-                                : 'bg-muted/60 text-muted-foreground border border-transparent'}
-                              ${idx <= detailStep ? 'cursor-pointer' : 'cursor-default opacity-60'}
-                            `}
-                            aria-current={isActive ? 'step' : undefined}
-                            aria-label={`${meta.emoji} ${meta.label}${isActive ? ' — current step' : isDone ? ' — completed' : ''}`}
-                          >
-                            <span className="text-lg leading-none" aria-hidden="true">{meta.emoji}</span>
-                            <Icon className={`h-5 w-5 ${isActive ? 'text-primary-foreground' : isDone ? 'text-success' : 'text-muted-foreground'}`} aria-hidden="true" />
-                            <span className={`text-[10px] font-bold leading-none truncate w-full text-center ${isActive ? 'text-primary-foreground' : isDone ? 'text-success' : 'text-muted-foreground'}`}>
-                              {meta.label}
-                            </span>
-                            {isDone && (
-                              <span className="absolute top-0.5 right-0.5 text-[10px] leading-none">✓</span>
-                            )}
-                          </button>
-                          {idx < DETAIL_STEP_META.length - 1 && (
-                            <div className={`h-0.5 w-3 shrink-0 ${isDone ? 'bg-success/40' : 'bg-muted'}`} aria-hidden="true" />
-                          )}
+                        <div key={meta.label} className="flex flex-col items-center flex-1 min-w-0">
+                          <div className="flex w-full items-center">
+                            {/* left connector */}
+                            <span
+                              aria-hidden="true"
+                              className={`h-0.5 flex-1 rounded-full ${idx === 0 ? 'opacity-0' : isDone || isActive ? 'bg-primary' : 'bg-border'}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (reachable) {
+                                  setDetailStep(idx);
+                                  scrollDialogTop();
+                                }
+                              }}
+                              className={`
+                                relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full
+                                transition-all active:scale-[0.94]
+                                ${isActive
+                                  ? 'bg-primary text-primary-foreground ring-4 ring-primary/15 shadow-sm'
+                                  : isDone
+                                  ? 'bg-primary/10 text-primary'
+                                  : 'bg-muted text-muted-foreground/70'}
+                                ${reachable ? 'cursor-pointer' : 'cursor-default'}
+                              `}
+                              aria-current={isActive ? 'step' : undefined}
+                              aria-label={`${meta.label}${isActive ? ' — current step' : isDone ? ' — completed' : ''}`}
+                            >
+                              {isDone
+                                ? <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                                : <Icon className="h-5 w-5" aria-hidden="true" />}
+                            </button>
+                            {/* right connector */}
+                            <span
+                              aria-hidden="true"
+                              className={`h-0.5 flex-1 rounded-full ${idx === DETAIL_STEP_META.length - 1 ? 'opacity-0' : isDone ? 'bg-primary' : 'bg-border'}`}
+                            />
+                          </div>
+                          <span className={`mt-1.5 text-[10px] font-semibold uppercase tracking-wide truncate w-full text-center ${isActive ? 'text-primary' : isDone ? 'text-foreground' : 'text-muted-foreground/70'}`}>
+                            {meta.label}
+                          </span>
                         </div>
                       );
                     })}
                   </div>
 
-                  {/* Big bold step label for the current step */}
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-base font-extrabold">
-                      <span className="text-primary">{DETAIL_STEP_META[detailStep].emoji}</span>{' '}
-                      Step {detailStep + 1} of {DETAIL_STEPS.length}: {DETAIL_STEPS[detailStep]}
-                    </p>
+                  {/* Step heading + percent */}
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Step {detailStep + 1} of {DETAIL_STEPS.length}
+                      </p>
+                      <h3 className="text-xl font-bold tracking-tight text-foreground truncate">
+                        {DETAIL_STEPS[detailStep]}
+                      </h3>
+                    </div>
                     <span className="text-sm font-bold text-primary whitespace-nowrap">
                       {Math.round(((detailStep + 1) / DETAIL_STEPS.length) * 100)}%
                     </span>
                   </div>
 
-                  {/* Thicker progress bar for better visibility on small screens */}
-                  <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+                  {/* Slim progress bar */}
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full bg-primary transition-all rounded-full"
+                      className="h-full bg-primary transition-all duration-500 rounded-full"
                       style={{ width: `${((detailStep + 1) / DETAIL_STEPS.length) * 100}%` }}
                     />
                   </div>
