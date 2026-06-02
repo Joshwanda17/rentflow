@@ -1696,9 +1696,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       // landlord resolution somehow yields nothing we stop here with a clear
       // message instead of letting the insert fail with a cryptic DB error.
       if (!landlordId) {
-        const msg = isOutstanding
-          ? 'Pick the landlord from the list before posting this rent request.'
-          : "Add the landlord's name and phone before posting this rent request.";
+        const msg = 'Select a landlord before posting this rent request.';
         setSubmissionError(msg);
         toast.error('Landlord required', { description: msg });
         setLoading(false);
