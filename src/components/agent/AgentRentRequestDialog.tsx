@@ -1883,15 +1883,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       onSuccess?.();
     } catch (error: any) {
       setRequestState('error');
+      console.error('Submission error:', error);
+      const msg = error.message || 'Failed to submit request';
       setErrorDetails(
         error?.stack
-          ? `${error.message || msg}\n\nStack:\n${error.stack}`
+          ? `${msg}\n\nStack:\n${error.stack}`
           : error?.response?.data
             ? `${msg}\n\nServer response:\n${JSON.stringify(error.response.data, null, 2)}`
             : msg
       );
-      console.error('Submission error:', error);
-      const msg = error.message || 'Failed to submit request';
       const capacityMsg = humanizeCapacityError(msg);
       const isNetworkError =
         !navigator.onLine ||
