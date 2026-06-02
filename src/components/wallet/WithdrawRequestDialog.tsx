@@ -148,6 +148,25 @@ function formatRelativeMinutes(submittedAt: number): string {
   return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
 }
 
+// Normalise a Ugandan MoMo number into the strict local 0XXXXXXXXX form the
+// payout validator expects. Prefilled numbers (from portfolios / saved
+// methods / profiles) come in many shapes — "+256 779 007902", "256779007902",
+// "O754464086" (letter O), "070344565" (9 digits) — all of which fail the
+// strict regex and silently swap the active Withdraw button for a greyed
+// "Fill payout details" fallback. Normalising here keeps the button visible.
+function normalizeUgMomoNumber(raw: string): string {
+  if (!raw) return '';
+  // Letter O/o → 0, then strip everything except digits and a leading +.
+  let s = raw.replace(/[Oo]/g, '0').trim();
+  s = s.replace(/[^\d+]/g, '');
+  // Country-code forms → local 0-prefixed.
+  if (s.startsWith('+256')) s = '0' + s.slice(4);
+  else if (s.startsWith('256') && s.length >= 12) s = '0' + s.slice(3);
+  // Bare 9-digit national number (missing leading 0) → prepend 0.
+  if (/^[1-9]\d{8}$/.test(s)) s = '0' + s;
+  return s;
+}
+
 export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, prefillPayout, linkedParty }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
@@ -199,7 +218,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   useEffect(() => {
     if (!open || !prefillPayout) return;
     if (prefillPayout.payoutMode) setPayoutMode(prefillPayout.payoutMode);
-    if (prefillPayout.momoNumber !== undefined) setMomoNumber(prefillPayout.momoNumber);
+    if (prefillPayout.momoNumber !== undefined) setMomoNumber(normalizeUgMomoNumber(prefillPayout.momoNumber));
     if (prefillPayout.momoName !== undefined) setMomoName(prefillPayout.momoName);
     if (prefillPayout.bankName !== undefined) setBankName(prefillPayout.bankName);
     if (prefillPayout.bankAccountName !== undefined) setBankAccountName(prefillPayout.bankAccountName);
