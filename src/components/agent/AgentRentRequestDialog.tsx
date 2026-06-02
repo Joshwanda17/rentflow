@@ -2839,6 +2839,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <Label htmlFor="tenantName" >Full Name *</Label>
+                    <p className="text-xs text-muted-foreground leading-snug">Write the tenant's name as it is on their ID.</p>
                     <Input
                       id="tenantName"
                       value={tenantName}
@@ -2850,6 +2851,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" >Phone *</Label>
+                    <p className="text-xs text-muted-foreground leading-snug">The number they answer calls on.</p>
                     <Input
                       id="tenantPhone"
                       value={tenantPhone}
@@ -2867,6 +2869,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                 <div className="space-y-1">
                   <Label htmlFor="tenantNationalId" >National ID *</Label>
+                  <p className="text-xs text-muted-foreground leading-snug">Copy the long number from their national ID card.</p>
                   <Input
                     id="tenantNationalId"
                     value={tenantNationalId}
@@ -2883,6 +2886,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                 <div className="space-y-1">
                   <Label >Preferred Language *</Label>
+                  <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
                   <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select tenant language" />
