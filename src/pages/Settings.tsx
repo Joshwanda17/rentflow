@@ -51,6 +51,7 @@ const ArchivedPdfsCard = lazy(() =>
   import('@/components/settings/ArchivedPdfsCard').then((m) => ({ default: m.ArchivedPdfsCard })),
 );
 const CurrencyConverter = lazy(() => import('@/components/CurrencyConverter').then(m => ({ default: m.CurrencyConverter })));
+const MapKeySettingsCard = lazy(() => import('@/components/manager/MapKeySettingsCard').then(m => ({ default: m.MapKeySettingsCard })));
 
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
   state = { hasError: false };
@@ -490,6 +491,9 @@ export default function Settings() {
                 )}
                 {roles.includes('agent') && (
                   <LazySection name="AgentCapacityBreakdown"><AgentCapacityBreakdownPanel /></LazySection>
+                )}
+                {roles.includes('manager') && (
+                  <LazySection name="MapKeySettings"><MapKeySettingsCard /></LazySection>
                 )}
               </div>
             )}

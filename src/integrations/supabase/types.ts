@@ -9848,6 +9848,27 @@ export type Database = {
         }
         Relationships: []
       }
+      map_config: {
+        Row: {
+          browser_api_key: string | null
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          browser_api_key?: string | null
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          browser_api_key?: string | null
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
