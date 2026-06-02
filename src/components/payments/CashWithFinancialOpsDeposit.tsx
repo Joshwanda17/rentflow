@@ -67,6 +67,13 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
     }
   };
 
+  /** Strip spaces/hyphens, uppercase, auto-prefix RCT. */
+  const normalizeReceiptCode = (raw: string): string => {
+    let cleaned = raw.toUpperCase().replace(/[\s\-]/g, '');
+    if (!cleaned.startsWith('RCT')) cleaned = 'RCT' + cleaned;
+    return cleaned;
+  };
+
   const amountNum = parseFloat(amount);
 
   const reset = () => {
