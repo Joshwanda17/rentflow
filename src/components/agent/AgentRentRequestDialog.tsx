@@ -29,6 +29,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -705,6 +711,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   // Ref to the "things still needed" banner so we can scroll the agent
   // straight to it — ordinary agents on small phones often miss a toast.
   const errorSummaryRef = useRef<HTMLDivElement>(null);
@@ -1034,6 +1041,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (errs.length > 0) {
       setValidationErrors(errs);
       setSubmissionError(null);
+      setErrorDetails(null);
       toast.error(errs.length === 1 ? errs[0] : `${errs.length} things still needed`);
       requestAnimationFrame(() => {
         errorSummaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1048,6 +1056,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const goBackStep = () => {
     setValidationErrors([]);
     setSubmissionError(null);
+    setErrorDetails(null);
     if (detailStep === 0) { setStep('type'); return; }
     setDetailStep((s) => Math.max(s - 1, 0));
     scrollDialogTop();
@@ -1235,6 +1244,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setGuarantorConsent(false);
     setValidationErrors([]);
     setSubmissionError(null);
+    setErrorDetails(null);
     setSuccess(false);
     setRequestState('idle');
     setActivationLink(null);
@@ -1445,6 +1455,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const handleSubmit = async () => {
     setSubmissionError(null);
+    setErrorDetails(null);
 
     if (!user) {
       toast.error('You must be signed in to submit a request');
@@ -1874,6 +1885,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       setRequestState('error');
       console.error('Submission error:', error);
       const msg = error.message || 'Failed to submit request';
+      setErrorDetails(
+        error?.stack
+          ? `${msg}\n\nStack:\n${error.stack}`
+          : error?.response?.data
+            ? `${msg}\n\nServer response:\n${JSON.stringify(error.response.data, null, 2)}`
+            : msg
+      );
       const capacityMsg = humanizeCapacityError(msg);
       const isNetworkError =
         !navigator.onLine ||
@@ -2379,6 +2397,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           <><RefreshCw className="h-4 w-4 mr-2" />Try again</>
                         )}
                       </Button>
+                      {errorDetails && (
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem value="error-details" className="border-0">
+                            <AccordionTrigger className="text-xs text-destructive/80 hover:no-underline py-2">
+                              View technical details
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <pre className="text-[11px] leading-relaxed whitespace-pre-wrap bg-destructive/5 rounded-lg p-3 text-destructive/90 font-mono">
+                                {errorDetails}
+                              </pre>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      )}
                     </div>
                   )}
 
@@ -3351,6 +3383,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <><RefreshCw className="h-4 w-4 mr-2" />Try again</>
                     )}
                   </Button>
+                  {errorDetails && (
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="error-details" className="border-0">
+                        <AccordionTrigger className="text-xs text-destructive/80 hover:no-underline py-2">
+                          View technical details
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <pre className="text-[11px] leading-relaxed whitespace-pre-wrap bg-destructive/5 rounded-lg p-3 text-destructive/90 font-mono">
+                            {errorDetails}
+                          </pre>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  )}
                 </div>
               )}
 
