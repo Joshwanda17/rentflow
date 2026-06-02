@@ -346,6 +346,27 @@ function formatCurrencyInput(raw: string): string {
   return Number(digits).toLocaleString('en-UG');
 }
 
+/* ===== Automatic input formatting =====
+ * Helpers that clean and space values AS the agent types so valid formats
+ * come out faster on a basic phone keypad. */
+
+/** Keep the National ID state clean (A–Z/0–9, max 14) — no spaces stored. */
+function cleanNationalIdInput(raw: string): string {
+  return raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 14);
+}
+/** Display the National ID in easy-to-read blocks of 4, e.g. CM12 3456 7890 12. */
+function formatNationalIdDisplay(clean: string): string {
+  return (clean.match(/.{1,4}/g) || []).join(' ');
+}
+/** Tidy a person's name while typing: no leading space, single spaces,
+ *  and each word capitalised (e.g. "  john  mukasa" → "John Mukasa"). */
+function formatNameInput(raw: string): string {
+  return raw
+    .replace(/^\s+/, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+}
+
 /* ===== Real-time field validation =====
  * Each validator returns a short, plain-language error string when the value
  * is present but the FORMAT is wrong, or null when it's empty or valid.
