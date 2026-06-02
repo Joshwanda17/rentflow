@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
-import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
+import { formatUGX, calculateRentRepayment, calculateRequestFee } from '@/lib/rentCalculations';
 import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { format } from 'date-fns';
@@ -674,6 +674,55 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     setSheetFrom(iso(from));
     setSheetTo(iso(today));
   };
+
+  // Live preview of what the repayment sheet will contain for the chosen window.
+  const sheetPreview = useMemo(() => {
+    let totalRentToLandlord = 0, totalAccess = 0, totalReg = 0, totalDue = 0, totalRepaid = 0, totalOutstanding = 0;
+    for (const r of requests) {
+      const isOB = r.registration_type === 'outstanding_balance';
+      if (isOB) {
+        const due = Number(r.initial_outstanding_balance ?? r.total_repayment ?? 0);
+        totalRentToLandlord += due;
+        totalDue += due;
+        totalRepaid += Number(r.amount_repaid || 0);
+        totalOutstanding += Math.max(0, due - Number(r.amount_repaid || 0));
+      } else {
+        const rent = Number(r.rent_amount || 0);
+        const reg = calculateRequestFee(rent);
+        const due = Number(r.total_repayment || 0);
+        const access = Math.max(0, due - rent - reg);
+        totalRentToLandlord += rent;
+        totalReg += reg;
+        totalAccess += access;
+        totalDue += due;
+        totalRepaid += Number(r.amount_repaid || 0);
+        totalOutstanding += Math.max(0, due - Number(r.amount_repaid || 0));
+      }
+    }
+
+    const fromMs = sheetFrom ? new Date(sheetFrom).getTime() : null;
+    const toMs = sheetTo ? new Date(sheetTo + 'T23:59:59').getTime() : null;
+    const periodTxns = repayments.filter((rp) => {
+      const ms = new Date(rp.created_at).getTime();
+      if (fromMs !== null && ms < fromMs) return false;
+      if (toMs !== null && ms > toMs) return false;
+      return true;
+    });
+    const collectedInPeriod = periodTxns.reduce((s, t) => s + Number(t.amount || 0), 0);
+
+    return {
+      isAllTime: !sheetFrom && !sheetTo,
+      totalRentToLandlord,
+      totalAccess,
+      totalReg,
+      totalDue,
+      totalRepaid,
+      totalOutstanding,
+      collectionRate: totalDue > 0 ? Math.round((totalRepaid / totalDue) * 100) : 0,
+      periodCount: periodTxns.length,
+      collectedInPeriod,
+    };
+  }, [requests, repayments, sheetFrom, sheetTo]);
 
   const availableRolesToAdd = ['agent', 'supporter', 'landlord'].filter(r => !userRoles.includes(r));
 
@@ -1713,6 +1762,42 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
                 />
               </label>
+            </div>
+            {/* Live preview of the selected window before generating */}
+            <div className="rounded-xl border border-border/60 bg-muted/40 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preview</p>
+                <Badge variant="outline" className="text-[10px]">
+                  {sheetPreview.isAllTime
+                    ? 'All time'
+                    : `${sheetFrom ? format(new Date(sheetFrom), 'dd MMM yyyy') : '…'} – ${sheetTo ? format(new Date(sheetTo), 'dd MMM yyyy') : '…'}`}
+                </Badge>
+              </div>
+              <div className="rounded-lg bg-success/10 px-3 py-2">
+                <p className="text-[11px] text-muted-foreground">
+                  Collected in period ({sheetPreview.periodCount} payment{sheetPreview.periodCount === 1 ? '' : 's'})
+                </p>
+                <p className="text-lg font-black font-mono text-success">{formatUGX(sheetPreview.collectedInPeriod)}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                <span className="text-muted-foreground">Rent to landlords</span>
+                <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalRentToLandlord)}</span>
+                <span className="text-muted-foreground">Access fees</span>
+                <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalAccess)}</span>
+                <span className="text-muted-foreground">Registration fees</span>
+                <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalReg)}</span>
+                <span className="text-muted-foreground">Total due</span>
+                <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalDue)}</span>
+                <span className="text-muted-foreground">Total repaid</span>
+                <span className="text-right font-semibold font-mono text-success">{formatUGX(sheetPreview.totalRepaid)}</span>
+                <span className="text-muted-foreground">Outstanding</span>
+                <span className={`text-right font-semibold font-mono ${sheetPreview.totalOutstanding > 0 ? 'text-destructive' : 'text-success'}`}>{formatUGX(sheetPreview.totalOutstanding)}</span>
+                <span className="text-muted-foreground">Collection rate</span>
+                <span className="text-right font-semibold font-mono">{sheetPreview.collectionRate}%</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Fee &amp; balance totals cover all rent plans; only the “collected in period” figure and the PDF transaction log are filtered to the selected dates.
+              </p>
             </div>
             <Button
               variant="default"
