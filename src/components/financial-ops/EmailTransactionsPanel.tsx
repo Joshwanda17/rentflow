@@ -2206,11 +2206,11 @@ export function EmailTransactionsPanel() {
       {(() => {
         // Unrouted money-out banner. Counts every payable outgoing row in the
         // active date/search window that has NOT yet been routed to a wallet.
-        // The "Auto-debit" button acts on rows whose top recipient match is at
-        // or above the auto-debit threshold (TID = 100, "to/from <phone>" = 90,
-        // name match = 75). 75% is the floor so a strong name match alone can
-        // trigger an automatic wallet reduction.
-        const AUTO_DEBIT_MIN_SCORE = 75;
+        // The "Auto-debit" button acts on EVERY row that has a possible
+        // recipient match — as soon as the system detects a possible recipient
+        // (TID = 100, "to/from <phone>" = 90, name match = 75, weak match = 60),
+        // the wallet is eligible for an automatic reduction.
+        const AUTO_DEBIT_MIN_SCORE = 0;
         const outRows = filteredRows.filter(
           (r) => isCountable(r) && (r.direction === 'out' || r.direction === 'charge'),
         );
