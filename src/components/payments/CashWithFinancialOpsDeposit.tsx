@@ -119,8 +119,8 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
 
   const handleVerify = async () => {
     const entered = normalizeReceiptCode(code);
-    if (!depositId || entered.length < 4) {
-      setCodeError('Enter the receipt code Financial Ops gave you.');
+    if (!depositId || entered.length !== 4) {
+      setCodeError('Enter the 4-digit receipt code Financial Ops gave you.');
       return;
     }
     setLoading(true);
