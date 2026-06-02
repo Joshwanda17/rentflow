@@ -266,6 +266,14 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
               <p className="text-lg font-bold">{formatUGX(creditedAmount)} added</p>
               <p className="text-sm text-muted-foreground">Your cash deposit was verified and credited to your wallet.</p>
             </div>
+            <DepositStatusTracker
+              stage="approved"
+              timestamps={{
+                pendingAt: new Date().toISOString(),
+                verifiedAt: new Date().toISOString(),
+                approvedAt: new Date().toISOString(),
+              }}
+            />
             <Button onClick={close} className="w-full h-12">Done</Button>
           </div>
         )}
