@@ -16,9 +16,11 @@ export type MapsKeyFailureReason =
   | 'timeout'
   | 'already-loaded';
 
-export type MapsKeyValidation =
-  | { ok: true }
-  | { ok: false; reason: MapsKeyFailureReason; message: string };
+export interface MapsKeyValidation {
+  ok: boolean;
+  reason?: MapsKeyFailureReason;
+  message?: string;
+}
 
 const FRIENDLY: Record<MapsKeyFailureReason, string> = {
   format: 'That doesn\'t look like a Google Maps API key. Keys usually start with "AIza".',
