@@ -3110,9 +3110,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         className={`h-12 text-base ${hasFieldError('landlord phone') ? 'border-destructive border-2' : ''}`}
                         maxLength={12}
                       />
-                      {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
-                        <p className="text-xs text-destructive">Check the phone number — use 0700 123 456</p>
-                      )}
+                      <FieldError message={vPhone(landlordPhone)} />
                       {landlordPhone.replace(/\s/g, '').length >= 10 &&
                         tenantPhone.replace(/\s/g, '').length >= 10 &&
                         landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
