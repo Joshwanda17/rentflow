@@ -261,6 +261,30 @@ export function MomoSignupSmsTemplatePanel() {
           <div className="rounded-lg bg-muted p-4 text-sm leading-relaxed whitespace-pre-wrap">
             {preview}
           </div>
+
+          <div className="mt-4 space-y-2 rounded-lg border p-3">
+            <Label htmlFor="test_phone" className="text-sm font-medium">
+              Send test SMS
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Sends this exact preview (with placeholders resolved) to a real phone so you can verify
+              wording and the signup link.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="test_phone"
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value)}
+                placeholder="e.g. 0777123456"
+                inputMode="tel"
+                className="sm:max-w-xs"
+              />
+              <Button onClick={sendTest} disabled={sendingTest || !testPhone.trim()}>
+                {sendingTest ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Send test SMS
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
