@@ -1193,6 +1193,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setValidationErrors([]);
     setSubmissionError(null);
     setSuccess(false);
+    setRequestState('idle');
     setActivationLink(null);
     setStep('type');
     setDetailStep(0);
