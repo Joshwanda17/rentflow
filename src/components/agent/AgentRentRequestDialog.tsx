@@ -2374,7 +2374,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <p className="text-[10px] text-primary/60 italic">e.g. John Mukasa</p>
                         <Input
                           value={tenantName}
-                          onChange={(e) => setTenantName(e.target.value)}
+                          onChange={(e) => setTenantName(formatNameInput(e.target.value))}
                           placeholder="Full name"
                          
                           required
@@ -2936,7 +2936,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Input
                       id="tenantName"
                       value={tenantName}
-                      onChange={(e) => setTenantName(e.target.value)}
+                      onChange={(e) => setTenantName(formatNameInput(e.target.value))}
                       placeholder="Tenant's name"
                      
                       required
@@ -3365,7 +3365,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <p className="text-[10px] text-primary/60 italic">e.g. Mr. Ssemwanga</p>
                     <Input
                       value={lc1Name}
-                      onChange={(e) => setLc1Name(e.target.value)}
+                      onChange={(e) => setLc1Name(formatNameInput(e.target.value))}
                       placeholder="LC1 name"
                      
                       required
