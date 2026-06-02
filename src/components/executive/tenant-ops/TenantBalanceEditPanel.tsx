@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import {
   Search, Pencil, History, Loader2, Save, X, UserPlus, Users, ChevronRight,
   List, CalendarDays, Filter, CalendarIcon, ArrowUpDown, Clock, User,
+  Download, FileText,
 } from 'lucide-react';
 
 interface TenantRentRow {
@@ -156,7 +157,7 @@ export function TenantBalanceEditPanel({
                   <BalanceEditForm row={r} onDone={() => setEditing(null)} />
                 )}
                 {historyFor === r.rent_request_id && (
-                  <BalanceHistory rentRequestId={r.rent_request_id} />
+                  <BalanceHistory rentRequestId={r.rent_request_id} tenantName={r.tenant_name} />
                 )}
               </li>
             ))}
@@ -238,7 +239,88 @@ function BalanceEditForm({ row, onDone }: { row: TenantRentRow; onDone: () => vo
   );
 }
 
-function BalanceHistory({ rentRequestId }: { rentRequestId: string }) {
+function escapeCsvCell(val: string | number | null): string {
+  const str = String(val ?? '');
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function buildCsv(rows: BalanceEditRow[]): string {
+  const headers = ['Date', 'Editor', 'Old Rent', 'New Rent', 'Old Balance', 'New Balance', 'Old Daily', 'New Daily', 'Reason'];
+  const lines = [headers.map(escapeCsvCell).join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.created_at,
+      r.editor_name ?? '',
+      r.old_rent_amount ?? '',
+      r.new_rent_amount ?? '',
+      r.old_outstanding ?? '',
+      r.new_outstanding ?? '',
+      r.old_daily_repayment ?? '',
+      r.new_daily_repayment ?? '',
+      r.reason,
+    ].map(escapeCsvCell).join(','));
+  }
+  return lines.join('\n');
+}
+
+function downloadBlob(filename: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function exportHistoryToPdf(rows: BalanceEditRow[], title: string) {
+  const [{ jsPDF }, autoTableMod] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+  const autoTable = (autoTableMod as any).default || autoTableMod;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pw = pdf.internal.pageSize.getWidth();
+  const margin = 14;
+
+  pdf.setFontSize(16);
+  pdf.text('Tenant Balance Edit History', margin, 18);
+  pdf.setFontSize(10);
+  pdf.setTextColor(100);
+  pdf.text(title, margin, 24);
+  pdf.text(`Exported: ${new Date().toLocaleString()}`, margin, 29);
+
+  const body = rows.map((r) => [
+    new Date(r.created_at).toLocaleString(),
+    r.editor_name ?? '-',
+    formatUGX(r.old_rent_amount || 0),
+    formatUGX(r.new_rent_amount || 0),
+    formatUGX(r.old_outstanding || 0),
+    formatUGX(r.new_outstanding || 0),
+    formatUGX(r.old_daily_repayment || 0),
+    formatUGX(r.new_daily_repayment || 0),
+    r.reason,
+  ]);
+
+  autoTable(pdf, {
+    startY: 34,
+    head: [['Date', 'Editor', 'Old Rent', 'New Rent', 'Old Balance', 'New Balance', 'Old Daily', 'New Daily', 'Reason']],
+    body,
+    styles: { fontSize: 8, cellPadding: 1.5 },
+    headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+    margin: { left: margin, right: margin },
+    tableWidth: pw - margin * 2,
+  });
+
+  pdf.save('tenant-balance-history.pdf');
+}
+
+function BalanceHistory({ rentRequestId, tenantName }: { rentRequestId: string; tenantName?: string | null }) {
   const { data, isLoading } = useQuery({
     queryKey: ['ops-balance-history', rentRequestId],
     staleTime: 15_000,
@@ -255,6 +337,7 @@ function BalanceHistory({ rentRequestId }: { rentRequestId: string }) {
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const rows = data ?? [];
   const editors = useMemo(() => {
@@ -292,13 +375,43 @@ function BalanceHistory({ rentRequestId }: { rentRequestId: string }) {
 
   const dateFmtOpts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
 
+  const handleExportCsv = () => {
+    if (filtered.length === 0) { toast.info('Nothing to export — adjust your filters'); return; }
+    const csv = buildCsv(filtered);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const name = tenantName ? `${tenantName.replace(/\s+/g, '_')}-balance-history` : 'tenant-balance-history';
+    downloadBlob(`${name}.csv`, blob);
+    toast.success(`CSV exported (${filtered.length} rows)`);
+  };
+
+  const handleExportPdf = async () => {
+    if (filtered.length === 0) { toast.info('Nothing to export — adjust your filters'); return; }
+    setIsExporting(true);
+    try {
+      await exportHistoryToPdf(filtered, tenantName || 'Tenant');
+      toast.success(`PDF exported (${filtered.length} rows)`);
+    } catch (e: any) {
+      toast.error(e?.message || 'PDF export failed');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="mt-3 space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{filtered.length} of {rows.length} edits</span>
-        <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1.5" onClick={() => setShowFilters((s) => !s)}>
-          <Filter className="h-3 w-3" /> {showFilters ? 'Hide' : 'Filter'}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1.5" disabled={isExporting} onClick={handleExportCsv}>
+            <Download className="h-3 w-3" /> CSV
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1.5" disabled={isExporting} onClick={handleExportPdf}>
+            {isExporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} PDF
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1.5" onClick={() => setShowFilters((s) => !s)}>
+            <Filter className="h-3 w-3" /> {showFilters ? 'Hide' : 'Filter'}
+          </Button>
+        </div>
       </div>
 
       {showFilters && (
