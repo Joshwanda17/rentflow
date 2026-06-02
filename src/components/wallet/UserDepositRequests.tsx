@@ -12,6 +12,7 @@ import {
   DepositAutoMatchAudit,
   type DepositAutoMatchAuditPayload,
 } from '@/components/wallet/DepositAutoMatchAudit';
+import DepositStatusTracker, { type DepositStage } from '@/components/payments/DepositStatusTracker';
 
 // Lazy — DepositFlow pulls a heavy form tree we don't want on first paint
 // of every wallet view; the edit button only opens it on demand.
@@ -29,6 +30,13 @@ interface DepositRequest {
   deposit_purpose?: string | null;
   purpose_audit?: { chosen_purpose?: string } | null;
   auto_match_audit?: DepositAutoMatchAuditPayload | null;
+  provider?: string | null;
+  reviewed_at?: string | null;
+}
+
+interface CashVerification {
+  status: string; // awaiting_code | verified | expired
+  verified_at: string | null;
 }
 
 const PURPOSE_LABELS: Record<string, string> = {
