@@ -74,6 +74,43 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
 const fmtUGX = (n: number) =>
   `UGX ${Math.round(Number(n) || 0).toLocaleString("en-UG")}`;
 
+// Resolve the depositor's saved phone number from the most reliable source
+// available, in priority order:
+//   1. profiles.phone (the user's saved number)
+//   2. auth.users.phone (verified phone on the auth record)
+//   3. auth.users.user_metadata.phone / phone_number (sign-up metadata)
+// Returns the first non-empty value that normalizes to a valid E.164 number.
+async function resolveDepositorPhone(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  authUser: { phone?: string | null; user_metadata?: Record<string, unknown> | null },
+): Promise<{ phone: string; fullName: string | null; source: string }> {
+  const candidates: Array<{ value: unknown; source: string }> = [];
+
+  let fullName: string | null = null;
+  try {
+    const { data: profile } = await admin
+      .from("profiles").select("full_name, phone").eq("id", userId).maybeSingle();
+    fullName = (profile as any)?.full_name ?? null;
+    candidates.push({ value: (profile as any)?.phone, source: "profiles.phone" });
+  } catch (_) { /* non-fatal */ }
+
+  candidates.push({ value: authUser?.phone, source: "auth.phone" });
+  const meta = (authUser?.user_metadata ?? {}) as Record<string, unknown>;
+  candidates.push({ value: meta?.phone, source: "auth.metadata.phone" });
+  candidates.push({ value: meta?.phone_number, source: "auth.metadata.phone_number" });
+
+  for (const c of candidates) {
+    const raw = typeof c.value === "string" ? c.value.trim() : "";
+    if (!raw) continue;
+    const formatted = formatPhoneInternational(raw);
+    if (formatted && formatted.replace(/[^0-9]/g, "").length >= 11) {
+      return { phone: formatted, fullName, source: c.source };
+    }
+  }
+  return { phone: "", fullName, source: "none" };
+}
+
 // Append an audit-trail event. Never throws — auditing must not break the flow.
 async function logEvent(
   admin: ReturnType<typeof createClient>,
@@ -299,15 +336,17 @@ Deno.serve(async (req) => {
 
     // ── Confirmation SMS to the depositor (verified amount + new balance) ──
     try {
-      const { data: profile } = await admin
-        .from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle();
-      const phone = (profile as any)?.phone || "";
+      const { phone, source } = await resolveDepositorPhone(admin, user.id, {
+        phone: user.phone,
+        user_metadata: (user as any).user_metadata,
+      });
       if (phone) {
         const balanceLine = newBalance != null ? ` New balance ${fmtUGX(newBalance)}.` : "";
         const smsBody =
           `Welile: Cash deposit confirmed. ${fmtUGX(ver.amount)} credited to your wallet ` +
           `(receipt ${enteredCode}).${balanceLine} Thank you.`;
         const sent = await sendSMS(phone, smsBody);
+        console.log(`[cash-verify-code] confirmation SMS to ${phone} (via ${source}) sent=${sent}`);
         if (!sent) console.error("[cash-verify-code] confirmation SMS not sent");
       } else {
         console.error("[cash-verify-code] no phone on file for confirmation SMS");
