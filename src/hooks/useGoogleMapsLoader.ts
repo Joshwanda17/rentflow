@@ -1,5 +1,6 @@
 /// <reference types="google.maps" />
 import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const BROWSER_KEY = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY as string | undefined;
 const TRACKING_ID = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as string | undefined;
@@ -8,6 +9,34 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 // Module-level singletons so the script loads only once across the whole app.
 let scriptPromise: Promise<void> | null = null;
+
+// Resolved once: a custom Google Maps browser key configured by a manager
+// (used so the map works on custom domains the managed key doesn't allow).
+// Falls back to the Lovable-managed connector key when none is set.
+let resolvedKey: string | undefined;
+let keyPromise: Promise<string | undefined> | null = null;
+
+async function resolveBrowserKey(): Promise<string | undefined> {
+  if (resolvedKey !== undefined) return resolvedKey;
+  if (keyPromise) return keyPromise;
+  keyPromise = (async () => {
+    let custom: string | undefined;
+    try {
+      const { data } = await supabase
+        .from('map_config')
+        .select('browser_api_key')
+        .limit(1)
+        .maybeSingle();
+      const k = data?.browser_api_key?.trim();
+      if (k) custom = k;
+    } catch {
+      // Network/RLS failure — fall back to the managed key.
+    }
+    resolvedKey = custom || BROWSER_KEY;
+    return resolvedKey;
+  })();
+  return keyPromise;
+}
 
 declare global {
   interface Window {
@@ -33,13 +62,15 @@ if (typeof window !== 'undefined') {
 function loadGoogleMaps(): Promise<void> {
   if (typeof window !== 'undefined' && window.google?.maps) return Promise.resolve();
   if (scriptPromise) return scriptPromise;
-  if (!BROWSER_KEY) return Promise.reject(new Error('Google Maps key missing'));
 
-  scriptPromise = new Promise<void>((resolve, reject) => {
+  scriptPromise = (async () => {
+    const key = await resolveBrowserKey();
+    if (!key) throw new Error('Google Maps key missing');
+    await new Promise<void>((resolve, reject) => {
     window.__welileInitGoogleMaps = () => resolve();
     const script = document.createElement('script');
     const params = new URLSearchParams({
-      key: BROWSER_KEY,
+        key,
       loading: 'async',
       callback: '__welileInitGoogleMaps',
       libraries: 'marker',
@@ -50,7 +81,8 @@ function loadGoogleMaps(): Promise<void> {
     script.defer = true;
     script.onerror = () => reject(new Error('Failed to load Google Maps'));
     document.head.appendChild(script);
-  });
+    });
+  })();
   return scriptPromise;
 }
 
@@ -65,7 +97,6 @@ export function useGoogleMapsLoader(enabled = true) {
 
   useEffect(() => {
     if (!enabled || state === 'ready' || state === 'error') return;
-    if (!BROWSER_KEY) { setState('error'); return; }
     let cancelled = false;
     setState('loading');
     const onAuthFail = () => { if (!cancelled) setState('error'); };
@@ -77,5 +108,13 @@ export function useGoogleMapsLoader(enabled = true) {
     return () => { cancelled = true; authFailureListeners.delete(onAuthFail); };
   }, [enabled, state]);
 
-  return { isReady: state === 'ready', isLoading: state === 'loading', isError: state === 'error', hasKey: !!BROWSER_KEY };
+  return {
+    isReady: state === 'ready',
+    isLoading: state === 'loading',
+    isError: state === 'error',
+    // We may have a managed key OR a manager-configured custom key; treat the
+    // presence of either as "has a key". The custom key is resolved async, so
+    // only report missing when there is also no managed fallback.
+    hasKey: !!BROWSER_KEY || resolvedKey !== undefined,
+  };
 }
