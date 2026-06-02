@@ -2527,19 +2527,30 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                     )}
 
                     {tIsSettled && (
-                      <Button
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleResubmitTenant(tenant); }}
-                        disabled={renewingReqId === tenant.id || loadingRequests === tenant.id}
-                        className="mt-2 w-full h-10 gap-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
-                      >
-                        {renewingReqId === tenant.id || loadingRequests === tenant.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-3.5 w-3.5" />
-                        )}
-                        Resubmit rent plan
-                      </Button>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
+                          className="h-11 gap-1.5 rounded-lg text-sm font-bold border-2 border-primary/40 text-primary hover:bg-primary/10"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleResubmitTenant(tenant); }}
+                          disabled={renewingReqId === tenant.id || loadingRequests === tenant.id}
+                          className="h-11 gap-1.5 rounded-lg text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                        >
+                          {renewingReqId === tenant.id || loadingRequests === tenant.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          Renew
+                        </Button>
+                      </div>
                     )}
                   </div>
 
