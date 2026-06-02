@@ -260,6 +260,35 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
                 Verify code & credit wallet
               </Button>
             )}
+
+            {!confirmCancel ? (
+              <Button
+                variant="ghost"
+                disabled={loading}
+                onClick={() => setConfirmCancel(true)}
+                className="w-full h-10 text-muted-foreground hover:text-destructive"
+              >
+                Cancel deposit
+              </Button>
+            ) : (
+              <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
+                <p className="text-sm text-foreground text-center font-medium">
+                  Cancel this deposit? You'll need to start again to deposit cash.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={() => setConfirmCancel(false)} disabled={loading}>
+                    Keep waiting
+                  </Button>
+                  <Button variant="destructive" onClick={close} disabled={loading}>
+                    Yes, cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <p className="text-[11px] text-center text-muted-foreground">
+              This screen stays open until you enter the code or cancel.
+            </p>
           </div>
         )}
 
