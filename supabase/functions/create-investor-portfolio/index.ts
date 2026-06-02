@@ -262,9 +262,13 @@ Deno.serve(async (req) => {
       if (ledgerErr) {
         console.error("[create-investor-portfolio] LEDGER FAILURE — rolling back portfolio:", ledgerErr);
         await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
+        const ledgerMsg = (ledgerErr as any).message || 'unknown';
+        const isInsufficient = /insufficient ledger balance/i.test(ledgerMsg);
         return new Response(JSON.stringify({
-          error: `Wallet deduction failed: ${(ledgerErr as any).message || 'unknown'}. Portfolio rolled back.`,
-        }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          error: isInsufficient
+            ? `Insufficient wallet balance to fund this portfolio (UGX ${investmentAmount.toLocaleString()}). No charge was made.`
+            : `Wallet deduction failed: ${ledgerMsg}. Portfolio rolled back.`,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       // Pre-approved pending op for audit trail / topup processor
