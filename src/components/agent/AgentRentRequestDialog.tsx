@@ -2293,6 +2293,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <Label >Tenant Name *</Label>
+                        <p className="text-xs text-muted-foreground leading-snug">The tenant's name as on their ID.</p>
                         <Input
                           value={tenantName}
                           onChange={(e) => setTenantName(e.target.value)}
@@ -2303,6 +2304,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </div>
                       <div className="space-y-1">
                         <Label >Tenant Phone *</Label>
+                        <p className="text-xs text-muted-foreground leading-snug">The number they answer calls on.</p>
                         <Input
                           value={tenantPhone}
                           onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
@@ -2319,6 +2321,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                     <div className="space-y-1">
                       <Label >Preferred Language *</Label>
+                      <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
                       <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select tenant language" />
@@ -2342,6 +2345,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <Label className="font-semibold">Rent Amount (UGX) *</Label>
+                        <p className="text-xs text-muted-foreground leading-snug">The full monthly rent for this house.</p>
                         <Input
                           value={formatCurrencyInput(outstandingRentAmount)}
                           onChange={(e) => setOutstandingRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
@@ -2352,6 +2356,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </div>
                       <div className="space-y-1">
                         <Label className="font-semibold">Repayment Duration *</Label>
+                        <p className="text-xs text-muted-foreground leading-snug">How many days the tenant has to pay it back.</p>
                         <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
                           <SelectTrigger>
                             <SelectValue />
@@ -2367,6 +2372,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                     <div className="space-y-1">
                       <Label className="font-semibold">Outstanding Balance (UGX) *</Label>
+                      <p className="text-xs text-muted-foreground leading-snug">How much rent the tenant still owes right now.</p>
                       <Input
                         value={formatCurrencyInput(outstandingBalance)}
                         onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
