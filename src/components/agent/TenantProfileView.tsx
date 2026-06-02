@@ -1638,6 +1638,19 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           </SectionCard>
         )}
 
+        {/* ── Repayment sheet PDF — full allocation vs expected breakdown ── */}
+        <Button
+          variant="default"
+          size="lg"
+          onClick={handleGenerateRepaymentSheet}
+          disabled={generatingSheet || requests.length === 0}
+          className="w-full h-12 rounded-xl gap-2 text-base font-semibold"
+          aria-label="Generate repayment sheet PDF"
+        >
+          {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+          {generatingSheet ? 'Generating…' : 'Repayment Sheet (PDF)'}
+        </Button>
+
         {/* ── Bottom "Back to Tenants" so agents don't scroll back up ── */}
         <Button
           variant="outline"
