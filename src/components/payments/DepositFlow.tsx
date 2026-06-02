@@ -27,6 +27,7 @@ import OperationalFloatTenantAllocator, {
 } from './OperationalFloatTenantAllocator';
 import DepositReferenceMatcher, { type MatchResult } from './DepositReferenceMatcher';
 import AgentCashPinDeposit from './AgentCashPinDeposit';
+import CashWithFinancialOpsDeposit from './CashWithFinancialOpsDeposit';
 import AllocationEditDiffPanel from './AllocationEditDiffPanel';
 import {
   safeDepositPurpose,
