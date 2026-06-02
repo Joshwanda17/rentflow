@@ -3937,6 +3937,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           // agent can select it and link the tenant they're registering.
           setHouseSearchedOnce(false);
           searchAvailableHouses();
+          // Listing a house also registers its landlord — refresh the
+          // outstanding-flow landlord picker so it's immediately selectable.
+          setLandlordPickerKey((k) => k + 1);
           toast.success('House listed and available — search to select it now.');
         }}
       />
