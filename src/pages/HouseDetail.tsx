@@ -111,13 +111,22 @@ export default function HouseDetail() {
     if (navigator.share) {
       try { await navigator.share(shareData); } catch {}
     } else {
-      const shareText = listing
-        ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
-        : richUrl;
+      await handleCopyLink();
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const richUrl = listing ? ogShareUrl : shareUrl;
+    const shareText = listing
+      ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
+      : richUrl;
+    try {
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
-      toast({ title: 'Link copied!', description: 'Share it with friends & family.' });
+      toast({ title: 'Link copied!', description: 'Paste it anywhere to share this house.' });
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: 'Could not copy', variant: 'destructive' });
     }
   };
 
