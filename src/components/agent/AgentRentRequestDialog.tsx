@@ -2290,7 +2290,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <User className="h-4 w-4 text-primary" />
                       👤 Personal Information
                     </h4>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3">
                       <div className="space-y-1">
                         <Label >Tenant Name *</Label>
                         <Input
@@ -2339,7 +2339,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       💰 Rent Information
                     </h4>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3">
                       <div className="space-y-1">
                         <Label className="font-semibold">Rent Amount (UGX) *</Label>
                         <Input
