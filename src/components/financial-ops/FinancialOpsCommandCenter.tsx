@@ -24,6 +24,7 @@ import { FundedTenantsList } from './FundedTenantsList';
 import { AutoCreditReviewPanel } from './AutoCreditReviewPanel';
 import { ProxyWithdrawalDiagnosticsPanel } from './ProxyWithdrawalDiagnosticsPanel';
 import { FloatToWithdrawablePanel } from './FloatToWithdrawablePanel';
+import { MomoSignupSmsTemplatePanel } from './MomoSignupSmsTemplatePanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -43,7 +44,7 @@ type Tool =
   | 'withdrawals' | 'opportunities' | 'requisitions'
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics'
-  | 'float_to_withdrawable';
+  | 'float_to_withdrawable' | 'momo_sms_template';
 
 
 /**
@@ -73,6 +74,7 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'mismatch_metrics', label: 'Mismatch Metrics', desc: 'Operator provider-mismatch attempts', icon: AlertTriangle },
   { kind: 'tool', id: 'proxy_diagnostics', label: 'Proxy Withdrawal Diagnostics', desc: 'Why each pending proxy withdrawal isn\u2019t auto-settling', icon: AlertCircle },
   { kind: 'tool', id: 'float_to_withdrawable', label: 'Float \u2192 Withdrawable', desc: 'Reclassify a user\u2019s Operational Float into their Withdrawable balance', icon: ArrowRightLeft },
+  { kind: 'tool', id: 'momo_sms_template', label: 'MoMo Thank-You SMS', desc: 'Edit the thank-you + signup SMS sent to MTN/Airtel senders', icon: Mail },
 ];
 
 export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
@@ -189,6 +191,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'funded_tenants' && <FundedTenantsList />}
         {activeTool === 'proxy_diagnostics' && <ProxyWithdrawalDiagnosticsPanel />}
         {activeTool === 'float_to_withdrawable' && <FloatToWithdrawablePanel />}
+        {activeTool === 'momo_sms_template' && <MomoSignupSmsTemplatePanel />}
       </div>
     );
   }
