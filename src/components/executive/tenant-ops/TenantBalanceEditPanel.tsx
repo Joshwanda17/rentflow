@@ -249,32 +249,229 @@ function BalanceHistory({ rentRequestId }: { rentRequestId: string }) {
     },
   });
 
-  if (isLoading) return <div className="mt-3"><Skeleton className="h-16 w-full" /></div>;
+  const [editorFilter, setEditorFilter] = useState<string>('all');
+  const [reasonFilter, setReasonFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [showFilters, setShowFilters] = useState(false);
+
   const rows = data ?? [];
+  const editors = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => { if (r.editor_name) set.add(r.editor_name); });
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    let result = [...rows];
+    if (editorFilter !== 'all') {
+      result = result.filter((r) => r.editor_name === editorFilter);
+    }
+    if (reasonFilter.trim()) {
+      const term = reasonFilter.trim().toLowerCase();
+      result = result.filter((r) => r.reason.toLowerCase().includes(term));
+    }
+    if (dateFrom) {
+      const from = new Date(dateFrom); from.setHours(0, 0, 0, 0);
+      result = result.filter((r) => new Date(r.created_at) >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo); to.setHours(23, 59, 59, 999);
+      result = result.filter((r) => new Date(r.created_at) <= to);
+    }
+    result.sort((a, b) => {
+      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortOrder === 'newest' ? -diff : diff;
+    });
+    return result;
+  }, [rows, editorFilter, reasonFilter, dateFrom, dateTo, sortOrder]);
+
+  if (isLoading) return <div className="mt-3"><Skeleton className="h-16 w-full" /></div>;
   if (rows.length === 0) return <p className="mt-3 text-[11px] text-muted-foreground text-center py-2">No edits yet.</p>;
 
+  const dateFmtOpts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
+
   return (
-    <ul className="mt-3 space-y-1.5">
-      {rows.map((h) => (
-        <li key={h.id} className="rounded-md border border-border bg-muted/20 p-2 text-[11px]">
+    <div className="mt-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{filtered.length} of {rows.length} edits</span>
+        <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1.5" onClick={() => setShowFilters((s) => !s)}>
+          <Filter className="h-3 w-3" /> {showFilters ? 'Hide' : 'Filter'}
+        </Button>
+      </div>
+
+      {showFilters && (
+        <div className="rounded-lg border border-border bg-muted/20 p-2.5 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">Editor</label>
+              <select
+                value={editorFilter}
+                onChange={(e) => setEditorFilter(e.target.value)}
+                className="mt-0.5 h-8 w-full rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="all">All editors</option>
+                {editors.map((ed) => (
+                  <option key={ed} value={ed}>{ed}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">Reason keyword</label>
+              <Input value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)} placeholder="Search reason…" className="h-8 text-xs mt-0.5" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">From date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="mt-0.5 h-8 w-full justify-start text-left text-xs font-normal px-2">
+                    <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
+                    {dateFrom ? dateFrom.toLocaleDateString(undefined, dateFmtOpts) : 'Pick date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                  <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">To date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="mt-0.5 h-8 w-full justify-start text-left text-xs font-normal px-2">
+                    <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
+                    {dateTo ? dateTo.toLocaleDateString(undefined, dateFmtOpts) : 'Pick date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                  <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
           <div className="flex items-center justify-between">
-            <span className="font-semibold">{h.editor_name || 'Staff'}</span>
-            <span className="text-muted-foreground">{fmtDateTime(h.created_at)}</span>
+            <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1" onClick={() => { setEditorFilter('all'); setReasonFilter(''); setDateFrom(undefined); setDateTo(undefined); }}>
+              Clear filters
+            </Button>
+            <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 px-1" onClick={() => setSortOrder((s) => s === 'newest' ? 'oldest' : 'newest')}>
+              <ArrowUpDown className="h-3 w-3" /> {sortOrder === 'newest' ? 'Newest first' : 'Oldest first'}
+            </Button>
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-muted-foreground">
-            {Number(h.old_rent_amount) !== Number(h.new_rent_amount) && (
-              <span>Rent: {formatUGX(h.old_rent_amount || 0)} → <span className="text-foreground font-medium">{formatUGX(h.new_rent_amount || 0)}</span></span>
-            )}
-            {Number(h.old_outstanding) !== Number(h.new_outstanding) && (
-              <span>Balance: {formatUGX(h.old_outstanding || 0)} → <span className="text-foreground font-medium">{formatUGX(h.new_outstanding || 0)}</span></span>
-            )}
-            {Number(h.old_daily_repayment) !== Number(h.new_daily_repayment) && (
-              <span>Daily: {formatUGX(h.old_daily_repayment || 0)} → <span className="text-foreground font-medium">{formatUGX(h.new_daily_repayment || 0)}</span></span>
-            )}
-          </div>
-          <p className="mt-1 italic text-muted-foreground">"{h.reason}"</p>
-        </li>
-      ))}
-    </ul>
+        </div>
+      )}
+
+      <Tabs defaultValue="list" className="w-full">
+        <TabsList variant="pills" className="w-full">
+          <TabsTrigger value="list" variant="pills" className="text-[11px] flex-1 gap-1">
+            <List className="h-3 w-3" /> List
+          </TabsTrigger>
+          <TabsTrigger value="timeline" variant="pills" className="text-[11px] flex-1 gap-1">
+            <CalendarDays className="h-3 w-3" /> Timeline
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="mt-2">
+          {filtered.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground text-center py-3">No edits match your filters.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((h) => (
+                <li key={h.id} className="rounded-md border border-border bg-muted/20 p-2 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{h.editor_name || 'Staff'}</span>
+                    <span className="text-muted-foreground">{fmtDateTime(h.created_at)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-muted-foreground">
+                    {Number(h.old_rent_amount) !== Number(h.new_rent_amount) && (
+                      <span>Rent: {formatUGX(h.old_rent_amount || 0)} → <span className="text-foreground font-medium">{formatUGX(h.new_rent_amount || 0)}</span></span>
+                    )}
+                    {Number(h.old_outstanding) !== Number(h.new_outstanding) && (
+                      <span>Balance: {formatUGX(h.old_outstanding || 0)} → <span className="text-foreground font-medium">{formatUGX(h.new_outstanding || 0)}</span></span>
+                    )}
+                    {Number(h.old_daily_repayment) !== Number(h.new_daily_repayment) && (
+                      <span>Daily: {formatUGX(h.old_daily_repayment || 0)} → <span className="text-foreground font-medium">{formatUGX(h.new_daily_repayment || 0)}</span></span>
+                    )}
+                  </div>
+                  <p className="mt-1 italic text-muted-foreground">"{h.reason}"</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </TabsContent>
+
+        <TabsContent value="timeline" className="mt-2">
+          {filtered.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground text-center py-3">No edits match your filters.</p>
+          ) : (
+            <div className="relative pl-5">
+              <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
+              <ul className="space-y-3">
+                {filtered.map((h, idx) => {
+                  const date = new Date(h.created_at);
+                  const dateLabel = date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+                  const timeLabel = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                  const isFirst = idx === 0;
+                  const rentChanged = Number(h.old_rent_amount) !== Number(h.new_rent_amount);
+                  const balChanged = Number(h.old_outstanding) !== Number(h.new_outstanding);
+                  const dailyChanged = Number(h.old_daily_repayment) !== Number(h.new_daily_repayment);
+
+                  return (
+                    <li key={h.id} className="relative">
+                      <div className={cn(
+                        "absolute -left-5 top-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center bg-background",
+                        isFirst ? "border-primary" : "border-muted-foreground/30"
+                      )}>
+                        {isFirst ? <div className="h-1.5 w-1.5 rounded-full bg-primary" /> : <div className="h-1 w-1 rounded-full bg-muted-foreground/40" />}
+                      </div>
+                      <div className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-[11px] font-semibold">{h.editor_name || 'Staff'}</span>
+                          <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Clock className="h-2.5 w-2.5" /> {dateLabel} · {timeLabel}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          {rentChanged && (
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <Badge variant="outline" className="text-[9px] h-4 px-1">Rent</Badge>
+                              <span className="text-muted-foreground line-through">{formatUGX(h.old_rent_amount || 0)}</span>
+                              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-medium text-foreground">{formatUGX(h.new_rent_amount || 0)}</span>
+                            </div>
+                          )}
+                          {balChanged && (
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <Badge variant="outline" className="text-[9px] h-4 px-1">Balance</Badge>
+                              <span className="text-muted-foreground line-through">{formatUGX(h.old_outstanding || 0)}</span>
+                              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                              <span className={cn("font-medium", (h.new_outstanding || 0) < (h.old_outstanding || 0) ? "text-emerald-600" : "text-foreground")}>
+                                {formatUGX(h.new_outstanding || 0)}
+                              </span>
+                            </div>
+                          )}
+                          {dailyChanged && (
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <Badge variant="outline" className="text-[9px] h-4 px-1">Daily</Badge>
+                              <span className="text-muted-foreground line-through">{formatUGX(h.old_daily_repayment || 0)}</span>
+                              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-medium text-foreground">{formatUGX(h.new_daily_repayment || 0)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="mt-1.5 text-[10px] italic text-muted-foreground border-t border-border/50 pt-1">"{h.reason}"</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
