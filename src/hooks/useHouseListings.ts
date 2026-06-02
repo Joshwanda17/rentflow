@@ -133,7 +133,13 @@ export function useHouseListings(options: UseHouseListingsOptions = {}) {
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
-      const enriched = await enrichWithAgentInfo((data as any[]) || []);
+      let rows = ((data as any[]) || []) as HouseListing[];
+      // Public/marketplace views must only show houses that have real photos.
+      // Agents viewing their own listings still see everything so they can add photos.
+      if (!options.agentId) {
+        rows = rows.filter(listingHasRealPhoto);
+      }
+      const enriched = await enrichWithAgentInfo(rows);
       setListings(enriched);
     } catch (err: any) {
       setError(err.message);
