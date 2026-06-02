@@ -1466,6 +1466,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     submitLockRef.current = true;
 
     setLoading(true);
+    setRequestState('submitting');
 
     try {
       // Verify session is still valid before submitting
