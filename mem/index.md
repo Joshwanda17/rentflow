@@ -1,0 +1,1 @@
+- [Listing Photo Gallery](mem://features/ops/listing-photo-gallery) — Airbnb/Booking multi-photo pattern: `listing_photos` child table (binaries in `house-images` bucket, 1200px WebP), syncs `house_listings.image_urls` via trigger, ops/agent gallery manager in Welile Operations Empty Houses drill-down

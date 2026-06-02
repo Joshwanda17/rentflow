@@ -16,6 +16,7 @@ import {
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import { TenantBalanceEditPanel } from '@/components/executive/tenant-ops/TenantBalanceEditPanel';
+import { ListingPhotoGallery } from '@/components/executive/tenant-ops/ListingPhotoGallery';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
@@ -33,7 +34,7 @@ import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
-  ChevronsUpDown, X,
+  ChevronsUpDown, X, Image as ImageIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -872,6 +873,13 @@ function EmptyHousesDialog({
   const bulkTarget = useBulkTargetLandlordsForOnboarding();
   const [targeting, setTargeting] = useState<string | null>(null);
   const [bulkTargeting, setBulkTargeting] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState<Set<string>>(new Set());
+  const togglePhotos = (listingId: string) =>
+    setPhotosOpen((prev) => {
+      const next = new Set(prev);
+      next.has(listingId) ? next.delete(listingId) : next.add(listingId);
+      return next;
+    });
 
   const handleTargetAndOpen = async (landlordId: string, listingId: string) => {
     setTargeting(landlordId);
@@ -1133,6 +1141,18 @@ function EmptyHousesDialog({
                         </Button>
                       );
                     })()}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => togglePhotos(h.listing_id)}
+                      className="h-7 w-full mt-1.5 text-[11px] gap-1 justify-center text-muted-foreground hover:text-foreground"
+                    >
+                      <ImageIcon className="h-3.5 w-3.5" />
+                      {photosOpen.has(h.listing_id) ? 'Hide photos' : 'Manage photos'}
+                    </Button>
+                    {photosOpen.has(h.listing_id) && (
+                      <ListingPhotoGallery listingId={h.listing_id} enabled />
+                    )}
                   </li>
                 );
               })}

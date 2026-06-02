@@ -9715,6 +9715,47 @@ export type Database = {
         }
         Relationships: []
       }
+      listing_photos: {
+        Row: {
+          created_at: string
+          id: string
+          is_cover: boolean
+          listing_id: string
+          position: number
+          storage_path: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_cover?: boolean
+          listing_id: string
+          position?: number
+          storage_path: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_cover?: boolean
+          listing_id?: string
+          position?: number
+          storage_path?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_photos_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "house_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loan_applications: {
         Row: {
           amount: number
@@ -19836,6 +19877,10 @@ export type Database = {
           phone: string
         }[]
       }
+      sync_house_listing_image_urls: {
+        Args: { p_listing: string }
+        Returns: undefined
+      }
       test_wallet_drift_fix: { Args: never; Returns: Json }
       topup_dedup_bucket: { Args: { ts: string }; Returns: string }
       trigger_agent_liability_for_unpaid_rents: {
@@ -20246,6 +20291,7 @@ export type Database = {
         | "rent_request.returned_for_correction"
         | "house_listings.region_normalized"
         | "agent.contact_location_captured"
+        | "listing_photo_added"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -20510,6 +20556,7 @@ export const Constants = {
         "rent_request.returned_for_correction",
         "house_listings.region_normalized",
         "agent.contact_location_captured",
+        "listing_photo_added",
       ],
     },
   },
