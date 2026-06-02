@@ -1887,6 +1887,7 @@ export function EmailTransactionsPanel() {
           <DebugPollDialog />
           <SmsSetupGuide />
           <BucketTransferLauncher />
+          <BacklogSweepLauncher />
         </div>
       </div>
 
