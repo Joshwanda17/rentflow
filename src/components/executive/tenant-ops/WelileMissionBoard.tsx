@@ -16,6 +16,7 @@ import {
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import { TenantBalanceEditPanel } from '@/components/executive/tenant-ops/TenantBalanceEditPanel';
+import { ListingPhotoGallery } from '@/components/executive/tenant-ops/ListingPhotoGallery';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
@@ -33,7 +34,7 @@ import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
-  ChevronsUpDown, X,
+  ChevronsUpDown, X, Image as ImageIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
