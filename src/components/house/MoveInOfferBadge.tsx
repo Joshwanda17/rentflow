@@ -27,7 +27,7 @@ export function MoveInOfferBadge({ variant = 'pill', className }: MoveInOfferBad
         )}
       >
         <div className="shrink-0 grid place-items-center h-9 w-9 rounded-full bg-success/20">
-          <Gift className="h-4.5 w-4.5 text-success" />
+          <Gift className="h-5 w-5 text-success" />
         </div>
         <div className="min-w-0">
           <p className="font-bold text-sm text-success leading-tight flex items-center gap-1">
