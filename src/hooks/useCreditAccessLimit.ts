@@ -197,6 +197,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
   const refetchRow = useCallback(async () => {
     if (!userId) return;
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    logCreditLoading('realtime-refetch', { userId, loading: false, note: 'row changed — silent re-read' });
     try {
       const { data } = await supabase
         .from('credit_access_limits')
