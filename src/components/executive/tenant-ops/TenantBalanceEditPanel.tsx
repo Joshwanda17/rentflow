@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import {
   Search, Pencil, History, Loader2, Save, X, UserPlus, Users, ChevronRight,
   List, CalendarDays, Filter, CalendarIcon, ArrowUpDown, Clock, User,
+  Download, FileText,
 } from 'lucide-react';
 
 interface TenantRentRow {
