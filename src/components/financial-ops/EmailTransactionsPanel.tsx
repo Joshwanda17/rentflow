@@ -602,6 +602,10 @@ export function EmailTransactionsPanel() {
   // a batch run is in flight; `autoDebitProgress` drives the inline counter.
   const [autoDebitBusy, setAutoDebitBusy] = useState(false);
   const [autoDebitProgress, setAutoDebitProgress] = useState<{ done: number; total: number; ok: number; failed: number } | null>(null);
+  // Match-review gate: the operator must review the full list of matched
+  // money-out emails (detected user, confidence, amount) in a dialog and
+  // press a single confirm button before any wallet reduction is posted.
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
   // Mobile-only collapsibles: keep filters & stats hidden by default on small screens
