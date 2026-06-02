@@ -1844,6 +1844,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
     } finally {
       setLoading(false);
+      submitLockRef.current = false;
     }
   };
 
