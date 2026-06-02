@@ -574,6 +574,11 @@ export function EmailTransactionsPanel() {
     auto_approved: boolean | null;
     deposit_purpose: string | null;
     credited_at: string | null;
+    /** True when this deposit was matched to the email by its transaction
+     *  reference (TID) rather than an explicit gmail link / auto_match_audit. */
+    matched_by_tid?: boolean;
+    /** The normalized transaction reference that matched, for display. */
+    matched_tid?: string | null;
   }
   const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
 
@@ -910,7 +915,15 @@ export function EmailTransactionsPanel() {
           (linkByRow.get(r.id) ?? []).forEach((id) => ids.add(id));
           if (r.gmail_message_id) (linkByMsg.get(r.gmail_message_id) ?? []).forEach((id) => ids.add(id));
           const normTid = tidByRow.get(r.id);
-          if (normTid) (linkByTid.get(normTid) ?? []).forEach((id) => ids.add(id));
+          const tidDepIds = new Set<string>();
+          if (normTid) (linkByTid.get(normTid) ?? []).forEach((id) => { ids.add(id); tidDepIds.add(id); });
+          // Deposits matched ONLY by reference (not by explicit gmail link /
+          // auto_match_audit) are flagged so the row can show the clear
+          // "Already Credited — No Routing Needed" status.
+          const explicitDepIds = new Set<string>([
+            ...(linkByRow.get(r.id) ?? []),
+            ...(r.gmail_message_id ? (linkByMsg.get(r.gmail_message_id) ?? []) : []),
+          ]);
           if (!ids.size) continue;
           const list: CreditedDeposit[] = [];
           for (const depId of ids) {
@@ -928,6 +941,8 @@ export function EmailTransactionsPanel() {
               auto_approved: d.auto_approved ?? null,
               deposit_purpose: d.deposit_purpose ?? null,
               credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
+              matched_by_tid: tidDepIds.has(depId) && !explicitDepIds.has(depId),
+              matched_tid: tidDepIds.has(depId) ? (normTid ?? null) : null,
             });
           }
           if (list.length) next[r.id] = list;
@@ -2759,6 +2774,11 @@ export function EmailTransactionsPanel() {
                 const isFullyCredited = manualMark?.mark === 'credited'
                   ? true
                   : (emailAmount > 0 && totalCredited >= emailAmount);
+                // True when at least one credited deposit was matched to this
+                // email by its transaction reference (TID). Drives the clear
+                // "Already Credited — No Routing Needed" status.
+                const matchedByTid = credited.some((c) => c.matched_by_tid);
+                const matchedTid = credited.find((c) => c.matched_tid)?.matched_tid ?? null;
                 // ── Insufficient-funds warning for outgoing payouts ───────
                 // When an outgoing email (sent / charge) is matched to a
                 // user wallet whose current balance cannot cover the payout
@@ -3042,6 +3062,27 @@ export function EmailTransactionsPanel() {
                           <CheckCircle2 className="h-3 w-3" />
                           {isFullyCredited ? 'credited' : 'partial'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
                           {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
+                        </Badge>
+                      )}
+                      {/* Clear, unambiguous status: when the deposit is fully
+                          credited there is nothing left to route. Highlight the
+                          transaction reference (TID) when that's what matched it
+                          so reviewers trust the auto-detection. */}
+                      {isCredited && isFullyCredited && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 bg-emerald-600/15 text-emerald-700 border-emerald-600/50 font-semibold"
+                          title={[
+                            'Already Credited — No Routing Needed',
+                            matchedByTid && matchedTid
+                              ? `Matched by transaction reference (TID): ${matchedTid}`
+                              : 'Matched to a credited deposit for this email.',
+                            'This money already landed in a wallet — do not route it again.',
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <ShieldCheck className="h-3 w-3" />
+                          Already Credited — No Routing Needed
+                          {matchedByTid && <span className="opacity-75">· via TID</span>}
                         </Badge>
                       )}
                       {/* Incoming deposit whose money never landed in any
