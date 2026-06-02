@@ -170,17 +170,32 @@ function parseTransaction(text: string): {
   const verbAmt = t.match(new RegExp(String.raw`(?:received|deposited|credited|sent|paid|withdrew|withdrawn|debited|payment of|amount of|sum of|of)\s+(?:UGX|USh|UShs?|Shs?)?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`, 'i'));
   if (verbAmt) out.amount = toInt(verbAmt[1]);
   if (out.amount === undefined) {
-    const amountRe = /(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/gi;
+    // Capture currency-tagged amounts written with the currency on EITHER
+    // side of the number. Banks (Equity / Stanbic / Centenary) phrase
+    // payouts as "4000000.00 UGX was sent to NAME" — the currency token
+    // comes AFTER the number, so a prefix-only pattern (UGX 5000) misses
+    // them entirely and the row ends up with amount=null / parsed=false.
+    const prefixRe = /(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/gi;
+    const suffixRe = /([\d][\d,]*(?:\.\d+)?)\s*(?:UGX|USh|UShs|Shs)\b/gi;
     const skipRe = /(bal(?:ance)?|charge|fee|fees|tax|levy|new\s*balance)\s*[:.\-]?\s*$/i;
-    let firstAmt: number | undefined; let chosen: number | undefined;
-    for (const m of t.matchAll(amountRe)) {
+    const cands: { n: number; idx: number }[] = [];
+    for (const m of t.matchAll(prefixRe)) {
       const n = toInt(m[1]); if (n === undefined) continue;
-      if (firstAmt === undefined) firstAmt = n;
-      const lookback = t.slice(Math.max(0, (m.index ?? 0) - 16), m.index ?? 0);
+      cands.push({ n, idx: m.index ?? 0 });
+    }
+    for (const m of t.matchAll(suffixRe)) {
+      const n = toInt(m[1]); if (n === undefined) continue;
+      cands.push({ n, idx: m.index ?? 0 });
+    }
+    cands.sort((a, b) => a.idx - b.idx);
+    let firstAmt: number | undefined; let chosen: number | undefined;
+    for (const c of cands) {
+      if (firstAmt === undefined) firstAmt = c.n;
+      const lookback = t.slice(Math.max(0, c.idx - 16), c.idx);
       if (skipRe.test(lookback)) continue;
-      if (out.fee && n === out.fee) continue;
-      if (out.balance && n === out.balance) continue;
-      chosen = n; break;
+      if (out.fee && c.n === out.fee) continue;
+      if (out.balance && c.n === out.balance) continue;
+      chosen = c.n; break;
     }
     out.amount = chosen ?? firstAmt;
   }
@@ -189,7 +204,10 @@ function parseTransaction(text: string): {
   const airtel = t.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);
   const mtnLegacy = t.match(/\bMP[A-Z0-9]{8,}\b/i);
   const flutter = t.match(/\b(?:FLW|FW)[A-Z0-9]{6,}\b/i);
-  const bankRef = t.match(/\b(?:FT|TXN|CR|DR|TRF|REF)[A-Z0-9]{6,}\b/i);
+  // Require the bank-ref token to contain at least one digit so the plain
+  // English word "Reference" (REF + "erence") is NOT mistaken for a ref id.
+  // The actual ref value after "Reference:" is captured by `generic` below.
+  const bankRef = t.match(/\b(?:FT|TXN|CR|DR|TRF|REF)(?=[A-Z0-9]*[0-9])[A-Z0-9]{6,}\b/i);
   const generic = t.match(/\b(?:Txn\s?ID|Transaction\s?ID|Trans\s?ID|Ref(?:erence)?|Receipt(?:\s?No)?|Confirmation)[:\s#]*([A-Z0-9-]{4,})\b/i);
   if (mtnId) out.transaction_id = mtnId[1];
   else if (airtel) out.transaction_id = `TID${airtel[1]}`;
