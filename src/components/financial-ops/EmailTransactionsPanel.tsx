@@ -1698,6 +1698,15 @@ export function EmailTransactionsPanel() {
   const ch = (r: GmailTx): ChannelResult => rowChannel.get(r.id) ?? deriveChannel(r, channelCache);
   const rangeActive = Boolean(fromTs || toTs);
   const parsedCount = filteredRows.filter((r) => r.parsed).length;
+  // Skipped rows the parser could not turn into a usable transaction. Newest
+  // first so the most recent failures are at the top of the queue.
+  const unparsedRows = filteredRows
+    .filter(isUnparsedRow)
+    .sort((a, b) => {
+      const ta = a.internal_date ? new Date(a.internal_date).getTime() : 0;
+      const tb = b.internal_date ? new Date(b.internal_date).getTime() : 0;
+      return tb - ta;
+    });
   // Compute validity once per row so totals, breakdowns and the list agree.
   const validity = new Map<string, { valid: boolean; reason?: string }>();
   for (const r of rows) validity.set(r.id, validateGmailTx(r));
