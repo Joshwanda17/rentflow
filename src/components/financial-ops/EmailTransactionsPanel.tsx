@@ -3219,16 +3219,23 @@ export function EmailTransactionsPanel() {
                         </Badge>
                       )}
                       {/* Incoming deposit whose money never landed in any
-                          wallet (no credit + not routed). Flag it clearly so
-                          the operator knows to redirect it to a chosen wallet. */}
+                          wallet (no credit + not routed). Flag it clearly and
+                          explain which reference fields are missing so the
+                          operator knows why it couldn't auto-map. */}
                       {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
                         <Badge
                           variant="outline"
                           className="text-[10px] gap-1 bg-orange-500/15 text-orange-700 border-orange-500/40"
-                          title="This deposit has not been credited to any wallet yet. Use Redirect deposit to send it to the right wallet."
+                          title={[
+                            'Not Matched Yet — this deposit has not been credited to any wallet.',
+                            `MoMo TID: ${hasMomoTid ? normTidForRow : 'missing'}`,
+                            `Receipt code: ${hasReceiptCode ? receiptCodeForRow : 'missing'}`,
+                            `Depositing user: ${hasUserMatch ? 'matched' : 'not matched'}`,
+                            'Use Redirect deposit to send it to the right wallet.',
+                          ].join('\n')}
                         >
                           <AlertTriangle className="h-3 w-3" />
-                          not in any wallet
+                          Not Matched Yet
                         </Badge>
                       )}
                     </div>
