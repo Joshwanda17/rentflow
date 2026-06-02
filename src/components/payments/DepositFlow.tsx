@@ -2857,6 +2857,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       onOpenChange={setShowAgentPinDeposit}
       onSuccess={() => { setShowAgentPinDeposit(false); onOpenChange(false); }}
     />
+    <CashWithFinancialOpsDeposit
+      open={showFinOpsCashDeposit}
+      onOpenChange={setShowFinOpsCashDeposit}
+      onSuccess={() => { setShowFinOpsCashDeposit(false); onOpenChange(false); }}
+    />
     </>
   );
 }
