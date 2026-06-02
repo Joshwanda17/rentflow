@@ -15,7 +15,7 @@ interface AuditRow {
   id: string;
   gmail_transaction_id: string | null;
   deposit_request_id: string | null;
-  action: 'auto_claim' | 'unclaim' | 'manual_link' | 'approve' | 'bulk_approve' | 'skip' | 'auto_reject';
+  action: 'auto_claim' | 'unclaim' | 'manual_link' | 'approve' | 'bulk_approve' | 'skip' | 'auto_reject' | 'tid_auto_credited';
   matcher_type: string | null;
   match_score: number | null;
   signals: any;
@@ -38,6 +38,7 @@ const actionConfig: Record<AuditRow['action'], { label: string; icon: any; cls: 
   skip:        { label: 'Skipped',        icon: SkipForward, cls: 'bg-amber-500/15 text-amber-700 border-amber-500/30' },
   unclaim:     { label: 'Unclaimed',      icon: X,           cls: 'bg-muted text-muted-foreground border-border' },
   auto_reject: { label: 'Auto-rejected',  icon: Ban,         cls: 'bg-rose-500/15 text-rose-700 border-rose-500/30' },
+  tid_auto_credited: { label: 'Already credited (TID)', icon: ShieldCheck, cls: 'bg-emerald-600/15 text-emerald-700 border-emerald-600/40' },
 };
 
 /**
@@ -164,7 +165,7 @@ export function EmailMatchAuditLogPanel() {
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {(['all','auto_claim','manual_link','approve','bulk_approve','skip','unclaim','auto_reject'] as const).map((k) => (
+          {(['all','auto_claim','tid_auto_credited','manual_link','approve','bulk_approve','skip','unclaim','auto_reject'] as const).map((k) => (
             <button
               key={k}
               type="button"
