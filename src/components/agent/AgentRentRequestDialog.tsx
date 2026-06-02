@@ -1821,6 +1821,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       hapticSuccess();
       setSuccess(true);
+      setRequestState('success');
       // Submitted successfully — clear the saved draft progress and landlord mode preference.
       try { localStorage.removeItem(draftStorageKey); } catch { /* ignore */ }
       try { sessionStorage.removeItem(LL_MODE_KEY); } catch { /* ignore */ }
