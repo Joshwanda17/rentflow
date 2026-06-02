@@ -426,6 +426,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               listings={filtered}
               userCoords={hasGPS ? { lat: geo.latitude!, lng: geo.longitude! } : null}
               onSelectHouse={(l) => { onOpenChange(false); navigate(`/house/${l.id}`); }}
+              onSwitchToList={() => setView('list')}
             />
           </div>
         ) : (
