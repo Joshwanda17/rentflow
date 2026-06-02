@@ -54,7 +54,7 @@ export function MapKeySettingsCard() {
     const result = await validateGoogleMapsKey(trimmed);
     setTesting(false);
     if (!result.ok) {
-      setCheck({ ok: false, message: result.message });
+      setCheck({ ok: false, message: result.message ?? 'Key could not be verified.' });
       // "already-loaded" is not a real failure of the key; allow saving anyway.
       return result.reason === 'already-loaded';
     }
