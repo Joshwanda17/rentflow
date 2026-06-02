@@ -558,6 +558,28 @@ export default function HouseDetail() {
               <p className="text-lg font-black text-success leading-tight">{formatUGX(listing.daily_rate)}<span className="text-xs font-medium text-muted-foreground">/day</span></p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={async () => {
+                  const richUrl = listing ? ogShareUrl : shareUrl;
+                  const msg = listing
+                    ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
+                    : richUrl;
+                  try {
+                    await navigator.clipboard.writeText(msg);
+                    setCopied(true);
+                    toast({ title: 'Link copied — opening WhatsApp!', description: 'Paste the link in the chat if it is not pre-filled.' });
+                    setTimeout(() => setCopied(false), 2500);
+                  } catch {
+                    toast({ title: 'Could not copy link', variant: 'destructive' });
+                  }
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                }}
+                className="h-11 px-3 rounded-xl bg-[#25D366] text-white flex items-center gap-1.5 text-xs font-bold active:scale-95 transition-transform touch-manipulation"
+                title="Share on WhatsApp"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Share
+              </button>
               <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
               <button onClick={handleCopyLink}
                 className="h-11 w-11 rounded-xl border border-border bg-card flex items-center justify-center active:scale-95 transition-transform"
