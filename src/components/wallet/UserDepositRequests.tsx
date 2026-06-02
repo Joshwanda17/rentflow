@@ -352,6 +352,19 @@ export function UserDepositRequests() {
                             Edit allocations
                           </Button>
                         )}
+                  {request.provider === 'cash_deposit' && !isAutoCancelledDuplicate(request) && (
+                    <div className="mt-3 pt-3 border-t border-border/60">
+                      <DepositStatusTracker
+                        stage={computeStage(request)}
+                        compact
+                        timestamps={{
+                          pendingAt: request.created_at,
+                          verifiedAt: verifications[request.id]?.verified_at ?? null,
+                          approvedAt: request.status === 'approved' ? request.reviewed_at ?? null : null,
+                        }}
+                      />
+                    </div>
+                  )}
                   <DepositAutoMatchAudit audit={request.auto_match_audit} />
                 </motion.div>
               ))}
