@@ -14,9 +14,11 @@ interface ShareHouseButtonProps {
   shortCode?: string | null;
   /** 'icon' = small icon button, 'full' = full-width button with WhatsApp */
   variant?: 'icon' | 'full';
+  /** 'share' = try native share first (default), 'copy' = copy to clipboard immediately */
+  mode?: 'share' | 'copy';
 }
 
-export function ShareHouseButton({ listingId, title, region, dailyRate, shortCode, variant = 'icon' }: ShareHouseButtonProps) {
+export function ShareHouseButton({ listingId, title, region, dailyRate, shortCode, variant = 'icon', mode = 'share' }: ShareHouseButtonProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
