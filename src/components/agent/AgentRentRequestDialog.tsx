@@ -2589,7 +2589,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </Button>
                     <Button 
                       onClick={handleSubmit} 
-                      className="flex-1 text-white hover:opacity-90" style={{ backgroundColor: '#7C3BED' }}
+                      className="flex-1"
                       disabled={loading || (incomeType !== 'outstanding' && amount <= 0)}
                     >
                       {loading ? (
