@@ -10,6 +10,7 @@ interface HousesMapViewProps {
   listings: HouseListing[];
   userCoords: { lat: number; lng: number } | null;
   onSelectHouse?: (listing: HouseListing) => void;
+  onSwitchToList?: () => void;
 }
 
 const KAMPALA: google.maps.LatLngLiteral = { lat: 0.3476, lng: 32.5825 };
