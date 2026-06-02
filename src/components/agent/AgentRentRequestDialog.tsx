@@ -346,6 +346,27 @@ function formatCurrencyInput(raw: string): string {
   return Number(digits).toLocaleString('en-UG');
 }
 
+/* ===== Automatic input formatting =====
+ * Helpers that clean and space values AS the agent types so valid formats
+ * come out faster on a basic phone keypad. */
+
+/** Keep the National ID state clean (A–Z/0–9, max 14) — no spaces stored. */
+function cleanNationalIdInput(raw: string): string {
+  return raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 14);
+}
+/** Display the National ID in easy-to-read blocks of 4, e.g. CM12 3456 7890 12. */
+function formatNationalIdDisplay(clean: string): string {
+  return (clean.match(/.{1,4}/g) || []).join(' ');
+}
+/** Tidy a person's name while typing: no leading space, single spaces,
+ *  and each word capitalised (e.g. "  john  mukasa" → "John Mukasa"). */
+function formatNameInput(raw: string): string {
+  return raw
+    .replace(/^\s+/, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+}
+
 /* ===== Real-time field validation =====
  * Each validator returns a short, plain-language error string when the value
  * is present but the FORMAT is wrong, or null when it's empty or valid.
@@ -1206,7 +1227,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     try {
       if (t.full_name) setTenantName(t.full_name);
       if (t.phone) setTenantPhone(formatPhoneInput(t.phone));
-      if (t.national_id) setTenantNationalId(t.national_id.replace(/[^a-zA-Z0-9]/g, '').toUpperCase());
+      if (t.national_id) setTenantNationalId(cleanNationalIdInput(t.national_id));
 
       if (t.avatar_url) {
         try {
@@ -2353,7 +2374,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <p className="text-[10px] text-primary/60 italic">e.g. John Mukasa</p>
                         <Input
                           value={tenantName}
-                          onChange={(e) => setTenantName(e.target.value)}
+                          onChange={(e) => setTenantName(formatNameInput(e.target.value))}
                           placeholder="Full name"
                          
                           required
@@ -2915,7 +2936,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Input
                       id="tenantName"
                       value={tenantName}
-                      onChange={(e) => setTenantName(e.target.value)}
+                      onChange={(e) => setTenantName(formatNameInput(e.target.value))}
                       placeholder="Tenant's name"
                      
                       required
@@ -2945,11 +2966,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <p className="text-[10px] text-primary/60 italic">e.g. CM12345678901</p>
                   <Input
                     id="tenantNationalId"
-                    value={tenantNationalId}
-                    onChange={(e) => setTenantNationalId(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
-                    placeholder="e.g. CM12345678901"
-                    className="font-mono uppercase"
-                    maxLength={14}
+                    value={formatNationalIdDisplay(tenantNationalId)}
+                    onChange={(e) => setTenantNationalId(cleanNationalIdInput(e.target.value))}
+                    placeholder="e.g. CM12 3456 7890 12"
+                    className="font-mono uppercase tracking-wider"
+                    inputMode="text"
+                    autoCapitalize="characters"
+                    maxLength={17}
                     required
                   />
                   <FieldError message={vNationalId(tenantNationalId)} />
@@ -3342,7 +3365,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <p className="text-[10px] text-primary/60 italic">e.g. Mr. Ssemwanga</p>
                     <Input
                       value={lc1Name}
-                      onChange={(e) => setLc1Name(e.target.value)}
+                      onChange={(e) => setLc1Name(formatNameInput(e.target.value))}
                       placeholder="LC1 name"
                      
                       required
@@ -3379,7 +3402,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <p className="text-[10px] text-primary/60 italic">e.g. Kira Zone A</p>
                     <Input
                       value={lc1Village}
-                      onChange={(e) => setLc1Village(e.target.value)}
+                      onChange={(e) => setLc1Village(formatNameInput(e.target.value))}
                       placeholder="Village"
                      
                       required
@@ -3400,7 +3423,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <p className="text-[10px] text-primary/60 italic">e.g. Entebbe, Kampala, Jinja</p>
                     <Input
                       value={propertyCity}
-                      onChange={(e) => setPropertyCity(e.target.value)}
+                      onChange={(e) => setPropertyCity(formatNameInput(e.target.value))}
                       placeholder="e.g. Entebbe, Kampala, Jinja"
                       className={`h-10 ${hasFieldError('city') ? 'border-destructive border-2' : ''}`}
                       required
