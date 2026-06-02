@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { MessageSquare, Loader2, Save, RotateCcw, Send } from 'lucide-react';
+import { MessageSquare, Loader2, Save, RotateCcw, Send, History, CheckCircle2, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -30,6 +30,16 @@ const DEFAULTS: MomoSignupSmsTemplate = {
   website: 'welile.com',
   support_email: 'info@welile.com',
 };
+
+interface TestSmsRecord {
+  id: string;
+  phone: string;
+  formattedPhone?: string;
+  message: string;
+  at: string;
+  ok: boolean;
+  response: string;
+}
 
 /** Live preview of the exact SMS body the edge function assembles. */
 export function buildPreview(t: MomoSignupSmsTemplate): string {
