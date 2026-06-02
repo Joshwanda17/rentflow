@@ -332,6 +332,49 @@ function formatCurrencyInput(raw: string): string {
   return Number(digits).toLocaleString('en-UG');
 }
 
+/** Prominent banner that always shows the current request state so the agent
+ *  never wonders whether their tap did anything on a touch device. */
+function RequestStateBanner({ state }: { state: 'idle' | 'submitting' | 'success' | 'error' }) {
+  if (state === 'idle') return null;
+
+  const configs = {
+    submitting: {
+      icon: <Loader2 className="h-5 w-5 animate-spin" />,
+      label: 'In-flight',
+      body: 'Submitting your request — please wait…',
+      classes: 'bg-primary/10 border-primary/30 text-primary',
+      iconBg: 'bg-primary/20',
+    },
+    success: {
+      icon: <CheckCircle2 className="h-5 w-5" />,
+      label: 'Success',
+      body: 'Request posted successfully.',
+      classes: 'bg-success/10 border-success/30 text-success',
+      iconBg: 'bg-success/20',
+    },
+    error: {
+      icon: <AlertTriangle className="h-5 w-5" />,
+      label: 'Failed',
+      body: 'Submission failed — see details below.',
+      classes: 'bg-destructive/10 border-destructive/30 text-destructive',
+      iconBg: 'bg-destructive/20',
+    },
+  };
+
+  const cfg = configs[state];
+  return (
+    <div className={`rounded-xl border p-3 flex items-center gap-3 ${cfg.classes}`} role="status" aria-live="polite">
+      <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${cfg.iconBg}`}>
+        {cfg.icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold">{cfg.label}</p>
+        <p className="text-xs opacity-90 leading-snug">{cfg.body}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId, preselectHouse }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
@@ -350,6 +393,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Synchronous submit lock — blocks duplicate rapid taps on touch devices
   // before React has a chance to re-render and disable the button.
   const submitLockRef = useRef(false);
+  // Visible request-state indicator so the agent always knows what's happening
+  // after they tap Submit or Try again (idle / submitting / success / error).
+  const [requestState, setRequestState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
@@ -1190,6 +1236,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setValidationErrors([]);
     setSubmissionError(null);
     setSuccess(false);
+    setRequestState('idle');
     setActivationLink(null);
     setStep('type');
     setDetailStep(0);
@@ -1462,6 +1509,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     submitLockRef.current = true;
 
     setLoading(true);
+    setRequestState('submitting');
 
     try {
       // Verify session is still valid before submitting
@@ -1816,12 +1864,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       hapticSuccess();
       setSuccess(true);
+      setRequestState('success');
       // Submitted successfully — clear the saved draft progress and landlord mode preference.
       try { localStorage.removeItem(draftStorageKey); } catch { /* ignore */ }
       try { sessionStorage.removeItem(LL_MODE_KEY); } catch { /* ignore */ }
       toast.success(incomeType === 'outstanding' ? 'Tenant registered with outstanding balance!' : 'Rent request posted successfully!');
       onSuccess?.();
     } catch (error: any) {
+      setRequestState('error');
       console.error('Submission error:', error);
       const msg = error.message || 'Failed to submit request';
       const capacityMsg = humanizeCapacityError(msg);
@@ -1874,6 +1924,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             Submit a rent request on behalf of a tenant who doesn't have the app
           </DialogDescription>
         </DialogHeader>
+
+        <RequestStateBanner state={requestState} />
 
         {!isOnline && !success && (
           <div className="flex items-start gap-2 rounded-xl border-2 border-warning/50 bg-warning/10 p-3 text-warning-foreground">
