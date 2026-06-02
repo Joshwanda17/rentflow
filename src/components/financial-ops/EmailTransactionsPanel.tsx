@@ -2350,7 +2350,7 @@ export function EmailTransactionsPanel() {
                 {unrouted.length > 0 ? (
                   <>
                     Unrouted total <strong className="font-mono text-foreground/80">{fmtUgx(unroutedAmt)}</strong>
-                    {' '}· {highConf.length} of them match a user ≥ 75%
+                    {' '}· {highConf.length} of them have a possible recipient
                     {highConf.length > 0 && <> ({fmtUgx(highConfAmt)})</>}.
                     {' '}Until they're routed, no user wallet is reduced for these payouts.
                   </>
@@ -2373,10 +2373,10 @@ export function EmailTransactionsPanel() {
                 className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
                 disabled={autoDebitBusy}
                 onClick={() => setReviewOpen(true)}
-                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) matched to a user ≥ 75%.`}
+                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) with a possible recipient.`}
               >
                 {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                Review {highConf.length} match{highConf.length === 1 ? '' : 'es'} ≥ 75%
+                Review {highConf.length} possible recipient{highConf.length === 1 ? '' : 's'}
               </Button>
             )}
 
