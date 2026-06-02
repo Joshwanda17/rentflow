@@ -2762,6 +2762,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       className="h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl"
                       required
                     />
+                    <FieldError message={vAmount(rentAmount)} />
                     {amount > 0 && (
                       <p className="text-xs font-semibold">
                         {unlimitedPosting ? (
