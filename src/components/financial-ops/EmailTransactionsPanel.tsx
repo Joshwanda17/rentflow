@@ -3240,6 +3240,34 @@ export function EmailTransactionsPanel() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
+                    {/* "Not Matched Yet" details: show which reference signals
+                        are present vs missing so reviewers know what to fix. */}
+                    {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span className="uppercase tracking-wide font-semibold text-orange-600/90">Missing to match:</span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono ${hasMomoTid ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-orange-500/40 bg-orange-500/10 text-orange-700'}`}
+                          title={hasMomoTid ? `MoMo TID present: ${normTidForRow}` : 'No MoMo transaction ID parsed from this email'}
+                        >
+                          {hasMomoTid ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          MoMo TID
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono ${hasReceiptCode ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-orange-500/40 bg-orange-500/10 text-orange-700'}`}
+                          title={hasReceiptCode ? `Receipt code present: ${receiptCodeForRow}` : 'No cash receipt code found in this email'}
+                        >
+                          {hasReceiptCode ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          Receipt code
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 ${hasUserMatch ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-orange-500/40 bg-orange-500/10 text-orange-700'}`}
+                          title={hasUserMatch ? 'A depositing user was matched' : 'No depositing user matched'}
+                        >
+                          {hasUserMatch ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          Depositing user
+                        </span>
+                      </div>
+                    )}
                     {isCredited && (
                       <div className="mt-1.5 space-y-1">
                         {credited.map((c, i) => (
