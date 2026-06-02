@@ -1397,10 +1397,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
 
   const handleSubmit = async () => {
-    // Synchronous duplicate-tap guard — refs update instantly, unlike React state.
-    if (submitLockRef.current) return;
-    submitLockRef.current = true;
-
     setSubmissionError(null);
 
     if (!user) {
