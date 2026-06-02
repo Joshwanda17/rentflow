@@ -45,6 +45,21 @@ export function MapKeySettingsCard() {
 
   const reset = () => { setCheck(null); setShowPreview(false); };
 
+  // Once a key tests successfully, validateGoogleMapsKey has loaded the Maps JS
+  // API onto the page, so we can render a real map to visually confirm it works.
+  useEffect(() => {
+    if (!showPreview || !mapRef.current) return;
+    const g = (window as unknown as { google?: typeof google }).google;
+    if (!g?.maps) return;
+    const map = new g.maps.Map(mapRef.current, {
+      center: { lat: 0.3476, lng: 32.5825 }, // Kampala, UGX base market
+      zoom: 12,
+      disableDefaultUI: true,
+      gestureHandling: 'cooperative',
+    });
+    new g.maps.Marker({ position: { lat: 0.3476, lng: 32.5825 }, map });
+  }, [showPreview]);
+
   const test = async (): Promise<boolean> => {
     const trimmed = value.trim();
     // Allow clearing the key (revert to default) without a live test.
