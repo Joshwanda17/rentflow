@@ -2019,11 +2019,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md max-h-[88vh] overflow-x-hidden overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+96px)] sm:pb-6 overscroll-contain">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Post Rent Request (For Tenant)
+          <DialogTitle className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <FileText className="h-5 w-5" />
+            </span>
+            <span className="text-lg font-bold tracking-tight">Post Rent Request</span>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Submit a rent request on behalf of a tenant who doesn't have the app
           </DialogDescription>
         </DialogHeader>
@@ -2208,69 +2210,80 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             >
               {/* Guided wizard progress (standard flow only) */}
               {incomeType !== 'outstanding' && (
-                <div className="space-y-3 select-none">
-                  {/* Step icon strip — big tappable circles so agents can skim where they are */}
-                  <div className="flex items-center gap-1.5">
+                <div className="space-y-4 select-none">
+                  {/* Clean step rail — one refined icon per step, joined by a thin track */}
+                  <div className="flex items-start">
                     {DETAIL_STEP_META.map((meta, idx) => {
                       const Icon = meta.icon;
                       const isDone = idx < detailStep;
                       const isActive = idx === detailStep;
+                      const reachable = idx <= detailStep;
                       return (
-                        <div key={meta.label} className="flex items-center flex-1 min-w-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              // Allow jumping back to earlier steps, but not forward past unvisited steps
-                              if (idx <= detailStep) {
-                                setDetailStep(idx);
-                                scrollDialogTop();
-                              }
-                            }}
-                            className={`
-                              relative flex flex-col items-center justify-center gap-1 w-full min-w-0
-                              rounded-xl px-1 py-2.5 transition-all active:scale-[0.96]
-                              ${isActive
-                                ? 'bg-primary text-primary-foreground shadow-md'
-                                : isDone
-                                ? 'bg-success/15 text-success border border-success/30'
-                                : 'bg-muted/60 text-muted-foreground border border-transparent'}
-                              ${idx <= detailStep ? 'cursor-pointer' : 'cursor-default opacity-60'}
-                            `}
-                            aria-current={isActive ? 'step' : undefined}
-                            aria-label={`${meta.emoji} ${meta.label}${isActive ? ' — current step' : isDone ? ' — completed' : ''}`}
-                          >
-                            <span className="text-lg leading-none" aria-hidden="true">{meta.emoji}</span>
-                            <Icon className={`h-5 w-5 ${isActive ? 'text-primary-foreground' : isDone ? 'text-success' : 'text-muted-foreground'}`} aria-hidden="true" />
-                            <span className={`text-[10px] font-bold leading-none truncate w-full text-center ${isActive ? 'text-primary-foreground' : isDone ? 'text-success' : 'text-muted-foreground'}`}>
-                              {meta.label}
-                            </span>
-                            {isDone && (
-                              <span className="absolute top-0.5 right-0.5 text-[10px] leading-none">✓</span>
-                            )}
-                          </button>
-                          {idx < DETAIL_STEP_META.length - 1 && (
-                            <div className={`h-0.5 w-3 shrink-0 ${isDone ? 'bg-success/40' : 'bg-muted'}`} aria-hidden="true" />
-                          )}
+                        <div key={meta.label} className="flex flex-col items-center flex-1 min-w-0">
+                          <div className="flex w-full items-center">
+                            {/* left connector */}
+                            <span
+                              aria-hidden="true"
+                              className={`h-0.5 flex-1 rounded-full ${idx === 0 ? 'opacity-0' : isDone || isActive ? 'bg-primary' : 'bg-border'}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (reachable) {
+                                  setDetailStep(idx);
+                                  scrollDialogTop();
+                                }
+                              }}
+                              className={`
+                                relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full
+                                transition-all active:scale-[0.94]
+                                ${isActive
+                                  ? 'bg-primary text-primary-foreground ring-4 ring-primary/15 shadow-sm'
+                                  : isDone
+                                  ? 'bg-primary/10 text-primary'
+                                  : 'bg-muted text-muted-foreground/70'}
+                                ${reachable ? 'cursor-pointer' : 'cursor-default'}
+                              `}
+                              aria-current={isActive ? 'step' : undefined}
+                              aria-label={`${meta.label}${isActive ? ' — current step' : isDone ? ' — completed' : ''}`}
+                            >
+                              {isDone
+                                ? <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                                : <Icon className="h-5 w-5" aria-hidden="true" />}
+                            </button>
+                            {/* right connector */}
+                            <span
+                              aria-hidden="true"
+                              className={`h-0.5 flex-1 rounded-full ${idx === DETAIL_STEP_META.length - 1 ? 'opacity-0' : isDone ? 'bg-primary' : 'bg-border'}`}
+                            />
+                          </div>
+                          <span className={`mt-1.5 text-[10px] font-semibold uppercase tracking-wide truncate w-full text-center ${isActive ? 'text-primary' : isDone ? 'text-foreground' : 'text-muted-foreground/70'}`}>
+                            {meta.label}
+                          </span>
                         </div>
                       );
                     })}
                   </div>
 
-                  {/* Big bold step label for the current step */}
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-base font-extrabold">
-                      <span className="text-primary">{DETAIL_STEP_META[detailStep].emoji}</span>{' '}
-                      Step {detailStep + 1} of {DETAIL_STEPS.length}: {DETAIL_STEPS[detailStep]}
-                    </p>
+                  {/* Step heading + percent */}
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Step {detailStep + 1} of {DETAIL_STEPS.length}
+                      </p>
+                      <h3 className="text-xl font-bold tracking-tight text-foreground truncate">
+                        {DETAIL_STEPS[detailStep]}
+                      </h3>
+                    </div>
                     <span className="text-sm font-bold text-primary whitespace-nowrap">
                       {Math.round(((detailStep + 1) / DETAIL_STEPS.length) * 100)}%
                     </span>
                   </div>
 
-                  {/* Thicker progress bar for better visibility on small screens */}
-                  <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+                  {/* Slim progress bar */}
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full bg-primary transition-all rounded-full"
+                      className="h-full bg-primary transition-all duration-500 rounded-full"
                       style={{ width: `${((detailStep + 1) / DETAIL_STEPS.length) * 100}%` }}
                     />
                   </div>
@@ -2319,15 +2332,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               {incomeType === 'outstanding' ? (
                 <>
                   {/* Warning banner */}
-                  <div className="p-3 rounded-xl border" style={{ backgroundColor: 'rgba(124, 59, 237, 0.12)', borderColor: 'rgba(124, 59, 237, 0.3)' }}>
-                    <p className="text-xs font-medium" style={{ color: '#7C3BED' }}>
+                  <div className="p-3 rounded-xl border border-primary/20 bg-primary/5">
+                    <p className="text-xs font-medium text-primary">
                       ⚠️ Outstanding balance is stored exactly as typed — no access fee, no platform fee, no recalculation. Tenant goes live in your Owing tab immediately (no approval).
                     </p>
                   </div>
 
                   {/* 🏠 Select Landlord (debounced search) */}
-                  <div className="space-y-3 p-4 rounded-2xl border-4" style={{ backgroundColor: 'rgba(124, 59, 237, 0.06)', borderColor: 'rgba(124, 59, 237, 0.25)' }}>
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <div className="space-y-3 p-4 rounded-2xl border border-border/60 bg-muted/30">
+                    <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
                       <Building2 className="h-4 w-4 text-primary" />
                       🏠 Select Landlord
                     </h4>
@@ -2362,8 +2375,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
 
                   {/* 👤 Tenant Personal Information */}
-                  <div className="space-y-3 p-4 rounded-2xl bg-muted/40 border-4 border-primary">
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <div className="space-y-3 p-4 rounded-2xl border border-border/60 bg-muted/30">
+                    <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
                       <User className="h-4 w-4 text-primary" />
                       👤 Personal Information
                     </h4>
@@ -2371,7 +2384,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <div className="space-y-1">
                         <Label >Tenant Name *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">The tenant's name as on their ID.</p>
-                        <p className="text-[10px] text-primary/60 italic">e.g. John Mukasa</p>
+                        <p className="text-[11px] text-muted-foreground">e.g. John Mukasa</p>
                         <Input
                           value={tenantName}
                           onChange={(e) => setTenantName(formatNameInput(e.target.value))}
@@ -2384,7 +2397,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <div className="space-y-1">
                         <Label >Tenant Phone *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">The number they answer calls on.</p>
-                        <p className="text-[10px] text-primary/60 italic">e.g. 0783 123 456</p>
+                        <p className="text-[11px] text-muted-foreground">e.g. 0783 123 456</p>
                         <Input
                           value={tenantPhone}
                           onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
@@ -2400,7 +2413,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="space-y-1">
                       <Label >Preferred Language *</Label>
                       <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
-                      <p className="text-[10px] text-primary/60 italic">e.g. Luganda</p>
+                      <p className="text-[11px] text-muted-foreground">e.g. Luganda</p>
                       <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select tenant language" />
@@ -2415,8 +2428,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
 
                   {/* 💰 Rent Information */}
-                  <div className="space-y-3 p-4 rounded-2xl border-4" style={{ backgroundColor: 'rgba(124, 59, 237, 0.06)', borderColor: 'rgba(124, 59, 237, 0.25)' }}>
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <div className="space-y-3 p-4 rounded-2xl border border-border/60 bg-muted/30">
+                    <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
                       <Banknote className="h-4 w-4 text-primary" />
                       💰 Rent Information
                     </h4>
@@ -2425,7 +2438,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <div className="space-y-1">
                         <Label className="font-semibold">Rent Amount (UGX) *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">The full monthly rent for this house.</p>
-                        <p className="text-[10px] text-primary/60 italic">e.g. 300,000 UGX per month</p>
+                        <p className="text-[11px] text-muted-foreground">e.g. 300,000 UGX per month</p>
                         <Input
                           value={formatCurrencyInput(outstandingRentAmount)}
                           onChange={(e) => setOutstandingRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
@@ -2438,7 +2451,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <div className="space-y-1">
                         <Label className="font-semibold">Repayment Duration *</Label>
                         <p className="text-xs text-muted-foreground leading-snug">How many days the tenant has to pay it back.</p>
-                        <p className="text-[10px] text-primary/60 italic">e.g. 30 days</p>
+                        <p className="text-[11px] text-muted-foreground">e.g. 30 days</p>
                         <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
                           <SelectTrigger>
                             <SelectValue />
@@ -2455,12 +2468,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="space-y-1">
                       <Label className="font-semibold">Outstanding Balance (UGX) *</Label>
                       <p className="text-xs text-muted-foreground leading-snug">How much rent the tenant still owes right now.</p>
-                        <p className="text-[10px] text-primary/60 italic">e.g. 150,000 UGX</p>
+                        <p className="text-[11px] text-muted-foreground">e.g. 150,000 UGX</p>
                       <Input
                         value={formatCurrencyInput(outstandingBalance)}
                         onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="Enter amount"
-                        className="h-12 text-lg font-bold border-2 rounded-xl focus:ring-0" style={{ borderColor: 'rgba(124, 59, 237, 0.4)' }} onFocus={(e) => e.currentTarget.style.borderColor = '#7C3BED'} onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(124, 59, 237, 0.4)'}
+                        className="h-12 text-lg font-bold rounded-xl border-input focus-visible:border-primary"
                         required
                       />
                       <FieldError message={vAmount(outstandingBalance)} />
@@ -2576,7 +2589,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </Button>
                     <Button 
                       onClick={handleSubmit} 
-                      className="flex-1 text-white hover:opacity-90" style={{ backgroundColor: '#7C3BED' }}
+                      className="flex-1"
                       disabled={loading || (incomeType !== 'outstanding' && amount <= 0)}
                     >
                       {loading ? (
@@ -2932,7 +2945,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label htmlFor="tenantName" >Full Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">Write the tenant's name as it is on their ID.</p>
-                    <p className="text-[10px] text-primary/60 italic">e.g. Sarah Nalwoga</p>
+                    <p className="text-[11px] text-muted-foreground">e.g. Sarah Nalwoga</p>
                     <Input
                       id="tenantName"
                       value={tenantName}
@@ -2946,7 +2959,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" >Phone *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The number they answer calls on.</p>
-                        <p className="text-[10px] text-primary/60 italic">e.g. 0783 123 456</p>
+                        <p className="text-[11px] text-muted-foreground">e.g. 0783 123 456</p>
                     <Input
                       id="tenantPhone"
                       value={tenantPhone}
@@ -2963,7 +2976,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <div className="space-y-1">
                   <Label htmlFor="tenantNationalId" >National ID *</Label>
                   <p className="text-xs text-muted-foreground leading-snug">Copy the long number from their national ID card.</p>
-                  <p className="text-[10px] text-primary/60 italic">e.g. CM12345678901</p>
+                  <p className="text-[11px] text-muted-foreground">e.g. CM12345678901</p>
                   <Input
                     id="tenantNationalId"
                     value={formatNationalIdDisplay(tenantNationalId)}
@@ -2981,7 +2994,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <div className="space-y-1">
                   <Label >Preferred Language *</Label>
                   <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
-                      <p className="text-[10px] text-primary/60 italic">e.g. Luganda</p>
+                      <p className="text-[11px] text-muted-foreground">e.g. Luganda</p>
                   <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select tenant language" />
@@ -3006,7 +3019,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   House Category *
                 </h4>
                 <p className="text-xs text-muted-foreground leading-snug">Pick what kind of house this is (single room, two rooms, etc.).</p>
-                <p className="text-[10px] text-primary/60 italic">e.g. Single Room</p>
+                <p className="text-[11px] text-muted-foreground">e.g. Single Room</p>
                 <Select value={houseCategory} onValueChange={setHouseCategory}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select house type" />
@@ -3208,7 +3221,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <MapPin className="h-4 w-4 text-primary" /> Where is the house?
                   </Label>
                   <p className="text-xs text-muted-foreground leading-snug">The village, road or area people use to find it.</p>
-                  <p className="text-[10px] text-primary/60 italic">e.g. Kira Town, near Total petrol station</p>
+                  <p className="text-[11px] text-muted-foreground">e.g. Kira Town, near Total petrol station</p>
                   <Input
                     value={propertyAddress}
                     onChange={(e) => setPropertyAddress(e.target.value)}
@@ -3362,7 +3375,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label >Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The local council (LC1) chairperson for that area.</p>
-                    <p className="text-[10px] text-primary/60 italic">e.g. Mr. Ssemwanga</p>
+                    <p className="text-[11px] text-muted-foreground">e.g. Mr. Ssemwanga</p>
                     <Input
                       value={lc1Name}
                       onChange={(e) => setLc1Name(formatNameInput(e.target.value))}
@@ -3375,7 +3388,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label >Phone *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">A number that can confirm the tenant lives there.</p>
-                    <p className="text-[10px] text-primary/60 italic">e.g. 0701 987 654</p>
+                    <p className="text-[11px] text-muted-foreground">e.g. 0701 987 654</p>
                     <Input
                       value={lc1Phone}
                       onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
@@ -3399,7 +3412,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label >Village *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The village or zone the LC1 looks after.</p>
-                    <p className="text-[10px] text-primary/60 italic">e.g. Kira Zone A</p>
+                    <p className="text-[11px] text-muted-foreground">e.g. Kira Zone A</p>
                     <Input
                       value={lc1Village}
                       onChange={(e) => setLc1Village(formatNameInput(e.target.value))}
@@ -3420,7 +3433,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <MapPin className="h-3 w-3" /> Town / City *
                     </Label>
                     <p className="text-xs text-muted-foreground leading-snug">The town or city where the house is.</p>
-                    <p className="text-[10px] text-primary/60 italic">e.g. Entebbe, Kampala, Jinja</p>
+                    <p className="text-[11px] text-muted-foreground">e.g. Entebbe, Kampala, Jinja</p>
                     <Input
                       value={propertyCity}
                       onChange={(e) => setPropertyCity(formatNameInput(e.target.value))}
@@ -3433,7 +3446,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label >District</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The district the house is in, like Wakiso.</p>
-                    <p className="text-[10px] text-primary/60 italic">e.g. Wakiso</p>
+                    <p className="text-[11px] text-muted-foreground">e.g. Wakiso</p>
                     <Input
                       value={propertyDistrict}
                       onChange={(e) => setPropertyDistrict(e.target.value)}
