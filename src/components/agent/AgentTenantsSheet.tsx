@@ -373,6 +373,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
   const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
   const [behaviorData, setBehaviorData] = useState<any>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
+  const [profileAutoEdit, setProfileAutoEdit] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
   const [recentProperties, setRecentProperties] = useState<string[]>(() => loadRecentProperties());
@@ -605,7 +606,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
 
   useEffect(() => {
     if (open && user) fetchTenants();
-    if (!open) { setExpandedTenantId(null); setProfileTenantId(null); }
+    if (!open) { setExpandedTenantId(null); setProfileTenantId(null); setProfileAutoEdit(false); }
   }, [open, user]);
 
   // Persist search / status tab / risk chip / property / sort / recent / grouping
@@ -1282,7 +1283,11 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
         className={`${view === 'pipeline' && !profileTenantId ? 'h-screen max-h-screen rounded-none' : 'h-[92vh] rounded-t-3xl'} flex flex-col p-0 gap-0 overflow-y-auto`}
       >
         {profileTenantId ? (
-          <TenantProfileView tenantId={profileTenantId} onBack={() => setProfileTenantId(null)} />
+          <TenantProfileView
+            tenantId={profileTenantId}
+            autoEdit={profileAutoEdit}
+            onBack={() => { setProfileTenantId(null); setProfileAutoEdit(false); }}
+          />
         ) : view === 'pipeline' ? (
           /* Full-screen Submissions takeover — covers the entire screen
              until the agent deliberately taps Back. */
@@ -2531,10 +2536,10 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
+                          onClick={(e) => { e.stopPropagation(); setProfileAutoEdit(true); setProfileTenantId(tenant.id); }}
                           className="h-11 gap-1.5 rounded-lg text-sm font-bold border-2 border-primary/40 text-primary hover:bg-primary/10"
                         >
-                          <Eye className="h-4 w-4" />
+                          <SlidersHorizontal className="h-4 w-4" />
                           Edit
                         </Button>
                         <Button

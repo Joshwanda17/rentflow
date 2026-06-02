@@ -40,6 +40,7 @@ import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 interface TenantProfileViewProps {
   tenantId: string;
   onBack: () => void;
+  autoEdit?: boolean;
 }
 
 interface TenantProfile {
@@ -157,7 +158,7 @@ function Stat({
 
 /* ---------- Main component ---------- */
 
-export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) {
+export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const { floatBalance: agentFloatBalance, isLoading: floatLoading, error: floatError, refetch: refetchFloat } = useAgentLandlordFloat(user?.id);
@@ -222,6 +223,14 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     refetchFloat();
     loadLastAllocation();
   }, [tenantId, user?.id]);
+
+  // When opened in "edit" mode (e.g. the prominent Edit button on a tenant
+  // card), pop the edit dialog as soon as the profile has loaded.
+  useEffect(() => {
+    if (autoEdit && profile && !loading) {
+      setEditDialogOpen(true);
+    }
+  }, [autoEdit, profile, loading]);
 
   const loadFullProfile = async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
