@@ -121,12 +121,14 @@ Deno.serve(async (req) => {
           {
             user_id: target_user_id, amount, direction: "cash_out",
             category: "wallet_deduction", ledger_scope: "wallet",
+            wallet_bucket: "withdrawable", recipient_type: "user",
             description: `Ops correction: move from Withdrawable to Float (${reason})`,
             currency: "UGX", reference_id: ref, transaction_date: nowIso,
           },
           {
             user_id: target_user_id, amount, direction: "cash_in",
             category: "agent_float_deposit", ledger_scope: "wallet",
+            wallet_bucket: "float", recipient_type: "operational_wallet",
             description: `Ops correction: credit Operational Float (${reason})`,
             currency: "UGX", reference_id: ref, transaction_date: nowIso,
           },
@@ -135,12 +137,14 @@ Deno.serve(async (req) => {
           {
             user_id: target_user_id, amount, direction: "cash_out",
             category: "agent_float_deposit", ledger_scope: "wallet",
+            wallet_bucket: "float", recipient_type: "operational_wallet",
             description: `Ops correction: debit Operational Float (${reason})`,
             currency: "UGX", reference_id: ref, transaction_date: nowIso,
           },
           {
             user_id: target_user_id, amount, direction: "cash_in",
             category: "wallet_transfer", ledger_scope: "wallet",
+            wallet_bucket: "withdrawable", recipient_type: "user",
             description: `Ops correction: credit Withdrawable from Float (${reason})`,
             currency: "UGX", reference_id: ref, transaction_date: nowIso,
           },
