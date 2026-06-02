@@ -2,8 +2,8 @@
 // verifier (weliletenants@gmail.com) read back to them after receiving the
 // cash. We hash the entered code, compare it to the stored hash, enforce
 // expiry + attempt limits, and on a match auto-credit the wallet via
-// approve-deposit (system_auto_credit) and email the depositor a confirmation
-// with the verified amount and their updated balance (existing Gmail).
+// approve-deposit (system_auto_credit) and SMS the depositor a confirmation
+// with the verified amount and their updated balance (Africa's Talking).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   evaluateAttempt,
@@ -17,40 +17,57 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const GMAIL_GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1";
-
-function b64url(input: string): string {
-  return btoa(unescape(encodeURIComponent(input)))
-    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+// Normalize a Ugandan phone number to E.164 (+256…).
+function formatPhoneInternational(phone: string): string {
+  const digits = (phone ?? "").replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return `+${digits}`;
 }
 
-async function sendGmail(to: string, subject: string, body: string) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const GOOGLE_MAIL_API_KEY = Deno.env.get("GOOGLE_MAIL_API_KEY");
-  if (!LOVABLE_API_KEY || !GOOGLE_MAIL_API_KEY) {
-    throw new Error("Gmail is not configured");
+// Send a confirmation SMS via Africa's Talking. Returns true on success.
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) {
+    console.error("[cash-verify-code] Missing AT credentials");
+    return false;
   }
-  const raw = b64url(
-    [
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      'Content-Type: text/plain; charset="UTF-8"',
-      "",
-      body,
-    ].join("\r\n"),
-  );
-  const res = await fetch(`${GMAIL_GATEWAY}/users/me/messages/send`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": GOOGLE_MAIL_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ raw }),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`Gmail send failed [${res.status}]: ${t}`);
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  const formattedPhone = formatPhoneInternational(phone);
+  if (!formattedPhone) return false;
+  try {
+    const body = new URLSearchParams({
+      username,
+      to: formattedPhone,
+      message,
+      from: "WELILE",
+    });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        apiKey,
+        Accept: "application/json",
+      },
+      body: body.toString(),
+    });
+    const rawText = await res.text();
+    let data: any;
+    try { data = JSON.parse(rawText); } catch {
+      console.error(`[cash-verify-code] Non-JSON AT response: ${rawText}`);
+      return false;
+    }
+    const recipients = data?.SMSMessageData?.Recipients || [];
+    return recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+  } catch (err) {
+    console.error("[cash-verify-code] SMS error:", err);
+    return false;
   }
 }
 
