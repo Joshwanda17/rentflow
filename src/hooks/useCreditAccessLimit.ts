@@ -210,6 +210,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
           bonusFromAgentAllocations: Number((data as any).bonus_from_agent_allocations) || 0,
         };
         setLimit(parsed);
+        hasLoadedOnce.current = true;
         limitCache.set(userId, { data: parsed, timestamp: Date.now() });
         saveToLS(userId, parsed);
       }
