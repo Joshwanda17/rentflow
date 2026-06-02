@@ -2344,9 +2344,6 @@ export function EmailTransactionsPanel() {
             setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
           }
           setAutoDebitBusy(false);
-          // Refresh routing history so every debited row immediately shows the
-          // "auto-debited" badge without a manual reload.
-          try { await loadRoutingHistory(); } catch { /* ignore */ }
           toast({
             title: `Auto-debit complete`,
             description: `${okCount} succeeded, ${failCount} skipped/failed of ${highConf.length}. Skips usually mean the matched user has 0 withdrawable balance — see console for details.`,
