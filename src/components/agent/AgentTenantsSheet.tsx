@@ -1283,7 +1283,11 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
         className={`${view === 'pipeline' && !profileTenantId ? 'h-screen max-h-screen rounded-none' : 'h-[92vh] rounded-t-3xl'} flex flex-col p-0 gap-0 overflow-y-auto`}
       >
         {profileTenantId ? (
-          <TenantProfileView tenantId={profileTenantId} onBack={() => setProfileTenantId(null)} />
+          <TenantProfileView
+            tenantId={profileTenantId}
+            autoEdit={profileAutoEdit}
+            onBack={() => { setProfileTenantId(null); setProfileAutoEdit(false); }}
+          />
         ) : view === 'pipeline' ? (
           /* Full-screen Submissions takeover — covers the entire screen
              until the agent deliberately taps Back. */
