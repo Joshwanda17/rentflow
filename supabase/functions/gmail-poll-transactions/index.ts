@@ -410,6 +410,75 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // ── Reparse mode: re-run parseTransaction over the STORED raw email
+    // text for rows that previously failed to parse (parsed=false) or that
+    // are missing an amount. Backfills rows ingested before a parser fix —
+    // e.g. the "<AMOUNT> UGX was sent to" bank-payout shape that older
+    // parser builds left with amount=null / parsed=false, making them
+    // invisible to totals and the auto-debit engine. Safe to re-run.
+    let reparse = url.searchParams.get('reparse') === '1';
+    let reparseLimit = Number(url.searchParams.get('limit') ?? '500');
+    if (!reparse) {
+      try {
+        const body = await req.clone().json();
+        if (body?.reparse === true || body?.reparse === 1) reparse = true;
+        if (body?.limit) reparseLimit = Number(body.limit);
+      } catch { /* no body */ }
+    }
+    if (reparse) {
+      const { data: rows, error: rowsErr } = await supabase
+        .from('gmail_transactions')
+        .select('id, subject, snippet, raw_body, amount, transaction_id, direction, channel, counterparty, fee, balance, parsed')
+        .or('parsed.eq.false,amount.is.null')
+        .order('internal_date', { ascending: false })
+        .limit(Math.max(1, Math.min(2000, reparseLimit)));
+      if (rowsErr) {
+        return new Response(JSON.stringify({ ok: false, error: rowsErr.message }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      let updated = 0; let unchanged = 0;
+      const report: any[] = [];
+      for (const r of rows ?? []) {
+        const combined = `${(r as any).subject ?? ''}\n${(r as any).snippet ?? ''}\n${(r as any).raw_body ?? ''}`;
+        const p = parseTransaction(combined);
+        const newAmount = p.amount ?? (r as any).amount ?? null;
+        const newTid = p.transaction_id ?? (r as any).transaction_id ?? null;
+        const newDirection = p.direction ?? (r as any).direction ?? null;
+        const newChannel = p.channel ?? (r as any).channel ?? null;
+        const newCounterparty = p.counterparty ?? (r as any).counterparty ?? null;
+        const newFee = p.fee ?? (r as any).fee ?? null;
+        const newBalance = p.balance ?? (r as any).balance ?? null;
+        const isParsed = !!(newAmount || newTid);
+        const changed = newAmount !== (r as any).amount
+          || newTid !== (r as any).transaction_id
+          || isParsed !== (r as any).parsed;
+        if (!changed) { unchanged += 1; continue; }
+        const { error: upErr } = await supabase
+          .from('gmail_transactions')
+          .update({
+            amount: newAmount,
+            transaction_id: newTid,
+            direction: newDirection,
+            channel: newChannel,
+            counterparty: newCounterparty,
+            fee: newFee,
+            balance: newBalance,
+            parsed: isParsed,
+          })
+          .eq('id', (r as any).id);
+        if (upErr) {
+          report.push({ id: (r as any).id, error: upErr.message });
+          continue;
+        }
+        updated += 1;
+        report.push({ id: (r as any).id, amount: newAmount, tid: newTid, direction: newDirection, parsed: isParsed });
+      }
+      return new Response(JSON.stringify({
+        ok: true, mode: 'reparse', scanned: rows?.length ?? 0, updated, unchanged, report,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const { data: state } = await supabase
       .from('gmail_poll_state').select('*').eq('id', 1).maybeSingle();
     const lastMs: number = Number(state?.last_internal_date_ms ?? 0);
