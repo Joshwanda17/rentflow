@@ -2412,6 +2412,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                          
                           required
                         />
+                        <FieldError message={vAmount(outstandingRentAmount)} />
                       </div>
                       <div className="space-y-1">
                         <Label className="font-semibold">Repayment Duration *</Label>
@@ -2441,6 +2442,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         className="h-12 text-lg font-bold border-2 rounded-xl focus:ring-0" style={{ borderColor: 'rgba(124, 59, 237, 0.4)' }} onFocus={(e) => e.currentTarget.style.borderColor = '#7C3BED'} onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(124, 59, 237, 0.4)'}
                         required
                       />
+                      <FieldError message={vAmount(outstandingBalance)} />
                       {amount > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Daily repayment: <span className="font-semibold">{formatUGX(Math.ceil(amount / parseInt(duration)))}/day</span> for {duration} days
@@ -2460,6 +2462,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                        
                         required
                       />
+                      <FieldError message={vDays(outstandingDaysRemaining)} />
                     </div>
 
                     <div className="space-y-1">
