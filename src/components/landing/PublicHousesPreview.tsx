@@ -97,10 +97,13 @@ export function PublicHousesPreview() {
       ) : (
         <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 scrollbar-hide snap-x snap-mandatory">
           {houses.map(house => (
-            <button
+            <div
               key={house.id}
+              role="button"
+              tabIndex={0}
               onClick={goExplore}
-              className="shrink-0 w-44 snap-start text-left rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all touch-manipulation"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') goExplore(); }}
+              className="shrink-0 w-44 snap-start text-left rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all touch-manipulation cursor-pointer"
             >
               <div className="relative w-full h-28 bg-muted">
                 {house.image_urls?.[0] ? (
@@ -146,7 +149,7 @@ export function PublicHousesPreview() {
                 </p>
                 <MoveInOfferBadge className="mt-1" />
               </div>
-            </button>
+            </div>
           ))}
 
           <button
