@@ -272,14 +272,29 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
   y += 4;
 
   // ─── Repayment transactions ───
-  if (data.transactions.length > 0) {
+  const fromMs = data.periodFrom ? new Date(data.periodFrom).getTime() : null;
+  const toMs = data.periodTo ? new Date(data.periodTo + 'T23:59:59').getTime() : null;
+  const txns = data.transactions.filter((t) => {
+    const ms = new Date(t.date).getTime();
+    if (fromMs !== null && ms < fromMs) return false;
+    if (toMs !== null && ms > toMs) return false;
+    return true;
+  });
+  const periodRepaid = txns.reduce((s, t) => s + Number(t.amount || 0), 0);
+  if (txns.length > 0) {
     ensureSpace(24);
     pdf.setFillColor(241, 245, 249);
     pdf.roundedRect(margin, y - 4, cw, 8, 2, 2, 'F');
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(51, 65, 85);
-    pdf.text('REPAYMENT TRANSACTIONS', margin + 3, y + 1);
+    pdf.text(
+      data.periodFrom || data.periodTo
+        ? 'REPAYMENT TRANSACTIONS (IN PERIOD)'
+        : 'REPAYMENT TRANSACTIONS',
+      margin + 3,
+      y + 1,
+    );
     y += 9;
 
     pdf.setFontSize(8);
@@ -294,7 +309,7 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
     pdf.line(margin, y, pw - margin, y);
     y += 4;
 
-    data.transactions.forEach((t, i) => {
+    txns.forEach((t, i) => {
       ensureSpace(14);
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'normal');
@@ -306,6 +321,35 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
       pdf.text(formatUGX(t.amount), pw - margin - 3, y, { align: 'right' });
       y += 5;
     });
+
+    // Period subtotal
+    ensureSpace(12);
+    y += 1;
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setLineWidth(0.3);
+    pdf.line(margin, y, pw - margin, y);
+    y += 5;
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Collected in period (${txns.length} payment${txns.length === 1 ? '' : 's'})`, margin + 3, y);
+    pdf.setTextColor(34, 197, 94);
+    pdf.text(formatUGX(periodRepaid), pw - margin - 3, y, { align: 'right' });
+    y += 6;
+  } else if (data.periodFrom || data.periodTo) {
+    ensureSpace(16);
+    pdf.setFillColor(241, 245, 249);
+    pdf.roundedRect(margin, y - 4, cw, 8, 2, 2, 'F');
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(51, 65, 85);
+    pdf.text('REPAYMENT TRANSACTIONS (IN PERIOD)', margin + 3, y + 1);
+    y += 10;
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text('No repayments recorded in the selected period.', margin + 3, y);
+    y += 6;
   }
 
   // ─── Footer on every page ───
