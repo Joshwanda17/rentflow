@@ -2902,6 +2902,16 @@ export function EmailTransactionsPanel() {
                 // "Already Credited — No Routing Needed" status.
                 const matchedByTid = credited.some((c) => c.matched_by_tid);
                 const matchedTid = credited.find((c) => c.matched_tid)?.matched_tid ?? null;
+                // ── "Not Matched Yet" diagnostics ─────────────────────────
+                // For an incoming deposit email that hasn't been credited or
+                // routed, surface WHY it can't auto-map to a wallet: which of
+                // the two reference signals (MoMo TID vs cash receipt code) the
+                // email carries, and whether a depositing user was matched.
+                const normTidForRow = normalizeMomoTid(r.transaction_id ?? '');
+                const hasMomoTid = normTidForRow.length >= 6;
+                const receiptCodeForRow = extractCashReceiptCode(r);
+                const hasReceiptCode = !!receiptCodeForRow;
+                const hasUserMatch = (userMatches[r.id]?.length ?? 0) > 0;
                 // ── Insufficient-funds warning for outgoing payouts ───────
                 // When an outgoing email (sent / charge) is matched to a
                 // user wallet whose current balance cannot cover the payout
