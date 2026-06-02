@@ -56,7 +56,8 @@ import {
   Phone,
   Search,
   UserPlus,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
