@@ -260,10 +260,12 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
 export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesSheetProps) {
   const geo = useGeolocation(true);
   const announceMap = useMapLinkAnnouncer();
+  const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
+  const [view, setView] = useState<'list' | 'map'>('list');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
