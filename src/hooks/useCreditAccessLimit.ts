@@ -137,7 +137,10 @@ export function useCreditAccessLimit(userId: string | undefined) {
       return existing?.data ?? persisted ?? undefined;
     }
 
-    setLoading(true);
+    // Only show the skeleton on a genuine cold load. If we already have
+    // ANY value rendered, refresh silently in the background — flipping to
+    // the skeleton on every background refresh is what made the card blink.
+    if (!existing && !persisted) setLoading(true);
     try {
       // Recalculate and fetch in one go
       await supabase.rpc('recalculate_credit_limit', { p_user_id: userId });
@@ -169,6 +172,40 @@ export function useCreditAccessLimit(userId: string | undefined) {
       console.error('[useCreditAccessLimit] Error:', err);
     } finally {
       setLoading(false);
+    }
+  }, [userId]);
+
+  // Read-only fetch (NO recalculate). Used by realtime / refresh-event
+  // handlers so reacting to a row change never writes back to the table —
+  // which previously created an infinite recalc→write→event→recalc loop
+  // that made the card flicker constantly.
+  const refetchRow = useCallback(async () => {
+    if (!userId) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    try {
+      const { data } = await supabase
+        .from('credit_access_limits')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (data) {
+        const parsed: CreditAccessLimit = {
+          totalLimit: Number(data.total_limit) || MIN_LIMIT,
+          baseLimit: Number(data.base_limit) || MIN_LIMIT,
+          bonusFromRatings: Number(data.bonus_from_ratings) || 0,
+          bonusFromReceipts: Number(data.bonus_from_receipts) || 0,
+          bonusFromRentHistory: Number(data.bonus_from_rent_history) || 0,
+          bonusFromLandlordRent: Number(data.bonus_from_landlord_rent) || 0,
+          bonusFromHousesListed: Number((data as any).bonus_from_houses_listed) || 0,
+          bonusFromPartnersOnboarded: Number((data as any).bonus_from_partners_onboarded) || 0,
+          bonusFromAgentAllocations: Number((data as any).bonus_from_agent_allocations) || 0,
+        };
+        setLimit(parsed);
+        limitCache.set(userId, { data: parsed, timestamp: Date.now() });
+        saveToLS(userId, parsed);
+      }
+    } catch (err) {
+      console.error('[useCreditAccessLimit] refetchRow error:', err);
     }
   }, [userId]);
 
@@ -209,15 +246,16 @@ export function useCreditAccessLimit(userId: string | undefined) {
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          limitCache.delete(userId);
-          fetchLimit(true);
+          // Re-read the row only. Do NOT recalc here — recalc writes the
+          // row, which would re-trigger this same handler in a loop.
+          refetchRow();
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, fetchLimit]);
+  }, [userId, refetchRow]);
 
   const refreshLimit = useCallback(() => fetchLimit(true), [fetchLimit]);
 
