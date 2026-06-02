@@ -1828,6 +1828,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       toast.success(incomeType === 'outstanding' ? 'Tenant registered with outstanding balance!' : 'Rent request posted successfully!');
       onSuccess?.();
     } catch (error: any) {
+      setRequestState('error');
       console.error('Submission error:', error);
       const msg = error.message || 'Failed to submit request';
       const capacityMsg = humanizeCapacityError(msg);
