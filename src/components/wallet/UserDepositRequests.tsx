@@ -108,8 +108,28 @@ export function UserDepositRequests() {
         })) as DepositRequest[];
 
         setRequests(enrichedRequests);
+
+        // Pull verification state for code-verified cash deposits so we can
+        // show the full lifecycle (pending → code verified → auto-approved).
+        const cashIds = enrichedRequests
+          .filter((r) => r.provider === 'cash_deposit')
+          .map((r) => r.id);
+        if (cashIds.length > 0) {
+          const { data: vers } = await supabase
+            .from('cash_deposit_verifications')
+            .select('deposit_request_id, status, verified_at')
+            .in('deposit_request_id', cashIds);
+          const map: Record<string, CashVerification> = {};
+          (vers ?? []).forEach((v: any) => {
+            map[v.deposit_request_id] = { status: v.status, verified_at: v.verified_at };
+          });
+          setVerifications(map);
+        } else {
+          setVerifications({});
+        }
       } else {
         setRequests([]);
+        setVerifications({});
       }
     } catch (error) {
       console.error('Error fetching deposit requests:', error);
