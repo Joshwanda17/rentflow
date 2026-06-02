@@ -739,6 +739,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* 2) Today's collected total — single most useful at-a-glance number */}
             <FieldCollectDailyTotals live />
 
+            {/* 2b) Earnings summary — available rewards + lifetime total */}
+            <EarningsSummaryCard />
+
             {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
               <button
