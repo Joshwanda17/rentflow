@@ -126,35 +126,71 @@ Deno.serve(async (req) => {
     }
     const token = authHeader.replace("Bearer ", "");
 
-    // Use admin client to verify the JWT token
-    const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
-    if (authError || !user) {
-      console.error("Auth verification failed:", authError?.message || "No user");
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Parse the body once so we can detect the automated service-role path
+    // BEFORE attempting (and failing) a human-JWT verification.
+    const body = await req.json();
+
+    // ── System auto-debit path (service-role, no human CFO) ───────────────
+    // The Gmail poller invokes this with the service-role key and
+    // `system_auto_debit: true` to charge a parsed outgoing payout email
+    // against the recipient's wallet automatically — no manual CFO click.
+    // The service-role bearer IS the authority here, so we skip the human
+    // JWT/role gate and resolve a finance actor for the platform ledger leg.
+    const isSystemAutoDebit =
+      token === serviceKey && body?.system_auto_debit === true && body?.operation === "debit";
+
+    let user: { id: string };
+    let callerRoles: string[];
+
+    if (isSystemAutoDebit) {
+      const { data: actor } = await adminClient
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["cfo", "super_admin", "manager"])
+        .limit(1)
+        .maybeSingle();
+      if (!actor?.user_id) {
+        return new Response(JSON.stringify({ error: "No finance actor available for system auto-debit" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      user = { id: actor.user_id };
+      callerRoles = ["system_auto_debit"];
+      // Treasury guard still applies to automated money movement.
+      const guardBlock = await checkTreasuryGuard(adminClient, "any", actor.user_id);
+      if (guardBlock) return guardBlock;
+    } else {
+      // Use admin client to verify the JWT token
+      const { data: { user: authedUser }, error: authError } = await adminClient.auth.getUser(token);
+      if (authError || !authedUser) {
+        console.error("Auth verification failed:", authError?.message || "No user");
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Treasury guard: block any money movement when paused. Pass the
+      // already-validated caller UUID so CTO / super_admin maintenance bypass is
+      // deterministic and does not depend on bearer-token re-validation.
+      const guardBlock = await checkTreasuryGuard(adminClient, "any", authedUser.id);
+      if (guardBlock) return guardBlock;
+
+      const { data: roles } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", authedUser.id)
+        .in("role", ["cfo", "manager", "super_admin", "cto"]);
+
+      if (!roles?.length) {
+        return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      user = { id: authedUser.id };
+      callerRoles = (roles || []).map((r: any) => r.role);
     }
     const userId = user.id;
 
-    // Treasury guard: block any money movement when paused. Pass the
-    // already-validated caller UUID so CTO / super_admin maintenance bypass is
-    // deterministic and does not depend on bearer-token re-validation.
-    const guardBlock = await checkTreasuryGuard(adminClient, "any", userId);
-    if (guardBlock) return guardBlock;
-
-    const { data: roles } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .in("role", ["cfo", "manager", "super_admin", "cto"]);
-
-    if (!roles?.length) {
-      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type, allow_overdraw: rawAllowOverdraw, solvency_bypass_reason: rawSolvencyReason, gmail_transaction_id: rawGmailTxId, gmail_message_id: rawGmailMsgId, email_tid: rawEmailTid, manual_credit: rawManualCredit } = await req.json();
+    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type, allow_overdraw: rawAllowOverdraw, solvency_bypass_reason: rawSolvencyReason, gmail_transaction_id: rawGmailTxId, gmail_message_id: rawGmailMsgId, email_tid: rawEmailTid, manual_credit: rawManualCredit } = body;
     // The manual CFO Direct Credit / Withdraw tool sets `manual_credit: true`.
     // Manual payouts must ALWAYS be allowed — any user, any time, any category,
     // any sub-category, countless times — so they are NEVER subject to the
@@ -165,7 +201,6 @@ Deno.serve(async (req) => {
       ? rawAmount
       : Number(String(rawAmount ?? "").replace(/[, _]/g, ""));
     const op = operation === "debit" ? "debit" : "credit";
-    const callerRoles = (roles || []).map((r: any) => r.role);
 
     // Normalise email-origin identifiers (any may be null)
     const gmailTxId: string | null = typeof rawGmailTxId === "string" && rawGmailTxId ? rawGmailTxId : null;
