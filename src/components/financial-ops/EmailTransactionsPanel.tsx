@@ -3064,6 +3064,27 @@ export function EmailTransactionsPanel() {
                           {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
                         </Badge>
                       )}
+                      {/* Clear, unambiguous status: when the deposit is fully
+                          credited there is nothing left to route. Highlight the
+                          transaction reference (TID) when that's what matched it
+                          so reviewers trust the auto-detection. */}
+                      {isCredited && isFullyCredited && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 bg-emerald-600/15 text-emerald-700 border-emerald-600/50 font-semibold"
+                          title={[
+                            'Already Credited — No Routing Needed',
+                            matchedByTid && matchedTid
+                              ? `Matched by transaction reference (TID): ${matchedTid}`
+                              : 'Matched to a credited deposit for this email.',
+                            'This money already landed in a wallet — do not route it again.',
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <ShieldCheck className="h-3 w-3" />
+                          Already Credited — No Routing Needed
+                          {matchedByTid && <span className="opacity-75">· via TID</span>}
+                        </Badge>
+                      )}
                       {/* Incoming deposit whose money never landed in any
                           wallet (no credit + not routed). Flag it clearly so
                           the operator knows to redirect it to a chosen wallet. */}
