@@ -346,6 +346,62 @@ function formatCurrencyInput(raw: string): string {
   return Number(digits).toLocaleString('en-UG');
 }
 
+/* ===== Real-time field validation =====
+ * Each validator returns a short, plain-language error string when the value
+ * is present but the FORMAT is wrong, or null when it's empty or valid.
+ * Empty values return null so we never nag the agent while a field is blank —
+ * the "still needed" summary handles required checks at submit time. */
+function vName(value: string): string | null {
+  const t = value.trim();
+  if (!t) return null;
+  if (t.length < 2) return 'Too short — write the full name, e.g. John Mukasa';
+  if (!/^[A-Za-z][A-Za-z .,'\-]*$/.test(t)) return 'Use letters only, e.g. John Mukasa';
+  return null;
+}
+function vPhone(value: string): string | null {
+  const clean = value.replace(/\s/g, '');
+  if (!clean) return null;
+  if (!/^\d+$/.test(clean)) return 'Use numbers only, e.g. 0783 123 456';
+  if (!isValidUgPhone(clean)) return 'Use a Ugandan number like 0783 123 456 (10 digits)';
+  return null;
+}
+function vNationalId(value: string): string | null {
+  const t = value.replace(/\s/g, '');
+  if (!t) return null;
+  if (!/^[A-Za-z0-9]{10,14}$/.test(t)) return 'ID should be 10–14 letters/numbers, e.g. CM12345678901';
+  return null;
+}
+function vAmount(value: string): string | null {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (!digits) return null;
+  if (Number(digits) <= 0) return 'Enter an amount above 0, e.g. 300,000';
+  return null;
+}
+function vDays(value: string): string | null {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (!digits) return null;
+  if (Number(digits) <= 0) return 'Enter the number of days, e.g. 30';
+  if (Number(digits) > 365) return 'That looks too high — use 365 days or less';
+  return null;
+}
+function vPlace(value: string, example: string): string | null {
+  const t = value.trim();
+  if (!t) return null;
+  if (t.length < 2) return `Write a bit more, e.g. ${example}`;
+  return null;
+}
+
+/** Small inline error shown under a field while the agent types. */
+function FieldError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="flex items-start gap-1 text-[11px] font-semibold text-destructive leading-snug">
+      <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+      <span>{message}</span>
+    </p>
+  );
+}
+
 /** Prominent banner that always shows the current request state so the agent
  *  never wonders whether their tap did anything on a touch device. */
 function RequestStateBanner({ state }: { state: 'idle' | 'submitting' | 'success' | 'error' }) {
@@ -2302,6 +2358,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                          
                           required
                         />
+                        <FieldError message={vName(tenantName)} />
                       </div>
                       <div className="space-y-1">
                         <Label >Tenant Phone *</Label>
@@ -2315,9 +2372,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           maxLength={12}
                           required
                         />
-                        {tenantPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(tenantPhone.replace(/\s/g, '')) && (
-                          <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
-                        )}
+                        <FieldError message={vPhone(tenantPhone)} />
                       </div>
                     </div>
 
@@ -2357,6 +2412,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                          
                           required
                         />
+                        <FieldError message={vAmount(outstandingRentAmount)} />
                       </div>
                       <div className="space-y-1">
                         <Label className="font-semibold">Repayment Duration *</Label>
@@ -2386,6 +2442,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         className="h-12 text-lg font-bold border-2 rounded-xl focus:ring-0" style={{ borderColor: 'rgba(124, 59, 237, 0.4)' }} onFocus={(e) => e.currentTarget.style.borderColor = '#7C3BED'} onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(124, 59, 237, 0.4)'}
                         required
                       />
+                      <FieldError message={vAmount(outstandingBalance)} />
                       {amount > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Daily repayment: <span className="font-semibold">{formatUGX(Math.ceil(amount / parseInt(duration)))}/day</span> for {duration} days
@@ -2405,6 +2462,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                        
                         required
                       />
+                      <FieldError message={vDays(outstandingDaysRemaining)} />
                     </div>
 
                     <div className="space-y-1">
@@ -2704,6 +2762,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       className="h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl"
                       required
                     />
+                    <FieldError message={vAmount(rentAmount)} />
                     {amount > 0 && (
                       <p className="text-xs font-semibold">
                         {unlimitedPosting ? (
@@ -2861,6 +2920,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                      
                       required
                     />
+                    <FieldError message={vName(tenantName)} />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" >Phone *</Label>
@@ -2875,9 +2935,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       maxLength={12}
                       required
                     />
-                    {tenantPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(tenantPhone.replace(/\s/g, '')) && (
-                      <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
-                    )}
+                    <FieldError message={vPhone(tenantPhone)} />
                   </div>
                 </div>
 
@@ -2894,9 +2952,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     maxLength={14}
                     required
                   />
-                  {tenantNationalId.length > 0 && (tenantNationalId.length < 10 || tenantNationalId.length > 14) && (
-                    <p className="text-[10px] text-destructive">Must be 10-14 characters</p>
-                  )}
+                  <FieldError message={vNationalId(tenantNationalId)} />
                 </div>
 
                 <div className="space-y-1">
@@ -3054,9 +3110,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         className={`h-12 text-base ${hasFieldError('landlord phone') ? 'border-destructive border-2' : ''}`}
                         maxLength={12}
                       />
-                      {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
-                        <p className="text-xs text-destructive">Check the phone number — use 0700 123 456</p>
-                      )}
+                      <FieldError message={vPhone(landlordPhone)} />
                       {landlordPhone.replace(/\s/g, '').length >= 10 &&
                         tenantPhone.replace(/\s/g, '').length >= 10 &&
                         landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
@@ -3139,6 +3193,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     className="h-12 text-base"
                     required
                   />
+                  <FieldError message={vPlace(propertyAddress, 'Kira Town, near Total')} />
                 </div>
 
                 {/* GPS Capture */}
@@ -3292,6 +3347,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                      
                       required
                     />
+                    <FieldError message={vName(lc1Name)} />
                   </div>
                   <div className="space-y-1">
                     <Label >Phone *</Label>
@@ -3305,6 +3361,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       maxLength={12}
                       required
                     />
+                    <FieldError message={vPhone(lc1Phone)} />
                     {lc1Phone.replace(/\s/g, '').length >= 10 &&
                       tenantPhone.replace(/\s/g, '').length >= 10 &&
                       lc1Phone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
@@ -3327,6 +3384,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                      
                       required
                     />
+                    <FieldError message={vPlace(lc1Village, 'Kira Zone A')} />
                   </div>
                 </div>
 
@@ -3347,6 +3405,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       className={`h-10 ${hasFieldError('city') ? 'border-destructive border-2' : ''}`}
                       required
                     />
+                    <FieldError message={vPlace(propertyCity, 'Entebbe')} />
                   </div>
                   <div className="space-y-1">
                     <Label >District</Label>
@@ -3364,6 +3423,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       placeholder="e.g. Wakiso"
                      
                     />
+                    <FieldError message={vPlace(propertyDistrict, 'Wakiso')} />
                     {districtWarning(propertyDistrict) && (
                       <p className="text-[10px] text-warning leading-tight">
                         {districtWarning(propertyDistrict)}
