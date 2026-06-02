@@ -344,6 +344,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [awaitingVerification, setAwaitingVerification] = useState<Record<string, { count: number; total: number }>>({});
   // Top-ups approved and parked until next ROI cycle (status: approved)
   const [approvedTopUps, setApprovedTopUps] = useState<Record<string, { count: number; total: number }>>({});
+  // Top-ups automatically merged into principal at the ROI cycle
+  // (status: completed, reviewed_by: system:roi-merge). Surfaced as a green
+  // "✅ Auto-applied" badge so COO knows the parked capital is now active.
+  const [autoAppliedTopUps, setAutoAppliedTopUps] = useState<Record<string, { count: number; total: number }>>({});
   const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
   // Merge dialog state
   const [mergeDialogPortfolioId, setMergeDialogPortfolioId] = useState<string | null>(null);
@@ -917,11 +921,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .in('portfolio_id', portfolioIds),
           supabase
             .from('pending_wallet_operations')
-            .select('source_id, amount, status')
+            .select('source_id, amount, status, reviewed_by, reviewed_at')
             .in('source_id', portfolioIds)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
-            .in('status', ['pending', 'awaiting_verification', 'approved']),
+            .in('status', ['pending', 'awaiting_verification', 'approved', 'completed']),
         ]);
         const counts: Record<string, number> = {};
         (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
@@ -930,6 +934,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const pending: Record<string, { count: number; total: number }> = {};
         const awaiting: Record<string, { count: number; total: number }> = {};
         const approved: Record<string, { count: number; total: number }> = {};
+        const autoApplied: Record<string, { count: number; total: number }> = {};
+        // Only surface auto-applied merges from the last 30 days so the badge
+        // reflects the most recent ROI cycle, not every historical merge.
+        const autoAppliedSince = Date.now() - 30 * 24 * 60 * 60 * 1000;
         (pendingRes.data || []).forEach((op: any) => {
           const key = op.source_id;
           if (op.status === 'approved') {
@@ -940,6 +948,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             if (!awaiting[key]) awaiting[key] = { count: 0, total: 0 };
             awaiting[key].count += 1;
             awaiting[key].total += Number(op.amount);
+          } else if (op.status === 'completed') {
+            // Distinguish automatic ROI-cycle merges from manual "Apply Top-up".
+            const isAuto = op.reviewed_by === 'system:roi-merge';
+            const ts = op.reviewed_at ? new Date(op.reviewed_at).getTime() : 0;
+            if (isAuto && ts >= autoAppliedSince) {
+              if (!autoApplied[key]) autoApplied[key] = { count: 0, total: 0 };
+              autoApplied[key].count += 1;
+              autoApplied[key].total += Number(op.amount);
+            }
           } else {
             if (!pending[key]) pending[key] = { count: 0, total: 0 };
             pending[key].count += 1;
@@ -949,6 +966,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         setPendingTopUps(pending);
         setAwaitingVerification(awaiting);
         setApprovedTopUps(approved);
+        setAutoAppliedTopUps(autoApplied);
       }
 
       // For imported partners with no ledger entries, derive totals from portfolio records
@@ -2224,6 +2242,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     {approvedTopUps[p.id]?.total > 0 && (
                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap shrink-0">
                                          ⏳ Pending Principal +{formatUGX(approvedTopUps[p.id].total)}
+                                       </span>
+                                    )}
+                                    {autoAppliedTopUps[p.id]?.total > 0 && (
+                                       <span
+                                         className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap shrink-0"
+                                         title="Parked top-up(s) were automatically merged into principal at the ROI cycle"
+                                       >
+                                         ✅ Auto-applied +{formatUGX(autoAppliedTopUps[p.id].total)}
                                        </span>
                                     )}
                                     {(pendingTopUps[p.id]?.total > 0 || awaitingVerification[p.id]?.total > 0) && (

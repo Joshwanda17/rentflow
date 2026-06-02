@@ -440,12 +440,14 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // 2. Mark pending ops as approved
+          // 2. Mark pending ops as completed (auto-applied at the ROI cycle).
+          //    reviewed_by='system:roi-merge' flags this as an automatic merge
+          //    so the COO dashboard can surface an "auto-applied" badge.
           const pendingIds = pendingOps.map(op => op.id);
           const { error: approveErr } = await supabase
             .from('pending_wallet_operations')
             .update({
-              status: 'approved',
+              status: 'completed',
               reviewed_at: now.toISOString(),
               reviewed_by: 'system:roi-merge',
             })
