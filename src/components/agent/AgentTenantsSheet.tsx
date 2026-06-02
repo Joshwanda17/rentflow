@@ -373,6 +373,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
   const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
   const [behaviorData, setBehaviorData] = useState<any>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
+  const [profileAutoEdit, setProfileAutoEdit] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
   const [recentProperties, setRecentProperties] = useState<string[]>(() => loadRecentProperties());
