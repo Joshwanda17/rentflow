@@ -57,14 +57,20 @@ async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
 
   if (!houses?.length) return [];
 
-  const agentIds = [...new Set(houses.map((h: any) => h.agent_id).filter(Boolean))] as string[];
+  // Only suggest houses that have at least one real photo.
+  const withPhotos = (houses as any[]).filter(
+    (h) => Array.isArray(h.image_urls) && h.image_urls.some((u: any) => typeof u === 'string' && u.trim().length > 0)
+  );
+  if (!withPhotos.length) return [];
+
+  const agentIds = [...new Set(withPhotos.map((h: any) => h.agent_id).filter(Boolean))] as string[];
   let agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
   if (agentIds.length) {
     const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', agentIds);
     if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
   }
 
-  return houses.map((h: any) => ({
+  return withPhotos.map((h: any) => ({
     ...h,
     agent_name: agentMap.get(h.agent_id)?.full_name || null,
     agent_phone: agentMap.get(h.agent_id)?.phone || null,
