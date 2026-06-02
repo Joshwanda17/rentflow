@@ -9,6 +9,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import {
   Loader2, Building2, CheckCircle2, ShieldCheck, ChevronLeft, XCircle, Mail,
 } from 'lucide-react';
+import DepositStatusTracker from './DepositStatusTracker';
 
 // Read the friendly `message` field our edge functions return on non-2xx.
 async function readEdgeBody(error: any): Promise<any | null> {
