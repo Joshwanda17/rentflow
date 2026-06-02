@@ -2327,6 +2327,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                     </Button>
                   </div>
+                  {loading && (
+                    <p
+                      role="status"
+                      aria-live="polite"
+                      className="flex items-center justify-center gap-2 pt-2 text-sm font-semibold text-primary"
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Sending your request… please wait.
+                    </p>
+                  )}
                 </>
               ) : detailStep === 0 ? (
               <>
