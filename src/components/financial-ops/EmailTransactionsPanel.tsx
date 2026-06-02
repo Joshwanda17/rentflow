@@ -602,10 +602,12 @@ export function EmailTransactionsPanel() {
   // a batch run is in flight; `autoDebitProgress` drives the inline counter.
   const [autoDebitBusy, setAutoDebitBusy] = useState(false);
   const [autoDebitProgress, setAutoDebitProgress] = useState<{ done: number; total: number; ok: number; failed: number } | null>(null);
-  // Match-review gate: the operator must review the full list of matched
-  // money-out emails (detected user, confidence, amount) in a dialog and
-  // press a single confirm button before any wallet reduction is posted.
-  const [reviewOpen, setReviewOpen] = useState(false);
+  // Per-row auto-debit outcome captured at run time so the row can show the
+  // live impact on the matched user's wallet (amount taken + balance left).
+  // Keyed by gmail transaction row id.
+  const [autoDebitResults, setAutoDebitResults] = useState<
+    Record<string, { amount: number; newAvail: number | null; userName: string }>
+  >({});
   const [rulesVersion, setRulesVersion] = useState(0);
   const [storedUserRules, setStoredUserRules] = useState<StoredUserRule[]>(() => readStoredUserRules());
   // Mobile-only collapsibles: keep filters & stats hidden by default on small screens
