@@ -186,6 +186,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
       console.error('[useCreditAccessLimit] Error:', err);
     } finally {
       setLoading(false);
+      logCreditLoading('done', { userId, loading: false, note: 'fetch settled' });
     }
   }, [userId]);
 
