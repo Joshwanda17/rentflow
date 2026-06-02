@@ -2582,6 +2582,14 @@ export function EmailTransactionsPanel() {
                 const history = routingHistory[r.id] ?? [];
                 const isRouted = history.length > 0;
                 const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
+                // Auto-debited rows: a withdrawable debit posted by the
+                // auto-debit run. Detected from the routing history reason
+                // (prefixed "DEBIT (auto, ...)") so the badge survives reloads.
+                const autoDebitEntry = history.find(
+                  (h) => h.route === 'withdrawable_debit' && /auto/i.test(h.reason || ''),
+                );
+                const isAutoDebited = !!autoDebitEntry && !isReversed;
+                const autoImpact = autoDebitResults[r.id];
                 // Already-credited incoming deposit (linked to a non-terminal
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
