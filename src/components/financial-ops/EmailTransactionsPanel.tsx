@@ -2202,8 +2202,11 @@ export function EmailTransactionsPanel() {
       {(() => {
         // Unrouted money-out banner. Counts every payable outgoing row in the
         // active date/search window that has NOT yet been routed to a wallet.
-        // The "Auto-debit" button only acts on rows whose top recipient match
-        // is high-confidence (TID = 100, or "to/from <phone>" = 90).
+        // The "Auto-debit" button acts on rows whose top recipient match is at
+        // or above the auto-debit threshold (TID = 100, "to/from <phone>" = 90,
+        // name match = 75). 75% is the floor so a strong name match alone can
+        // trigger an automatic wallet reduction.
+        const AUTO_DEBIT_MIN_SCORE = 75;
         const outRows = filteredRows.filter(
           (r) => isCountable(r) && (r.direction === 'out' || r.direction === 'charge'),
         );
@@ -2223,7 +2226,7 @@ export function EmailTransactionsPanel() {
             }))
             .sort((a, b) => b.s - a.s);
           const top = ranked[0];
-          if (top && top.s >= 90) highConf.push({ row: r, top: top.u, score: top.s });
+          if (top && top.s >= AUTO_DEBIT_MIN_SCORE) highConf.push({ row: r, top: top.u, score: top.s });
         }
         if (outRows.length === 0) return null;
         const unroutedAmt = unrouted.reduce((s, r) => s + (r.amount ?? 0), 0);
