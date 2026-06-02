@@ -1,0 +1,344 @@
+import { formatUGX, calculateRequestFee } from '@/lib/rentCalculations';
+import welileLogoUrl from '@/assets/welile-logo.png';
+
+export interface RepaymentSheetPlan {
+  date: string;            // created_at
+  disbursedAt: string | null;
+  durationDays: number;
+  status: string;
+  registrationType?: string | null;
+  rentAmount: number;      // rent paid to landlord
+  totalRepayment: number;  // canonical total due
+  amountRepaid: number;
+  initialOutstanding?: number | null;
+  landlordName?: string | null;
+  propertyAddress?: string | null;
+}
+
+export interface RepaymentSheetTxn {
+  date: string;
+  amount: number;
+}
+
+export interface RepaymentSheetData {
+  aiId: string;
+  tenantName: string;
+  phone: string;
+  agentName: string;
+  generatedAt?: Date;
+  plans: RepaymentSheetPlan[];
+  transactions: RepaymentSheetTxn[];
+}
+
+async function loadLogoAsBase64(): Promise<string | null> {
+  try {
+    const res = await fetch(welileLogoUrl);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function fmtDate(d: string | null | undefined): string {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-UG', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function addDays(d: string, days: number): string {
+  const dt = new Date(d);
+  dt.setDate(dt.getDate() + days);
+  return dt.toISOString();
+}
+
+/**
+ * Breaks a plan into its fee components from the canonical stored numbers.
+ *   total_repayment = rent (to landlord) + access fee + registration fee
+ * Outstanding-balance plans carry legacy debt with no fee formula.
+ */
+function decomposePlan(p: RepaymentSheetPlan) {
+  const isOB = p.registrationType === 'outstanding_balance';
+  if (isOB) {
+    const total = Number(p.initialOutstanding ?? p.totalRepayment ?? 0);
+    return { rentToLandlord: total, registrationFee: 0, accessFee: 0, totalDue: total };
+  }
+  const rentToLandlord = Number(p.rentAmount || 0);
+  const registrationFee = calculateRequestFee(rentToLandlord);
+  const totalDue = Number(p.totalRepayment || 0);
+  const accessFee = Math.max(0, totalDue - rentToLandlord - registrationFee);
+  return { rentToLandlord, registrationFee, accessFee, totalDue };
+}
+
+/**
+ * Expected-to-date for a single plan, straight-line from disbursement across
+ * the plan duration, capped at the total due. Lets the agent see whether a
+ * tenant's allocations are ahead of or behind schedule.
+ */
+function expectedToDate(p: RepaymentSheetPlan, totalDue: number): number {
+  const start = p.disbursedAt || p.date;
+  if (!start || !p.durationDays || p.durationDays <= 0) return totalDue;
+  const startMs = new Date(start).getTime();
+  const elapsedDays = Math.floor((Date.now() - startMs) / (1000 * 60 * 60 * 24));
+  if (elapsedDays <= 0) return 0;
+  if (elapsedDays >= p.durationDays) return totalDue;
+  const perDay = totalDue / p.durationDays;
+  return Math.round(perDay * elapsedDays);
+}
+
+export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promise<Blob> {
+  const { jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+  const pw = pdf.internal.pageSize.getWidth();
+  const ph = pdf.internal.pageSize.getHeight();
+  const margin = 14;
+  const cw = pw - margin * 2;
+  let y = 14;
+
+  const ensureSpace = (need: number) => {
+    if (y > ph - need) { pdf.addPage(); y = 16; }
+  };
+
+  // ─── Branded header ───
+  const logoBase64 = await loadLogoAsBase64();
+  if (logoBase64) pdf.addImage(logoBase64, 'PNG', margin, y - 4, 14, 14);
+  const textX = margin + 18;
+  pdf.setFontSize(15);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(30, 41, 59);
+  pdf.text('Welile Technologies Limited', textX, y + 2);
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 116, 139);
+  pdf.text('P.O. Box 167564, Palm Lane, Kabaale, Entebbe — Uganda', textX, y + 7);
+  pdf.text('info@welile.com  |  www.welile.com', textX, y + 11);
+  y += 20;
+
+  pdf.setDrawColor(59, 130, 246);
+  pdf.setLineWidth(0.8);
+  pdf.line(margin, y, pw - margin, y);
+  y += 6;
+
+  pdf.setFontSize(13);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(30, 41, 59);
+  pdf.text('TENANT REPAYMENT SHEET', margin, y);
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 116, 139);
+  pdf.text(`Generated: ${(data.generatedAt ?? new Date()).toLocaleString('en-UG')}`, pw - margin, y, { align: 'right' });
+  y += 8;
+
+  // ─── Tenant / agent identity ───
+  const idRow = (label: string, value: string, x: number) => {
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(label, x, y);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(30, 41, 59);
+    pdf.text(value, x, y + 4);
+  };
+  idRow('TENANT', data.tenantName, margin);
+  idRow('PHONE', data.phone || '—', margin + 70);
+  idRow('AI ID', data.aiId, margin + 130);
+  y += 9;
+  idRow('MANAGING AGENT', data.agentName || '—', margin);
+  idRow('RENT PLANS', String(data.plans.length), margin + 130);
+  y += 10;
+
+  // ─── Per-plan breakdown ───
+  let totRentLandlord = 0, totAccess = 0, totReg = 0, totDue = 0, totRepaid = 0, totOutstanding = 0;
+
+  data.plans.forEach((p, i) => {
+    const { rentToLandlord, registrationFee, accessFee, totalDue } = decomposePlan(p);
+    const repaid = Number(p.amountRepaid || 0);
+    const outstanding = Math.max(0, totalDue - repaid);
+    const expected = expectedToDate(p, totalDue);
+    const variance = repaid - expected; // + ahead, - behind
+    const start = p.disbursedAt || p.date;
+    const endDate = p.durationDays > 0 ? addDays(start, p.durationDays) : null;
+
+    totRentLandlord += rentToLandlord;
+    totAccess += accessFee;
+    totReg += registrationFee;
+    totDue += totalDue;
+    totRepaid += repaid;
+    totOutstanding += outstanding;
+
+    ensureSpace(58);
+
+    // Card header
+    pdf.setFillColor(241, 245, 249);
+    pdf.roundedRect(margin, y - 4, cw, 8, 2, 2, 'F');
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(51, 65, 85);
+    pdf.text(`Plan ${i + 1} — ${p.status.charAt(0).toUpperCase() + p.status.slice(1)}`, margin + 3, y + 1);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(p.landlordName ? `Landlord: ${p.landlordName}` : '', pw - margin - 3, y + 1, { align: 'right' });
+    y += 9;
+
+    // Two-column fee detail
+    const labelVal = (label: string, value: string, x: number, valueColor?: [number, number, number]) => {
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(label, x, y);
+      pdf.setFont('helvetica', 'bold');
+      if (valueColor) pdf.setTextColor(...valueColor); else pdf.setTextColor(30, 41, 59);
+      pdf.text(value, x + 62, y, { align: 'right' });
+    };
+    const colL = margin + 3;
+    const colR = margin + cw / 2 + 3;
+
+    labelVal('Rent paid to landlord', formatUGX(rentToLandlord), colL);
+    labelVal('Start date', fmtDate(start), colR);
+    y += 5;
+    labelVal('Access fee', formatUGX(accessFee), colL);
+    labelVal('End date', fmtDate(endDate), colR);
+    y += 5;
+    labelVal('Registration fee', formatUGX(registrationFee), colL);
+    labelVal('Period', `${p.durationDays} days`, colR);
+    y += 5;
+    labelVal('Total due', formatUGX(totalDue), colL);
+    labelVal('Expected to date', formatUGX(expected), colR);
+    y += 5;
+    labelVal('Repaid', formatUGX(repaid), colL, [34, 197, 94]);
+    labelVal(
+      variance >= 0 ? 'Ahead by' : 'Behind by',
+      formatUGX(Math.abs(variance)),
+      colR,
+      variance >= 0 ? [34, 197, 94] : [239, 68, 68],
+    );
+    y += 5;
+    labelVal('Outstanding balance', formatUGX(outstanding), colL, outstanding > 0 ? [239, 68, 68] : [34, 197, 94]);
+    const pct = totalDue > 0 ? Math.min(100, Math.round((repaid / totalDue) * 100)) : 0;
+    labelVal('Progress', `${pct}%`, colR);
+    y += 7;
+
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setLineWidth(0.3);
+    pdf.line(margin, y, pw - margin, y);
+    y += 5;
+  });
+
+  // ─── Portfolio totals ───
+  ensureSpace(40);
+  pdf.setFillColor(30, 41, 59);
+  pdf.roundedRect(margin, y - 4, cw, 8, 2, 2, 'F');
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('PORTFOLIO TOTALS', margin + 3, y + 1);
+  y += 10;
+
+  const totRow = (label: string, value: string, color?: [number, number, number]) => {
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(label, margin + 3, y);
+    pdf.setFont('helvetica', 'bold');
+    if (color) pdf.setTextColor(...color); else pdf.setTextColor(30, 41, 59);
+    pdf.text(value, pw - margin - 3, y, { align: 'right' });
+    y += 6;
+  };
+  totRow('Total rent paid to landlords', formatUGX(totRentLandlord));
+  totRow('Total access fees', formatUGX(totAccess));
+  totRow('Total registration fees', formatUGX(totReg));
+  totRow('Total due', formatUGX(totDue));
+  totRow('Total repaid', formatUGX(totRepaid), [34, 197, 94]);
+  totRow('Total outstanding', formatUGX(totOutstanding), totOutstanding > 0 ? [239, 68, 68] : [34, 197, 94]);
+  totRow('Collection rate', totDue > 0 ? `${Math.round((totRepaid / totDue) * 100)}%` : '—');
+  y += 4;
+
+  // ─── Repayment transactions ───
+  if (data.transactions.length > 0) {
+    ensureSpace(24);
+    pdf.setFillColor(241, 245, 249);
+    pdf.roundedRect(margin, y - 4, cw, 8, 2, 2, 'F');
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(51, 65, 85);
+    pdf.text('REPAYMENT TRANSACTIONS', margin + 3, y + 1);
+    y += 9;
+
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text('#', margin + 3, y);
+    pdf.text('Date & time', margin + 14, y);
+    pdf.text('Amount', pw - margin - 3, y, { align: 'right' });
+    y += 2;
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setLineWidth(0.3);
+    pdf.line(margin, y, pw - margin, y);
+    y += 4;
+
+    data.transactions.forEach((t, i) => {
+      ensureSpace(14);
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(30, 41, 59);
+      pdf.text(String(i + 1), margin + 3, y);
+      pdf.text(new Date(t.date).toLocaleString('en-UG'), margin + 14, y);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(34, 197, 94);
+      pdf.text(formatUGX(t.amount), pw - margin - 3, y, { align: 'right' });
+      y += 5;
+    });
+  }
+
+  // ─── Footer on every page ───
+  const pageCount = pdf.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    pdf.setPage(i);
+    const footerY = ph - 10;
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setLineWidth(0.3);
+    pdf.line(margin, footerY - 4, pw - margin, footerY - 4);
+    pdf.setFontSize(7);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(148, 163, 184);
+    pdf.text('Welile Technologies Limited — Confidential. For authorized use only.', margin, footerY);
+    pdf.text(`Page ${i} of ${pageCount}`, pw - margin, footerY, { align: 'right' });
+  }
+
+  return pdf.output('blob');
+}
+
+export async function shareOrDownloadRepaymentSheet(data: RepaymentSheetData): Promise<void> {
+  const blob = await generateRepaymentSheetPdf(data);
+  const file = new File(
+    [blob],
+    `Repayment_Sheet_${data.tenantName.replace(/\s+/g, '_')}.pdf`,
+    { type: 'application/pdf' },
+  );
+
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({
+        title: `Repayment Sheet — ${data.tenantName}`,
+        text: `Welile repayment sheet for ${data.tenantName}`,
+        files: [file],
+      });
+      return;
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      // fall through to download
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
