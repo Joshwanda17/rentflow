@@ -157,7 +157,7 @@ export function TenantBalanceEditPanel({
                   <BalanceEditForm row={r} onDone={() => setEditing(null)} />
                 )}
                 {historyFor === r.rent_request_id && (
-                  <BalanceHistory rentRequestId={r.rent_request_id} />
+                  <BalanceHistory rentRequestId={r.rent_request_id} tenantName={r.tenant_name} />
                 )}
               </li>
             ))}
