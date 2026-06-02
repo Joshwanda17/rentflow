@@ -606,7 +606,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
 
   useEffect(() => {
     if (open && user) fetchTenants();
-    if (!open) { setExpandedTenantId(null); setProfileTenantId(null); }
+    if (!open) { setExpandedTenantId(null); setProfileTenantId(null); setProfileAutoEdit(false); }
   }, [open, user]);
 
   // Persist search / status tab / risk chip / property / sort / recent / grouping
