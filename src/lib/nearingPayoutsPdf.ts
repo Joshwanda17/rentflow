@@ -355,8 +355,8 @@ export async function generateNearingPayoutsPdf(input: NearingPayoutPdfInput): P
         } else if (status === 'Due today') {
           data.cell.styles.textColor = [180, 83, 9];
           data.cell.styles.fontStyle = 'bold';
-        } else if (/^\d+\s+days$/.test(status)) {
-          // Overdue rows render as "{n} days"
+        } else if (/^\d{1,2}\/[A-Za-z]+\/\d{4}$/.test(status)) {
+          // Overdue rows render as the payout date "{day}/{Month}/{Year}".
           data.cell.styles.textColor = [220, 38, 38];
           data.cell.styles.fontStyle = 'bold';
         }
