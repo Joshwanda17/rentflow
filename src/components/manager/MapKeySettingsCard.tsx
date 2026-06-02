@@ -186,6 +186,18 @@ export function MapKeySettingsCard() {
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save key'}
               </Button>
             </div>
+            {showPreview && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Live map preview</Label>
+                <div
+                  ref={mapRef}
+                  className="h-44 w-full rounded-lg overflow-hidden border border-border/40 bg-muted/40"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  If you can see the map tiles above, this key renders correctly on this website.
+                </p>
+              </div>
+            )}
           </>
         )}
       </CardContent>
