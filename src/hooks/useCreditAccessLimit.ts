@@ -120,6 +120,10 @@ export function useCreditAccessLimit(userId: string | undefined) {
     !cached && !persisted,
   );
 
+  // Once we have rendered real data even once, the skeleton must never
+  // reappear — any later fetch is a background refresh and should be silent.
+  const hasLoadedOnce = useRef<boolean>(!!cached || !!persisted);
+
   const fetchLimit = useCallback(async (forceFresh = false) => {
     if (!userId) return;
 
@@ -127,6 +131,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
     const existing = limitCache.get(userId);
     if (!forceFresh && existing && (Date.now() - existing.timestamp < CACHE_TTL)) {
       setLimit(existing.data);
+      hasLoadedOnce.current = true;
       setLoading(false);
       return existing.data;
     }
@@ -137,10 +142,13 @@ export function useCreditAccessLimit(userId: string | undefined) {
       return existing?.data ?? persisted ?? undefined;
     }
 
-    // Only show the skeleton on a genuine cold load. If we already have
-    // ANY value rendered, refresh silently in the background — flipping to
-    // the skeleton on every background refresh is what made the card blink.
-    if (!existing && !persisted) setLoading(true);
+    // Only show the skeleton on a genuine cold load (never loaded before and
+    // no cached/persisted value to render). Every later call is a background
+    // refresh and must stay silent — flipping to the skeleton on background
+    // refreshes is what made the card blink/shake.
+    if (!hasLoadedOnce.current && !existing && !persisted) {
+      setLoading(true);
+    }
     try {
       // Recalculate and fetch in one go
       await supabase.rpc('recalculate_credit_limit', { p_user_id: userId });
@@ -164,6 +172,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
           bonusFromAgentAllocations: Number((data as any).bonus_from_agent_allocations) || 0,
         };
         setLimit(parsed);
+        hasLoadedOnce.current = true;
         limitCache.set(userId, { data: parsed, timestamp: Date.now() });
         saveToLS(userId, parsed);
         return parsed;
