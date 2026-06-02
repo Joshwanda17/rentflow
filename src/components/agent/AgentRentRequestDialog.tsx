@@ -1691,6 +1691,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
 
+      // Hard guard: a rent request must always have a landlord attached.
+      // Validation + the NOT NULL DB constraint already protect this, but if
+      // landlord resolution somehow yields nothing we stop here with a clear
+      // message instead of letting the insert fail with a cryptic DB error.
+      if (!landlordId) {
+        const msg = isOutstanding
+          ? 'Pick the landlord from the list before posting this rent request.'
+          : "Add the landlord's name and phone before posting this rent request.";
+        setSubmissionError(msg);
+        toast.error('Landlord required', { description: msg });
+        setLoading(false);
+        setRequestState('idle');
+        submitLockRef.current = false;
+        return;
+      }
+
       // Determine whether the linked landlord is already verified — drives the
       // "Landlord verification pending" status shown on the success screen.
       try {
