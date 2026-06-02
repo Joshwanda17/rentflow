@@ -563,6 +563,7 @@ const App = () => {
                           <Toaster />
                           <SonnerToaster />
                           <ProfileCompletionGate />
+                          <CreditLoadingDebugPanel />
                         </Suspense>
                       </DeferredErrorBoundary>
                     </CurrencyProvider>
