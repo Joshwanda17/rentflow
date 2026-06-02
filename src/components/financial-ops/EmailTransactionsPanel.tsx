@@ -157,6 +157,26 @@ function validateGmailTx(r: GmailTx): { valid: boolean; reason?: string } {
 }
 
 /**
+ * Extract the cash-deposit receipt code from a "Cash deposit code …" email.
+ * These emails are generated when a user starts a CASH deposit: the body and
+ * subject carry a short Receipt code (e.g. `8829`) which is stored verbatim as
+ * the matching `deposit_requests.transaction_id`. The generic MoMo-TID matcher
+ * skips short references to avoid spurious collisions, so these legitimate
+ * cash codes need their own exact-match path. Returns the trimmed code or null.
+ */
+function extractCashReceiptCode(r: GmailTx): string | null {
+  const hay = `${r.subject ?? ''}\n${r.snippet ?? ''}`;
+  // Prefer the explicit "Receipt code: 8829" label, then the subject form
+  // "Cash deposit code 8829 — UGX …".
+  const m =
+    hay.match(/Receipt\s*code\s*:?\s*([A-Za-z0-9-]{3,})/i) ||
+    hay.match(/Cash\s*deposit\s*code\s+([A-Za-z0-9-]{3,})/i);
+  if (!m) return null;
+  const code = (m[1] ?? '').trim();
+  return code.length >= 3 ? code : null;
+}
+
+/**
  * localStorage-backed cache of derived channel results, keyed by the most
  * stable identifier available on the row (transaction id / receipt number,
  * falling back to the gmail message id). The cache lets future loads — and
@@ -945,6 +965,37 @@ export function EmailTransactionsPanel() {
             }
           }
         }
+        // 3b) Cash-deposit RECEIPT-CODE fallback. "Cash deposit code 8829 —
+        //     UGX 9,999 from …" emails credit the wallet the instant the agent
+        //     reads the code back, but the email itself never carries a MoMo
+        //     TID. The short receipt code IS the deposit_request.transaction_id,
+        //     so match it EXACTLY (no normalization / length guard) — these
+        //     codes are issued per-deposit and never collide.
+        const linkByReceipt = new Map<string, string[]>(); // receipt code -> deposit ids
+        const receiptByRow = new Map<string, string>();     // row id -> receipt code
+        const receiptCodes = new Set<string>();
+        for (const r of incoming) {
+          const code = extractCashReceiptCode(r);
+          if (!code) continue;
+          receiptByRow.set(r.id, code);
+          receiptCodes.add(code);
+        }
+        if (receiptCodes.size) {
+          const { data: rcDeps } = await (supabase.from('deposit_requests') as any)
+            .select('id, status, transaction_id')
+            .in('transaction_id', Array.from(receiptCodes));
+          for (const d of (rcDeps ?? []) as Array<{ id: string; status: string; transaction_id: string | null }>) {
+            if (!d.transaction_id) continue;
+            if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
+            const code = d.transaction_id.trim();
+            const arr = linkByReceipt.get(code) ?? [];
+            if (!arr.includes(d.id)) {
+              arr.push(d.id);
+              linkByReceipt.set(code, arr);
+              depIds.add(d.id);
+            }
+          }
+        }
         if (!depIds.size) { if (!cancelled) setCreditedDeposits({}); return; }
         const { data: deps } = await (supabase.from('deposit_requests') as any)
           .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at')
@@ -970,6 +1021,10 @@ export function EmailTransactionsPanel() {
           const normTid = tidByRow.get(r.id);
           const tidDepIds = new Set<string>();
           if (normTid) (linkByTid.get(normTid) ?? []).forEach((id) => { ids.add(id); tidDepIds.add(id); });
+          // Cash receipt-code matches are treated like TID matches for the
+          // "Already Credited — No Routing Needed" status.
+          const receiptCode = receiptByRow.get(r.id);
+          if (receiptCode) (linkByReceipt.get(receiptCode) ?? []).forEach((id) => { ids.add(id); tidDepIds.add(id); });
           // Deposits matched ONLY by reference (not by explicit gmail link /
           // auto_match_audit) are flagged so the row can show the clear
           // "Already Credited — No Routing Needed" status.
@@ -995,7 +1050,7 @@ export function EmailTransactionsPanel() {
               deposit_purpose: d.deposit_purpose ?? null,
               credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
               matched_by_tid: tidDepIds.has(depId) && !explicitDepIds.has(depId),
-              matched_tid: tidDepIds.has(depId) ? (normTid ?? null) : null,
+              matched_tid: tidDepIds.has(depId) ? (normTid ?? receiptCode ?? null) : null,
             });
           }
           if (list.length) next[r.id] = list;
