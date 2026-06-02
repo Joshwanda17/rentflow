@@ -15056,6 +15056,69 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_balance_edits: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          editor_id: string
+          editor_name: string | null
+          id: string
+          new_amount_repaid: number | null
+          new_daily_repayment: number | null
+          new_outstanding: number | null
+          new_rent_amount: number | null
+          new_total_repayment: number | null
+          old_amount_repaid: number | null
+          old_daily_repayment: number | null
+          old_outstanding: number | null
+          old_rent_amount: number | null
+          old_total_repayment: number | null
+          reason: string
+          rent_request_id: string
+          tenant_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          editor_id: string
+          editor_name?: string | null
+          id?: string
+          new_amount_repaid?: number | null
+          new_daily_repayment?: number | null
+          new_outstanding?: number | null
+          new_rent_amount?: number | null
+          new_total_repayment?: number | null
+          old_amount_repaid?: number | null
+          old_daily_repayment?: number | null
+          old_outstanding?: number | null
+          old_rent_amount?: number | null
+          old_total_repayment?: number | null
+          reason: string
+          rent_request_id: string
+          tenant_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          editor_id?: string
+          editor_name?: string | null
+          id?: string
+          new_amount_repaid?: number | null
+          new_daily_repayment?: number | null
+          new_outstanding?: number | null
+          new_rent_amount?: number | null
+          new_total_repayment?: number | null
+          old_amount_repaid?: number | null
+          old_daily_repayment?: number | null
+          old_outstanding?: number | null
+          old_rent_amount?: number | null
+          old_total_repayment?: number | null
+          reason?: string
+          rent_request_id?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       tenant_inactive_reviews: {
         Row: {
           acknowledged_at: string | null
@@ -19088,6 +19151,15 @@ export type Database = {
         }
         Returns: Json
       }
+      ops_edit_tenant_balance: {
+        Args: {
+          p_new_outstanding: number
+          p_new_rent_amount: number
+          p_reason: string
+          p_rent_request_id: string
+        }
+        Returns: Json
+      }
       ops_global_verification_overview: { Args: never; Returns: Json }
       ops_link_agent_landlord: {
         Args: { p_agent_id: string; p_landlord_id: string; p_reason: string }
@@ -19190,6 +19262,25 @@ export type Database = {
         }
         Returns: Json
       }
+      ops_search_tenant_rents: {
+        Args: { p_search: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          amount_repaid: number
+          created_at: string
+          daily_repayment: number
+          landlord_name: string
+          outstanding: number
+          rent_amount: number
+          rent_request_id: string
+          status: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+          total_repayment: number
+        }[]
+      }
       ops_set_agent_capability: {
         Args: {
           _action: string
@@ -19206,6 +19297,35 @@ export type Database = {
           _tier: Database["public"]["Enums"]["agent_tier"]
         }
         Returns: Json
+      }
+      ops_tenant_balance_history: {
+        Args: { p_rent_request_id: string }
+        Returns: {
+          agent_id: string | null
+          created_at: string
+          editor_id: string
+          editor_name: string | null
+          id: string
+          new_amount_repaid: number | null
+          new_daily_repayment: number | null
+          new_outstanding: number | null
+          new_rent_amount: number | null
+          new_total_repayment: number | null
+          old_amount_repaid: number | null
+          old_daily_repayment: number | null
+          old_outstanding: number | null
+          old_rent_amount: number | null
+          old_total_repayment: number | null
+          reason: string
+          rent_request_id: string
+          tenant_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "tenant_balance_edits"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       ops_tenant_behavior: { Args: { p_tenant_id: string }; Returns: Json }
       ops_tenant_inbox: {

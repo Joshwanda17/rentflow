@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/command';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import { TenantBalanceEditPanel } from '@/components/executive/tenant-ops/TenantBalanceEditPanel';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
@@ -1177,6 +1178,7 @@ function PlacedTenantsDialog({
 }) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<PlacedSort>('recent');
+  const [mode, setMode] = useState<'browse' | 'edit'>('browse');
   const { data, isLoading } = useMissionPlacements(win, open, refetchIntervalMs);
   const rows: MissionPlacementRow[] = data ?? [];
 
@@ -1215,6 +1217,30 @@ function PlacedTenantsDialog({
           </p>
         </DialogHeader>
 
+        <div className="px-4 pb-2">
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            {([
+              { key: 'browse', label: 'Occupied houses' },
+              { key: 'edit', label: 'Search & edit balances' },
+            ] as { key: 'browse' | 'edit'; label: string }[]).map((m) => (
+              <button
+                key={m.key}
+                onClick={() => setMode(m.key)}
+                className={cn('flex-1 px-2 py-1.5 text-[11px] font-semibold transition',
+                  mode === m.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {mode === 'edit' ? (
+          <div className="px-4 pb-4">
+            <TenantBalanceEditPanel onOpenAgent={onOpenAgent} />
+          </div>
+        ) : (
+        <>
         <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -1294,6 +1320,8 @@ function PlacedTenantsDialog({
             </ul>
           )}
         </ScrollArea>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
