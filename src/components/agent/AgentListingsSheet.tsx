@@ -270,6 +270,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
       `📍 ${l.address}${l.region ? `, ${l.region}` : ''}`,
       `💰 ${formatUGX(l.monthly_rent)}/month  (≈ ${formatUGX(l.daily_rate)}/day on Welile)`,
       ``,
+      `🎁 Move in TODAY — your first 7 days are FREE, then just pay daily.`,
       `Pay daily, weekly, or monthly through Welile — no big upfront deposit needed.`,
       `View & reserve here: ${link}`,
     ];
