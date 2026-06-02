@@ -2202,8 +2202,11 @@ export function EmailTransactionsPanel() {
       {(() => {
         // Unrouted money-out banner. Counts every payable outgoing row in the
         // active date/search window that has NOT yet been routed to a wallet.
-        // The "Auto-debit" button only acts on rows whose top recipient match
-        // is high-confidence (TID = 100, or "to/from <phone>" = 90).
+        // The "Auto-debit" button acts on rows whose top recipient match is at
+        // or above the auto-debit threshold (TID = 100, "to/from <phone>" = 90,
+        // name match = 75). 75% is the floor so a strong name match alone can
+        // trigger an automatic wallet reduction.
+        const AUTO_DEBIT_MIN_SCORE = 75;
         const outRows = filteredRows.filter(
           (r) => isCountable(r) && (r.direction === 'out' || r.direction === 'charge'),
         );
@@ -2223,7 +2226,7 @@ export function EmailTransactionsPanel() {
             }))
             .sort((a, b) => b.s - a.s);
           const top = ranked[0];
-          if (top && top.s >= 90) highConf.push({ row: r, top: top.u, score: top.s });
+          if (top && top.s >= AUTO_DEBIT_MIN_SCORE) highConf.push({ row: r, top: top.u, score: top.s });
         }
         if (outRows.length === 0) return null;
         const unroutedAmt = unrouted.reduce((s, r) => s + (r.amount ?? 0), 0);
@@ -2232,7 +2235,7 @@ export function EmailTransactionsPanel() {
         const runAutoDebit = async () => {
           if (!highConf.length) return;
           const ok = window.confirm(
-            `Auto-debit ${highConf.length} payout${highConf.length === 1 ? '' : 's'} totalling ${fmtUgx(highConfAmt)} from the matched user wallets?\n\nOnly rows with a TID or "to <phone>" match (score ≥ 90%) will run. Each posts a withdrawable debit via CFO Direct Debit. This cannot be undone in bulk.`,
+            `Auto-debit ${highConf.length} payout${highConf.length === 1 ? '' : 's'} totalling ${fmtUgx(highConfAmt)} from the matched user wallets?\n\nRows whose top recipient match scores ≥ 75% (TID, "to <phone>", or a strong name match) will run. Each posts a withdrawable debit via CFO Direct Debit for the amount the email shows leaving. This cannot be undone in bulk.`,
           );
           if (!ok) return;
           setAutoDebitBusy(true);
@@ -2346,7 +2349,7 @@ export function EmailTransactionsPanel() {
                 {unrouted.length > 0 ? (
                   <>
                     Unrouted total <strong className="font-mono text-foreground/80">{fmtUgx(unroutedAmt)}</strong>
-                    {' '}· {highConf.length} of them have a high-confidence recipient
+                    {' '}· {highConf.length} of them match a user ≥ 75%
                     {highConf.length > 0 && <> ({fmtUgx(highConfAmt)})</>}.
                     {' '}Until they're routed, no user wallet is reduced for these payouts.
                   </>
@@ -2369,10 +2372,10 @@ export function EmailTransactionsPanel() {
                 className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
                 disabled={autoDebitBusy}
                 onClick={runAutoDebit}
-                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} high-confidence payout(s).`}
+                title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) matched to a user ≥ 75%.`}
               >
                 {autoDebitBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                Auto-debit {highConf.length} high-confidence
+                Auto-debit {highConf.length} matched ≥ 75%
               </Button>
             )}
           </div>
