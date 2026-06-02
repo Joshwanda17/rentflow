@@ -8,6 +8,7 @@ import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard
 import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
 import { AgentCompanyDebtCard } from '@/components/agent/AgentCompanyDebtCard';
 import { EarnedSinceLastWithdrawalCard } from '@/components/agent/EarnedSinceLastWithdrawalCard';
+import { EarningsSummaryCard } from '@/components/agent/EarningsSummaryCard';
 import { AgentWalletDetailsCard } from '@/components/agent/AgentWalletDetailsCard';
 
 import { Button } from '@/components/ui/button';
@@ -738,6 +739,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {/* 2) Today's collected total — single most useful at-a-glance number */}
             <FieldCollectDailyTotals live />
+
+            {/* 2b) Earnings summary — available rewards + lifetime total */}
+            <EarningsSummaryCard />
 
             {/* 3) Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
