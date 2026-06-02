@@ -865,7 +865,7 @@ export function EmailTransactionsPanel() {
           const raw = (r.transaction_id ?? '').trim();
           if (!raw) continue;
           const norm = normalizeMomoTid(raw);
-          if (!norm) continue;
+          if (norm.length < 6) continue; // avoid spurious short-tail collisions
           tidByRow.set(r.id, norm);
           rawTids.add(raw);
           rawTids.add(norm);
@@ -878,7 +878,7 @@ export function EmailTransactionsPanel() {
             if (!d.transaction_id) continue;
             if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
             const norm = normalizeMomoTid(d.transaction_id);
-            if (!norm) continue;
+            if (norm.length < 6) continue;
             const arr = linkByTid.get(norm) ?? [];
             if (!arr.includes(d.id)) {
               arr.push(d.id);
