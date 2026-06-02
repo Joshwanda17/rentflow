@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Search, Wallet, Lock } from 'lucide-react';
+import { Loader2, Search, Wallet, Lock, ChevronRight, ChevronDown } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { WalletBucketLedgerDetail } from './WalletBucketLedgerDetail';
 
 /**
  * Read-only wallet breakdown for managers / Fin Ops. Lists every wallet
@@ -20,6 +21,7 @@ export function WalletBreakdownReadOnly() {
   const [search, setSearch] = useState('');
   const [minBal, setMinBal] = useState<string>('');
   const [maxBal, setMaxBal] = useState<string>('');
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['manager-wallet-breakdown'],
@@ -157,6 +159,7 @@ export function WalletBreakdownReadOnly() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr className="text-left">
+                <th className="px-3 py-2 font-semibold w-8"></th>
                 <th className="px-3 py-2 font-semibold">Owner</th>
                 <th className="px-3 py-2 font-semibold text-right">Total</th>
                 <th className="px-3 py-2 font-semibold text-right">Withdrawable</th>
@@ -168,31 +171,55 @@ export function WalletBreakdownReadOnly() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
                     Loading wallets…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
                     No wallets match your filters.
                   </td>
                 </tr>
               ) : (
-                filtered.map((row) => (
-                  <tr key={row.user_id} className="border-t border-border/60 hover:bg-muted/30">
-                    <td className="px-3 py-2">
-                      <div className="font-medium text-foreground">{row.full_name}</div>
-                      <div className="text-[11px] text-muted-foreground">{row.phone || '—'}</div>
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold">{formatUGX(row.balance)}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{formatUGX(row.withdrawable)}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums">{formatUGX(row.float)}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums text-warning">{row.advance > 0 ? formatUGX(row.advance) : '—'}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">{row.locked > 0 ? formatUGX(row.locked) : '—'}</td>
-                  </tr>
-                ))
+                filtered.map((row) => {
+                  const isOpen = expanded === row.user_id;
+                  return (
+                    <>
+                      <tr
+                        key={row.user_id}
+                        onClick={() => setExpanded(isOpen ? null : row.user_id)}
+                        className="border-t border-border/60 hover:bg-muted/30 cursor-pointer"
+                      >
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="font-medium text-foreground">{row.full_name}</div>
+                          <div className="text-[11px] text-muted-foreground">{row.phone || '—'}</div>
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold">{formatUGX(row.balance)}</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums">{formatUGX(row.withdrawable)}</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums">{formatUGX(row.float)}</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-warning">{row.advance > 0 ? formatUGX(row.advance) : '—'}</td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">{row.locked > 0 ? formatUGX(row.locked) : '—'}</td>
+                      </tr>
+                      {isOpen && (
+                        <tr key={`${row.user_id}-detail`} className="border-t border-border/60">
+                          <td colSpan={7} className="p-0">
+                            <WalletBucketLedgerDetail
+                              userId={row.user_id}
+                              withdrawable={row.withdrawable}
+                              float={row.float}
+                              advance={row.advance}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })
               )}
             </tbody>
           </table>
