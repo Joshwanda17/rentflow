@@ -346,6 +346,62 @@ function formatCurrencyInput(raw: string): string {
   return Number(digits).toLocaleString('en-UG');
 }
 
+/* ===== Real-time field validation =====
+ * Each validator returns a short, plain-language error string when the value
+ * is present but the FORMAT is wrong, or null when it's empty or valid.
+ * Empty values return null so we never nag the agent while a field is blank —
+ * the "still needed" summary handles required checks at submit time. */
+function vName(value: string): string | null {
+  const t = value.trim();
+  if (!t) return null;
+  if (t.length < 2) return 'Too short — write the full name, e.g. John Mukasa';
+  if (!/^[A-Za-z][A-Za-z .,'\-]*$/.test(t)) return 'Use letters only, e.g. John Mukasa';
+  return null;
+}
+function vPhone(value: string): string | null {
+  const clean = value.replace(/\s/g, '');
+  if (!clean) return null;
+  if (!/^\d+$/.test(clean)) return 'Use numbers only, e.g. 0783 123 456';
+  if (!isValidUgPhone(clean)) return 'Use a Ugandan number like 0783 123 456 (10 digits)';
+  return null;
+}
+function vNationalId(value: string): string | null {
+  const t = value.replace(/\s/g, '');
+  if (!t) return null;
+  if (!/^[A-Za-z0-9]{10,14}$/.test(t)) return 'ID should be 10–14 letters/numbers, e.g. CM12345678901';
+  return null;
+}
+function vAmount(value: string): string | null {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (!digits) return null;
+  if (Number(digits) <= 0) return 'Enter an amount above 0, e.g. 300,000';
+  return null;
+}
+function vDays(value: string): string | null {
+  const digits = value.replace(/[^0-9]/g, '');
+  if (!digits) return null;
+  if (Number(digits) <= 0) return 'Enter the number of days, e.g. 30';
+  if (Number(digits) > 365) return 'That looks too high — use 365 days or less';
+  return null;
+}
+function vPlace(value: string, example: string): string | null {
+  const t = value.trim();
+  if (!t) return null;
+  if (t.length < 2) return `Write a bit more, e.g. ${example}`;
+  return null;
+}
+
+/** Small inline error shown under a field while the agent types. */
+function FieldError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="flex items-start gap-1 text-[11px] font-semibold text-destructive leading-snug">
+      <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+      <span>{message}</span>
+    </p>
+  );
+}
+
 /** Prominent banner that always shows the current request state so the agent
  *  never wonders whether their tap did anything on a touch device. */
 function RequestStateBanner({ state }: { state: 'idle' | 'submitting' | 'success' | 'error' }) {
