@@ -1404,6 +1404,12 @@ async function tryThankSenderMomoSignupSms(
   if (parsed.channel !== 'mtn_momo' && parsed.channel !== 'airtel_money') return;
   if (internalMs && internalMs < Date.now() - 7 * 24 * 3600 * 1000) return;
 
+  // Load the editable SMS template from system_config. Wording, link, address,
+  // website and support email can be changed from Financial Ops without a
+  // redeploy. Fall back to sane defaults if the row is missing/unreadable.
+  const tpl = await loadMomoSignupSmsTemplate(supabase);
+  if (!tpl.enabled) return;
+
   // Find the sender's phone — first from the parsed counterparty, then from
   // the raw email text. Without a phone we have no one to text.
   const cp = (parsed.counterparty ?? '').toString();
@@ -1431,14 +1437,63 @@ async function tryThankSenderMomoSignupSms(
 
   const providerLabel = parsed.channel === 'mtn_momo' ? 'MTN MoMo' : 'Airtel Money';
   const amount = `UGX ${Math.round(parsed.amount).toLocaleString('en-UG')}`;
-  const link = 'https://welilereceipts.com/auth?signup=1';
-  const msg =
-    `WELILE: Thank you for sending ${amount} via ${providerLabel}. ` +
-    `Open your free Welile Wallet with any phone number here: ${link} . ` +
-    `Welile HQ, P.O. Box 167564, Palm Lane, Kabaale, Entebbe - Uganda. ` +
-    `info@welile.com | welile.com`;
+  const thankYou = tpl.thank_you_text
+    .replace(/\{amount\}/gi, amount)
+    .replace(/\{provider\}/gi, providerLabel);
+  const msg = [
+    `WELILE: ${thankYou}`.trim(),
+    `${tpl.signup_prompt} ${tpl.signup_link}`.trim(),
+    tpl.address.trim(),
+    [tpl.support_email, tpl.website].filter(Boolean).join(' | ').trim(),
+  ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
   await sendSmsViaAfricasTalking(rawPhone, msg);
+}
+
+// Default thank-you SMS template — mirrors the system_config seed so the SMS
+// still works if the config row is ever missing.
+type MomoSignupSmsTemplate = {
+  enabled: boolean;
+  thank_you_text: string;
+  signup_prompt: string;
+  signup_link: string;
+  address: string;
+  website: string;
+  support_email: string;
+};
+
+const DEFAULT_MOMO_SIGNUP_SMS: MomoSignupSmsTemplate = {
+  enabled: true,
+  thank_you_text: 'Thank you for sending {amount} via {provider}.',
+  signup_prompt: 'Open your free Welile Wallet with any phone number here:',
+  signup_link: 'https://welilereceipts.com/auth?signup=1',
+  address: 'Welile HQ, P.O. Box 167564, Palm Lane, Kabaale, Entebbe - Uganda.',
+  website: 'welile.com',
+  support_email: 'info@welile.com',
+};
+
+async function loadMomoSignupSmsTemplate(
+  supabase: ReturnType<typeof createClient>,
+): Promise<MomoSignupSmsTemplate> {
+  try {
+    const { data } = await supabase
+      .from('system_config')
+      .select('value')
+      .eq('key', 'momo_sender_signup_sms')
+      .maybeSingle();
+    const v = (data?.value ?? {}) as Partial<MomoSignupSmsTemplate>;
+    return {
+      enabled: v.enabled !== false,
+      thank_you_text: (v.thank_you_text ?? DEFAULT_MOMO_SIGNUP_SMS.thank_you_text).toString(),
+      signup_prompt: (v.signup_prompt ?? DEFAULT_MOMO_SIGNUP_SMS.signup_prompt).toString(),
+      signup_link: (v.signup_link ?? DEFAULT_MOMO_SIGNUP_SMS.signup_link).toString(),
+      address: (v.address ?? DEFAULT_MOMO_SIGNUP_SMS.address).toString(),
+      website: (v.website ?? DEFAULT_MOMO_SIGNUP_SMS.website).toString(),
+      support_email: (v.support_email ?? DEFAULT_MOMO_SIGNUP_SMS.support_email).toString(),
+    };
+  } catch (_e) {
+    return DEFAULT_MOMO_SIGNUP_SMS;
+  }
 }
 
 async function sendSmsViaAfricasTalking(phone: string, message: string): Promise<boolean> {
