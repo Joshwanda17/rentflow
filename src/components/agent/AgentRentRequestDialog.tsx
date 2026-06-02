@@ -2910,6 +2910,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <Home className="h-3 w-3" />
                   House Category *
                 </h4>
+                <p className="text-xs text-muted-foreground leading-snug">Pick what kind of house this is (single room, two rooms, etc.).</p>
                 <Select value={houseCategory} onValueChange={setHouseCategory}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select house type" />
