@@ -266,10 +266,33 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
                   <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   <span>{codeError}</span>
                 </p>
-                <div className="text-xs text-muted-foreground space-y-1">
+                <div className="text-xs text-muted-foreground space-y-2">
                   <p>
-                    <span className="font-semibold text-foreground">Expected format:</span> A 4-character (or longer) receipt code — for example <span className="font-mono text-foreground">RCT1234</span>.
+                    <span className="font-semibold text-foreground">Expected pattern:</span>{' '}
+                    <code className="font-mono text-foreground bg-muted px-1 rounded">RCT[A-Z2-9]{'{7}'}</code>{' '}
+                    — the code starts with <span className="font-mono text-foreground">RCT</span>, followed by 7 uppercase letters or numbers. Spaces and dashes are automatically removed. If you omit <span className="font-mono text-foreground">RCT</span>, it is added for you.
                   </p>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-foreground">Example codes you can copy:</p>
+                    {['RCT-HJK4-M9P2', 'RCT N8B3 Q7L', 'RCT4GH2KM5'].map((ex) => (
+                      <button
+                        key={ex}
+                        type="button"
+                        onClick={() => void copyToClipboard(ex)}
+                        className="flex items-center gap-2 w-full text-left px-2 py-1 rounded-md hover:bg-muted transition-colors group"
+                      >
+                        <code className="font-mono text-foreground">{ex}</code>
+                        {copiedExample === ex ? (
+                          <Check className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        )}
+                        {copiedExample === ex && (
+                          <span className="text-[10px] text-green-600 font-medium">Copied</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                   <p>
                     <span className="font-semibold text-foreground">How to fix:</span> Ask Financial Ops to read the code slowly and clearly, then type it exactly as given. Make sure you are entering the code for this deposit request.
                   </p>
