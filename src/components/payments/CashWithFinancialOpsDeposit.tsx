@@ -68,21 +68,11 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   };
 
   /**
-   * Normalize a pasted receipt code:
-   * 1. NFKD-decompose Unicode (fullwidth → normal, composed accents → base + mark)
-   * 2. Uppercase
-   * 3. Strip everything that is not A–Z or 0–9 (spaces, dashes, punctuation,
-   *    combining marks, non-Latin symbols, zero-width characters, etc.)
-   * 4. Auto-prefix RCT if missing
+   * Normalize a pasted receipt code: keep only the digits, max 4.
+   * Pasted codes with spaces, dashes, or other characters still validate.
    */
-  const normalizeReceiptCode = (raw: string): string => {
-    let cleaned = raw
-      .normalize('NFKD')
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '');
-    if (!cleaned.startsWith('RCT')) cleaned = 'RCT' + cleaned;
-    return cleaned;
-  };
+  const normalizeReceiptCode = (raw: string): string =>
+    raw.replace(/\D+/g, '').slice(0, 4);
 
   const amountNum = parseFloat(amount);
 
@@ -129,8 +119,8 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
 
   const handleVerify = async () => {
     const entered = normalizeReceiptCode(code);
-    if (!depositId || entered.length < 4) {
-      setCodeError('Enter the receipt code Financial Ops gave you.');
+    if (!depositId || entered.length !== 4) {
+      setCodeError('Enter the 4-digit receipt code Financial Ops gave you.');
       return;
     }
     setLoading(true);
@@ -242,13 +232,14 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
             <div className="space-y-2">
               <Label className="text-sm font-medium">Receipt code</Label>
               <Input
-                placeholder="e.g. RCTXXXXXXX"
+                placeholder="e.g. 1234"
                 value={code}
                 disabled={loading || locked}
+                inputMode="numeric"
+                maxLength={4}
                 onChange={(e) => { setCode(normalizeReceiptCode(e.target.value)); if (codeError) setCodeError(''); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') void handleVerify(); }}
-                className="font-mono text-lg tracking-wider h-12 text-center"
-                autoCapitalize="characters"
+                className="font-mono text-2xl tracking-[0.5em] h-12 text-center"
                 autoComplete="off"
                 autoFocus
               />
@@ -286,12 +277,12 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
                 <div className="text-xs text-muted-foreground space-y-2">
                   <p>
                     <span className="font-semibold text-foreground">Expected pattern:</span>{' '}
-                    <code className="font-mono text-foreground bg-muted px-1 rounded">RCT[A-Z2-9]{'{7}'}</code>{' '}
-                    — the code starts with <span className="font-mono text-foreground">RCT</span>, followed by 7 uppercase letters or numbers. Spaces and dashes are automatically removed. If you omit <span className="font-mono text-foreground">RCT</span>, it is added for you.
+                    <code className="font-mono text-foreground bg-muted px-1 rounded">[0-9]{'{4}'}</code>{' '}
+                    — the code is exactly 4 numbers. Spaces, dashes, and any other characters are automatically removed.
                   </p>
                   <div className="space-y-1">
                     <p className="font-semibold text-foreground">Example codes you can copy:</p>
-                    {['RCT-HJK4-M9P2', 'RCT N8B3 Q7L', 'RCT4GH2KM5'].map((ex) => (
+                    {['1234', '4821', '9075'].map((ex) => (
                       <button
                         key={ex}
                         type="button"
