@@ -3405,6 +3405,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       className={`h-10 ${hasFieldError('city') ? 'border-destructive border-2' : ''}`}
                       required
                     />
+                    <FieldError message={vPlace(propertyCity, 'Entebbe')} />
                   </div>
                   <div className="space-y-1">
                     <Label >District</Label>
