@@ -1244,6 +1244,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setGuarantorConsent(false);
     setValidationErrors([]);
     setSubmissionError(null);
+    setErrorDetails(null);
     setSuccess(false);
     setRequestState('idle');
     setActivationLink(null);
