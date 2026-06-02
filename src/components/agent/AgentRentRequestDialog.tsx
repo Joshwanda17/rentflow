@@ -1056,6 +1056,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const goBackStep = () => {
     setValidationErrors([]);
     setSubmissionError(null);
+    setErrorDetails(null);
     if (detailStep === 0) { setStep('type'); return; }
     setDetailStep((s) => Math.max(s - 1, 0));
     scrollDialogTop();
