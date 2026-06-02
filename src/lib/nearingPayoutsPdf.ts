@@ -53,10 +53,8 @@ const dueDateLabel = (iso: string) => {
 
 const dueLabel = (d: number, iso: string) => {
   if (d === 0) return 'Due today';
-  // Overdue (past due) — show the exact date they are to be paid.
-  if (d < 0) return dueDateLabel(iso);
-  if (d === 1) return 'Tomorrow';
-  return `${d} days`;
+  // Every other case (overdue or upcoming) shows the exact payout date.
+  return dueDateLabel(iso);
 };
 
 // Human-readable portfolio lifecycle status (active / matured / paused …).
