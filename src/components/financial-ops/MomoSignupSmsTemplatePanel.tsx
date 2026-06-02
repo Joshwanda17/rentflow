@@ -328,6 +328,47 @@ export function MomoSignupSmsTemplatePanel() {
           </div>
         </CardContent>
       </Card>
+
+      {history.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="h-4 w-4 text-primary" />
+              Test SMS history
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Most recent test sends this session — phone, the exact resolved message, time, and the
+              gateway's response.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {history.map((h) => (
+              <div key={h.id} className="rounded-lg border p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    {h.ok ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    )}
+                    {h.formattedPhone || h.phone}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(h.at).toLocaleString()}
+                  </span>
+                </div>
+                <div className="rounded-md bg-muted p-2 text-xs leading-relaxed whitespace-pre-wrap">
+                  {h.message}
+                </div>
+                <p className="text-xs">
+                  <span className="text-muted-foreground">Gateway response: </span>
+                  <span className={h.ok ? 'text-green-600' : 'text-destructive'}>{h.response}</span>
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
