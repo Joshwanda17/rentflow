@@ -11,6 +11,7 @@ import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
+import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { regionLabel } from '@/lib/ugandaDistricts';
@@ -201,6 +202,9 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
           <p className="text-3xl font-black text-success leading-none mb-1">{formatUGX(listing.daily_rate)}</p>
           <p className="text-xs text-muted-foreground font-medium">per day · pay as you stay</p>
         </div>
+
+        {/* Move-in offer — first 7 days free on every listed house */}
+        <MoveInOfferBadge variant="banner" />
 
         {/* Specs */}
         <div className="flex items-center gap-2 flex-wrap">
