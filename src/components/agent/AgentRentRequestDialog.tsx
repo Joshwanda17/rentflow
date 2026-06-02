@@ -2332,14 +2332,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               {incomeType === 'outstanding' ? (
                 <>
                   {/* Warning banner */}
-                  <div className="p-3 rounded-xl border" style={{ backgroundColor: 'rgba(124, 59, 237, 0.12)', borderColor: 'rgba(124, 59, 237, 0.3)' }}>
-                    <p className="text-xs font-medium" style={{ color: '#7C3BED' }}>
+                  <div className="p-3 rounded-xl border border-primary/20 bg-primary/5">
+                    <p className="text-xs font-medium text-primary">
                       ⚠️ Outstanding balance is stored exactly as typed — no access fee, no platform fee, no recalculation. Tenant goes live in your Owing tab immediately (no approval).
                     </p>
                   </div>
 
                   {/* 🏠 Select Landlord (debounced search) */}
-                  <div className="space-y-3 p-4 rounded-2xl border-4" style={{ backgroundColor: 'rgba(124, 59, 237, 0.06)', borderColor: 'rgba(124, 59, 237, 0.25)' }}>
+                  <div className="space-y-3 p-4 rounded-2xl border border-border/60 bg-muted/30">
                     <h4 className="text-sm font-semibold flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-primary" />
                       🏠 Select Landlord
@@ -2375,7 +2375,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
 
                   {/* 👤 Tenant Personal Information */}
-                  <div className="space-y-3 p-4 rounded-2xl bg-muted/40 border-4 border-primary">
+                  <div className="space-y-3 p-4 rounded-2xl border border-border/60 bg-muted/30">
                     <h4 className="text-sm font-semibold flex items-center gap-2">
                       <User className="h-4 w-4 text-primary" />
                       👤 Personal Information
@@ -2428,7 +2428,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
 
                   {/* 💰 Rent Information */}
-                  <div className="space-y-3 p-4 rounded-2xl border-4" style={{ backgroundColor: 'rgba(124, 59, 237, 0.06)', borderColor: 'rgba(124, 59, 237, 0.25)' }}>
+                  <div className="space-y-3 p-4 rounded-2xl border border-border/60 bg-muted/30">
                     <h4 className="text-sm font-semibold flex items-center gap-2">
                       <Banknote className="h-4 w-4 text-primary" />
                       💰 Rent Information
