@@ -67,9 +67,19 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
     }
   };
 
-  /** Strip spaces/hyphens, uppercase, auto-prefix RCT. */
+  /**
+   * Normalize a pasted receipt code:
+   * 1. NFKD-decompose Unicode (fullwidth → normal, composed accents → base + mark)
+   * 2. Uppercase
+   * 3. Strip everything that is not A–Z or 0–9 (spaces, dashes, punctuation,
+   *    combining marks, non-Latin symbols, zero-width characters, etc.)
+   * 4. Auto-prefix RCT if missing
+   */
   const normalizeReceiptCode = (raw: string): string => {
-    let cleaned = raw.toUpperCase().replace(/[\s\-]/g, '');
+    let cleaned = raw
+      .normalize('NFKD')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
     if (!cleaned.startsWith('RCT')) cleaned = 'RCT' + cleaned;
     return cleaned;
   };
