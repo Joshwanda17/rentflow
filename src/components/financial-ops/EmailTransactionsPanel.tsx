@@ -2440,6 +2440,69 @@ export function EmailTransactionsPanel() {
         );
       })()}
 
+      {/* ── Unparsed-email queue ─────────────────────────────────────────
+          Every Gmail row the parser skipped (no usable amount), each with
+          the exact reason(s) it failed. Collapsed by default. */}
+      {unparsedRows.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setUnparsedOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-amber-500/10 transition-colors"
+          >
+            <span className="flex items-center gap-2 font-semibold text-sm text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Unparsed email queue
+              <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+                {unparsedRows.length} skipped
+              </Badge>
+            </span>
+            {unparsedOpen ? <ChevronUp className="h-4 w-4 text-amber-700 dark:text-amber-400" /> : <ChevronDown className="h-4 w-4 text-amber-700 dark:text-amber-400" />}
+          </button>
+          {unparsedOpen && (
+            <div className="border-t border-amber-500/20 divide-y divide-amber-500/10">
+              <p className="px-4 py-2 text-xs text-muted-foreground">
+                These rows were skipped by the parser and never counted toward any total. Each shows the exact reason it could not be parsed.
+              </p>
+              {unparsedRows.map((r) => {
+                const reasons = parseFailureReasons(r);
+                const when = r.internal_date
+                  ? new Date(r.internal_date).toLocaleString('en-GB', { timeZone: tz })
+                  : '—';
+                return (
+                  <div key={r.id} className="px-4 py-3 space-y-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{r.subject || '(no subject)'}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {r.from_name || r.from_email || 'unknown sender'} · {when}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0">unparsed</Badge>
+                    </div>
+                    {r.snippet && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{r.snippet}</p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {reasons.map((reason) => (
+                        <Badge
+                          key={reason}
+                          variant="outline"
+                          className="text-[10px] gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        >
+                          <AlertCircle className="h-3 w-3" />
+                          {reason}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="rounded-xl border bg-card overflow-hidden">
         {/* Prominent, full-width search bar — lets ops find any email by
             amount, name, phone (any format), reference id, or any word in
