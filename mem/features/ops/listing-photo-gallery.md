@@ -12,4 +12,3 @@ Triggers: `trg_listing_photos_before_insert` auto-assigns position (max+1) and a
 RLS: SELECT public (true; granted to anon+authenticated). INSERT/UPDATE/DELETE allowed to `is_ops_role(auth.uid())` OR the listing's own `agent_id`.
 
 Frontend: hook `useListingPhotos(listingId, enabled)` + `useListingPhotoActions(listingId)` (upload/remove/setCover/swap) in `src/hooks/useListingPhotos.ts`. Component `src/components/executive/tenant-ops/ListingPhotoGallery.tsx` — lazy-loaded thumbnail strip (StorageImage + loading="lazy"), camera/gallery add, set cover, reorder (swap left/right), delete, lightbox. Rendered per row in `WelileMissionBoard.tsx` EmptyHousesDialog behind a per-row "Manage photos" toggle (`photosOpen` Set).
-EOF
