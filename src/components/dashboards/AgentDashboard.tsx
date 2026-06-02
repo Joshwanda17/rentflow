@@ -133,7 +133,7 @@ import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentReques
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 import { StuckDepositsRepairPanel } from '@/components/wallet/StuckDepositsRepairPanel';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
-import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
+
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
