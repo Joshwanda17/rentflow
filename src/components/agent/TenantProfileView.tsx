@@ -40,6 +40,7 @@ import { useRequireContactLocation } from '@/hooks/useRequireContactLocation';
 interface TenantProfileViewProps {
   tenantId: string;
   onBack: () => void;
+  autoEdit?: boolean;
 }
 
 interface TenantProfile {
