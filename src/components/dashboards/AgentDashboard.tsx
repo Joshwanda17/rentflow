@@ -91,7 +91,7 @@ import { AgentLandlordFloatAllocationsDialog } from '@/components/agent/AgentLan
 import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
 import { FloatPayoutStatusTracker } from '@/components/agent/FloatPayoutStatusTracker';
 import { FloatTransactionHistory } from '@/components/agent/FloatTransactionHistory';
-import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
+
 import { AgentNotificationBell } from '@/components/agent/AgentNotificationBell';
 import { DeviceSessionIndicator } from '@/components/agent/DeviceSessionIndicator';
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
@@ -133,7 +133,7 @@ import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentReques
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 import { StuckDepositsRepairPanel } from '@/components/wallet/StuckDepositsRepairPanel';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
-import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
+
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
@@ -518,7 +518,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
       <div className="agent-dashboard-scroll flex-1 overflow-y-auto overflow-x-hidden pb-nav">
         <main className="agent-dashboard-main w-full min-w-0 px-4 pt-5 pb-16 space-y-5 max-w-lg mx-auto">
-        <VerificationOpportunitiesButton />
         {/* Offline Notice */}
         {!isOnline && (
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
