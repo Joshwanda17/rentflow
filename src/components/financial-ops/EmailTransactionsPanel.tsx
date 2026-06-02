@@ -2235,7 +2235,7 @@ export function EmailTransactionsPanel() {
         const runAutoDebit = async () => {
           if (!highConf.length) return;
           const ok = window.confirm(
-            `Auto-debit ${highConf.length} payout${highConf.length === 1 ? '' : 's'} totalling ${fmtUgx(highConfAmt)} from the matched user wallets?\n\nOnly rows with a TID or "to <phone>" match (score ≥ 90%) will run. Each posts a withdrawable debit via CFO Direct Debit. This cannot be undone in bulk.`,
+            `Auto-debit ${highConf.length} payout${highConf.length === 1 ? '' : 's'} totalling ${fmtUgx(highConfAmt)} from the matched user wallets?\n\nRows whose top recipient match scores ≥ 75% (TID, "to <phone>", or a strong name match) will run. Each posts a withdrawable debit via CFO Direct Debit for the amount the email shows leaving. This cannot be undone in bulk.`,
           );
           if (!ok) return;
           setAutoDebitBusy(true);
