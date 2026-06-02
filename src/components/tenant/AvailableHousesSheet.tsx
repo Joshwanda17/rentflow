@@ -317,12 +317,32 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
         }}
       >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
-          <SheetTitle className="flex items-center gap-2">
-            <Home className="h-5 w-5 text-primary" />
-            {hasGPS && geo.city
-              ? `Houses Near ${geo.city}`
-              : 'Available Houses — Daily Rent'}
-          </SheetTitle>
+          <div className="flex items-center justify-between gap-2">
+            <SheetTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5 text-primary" />
+              {hasGPS && geo.city
+                ? `Houses Near ${geo.city}`
+                : 'Available Houses'}
+            </SheetTitle>
+            <div className="flex items-center rounded-full border border-border bg-muted/40 p-0.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                aria-pressed={view === 'list'}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                <List className="h-3.5 w-3.5" /> List
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('map')}
+                aria-pressed={view === 'map'}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${view === 'map' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                <MapIcon className="h-3.5 w-3.5" /> Map
+              </button>
+            </div>
+          </div>
 
           <form
             role="search"
