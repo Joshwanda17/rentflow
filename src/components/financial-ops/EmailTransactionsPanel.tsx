@@ -808,6 +808,59 @@ export function EmailTransactionsPanel() {
     return () => { cancelled = true; supabase.removeChannel(sub); };
   }, [rows]);
 
+  // Persist a one-time, regulator-safe audit entry whenever an email is
+  // detected as already credited purely via its transaction reference (TID).
+  // Idempotent: skips any (gmail_transaction, deposit) pair already logged so
+  // the recurring credited-detection effect doesn't spam duplicate rows.
+  const recordTidAutoCreditAudit = async (
+    pairs: Array<{
+      gmail_transaction_id: string;
+      deposit_request_id: string;
+      amount: number;
+      tid: string | null;
+      user_name: string;
+      status: string;
+    }>,
+  ): Promise<void> => {
+    if (!pairs.length) return;
+    try {
+      const gtxIds = Array.from(new Set(pairs.map((p) => p.gmail_transaction_id)));
+      const { data: existing } = await (supabase.from('email_match_audit_log') as any)
+        .select('gmail_transaction_id, deposit_request_id')
+        .eq('action', 'tid_auto_credited')
+        .in('gmail_transaction_id', gtxIds);
+      const seen = new Set<string>(
+        ((existing ?? []) as Array<{ gmail_transaction_id: string | null; deposit_request_id: string | null }>)
+          .map((e) => `${e.gmail_transaction_id}|${e.deposit_request_id}`),
+      );
+      const fresh = pairs.filter((p) => !seen.has(`${p.gmail_transaction_id}|${p.deposit_request_id}`));
+      if (!fresh.length) return;
+      const { data: auth } = await supabase.auth.getUser();
+      const actorId = auth?.user?.id ?? null;
+      const actorEmail = auth?.user?.email ?? null;
+      const insertRows = fresh.map((p) => ({
+        gmail_transaction_id: p.gmail_transaction_id,
+        deposit_request_id: p.deposit_request_id,
+        action: 'tid_auto_credited',
+        matcher_type: 'tid',
+        match_score: 100,
+        amount: p.amount,
+        actor_id: actorId,
+        actor_email: actorEmail,
+        notes: 'Already Credited — No Routing Needed (matched by transaction reference / TID).',
+        signals: {
+          normalized_tid: p.tid,
+          recipient: p.user_name,
+          deposit_status: p.status,
+          detection: 'tid_reference_match',
+        },
+      }));
+      await (supabase.from('email_match_audit_log') as any).insert(insertRows);
+    } catch {
+      // Best-effort audit; never block the UI on a logging failure.
+    }
+  };
+
   // Background load of "already-credited" deposit links for visible incoming
   // rows. Uses the same two-step resolution the RouteEmailDepositDialog
   // uses: (1) gmail_transactions.linked_deposit_request_id fast path,
