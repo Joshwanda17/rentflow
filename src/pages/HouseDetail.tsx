@@ -351,6 +351,21 @@ export default function HouseDetail() {
             <MoveInOfferBadge variant="banner" className="mt-4" />
           </motion.div>
 
+          {/* ── One-tap copy share link ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <button
+              onClick={handleCopyLink}
+              className="w-full flex items-center justify-center gap-2.5 min-h-[48px] px-6 py-3 rounded-xl border-2 border-primary/30 bg-primary/5 text-primary font-bold text-sm shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? 'Link copied — paste it anywhere!' : 'Copy share link'}
+            </button>
+          </motion.div>
+
           {/* ── Room & Amenities grid ── */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
