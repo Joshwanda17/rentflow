@@ -15,7 +15,7 @@ interface HousesMapViewProps {
 
 const KAMPALA: google.maps.LatLngLiteral = { lat: 0.3476, lng: 32.5825 };
 
-export function HousesMapView({ listings, userCoords, onSelectHouse }: HousesMapViewProps) {
+export function HousesMapView({ listings, userCoords, onSelectHouse, onSwitchToList }: HousesMapViewProps) {
   const navigate = useNavigate();
   const { isReady, isError, hasKey } = useGoogleMapsLoader(true);
   const mapEl = useRef<HTMLDivElement>(null);
