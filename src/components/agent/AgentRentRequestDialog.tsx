@@ -1041,6 +1041,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (errs.length > 0) {
       setValidationErrors(errs);
       setSubmissionError(null);
+      setErrorDetails(null);
       toast.error(errs.length === 1 ? errs[0] : `${errs.length} things still needed`);
       requestAnimationFrame(() => {
         errorSummaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
