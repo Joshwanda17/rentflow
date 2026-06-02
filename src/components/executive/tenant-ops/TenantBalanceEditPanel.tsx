@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -7,11 +7,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
 import { cn } from '@/lib/utils';
 import {
   Search, Pencil, History, Loader2, Save, X, UserPlus, Users, ChevronRight,
+  List, CalendarDays, Filter, CalendarIcon, ArrowUpDown, Clock, User,
 } from 'lucide-react';
 
 interface TenantRentRow {
