@@ -12,8 +12,22 @@ let scriptPromise: Promise<void> | null = null;
 declare global {
   interface Window {
     __welileInitGoogleMaps?: () => void;
+    gm_authFailure?: () => void;
     google?: typeof google;
   }
+}
+
+// Google calls this global on key/referrer auth failures (e.g.
+// RefererNotAllowedMapError, InvalidKeyMapError). The JS API still "loads"
+// in that case, so without this hook the map renders as a greyed-out broken
+// widget. We flip a flag so the UI can show the proper fallback instead.
+let authFailed = false;
+const authFailureListeners = new Set<() => void>();
+if (typeof window !== 'undefined') {
+  window.gm_authFailure = () => {
+    authFailed = true;
+    authFailureListeners.forEach((fn) => fn());
+  };
 }
 
 function loadGoogleMaps(): Promise<void> {
@@ -46,7 +60,7 @@ function loadGoogleMaps(): Promise<void> {
  */
 export function useGoogleMapsLoader(enabled = true) {
   const [state, setState] = useState<LoadState>(() =>
-    typeof window !== 'undefined' && window.google?.maps ? 'ready' : 'idle'
+    authFailed ? 'error' : typeof window !== 'undefined' && window.google?.maps ? 'ready' : 'idle'
   );
 
   useEffect(() => {
@@ -54,10 +68,13 @@ export function useGoogleMapsLoader(enabled = true) {
     if (!BROWSER_KEY) { setState('error'); return; }
     let cancelled = false;
     setState('loading');
+    const onAuthFail = () => { if (!cancelled) setState('error'); };
+    authFailureListeners.add(onAuthFail);
+    if (authFailed) onAuthFail();
     loadGoogleMaps()
       .then(() => { if (!cancelled) setState('ready'); })
       .catch(() => { if (!cancelled) setState('error'); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; authFailureListeners.delete(onAuthFail); };
   }, [enabled, state]);
 
   return { isReady: state === 'ready', isLoading: state === 'loading', isError: state === 'error', hasKey: !!BROWSER_KEY };
