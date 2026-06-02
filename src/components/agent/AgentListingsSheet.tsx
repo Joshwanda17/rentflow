@@ -26,6 +26,7 @@ import { HighlightText } from '@/components/shared/HighlightText';
 import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { HouseDetailSheet } from './HouseDetailSheet';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
+import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -269,6 +270,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
       `📍 ${l.address}${l.region ? `, ${l.region}` : ''}`,
       `💰 ${formatUGX(l.monthly_rent)}/month  (≈ ${formatUGX(l.daily_rate)}/day on Welile)`,
       ``,
+      `🎁 Move in TODAY — your first 7 days are FREE, then just pay daily.`,
       `Pay daily, weekly, or monthly through Welile — no big upfront deposit needed.`,
       `View & reserve here: ${link}`,
     ];
@@ -779,6 +781,8 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
                                 <span className="text-muted-foreground">{formatUGX(l.monthly_rent)}/mo</span>
                                 <span className="font-bold text-success">{formatUGX(l.daily_rate)}/day</span>
                               </div>
+
+                              <MoveInOfferBadge className="w-full justify-center" />
 
                               {!l.tenant_id && l.status === 'available' && (
                                 <div onClick={(e) => e.stopPropagation()}>

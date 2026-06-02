@@ -5,6 +5,7 @@ import { MapPin, ArrowRight, Home, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
+import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 
 interface PublicHouse {
   id: string;
@@ -128,6 +129,7 @@ export function PublicHousesPreview() {
                   {formatUGX(house.daily_rate)}
                   <span className="text-[9px] font-normal text-muted-foreground">/day</span>
                 </p>
+                <MoveInOfferBadge className="mt-1" />
               </div>
             </button>
           ))}

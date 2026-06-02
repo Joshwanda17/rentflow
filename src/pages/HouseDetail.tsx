@@ -19,6 +19,7 @@ import HouseQASection from '@/components/house/HouseQASection';
 import PriceComparison from '@/components/house/PriceComparison';
 import VisitBadge from '@/components/house/VisitBadge';
 import NearbyAmenities from '@/components/house/NearbyAmenities';
+import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { motion } from 'framer-motion';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
@@ -330,6 +331,7 @@ export default function HouseDetail() {
               <VisitBadge reviewCount={summary.totalReviews} />
               <PriceComparison region={listing.region} category={listing.house_category} dailyRate={listing.daily_rate} houseId={listing.id} />
             </div>
+            <MoveInOfferBadge variant="banner" className="mt-4" />
           </motion.div>
 
           {/* ── Room & Amenities grid ── */}
