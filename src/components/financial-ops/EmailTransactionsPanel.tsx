@@ -167,14 +167,21 @@ function validateGmailTx(r: GmailTx): { valid: boolean; reason?: string } {
  */
 function extractCashReceiptCode(r: GmailTx): string | null {
   const hay = `${r.subject ?? ''}\n${r.snippet ?? ''}`;
-  // Prefer the explicit "Receipt code: 8829" label, then the subject form
+  // Prefer the explicit "Receipt code: 8829" label (REQUIRE the colon — the
+  // body also says "read the receipt code back to them", and a colon-less
+  // match would wrongly capture the word "back"), then the subject form
   // "Cash deposit code 8829 — UGX …".
-  const m =
-    hay.match(/Receipt\s*code\s*:?\s*([A-Za-z0-9-]{3,})/i) ||
-    hay.match(/Cash\s*deposit\s*code\s+([A-Za-z0-9-]{3,})/i);
-  if (!m) return null;
-  const code = (m[1] ?? '').trim();
-  return code.length >= 3 ? code : null;
+  const candidates: Array<string | undefined> = [
+    hay.match(/Receipt\s*code\s*:\s*([A-Za-z0-9-]{3,})/i)?.[1],
+    hay.match(/Cash\s*deposit\s*code\s+([A-Za-z0-9-]{3,})/i)?.[1],
+  ];
+  for (const raw of candidates) {
+    const code = (raw ?? '').trim();
+    // Real receipt codes always contain at least one digit; this rejects
+    // stray prose words ("back", "verified") that follow the label.
+    if (code.length >= 3 && /\d/.test(code)) return code;
+  }
+  return null;
 }
 
 /**
