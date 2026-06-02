@@ -2774,6 +2774,11 @@ export function EmailTransactionsPanel() {
                 const isFullyCredited = manualMark?.mark === 'credited'
                   ? true
                   : (emailAmount > 0 && totalCredited >= emailAmount);
+                // True when at least one credited deposit was matched to this
+                // email by its transaction reference (TID). Drives the clear
+                // "Already Credited — No Routing Needed" status.
+                const matchedByTid = credited.some((c) => c.matched_by_tid);
+                const matchedTid = credited.find((c) => c.matched_tid)?.matched_tid ?? null;
                 // ── Insufficient-funds warning for outgoing payouts ───────
                 // When an outgoing email (sent / charge) is matched to a
                 // user wallet whose current balance cannot cover the payout
