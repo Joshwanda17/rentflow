@@ -141,7 +141,11 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent
+        className={`max-w-md ${step === 'code' ? '[&>button.absolute]:hidden' : ''}`}
+        onInteractOutside={(e) => { if (step === 'code') e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (step === 'code') e.preventDefault(); }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-blue-600" />
