@@ -2017,7 +2017,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[88vh] overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+96px)] sm:pb-6 overscroll-contain">
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md max-h-[88vh] overflow-x-hidden overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+96px)] sm:pb-6 overscroll-contain">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
@@ -2204,7 +2204,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               key="details"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="space-y-4 [&_label]:text-[15px] [&_label]:font-bold [&_input]:h-12 [&_input]:text-base [&_[role=combobox]]:h-12 [&_[role=combobox]]:text-base"
+              className="min-w-0 break-words space-y-4 [&_label]:text-[15px] [&_label]:font-bold [&_input]:h-12 [&_input]:text-base [&_[role=combobox]]:h-12 [&_[role=combobox]]:text-base"
             >
               {/* Guided wizard progress (standard flow only) */}
               {incomeType !== 'outstanding' && (
@@ -3489,27 +3489,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <CheckCircle2 className="h-4 w-4 text-primary" /> Review &amp; confirm
                 </h4>
                 <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tenant</span>
-                    <span className="font-semibold">{tenantName || '—'}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground shrink-0">Tenant</span>
+                    <span className="font-semibold text-right min-w-0 break-words">{tenantName || '—'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Rent amount</span>
-                    <span className="font-semibold">{amount ? formatUGX(amount) : '—'}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground shrink-0">Rent amount</span>
+                    <span className="font-semibold text-right min-w-0 break-words">{amount ? formatUGX(amount) : '—'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{incomeType === 'daily' ? 'Duration' : 'Repayment'}</span>
-                    <span className="font-semibold">{incomeType === 'daily' ? `${duration} days` : getPeriodLabel(repaymentPeriod)}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground shrink-0">{incomeType === 'daily' ? 'Duration' : 'Repayment'}</span>
+                    <span className="font-semibold text-right min-w-0 break-words">{incomeType === 'daily' ? `${duration} days` : getPeriodLabel(repaymentPeriod)}</span>
                   </div>
                   {fees && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">You pay</span>
-                      <span className="font-semibold">{formatUGX(fees.dailyRepayment)}/day</span>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground shrink-0">You pay</span>
+                      <span className="font-semibold text-right min-w-0 break-words">{formatUGX(fees.dailyRepayment)}/day</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Landlord</span>
-                    <span className="font-semibold">{landlordName || '—'}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground shrink-0">Landlord</span>
+                    <span className="font-semibold text-right min-w-0 break-words">{landlordName || '—'}</span>
                   </div>
                 </div>
               </div>
