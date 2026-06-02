@@ -336,15 +336,17 @@ Deno.serve(async (req) => {
 
     // ── Confirmation SMS to the depositor (verified amount + new balance) ──
     try {
-      const { data: profile } = await admin
-        .from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle();
-      const phone = (profile as any)?.phone || "";
+      const { phone, source } = await resolveDepositorPhone(admin, user.id, {
+        phone: user.phone,
+        user_metadata: (user as any).user_metadata,
+      });
       if (phone) {
         const balanceLine = newBalance != null ? ` New balance ${fmtUGX(newBalance)}.` : "";
         const smsBody =
           `Welile: Cash deposit confirmed. ${fmtUGX(ver.amount)} credited to your wallet ` +
           `(receipt ${enteredCode}).${balanceLine} Thank you.`;
         const sent = await sendSMS(phone, smsBody);
+        console.log(`[cash-verify-code] confirmation SMS to ${phone} (via ${source}) sent=${sent}`);
         if (!sent) console.error("[cash-verify-code] confirmation SMS not sent");
       } else {
         console.error("[cash-verify-code] no phone on file for confirmation SMS");
