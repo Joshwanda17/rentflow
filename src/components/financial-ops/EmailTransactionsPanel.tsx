@@ -157,6 +157,26 @@ function validateGmailTx(r: GmailTx): { valid: boolean; reason?: string } {
 }
 
 /**
+ * Extract the cash-deposit receipt code from a "Cash deposit code …" email.
+ * These emails are generated when a user starts a CASH deposit: the body and
+ * subject carry a short Receipt code (e.g. `8829`) which is stored verbatim as
+ * the matching `deposit_requests.transaction_id`. The generic MoMo-TID matcher
+ * skips short references to avoid spurious collisions, so these legitimate
+ * cash codes need their own exact-match path. Returns the trimmed code or null.
+ */
+function extractCashReceiptCode(r: GmailTx): string | null {
+  const hay = `${r.subject ?? ''}\n${r.snippet ?? ''}`;
+  // Prefer the explicit "Receipt code: 8829" label, then the subject form
+  // "Cash deposit code 8829 — UGX …".
+  const m =
+    hay.match(/Receipt\s*code\s*:?\s*([A-Za-z0-9-]{3,})/i) ||
+    hay.match(/Cash\s*deposit\s*code\s+([A-Za-z0-9-]{3,})/i);
+  if (!m) return null;
+  const code = (m[1] ?? '').trim();
+  return code.length >= 3 ? code : null;
+}
+
+/**
  * localStorage-backed cache of derived channel results, keyed by the most
  * stable identifier available on the row (transaction id / receipt number,
  * falling back to the gmail message id). The cache lets future loads — and
