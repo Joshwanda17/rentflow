@@ -277,12 +277,12 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
                 <div className="text-xs text-muted-foreground space-y-2">
                   <p>
                     <span className="font-semibold text-foreground">Expected pattern:</span>{' '}
-                    <code className="font-mono text-foreground bg-muted px-1 rounded">RCT[A-Z2-9]{'{7}'}</code>{' '}
-                    — the code starts with <span className="font-mono text-foreground">RCT</span>, followed by 7 uppercase letters or numbers. Spaces and dashes are automatically removed. If you omit <span className="font-mono text-foreground">RCT</span>, it is added for you.
+                    <code className="font-mono text-foreground bg-muted px-1 rounded">[0-9]{'{4}'}</code>{' '}
+                    — the code is exactly 4 numbers. Spaces, dashes, and any other characters are automatically removed.
                   </p>
                   <div className="space-y-1">
                     <p className="font-semibold text-foreground">Example codes you can copy:</p>
-                    {['RCT-HJK4-M9P2', 'RCT N8B3 Q7L', 'RCT4GH2KM5'].map((ex) => (
+                    {['1234', '4821', '9075'].map((ex) => (
                       <button
                         key={ex}
                         type="button"
