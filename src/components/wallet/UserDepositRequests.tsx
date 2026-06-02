@@ -163,6 +163,17 @@ export function UserDepositRequests() {
     }
   };
 
+  // Derive the 3-stage cash-deposit lifecycle from the request + its
+  // verification row. Only meaningful for provider === 'cash_deposit'.
+  const computeStage = (req: DepositRequest): DepositStage => {
+    if (req.status === 'rejected') return 'rejected';
+    if (req.status === 'approved') return 'approved';
+    const ver = verifications[req.id];
+    if (ver?.status === 'expired') return 'expired';
+    if (ver?.status === 'verified') return 'verified';
+    return 'pending';
+  };
+
   const getStatusBadge = (req: DepositRequest) => {
     if (isAutoCancelledDuplicate(req)) {
       return (
