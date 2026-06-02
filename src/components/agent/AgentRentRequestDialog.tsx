@@ -659,6 +659,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // straight to it — ordinary agents on small phones often miss a toast.
   const errorSummaryRef = useRef<HTMLDivElement>(null);
 
+  // Touch-device feedback: whenever a submission error appears (including ones
+  // raised asynchronously inside handleSubmit's catch block), pull the agent's
+  // view straight to the message. On small phones the button sits at the very
+  // bottom, so an error rendered above it can land off-screen and feel like
+  // "nothing happened". This guarantees the agent always sees the reason.
+  useEffect(() => {
+    if (!submissionError) return;
+    requestAnimationFrame(() => {
+      errorSummaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [submissionError]);
+
   // FIX #9: house category for outstanding flow
   const [outstandingHouseCategory, setOutstandingHouseCategory] = useState('');
 
