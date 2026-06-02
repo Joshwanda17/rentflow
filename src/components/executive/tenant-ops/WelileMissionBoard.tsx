@@ -1141,6 +1141,18 @@ function EmptyHousesDialog({
                         </Button>
                       );
                     })()}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => togglePhotos(h.listing_id)}
+                      className="h-7 w-full mt-1.5 text-[11px] gap-1 justify-center text-muted-foreground hover:text-foreground"
+                    >
+                      <ImageIcon className="h-3.5 w-3.5" />
+                      {photosOpen.has(h.listing_id) ? 'Hide photos' : 'Manage photos'}
+                    </Button>
+                    {photosOpen.has(h.listing_id) && (
+                      <ListingPhotoGallery listingId={h.listing_id} enabled />
+                    )}
                   </li>
                 );
               })}
