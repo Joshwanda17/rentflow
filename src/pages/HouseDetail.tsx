@@ -111,13 +111,22 @@ export default function HouseDetail() {
     if (navigator.share) {
       try { await navigator.share(shareData); } catch {}
     } else {
-      const shareText = listing
-        ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
-        : richUrl;
+      await handleCopyLink();
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const richUrl = listing ? ogShareUrl : shareUrl;
+    const shareText = listing
+      ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
+      : richUrl;
+    try {
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
-      toast({ title: 'Link copied!', description: 'Share it with friends & family.' });
+      toast({ title: 'Link copied!', description: 'Paste it anywhere to share this house.' });
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: 'Could not copy', variant: 'destructive' });
     }
   };
 
@@ -273,9 +282,10 @@ export default function HouseDetail() {
             </button>
             <div className="flex items-center gap-2">
               <SaveHouseButton houseId={listing.id} variant="icon" />
-              <button onClick={handleShare}
-                className="bg-background/80 backdrop-blur-sm text-foreground rounded-full p-2.5 shadow-lg active:scale-95 transition-transform">
-                {copied ? <Check className="h-5 w-5 text-success" /> : <Share2 className="h-5 w-5" />}
+              <button onClick={handleCopyLink}
+                className="bg-background/80 backdrop-blur-sm text-foreground rounded-full p-2.5 shadow-lg active:scale-95 transition-transform"
+                title="Copy share link">
+                {copied ? <Check className="h-5 w-5 text-success" /> : <Copy className="h-5 w-5" />}
               </button>
             </div>
           </div>
@@ -339,6 +349,21 @@ export default function HouseDetail() {
               <PriceComparison region={listing.region} category={listing.house_category} dailyRate={listing.daily_rate} houseId={listing.id} />
             </div>
             <MoveInOfferBadge variant="banner" className="mt-4" />
+          </motion.div>
+
+          {/* ── One-tap copy share link ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <button
+              onClick={handleCopyLink}
+              className="w-full flex items-center justify-center gap-2.5 min-h-[48px] px-6 py-3 rounded-xl border-2 border-primary/30 bg-primary/5 text-primary font-bold text-sm shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? 'Link copied — paste it anywhere!' : 'Copy share link'}
+            </button>
           </motion.div>
 
           {/* ── Room & Amenities grid ── */}
@@ -505,9 +530,10 @@ export default function HouseDetail() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
-              <button onClick={handleShare}
-                className="h-11 w-11 rounded-xl border border-border bg-card flex items-center justify-center active:scale-95 transition-transform">
-                {copied ? <Check className="h-4 w-4 text-success" /> : <Share2 className="h-4 w-4" />}
+              <button onClick={handleCopyLink}
+                className="h-11 w-11 rounded-xl border border-border bg-card flex items-center justify-center active:scale-95 transition-transform"
+                title="Copy share link">
+                {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
               </button>
             </div>
           </div>

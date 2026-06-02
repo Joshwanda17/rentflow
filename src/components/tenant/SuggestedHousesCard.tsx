@@ -145,7 +145,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                   >
                     <p className="text-sm font-black text-success">{formatUGX(house.daily_rate)}<span className="text-[10px] font-normal text-muted-foreground">/day</span></p>
                     <div className="flex items-center gap-1">
-                      <ShareHouseButton listingId={house.id} title={house.title} region={house.region} dailyRate={house.daily_rate} shortCode={house.short_code} />
+                      <ShareHouseButton listingId={house.id} title={house.title} region={house.region} dailyRate={house.daily_rate} shortCode={house.short_code} mode="copy" />
                       {house.agent_phone && (
                         <WhatsAppAgentButton phone={house.agent_phone} agentName={house.agent_name} houseTitle={house.title} />
                       )}

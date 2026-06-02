@@ -14,9 +14,11 @@ interface ShareHouseButtonProps {
   shortCode?: string | null;
   /** 'icon' = small icon button, 'full' = full-width button with WhatsApp */
   variant?: 'icon' | 'full';
+  /** 'share' = try native share first (default), 'copy' = copy to clipboard immediately */
+  mode?: 'share' | 'copy';
 }
 
-export function ShareHouseButton({ listingId, title, region, dailyRate, shortCode, variant = 'icon' }: ShareHouseButtonProps) {
+export function ShareHouseButton({ listingId, title, region, dailyRate, shortCode, variant = 'icon', mode = 'share' }: ShareHouseButtonProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
@@ -59,13 +61,14 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
 
   // Icon variant — small overlay button
   if (variant === 'icon') {
+    const isCopy = mode === 'copy';
     return (
       <button
-        onClick={handleNativeShare}
+        onClick={isCopy ? handleCopyLink : handleNativeShare}
         className="p-1.5 rounded-full bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm hover:bg-muted transition-colors touch-manipulation"
-        title="Share this house"
+        title={isCopy ? 'Copy share link' : 'Share this house'}
       >
-        {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Share2 className="h-3.5 w-3.5 text-muted-foreground" />}
+        {copied ? <Check className="h-3.5 w-3.5 text-success" /> : isCopy ? <Copy className="h-3.5 w-3.5 text-muted-foreground" /> : <Share2 className="h-3.5 w-3.5 text-muted-foreground" />}
       </button>
     );
   }
