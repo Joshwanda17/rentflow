@@ -53,13 +53,13 @@ export function MapKeySettingsCard() {
     setTesting(true);
     const result = await validateGoogleMapsKey(trimmed);
     setTesting(false);
-    if (result.ok) {
-      setCheck({ ok: true, message: 'Key verified — the map will work on this website.' });
-      return true;
+    if (!result.ok) {
+      setCheck({ ok: false, message: result.message ?? 'Key could not be verified.' });
+      // "already-loaded" is not a real failure of the key; allow saving anyway.
+      return result.reason === 'already-loaded';
     }
-    setCheck({ ok: false, message: result.message });
-    // "already-loaded" is not a real failure of the key; allow saving anyway.
-    return result.reason === 'already-loaded';
+    setCheck({ ok: true, message: 'Key verified — the map will work on this website.' });
+    return true;
   };
 
   const save = async () => {
