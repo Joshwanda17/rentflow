@@ -101,6 +101,7 @@ interface AgentRentRequestDialogProps {
     landlord_id: string | null;
     landlord_name: string | null;
     landlord_phone: string | null;
+    tenant_id?: string | null;
   } | null;
 }
 
@@ -560,6 +561,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     landlord_id: string | null;
     landlord_name: string | null;
     landlord_phone: string | null;
+    tenant_id?: string | null;
   };
   const [houseQuery, setHouseQuery] = useState('');
   const [houseResults, setHouseResults] = useState<AvailableHouse[]>([]);
@@ -596,7 +598,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
 
   const HOUSE_SELECT =
-    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id';
+    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id, tenant_id';
 
   const searchAvailableHouses = useCallback(async () => {
     const q = houseQuery.trim();
@@ -680,6 +682,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         landlord_id: r.landlord_id,
         landlord_name: r.landlord_id ? llMap[r.landlord_id]?.name ?? null : null,
         landlord_phone: r.landlord_id ? llMap[r.landlord_id]?.phone ?? null : null,
+        tenant_id: r.tenant_id ?? null,
       }));
       setHouseResults(mapped);
     } catch (e) {
@@ -2648,7 +2651,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 p-3 space-y-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-bold text-sm truncate">{selectedHouse.title}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm truncate">{selectedHouse.title}</p>
+                          {selectedHouse.tenant_id ? (
+                            <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                              Has Tenants
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                              Empty
+                            </span>
+                          )}
+                        </div>
                         {selectedHouse.address && (
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
                             <MapPin className="h-3 w-3 flex-shrink-0" />
@@ -2738,7 +2752,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           <Loader2 className="h-4 w-4 animate-spin mr-2" /> Searching…
                         </div>
                       ) : houseResults.length > 0 ? (
-                        houseResults.map((h) => (
+                       houseResults.map((h) => (
                           <button
                             type="button"
                             key={h.id}
@@ -2747,7 +2761,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="font-semibold text-sm truncate">{h.title}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-sm truncate">{h.title}</p>
+                                  {h.tenant_id ? (
+                                    <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                      Has Tenants
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                                      Empty
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                                   <MapPin className="h-3 w-3 flex-shrink-0" />
                                   <span className="truncate">
