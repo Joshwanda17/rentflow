@@ -183,6 +183,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [sharingLink, setSharingLink] = useState(false);
   const [sharingProfile, setSharingProfile] = useState(false);
   const [generatingSheet, setGeneratingSheet] = useState(false);
+  const [sheetRangeOpen, setSheetRangeOpen] = useState(false);
+  const [sheetFrom, setSheetFrom] = useState<string>('');
+  const [sheetTo, setSheetTo] = useState<string>('');
 
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [addingRole, setAddingRole] = useState(false);
@@ -622,6 +625,8 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         tenantName: profile.full_name,
         phone: profile.phone,
         agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
+        periodFrom: sheetFrom || null,
+        periodTo: sheetTo || null,
         plans: requests.map((r) => ({
           date: r.created_at,
           disbursedAt: r.disbursed_at,
@@ -638,6 +643,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
       };
       await shareOrDownloadRepaymentSheet(sheet);
+      setSheetRangeOpen(false);
       toast({ title: '📄 Repayment sheet ready' });
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
@@ -646,6 +652,27 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     } finally {
       setGeneratingSheet(false);
     }
+  };
+
+  // Quick presets for the repayment-sheet reporting window.
+  const applySheetPreset = (preset: 'all' | 'thisMonth' | '30d' | '90d') => {
+    const today = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    if (preset === 'all') {
+      setSheetFrom('');
+      setSheetTo('');
+      return;
+    }
+    if (preset === 'thisMonth') {
+      setSheetFrom(iso(new Date(today.getFullYear(), today.getMonth(), 1)));
+      setSheetTo(iso(today));
+      return;
+    }
+    const days = preset === '30d' ? 30 : 90;
+    const from = new Date(today);
+    from.setDate(from.getDate() - days);
+    setSheetFrom(iso(from));
+    setSheetTo(iso(today));
   };
 
   const availableRolesToAdd = ['agent', 'supporter', 'landlord'].filter(r => !userRoles.includes(r));
@@ -1638,18 +1665,67 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           </SectionCard>
         )}
 
-        {/* ── Repayment sheet PDF — full allocation vs expected breakdown ── */}
-        <Button
-          variant="default"
-          size="lg"
-          onClick={handleGenerateRepaymentSheet}
-          disabled={generatingSheet || requests.length === 0}
-          className="w-full h-12 rounded-xl gap-2 text-base font-semibold"
-          aria-label="Generate repayment sheet PDF"
-        >
-          {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
-          {generatingSheet ? 'Generating…' : 'Repayment Sheet (PDF)'}
-        </Button>
+        {/* ── Repayment sheet PDF — pick a period, then generate ── */}
+        <Popover open={sheetRangeOpen} onOpenChange={setSheetRangeOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="default"
+              size="lg"
+              disabled={requests.length === 0}
+              className="w-full h-12 rounded-xl gap-2 text-base font-semibold"
+              aria-label="Generate repayment sheet PDF"
+            >
+              <FileText className="h-5 w-5" />
+              Repayment Sheet (PDF)
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="center" className="w-[min(92vw,22rem)] p-4 space-y-3">
+            <div>
+              <p className="text-sm font-bold text-foreground">Choose a period</p>
+              <p className="text-xs text-muted-foreground">
+                Leave blank for all-time. Transactions are filtered to this window.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('all')}>All time</Button>
+              <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('thisMonth')}>This month</Button>
+              <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('30d')}>Last 30 days</Button>
+              <Button type="button" variant="soft" size="sm" onClick={() => applySheetPreset('90d')}>Last 90 days</Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs font-medium text-muted-foreground space-y-1">
+                <span>From</span>
+                <input
+                  type="date"
+                  value={sheetFrom}
+                  max={sheetTo || undefined}
+                  onChange={(e) => setSheetFrom(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+              <label className="text-xs font-medium text-muted-foreground space-y-1">
+                <span>To</span>
+                <input
+                  type="date"
+                  value={sheetTo}
+                  min={sheetFrom || undefined}
+                  onChange={(e) => setSheetTo(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+            </div>
+            <Button
+              variant="default"
+              size="lg"
+              onClick={handleGenerateRepaymentSheet}
+              disabled={generatingSheet}
+              className="w-full h-11 rounded-xl gap-2 font-semibold"
+            >
+              {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+              {generatingSheet ? 'Generating…' : 'Generate PDF'}
+            </Button>
+          </PopoverContent>
+        </Popover>
 
         {/* ── Bottom "Back to Tenants" so agents don't scroll back up ── */}
         <Button
