@@ -3347,6 +3347,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                      
                       required
                     />
+                    <FieldError message={vName(lc1Name)} />
                   </div>
                   <div className="space-y-1">
                     <Label >Phone *</Label>
@@ -3360,6 +3361,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       maxLength={12}
                       required
                     />
+                    <FieldError message={vPhone(lc1Phone)} />
                     {lc1Phone.replace(/\s/g, '').length >= 10 &&
                       tenantPhone.replace(/\s/g, '').length >= 10 &&
                       lc1Phone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
@@ -3382,6 +3384,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                      
                       required
                     />
+                    <FieldError message={vPlace(lc1Village, 'Kira Zone A')} />
                   </div>
                 </div>
 
