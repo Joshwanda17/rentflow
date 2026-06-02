@@ -9,11 +9,18 @@
  * InvalidKeyMapError. We do this in a controlled, one-shot way and restore any
  * pre-existing handler afterwards.
  */
+export type MapsKeyFailureReason =
+  | 'format'
+  | 'referrer'
+  | 'network'
+  | 'timeout'
+  | 'already-loaded';
+
 export type MapsKeyValidation =
   | { ok: true }
-  | { ok: false; reason: 'format' | 'referrer' | 'network' | 'timeout' | 'already-loaded'; message: string };
+  | { ok: false; reason: MapsKeyFailureReason; message: string };
 
-const FRIENDLY: Record<Exclude<MapsKeyValidation extends { ok: false } ? MapsKeyValidation['reason'] : never, never>, string> = {
+const FRIENDLY: Record<MapsKeyFailureReason, string> = {
   format: 'That doesn\'t look like a Google Maps API key. Keys usually start with "AIza".',
   referrer:
     'Google rejected this key for this website. Add this domain to the key\'s HTTP referrer allowlist in Google Cloud (e.g. https://welilereceipts.com/* and https://*.welilereceipts.com/*), and make sure the Maps JavaScript API is enabled.',
