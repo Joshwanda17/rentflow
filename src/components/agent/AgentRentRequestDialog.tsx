@@ -3265,6 +3265,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <Label >Name *</Label>
+                    <p className="text-xs text-muted-foreground leading-snug">The local council (LC1) chairperson for that area.</p>
                     <Input
                       value={lc1Name}
                       onChange={(e) => setLc1Name(e.target.value)}
@@ -3275,6 +3276,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                   <div className="space-y-1">
                     <Label >Phone *</Label>
+                    <p className="text-xs text-muted-foreground leading-snug">A number that can confirm the tenant lives there.</p>
                     <Input
                       value={lc1Phone}
                       onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
@@ -3296,6 +3298,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                   <div className="space-y-1">
                     <Label >Village *</Label>
+                    <p className="text-xs text-muted-foreground leading-snug">The village or zone the LC1 looks after.</p>
                     <Input
                       value={lc1Village}
                       onChange={(e) => setLc1Village(e.target.value)}
@@ -3314,6 +3317,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Label className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> Town / City *
                     </Label>
+                    <p className="text-xs text-muted-foreground leading-snug">The town or city where the house is.</p>
                     <Input
                       value={propertyCity}
                       onChange={(e) => setPropertyCity(e.target.value)}
@@ -3324,6 +3328,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                   <div className="space-y-1">
                     <Label >District</Label>
+                    <p className="text-xs text-muted-foreground leading-snug">The district the house is in, like Wakiso.</p>
                     <Input
                       value={propertyDistrict}
                       onChange={(e) => setPropertyDistrict(e.target.value)}
