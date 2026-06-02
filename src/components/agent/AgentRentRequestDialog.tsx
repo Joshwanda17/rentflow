@@ -2127,7 +2127,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               key="details"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="space-y-4"
+              className="space-y-4 [&_label]:text-[15px] [&_label]:font-bold [&_input]:h-12 [&_input]:text-base [&_[role=combobox]]:h-12 [&_[role=combobox]]:text-base"
             >
               {/* Guided wizard progress (standard flow only) */}
               {incomeType !== 'outstanding' && (
@@ -2290,7 +2290,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <User className="h-4 w-4 text-primary" />
                       👤 Personal Information
                     </h4>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3">
                       <div className="space-y-1">
                         <Label >Tenant Name *</Label>
                         <Input
@@ -2339,7 +2339,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       💰 Rent Information
                     </h4>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3">
                       <div className="space-y-1">
                         <Label className="font-semibold">Rent Amount (UGX) *</Label>
                         <Input
@@ -2680,7 +2680,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                   💰 Rent Details
                 </h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <Label className="font-semibold text-primary/80">Rent Amount (UGX) *</Label>
                     <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
@@ -2836,7 +2836,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                 </button>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <Label htmlFor="tenantName" >Full Name *</Label>
                     <Input
@@ -3252,11 +3252,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               <>
               {/* ===== 5. LC1 DETAILS ===== */}
               <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                  <Users className="h-3 w-3" />
+                <h4 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Users className="h-4 w-4" />
                   LC1 Chairperson Details
                 </h4>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <Label >Name *</Label>
                     <Input
@@ -3303,7 +3303,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* Town/City + District — keeps tenant rolled up under a real
                     location in Tenant Ops drill-down instead of the
                     "Entebbe (please verify)" placeholder. */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <Label className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> Town / City *
