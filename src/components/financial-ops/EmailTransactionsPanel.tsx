@@ -1021,6 +1021,10 @@ export function EmailTransactionsPanel() {
           const normTid = tidByRow.get(r.id);
           const tidDepIds = new Set<string>();
           if (normTid) (linkByTid.get(normTid) ?? []).forEach((id) => { ids.add(id); tidDepIds.add(id); });
+          // Cash receipt-code matches are treated like TID matches for the
+          // "Already Credited — No Routing Needed" status.
+          const receiptCode = receiptByRow.get(r.id);
+          if (receiptCode) (linkByReceipt.get(receiptCode) ?? []).forEach((id) => { ids.add(id); tidDepIds.add(id); });
           // Deposits matched ONLY by reference (not by explicit gmail link /
           // auto_match_audit) are flagged so the row can show the clear
           // "Already Credited — No Routing Needed" status.
@@ -1046,7 +1050,7 @@ export function EmailTransactionsPanel() {
               deposit_purpose: d.deposit_purpose ?? null,
               credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
               matched_by_tid: tidDepIds.has(depId) && !explicitDepIds.has(depId),
-              matched_tid: tidDepIds.has(depId) ? (normTid ?? null) : null,
+              matched_tid: tidDepIds.has(depId) ? (normTid ?? receiptCode ?? null) : null,
             });
           }
           if (list.length) next[r.id] = list;
