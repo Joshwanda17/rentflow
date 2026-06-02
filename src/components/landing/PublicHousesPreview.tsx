@@ -41,7 +41,8 @@ export function PublicHousesPreview() {
           .neq('image_urls', '{}')
           .order('created_at', { ascending: false })
           .limit(6),
-        supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any)
           .from('house_listings')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'available')
