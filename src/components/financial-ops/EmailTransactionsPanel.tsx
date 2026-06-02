@@ -56,6 +56,35 @@ const fmtUgx = (n: number | null) =>
   n === null || n === undefined ? '—' : `UGX ${Math.round(n).toLocaleString()}`;
 
 /**
+ * Mirror of the parser's skip-reason logic in `gmail-poll-transactions`.
+ * A Gmail row is treated as "unparsed / skipped" when it never produced a
+ * usable amount (parsed=false, or amount is null). This recomputes the exact
+ * reason(s) the parser would have logged, straight from the stored columns,
+ * so Financial Ops can see WHY each row was skipped without re-running the
+ * edge function.
+ */
+function isUnparsedRow(r: { parsed: boolean; amount: number | null }): boolean {
+  return !r.parsed || r.amount === null || r.amount === undefined;
+}
+
+function parseFailureReasons(r: {
+  amount: number | null;
+  transaction_id: string | null;
+  direction: string | null;
+  channel: string | null;
+}): string[] {
+  const reasons: string[] = [];
+  if (r.amount === null || r.amount === undefined || !Number.isFinite(r.amount) || (r.amount as number) <= 0) {
+    reasons.push('No amount detected in the email body');
+  }
+  if (!r.transaction_id) reasons.push('No transaction ID / reference detected');
+  if (!r.direction) reasons.push('No direction keyword (money in / out / charge)');
+  if (!r.channel || r.channel === 'other') reasons.push('Channel could not be identified');
+  if (reasons.length === 0) reasons.push('Did not match any known transaction format');
+  return reasons;
+}
+
+/**
  * Convert a wall-clock date+time string (e.g. "2026-05-18", "00:00:00") interpreted
  * in the given IANA timezone into a UTC epoch ms. Uses Intl.DateTimeFormat to
  * discover the zone's offset at that instant — no dependency on date-fns-tz.
@@ -614,6 +643,9 @@ export function EmailTransactionsPanel() {
   // so the actual email list lands above the fold. On sm+ they're always expanded.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
+  // Unparsed-email queue: collapsed by default so it never pushes the main
+  // list below the fold, but one click surfaces every skipped Gmail row.
+  const [unparsedOpen, setUnparsedOpen] = useState(false);
   const persistUserRules = (next: StoredUserRule[]) => {
     writeStoredUserRules(next);
     refreshUserRules();
@@ -1666,6 +1698,15 @@ export function EmailTransactionsPanel() {
   const ch = (r: GmailTx): ChannelResult => rowChannel.get(r.id) ?? deriveChannel(r, channelCache);
   const rangeActive = Boolean(fromTs || toTs);
   const parsedCount = filteredRows.filter((r) => r.parsed).length;
+  // Skipped rows the parser could not turn into a usable transaction. Newest
+  // first so the most recent failures are at the top of the queue.
+  const unparsedRows = filteredRows
+    .filter(isUnparsedRow)
+    .sort((a, b) => {
+      const ta = a.internal_date ? new Date(a.internal_date).getTime() : 0;
+      const tb = b.internal_date ? new Date(b.internal_date).getTime() : 0;
+      return tb - ta;
+    });
   // Compute validity once per row so totals, breakdowns and the list agree.
   const validity = new Map<string, { valid: boolean; reason?: string }>();
   for (const r of rows) validity.set(r.id, validateGmailTx(r));
@@ -2398,6 +2439,69 @@ export function EmailTransactionsPanel() {
           </div>
         );
       })()}
+
+      {/* ── Unparsed-email queue ─────────────────────────────────────────
+          Every Gmail row the parser skipped (no usable amount), each with
+          the exact reason(s) it failed. Collapsed by default. */}
+      {unparsedRows.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setUnparsedOpen((o) => !o)}
+            className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-amber-500/10 transition-colors"
+          >
+            <span className="flex items-center gap-2 font-semibold text-sm text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Unparsed email queue
+              <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+                {unparsedRows.length} skipped
+              </Badge>
+            </span>
+            {unparsedOpen ? <ChevronUp className="h-4 w-4 text-amber-700 dark:text-amber-400" /> : <ChevronDown className="h-4 w-4 text-amber-700 dark:text-amber-400" />}
+          </button>
+          {unparsedOpen && (
+            <div className="border-t border-amber-500/20 divide-y divide-amber-500/10">
+              <p className="px-4 py-2 text-xs text-muted-foreground">
+                These rows were skipped by the parser and never counted toward any total. Each shows the exact reason it could not be parsed.
+              </p>
+              {unparsedRows.map((r) => {
+                const reasons = parseFailureReasons(r);
+                const when = r.internal_date
+                  ? new Date(r.internal_date).toLocaleString('en-GB', { timeZone: tz })
+                  : '—';
+                return (
+                  <div key={r.id} className="px-4 py-3 space-y-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{r.subject || '(no subject)'}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {r.from_name || r.from_email || 'unknown sender'} · {when}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0">unparsed</Badge>
+                    </div>
+                    {r.snippet && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{r.snippet}</p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {reasons.map((reason) => (
+                        <Badge
+                          key={reason}
+                          variant="outline"
+                          className="text-[10px] gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        >
+                          <AlertCircle className="h-3 w-3" />
+                          {reason}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="rounded-xl border bg-card overflow-hidden">
         {/* Prominent, full-width search bar — lets ops find any email by
