@@ -332,6 +332,7 @@ Deno.serve(async (req) => {
       account: payment_method,
       metadata: {
         payment_method,
+        fund_source: fundSource,
         source_wallet_user_id: walletOwnerId,
         source_wallet_owner: walletOwnerLabel,
         agent_name: agentName,
