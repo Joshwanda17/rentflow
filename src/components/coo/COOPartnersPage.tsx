@@ -682,7 +682,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   /* ─── Core fetch logic: server-side paginated ─── */
   const fetchDataCore = useCallback(async (fetchPage: number, searchTerm: string) => {
-    const { ids: supporterIds, totalCount: count } = await fetchPaginatedSupporterIds(fetchPage, PAGE_SIZE, searchTerm);
+    const { ids: supporterIds, totalCount: count } = filterProspect === 'prospects_only'
+      ? await fetchVerifiedFundedProspectIds(fetchPage, PAGE_SIZE, searchTerm)
+      : await fetchPaginatedSupporterIds(fetchPage, PAGE_SIZE, searchTerm);
     setTotalCount(count);
 
     if (supporterIds.length === 0) {
@@ -695,7 +697,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
     const tableRows = await buildRowsForIds(supporterIds);
     setRows(tableRows);
-  }, [buildRowsForIds]);
+  }, [buildRowsForIds, filterProspect]);
 
   /* ─── Nearing payouts: loaded independently from ALL supporters ─── */
   const [nearingPayoutsLoading, setNearingPayoutsLoading] = useState(false); // eslint-disable-line -- top-level hook, after all other useState
