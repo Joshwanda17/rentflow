@@ -695,6 +695,9 @@ export function EmailTransactionsPanel() {
   // so the actual email list lands above the fold. On sm+ they're always expanded.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
+  // Selected zoom window on the In-vs-Out daily chart (Brush start/end indices).
+  // null = full range. Drives the summary card above the chart.
+  const [chartBrush, setChartBrush] = useState<{ start: number; end: number } | null>(null);
   // User-preferred tooltip placement for the stat-card info bubbles. Persisted
   // in localStorage. 'auto' lets Radix pick/flip via avoidCollisions.
   const [tooltipPlacement, setTooltipPlacement] = useState<'auto' | 'top' | 'bottom' | 'left' | 'right'>(() => {
