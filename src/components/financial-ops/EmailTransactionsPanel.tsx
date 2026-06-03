@@ -2055,13 +2055,16 @@ export function EmailTransactionsPanel() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5">
-            <Mail className="h-6 w-6 text-primary" /> Email Transaction Extractor
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Live feed from the connected Gmail inbox. Polls every minute and parses MoMo, Airtel & bank confirmation emails.
-          </p>
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Mail className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Email Transaction Extractor</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Live feed from your Gmail inbox. Reads MoMo, Airtel &amp; bank confirmation emails automatically every minute.
+            </p>
+          </div>
         </div>
       </div>
 
