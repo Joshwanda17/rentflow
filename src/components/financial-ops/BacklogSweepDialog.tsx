@@ -13,7 +13,7 @@ const UGX = (n: number) =>
 
 type Outcome =
   | 'debited' | 'partial' | 'skipped_no_recipient' | 'skipped_ambiguous'
-  | 'skipped_no_balance' | 'skipped_already_routed' | 'error';
+  | 'skipped_no_balance' | 'skipped_already_routed' | 'skipped_withdrawal_settled' | 'error';
 
 interface ReportRow {
   gmail_transaction_id: string;
@@ -49,6 +49,7 @@ const OUTCOME_META: Record<Outcome, { label: string; cls: string }> = {
   skipped_ambiguous: { label: 'Ambiguous', cls: 'bg-muted text-muted-foreground' },
   skipped_no_balance: { label: 'No balance', cls: 'bg-muted text-muted-foreground' },
   skipped_already_routed: { label: 'Already routed', cls: 'bg-muted text-muted-foreground' },
+  skipped_withdrawal_settled: { label: 'Withdrawal settled', cls: 'bg-muted text-muted-foreground' },
   error: { label: 'Error', cls: 'bg-destructive/15 text-destructive' },
 };
 

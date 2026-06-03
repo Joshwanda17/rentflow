@@ -33,6 +33,7 @@ type Outcome =
   | 'skipped_ambiguous'
   | 'skipped_no_balance'
   | 'skipped_already_routed'
+  | 'skipped_withdrawal_settled'
   | 'error';
 
 interface ReportRow {
@@ -93,7 +94,7 @@ Deno.serve(async (req) => {
     // ── Candidate payout emails: parsed, outgoing, with a positive amount ─
     const { data: candidates, error: candErr } = await supabase
       .from('gmail_transactions')
-      .select('id, from_name, from_email, subject, amount, transaction_id, direction, counterparty, internal_date')
+      .select('id, gmail_message_id, from_name, from_email, subject, amount, transaction_id, direction, counterparty, internal_date')
       .eq('parsed', true)
       .eq('direction', 'out')
       .gt('amount', 0)
@@ -134,6 +135,33 @@ Deno.serve(async (req) => {
           report.push({ ...base, outcome: 'skipped_already_routed' });
           skippedCount++;
           continue;
+        }
+
+        // Double-debit guard: skip when a withdrawal request already consumed
+        // this payout. The auto-approve flow (gmail-poll / EmailPayoutAutoMatch)
+        // stamps the email's transaction id onto withdrawal_requests.fin_ops_reference
+        // and ALREADY debits the recipient's wallet via approve-withdrawal.
+        // Charging it again here would double-debit the same payout.
+        const settledRefs = new Set<string>();
+        if (row.transaction_id) settledRefs.add(String(row.transaction_id).trim().toUpperCase());
+        if (row.gmail_message_id) settledRefs.add(`MOMO-${String(row.gmail_message_id).slice(0, 12)}`.toUpperCase());
+        if (settledRefs.size > 0) {
+          const { data: settledRows } = await supabase
+            .from('withdrawal_requests')
+            .select('id, status, fin_ops_reference')
+            .in('fin_ops_reference', Array.from(settledRefs));
+          const consumed = (settledRows ?? []).some(
+            (r: any) => !['rejected', 'cancelled', 'failed', 'expired'].includes(String(r.status)),
+          );
+          if (consumed) {
+            report.push({
+              ...base,
+              outcome: 'skipped_withdrawal_settled',
+              detail: 'Payout already settled a withdrawal request — wallet already debited by approve-withdrawal.',
+            });
+            skippedCount++;
+            continue;
+          }
         }
 
         // Resolve the recipient from `counterparty` (phone for MoMo, name for bank).

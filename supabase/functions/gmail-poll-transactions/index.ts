@@ -839,6 +839,34 @@ async function tryAutoDebitPayout(
     .maybeSingle();
   if (existingRoute?.id) return;
 
+  // ── Double-debit guard: skip when a withdrawal request already consumed
+  // this payout ────────────────────────────────────────────────────────
+  // The poll runs `tryAutoApproveMomoWithdrawal` / `tryAutoApproveBankBatch`
+  // BEFORE this helper. Those approve a pending withdrawal_request using THIS
+  // email's transaction id as `fin_ops_reference`, which ALREADY debits the
+  // recipient's wallet via approve-withdrawal. Without this guard we would
+  // debit the very same wallet a second time for the same payout. Treat any
+  // withdrawal stamped with this email's reference (and not rejected) as
+  // having fully consumed the email.
+  const settledRefs = new Set<string>();
+  if (parsed.transaction_id) settledRefs.add(String(parsed.transaction_id).trim().toUpperCase());
+  settledRefs.add(`MOMO-${gmailMessageId.slice(0, 12)}`.toUpperCase());
+  if (settledRefs.size > 0) {
+    const { data: settledRows } = await supabase
+      .from('withdrawal_requests')
+      .select('id, status, fin_ops_reference')
+      .in('fin_ops_reference', Array.from(settledRefs));
+    const consumed = (settledRows ?? []).some(
+      (r: any) => !['rejected', 'cancelled', 'failed', 'expired'].includes(String(r.status)),
+    );
+    if (consumed) {
+      console.log(
+        `[gmail-poll] auto-debit skip: payout ${parsed.transaction_id ?? gmailMessageId} already settled a withdrawal request — not double-debiting`,
+      );
+      return;
+    }
+  }
+
   // ── Resolve the recipient ────────────────────────────────────────────
   // The parser stores the recipient in `counterparty`: a phone for MTN/Airtel
   // payouts, a NAME for bank payouts.
