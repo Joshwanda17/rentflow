@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 
 // E2E test for the 2-minute cash-deposit receipt-code expiry.
 // Part A (frontend): the code input stays enabled until the countdown hits
@@ -35,6 +34,14 @@ import {
 
 const CODE_TTL_SECONDS = 120;
 
+// Flush pending microtasks (resolves the mocked invoke + its setState chain).
+const flush = async () => {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+};
+
 beforeEach(() => {
   vi.useFakeTimers();
   supaState.invoke.mockClear();
@@ -49,27 +56,27 @@ afterEach(() => {
 
 describe('Cash deposit 2-minute code expiry — end to end', () => {
   it('keeps the code input enabled until the countdown hits zero, then disables it exactly at 120s', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<CashWithFinancialOpsDeposit open onOpenChange={() => {}} />);
 
     // Enter an amount and request the code.
-    await user.type(screen.getByPlaceholderText('0'), '50000');
+    fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '50000' } });
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: /send deposit request/i }));
+      fireEvent.click(screen.getByRole('button', { name: /send deposit request/i }));
     });
+    await flush();
 
     // We are now on the code step; the input is present and enabled.
-    const codeInput = await screen.findByPlaceholderText('e.g. 1234');
+    const codeInput = screen.getByPlaceholderText('e.g. 1234');
     expect(codeInput).toBeEnabled();
     expect(screen.getByText(/the deposit is auto-rejected/i)).toBeInTheDocument();
 
     // Advance to 1 second before expiry — still enabled.
-    act(() => { vi.advanceTimersByTime((CODE_TTL_SECONDS - 1) * 1000); });
+    await act(async () => { vi.advanceTimersByTime((CODE_TTL_SECONDS - 1) * 1000); });
     expect(codeInput).toBeEnabled();
 
     // Cross the 2-minute boundary — input must disable exactly at zero.
-    act(() => { vi.advanceTimersByTime(1000); });
-    await waitFor(() => expect(codeInput).toBeDisabled());
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    expect(codeInput).toBeDisabled();
     expect(
       screen.getByText(/this code expired\. the deposit was auto-rejected/i),
     ).toBeInTheDocument();
