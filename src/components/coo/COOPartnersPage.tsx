@@ -252,6 +252,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [filterRoiMode, setFilterRoiMode] = useState<'all' | 'monthly_payout' | 'monthly_compounding'>('all');
   const [filterContact, setFilterContact] = useState<'all' | 'has_phone' | 'no_phone' | 'has_email' | 'no_email'>('all');
   const [filterWallet, setFilterWallet] = useState<'all' | 'has_balance' | 'empty'>('all');
+  // Prospect mode: when 'prospects_only', the table swaps its data source to
+  // verified, wallet-funded users who don't own a portfolio yet.
+  const [filterProspect, setFilterProspect] = useState<'all' | 'prospects_only'>('all');
   const [payoutDateFrom, setPayoutDateFrom] = useState<Date | undefined>(undefined);
   const [payoutDateTo, setPayoutDateTo] = useState<Date | undefined>(undefined);
   // When a payout date range is active we need to filter across ALL partners,
