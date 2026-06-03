@@ -687,6 +687,18 @@ export function EmailTransactionsPanel() {
   // so the actual email list lands above the fold. On sm+ they're always expanded.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
+  // User-preferred tooltip placement for the stat-card info bubbles. Persisted
+  // in localStorage. 'auto' lets Radix pick/flip via avoidCollisions.
+  const [tooltipPlacement, setTooltipPlacement] = useState<'auto' | 'top' | 'bottom' | 'left' | 'right'>(() => {
+    if (typeof window === 'undefined') return 'auto';
+    const v = localStorage.getItem('gmail_tooltip_placement');
+    return v === 'top' || v === 'bottom' || v === 'left' || v === 'right' || v === 'auto' ? v : 'auto';
+  });
+  useEffect(() => {
+    try { localStorage.setItem('gmail_tooltip_placement', tooltipPlacement); } catch { /* ignore */ }
+  }, [tooltipPlacement]);
+  // Radix needs a concrete side; 'auto' falls back to bottom + collision flipping.
+  const statTooltipSide = tooltipPlacement === 'auto' ? 'bottom' : tooltipPlacement;
   // Unparsed-email queue: collapsed by default so it never pushes the main
   // list below the fold, but one click surfaces every skipped Gmail row.
   const [unparsedOpen, setUnparsedOpen] = useState(false);
@@ -2260,41 +2272,65 @@ export function EmailTransactionsPanel() {
           {mobileStatsOpen ? 'Hide summary' : `Summary · ${rows.length} emails · net ${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
         </Button>
       </div>
+      <div className="flex items-center justify-end gap-2">
+        <Label htmlFor="tooltip-placement" className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Tooltip position
+        </Label>
+        <Select value={tooltipPlacement} onValueChange={(v) => setTooltipPlacement(v as typeof tooltipPlacement)}>
+          <SelectTrigger id="tooltip-placement" className="h-8 w-[120px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">Auto</SelectItem>
+            <SelectItem value="top">Top</SelectItem>
+            <SelectItem value="bottom">Bottom</SelectItem>
+            <SelectItem value="left">Left</SelectItem>
+            <SelectItem value="right">Right</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div className={`grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 ${mobileStatsOpen ? 'grid' : 'hidden sm:grid'}`}>
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Emails captured"
           value={rows.length.toString()}
           info={<p className="text-xs leading-relaxed">How many confirmation emails we have pulled in from Gmail.</p>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Parsed transactions"
           value={parsedCount.toString()}
           info={<p className="text-xs leading-relaxed">Emails we successfully read and turned into a money amount.</p>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Total amount (parsed)"
           value={fmtUgx(totalAmount)}
           info={<p className="text-xs leading-relaxed">All the money values added up across every readable email.</p>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Total in (received)"
           value={fmtUgx(totalIn)}
           info={<p className="text-xs leading-relaxed">Money that came IN — deposits and payments received.</p>}
           sub={<span className="text-[10px] text-emerald-600">↓ money received</span>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Total out (sent + charges)"
           value={fmtUgx(totalOut)}
           info={<p className="text-xs leading-relaxed">Money that went OUT — payments sent plus provider fees.</p>}
           sub={<span className="text-[10px] text-rose-600">↑ money sent</span>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Total provider fees"
           value={fmtUgx(totalFees)}
           info={<p className="text-xs leading-relaxed">Charges taken by MTN, Airtel or the banks for these transactions.</p>}
           sub={<span className="text-[10px] text-amber-600">{feeCount} row{feeCount === 1 ? '' : 's'} · MTN / Airtel / banks</span>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Net (in − out)"
           value={`${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
           info={
@@ -2333,6 +2369,7 @@ export function EmailTransactionsPanel() {
           }
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Last poll"
           value={state?.last_polled_at ? format(new Date(state.last_polled_at), 'HH:mm:ss') : '—'}
           info={<p className="text-xs leading-relaxed">The time we last checked Gmail for new emails (happens automatically every minute).</p>}
@@ -2343,6 +2380,7 @@ export function EmailTransactionsPanel() {
           ) : null}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Flagged (review)"
           value={flaggedCount.toString()}
           info={<p className="text-xs leading-relaxed">Rows that look unusual and are worth a quick human check. They still count toward totals.</p>}
@@ -2357,6 +2395,7 @@ export function EmailTransactionsPanel() {
           }
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Unmatched deposits"
           value={unmatchedInCount.toString()}
           info={<p className="text-xs leading-relaxed">Incoming money not yet linked to a deposit request — may still need routing.</p>}
@@ -2371,6 +2410,7 @@ export function EmailTransactionsPanel() {
           }
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Unmatched payouts"
           value={unmatchedOutCount.toString()}
           info={<p className="text-xs leading-relaxed">Outgoing money not yet linked to a withdrawal — may still need routing.</p>}
