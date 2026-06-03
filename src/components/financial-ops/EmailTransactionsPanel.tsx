@@ -687,6 +687,18 @@ export function EmailTransactionsPanel() {
   // so the actual email list lands above the fold. On sm+ they're always expanded.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
+  // User-preferred tooltip placement for the stat-card info bubbles. Persisted
+  // in localStorage. 'auto' lets Radix pick/flip via avoidCollisions.
+  const [tooltipPlacement, setTooltipPlacement] = useState<'auto' | 'top' | 'bottom' | 'left' | 'right'>(() => {
+    if (typeof window === 'undefined') return 'auto';
+    const v = localStorage.getItem('gmail_tooltip_placement');
+    return v === 'top' || v === 'bottom' || v === 'left' || v === 'right' || v === 'auto' ? v : 'auto';
+  });
+  useEffect(() => {
+    try { localStorage.setItem('gmail_tooltip_placement', tooltipPlacement); } catch { /* ignore */ }
+  }, [tooltipPlacement]);
+  // Radix needs a concrete side; 'auto' falls back to bottom + collision flipping.
+  const statTooltipSide = tooltipPlacement === 'auto' ? 'bottom' : tooltipPlacement;
   // Unparsed-email queue: collapsed by default so it never pushes the main
   // list below the fold, but one click surfaces every skipped Gmail row.
   const [unparsedOpen, setUnparsedOpen] = useState(false);
