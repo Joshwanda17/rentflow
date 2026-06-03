@@ -186,6 +186,69 @@ export async function fetchPaginatedSupporterIds(
 }
 
 /**
+ * Fetch a paginated page of VERIFIED, WALLET-FUNDED PROSPECT IDs + total count.
+ *
+ * A "prospect" = a user who is verified and has a positive wallet balance but
+ * does NOT yet own any portfolio. These are people Partnership Ops can invest /
+ * top-up from their wallet, even though they have never funded a deal before.
+ * Optionally narrowed by a name/phone/email search term.
+ */
+export async function fetchVerifiedFundedProspectIds(
+  page: number,
+  pageSize: number,
+  search?: string
+): Promise<{ ids: string[]; totalCount: number }> {
+  const partnerIds = await fetchAllPartnerIds();
+  const partnerSet = new Set(partnerIds);
+
+  // 1) All wallets currently holding money (funded). Paginate defensively.
+  const PAGE = 1000;
+  let offset = 0;
+  let hasMore = true;
+  const fundedIds = new Set<string>();
+  while (hasMore) {
+    const { data } = await supabase
+      .from('wallets')
+      .select('user_id, balance')
+      .gt('balance', 0)
+      .range(offset, offset + PAGE - 1);
+    if (data && data.length > 0) {
+      data.forEach((w: any) => { if (w.user_id) fundedIds.add(w.user_id); });
+      offset += PAGE;
+      hasMore = data.length === PAGE;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  // Funded AND not already a partner — the prospect candidate pool.
+  const candidateIds = Array.from(fundedIds).filter(id => !partnerSet.has(id));
+  if (candidateIds.length === 0) return { ids: [], totalCount: 0 };
+
+  // 2) Keep only VERIFIED candidates (optionally matching the search term).
+  const raw = (search || '').trim();
+  const q = raw.replace(/[%,]/g, ''); // sanitize PostgREST wildcards/separators
+  const verifiedIds: string[] = [];
+  for (let i = 0; i < candidateIds.length; i += 100) {
+    const batch = candidateIds.slice(i, i + 100);
+    let query = supabase
+      .from('profiles')
+      .select('id')
+      .in('id', batch)
+      .eq('verified', true);
+    if (q) query = query.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
+    const { data } = await query;
+    (data || []).forEach((p: any) => { if (p.id) verifiedIds.push(p.id as string); });
+  }
+
+  const start = page * pageSize;
+  return {
+    ids: verifiedIds.slice(start, start + pageSize),
+    totalCount: verifiedIds.length,
+  };
+}
+
+/**
  * Fetch ALL active portfolios with their owner profiles for nearing payout computation.
  * This runs independently of the paginated table view.
  */
