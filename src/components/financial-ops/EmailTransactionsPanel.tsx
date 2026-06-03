@@ -2084,17 +2084,50 @@ export function EmailTransactionsPanel() {
   // This drives the Prev / Next button bar inside the Route dialog so Financial
   // Ops can walk through emails in order without closing the dialog each time.
   const visibleRows = useMemo(() => {
-    return filteredRows.filter((r) => {
+    let list = filteredRows.filter((r) => {
       if (directionFilter === 'in' && r.direction !== 'in') return false;
       if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
       if (needsRoutingOnly && !isNeedsRouting(r)) return false;
       if (matchFilter === 'all') return true;
-      const list = userMatches[r.id] ?? [];
-      if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
-      if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
-      return list.some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '));
+      const matches = userMatches[r.id] ?? [];
+      if (matchFilter === 'reference') return matches.some((u) => u.matched_on.startsWith('reference '));
+      if (matchFilter === 'from') return matches.some((u) => u.matched_on.startsWith('from '));
+      return matches.some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '));
     });
-  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting]);
+    // Debit-breakdown filter: only meaningful for outgoing emails.
+    if (debitFilter !== 'all') {
+      list = list.filter((r) => {
+        const meta = getDebitMeta(r);
+        if (debitFilter === 'none') return !meta.isAutoDebited;
+        if (debitFilter === 'user_debit') return meta.isAutoDebited && !meta.isProxyDebit;
+        if (debitFilter === 'proxy_debit') return meta.isAutoDebited && meta.isProxyDebit;
+        return true;
+      });
+    }
+    // Debit-breakdown sort: only meaningful when a sort is chosen.
+    if (debitSort !== 'none') {
+      list = [...list].sort((a, b) => {
+        const ma = getDebitMeta(a);
+        const mb = getDebitMeta(b);
+        // Always push non-debited rows to the bottom when sorting by debit metadata.
+        if (!ma.isAutoDebited && !mb.isAutoDebited) return 0;
+        if (!ma.isAutoDebited) return 1;
+        if (!mb.isAutoDebited) return -1;
+        if (debitSort === 'debitType') {
+          // Proxy first, then user
+          return (mb.isProxyDebit ? 1 : 0) - (ma.isProxyDebit ? 1 : 0);
+        }
+        if (debitSort === 'debitAmount') {
+          return mb.debitAmountValue - ma.debitAmountValue;
+        }
+        if (debitSort === 'debitName') {
+          return ma.debitedName.localeCompare(mb.debitedName);
+        }
+        return 0;
+      });
+    }
+    return list;
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, debitFilter, debitSort, getDebitMeta]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
   const canPrevNav = navIndex > 0;
