@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -305,7 +305,7 @@ export function PartnershipTopupAuditLog() {
 
 /* ── Detail modal: full ledger leg breakdown + metadata + idempotency key ── */
 
-function Row({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+function Row({ label, value, mono }: { label: string; value: ReactNode; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-3 py-1.5 border-b border-border/60 last:border-0">
       <span className="text-xs text-muted-foreground shrink-0">{label}</span>
