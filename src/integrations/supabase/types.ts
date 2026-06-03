@@ -5735,6 +5735,36 @@ export type Database = {
         }
         Relationships: []
       }
+      deposit_profile_reconciliations: {
+        Row: {
+          action: string
+          conflict_user_id: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          phone: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          conflict_user_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          conflict_user_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       deposit_relink_attempts: {
         Row: {
           age_minutes: number | null
@@ -18208,6 +18238,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      ensure_depositor_profile: { Args: { p_user_id: string }; Returns: string }
       expire_stale_cash_deposit_codes: { Args: never; Returns: number }
       export_users_with_password_hashes: { Args: never; Returns: string }
       extract_operational_float_allocations: {
@@ -19609,6 +19640,7 @@ export type Database = {
           withdrawable: number
         }[]
       }
+      reconcile_credited_deposit_profiles: { Args: never; Returns: number }
       reconcile_negative_wallets: {
         Args: { p_dry_run?: boolean; p_max_users?: number }
         Returns: Json
