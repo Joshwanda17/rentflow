@@ -359,10 +359,14 @@ Deno.serve(async (req) => {
     const SOLVENCY_REASON_CATEGORIES = new Set([
       'system_balance_correction', 'wallet_route_repair', 'admin_adjustment', 'platform_loss_writeoff',
     ]);
-    const debitNeedsSolvencyBypassReason = op === 'debit'
+    const walletDebitNeedsSolvencyBypassReason = op === 'debit'
       && (allowOverdraw || SOLVENCY_REASON_CATEGORIES.has(walletCat));
-    if (debitNeedsSolvencyBypassReason && !solvencyBypassReason) {
-      const reasonText = `${category_label ?? ''} ${reason ?? ''} ${walletCat} ${sub_category ?? ''}`.toLowerCase();
+    const platformCashOutNeedsSolvencyBypassReason = op === 'credit'
+      && SOLVENCY_REASON_CATEGORIES.has(platformCat);
+    const transactionNeedsSolvencyBypassReason = walletDebitNeedsSolvencyBypassReason
+      || platformCashOutNeedsSolvencyBypassReason;
+    if (transactionNeedsSolvencyBypassReason && !solvencyBypassReason) {
+      const reasonText = `${category_label ?? ''} ${reason ?? ''} ${walletCat} ${platformCat} ${sub_category ?? ''}`.toLowerCase();
       solvencyBypassReason = allowOverdraw || /reverse|reversal|retract|duplicate|rerout|auto-credit|misrout|overpayment/.test(reasonText)
         ? 'duplicate_reversal'
         : /regulat|bou|cma/.test(reasonText)
@@ -373,11 +377,11 @@ Deno.serve(async (req) => {
               ? 'write_off'
               : 'other_with_note';
     }
-    if (debitNeedsSolvencyBypassReason && solvencyBypassReason === 'other_with_note') {
-      const debitDescriptionPreview = `${allowOverdraw ? 'CFO Forced Reversal' : 'CFO Debit'} [${category_label || walletCat}]: ${reason ?? ''}`;
-      if (debitDescriptionPreview.length < 30) {
+    if (transactionNeedsSolvencyBypassReason && solvencyBypassReason === 'other_with_note') {
+      const correctionDescriptionPreview = `${op === 'debit' ? (allowOverdraw ? 'CFO Forced Reversal' : 'CFO Debit') : 'CFO Credit'} [${category_label || walletCat}]: ${reason ?? ''}`;
+      if (correctionDescriptionPreview.length < 30) {
         return new Response(JSON.stringify({
-          error: 'SOLVENCY_BYPASS_NOTE_REQUIRED: reason code other_with_note requires a description of at least 30 characters.',
+          error: 'INVALID_SOLVENCY_BYPASS_REASON: reason code other_with_note requires a description of at least 30 characters.',
         }), { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
@@ -559,6 +563,9 @@ Deno.serve(async (req) => {
             description: `Welile Technologies Finance → ${targetProfile.full_name} [${impact}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
+            ...(platformCashOutNeedsSolvencyBypassReason
+              ? { solvency_bypass_reason: solvencyBypassReason }
+              : {}),
           },
         ],
         skip_balance_check: true,
@@ -597,8 +604,11 @@ Deno.serve(async (req) => {
           // explicitly excluded by every end-user wallet filter), while
           // still being captured in CFO/ops dashboards and in the
           // cfo_debit_obligations recoverable below.
-          ...(allowOverdraw
-            ? { classification: 'admin_correction', solvency_bypass_reason: solvencyBypassReason }
+          ...(walletDebitNeedsSolvencyBypassReason
+            ? {
+                ...(allowOverdraw ? { classification: 'admin_correction' } : {}),
+                solvency_bypass_reason: solvencyBypassReason,
+              }
             : {}),
         },
         {
