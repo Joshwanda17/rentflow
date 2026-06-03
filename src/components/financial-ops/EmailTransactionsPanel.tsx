@@ -3096,12 +3096,20 @@ export function EmailTransactionsPanel() {
                 const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
                 // Auto-debited rows: a withdrawable debit posted by the
                 // auto-debit run. Detected from the routing history reason
-                // (prefixed "DEBIT (auto, ...)") so the badge survives reloads.
+                // (prefixed "DEBIT (auto, ...)" or "DEBIT (sweep, ...)") so the
+                // badge survives reloads. Matches both the realtime poller and
+                // the backlog sweep.
                 const autoDebitEntry = history.find(
-                  (h) => h.route === 'withdrawable_debit' && /auto/i.test(h.reason || ''),
+                  (h) => h.route === 'withdrawable_debit' && /^DEBIT\b/i.test(h.reason || ''),
                 );
                 const isAutoDebited = !!autoDebitEntry && !isReversed;
                 const autoImpact = autoDebitResults[r.id];
+                // Whether the debit landed on a managed proxy agent's wallet
+                // (user had insufficient balance). Detected from the reason
+                // string written by the edge functions.
+                const isProxyDebit = /via managed proxy/i.test(autoDebitEntry?.reason || '');
+                const debitedName = autoDebitEntry?.target_user_name
+                  || autoImpact?.userName || 'matched user';
                 // Already-credited incoming deposit (linked to a non-terminal
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
@@ -3410,9 +3418,11 @@ export function EmailTransactionsPanel() {
                       )}
                       {isAutoDebited && (
                         <BadgeTip
-                          plain="The system automatically took this amount from the user's wallet."
+                          plain={isProxyDebit
+                            ? "The user had too little balance, so this amount was automatically taken from their managed proxy agent's wallet."
+                            : "The system automatically took this amount from the user's wallet."}
                           details={[
-                            `Auto-debited from ${autoDebitEntry?.target_user_name || autoImpact?.userName || 'matched user'}'s withdrawable wallet`,
+                            `Auto-debited from ${debitedName}'s withdrawable wallet${isProxyDebit ? ' (managed proxy agent)' : ''}`,
                             `Amount taken: ${fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}`,
                             autoImpact && autoImpact.newAvail !== null
                               ? `Wallet left: ${fmtUgx(autoImpact.newAvail)}`
@@ -3421,10 +3431,13 @@ export function EmailTransactionsPanel() {
                         >
                           <Badge
                             variant="outline"
-                            className="text-[10px] gap-1 bg-rose-600/15 text-rose-700 border-rose-600/40"
+                            className={`text-[10px] gap-1 ${isProxyDebit
+                              ? 'bg-amber-600/15 text-amber-700 border-amber-600/40'
+                              : 'bg-rose-600/15 text-rose-700 border-rose-600/40'}`}
                           >
                             <Zap className="h-3 w-3" />
-                            auto-taken −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
+                            {isProxyDebit ? 'proxy debited' : 'wallet debited'} −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
+                            <span className="opacity-80">· {debitedName}{isProxyDebit ? ' (proxy)' : ''}</span>
                             {autoImpact && autoImpact.newAvail !== null && (
                               <span className="opacity-80">· left {fmtUgx(autoImpact.newAvail)}</span>
                             )}
