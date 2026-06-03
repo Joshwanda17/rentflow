@@ -3338,10 +3338,13 @@ export function EmailTransactionsPanel() {
                         </BadgeTip>
                       )}
                       {isCredited && (
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] gap-1 ${isFullyCredited ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40' : 'bg-amber-500/15 text-amber-700 border-amber-500/40'}`}
-                          title={[
+                        <BadgeTip
+                          plain={
+                            isFullyCredited
+                              ? 'The full amount has already landed in a user wallet. Do not send it again.'
+                              : 'Only part of this amount has reached a wallet so far.'
+                          }
+                          details={[
                             `${isFullyCredited ? 'Fully credited' : 'Partially credited'} — DO NOT credit again`,
                             `Email amount: ${fmtUgx(emailAmount)}`,
                             `Total credited: ${fmtUgx(totalCredited)}`,
@@ -3356,10 +3359,15 @@ export function EmailTransactionsPanel() {
                             ].filter(Boolean).join('\n')),
                           ].filter(Boolean).join('\n')}
                         >
-                          <CheckCircle2 className="h-3 w-3" />
-                          {isFullyCredited ? 'paid into wallet' : 'partly paid in'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
-                          {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] gap-1 ${isFullyCredited ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40' : 'bg-amber-500/15 text-amber-700 border-amber-500/40'}`}
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                            {isFullyCredited ? 'paid into wallet' : 'partly paid in'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
+                            {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {/* Clear, unambiguous status: when the deposit is fully
                           credited there is nothing left to route. Highlight the
