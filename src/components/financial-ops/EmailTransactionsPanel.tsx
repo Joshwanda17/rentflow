@@ -2890,9 +2890,9 @@ export function EmailTransactionsPanel() {
             ).length;
             const chips: Array<{ key: MatchFilter; label: string; count: number }> = [
               { key: 'all', label: 'All', count: filteredRows.length },
-              { key: 'confident', label: 'Confident matches', count: confCount },
-              { key: 'reference', label: 'Reference (TID)', count: refCount },
-              { key: 'from', label: 'From-phone', count: fromCount },
+              { key: 'confident', label: 'We know who sent it', count: confCount },
+              { key: 'reference', label: 'Has a receipt code', count: refCount },
+              { key: 'from', label: 'Matched by phone', count: fromCount },
             ];
             return (
               <div className="flex items-center gap-1 flex-wrap">
