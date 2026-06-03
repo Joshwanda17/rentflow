@@ -89,7 +89,14 @@ Deno.serve(async (req) => {
     }
 
     const { phone, target_user_name, amount, route, reference_id, from_label, transaction_id, reversal } = await req.json();
-    if (!phone || !amount || !route) {
+    // SMS is best-effort: a missing phone (no number on file for the target
+    // user) must NOT surface as a hard error to the caller — skip gracefully.
+    if (!phone) {
+      return new Response(JSON.stringify({ success: false, skipped: true, error: "No phone on file" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!amount || !route) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
