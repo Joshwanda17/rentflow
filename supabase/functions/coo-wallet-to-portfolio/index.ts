@@ -265,6 +265,7 @@ Deno.serve(async (req) => {
           amount: topupAmount,
           direction: "cash_out",
           category: "partner_funding",
+          recipient_type: fundSource === "float" ? "operational_wallet" : "user",
           description: `Wallet deduction for ${accountLabel} top-up`,
           source_table: "investor_portfolios",
           source_id: portfolio_id,
