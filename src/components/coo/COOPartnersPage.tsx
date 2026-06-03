@@ -670,6 +670,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         lastActivity: agg.lastActivity || '',
         nextRoiDate: agg.nextRoiDate,
         payoutDates: agg.payoutDates,
+        // No portfolios yet → a prospect surfaced by search (e.g. a verified
+        // depositor with wallet money). Ops can still invest/top-up from wallet.
+        isProspect: agg.deals === 0,
       };
     });
   }, []);
