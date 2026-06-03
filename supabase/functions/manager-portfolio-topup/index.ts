@@ -76,6 +76,12 @@ Deno.serve(async (req) => {
 
     const safeNotes = typeof notes === "string" ? notes.slice(0, 500) : "";
 
+    // Which wallet bucket to deploy from: "withdrawable" (personal deposit, default)
+    // or "float" (operational / company float). Routing is enforced on the wallet
+    // leg via recipient_type so the correct bucket is decremented.
+    const fundSource: "withdrawable" | "float" =
+      body.fund_source === "float" ? "float" : "withdrawable";
+
     // Fetch portfolio
     const { data: portfolio, error: pErr } = await supabase
       .from("investor_portfolios")
