@@ -1986,6 +1986,18 @@ export function EmailTransactionsPanel() {
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   })();
 
+  // Shared "needs routing" predicate: an incoming deposit whose money has not
+  // landed in any wallet yet (not credited and not routed). Mirrors the badge
+  // logic used in the row render so the filter and the badge always agree.
+  const isNeedsRouting = useCallback((r: GmailTx) => {
+    if (r.direction !== 'in') return false;
+    const isRouted = (routingHistory[r.id] ?? []).length > 0;
+    const credited = creditedDeposits[r.id] ?? [];
+    const manualMark = manualMarks[r.id];
+    const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
+    return !isCredited && !isRouted;
+  }, [routingHistory, creditedDeposits, manualMarks]);
+
   // Navigable rows: the same list the operator sees on the Recent emails page.
   // This drives the Prev / Next button bar inside the Route dialog so Financial
   // Ops can walk through emails in order without closing the dialog each time.
@@ -1993,13 +2005,14 @@ export function EmailTransactionsPanel() {
     return filteredRows.filter((r) => {
       if (directionFilter === 'in' && r.direction !== 'in') return false;
       if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
+      if (needsRoutingOnly && !isNeedsRouting(r)) return false;
       if (matchFilter === 'all') return true;
       const list = userMatches[r.id] ?? [];
       if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
       if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
       return list.some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '));
     });
-  }, [filteredRows, directionFilter, matchFilter, userMatches]);
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
   const canPrevNav = navIndex > 0;
