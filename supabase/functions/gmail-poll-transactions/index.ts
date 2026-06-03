@@ -1225,6 +1225,14 @@ async function _tryAutoCreditOperationalFloat(
           `[gmail-poll] late-link skipped: amount mismatch dep=${existingDep.id} ` +
           `dep_amount=${existingDep.amount} email_amount=${parsed.amount}`,
         );
+        await logDepositDecision(supabase, {
+          source: 'matcher',
+          decision: 'skipped',
+          reason: 'late_link_amount_mismatch',
+          deposit_request_id: existingDep.id,
+          amount: parsed.amount ?? null,
+          metadata: { gmail_message_id: gmailMessageId, dep_amount: Number(existingDep.amount), email_amount: Number(parsed.amount) },
+        });
         return;
       }
       // Link gmail row → existing pending deposit so approve-deposit re-verification passes.
