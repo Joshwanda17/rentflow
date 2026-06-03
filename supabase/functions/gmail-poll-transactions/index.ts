@@ -839,6 +839,59 @@ async function tryAutoDebitPayout(
     .maybeSingle();
   if (existingRoute?.id) return;
 
+  // ── Double-debit guard: skip when a withdrawal request already consumed
+  // this payout ────────────────────────────────────────────────────────
+  // The poll runs `tryAutoApproveMomoWithdrawal` / `tryAutoApproveBankBatch`
+  // BEFORE this helper. Those approve a pending withdrawal_request using THIS
+  // email's transaction id as `fin_ops_reference`, which ALREADY debits the
+  // recipient's wallet via approve-withdrawal. Without this guard we would
+  // debit the very same wallet a second time for the same payout. Treat any
+  // withdrawal stamped with this email's reference (and not rejected) as
+  // having fully consumed the email.
+  const settledRefs = new Set<string>();
+  if (parsed.transaction_id) settledRefs.add(String(parsed.transaction_id).trim().toUpperCase());
+  settledRefs.add(`MOMO-${gmailMessageId.slice(0, 12)}`.toUpperCase());
+  if (settledRefs.size > 0) {
+    const { data: settledRows } = await supabase
+      .from('withdrawal_requests')
+      .select('id, status, fin_ops_reference')
+      .in('fin_ops_reference', Array.from(settledRefs));
+    const consumed = (settledRows ?? []).some(
+      (r: any) => !['rejected', 'cancelled', 'failed', 'expired'].includes(String(r.status)),
+    );
+    if (consumed) {
+      console.log(
+        `[gmail-poll] auto-debit skip: payout ${parsed.transaction_id ?? gmailMessageId} already settled a withdrawal request — not double-debiting`,
+      );
+      // Record an idempotency marker so the backlog sweep also skips it.
+      try {
+        await supabase.from('email_routing_history').insert({
+          gmail_transaction_id: gmailRow.id,
+          gmail_message_id: gmailMessageId,
+          transaction_id: parsed.transaction_id ?? null,
+          from_email: gmailRow.from_email,
+          from_name: gmailRow.from_name,
+          subject: gmailRow.subject,
+          amount: 0,
+          route: 'skipped_withdrawal_settled',
+          target_user_id: null,
+          target_user_name: null,
+          target_user_phone: null,
+          reason:
+            'SKIPPED (auto): payout already settled a withdrawal request — wallet was debited by approve-withdrawal, not double-debiting.',
+          ledger_reference_id: null,
+          routed_by: null,
+          routed_by_name: 'System Auto-Debit',
+          sms_sent: false,
+          sms_error: null,
+        });
+      } catch (e) {
+        console.warn('[gmail-poll] auto-debit skip marker insert failed (non-fatal):', e);
+      }
+      return;
+    }
+  }
+
   // ── Resolve the recipient ────────────────────────────────────────────
   // The parser stores the recipient in `counterparty`: a phone for MTN/Airtel
   // payouts, a NAME for bank payouts.
