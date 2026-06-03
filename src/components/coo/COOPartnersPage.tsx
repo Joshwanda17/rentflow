@@ -2672,8 +2672,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               {addPortfolioFundingSource === 'proxy_agent' && proxyAgentInfo && Number(addPortfolioAmount) > proxyAgentInfo.walletBalance && (
                 <p className="text-[11px] text-destructive">⚠ Amount exceeds proxy agent wallet balance</p>
               )}
-              {addPortfolioFundingSource === 'wallet' && detailPartner && Number(addPortfolioAmount) > detailPartner.walletBalance && (
-                <p className="text-[11px] text-destructive">⚠ Amount exceeds partner wallet balance</p>
+              {addPortfolioFundingSource === 'wallet' && detailPartner && Number(addPortfolioAmount) > detailPartner.withdrawableBalance && (
+                <p className="text-[11px] text-destructive">
+                  ⚠ Amount exceeds withdrawable balance. Only {formatUGX(detailPartner.withdrawableBalance)} is investable
+                  {detailPartner.floatBalance > 0 && <> — {formatUGX(detailPartner.floatBalance)} is operational float and cannot be used.</>}
+                </p>
               )}
             </div>
 
