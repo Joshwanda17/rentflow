@@ -117,6 +117,7 @@ Deno.serve(async (req) => {
       !!system_auto_credit && authHeader === `Bearer ${supabaseServiceKey}`;
 
     let user: { id: string } | null = null;
+    let actorEmail: string | null = null;
     if (!isSystemAutoCredit) {
       const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } },
@@ -129,6 +130,9 @@ Deno.serve(async (req) => {
         );
       }
       user = { id: authUser.id };
+      actorEmail = authUser.email ?? null;
+    } else {
+      actorEmail = "system_auto_credit";
     }
 
     if (!action || !["approve", "reject", "reopen"].includes(action)) {
