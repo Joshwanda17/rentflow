@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -529,8 +529,17 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_direction', directionFilter); } catch {} }, [directionFilter]);
 
+  // "Needs Routing" filter — when on, show only incoming deposits whose money
+  // never landed in a wallet (not credited and not routed). Persisted so the
+  // operator's triage view survives a refresh.
+  const [needsRoutingOnly, setNeedsRoutingOnly] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('gmail_filter_needs_routing') === '1';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_needs_routing', needsRoutingOnly ? '1' : '0'); } catch {} }, [needsRoutingOnly]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly]);
 
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
@@ -1977,6 +1986,18 @@ export function EmailTransactionsPanel() {
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   })();
 
+  // Shared "needs routing" predicate: an incoming deposit whose money has not
+  // landed in any wallet yet (not credited and not routed). Mirrors the badge
+  // logic used in the row render so the filter and the badge always agree.
+  const isNeedsRouting = useCallback((r: GmailTx) => {
+    if (r.direction !== 'in') return false;
+    const isRouted = (routingHistory[r.id] ?? []).length > 0;
+    const credited = creditedDeposits[r.id] ?? [];
+    const manualMark = manualMarks[r.id];
+    const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
+    return !isCredited && !isRouted;
+  }, [routingHistory, creditedDeposits, manualMarks]);
+
   // Navigable rows: the same list the operator sees on the Recent emails page.
   // This drives the Prev / Next button bar inside the Route dialog so Financial
   // Ops can walk through emails in order without closing the dialog each time.
@@ -1984,13 +2005,14 @@ export function EmailTransactionsPanel() {
     return filteredRows.filter((r) => {
       if (directionFilter === 'in' && r.direction !== 'in') return false;
       if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
+      if (needsRoutingOnly && !isNeedsRouting(r)) return false;
       if (matchFilter === 'all') return true;
       const list = userMatches[r.id] ?? [];
       if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
       if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
       return list.some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '));
     });
-  }, [filteredRows, directionFilter, matchFilter, userMatches]);
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
   const canPrevNav = navIndex > 0;
@@ -2830,6 +2852,30 @@ export function EmailTransactionsPanel() {
               </div>
             );
           })()}
+          {(() => {
+            // "Needs Routing" toggle — narrows the list to uncredited, unrouted
+            // incoming deposits so ops can triage exactly what still needs action.
+            const needsCount = filteredRows.filter(isNeedsRouting).length;
+            return (
+              <button
+                type="button"
+                onClick={() => setNeedsRoutingOnly((v) => !v)}
+                aria-pressed={needsRoutingOnly}
+                title="Show only incoming deposits that have not been credited or routed to any wallet"
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 ${
+                  needsRoutingOnly
+                    ? 'bg-orange-600 text-white border-orange-600'
+                    : 'bg-background hover:bg-muted text-orange-700 border-orange-500/40'
+                }`}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Needs Routing
+                <span className={`ml-0.5 font-mono tabular-nums ${needsRoutingOnly ? 'opacity-90' : 'opacity-70'}`}>
+                  {needsCount}
+                </span>
+              </button>
+            );
+          })()}
         </div>
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
@@ -2863,6 +2909,7 @@ export function EmailTransactionsPanel() {
               const visible = filteredRows.filter((r) => {
                 if (directionFilter === 'in' && r.direction !== 'in') return false;
                 if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
+                if (needsRoutingOnly && !isNeedsRouting(r)) return false;
                 if (matchFilter === 'all') return true;
                 const list = userMatches[r.id] ?? [];
                 if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
