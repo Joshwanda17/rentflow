@@ -771,10 +771,32 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     min="1"
                     required
                   />
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Sparkles className="h-3 w-3" />
-                    Available: {formatCurrency(wallet?.balance || 0)}
-                  </p>
+                  <div className="rounded-lg border border-border/50 bg-background/40 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-success" />
+                        Transferable balance
+                      </span>
+                      <span className="text-sm font-bold text-success">
+                        {formatCurrency(wallet?.withdrawable || 0)}
+                      </span>
+                    </div>
+                    {(wallet?.float_balance || 0) > 0 && (
+                      <div className="flex items-center justify-between border-t border-border/40 pt-2">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Lock className="h-3 w-3" />
+                          Operational float (locked)
+                        </span>
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {formatCurrency(wallet?.float_balance || 0)}
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      You can only send your <span className="font-medium text-foreground">withdrawable</span> balance.
+                      Operational / float funds are company money and cannot be transferred wallet-to-wallet.
+                    </p>
+                  </div>
                 </motion.div>
 
                 <motion.div variants={itemVariants} className="space-y-2">
