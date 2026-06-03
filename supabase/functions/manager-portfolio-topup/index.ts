@@ -167,36 +167,51 @@ Deno.serve(async (req) => {
     const floatBal = Number(wallet.float_balance ?? 0);
     const advanceBal = Number(wallet.advance_balance ?? 0);
 
-    // STRICT withdrawable per WITHDRAWABLE STRICT RULE — same gate as
-    // approve-withdrawal. Cached buckets can be inflated relative to the
-    // ledger; if we trust them we end up calling the ledger RPC and getting
-    // a 500 from `enforce_no_negative_wallet_ledger` after we've already
-    // written a wallet_transactions row.
-    const { data: strictAvailRaw, error: availErr } = await supabase.rpc(
-      "get_user_available_balance",
-      { p_user_id: walletOwnerId },
-    );
-    if (availErr) {
-      console.error("[manager-portfolio-topup] strict balance lookup failed:", availErr);
-      return jsonRes({ error: "Could not verify wallet balance. Please retry." }, 500);
-    }
-    const strictAvail = Number(strictAvailRaw ?? 0);
-    const spendable = strictAvail + advanceBal;
-    if (spendable < topupAmount) {
-      const parts: string[] = [];
-      if (strictAvail > 0) parts.push(`Withdrawable: UGX ${strictAvail.toLocaleString()}`);
-      if (floatBal > 0) parts.push(`Float (locked): UGX ${floatBal.toLocaleString()}`);
-      const breakdown = parts.length ? ` (${parts.join(" · ")})` : "";
-      return jsonRes({
-        error:
-          `Insufficient withdrawable balance in ${walletOwnerLabel.toLowerCase()}. ` +
-          `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${spendable.toLocaleString()} is spendable${breakdown}. ` +
-          (floatBal > 0 && withdrawable > strictAvail
-            ? `Cached wallet shows more, but the ledger of record only allows UGX ${strictAvail.toLocaleString()}. Please reconcile before retrying.`
-            : floatBal > 0
-            ? `Funds in Float must be released to Withdrawable before topping up.`
-            : ``),
-      }, 400);
+    if (fundSource === "float") {
+      // ── OPERATIONAL FLOAT source ──
+      // Deploy company / operational float directly as portfolio capital.
+      // Gate strictly on the cached float bucket; the ledger trigger
+      // `enforce_no_negative_wallet_ledger` is the final backstop.
+      if (floatBal < topupAmount) {
+        return jsonRes({
+          error:
+            `Insufficient operational float in ${walletOwnerLabel.toLowerCase()}. ` +
+            `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${floatBal.toLocaleString()} is available in Float.`,
+        }, 400);
+      }
+    } else {
+      // ── PERSONAL DEPOSIT (WITHDRAWABLE) source ──
+      // STRICT withdrawable per WITHDRAWABLE STRICT RULE — same gate as
+      // approve-withdrawal. Cached buckets can be inflated relative to the
+      // ledger; if we trust them we end up calling the ledger RPC and getting
+      // a 500 from `enforce_no_negative_wallet_ledger` after we've already
+      // written a wallet_transactions row.
+      const { data: strictAvailRaw, error: availErr } = await supabase.rpc(
+        "get_user_available_balance",
+        { p_user_id: walletOwnerId },
+      );
+      if (availErr) {
+        console.error("[manager-portfolio-topup] strict balance lookup failed:", availErr);
+        return jsonRes({ error: "Could not verify wallet balance. Please retry." }, 500);
+      }
+      const strictAvail = Number(strictAvailRaw ?? 0);
+      const spendable = strictAvail + advanceBal;
+      if (spendable < topupAmount) {
+        const parts: string[] = [];
+        if (strictAvail > 0) parts.push(`Withdrawable: UGX ${strictAvail.toLocaleString()}`);
+        if (floatBal > 0) parts.push(`Float (locked): UGX ${floatBal.toLocaleString()}`);
+        const breakdown = parts.length ? ` (${parts.join(" · ")})` : "";
+        return jsonRes({
+          error:
+            `Insufficient withdrawable balance in ${walletOwnerLabel.toLowerCase()}. ` +
+            `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${spendable.toLocaleString()} is spendable${breakdown}. ` +
+            (floatBal > 0 && withdrawable > strictAvail
+              ? `Cached wallet shows more, but the ledger of record only allows UGX ${strictAvail.toLocaleString()}. Please reconcile before retrying.`
+              : floatBal > 0
+              ? `Funds in Float must be released to Withdrawable before topping up, or deploy from Operational Float instead.`
+              : ``),
+        }, 400);
+      }
     }
 
     const idempotencyBucket = Math.floor(Date.now() / (5 * 60 * 1000));
