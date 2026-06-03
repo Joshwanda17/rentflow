@@ -2936,7 +2936,7 @@ export function EmailTransactionsPanel() {
                 }`}
               >
                 <AlertTriangle className="h-3 w-3" />
-                Needs Routing
+                Still needs sorting
                 <span className={`ml-0.5 font-mono tabular-nums ${needsRoutingOnly ? 'opacity-90' : 'opacity-70'}`}>
                   {needsCount}
                 </span>
