@@ -2258,7 +2258,7 @@ export function EmailTransactionsPanel() {
           {mobileStatsOpen ? 'Hide summary' : `Summary · ${rows.length} emails · net ${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
         </Button>
       </div>
-      <div className={`grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3 ${mobileStatsOpen ? 'grid' : 'hidden sm:grid'}`}>
+      <div className={`grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 ${mobileStatsOpen ? 'grid' : 'hidden sm:grid'}`}>
         <StatCard label="Emails captured" value={rows.length.toString()} />
         <StatCard label="Parsed transactions" value={parsedCount.toString()} />
         <StatCard label="Total amount (parsed)" value={fmtUgx(totalAmount)} />
