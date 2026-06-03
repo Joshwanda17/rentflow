@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { resolvePayoutDebitTarget } from '../_shared/partnership-emails.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,6 +54,8 @@ interface ReportRow {
   available_balance?: number | null;
   ledger_reference_id?: string | null;
   detail?: string | null;
+  via_proxy?: boolean;
+  proxy_for_name?: string | null;
 }
 
 Deno.serve(async (req) => {
