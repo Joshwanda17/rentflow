@@ -2890,9 +2890,9 @@ export function EmailTransactionsPanel() {
             ).length;
             const chips: Array<{ key: MatchFilter; label: string; count: number }> = [
               { key: 'all', label: 'All', count: filteredRows.length },
-              { key: 'confident', label: 'Confident matches', count: confCount },
-              { key: 'reference', label: 'Reference (TID)', count: refCount },
-              { key: 'from', label: 'From-phone', count: fromCount },
+              { key: 'confident', label: 'We know who sent it', count: confCount },
+              { key: 'reference', label: 'Has a receipt code', count: refCount },
+              { key: 'from', label: 'Matched by phone', count: fromCount },
             ];
             return (
               <div className="flex items-center gap-1 flex-wrap">
@@ -2936,7 +2936,7 @@ export function EmailTransactionsPanel() {
                 }`}
               >
                 <AlertTriangle className="h-3 w-3" />
-                Needs Routing
+                Still needs sorting
                 <span className={`ml-0.5 font-mono tabular-nums ${needsRoutingOnly ? 'opacity-90' : 'opacity-70'}`}>
                   {needsCount}
                 </span>
@@ -2950,7 +2950,7 @@ export function EmailTransactionsPanel() {
           <div className="p-10 text-center text-sm text-muted-foreground space-y-2">
             <Mail className="h-8 w-8 mx-auto opacity-30" />
             <p>No transaction emails captured yet.</p>
-            <p className="text-xs">Click <strong>Poll now</strong> to fetch from Gmail, or wait for the next minute.</p>
+            <p className="text-xs">Click <strong>Poll now</strong> to check Gmail for new emails, or just wait a minute — it checks on its own.</p>
           </div>
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto">
@@ -2961,10 +2961,10 @@ export function EmailTransactionsPanel() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('credited')}>
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark credited
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as paid in
                   </Button>
                   <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('uncredited')}>
-                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Mark uncredited
+                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Mark as not paid in
                   </Button>
                   <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedIds(new Set())}>
                     Clear
@@ -3173,7 +3173,7 @@ export function EmailTransactionsPanel() {
                         }`}
                         title={`${manualMark.mark} by ${manualMark.marked_by_name || manualMark.marked_by} at ${new Date(manualMark.created_at).toLocaleString()}${manualMark.reason ? ' — ' + manualMark.reason : ''}`}
                       >
-                        {manualMark.mark === 'credited' ? '✓ marked' : '↺ unmarked'}
+                        {manualMark.mark === 'credited' ? '✓ marked paid in' : '↺ marked not paid in'}
                       </div>
                     )}
                   </div>
@@ -3181,9 +3181,9 @@ export function EmailTransactionsPanel() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm truncate">{r.from_name || r.from_email || 'Unknown'}</span>
                       {r.parsed ? (
-                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">parsed</Badge>
+                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">read OK</Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[10px]">unparsed</Badge>
+                        <Badge variant="outline" className="text-[10px]">couldn't read</Badge>
                       )}
                       {r.parsed && !validity.get(r.id)!.valid && (
                         <Badge
@@ -3191,7 +3191,7 @@ export function EmailTransactionsPanel() {
                           className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
                           title={validity.get(r.id)!.reason}
                         >
-                          <AlertTriangle className="h-3 w-3" /> flagged · review
+                          <AlertTriangle className="h-3 w-3" /> please check
                         </Badge>
                       )}
                       {(() => {
@@ -3255,7 +3255,7 @@ export function EmailTransactionsPanel() {
                           r.direction === 'in' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
                           : r.direction === 'out' ? 'bg-rose-500/10 text-rose-700 border-rose-500/20'
                           : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
-                        }`}>{r.direction === 'in' ? 'received' : r.direction === 'out' ? 'sent' : 'charge'}</Badge>
+                        }`}>{r.direction === 'in' ? 'money in' : r.direction === 'out' ? 'money out' : 'fee'}</Badge>
                       )}
                       {r.transaction_id && <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>}
                       {isRouted && (
@@ -3273,7 +3273,7 @@ export function EmailTransactionsPanel() {
                           }
                         >
                           <ArrowRight className="h-3 w-3" />
-                          {isReversed ? 'rerouted · reversed' : 'routed'}
+                          {isReversed ? 'sent again (undone first)' : 'sent to wallet'}
                           {history.length > 1 && (
                             <span className="font-mono tabular-nums opacity-80">×{history.length}</span>
                           )}
@@ -3292,7 +3292,7 @@ export function EmailTransactionsPanel() {
                           ].filter(Boolean).join('\n')}
                         >
                           <Zap className="h-3 w-3" />
-                          auto-debited −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
+                          auto-taken −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
                           {autoImpact && autoImpact.newAvail !== null && (
                             <span className="opacity-80">· left {fmtUgx(autoImpact.newAvail)}</span>
                           )}
@@ -3318,7 +3318,7 @@ export function EmailTransactionsPanel() {
                           ].filter(Boolean).join('\n')}
                         >
                           <CheckCircle2 className="h-3 w-3" />
-                          {isFullyCredited ? 'credited' : 'partial'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
+                          {isFullyCredited ? 'paid into wallet' : 'partly paid in'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
                           {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
                         </Badge>
                       )}
@@ -3339,7 +3339,7 @@ export function EmailTransactionsPanel() {
                           ].filter(Boolean).join('\n')}
                         >
                           <ShieldCheck className="h-3 w-3" />
-                          Already Credited — No Routing Needed
+                          Already in a wallet — nothing to do
                           {matchedByTid && <span className="opacity-75">· via TID</span>}
                         </Badge>
                       )}
@@ -3360,7 +3360,7 @@ export function EmailTransactionsPanel() {
                           ].join('\n')}
                         >
                           <AlertTriangle className="h-3 w-3" />
-                          Needs Routing
+                          Needs sorting
                         </Badge>
                       )}
                       {/* Same clear status for incoming deposits that never even
@@ -3373,7 +3373,7 @@ export function EmailTransactionsPanel() {
                           title="Needs Routing — this incoming deposit email has not been credited to any wallet. Open it to route the money to the right user."
                         >
                           <AlertTriangle className="h-3 w-3" />
-                          Needs Routing
+                          Needs sorting
                         </Badge>
                       )}
                       {/* Quick "Route Now" action — sits right next to the
@@ -3388,7 +3388,7 @@ export function EmailTransactionsPanel() {
                           title="Route this deposit now — search any user by name or number and credit it to their wallet."
                           onClick={() => navigateToRow(r, 'credit')}
                         >
-                          <Zap className="h-3 w-3" /> Route Now
+                          <Zap className="h-3 w-3" /> Send to wallet
                         </Button>
                       )}
                     </div>
@@ -3397,7 +3397,7 @@ export function EmailTransactionsPanel() {
                         are present vs missing so reviewers know what to fix. */}
                     {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
-                        <span className="uppercase tracking-wide font-semibold text-orange-600/90">Missing to match:</span>
+                        <span className="uppercase tracking-wide font-semibold text-orange-600/90">Still missing:</span>
                         <span
                           className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono ${hasMomoTid ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-orange-500/40 bg-orange-500/10 text-orange-700'}`}
                           title={hasMomoTid ? `MoMo TID present: ${normTidForRow}` : 'No MoMo transaction ID parsed from this email'}
@@ -3417,7 +3417,7 @@ export function EmailTransactionsPanel() {
                           title={hasUserMatch ? 'A depositing user was matched' : 'No depositing user matched'}
                         >
                           {hasUserMatch ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                          Depositing user
+                          Who paid
                         </span>
                         <Button
                           size="sm"
@@ -3445,7 +3445,7 @@ export function EmailTransactionsPanel() {
                           }}
                         >
                           <Wrench className="h-3 w-3" />
-                          Manually resolve
+                          Sort it myself
                         </Button>
                       </div>
                     )}
