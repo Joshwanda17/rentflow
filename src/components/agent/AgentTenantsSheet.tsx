@@ -307,6 +307,11 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
   useEffect(() => {
     if (open && initialView) setView(initialView);
   }, [open, initialView]);
+  // When the sheet is opened by tapping a specific tenant, jump straight to
+  // that tenant's profile so the agent sees their payments + outstanding.
+  useEffect(() => {
+    if (open && initialProfileTenantId) setProfileTenantId(initialProfileTenantId);
+  }, [open, initialProfileTenantId]);
   const [applyAdvanceOpen, setApplyAdvanceOpen] = useState(false);
   const { limit: advanceLimit, loading: advanceLoading } = useCreditAccessLimit(user?.id);
   const allocatedTotal = Math.max(0, Math.round((advanceLimit.bonusFromAgentAllocations || 0) / 2));
