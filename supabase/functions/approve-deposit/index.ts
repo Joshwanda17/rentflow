@@ -451,6 +451,18 @@ Deno.serve(async (req) => {
           if (Number(gmailMatch.amount) !== Number(dep.amount)) { allVerified = false; break; }
         }
         if (!allVerified) {
+          for (const d of depositRequests) {
+            await logDepositDecision(supabaseAdmin, {
+              source: "approval",
+              decision: "blocked",
+              reason: "auto_approve_unverified",
+              deposit_request_id: d.id,
+              amount: Number(d.amount),
+              actor_id: user?.id ?? null,
+              actor_email: actorEmail,
+              metadata: { provider: d.provider ?? null, transaction_id: d.transaction_id ?? null },
+            });
+          }
           return new Response(
             JSON.stringify({
               error: 'auto_approve_unverified',
@@ -464,6 +476,18 @@ Deno.serve(async (req) => {
       } else {
       const unauthorized = depositRequests.filter(d => d.agent_id !== user.id);
       if (unauthorized.length > 0) {
+        for (const d of unauthorized) {
+          await logDepositDecision(supabaseAdmin, {
+            source: "approval",
+            decision: "blocked",
+            reason: "not_authorized",
+            deposit_request_id: d.id,
+            amount: Number(d.amount),
+            actor_id: user?.id ?? null,
+            actor_email: actorEmail,
+            metadata: { action },
+          });
+        }
         return new Response(
           JSON.stringify({ error: "Not authorized to process some requests" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
