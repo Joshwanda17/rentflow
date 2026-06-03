@@ -205,13 +205,23 @@ Deno.serve(async (req) => {
       if (ver.status !== "expired") {
         await admin.from("cash_deposit_verifications").update({ status: "expired" }).eq("id", ver.id);
       }
+      // Auto-reject the still-pending deposit so it leaves the queue instead of
+      // lingering forever once its code window has closed.
+      await admin
+        .from("deposit_requests")
+        .update({
+          status: "rejected",
+          rejection_reason: "Cash deposit rejected automatically — the receipt code expired before it was entered.",
+        } as any)
+        .eq("id", depositId)
+        .eq("status", "pending");
       await logEvent(admin, {
         verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
         event_type: "expired", attempt_no: Number(ver.attempts), amount: Number(ver.amount),
-        detail: "Code entry rejected — verification window (24h) has expired.",
-        metadata: { expires_at: ver.expires_at },
+        detail: "Code entry rejected — verification window (24h) has expired; deposit auto-rejected.",
+        metadata: { expires_at: ver.expires_at, auto_rejected: true },
       });
-      return json(410, { error: "expired", message: "This code has expired. Please start a new cash deposit." });
+      return json(410, { error: "expired", rejected: true, message: "This code has expired. This deposit has been rejected — please start a new cash deposit." });
     }
 
     if (decision.kind === "too_many_attempts") {
