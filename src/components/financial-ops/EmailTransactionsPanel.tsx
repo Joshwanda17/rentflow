@@ -546,8 +546,29 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_needs_routing', needsRoutingOnly ? '1' : '0'); } catch {} }, [needsRoutingOnly]);
 
+  // Debit-breakdown filter — narrows the list by who was charged for an
+  // outgoing email (user wallet, proxy agent wallet, or not yet debited).
+  // Persisted so the operator's view survives a refresh.
+  type DebitFilter = 'all' | 'user_debit' | 'proxy_debit' | 'none';
+  const [debitFilter, setDebitFilter] = useState<DebitFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const v = localStorage.getItem('gmail_filter_debit') as DebitFilter | null;
+    return v && ['all', 'user_debit', 'proxy_debit', 'none'].includes(v) ? v : 'all';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_debit', debitFilter); } catch {} }, [debitFilter]);
+
+  // Debit-breakdown sort — lets Financial Ops order the visible list by debit
+  // metadata (type, amount, or charged name). None = preserve chronological.
+  type DebitSort = 'none' | 'debitType' | 'debitAmount' | 'debitName';
+  const [debitSort, setDebitSort] = useState<DebitSort>(() => {
+    if (typeof window === 'undefined') return 'none';
+    const v = localStorage.getItem('gmail_sort_debit') as DebitSort | null;
+    return v && ['none', 'debitType', 'debitAmount', 'debitName'].includes(v) ? v : 'none';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_sort_debit', debitSort); } catch {} }, [debitSort]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort]);
 
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
@@ -2021,21 +2042,92 @@ export function EmailTransactionsPanel() {
     return !isCredited && !isRouted;
   }, [routingHistory, creditedDeposits, manualMarks]);
 
+  /**
+   * Compute debit metadata for a single row. Reused in filtering, sorting,
+   * and rendering so the breakdown logic is defined in one place.
+   */
+  const getDebitMeta = useCallback((r: GmailTx) => {
+    const history = routingHistory[r.id] ?? [];
+    const autoDebitEntry = history.find(
+      (h) => h.route === 'withdrawable_debit' && /^DEBIT\b/i.test(h.reason || ''),
+    );
+    const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
+    const isAutoDebited = !!autoDebitEntry && !isReversed;
+    const autoImpact = autoDebitResults[r.id];
+    const isProxyDebit = /via managed proxy/i.test(autoDebitEntry?.reason || '');
+    const debitedName = autoDebitEntry?.target_user_name
+      || autoImpact?.userName || 'matched user';
+    const rawDebitReason = autoDebitEntry?.reason || '';
+    const debitReasonText =
+      rawDebitReason.includes('):')
+        ? rawDebitReason.slice(rawDebitReason.indexOf('):') + 2).trim()
+        : rawDebitReason.trim();
+    const debitProxyPartner = (() => {
+      const m = rawDebitReason.match(/via managed proxy for ([^,):]+)/i);
+      return m ? m[1].trim() : null;
+    })();
+    const debitIsPartial = /partial/i.test(rawDebitReason);
+    const debitAmountValue = autoDebitEntry?.amount ?? autoImpact?.amount ?? Number(r.amount ?? 0);
+    return {
+      isAutoDebited,
+      isProxyDebit,
+      debitedName,
+      debitReasonText,
+      debitProxyPartner,
+      debitIsPartial,
+      debitAmountValue,
+      rawDebitReason,
+    };
+  }, [routingHistory, autoDebitResults]);
+
   // Navigable rows: the same list the operator sees on the Recent emails page.
   // This drives the Prev / Next button bar inside the Route dialog so Financial
   // Ops can walk through emails in order without closing the dialog each time.
   const visibleRows = useMemo(() => {
-    return filteredRows.filter((r) => {
+    let list = filteredRows.filter((r) => {
       if (directionFilter === 'in' && r.direction !== 'in') return false;
       if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
       if (needsRoutingOnly && !isNeedsRouting(r)) return false;
       if (matchFilter === 'all') return true;
-      const list = userMatches[r.id] ?? [];
-      if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
-      if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
-      return list.some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '));
+      const matches = userMatches[r.id] ?? [];
+      if (matchFilter === 'reference') return matches.some((u) => u.matched_on.startsWith('reference '));
+      if (matchFilter === 'from') return matches.some((u) => u.matched_on.startsWith('from '));
+      return matches.some((u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from '));
     });
-  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting]);
+    // Debit-breakdown filter: only meaningful for outgoing emails.
+    if (debitFilter !== 'all') {
+      list = list.filter((r) => {
+        const meta = getDebitMeta(r);
+        if (debitFilter === 'none') return !meta.isAutoDebited;
+        if (debitFilter === 'user_debit') return meta.isAutoDebited && !meta.isProxyDebit;
+        if (debitFilter === 'proxy_debit') return meta.isAutoDebited && meta.isProxyDebit;
+        return true;
+      });
+    }
+    // Debit-breakdown sort: only meaningful when a sort is chosen.
+    if (debitSort !== 'none') {
+      list = [...list].sort((a, b) => {
+        const ma = getDebitMeta(a);
+        const mb = getDebitMeta(b);
+        // Always push non-debited rows to the bottom when sorting by debit metadata.
+        if (!ma.isAutoDebited && !mb.isAutoDebited) return 0;
+        if (!ma.isAutoDebited) return 1;
+        if (!mb.isAutoDebited) return -1;
+        if (debitSort === 'debitType') {
+          // Proxy first, then user
+          return (mb.isProxyDebit ? 1 : 0) - (ma.isProxyDebit ? 1 : 0);
+        }
+        if (debitSort === 'debitAmount') {
+          return mb.debitAmountValue - ma.debitAmountValue;
+        }
+        if (debitSort === 'debitName') {
+          return ma.debitedName.localeCompare(mb.debitedName);
+        }
+        return 0;
+      });
+    }
+    return list;
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, debitFilter, debitSort, getDebitMeta]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
   const canPrevNav = navIndex > 0;
@@ -3038,6 +3130,86 @@ export function EmailTransactionsPanel() {
               </button>
             );
           })()}
+          {(() => {
+            // Debit-breakdown filter chips: show only outgoing emails grouped by
+            // who was charged (user wallet, proxy agent, not yet debited).
+            const outRows = filteredRows.filter(
+              (r) => r.direction === 'out' || r.direction === 'charge',
+            );
+            const userDebitCount = outRows.filter((r) => {
+              const m = getDebitMeta(r);
+              return m.isAutoDebited && !m.isProxyDebit;
+            }).length;
+            const proxyDebitCount = outRows.filter((r) => {
+              const m = getDebitMeta(r);
+              return m.isAutoDebited && m.isProxyDebit;
+            }).length;
+            const noneDebitCount = outRows.filter((r) => {
+              const m = getDebitMeta(r);
+              return !m.isAutoDebited;
+            }).length;
+            const chips: Array<{ key: DebitFilter; label: string; count: number; activeClass: string; inactiveClass: string }> = [
+              { key: 'all', label: 'All debits', count: outRows.length, activeClass: 'bg-primary text-primary-foreground border-primary', inactiveClass: 'bg-background hover:bg-muted text-muted-foreground border-border' },
+              { key: 'user_debit', label: 'User wallet', count: userDebitCount, activeClass: 'bg-rose-600 text-white border-rose-600', inactiveClass: 'bg-background hover:bg-muted text-rose-700 border-rose-500/40' },
+              { key: 'proxy_debit', label: 'Proxy agent', count: proxyDebitCount, activeClass: 'bg-amber-600 text-white border-amber-600', inactiveClass: 'bg-background hover:bg-muted text-amber-700 border-amber-500/40' },
+              { key: 'none', label: 'Not debited', count: noneDebitCount, activeClass: 'bg-slate-600 text-white border-slate-600', inactiveClass: 'bg-background hover:bg-muted text-slate-700 border-slate-500/40' },
+            ];
+            return (
+              <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filter by debit target">
+                {chips.map((c) => {
+                  const active = debitFilter === c.key;
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setDebitFilter(c.key)}
+                      aria-pressed={active}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 ${
+                        active ? c.activeClass : c.inactiveClass
+                      }`}
+                    >
+                      {c.label}
+                      <span className={`ml-0.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-70'}`}>
+                        {c.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {(() => {
+            // Debit-breakdown sort toggle: only shown when the list is not empty.
+            const sortOptions: Array<{ key: DebitSort; label: string }> = [
+              { key: 'none', label: 'Chronological' },
+              { key: 'debitType', label: 'Debit type' },
+              { key: 'debitAmount', label: 'Debit amount' },
+              { key: 'debitName', label: 'Charged name' },
+            ];
+            return (
+              <div className="flex items-center gap-1" role="group" aria-label="Sort by debit breakdown">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Sort</span>
+                {sortOptions.map((opt) => {
+                  const active = debitSort === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setDebitSort(opt.key)}
+                      aria-pressed={active}
+                      className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                        active
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
@@ -3068,23 +3240,11 @@ export function EmailTransactionsPanel() {
               </div>
             )}
             {(() => {
-              const visible = filteredRows.filter((r) => {
-                if (directionFilter === 'in' && r.direction !== 'in') return false;
-                if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
-                if (needsRoutingOnly && !isNeedsRouting(r)) return false;
-                if (matchFilter === 'all') return true;
-                const list = userMatches[r.id] ?? [];
-                if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
-                if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
-                return list.some(
-                  (u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ')
-                );
-              });
-              const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+              const totalPages = Math.max(1, Math.ceil(visibleRows.length / pageSize));
               const safePage = Math.min(currentPage, totalPages);
               const startIdx = (safePage - 1) * pageSize;
-              const pageRows = visible.slice(startIdx, startIdx + pageSize);
-              (window as any).__emailPaginationMeta = { totalPages, safePage, total: visible.length };
+              const pageRows = visibleRows.slice(startIdx, startIdx + pageSize);
+              (window as any).__emailPaginationMeta = { totalPages, safePage, total: visibleRows.length };
               return pageRows.map((r) => {
                 const matches = userMatches[r.id] ?? [];
                 const hasRef = matches.some((u) => u.matched_on.startsWith('reference '));
