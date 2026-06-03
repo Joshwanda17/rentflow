@@ -109,4 +109,40 @@ describe('Cash deposit 2-minute code expiry — end to end', () => {
     expect(store.claim('ver-1', 'awaiting_code', 'verified')).toBe(false);
     expect(store.get('ver-1')?.status).toBe('expired');
   });
+
+  it('boundary at exactly 2:00 — the backend accepts when now === expires_at, then rejects 1ms later', () => {
+    // The receipt window opened 2 minutes ago, so it expires *exactly* now.
+    const expiresAtMs = Date.now();
+    const rec: VerificationRecord = {
+      status: 'awaiting_code',
+      attempts: 0,
+      max_attempts: 6,
+      expires_at: new Date(expiresAtMs).toISOString(),
+      code_hash: 'deadbeef',
+    };
+
+    // The backend uses a strict `expires_at < now` comparison, so the moment
+    // the clock is *equal* to expires_at (i.e. entering the code at exactly
+    // 2:00) the window is NOT yet expired — the correct code is accepted.
+    const atBoundary = evaluateAttempt(rec, 'deadbeef', expiresAtMs);
+    expect(atBoundary.kind).toBe('match');
+
+    // One millisecond past the boundary the window has elapsed, so the same
+    // correct code is now rejected as expired (auto-rejection).
+    const justAfter = evaluateAttempt(rec, 'deadbeef', expiresAtMs + 1);
+    expect(justAfter.kind).toBe('expired');
+
+    // And one millisecond before the boundary it is, of course, still accepted.
+    const justBefore = evaluateAttempt(rec, 'deadbeef', expiresAtMs - 1);
+    expect(justBefore.kind).toBe('match');
+
+    // Crediting still funnels through the atomic claim: the accepted boundary
+    // attempt is the single transition awaiting_code → verified, and any later
+    // (expired-sweep) claim cannot also credit it.
+    const store = new VerificationStore();
+    store.seed({ id: 'ver-boundary', status: 'awaiting_code' });
+    expect(store.claim('ver-boundary', 'awaiting_code', 'verified')).toBe(true);
+    expect(store.claim('ver-boundary', 'awaiting_code', 'expired')).toBe(false);
+    expect(store.get('ver-boundary')?.status).toBe('verified');
+  });
 });
