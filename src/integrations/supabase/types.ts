@@ -4431,6 +4431,7 @@ export type Database = {
           amount: number
           attempts: number
           code_hash: string
+          code_plain: string | null
           created_at: string
           deposit_request_id: string
           emailed_to: string | null
@@ -4445,6 +4446,7 @@ export type Database = {
           amount: number
           attempts?: number
           code_hash: string
+          code_plain?: string | null
           created_at?: string
           deposit_request_id: string
           emailed_to?: string | null
@@ -4459,6 +4461,7 @@ export type Database = {
           amount?: number
           attempts?: number
           code_hash?: string
+          code_plain?: string | null
           created_at?: string
           deposit_request_id?: string
           emailed_to?: string | null
@@ -18212,6 +18215,23 @@ export type Database = {
         Returns: Json
       }
       extract_public_schema_sql: { Args: never; Returns: string }
+      fin_ops_recent_cash_codes: {
+        Args: { p_limit?: number }
+        Returns: {
+          amount: number
+          attempts: number
+          code: string
+          created_at: string
+          deposit_purpose: string
+          deposit_request_id: string
+          depositor_name: string
+          depositor_phone: string
+          expires_at: string
+          max_attempts: number
+          status: string
+          verification_id: string
+        }[]
+      }
       find_duplicate_phones: {
         Args: never
         Returns: {

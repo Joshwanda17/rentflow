@@ -27,6 +27,7 @@ import { normalizeMomoTid } from '@/lib/momoTid';
 import { downloadCsv } from '@/lib/csvExport';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid, Legend } from 'recharts';
 import { DebitBucketAuditSearch } from './DebitBucketAuditSearch';
+import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 
 interface GmailTx {
   id: string;
@@ -2043,6 +2044,8 @@ export function EmailTransactionsPanel() {
       </div>
 
       <DebitBucketAuditSearch />
+
+      <CashDepositCodesPanel />
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-3">
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
