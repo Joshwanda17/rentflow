@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Wallet, Users, CheckCircle2, PiggyBank, Building2 } from 'lucide-react';
+import { Loader2, Wallet, Users, CheckCircle2, PiggyBank, Building2, Search, User, X } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 
-type PaymentMethod = 'wallet' | 'proxy_agent';
+type PaymentMethod = 'wallet' | 'proxy_agent' | 'user_wallet';
 type FundSource = 'withdrawable' | 'float';
 
 interface ProxyAgentInfo {
@@ -17,6 +18,12 @@ interface ProxyAgentInfo {
   agentName: string;
   withdrawable: number;
   float: number;
+}
+
+interface UserResult {
+  id: string;
+  full_name: string;
+  phone: string;
 }
 
 interface FundInvestmentAccountDialogProps {
