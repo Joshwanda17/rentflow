@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
@@ -61,6 +62,9 @@ export function ProxyDebitBreakdownDialog({ partner, proxy, children, onChanged 
   const [proxyAvail, setProxyAvail] = useState<number | null>(null);
   const [userAvail, setUserAvail] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Per-row required reason capture for the reversal correction.
+  const [reasonForId, setReasonForId] = useState<string | null>(null);
+  const [reasonText, setReasonText] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,16 +122,17 @@ export function ProxyDebitBreakdownDialog({ partner, proxy, children, onChanged 
   // Order is deliberate — refund the proxy FIRST so a mid-flight failure can
   // only ever leave the payout under-collected (recoverable), never double
   // charged across two real people.
-  const reverseToUser = async (d: ProxyDebit) => {
+  const reverseToUser = async (d: ProxyDebit, reason: string) => {
     const amount = Number(d.amount ?? 0);
     if (!(amount > 0)) return;
-    if (typeof window !== 'undefined') {
-      const ok = window.confirm(
-        `Refund ${fmtUgx(amount)} to ${proxy.agentName || 'the proxy agent'} ` +
-        `and debit it from ${partner.name || 'the managed user'} instead?\n\n` +
-        `The managed user had enough balance, so this corrects who paid.`,
-      );
-      if (!ok) return;
+    const trimmedReason = reason.trim();
+    if (trimmedReason.length < 10) {
+      toast({
+        title: 'Reason required',
+        description: 'Enter a reason of at least 10 characters for this reversal.',
+        variant: 'destructive',
+      });
+      return;
     }
     setBusyId(d.id);
     try {
@@ -200,15 +205,37 @@ export function ProxyDebitBreakdownDialog({ partner, proxy, children, onChanged 
           target_user_phone: null,
           reason:
             `Reversed managed-proxy debit ${idTag}: refunded ${proxy.agentName || 'proxy'} ` +
-            `and debited ${partner.name || 'managed user'} (who had funds). Financial Ops correction.`,
+            `and debited ${partner.name || 'managed user'} (who had funds). Financial Ops correction. ` +
+            `Reason: ${trimmedReason}`,
           ledger_reference_id: (dData as any)?.reference_id ?? null,
           routed_by: me?.user?.id ?? null,
           routed_by_name: routedByName,
           sms_sent: false,
           sms_error: null,
         });
+
+        // 4. Audit log — record who reversed, the affected managed user and
+        //    proxy agent, the amount and the mandatory reason.
+        await supabase.from('audit_logs').insert({
+          user_id: me?.user?.id ?? null,
+          action_type: 'proxy_debit_reversal',
+          table_name: 'email_routing_history',
+          record_id: d.id,
+          metadata: {
+            reason: trimmedReason,
+            amount,
+            affected_user_id: partner.id,
+            affected_user_name: partner.name,
+            proxy_agent_id: proxy.agentId,
+            proxy_agent_name: proxy.agentName,
+            transaction_id: d.transaction_id ?? null,
+            original_routing_id: d.id,
+            reversal_route: REVERSAL_ROUTE,
+            reversed_by_name: routedByName,
+          },
+        });
       } catch (e) {
-        console.warn('[ProxyDebitBreakdownDialog] reversal marker insert failed', e);
+        console.warn('[ProxyDebitBreakdownDialog] reversal marker / audit insert failed', e);
       }
 
       toast({
@@ -216,6 +243,8 @@ export function ProxyDebitBreakdownDialog({ partner, proxy, children, onChanged 
         description: `Refunded ${fmtUgx(amount)} to ${proxy.agentName || 'proxy'} and debited ${partner.name || 'the user'}.`,
       });
       setReversedIds((cur) => new Set(cur).add(d.id));
+      setReasonForId(null);
+      setReasonText('');
       await load();
       onChanged?.();
     } catch (e: any) {
