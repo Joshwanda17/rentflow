@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { logDepositDecision } from '../_shared/depositDecisionAudit.ts';
+import { resolvePayoutDebitTarget } from '../_shared/partnership-emails.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
