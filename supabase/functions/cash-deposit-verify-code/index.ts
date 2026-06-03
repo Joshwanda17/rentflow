@@ -221,6 +221,20 @@ Deno.serve(async (req) => {
         detail: "Code entry rejected — verification window (24h) has expired; deposit auto-rejected.",
         metadata: { expires_at: ver.expires_at, auto_rejected: true },
       });
+      // Email the depositor that their code expired and the deposit was rejected.
+      try {
+        await fetch(`${supabaseUrl}/functions/v1/notify-cash-deposit-expired`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${serviceKey}`,
+            apikey: serviceKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ deposit_request_id: depositId }),
+        });
+      } catch (notifyErr) {
+        console.error("[cash-verify-code] expiry email notify failed", notifyErr);
+      }
       return json(410, { error: "expired", rejected: true, message: "This code has expired. This deposit has been rejected — please start a new cash deposit." });
     }
 
