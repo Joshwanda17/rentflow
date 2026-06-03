@@ -171,11 +171,13 @@ interface PartnerDetail {
     frozen_reason: string | null;
   };
   walletBalance: number;
+  withdrawableBalance: number;
+  floatBalance: number;
   totalFunded: number;
   totalDeals: number;
   totalROIEarned: number;
   portfolios: PortfolioRow[];
-}
+ }
 
 interface SummaryData {
   totalPartners: number;
