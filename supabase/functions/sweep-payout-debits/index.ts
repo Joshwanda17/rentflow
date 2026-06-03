@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { resolvePayoutDebitTarget } from '../_shared/partnership-emails.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,6 +54,8 @@ interface ReportRow {
   available_balance?: number | null;
   ledger_reference_id?: string | null;
   detail?: string | null;
+  via_proxy?: boolean;
+  proxy_for_name?: string | null;
 }
 
 Deno.serve(async (req) => {
@@ -221,38 +224,45 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Strict available-balance gate.
-        const { data: availRaw } = await (supabase.rpc as any)('get_user_available_balance', {
-          p_user_id: profile.id,
-        });
-        const avail = Number(availRaw ?? 0);
-        if (!Number.isFinite(avail) || avail <= 0) {
+        // Resolve WHOSE wallet to debit (user, or managed-proxy fallback when
+        // the matched user has insufficient balance). Strict balance gate.
+        const target = await resolvePayoutDebitTarget(supabase, profile, base.amount);
+        if (!target) {
           report.push({
             ...base,
             outcome: 'skipped_no_balance',
             match_method: matchMethod,
             target_user_id: profile.id,
             target_user_name: profile.full_name,
-            available_balance: Math.max(0, avail),
-            detail: 'Wallet has no available balance',
+            available_balance: 0,
+            detail: 'Neither the user nor any managed proxy has available balance',
           });
           skippedCount++;
           continue;
         }
 
-        const debitAmt = Math.min(base.amount, Math.floor(avail));
-        const isPartial = debitAmt < base.amount;
+        const debitTargetId = target.targetUserId;
+        const debitName = target.targetName;
+        const debitPhone = target.targetPhone;
+        const debitAmt = target.debitAmount;
+        const isPartial = target.isPartial;
+        const viaProxy = target.viaProxy;
+        const avail = target.available;
 
         if (dryRun) {
           report.push({
             ...base,
             outcome: isPartial ? 'partial' : 'debited',
             match_method: matchMethod,
-            target_user_id: profile.id,
-            target_user_name: profile.full_name,
+            target_user_id: debitTargetId,
+            target_user_name: debitName,
             available_balance: avail,
             debited_amount: debitAmt,
-            detail: 'DRY RUN — not posted',
+            via_proxy: viaProxy,
+            proxy_for_name: target.proxyForName,
+            detail: viaProxy
+              ? `DRY RUN — would debit managed proxy for ${target.proxyForName ?? 'partner'}`
+              : 'DRY RUN — not posted',
           });
           if (isPartial) partialCount++; else debitedCount++;
           continue;
@@ -262,7 +272,8 @@ Deno.serve(async (req) => {
           `Backlog sweep auto-debit (${matchMethod} match) — outgoing payment email from ` +
           `${row.from_name || row.from_email || 'provider'}` +
           `${row.transaction_id ? ` TID ${row.transaction_id}` : ''} charged against ` +
-          `${profile.full_name}'s wallet.` +
+          `${debitName}'s wallet` +
+          `${viaProxy ? ` (managed proxy for ${target.proxyForName ?? 'partner'}, who had insufficient balance)` : ''}.` +
           `${isPartial ? ` Partial: ${debitAmt.toLocaleString()}/${base.amount.toLocaleString()} (wallet drained to zero).` : ''}`;
 
         // Post the debit via cfo-direct-credit system path.
@@ -276,7 +287,7 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             system_auto_debit: true,
-            target_user_id: profile.id,
+            target_user_id: debitTargetId,
             amount: debitAmt,
             reason,
             operation: 'debit',
@@ -302,9 +313,11 @@ Deno.serve(async (req) => {
             ...base,
             outcome: 'skipped_already_routed',
             match_method: matchMethod,
-            target_user_id: profile.id,
-            target_user_name: profile.full_name,
+            target_user_id: debitTargetId,
+            target_user_name: debitName,
             available_balance: avail,
+            via_proxy: viaProxy,
+            proxy_for_name: target.proxyForName,
             detail: 'Already debited by realtime poller (idempotency guard).',
           });
           skippedCount++;
@@ -315,8 +328,8 @@ Deno.serve(async (req) => {
             ...base,
             outcome: 'error',
             match_method: matchMethod,
-            target_user_id: profile.id,
-            target_user_name: profile.full_name,
+            target_user_id: debitTargetId,
+            target_user_name: debitName,
             available_balance: avail,
             detail: `cfo-direct-credit failed (${res.status}): ${JSON.stringify(out).slice(0, 200)}`,
           });
@@ -335,10 +348,10 @@ Deno.serve(async (req) => {
           subject: row.subject,
           amount: debitAmt,
           route: 'withdrawable_debit',
-          target_user_id: profile.id,
-          target_user_name: profile.full_name,
-          target_user_phone: profile.phone,
-          reason: `DEBIT (sweep, ${matchMethod}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${base.amount.toLocaleString()}` : ''}): ${reason}`,
+          target_user_id: debitTargetId,
+          target_user_name: debitName,
+          target_user_phone: debitPhone,
+          reason: `DEBIT (sweep, ${matchMethod}${viaProxy ? `, via managed proxy for ${target.proxyForName ?? 'partner'}` : ''}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${base.amount.toLocaleString()}` : ''}): ${reason}`,
           ledger_reference_id: referenceId,
           routed_by: callerId,
           routed_by_name: 'Backlog Sweep',
@@ -350,11 +363,13 @@ Deno.serve(async (req) => {
           ...base,
           outcome: isPartial ? 'partial' : 'debited',
           match_method: matchMethod,
-          target_user_id: profile.id,
-          target_user_name: profile.full_name,
+          target_user_id: debitTargetId,
+          target_user_name: debitName,
           available_balance: avail,
           debited_amount: debitAmt,
           ledger_reference_id: referenceId,
+          via_proxy: viaProxy,
+          proxy_for_name: target.proxyForName,
         });
         if (isPartial) partialCount++; else debitedCount++;
         totalDebited += debitAmt;

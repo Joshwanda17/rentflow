@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { logDepositDecision } from '../_shared/depositDecisionAudit.ts';
+import { resolvePayoutDebitTarget } from '../_shared/partnership-emails.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -913,27 +914,28 @@ async function tryAutoDebitPayout(
     return;
   }
 
-  // ── Strict available balance gate ────────────────────────────────────
-  // The ledger blocks negative wallets, so never debit more than the strict
-  // available balance. Clamp to drain to zero (partial debit) instead.
-  const { data: availRaw } = await (supabase.rpc as any)('get_user_available_balance', {
-    p_user_id: profile.id,
-  });
-  const avail = Number(availRaw ?? 0);
-  if (!Number.isFinite(avail) || avail <= 0) {
+  // ── Resolve WHOSE wallet to debit (user, or managed-proxy fallback) ───
+  // If the matched user has insufficient balance but has an active, approved,
+  // MANAGED proxy agent, the proxy agent's wallet is debited instead (the user
+  // is skipped). Otherwise the user is debited (full or partial). Always
+  // clamped to the strict available balance so the ledger never blocks.
+  const target = await resolvePayoutDebitTarget(supabase, profile, parsed.amount);
+  if (!target) {
     console.warn(
-      `[gmail-poll] auto-debit skip: ${profile.full_name} has UGX ${Math.max(0, avail).toLocaleString()} available, needs UGX ${parsed.amount.toLocaleString()}`,
+      `[gmail-poll] auto-debit skip: neither ${profile.full_name} nor any managed proxy has available balance for UGX ${parsed.amount.toLocaleString()}`,
     );
     return;
   }
-  const debitAmt = Math.min(parsed.amount, Math.floor(avail));
-  const isPartial = debitAmt < parsed.amount;
+  const debitAmt = target.debitAmount;
+  const isPartial = target.isPartial;
+  const viaProxy = target.viaProxy;
 
   const reason =
     `Auto-debit (${matchMethod} match) — outgoing payment email from ` +
     `${gmailRow.from_name || gmailRow.from_email || 'provider'}` +
     `${parsed.transaction_id ? ` TID ${parsed.transaction_id}` : ''} charged against ` +
-    `${profile.full_name}'s wallet.` +
+    `${target.targetName}'s wallet` +
+    `${viaProxy ? ` (managed proxy for ${target.proxyForName ?? 'partner'}, who had insufficient balance)` : ''}.` +
     `${isPartial ? ` Partial: ${debitAmt.toLocaleString()}/${parsed.amount.toLocaleString()} (wallet drained to zero).` : ''}`;
 
   // ── Post the debit through cfo-direct-credit's system path ────────────
@@ -950,7 +952,7 @@ async function tryAutoDebitPayout(
       },
       body: JSON.stringify({
         system_auto_debit: true,
-        target_user_id: profile.id,
+        target_user_id: target.targetUserId,
         amount: debitAmt,
         reason,
         operation: 'debit',
@@ -975,8 +977,8 @@ async function tryAutoDebitPayout(
     }
     referenceId = (out as any)?.reference_id ?? null;
     console.log(
-      `[gmail-poll] auto-debited UGX ${debitAmt.toLocaleString()} from ${profile.full_name} ` +
-      `(${matchMethod}) tid=${parsed.transaction_id ?? 'n/a'} ref=${referenceId}`,
+      `[gmail-poll] auto-debited UGX ${debitAmt.toLocaleString()} from ${target.targetName} ` +
+      `(${matchMethod}${viaProxy ? ', via managed proxy' : ''}) tid=${parsed.transaction_id ?? 'n/a'} ref=${referenceId}`,
     );
   } catch (e) {
     console.warn('[gmail-poll] auto-debit cfo-direct-credit invoke failed:', e);
@@ -995,12 +997,12 @@ async function tryAutoDebitPayout(
       subject: gmailRow.subject,
       amount: debitAmt,
       route: 'withdrawable_debit',
-      target_user_id: profile.id,
-      target_user_name: profile.full_name,
-      target_user_phone: profile.phone,
-      reason: `DEBIT (auto, ${matchMethod}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${parsed.amount.toLocaleString()}` : ''}): ${reason}`,
+      target_user_id: target.targetUserId,
+      target_user_name: target.targetName,
+      target_user_phone: target.targetPhone,
+      reason: `DEBIT (auto, ${matchMethod}${viaProxy ? `, via managed proxy for ${target.proxyForName ?? 'partner'}` : ''}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${parsed.amount.toLocaleString()}` : ''}): ${reason}`,
       ledger_reference_id: referenceId,
-      routed_by: profile.id,
+      routed_by: target.targetUserId,
       routed_by_name: 'System Auto-Debit',
       sms_sent: false,
       sms_error: null,
