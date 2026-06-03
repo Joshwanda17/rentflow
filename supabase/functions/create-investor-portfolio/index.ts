@@ -179,10 +179,18 @@ Deno.serve(async (req) => {
       // If the partner is managed by a proxy agent (is_managed_account=true),
       // funds MUST be debited from the proxy agent's wallet — not the
       // partner's. Server-side override so no client path can bypass it.
-      let fundingUserId: string = investorId!;
-      let fundingLabel = "partner";
+      // EXCEPTION: when the operator explicitly funds from an arbitrary user's
+      // wallet (`funding_user_id`), they have deliberately chosen the source,
+      // so the managed-proxy override is skipped.
+      let fundingUserId: string = explicitFundingUserId || investorId!;
+      let fundingLabel = explicitFundingUserId && explicitFundingUserId !== investorId ? "user_wallet" : "partner";
       let managedAgentName: string | null = null;
-      {
+      let fundingUserName: string | null = null;
+      if (fundingLabel === "user_wallet") {
+        const { data: fp } = await adminClient
+          .from("profiles").select("full_name").eq("id", fundingUserId).maybeSingle();
+        fundingUserName = fp?.full_name ?? null;
+      } else {
         const { data: managed } = await adminClient
           .from("proxy_agent_assignments")
           .select("agent_id")
@@ -206,20 +214,27 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Verify funding wallet has the funds
+      // Verify funding wallet has the funds (bucket-aware).
       const { data: wallet, error: wErr } = await adminClient
         .from("wallets")
-        .select("balance")
+        .select("balance, withdrawable_balance, float_balance")
         .eq("user_id", fundingUserId)
         .single();
 
-      if (wErr || !wallet || Number(wallet.balance) < investmentAmount) {
+      const bucketBal = fundSource === "float"
+        ? Number(wallet?.float_balance ?? 0)
+        : Number(wallet?.withdrawable_balance ?? 0);
+
+      if (wErr || !wallet || bucketBal < investmentAmount) {
         await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
         const who = fundingLabel === "proxy_agent"
           ? `proxy agent (${managedAgentName || "linked agent"})`
-          : "partner";
+          : fundingLabel === "user_wallet"
+            ? `user (${fundingUserName || "selected user"})`
+            : "partner";
+        const bucketLabel = fundSource === "float" ? "operational float" : "personal deposit";
         return new Response(JSON.stringify({
-          error: `Insufficient ${who} wallet balance. Available: UGX ${Number(wallet?.balance || 0).toLocaleString()}`,
+          error: `Insufficient ${who} ${bucketLabel} balance. Available: UGX ${bucketBal.toLocaleString()}`,
         }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
