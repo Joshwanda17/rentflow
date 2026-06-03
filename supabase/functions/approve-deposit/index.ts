@@ -182,8 +182,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
     // ── Reopen flow ──────────────────────────────────────────────────
     // Financial Ops can put a previously-rejected user deposit back into
     // the `pending` queue so the TID search / User Deposits tab surfaces
