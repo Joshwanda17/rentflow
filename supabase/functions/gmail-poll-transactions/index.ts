@@ -1162,6 +1162,7 @@ async function _tryAutoCreditOperationalFloat(
       .select('id, status, amount, user_id, provider')
       .eq('user_id', profile.id)
       .not('status', 'in', '(rejected,cancelled,failed)')
+      .neq('provider', 'cash_deposit') // cash-code deposits credit ONLY via the receipt code
       .filter('transaction_id', 'ilike', `%${tidDigits}`)
       .limit(1)
       .maybeSingle();
