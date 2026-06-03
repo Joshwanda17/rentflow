@@ -3110,6 +3110,22 @@ export function EmailTransactionsPanel() {
                 const isProxyDebit = /via managed proxy/i.test(autoDebitEntry?.reason || '');
                 const debitedName = autoDebitEntry?.target_user_name
                   || autoImpact?.userName || 'matched user';
+                // Clean, human-readable reason for the debit. The edge function
+                // writes "DEBIT (auto|sweep, <method>[, via managed proxy for
+                // <partner>][, partial …]): <reason>". Split off the leading tag
+                // so the breakdown can show the routing context and the reason
+                // separately.
+                const rawDebitReason = autoDebitEntry?.reason || '';
+                const debitReasonText =
+                  rawDebitReason.includes('):')
+                    ? rawDebitReason.slice(rawDebitReason.indexOf('):') + 2).trim()
+                    : rawDebitReason.trim();
+                const debitProxyPartner = (() => {
+                  const m = rawDebitReason.match(/via managed proxy for ([^,):]+)/i);
+                  return m ? m[1].trim() : null;
+                })();
+                const debitIsPartial = /partial/i.test(rawDebitReason);
+                const debitAmountValue = autoDebitEntry?.amount ?? autoImpact?.amount ?? Number(r.amount ?? 0);
                 // Already-credited incoming deposit (linked to a non-terminal
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
