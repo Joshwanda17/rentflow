@@ -2972,6 +2972,12 @@ export function EmailTransactionsPanel() {
                   {autoDebitProgress.failed > 0 && <> · <span className="text-rose-700">{autoDebitProgress.failed} failed</span></>}
                 </p>
               )}
+              {balanceRefreshedAt && !autoDebitBusy && (
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
+                  <RefreshCw className="h-3 w-3" />
+                  Balances refreshed · {new Date(balanceRefreshedAt).toLocaleTimeString()}
+                </span>
+              )}
             </div>
             {highConf.length > 0 && (
               <Button
