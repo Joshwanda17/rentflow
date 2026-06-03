@@ -4176,7 +4176,7 @@ function BadgeTip({
 }: {
   plain: string;
   details?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <TooltipProvider delayDuration={150}>
