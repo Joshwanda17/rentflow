@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Wallet, Users, CheckCircle2, PiggyBank, Building2 } from 'lucide-react';
+import { Loader2, Wallet, Users, CheckCircle2, PiggyBank, Building2, Search, User, X } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 
-type PaymentMethod = 'wallet' | 'proxy_agent';
+type PaymentMethod = 'wallet' | 'proxy_agent' | 'user_wallet';
 type FundSource = 'withdrawable' | 'float';
 
 interface ProxyAgentInfo {
@@ -17,6 +18,12 @@ interface ProxyAgentInfo {
   agentName: string;
   withdrawable: number;
   float: number;
+}
+
+interface UserResult {
+  id: string;
+  full_name: string;
+  phone: string;
 }
 
 interface FundInvestmentAccountDialogProps {
@@ -44,6 +51,36 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   const [partnerWallet, setPartnerWallet] = useState<{ withdrawable: number; float: number } | null>(null);
   const [proxyAgent, setProxyAgent] = useState<ProxyAgentInfo | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
+
+  // "Any user" funding source
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<UserResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserResult | null>(null);
+  const [selectedUserWallet, setSelectedUserWallet] = useState<{ withdrawable: number; float: number } | null>(null);
+
+  const searchUsers = async (q: string) => {
+    setSearchTerm(q);
+    if (q.trim().length < 3) { setSearchResults([]); return; }
+    setSearching(true);
+    const { data } = await supabase.from('profiles').select('id, full_name, phone')
+      .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`).limit(10);
+    setSearchResults(data || []);
+    setSearching(false);
+  };
+
+  const pickUser = async (u: UserResult) => {
+    setSelectedUser(u);
+    setSearchResults([]);
+    setSearchTerm('');
+    setSelectedUserWallet(null);
+    const { data } = await supabase.from('wallets')
+      .select('withdrawable_balance, float_balance').eq('user_id', u.id).maybeSingle();
+    setSelectedUserWallet({
+      withdrawable: data ? Number((data as any).withdrawable_balance ?? 0) : 0,
+      float: data ? Number((data as any).float_balance ?? 0) : 0,
+    });
+  };
 
   // Fetch partner wallet balance AND proxy agent info when dialog opens
   useEffect(() => {
@@ -106,13 +143,19 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       setNotes('');
       setPaymentMethod('wallet');
       setFundSource('withdrawable');
+      setSelectedUser(null);
+      setSelectedUserWallet(null);
+      setSearchTerm('');
+      setSearchResults([]);
     }
     onOpenChange(isOpen);
   };
 
   const activeWallet = paymentMethod === 'wallet'
     ? partnerWallet
-    : (proxyAgent ? { withdrawable: proxyAgent.withdrawable, float: proxyAgent.float } : null);
+    : paymentMethod === 'user_wallet'
+      ? selectedUserWallet
+      : (proxyAgent ? { withdrawable: proxyAgent.withdrawable, float: proxyAgent.float } : null);
   const selectedBalance = activeWallet
     ? (fundSource === 'withdrawable' ? activeWallet.withdrawable : activeWallet.float)
     : null;
