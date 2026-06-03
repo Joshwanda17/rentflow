@@ -2852,6 +2852,30 @@ export function EmailTransactionsPanel() {
               </div>
             );
           })()}
+          {(() => {
+            // "Needs Routing" toggle — narrows the list to uncredited, unrouted
+            // incoming deposits so ops can triage exactly what still needs action.
+            const needsCount = filteredRows.filter(isNeedsRouting).length;
+            return (
+              <button
+                type="button"
+                onClick={() => setNeedsRoutingOnly((v) => !v)}
+                aria-pressed={needsRoutingOnly}
+                title="Show only incoming deposits that have not been credited or routed to any wallet"
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 ${
+                  needsRoutingOnly
+                    ? 'bg-orange-600 text-white border-orange-600'
+                    : 'bg-background hover:bg-muted text-orange-700 border-orange-500/40'
+                }`}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Needs Routing
+                <span className={`ml-0.5 font-mono tabular-nums ${needsRoutingOnly ? 'opacity-90' : 'opacity-70'}`}>
+                  {needsCount}
+                </span>
+              </button>
+            );
+          })()}
         </div>
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
