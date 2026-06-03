@@ -272,6 +272,12 @@ const CHANNEL_RULES: ChannelRule[] = [
   // Receipt numbers — Welile cash receipts use the RCT prefix.
   { id: 'rct_id_prefix',     channel: 'cash_receipt',  confidence: 'high',   signal: 'RCT receipt id prefix',        source: 'transaction_id', pattern: /^rct[-_]?\d+/i },
   { id: 'rct_body',          channel: 'cash_receipt',  confidence: 'medium', signal: 'RCT receipt number in body',   source: 'body',           pattern: /\brct[-_]?\d{3,}\b/i },
+  // Cash deposits — "Cash deposit code 8829" / "Receipt code: 8829" emails carry
+  // no provider brand, so without these they fall through to 'other' and never
+  // appear under Cash in the channel breakdown.
+  { id: 'cash_deposit_code', channel: 'cash_receipt',  confidence: 'high',   signal: 'Cash deposit code phrase',     source: 'body',           pattern: /\bcash\s*deposit\s*code\b/i },
+  { id: 'cash_deposit',      channel: 'cash_receipt',  confidence: 'high',   signal: 'Cash deposit phrase',          source: 'body',           pattern: /\bcash\s*deposit\b/i },
+  { id: 'receipt_code',      channel: 'cash_receipt',  confidence: 'medium', signal: 'Receipt code label',           source: 'body',           pattern: /\breceipt\s*code\b/i },
   // Mobile money — brand keywords (high) vs id prefix only (medium).
   { id: 'mtn_brand',         channel: 'mtn_momo',      confidence: 'high',   signal: 'MTN/MoMo brand keyword',       source: 'body',           pattern: /\b(mtn|momo|mobile money)\b/i },
   { id: 'mtn_id_prefix',     channel: 'mtn_momo',      confidence: 'medium', signal: 'MP/FTI/CI MoMo id prefix',      source: 'transaction_id', pattern: /^(mp|fti|ci)\d+/i },
@@ -287,6 +293,8 @@ const CHANNEL_RULES: ChannelRule[] = [
   // Generic bank reference patterns.
   { id: 'bank_ref_id_prefix',channel: 'bank_transfer', confidence: 'medium', signal: 'FT/TRF/RTGS bank ref prefix',  source: 'transaction_id', pattern: /^(ft|trf|txn|ref|wire|rtgs|eft)[-_/]?[a-z0-9]+/i },
   { id: 'bank_ref_phrase',   channel: 'bank_transfer', confidence: 'low',    signal: 'Generic bank reference phrase',source: 'body',           pattern: /\b(bank\s*ref(erence)?|reference\s*(no|number|#)|rtgs|swift)\b/i },
+  // Last-resort: a bare "cash" keyword still belongs under Cash rather than 'other'.
+  { id: 'cash_keyword',      channel: 'cash_receipt',  confidence: 'low',    signal: 'Cash keyword',                 source: 'body',           pattern: /\bcash\b/i },
 ];
 
 /**
