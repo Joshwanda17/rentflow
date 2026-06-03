@@ -340,22 +340,59 @@ export function ProxyDebitBreakdownDialog({ partner, proxy, children, onChanged 
                         <Badge variant="muted" className="text-[10px]">proxy covered</Badge>
                       )}
                       {canReverse && (
+                        reasonForId === d.id ? null : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={busyId === d.id}
+                            onClick={() => { setReasonForId(d.id); setReasonText(''); }}
+                            className="h-6 text-[10px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50"
+                            title="Refund the proxy agent and debit the managed user instead"
+                          >
+                            <Undo2 className="h-3 w-3" />
+                            Refund proxy + debit user
+                          </Button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                  {canReverse && reasonForId === d.id && (
+                    <div className="mt-2 space-y-1.5 rounded-md border border-rose-200 bg-rose-50/60 p-2">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-rose-700">
+                        Reason for reversal <span className="text-rose-500">(required, min 10 chars)</span>
+                      </label>
+                      <Textarea
+                        value={reasonText}
+                        onChange={(e) => setReasonText(e.target.value)}
+                        placeholder={`Why move this charge from ${proxy.agentName || 'the proxy'} to ${partner.name || 'the user'}?`}
+                        className="min-h-[56px] text-xs"
+                        disabled={busyId === d.id}
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-[10px]"
+                          disabled={busyId === d.id}
+                          onClick={() => { setReasonForId(null); setReasonText(''); }}
+                        >
+                          Cancel
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          disabled={busyId === d.id}
-                          onClick={() => reverseToUser(d)}
                           className="h-6 text-[10px] gap-1 border-rose-300 text-rose-700 hover:bg-rose-50"
-                          title="Refund the proxy agent and debit the managed user instead"
+                          disabled={busyId === d.id || reasonText.trim().length < 10}
+                          onClick={() => reverseToUser(d, reasonText)}
                         >
                           {busyId === d.id
                             ? <Loader2 className="h-3 w-3 animate-spin" />
                             : <Undo2 className="h-3 w-3" />}
-                          Refund proxy + debit user
+                          Confirm reversal
                         </Button>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })
