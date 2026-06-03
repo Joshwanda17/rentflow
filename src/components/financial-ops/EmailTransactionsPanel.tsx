@@ -3998,7 +3998,8 @@ export function EmailTransactionsPanel() {
                                 ? 'bg-primary text-primary-foreground border-primary ring-1 ring-primary/30'
                                 : 'bg-primary/10 text-primary border-primary/30';
                             return (
-                              <Tooltip key={u.id}>
+                              <Fragment key={u.id}>
+                              <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Badge
                                     variant="outline"
