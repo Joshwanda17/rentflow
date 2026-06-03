@@ -2546,6 +2546,24 @@ export function EmailTransactionsPanel() {
                     Reset zoom
                   </button>
                 )}
+                <div className={`flex items-center gap-1.5 ${isZoomed ? '' : 'ml-auto'}`}>
+                  <button
+                    type="button"
+                    onClick={() => exportZoomWindowCsv({ days: windowDays, totalIn: winIn, totalOut: winOut, net: winNet, zoomed: isZoomed })}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                    title="Export this date-range summary to CSV"
+                  >
+                    <FileDown className="h-3 w-3" /> CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => exportZoomWindowPdf({ days: windowDays, totalIn: winIn, totalOut: winOut, net: winNet, zoomed: isZoomed })}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                    title="Export this date-range summary to PDF"
+                  >
+                    <FileText className="h-3 w-3" /> PDF
+                  </button>
+                </div>
               </div>
             );
           })()}
