@@ -825,6 +825,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   useEffect(() => { fetchSummaryStats(); }, [fetchSummaryStats]);
   useEffect(() => { fetchNearingPayoutsAsync(); }, [fetchNearingPayoutsAsync]);
 
+  // Refresh wallet balances whenever the Wallet → Portfolio dialog opens
+  useEffect(() => {
+    if (walletToPortfolio) {
+      refreshDetailWalletBalances();
+    }
+  }, [walletToPortfolio]);
+
   // Single portfolio approve
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const handleApprovePortfolio = async (portfolioId: string) => {
