@@ -20,12 +20,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
 import InstallAppCard from '@/components/InstallAppCard';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 // Lazy load dashboards for faster initial load
-const TenantDashboard = lazy(() => import('@/components/dashboards/TenantDashboard'));
-const AgentDashboard = lazy(() => import('@/components/dashboards/AgentDashboard'));
-const SupporterDashboard = lazy(() => import('@/components/dashboards/SupporterDashboard'));
-const LandlordDashboard = lazy(() => import('@/components/dashboards/LandlordDashboard'));
-const ManagerDashboard = lazy(() => import('@/components/dashboards/ManagerDashboard'));
+const TenantDashboard = lazyWithRetry(() => import('@/components/dashboards/TenantDashboard'));
+const AgentDashboard = lazyWithRetry(() => import('@/components/dashboards/AgentDashboard'));
+const SupporterDashboard = lazyWithRetry(() => import('@/components/dashboards/SupporterDashboard'));
+const LandlordDashboard = lazyWithRetry(() => import('@/components/dashboards/LandlordDashboard'));
+const ManagerDashboard = lazyWithRetry(() => import('@/components/dashboards/ManagerDashboard'));
 import { DashboardErrorBoundary } from '@/components/dashboards/DashboardErrorBoundary';
 
 // Minimal loading skeleton - memoized for performance
