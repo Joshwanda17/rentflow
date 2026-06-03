@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
     }
 
     const idempotencyBucket = Math.floor(Date.now() / (5 * 60 * 1000));
-    const ledgerIdempotencyKey = `manager_portfolio_topup:${walletOwnerId}:${portfolio_id}:${topupAmount}:${idempotencyBucket}`;
+    const ledgerIdempotencyKey = `manager_portfolio_topup:${walletOwnerId}:${portfolio_id}:${topupAmount}:${fundSource}:${idempotencyBucket}`;
     const { data: existingLedger } = await supabase
       .from("general_ledger")
       .select("transaction_group_id")
