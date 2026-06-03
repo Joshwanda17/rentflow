@@ -2823,6 +2823,14 @@ export function EmailTransactionsPanel() {
             const matchedLabel = top.matched_on;
             const reason = `Auto-debit (score ${score}%, ${matchedLabel}) — outgoing payment email from ${row.from_name || row.from_email || 'provider'}${row.transaction_id ? ` TID ${row.transaction_id}` : ''} charged against ${top.full_name}'s wallet.`;
             try {
+              // Guard: the ledger rejects amount 0. Emails with no parsed
+              // amount must never be sent to cfo-direct-credit — skip cleanly.
+              if (!Number.isFinite(amt) || amt <= 0) {
+                failCount++;
+                console.warn(`[auto-debit] skip ${row.id}: no usable amount on email (got ${amt})`);
+                setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
+                continue;
+              }
               // Pre-check strict available balance. The ledger blocks
               // negative wallets, so calling cfo-direct-credit when the
               // user has < amt withdrawable just produces a NEGATIVE_WALLET
