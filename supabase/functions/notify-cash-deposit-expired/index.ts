@@ -140,6 +140,28 @@ async function notifyOne(
 
   await sendGmail(email, subject, body);
 
+  // In-app notification so the depositor sees the auto-rejection inside the app
+  // (the notification bell) even if they miss the email. Best-effort.
+  try {
+    await admin.from("notifications").insert({
+      user_id: row.user_id,
+      title: "Cash deposit cancelled — code expired",
+      message:
+        `Your ${fmtUGX(row.amount)} cash deposit was automatically rejected because the ` +
+        `4-digit receipt code expired before it was entered. No money was credited. ` +
+        `Start a new cash deposit to get a fresh code.`,
+      type: "error",
+      metadata: {
+        kind: "cash_deposit_expired",
+        deposit_request_id: depositId,
+        amount: row.amount,
+        expires_at: row.expires_at ?? null,
+      },
+    } as any);
+  } catch (e) {
+    console.error("[notify-expired] in-app notification insert failed", e);
+  }
+
   try {
     await admin.from("cash_deposit_verification_events").insert({
       deposit_request_id: depositId,
