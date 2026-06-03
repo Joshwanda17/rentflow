@@ -4113,6 +4113,47 @@ const RECENT_LEGEND_KEY = 'gmail_recent_legend_open_v1';
  * the list without guessing. Pure presentation; remembers open/closed state.
  */
 function RecentEmailsLegend() {
+  // (legend component continues below)
+  return _RecentEmailsLegendBody();
+}
+
+/**
+ * Small wrapper that shows a plain-language explanation for a Recent emails
+ * badge on hover OR keyboard focus. The trigger is a focusable span so the
+ * tooltip is reachable without a mouse; the badge inside keeps its own styles.
+ */
+function BadgeTip({
+  plain,
+  details,
+  children,
+}: {
+  plain: string;
+  details?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            className="inline-flex cursor-help rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {children}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+          <p className="font-medium">{plain}</p>
+          {details && (
+            <p className="mt-1 whitespace-pre-line text-muted-foreground">{details}</p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function _RecentEmailsLegendBody() {
   const [open, setOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     try { return localStorage.getItem(RECENT_LEGEND_KEY) === '1'; } catch { return false; }
