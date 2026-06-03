@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { resolvePayoutDebitTarget } from '../_shared/partnership-emails.ts';
+import { resolvePayoutDebitTarget, logProxyFallbackAudit } from '../_shared/partnership-emails.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -358,6 +358,25 @@ Deno.serve(async (req) => {
           sms_sent: false,
           sms_error: null,
         });
+
+        // Audit: user skipped (insufficient balance) → managed proxy debited.
+        if (viaProxy && target.proxyForUserId) {
+          await logProxyFallbackAudit(supabase, {
+            actorId: callerId,
+            source: 'backlog_sweep',
+            gmailTransactionId: row.id ?? null,
+            gmailMessageId: row.gmail_message_id ?? null,
+            emailTid: row.transaction_id ?? null,
+            skippedUserId: target.proxyForUserId,
+            skippedUserName: target.proxyForName,
+            proxyUserId: debitTargetId,
+            proxyUserName: debitName,
+            requestedAmount: base.amount,
+            debitedAmount: debitAmt,
+            isPartial,
+            ledgerReferenceId: referenceId,
+          });
+        }
 
         report.push({
           ...base,

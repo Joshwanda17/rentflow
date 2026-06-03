@@ -438,3 +438,71 @@ export async function resolvePayoutDebitTarget(
   // 4. Nothing to debit anywhere.
   return null;
 }
+
+/**
+ * Record an audit-log entry for the email-payout proxy fallback path:
+ * the matched user was SKIPPED because of insufficient balance and the
+ * active managed proxy agent's wallet was debited instead.
+ *
+ * Captures the originating email id(s), the skipped user, and the chosen
+ * debit target so Financial Ops can trace every proxy-substituted charge.
+ * Never throws — failures are logged to console only.
+ */
+export async function logProxyFallbackAudit(
+  supabase: any,
+  args: {
+    actorId: string | null;
+    source: 'auto_poll' | 'backlog_sweep';
+    gmailTransactionId: string | null;
+    gmailMessageId: string | null;
+    emailTid: string | null;
+    skippedUserId: string;
+    skippedUserName: string | null;
+    proxyUserId: string;
+    proxyUserName: string | null;
+    requestedAmount: number;
+    debitedAmount: number;
+    isPartial: boolean;
+    ledgerReferenceId: string | null;
+  },
+): Promise<void> {
+  const emailRef =
+    args.emailTid ||
+    args.gmailTransactionId ||
+    args.gmailMessageId ||
+    'unknown';
+  try {
+    await supabase.from('audit_logs').insert({
+      user_id: args.actorId,
+      action_type: 'email_payout_proxy_fallback_debit',
+      table_name: 'wallets',
+      record_id: args.proxyUserId,
+      action:
+        `Email payout ${emailRef}: skipped ${args.skippedUserName ?? args.skippedUserId} ` +
+        `(insufficient balance) — debited managed proxy ${args.proxyUserName ?? args.proxyUserId} instead`,
+      metadata: {
+        source: args.source,
+        reason:
+          'Email payout auto-debit: matched user had insufficient withdrawable ' +
+          'balance; charged the active managed proxy wallet instead.',
+        email: {
+          gmail_transaction_id: args.gmailTransactionId,
+          gmail_message_id: args.gmailMessageId,
+          email_tid: args.emailTid,
+        },
+        skipped_user: { id: args.skippedUserId, name: args.skippedUserName },
+        debited_target: {
+          id: args.proxyUserId,
+          name: args.proxyUserName,
+          via_proxy: true,
+        },
+        requested_amount: args.requestedAmount,
+        debited_amount: args.debitedAmount,
+        is_partial: args.isPartial,
+        ledger_reference_id: args.ledgerReferenceId,
+      },
+    });
+  } catch (e) {
+    console.warn('[partnership-emails] proxy fallback audit log failed (non-fatal):', e);
+  }
+}

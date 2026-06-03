@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { logDepositDecision } from '../_shared/depositDecisionAudit.ts';
-import { resolvePayoutDebitTarget } from '../_shared/partnership-emails.ts';
+import { resolvePayoutDebitTarget, logProxyFallbackAudit } from '../_shared/partnership-emails.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1009,6 +1009,25 @@ async function tryAutoDebitPayout(
     });
   } catch (e) {
     console.warn('[gmail-poll] auto-debit routing-history insert failed (non-fatal):', e);
+  }
+
+  // ── Audit: user skipped (insufficient balance) → managed proxy debited ──
+  if (viaProxy && target.proxyForUserId) {
+    await logProxyFallbackAudit(supabase, {
+      actorId: null, // system auto-debit
+      source: 'auto_poll',
+      gmailTransactionId: gmailRow.id ?? null,
+      gmailMessageId: gmailMessageId ?? null,
+      emailTid: parsed.transaction_id ?? null,
+      skippedUserId: target.proxyForUserId,
+      skippedUserName: target.proxyForName,
+      proxyUserId: target.targetUserId,
+      proxyUserName: target.targetName,
+      requestedAmount: parsed.amount,
+      debitedAmount: debitAmt,
+      isPartial,
+      ledgerReferenceId: referenceId,
+    });
   }
 }
 
