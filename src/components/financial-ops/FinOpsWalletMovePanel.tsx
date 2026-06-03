@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,9 +16,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { useIsFetching } from '@tanstack/react-query';
 
 type Bucket = 'withdrawable' | 'float';
 type Mode = 'user_to_user' | 'error_correction';
+type MoveStep = 'idle' | 'posting' | 'refreshing' | 'done';
+
+/** Matches every wallet/balance/ledger-backed panel query. */
+const isWalletQuery = (key: readonly unknown[]) =>
+  /wallet|balance|ledger|finops|withdraw|float|recon|drift|overview/.test(
+    key.join(' ').toLowerCase(),
+  );
 
 interface MoveResult {
   message: string;
@@ -66,6 +74,28 @@ export function FinOpsWalletMovePanel() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<MoveResult | null>(null);
+  const [step, setStep] = useState<MoveStep>('idle');
+
+  // Live count of in-flight wallet/balance refetches kicked off by the move.
+  const refetching = useIsFetching({ predicate: (q) => isWalletQuery(q.queryKey) });
+  const refreshStartedRef = useRef(false);
+
+  // Once the refetch wave drains, mark the refresh complete. A fallback timer
+  // guarantees completion even if no wallet panels are currently mounted
+  // (invalidate only refetches active queries).
+  useEffect(() => {
+    if (step !== 'refreshing') return;
+    if (refetching > 0) {
+      refreshStartedRef.current = true;
+      return;
+    }
+    if (refreshStartedRef.current) {
+      setStep('done');
+      return;
+    }
+    const fallback = setTimeout(() => setStep('done'), 1500);
+    return () => clearTimeout(fallback);
+  }, [step, refetching]);
 
   const search = async () => {
     const q = term.trim();
@@ -145,6 +175,7 @@ export function FinOpsWalletMovePanel() {
   const submit = async () => {
     if (!source) return;
     setSubmitting(true);
+    setStep('posting');
     const { data, error } = await invokeEdgeFunction<MoveResult>('finops-wallet-move', {
       body: {
         mode,
@@ -159,17 +190,17 @@ export function FinOpsWalletMovePanel() {
     });
     setSubmitting(false);
     setConfirmOpen(false);
-    if (error || !data) return;
+    if (error || !data) {
+      setStep('idle');
+      return;
+    }
     toast.success(data.message);
     setResult(data);
-    // Invalidate every wallet/balance/ledger-backed panel so the new balances
-    // appear immediately everywhere (the panels above derive from the strict view).
-    queryClient.invalidateQueries({
-      predicate: (q) => {
-        const k = q.queryKey.join(' ').toLowerCase();
-        return /wallet|balance|ledger|finops|withdraw|float|recon|drift|overview/.test(k);
-      },
-    });
+    // Kick off the refresh wave: invalidate every wallet/balance/ledger-backed
+    // panel so the new balances appear immediately everywhere.
+    refreshStartedRef.current = false;
+    setStep('refreshing');
+    queryClient.invalidateQueries({ predicate: (q) => isWalletQuery(q.queryKey) });
     reset();
   };
 
@@ -270,8 +301,36 @@ export function FinOpsWalletMovePanel() {
                 </div>
               )}
             </div>
-            <Button variant="outline" size="sm" onClick={() => setResult(null)}>
-              Make another move
+
+            {/* Step-by-step refresh progress */}
+            <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs">
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-medium">Move posted to the ledger</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {step === 'refreshing' ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                )}
+                <span className={step === 'refreshing' ? 'font-medium' : 'text-muted-foreground'}>
+                  {step === 'refreshing'
+                    ? `Refreshing wallet panels${refetching > 0 ? ` (${refetching} updating…)` : '…'}`
+                    : 'All wallet panels refreshed'}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={step === 'refreshing'}
+              onClick={() => { setResult(null); setStep('idle'); }}
+              className="gap-2"
+            >
+              {step === 'refreshing' && <Loader2 className="h-4 w-4 animate-spin" />}
+              {step === 'refreshing' ? 'Refreshing…' : 'Make another move'}
             </Button>
           </CardContent>
         </Card>
