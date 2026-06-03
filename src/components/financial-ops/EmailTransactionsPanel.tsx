@@ -2068,6 +2068,8 @@ export function EmailTransactionsPanel() {
         </div>
       </div>
 
+      <StatHelpPanel />
+
       <DebitBucketAuditSearch />
 
       <CashDepositCodesPanel />
