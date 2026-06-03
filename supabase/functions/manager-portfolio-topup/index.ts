@@ -108,7 +108,12 @@ Deno.serve(async (req) => {
     // ── MANAGED-PROXY HARD GUARDRAIL ──
     // If the partner is managed by a proxy agent, force funds to come from
     // the proxy agent's wallet — server-side override, no client bypass.
-    const managedProxyTopup = await resolveManagedProxy(supabase, partnerId);
+    // EXCEPTION: when the operator explicitly funds from an arbitrary user's
+    // wallet (`user_wallet`), they have deliberately chosen the source, so the
+    // managed-proxy override is skipped.
+    const managedProxyTopup = payment_method === "user_wallet"
+      ? null
+      : await resolveManagedProxy(supabase, partnerId);
     if (managedProxyTopup) {
       if (payment_method !== "proxy_agent" || source_wallet_user_id !== managedProxyTopup.agentId) {
         console.warn(
@@ -125,7 +130,18 @@ Deno.serve(async (req) => {
     let walletOwnerLabel = "Partner Wallet";
     let agentName: string | null = null;
 
-    if (payment_method === "proxy_agent") {
+    if (payment_method === "user_wallet") {
+      // Fund from any user's wallet — operator explicitly searched + picked them.
+      walletOwnerId = source_wallet_user_id;
+      const { data: srcProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", source_wallet_user_id)
+        .maybeSingle();
+      const srcName = srcProfile?.full_name || "User";
+      agentName = srcName;
+      walletOwnerLabel = `User Wallet (${srcName})`;
+    } else if (payment_method === "proxy_agent") {
       // Validate source_wallet_user_id or look up proxy assignment
       let agentId = source_wallet_user_id;
       if (!agentId) {
