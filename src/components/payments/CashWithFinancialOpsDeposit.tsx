@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,10 @@ interface CashWithFinancialOpsDepositProps {
 const QUICK_AMOUNTS = [10000, 50000, 100000, 250000];
 
 type Step = 'form' | 'code' | 'success';
+
+// Depositor must enter the receipt code within this window or the deposit is
+// auto-rejected by the backend expiry sweep. Mirror it here for the countdown.
+const CODE_TTL_SECONDS = 120;
 
 /**
  * Cash-with-Financial-Ops deposit secured by a receipt code.
