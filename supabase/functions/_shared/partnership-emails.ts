@@ -334,3 +334,107 @@ export function buildProxyManagedPayoutRequest(input: ProxyManagedPayoutInput) {
     },
   };
 }
+
+/**
+ * Decide WHOSE wallet an outgoing-payout email charge should hit.
+ *
+ * Rules (email-payout auto-debit):
+ *   1. If the matched user can cover the full amount → debit the user.
+ *   2. If the matched user has INSUFFICIENT balance but has an active,
+ *      approved, MANAGED proxy agent → skip the user entirely and debit the
+ *      proxy agent's wallet for the full amount (clamped to the proxy's
+ *      strict available balance; partial allowed).
+ *   3. Otherwise (no managed proxy, or proxy has no balance) → fall back to a
+ *      partial debit of the user up to their available balance.
+ *   4. If nothing can be debited anywhere → returns null (caller skips).
+ *
+ * Always uses the strict `get_user_available_balance` RPC so the ledger never
+ * blocks the debit.
+ */
+export async function resolvePayoutDebitTarget(
+  supabase: any,
+  matched: { id: string; full_name: string | null; phone: string | null },
+  amount: number,
+): Promise<
+  | null
+  | {
+      targetUserId: string;
+      targetName: string | null;
+      targetPhone: string | null;
+      available: number;
+      debitAmount: number;
+      isPartial: boolean;
+      viaProxy: boolean;
+      proxyForUserId: string | null;
+      proxyForName: string | null;
+    }
+> {
+  if (!matched?.id || !(amount > 0)) return null;
+
+  const { data: availRaw } = await supabase.rpc('get_user_available_balance', {
+    p_user_id: matched.id,
+  });
+  const avail = Number(availRaw ?? 0);
+
+  // 1. User can cover the full amount → debit the user.
+  if (Number.isFinite(avail) && avail >= amount) {
+    return {
+      targetUserId: matched.id,
+      targetName: matched.full_name,
+      targetPhone: matched.phone,
+      available: avail,
+      debitAmount: amount,
+      isPartial: false,
+      viaProxy: false,
+      proxyForUserId: null,
+      proxyForName: null,
+    };
+  }
+
+  // 2. Insufficient balance → managed-proxy fallback (debit proxy, skip user).
+  const proxy = await resolveManagedProxy(supabase, matched.id);
+  if (proxy?.agentId) {
+    const { data: pRaw } = await supabase.rpc('get_user_available_balance', {
+      p_user_id: proxy.agentId,
+    });
+    const pAvail = Number(pRaw ?? 0);
+    if (Number.isFinite(pAvail) && pAvail > 0) {
+      const { data: pProfile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', proxy.agentId)
+        .maybeSingle();
+      const debitAmt = Math.min(amount, Math.floor(pAvail));
+      return {
+        targetUserId: proxy.agentId,
+        targetName: proxy.agentName,
+        targetPhone: pProfile?.phone ?? null,
+        available: pAvail,
+        debitAmount: debitAmt,
+        isPartial: debitAmt < amount,
+        viaProxy: true,
+        proxyForUserId: matched.id,
+        proxyForName: matched.full_name,
+      };
+    }
+  }
+
+  // 3. No managed proxy (or proxy empty) → partial user debit if any balance.
+  if (Number.isFinite(avail) && avail > 0) {
+    const debitAmt = Math.min(amount, Math.floor(avail));
+    return {
+      targetUserId: matched.id,
+      targetName: matched.full_name,
+      targetPhone: matched.phone,
+      available: avail,
+      debitAmount: debitAmt,
+      isPartial: debitAmt < amount,
+      viaProxy: false,
+      proxyForUserId: null,
+      proxyForName: null,
+    };
+  }
+
+  // 4. Nothing to debit anywhere.
+  return null;
+}
