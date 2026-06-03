@@ -338,13 +338,17 @@ Deno.serve(async (req) => {
         user_id: user.id,
         action_type: fundingLabel === "proxy_agent"
           ? "create_portfolio_instant_proxy_agent_deduct"
-          : "create_portfolio_instant_wallet_deduct",
+          : fundingLabel === "user_wallet"
+            ? "create_portfolio_instant_user_wallet_deduct"
+            : "create_portfolio_instant_wallet_deduct",
         table_name: "investor_portfolios",
         record_id: portfolio.id,
         metadata: {
           partner_id: investorId,
           funding_user_id: fundingUserId,
           funding_source: fundingLabel,
+          fund_source: fundSource,
+          funding_user_name: fundingUserName,
           managed_proxy_agent_name: managedAgentName,
           amount: investmentAmount,
           portfolio_code: codeData,
