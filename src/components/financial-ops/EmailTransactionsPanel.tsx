@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -3182,18 +3182,26 @@ export function EmailTransactionsPanel() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm truncate">{r.from_name || r.from_email || 'Unknown'}</span>
                       {r.parsed ? (
-                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">read OK</Badge>
+                        <BadgeTip plain="We understood this email and found the money amount inside it.">
+                          <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">read OK</Badge>
+                        </BadgeTip>
                       ) : (
-                        <Badge variant="outline" className="text-[10px]">couldn't read</Badge>
+                        <BadgeTip plain="We could not pull a money amount out of this email, so a person needs to look at it.">
+                          <Badge variant="outline" className="text-[10px]">couldn't read</Badge>
+                        </BadgeTip>
                       )}
                       {r.parsed && !validity.get(r.id)!.valid && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
-                          title={validity.get(r.id)!.reason}
+                        <BadgeTip
+                          plain="Something looks off about this email — please give it a quick look."
+                          details={validity.get(r.id)!.reason}
                         >
-                          <AlertTriangle className="h-3 w-3" /> please check
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
+                          >
+                            <AlertTriangle className="h-3 w-3" /> please check
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {(() => {
                         const resolved = ch(r);
@@ -3232,15 +3240,19 @@ export function EmailTransactionsPanel() {
                             ];
                         const tip = lines.filter(Boolean).join('\n');
                         return (
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] capitalize gap-1 ${tone}`}
-                            title={tip}
+                          <BadgeTip
+                            plain="How we think this money was sent (the payment channel), and how sure we are."
+                            details={tip}
                           >
-                            {resolved.channel.replace(/_/g, ' ')}
-                            {inferred && <span className="opacity-70">•</span>}
-                            <span className="font-mono tabular-nums opacity-80">{score}%</span>
-                          </Badge>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] capitalize gap-1 ${tone}`}
+                            >
+                              {resolved.channel.replace(/_/g, ' ')}
+                              {inferred && <span className="opacity-70">•</span>}
+                              <span className="font-mono tabular-nums opacity-80">{score}%</span>
+                            </Badge>
+                          </BadgeTip>
                         );
                       })()}
                       <button
@@ -3252,39 +3264,60 @@ export function EmailTransactionsPanel() {
                         <Pencil className="h-3 w-3" />
                       </button>
                       {r.direction && (
-                        <Badge variant="outline" className={`text-[10px] capitalize ${
-                          r.direction === 'in' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
-                          : r.direction === 'out' ? 'bg-rose-500/10 text-rose-700 border-rose-500/20'
-                          : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
-                        }`}>{r.direction === 'in' ? 'money in' : r.direction === 'out' ? 'money out' : 'fee'}</Badge>
-                      )}
-                      {r.transaction_id && <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>}
-                      {isRouted && (
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] gap-1 ${
-                            isReversed
-                              ? 'bg-rose-500/10 text-rose-700 border-rose-500/30'
-                              : 'bg-violet-500/15 text-violet-700 border-violet-500/30'
-                          }`}
-                          title={
-                            isReversed
-                              ? 'Re-routed with a reversal against the original auto-credit'
-                              : 'Manually routed by Financial Ops'
+                        <BadgeTip
+                          plain={
+                            r.direction === 'in'
+                              ? 'Money came in — a deposit or payment was received.'
+                              : r.direction === 'out'
+                              ? 'Money went out — a payment was sent.'
+                              : 'A fee or charge, not a deposit.'
                           }
                         >
-                          <ArrowRight className="h-3 w-3" />
-                          {isReversed ? 'sent again (undone first)' : 'sent to wallet'}
-                          {history.length > 1 && (
-                            <span className="font-mono tabular-nums opacity-80">×{history.length}</span>
-                          )}
-                        </Badge>
+                          <Badge variant="outline" className={`text-[10px] capitalize ${
+                            r.direction === 'in' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                            : r.direction === 'out' ? 'bg-rose-500/10 text-rose-700 border-rose-500/20'
+                            : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
+                          }`}>{r.direction === 'in' ? 'money in' : r.direction === 'out' ? 'money out' : 'fee'}</Badge>
+                        </BadgeTip>
+                      )}
+                      {r.transaction_id && (
+                        <BadgeTip plain="The transaction / receipt code taken from this email. We use it to match the payment.">
+                          <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>
+                        </BadgeTip>
+                      )}
+                      {isRouted && (
+                        <BadgeTip
+                          plain={
+                            isReversed
+                              ? 'This money was sent again: the first credit was undone, then it was put in the right wallet.'
+                              : 'A staff member already put this money into a user wallet.'
+                          }
+                          details={
+                            isReversed
+                              ? 'Re-routed with a reversal against the original auto-credit.'
+                              : 'Manually routed by Financial Ops.'
+                          }
+                        >
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] gap-1 ${
+                              isReversed
+                                ? 'bg-rose-500/10 text-rose-700 border-rose-500/30'
+                                : 'bg-violet-500/15 text-violet-700 border-violet-500/30'
+                            }`}
+                          >
+                            <ArrowRight className="h-3 w-3" />
+                            {isReversed ? 'sent again (undone first)' : 'sent to wallet'}
+                            {history.length > 1 && (
+                              <span className="font-mono tabular-nums opacity-80">×{history.length}</span>
+                            )}
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {isAutoDebited && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] gap-1 bg-rose-600/15 text-rose-700 border-rose-600/40"
-                          title={[
+                        <BadgeTip
+                          plain="The system automatically took this amount from the user's wallet."
+                          details={[
                             `Auto-debited from ${autoDebitEntry?.target_user_name || autoImpact?.userName || 'matched user'}'s withdrawable wallet`,
                             `Amount taken: ${fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}`,
                             autoImpact && autoImpact.newAvail !== null
@@ -3292,18 +3325,26 @@ export function EmailTransactionsPanel() {
                               : null,
                           ].filter(Boolean).join('\n')}
                         >
-                          <Zap className="h-3 w-3" />
-                          auto-taken −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
-                          {autoImpact && autoImpact.newAvail !== null && (
-                            <span className="opacity-80">· left {fmtUgx(autoImpact.newAvail)}</span>
-                          )}
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-1 bg-rose-600/15 text-rose-700 border-rose-600/40"
+                          >
+                            <Zap className="h-3 w-3" />
+                            auto-taken −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
+                            {autoImpact && autoImpact.newAvail !== null && (
+                              <span className="opacity-80">· left {fmtUgx(autoImpact.newAvail)}</span>
+                            )}
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {isCredited && (
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] gap-1 ${isFullyCredited ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40' : 'bg-amber-500/15 text-amber-700 border-amber-500/40'}`}
-                          title={[
+                        <BadgeTip
+                          plain={
+                            isFullyCredited
+                              ? 'The full amount has already landed in a user wallet. Do not send it again.'
+                              : 'Only part of this amount has reached a wallet so far.'
+                          }
+                          details={[
                             `${isFullyCredited ? 'Fully credited' : 'Partially credited'} — DO NOT credit again`,
                             `Email amount: ${fmtUgx(emailAmount)}`,
                             `Total credited: ${fmtUgx(totalCredited)}`,
@@ -3318,41 +3359,48 @@ export function EmailTransactionsPanel() {
                             ].filter(Boolean).join('\n')),
                           ].filter(Boolean).join('\n')}
                         >
-                          <CheckCircle2 className="h-3 w-3" />
-                          {isFullyCredited ? 'paid into wallet' : 'partly paid in'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
-                          {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] gap-1 ${isFullyCredited ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40' : 'bg-amber-500/15 text-amber-700 border-amber-500/40'}`}
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                            {isFullyCredited ? 'paid into wallet' : 'partly paid in'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
+                            {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {/* Clear, unambiguous status: when the deposit is fully
                           credited there is nothing left to route. Highlight the
                           transaction reference (TID) when that's what matched it
                           so reviewers trust the auto-detection. */}
                       {isCredited && isFullyCredited && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] gap-1 bg-emerald-600/15 text-emerald-700 border-emerald-600/50 font-semibold"
-                          title={[
+                        <BadgeTip
+                          plain="This money is settled — it already reached a wallet. Do not send it again."
+                          details={[
                             'Already Credited — No Routing Needed',
                             matchedByTid && matchedTid
                               ? `Matched by transaction reference (TID): ${matchedTid}`
                               : 'Matched to a credited deposit for this email.',
-                            'This money already landed in a wallet — do not route it again.',
                           ].filter(Boolean).join('\n')}
                         >
-                          <ShieldCheck className="h-3 w-3" />
-                          Already in a wallet — nothing to do
-                          {matchedByTid && <span className="opacity-75">· via TID</span>}
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-1 bg-emerald-600/15 text-emerald-700 border-emerald-600/50 font-semibold"
+                          >
+                            <ShieldCheck className="h-3 w-3" />
+                            Already in a wallet — nothing to do
+                            {matchedByTid && <span className="opacity-75">· via TID</span>}
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {/* Incoming deposit whose money never landed in any
                           wallet (no credit + not routed). Flag it clearly and
                           explain which reference fields are missing so the
                           operator knows why it couldn't auto-map. */}
                       {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
-                          title={[
+                        <BadgeTip
+                          plain="This money has not reached any wallet yet — it still needs to be sorted and sent to the right person."
+                          details={[
                             'Not Matched Yet — this deposit has not been credited to any wallet.',
                             `MoMo TID: ${hasMomoTid ? normTidForRow : 'missing'}`,
                             `Receipt code: ${hasReceiptCode ? receiptCodeForRow : 'missing'}`,
@@ -3360,22 +3408,31 @@ export function EmailTransactionsPanel() {
                             'Use Redirect deposit to send it to the right wallet.',
                           ].join('\n')}
                         >
-                          <AlertTriangle className="h-3 w-3" />
-                          Needs sorting
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            Needs sorting
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {/* Same clear status for incoming deposits that never even
                           parsed: still uncredited and unrouted, so they need ops
                           attention just as much. */}
                       {!r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
-                          title="Needs Routing — this incoming deposit email has not been credited to any wallet. Open it to route the money to the right user."
+                        <BadgeTip
+                          plain="This money has not reached any wallet yet — it still needs to be sorted and sent to the right person."
+                          details="Needs Routing — this incoming deposit email has not been credited to any wallet. Open it to route the money to the right user."
                         >
-                          <AlertTriangle className="h-3 w-3" />
-                          Needs sorting
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            Needs sorting
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {/* Quick "Route Now" action — sits right next to the
                           Needs Routing badge so ops can jump straight into the
@@ -3947,8 +4004,8 @@ function StatCard({
 }: {
   label: string;
   value: string;
-  sub?: React.ReactNode;
-  info?: React.ReactNode;
+  sub?: ReactNode;
+  info?: ReactNode;
   /** Preferred tooltip side. Radix flips it automatically if it would clip on small screens. */
   tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
   /** Preferred alignment along the chosen side. */
@@ -4106,6 +4163,42 @@ function friendlyPollError(raw: string | null | undefined): { title: string; des
 }
 
 const RECENT_LEGEND_KEY = 'gmail_recent_legend_open_v1';
+
+/**
+ * Small wrapper that shows a plain-language explanation for a Recent emails
+ * badge on hover OR keyboard focus. The trigger is a focusable span so the
+ * tooltip is reachable without a mouse; the badge inside keeps its own styles.
+ */
+function BadgeTip({
+  plain,
+  details,
+  children,
+}: {
+  plain: string;
+  details?: string;
+  children: ReactNode;
+}) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            className="inline-flex cursor-help rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {children}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+          <p className="font-medium">{plain}</p>
+          {details && (
+            <p className="mt-1 whitespace-pre-line text-muted-foreground">{details}</p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 /**
  * Plain-language legend for the Recent emails list. Explains every coloured
