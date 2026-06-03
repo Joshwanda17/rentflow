@@ -2851,7 +2851,15 @@ export function EmailTransactionsPanel() {
               }
               // The ledger blocks negative wallets, so never try to debit more
               // than the strict available balance — clamp to drain to zero.
-              const debitAmt = Math.min(amt, Math.floor(avail));
+              const debitAmt = Math.min(Math.floor(amt), Math.floor(avail));
+              if (!Number.isFinite(debitAmt) || debitAmt <= 0) {
+                failCount++;
+                console.warn(
+                  `[auto-debit] skip ${row.id}: computed debit amount was UGX ${debitAmt.toLocaleString()} after clamping available balance UGX ${avail.toLocaleString()}`,
+                );
+                setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
+                continue;
+              }
               const isPartial = debitAmt < amt;
               const { data: debitData, error: debitErr } = await supabase.functions.invoke('cfo-direct-credit', {
                 body: {
