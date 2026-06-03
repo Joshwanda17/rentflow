@@ -2072,9 +2072,9 @@ export function EmailTransactionsPanel() {
 
       <CashDepositCodesPanel />
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-3">
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[120px]">
+      <div className="rounded-xl border bg-card p-3 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[130px]">
             {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Poll now
           </Button>
@@ -2094,6 +2094,9 @@ export function EmailTransactionsPanel() {
           >
             <FileText className="h-4 w-4" /> Export PDF
           </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-full sm:w-auto sm:mr-1">More tools</span>
           <ArchivedPdfsDrawer />
           <ReconnectGmailDialog />
           <DebugPollDialog />
