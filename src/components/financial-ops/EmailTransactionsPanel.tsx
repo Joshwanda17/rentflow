@@ -2042,6 +2042,44 @@ export function EmailTransactionsPanel() {
     return !isCredited && !isRouted;
   }, [routingHistory, creditedDeposits, manualMarks]);
 
+  /**
+   * Compute debit metadata for a single row. Reused in filtering, sorting,
+   * and rendering so the breakdown logic is defined in one place.
+   */
+  const getDebitMeta = useCallback((r: GmailTx) => {
+    const history = routingHistory[r.id] ?? [];
+    const autoDebitEntry = history.find(
+      (h) => h.route === 'withdrawable_debit' && /^DEBIT\b/i.test(h.reason || ''),
+    );
+    const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
+    const isAutoDebited = !!autoDebitEntry && !isReversed;
+    const autoImpact = autoDebitResults[r.id];
+    const isProxyDebit = /via managed proxy/i.test(autoDebitEntry?.reason || '');
+    const debitedName = autoDebitEntry?.target_user_name
+      || autoImpact?.userName || 'matched user';
+    const rawDebitReason = autoDebitEntry?.reason || '';
+    const debitReasonText =
+      rawDebitReason.includes('):')
+        ? rawDebitReason.slice(rawDebitReason.indexOf('):') + 2).trim()
+        : rawDebitReason.trim();
+    const debitProxyPartner = (() => {
+      const m = rawDebitReason.match(/via managed proxy for ([^,):]+)/i);
+      return m ? m[1].trim() : null;
+    })();
+    const debitIsPartial = /partial/i.test(rawDebitReason);
+    const debitAmountValue = autoDebitEntry?.amount ?? autoImpact?.amount ?? Number(r.amount ?? 0);
+    return {
+      isAutoDebited,
+      isProxyDebit,
+      debitedName,
+      debitReasonText,
+      debitProxyPartner,
+      debitIsPartial,
+      debitAmountValue,
+      rawDebitReason,
+    };
+  }, [routingHistory, autoDebitResults]);
+
   // Navigable rows: the same list the operator sees on the Recent emails page.
   // This drives the Prev / Next button bar inside the Route dialog so Financial
   // Ops can walk through emails in order without closing the dialog each time.
