@@ -2633,7 +2633,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                     <Wallet className="h-3.5 w-3.5 text-primary" /> Partner Wallet
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1 truncate">{detailPartner?.profile.full_name}</p>
-                  <p className="text-sm font-bold mt-1">{detailPartner ? formatUGX(detailPartner.walletBalance) : '—'}</p>
+                  <div className="mt-1.5 space-y-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted-foreground">Withdrawable</span>
+                      <span className="text-xs font-bold text-primary">{detailPartner ? formatUGX(detailPartner.withdrawableBalance) : '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted-foreground">Float</span>
+                      <span className="text-xs font-semibold text-muted-foreground">{detailPartner ? formatUGX(detailPartner.floatBalance) : '—'}</span>
+                    </div>
+                  </div>
                 </button>
                 <button
                   type="button"
