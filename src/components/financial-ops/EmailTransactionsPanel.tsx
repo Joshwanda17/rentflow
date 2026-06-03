@@ -1275,6 +1275,9 @@ export function EmailTransactionsPanel() {
     for (const list of Object.values(routingHistory)) {
       for (const h of list) if (h.target_user_id) ids.add(h.target_user_id);
     }
+    // Also fetch wallet positions for any resolved managed proxy agents so the
+    // possible-recipient list and breakdown can show the proxy wallet balance.
+    for (const p of Object.values(userProxies)) if (p.agentId) ids.add(p.agentId);
     const missing = Array.from(ids).filter((id) => userBalances[id] === undefined);
     if (missing.length === 0) return;
     let cancelled = false;
@@ -1322,7 +1325,50 @@ export function EmailTransactionsPanel() {
       });
     })();
     return () => { cancelled = true; };
-  }, [userMatches, routingHistory, userBalances]);
+  }, [userMatches, routingHistory, userBalances, userProxies]);
+
+  // Resolve the managed proxy agent (if any) for every possible-user candidate.
+  // Mirrors the server-side `resolveManagedProxy`: an active, approved,
+  // is_managed_account assignment where the candidate is the beneficiary.
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const list of Object.values(userMatches)) {
+      for (const u of list) ids.add(u.id);
+    }
+    const missing = Array.from(ids).filter((id) => userProxies[id] === undefined);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const { data: assigns, error } = await (supabase.from('proxy_agent_assignments') as any)
+        .select('beneficiary_id, agent_id')
+        .in('beneficiary_id', missing)
+        .eq('is_active', true)
+        .eq('is_managed_account', true)
+        .eq('approval_status', 'approved');
+      if (cancelled || error || !assigns?.length) return;
+      const agentIds = Array.from(new Set(assigns.map((a: any) => a.agent_id).filter(Boolean)));
+      const nameById: Record<string, string | null> = {};
+      if (agentIds.length) {
+        const { data: profs } = await (supabase.from('profiles') as any)
+          .select('id, full_name')
+          .in('id', agentIds);
+        for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null }>) {
+          nameById[p.id] = p.full_name ?? null;
+        }
+      }
+      if (cancelled) return;
+      setUserProxies((cur) => {
+        const next = { ...cur };
+        for (const a of assigns as Array<{ beneficiary_id: string; agent_id: string }>) {
+          if (a.beneficiary_id && a.agent_id && next[a.beneficiary_id] === undefined) {
+            next[a.beneficiary_id] = { agentId: a.agent_id, agentName: nameById[a.agent_id] ?? null };
+          }
+        }
+        return next;
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [userMatches, userProxies]);
 
   // Reverse a single routing-history entry. Posts the opposite leg through
   // `cfo-direct-credit` against the same target user/bucket, then writes a
