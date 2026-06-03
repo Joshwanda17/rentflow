@@ -3130,6 +3130,86 @@ export function EmailTransactionsPanel() {
               </button>
             );
           })()}
+          {(() => {
+            // Debit-breakdown filter chips: show only outgoing emails grouped by
+            // who was charged (user wallet, proxy agent, not yet debited).
+            const outRows = filteredRows.filter(
+              (r) => r.direction === 'out' || r.direction === 'charge',
+            );
+            const userDebitCount = outRows.filter((r) => {
+              const m = getDebitMeta(r);
+              return m.isAutoDebited && !m.isProxyDebit;
+            }).length;
+            const proxyDebitCount = outRows.filter((r) => {
+              const m = getDebitMeta(r);
+              return m.isAutoDebited && m.isProxyDebit;
+            }).length;
+            const noneDebitCount = outRows.filter((r) => {
+              const m = getDebitMeta(r);
+              return !m.isAutoDebited;
+            }).length;
+            const chips: Array<{ key: DebitFilter; label: string; count: number; activeClass: string; inactiveClass: string }> = [
+              { key: 'all', label: 'All debits', count: outRows.length, activeClass: 'bg-primary text-primary-foreground border-primary', inactiveClass: 'bg-background hover:bg-muted text-muted-foreground border-border' },
+              { key: 'user_debit', label: 'User wallet', count: userDebitCount, activeClass: 'bg-rose-600 text-white border-rose-600', inactiveClass: 'bg-background hover:bg-muted text-rose-700 border-rose-500/40' },
+              { key: 'proxy_debit', label: 'Proxy agent', count: proxyDebitCount, activeClass: 'bg-amber-600 text-white border-amber-600', inactiveClass: 'bg-background hover:bg-muted text-amber-700 border-amber-500/40' },
+              { key: 'none', label: 'Not debited', count: noneDebitCount, activeClass: 'bg-slate-600 text-white border-slate-600', inactiveClass: 'bg-background hover:bg-muted text-slate-700 border-slate-500/40' },
+            ];
+            return (
+              <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filter by debit target">
+                {chips.map((c) => {
+                  const active = debitFilter === c.key;
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setDebitFilter(c.key)}
+                      aria-pressed={active}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors inline-flex items-center gap-1 ${
+                        active ? c.activeClass : c.inactiveClass
+                      }`}
+                    >
+                      {c.label}
+                      <span className={`ml-0.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-70'}`}>
+                        {c.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {(() => {
+            // Debit-breakdown sort toggle: only shown when the list is not empty.
+            const sortOptions: Array<{ key: DebitSort; label: string }> = [
+              { key: 'none', label: 'Chronological' },
+              { key: 'debitType', label: 'Debit type' },
+              { key: 'debitAmount', label: 'Debit amount' },
+              { key: 'debitName', label: 'Charged name' },
+            ];
+            return (
+              <div className="flex items-center gap-1" role="group" aria-label="Sort by debit breakdown">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Sort</span>
+                {sortOptions.map((opt) => {
+                  const active = debitSort === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setDebitSort(opt.key)}
+                      aria-pressed={active}
+                      className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                        active
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
