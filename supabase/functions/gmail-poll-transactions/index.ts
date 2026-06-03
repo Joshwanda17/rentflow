@@ -1401,12 +1401,39 @@ async function _tryAutoCreditOperationalFloat(
     if (!res.ok) {
       const txt = await res.text();
       console.warn('[gmail-poll] approve-deposit non-200:', res.status, txt.slice(0, 300));
+      await logDepositDecision(supabase, {
+        source: 'matcher',
+        decision: 'failed',
+        reason: 'approve_non_200',
+        deposit_request_id: newDep.id,
+        amount: parsed.amount ?? null,
+        actor_id: profile.id,
+        metadata: { gmail_message_id: gmailMessageId, status: res.status, body: txt.slice(0, 300), match_method: matchMethod },
+      });
       return;
     } else {
       console.log(`[gmail-poll] auto-credited float for user=${profile.id} dep=${newDep.id} amt=${parsed.amount}`);
+      await logDepositDecision(supabase, {
+        source: 'matcher',
+        decision: 'auto_credited',
+        reason: 'gmail_phone+tid+amount',
+        deposit_request_id: newDep.id,
+        amount: parsed.amount ?? null,
+        actor_id: profile.id,
+        metadata: { gmail_message_id: gmailMessageId, match_method: matchMethod, provider },
+      });
     }
   } catch (e) {
     console.warn('[gmail-poll] approve-deposit invoke failed:', e);
+    await logDepositDecision(supabase, {
+      source: 'matcher',
+      decision: 'failed',
+      reason: 'approve_invoke_error',
+      deposit_request_id: newDep.id,
+      amount: parsed.amount ?? null,
+      actor_id: profile.id,
+      metadata: { gmail_message_id: gmailMessageId, error: String(e) },
+    });
     return;
   }
 
