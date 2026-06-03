@@ -147,6 +147,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
           amount: topUpAmount,
           notes: notes.trim(),
           payment_method: paymentMethod,
+          fund_source: fundSource,
           source_wallet_user_id: paymentMethod === 'proxy_agent' ? proxyAgent?.agentId : undefined,
         },
       });
@@ -156,7 +157,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
 
       toast({
         title: `${formatUGX(topUpAmount)} top-up processed`,
-        description: `Deducted from ${paymentMethod === 'wallet' ? 'partner wallet' : proxyAgent?.agentName + "'s wallet"}. Applied at maturity.`,
+        description: `Deducted from ${paymentMethod === 'wallet' ? 'partner' : proxyAgent?.agentName + "'s"} ${fundSource === 'float' ? 'operational float' : 'personal deposit'}. Applied at maturity.`,
       });
       setAmount('');
       setNotes('');
