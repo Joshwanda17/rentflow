@@ -2274,39 +2274,46 @@ export function EmailTransactionsPanel() {
       </div>
       <div className={`grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 ${mobileStatsOpen ? 'grid' : 'hidden sm:grid'}`}>
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Emails captured"
           value={rows.length.toString()}
           info={<p className="text-xs leading-relaxed">How many confirmation emails we have pulled in from Gmail.</p>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Parsed transactions"
           value={parsedCount.toString()}
           info={<p className="text-xs leading-relaxed">Emails we successfully read and turned into a money amount.</p>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Total amount (parsed)"
           value={fmtUgx(totalAmount)}
           info={<p className="text-xs leading-relaxed">All the money values added up across every readable email.</p>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Total in (received)"
           value={fmtUgx(totalIn)}
           info={<p className="text-xs leading-relaxed">Money that came IN — deposits and payments received.</p>}
           sub={<span className="text-[10px] text-emerald-600">↓ money received</span>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Total out (sent + charges)"
           value={fmtUgx(totalOut)}
           info={<p className="text-xs leading-relaxed">Money that went OUT — payments sent plus provider fees.</p>}
           sub={<span className="text-[10px] text-rose-600">↑ money sent</span>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Total provider fees"
           value={fmtUgx(totalFees)}
           info={<p className="text-xs leading-relaxed">Charges taken by MTN, Airtel or the banks for these transactions.</p>}
           sub={<span className="text-[10px] text-amber-600">{feeCount} row{feeCount === 1 ? '' : 's'} · MTN / Airtel / banks</span>}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Net (in − out)"
           value={`${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
           info={
@@ -2345,6 +2352,7 @@ export function EmailTransactionsPanel() {
           }
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Last poll"
           value={state?.last_polled_at ? format(new Date(state.last_polled_at), 'HH:mm:ss') : '—'}
           info={<p className="text-xs leading-relaxed">The time we last checked Gmail for new emails (happens automatically every minute).</p>}
@@ -2355,6 +2363,7 @@ export function EmailTransactionsPanel() {
           ) : null}
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Flagged (review)"
           value={flaggedCount.toString()}
           info={<p className="text-xs leading-relaxed">Rows that look unusual and are worth a quick human check. They still count toward totals.</p>}
@@ -2369,6 +2378,7 @@ export function EmailTransactionsPanel() {
           }
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Unmatched deposits"
           value={unmatchedInCount.toString()}
           info={<p className="text-xs leading-relaxed">Incoming money not yet linked to a deposit request — may still need routing.</p>}
@@ -2383,6 +2393,7 @@ export function EmailTransactionsPanel() {
           }
         />
         <StatCard
+          tooltipSide={statTooltipSide}
           label="Unmatched payouts"
           value={unmatchedOutCount.toString()}
           info={<p className="text-xs leading-relaxed">Outgoing money not yet linked to a withdrawal — may still need routing.</p>}
