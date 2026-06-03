@@ -546,8 +546,29 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_needs_routing', needsRoutingOnly ? '1' : '0'); } catch {} }, [needsRoutingOnly]);
 
+  // Debit-breakdown filter — narrows the list by who was charged for an
+  // outgoing email (user wallet, proxy agent wallet, or not yet debited).
+  // Persisted so the operator's view survives a refresh.
+  type DebitFilter = 'all' | 'user_debit' | 'proxy_debit' | 'none';
+  const [debitFilter, setDebitFilter] = useState<DebitFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const v = localStorage.getItem('gmail_filter_debit') as DebitFilter | null;
+    return v && ['all', 'user_debit', 'proxy_debit', 'none'].includes(v) ? v : 'all';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_debit', debitFilter); } catch {} }, [debitFilter]);
+
+  // Debit-breakdown sort — lets Financial Ops order the visible list by debit
+  // metadata (type, amount, or charged name). None = preserve chronological.
+  type DebitSort = 'none' | 'debitType' | 'debitAmount' | 'debitName';
+  const [debitSort, setDebitSort] = useState<DebitSort>(() => {
+    if (typeof window === 'undefined') return 'none';
+    const v = localStorage.getItem('gmail_sort_debit') as DebitSort | null;
+    return v && ['none', 'debitType', 'debitAmount', 'debitName'].includes(v) ? v : 'none';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_sort_debit', debitSort); } catch {} }, [debitSort]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort]);
 
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
