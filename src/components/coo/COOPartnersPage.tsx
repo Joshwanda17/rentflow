@@ -3305,16 +3305,46 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </div>
               </div>
 
+              {/* Deploy-from bucket selector */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Deploy From</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    {
+                      value: 'withdrawable' as const, label: 'Personal Deposit',
+                      bal: walletTransferMethod === 'wallet' ? detailPartner.withdrawableBalance : (proxyAgentInfo?.withdrawable ?? 0),
+                    },
+                    {
+                      value: 'float' as const, label: 'Operational Float',
+                      bal: walletTransferMethod === 'wallet' ? detailPartner.floatBalance : (proxyAgentInfo?.float ?? 0),
+                    },
+                  ]).map(opt => {
+                    const selected = walletTransferFundSource === opt.value;
+                    return (
+                      <button key={opt.value} type="button"
+                        onClick={() => setWalletTransferFundSource(opt.value)}
+                        className={cn(
+                          "flex flex-col items-start gap-0.5 rounded-lg border-2 p-2.5 transition-all text-left",
+                          selected ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-background hover:border-muted-foreground/30"
+                        )}>
+                        <span className={cn("text-xs font-medium", selected ? "text-primary" : "text-muted-foreground")}>{opt.label}</span>
+                        <span className="text-sm font-bold text-foreground">{formatUGX(opt.bal)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Balance display */}
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/60">
                 <Wallet className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  {walletTransferMethod === 'wallet' ? 'Partner Wallet:' : `${proxyAgentInfo?.agentName || 'Agent'} Wallet:`}
+                  {walletTransferFundSource === 'float' ? 'Operational Float:' : 'Personal Deposit:'}
                 </span>
                 <span className="text-sm font-bold">
                   {walletTransferMethod === 'wallet'
-                    ? formatUGX(detailPartner.walletBalance)
-                    : proxyAgentInfo ? formatUGX(proxyAgentInfo.walletBalance) : '—'}
+                    ? formatUGX(walletTransferFundSource === 'float' ? detailPartner.floatBalance : detailPartner.withdrawableBalance)
+                    : proxyAgentInfo ? formatUGX(walletTransferFundSource === 'float' ? (proxyAgentInfo.float ?? 0) : (proxyAgentInfo.withdrawable ?? 0)) : '—'}
                 </span>
               </div>
 
