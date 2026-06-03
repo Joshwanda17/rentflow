@@ -863,31 +863,6 @@ async function tryAutoDebitPayout(
       console.log(
         `[gmail-poll] auto-debit skip: payout ${parsed.transaction_id ?? gmailMessageId} already settled a withdrawal request — not double-debiting`,
       );
-      // Record an idempotency marker so the backlog sweep also skips it.
-      try {
-        await supabase.from('email_routing_history').insert({
-          gmail_transaction_id: gmailRow.id,
-          gmail_message_id: gmailMessageId,
-          transaction_id: parsed.transaction_id ?? null,
-          from_email: gmailRow.from_email,
-          from_name: gmailRow.from_name,
-          subject: gmailRow.subject,
-          amount: 0,
-          route: 'skipped_withdrawal_settled',
-          target_user_id: null,
-          target_user_name: null,
-          target_user_phone: null,
-          reason:
-            'SKIPPED (auto): payout already settled a withdrawal request — wallet was debited by approve-withdrawal, not double-debiting.',
-          ledger_reference_id: null,
-          routed_by: null,
-          routed_by_name: 'System Auto-Debit',
-          sms_sent: false,
-          sms_error: null,
-        });
-      } catch (e) {
-        console.warn('[gmail-poll] auto-debit skip marker insert failed (non-fatal):', e);
-      }
       return;
     }
   }
