@@ -250,8 +250,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       toast.error('Enter an amount greater than 0 UGX');
       return;
     }
-    if (wallet && amountNum > (wallet.balance || 0)) {
-      toast.error(`Insufficient balance. Available: ${formatCurrency(wallet.balance || 0)}`);
+    if (wallet && amountNum > (wallet.withdrawable || 0)) {
+      toast.error(`Insufficient transferable balance. Available: ${formatCurrency(wallet.withdrawable || 0)}`);
       return;
     }
     if (mode === 'phone' && !phone) {
