@@ -7,6 +7,7 @@ import AiIdButton from '@/components/ai-id/AiIdButton';
 import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
 import { AgentCompanyDebtCard } from '@/components/agent/AgentCompanyDebtCard';
+import { AgentMyAdvancesCard } from '@/components/agent/AgentMyAdvancesCard';
 import { EarnedSinceLastWithdrawalCard } from '@/components/agent/EarnedSinceLastWithdrawalCard';
 import { EarningsSummaryCard } from '@/components/agent/EarningsSummaryCard';
 import { AgentWalletDetailsCard } from '@/components/agent/AgentWalletDetailsCard';
@@ -822,6 +823,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
             />
             <AgentCompanyDebtCard onViewBreakdown={() => { hapticTap(); setTenantsSheetOpen(true); }} />
+            <AgentMyAdvancesCard />
             <AgentRiskExposureCard />
             <EarnedSinceLastWithdrawalCard />
             <AgentLandlordFloatCard
