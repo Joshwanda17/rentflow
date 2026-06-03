@@ -563,6 +563,9 @@ Deno.serve(async (req) => {
             description: `Welile Technologies Finance → ${targetProfile.full_name} [${impact}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
+            ...(platformCashOutNeedsSolvencyBypassReason
+              ? { solvency_bypass_reason: solvencyBypassReason }
+              : {}),
           },
         ],
         skip_balance_check: true,
@@ -601,8 +604,11 @@ Deno.serve(async (req) => {
           // explicitly excluded by every end-user wallet filter), while
           // still being captured in CFO/ops dashboards and in the
           // cfo_debit_obligations recoverable below.
-          ...(allowOverdraw
-            ? { classification: 'admin_correction', solvency_bypass_reason: solvencyBypassReason }
+          ...(walletDebitNeedsSolvencyBypassReason
+            ? {
+                ...(allowOverdraw ? { classification: 'admin_correction' } : {}),
+                solvency_bypass_reason: solvencyBypassReason,
+              }
             : {}),
         },
         {
