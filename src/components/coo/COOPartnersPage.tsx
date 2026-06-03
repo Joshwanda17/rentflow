@@ -1867,7 +1867,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors underline-offset-2 group-hover:underline flex items-center gap-1.5">
           <span className="truncate">{r.name}</span>
           {r.isProspect && (
-            <span className="shrink-0 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide">New</span>
+            <span className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide"><Sparkles className="h-2.5 w-2.5" />New prospect</span>
           )}
         </p>
         <p className="text-[10px] text-muted-foreground">{r.phone || '—'}</p>
