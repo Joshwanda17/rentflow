@@ -80,6 +80,11 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
+    // Admin client is created up-front so the deposit-decision audit trail can
+    // record EVERY rejection/block — including the early validation returns
+    // below — not just the ones that happen after the main flow starts.
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
     const body = await req.json().catch(() => ({}));
     const { deposit_request_id, action, rejection_reason, bulk_ids, access_token, auto_approved, auto_match_method, system_auto_credit } = body as {
       deposit_request_id?: string;
