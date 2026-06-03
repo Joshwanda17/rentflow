@@ -123,6 +123,10 @@ Deno.serve(async (req) => {
       wallet_bucket: leg.wallet_bucket,
       ledger_scope: leg.ledger_scope,
       classification: "admin_correction",
+      // Required by enforce_no_negative_wallet_ledger for any admin_correction
+      // cash_out wallet leg. A withdrawal reversal is a duplicate/undo of the
+      // original disbursement.
+      solvency_bypass_reason: "duplicate_reversal",
       currency: leg.currency || "UGX",
       transaction_date: new Date().toISOString(),
     }));
