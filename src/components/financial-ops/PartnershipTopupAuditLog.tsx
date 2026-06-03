@@ -206,7 +206,19 @@ export function PartnershipTopupAuditLog() {
               r.legs.length === 2 &&
               r.legs.every((l) => Number(l.amount) === r.amount);
             return (
-              <Card key={r.id} className="overflow-hidden">
+              <Card
+                key={r.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelected(r)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelected(r);
+                  }
+                }}
+                className="overflow-hidden cursor-pointer transition-colors hover:border-primary/50 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="min-w-0">
@@ -253,93 +265,40 @@ export function PartnershipTopupAuditLog() {
                     </Badge>
                   </div>
 
-                  {r.reason && (
-                    <p className="text-xs text-muted-foreground italic border-l-2 border-border pl-2">
-                      “{r.reason}”
-                    </p>
-                  )}
-
-                  {/* Ledger legs */}
-                  <div className="rounded-lg border border-border divide-y divide-border bg-muted/30">
-                    {r.legs.length === 0 ? (
-                      <div className="p-3 text-xs text-muted-foreground flex items-center gap-2">
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                        No ledger legs found for this top-up
-                        {r.transaction_group_id ? ` (group ${r.transaction_group_id.slice(0, 8)}…)` : ''}.
+                  {/* Compact footer: balance status + click affordance */}
+                  <div className="flex items-center justify-between gap-2">
+                    {r.legs.length > 0 ? (
+                      <div className={`text-xs flex items-center gap-1.5 ${balanced ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        {balanced ? (
+                          <>
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Balanced · {r.legs.length} ledger legs
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            Review · {r.legs.length} ledger legs
+                          </>
+                        )}
                       </div>
                     ) : (
-                      r.legs.map((l) => {
-                        const isOut = l.direction === 'cash_out';
-                        return (
-                          <div key={l.id} className="p-3 flex items-start gap-3">
-                            <div className={`mt-0.5 ${isOut ? 'text-destructive' : 'text-emerald-600'}`}>
-                              {isOut ? (
-                                <ArrowUpRight className="h-4 w-4" />
-                              ) : (
-                                <ArrowDownRight className="h-4 w-4" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <span className="text-xs font-semibold font-mono">
-                                  {l.category}
-                                </span>
-                                <span className={`text-sm font-bold ${isOut ? 'text-destructive' : 'text-emerald-600'}`}>
-                                  {isOut ? '−' : '+'}{formatUGX(Number(l.amount))}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                <Badge variant="outline" className="text-[10px]">
-                                  scope: {l.ledger_scope || '—'}
-                                </Badge>
-                                <Badge variant="outline" className="text-[10px]">
-                                  {l.direction}
-                                </Badge>
-                                {l.recipient_type && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    recipient: {l.recipient_type}
-                                  </Badge>
-                                )}
-                                {l.wallet_bucket && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    bucket: {l.wallet_bucket}
-                                  </Badge>
-                                )}
-                              </div>
-                              {l.description && (
-                                <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
-                                  {l.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
+                      <div className="text-xs flex items-center gap-1.5 text-amber-600">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        No ledger legs found
+                      </div>
                     )}
+                    <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                      View full breakdown <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
                   </div>
-
-                  {/* Balance check */}
-                  {r.legs.length > 0 && (
-                    <div className={`text-xs flex items-center gap-1.5 ${balanced ? 'text-emerald-600' : 'text-amber-600'}`}>
-                      {balanced ? (
-                        <>
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Balanced — both legs match {formatUGX(r.amount)}
-                        </>
-                      ) : (
-                        <>
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                          Review — legs do not balance against {formatUGX(r.amount)}
-                        </>
-                      )}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             );
           })}
         </div>
       )}
+
+      <TopupDetailModal row={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
