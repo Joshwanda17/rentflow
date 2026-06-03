@@ -4004,8 +4004,8 @@ function StatCard({
 }: {
   label: string;
   value: string;
-  sub?: React.ReactNode;
-  info?: React.ReactNode;
+  sub?: ReactNode;
+  info?: ReactNode;
   /** Preferred tooltip side. Radix flips it automatically if it would clip on small screens. */
   tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
   /** Preferred alignment along the chosen side. */
