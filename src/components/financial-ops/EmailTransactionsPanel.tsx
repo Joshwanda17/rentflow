@@ -3110,6 +3110,22 @@ export function EmailTransactionsPanel() {
                 const isProxyDebit = /via managed proxy/i.test(autoDebitEntry?.reason || '');
                 const debitedName = autoDebitEntry?.target_user_name
                   || autoImpact?.userName || 'matched user';
+                // Clean, human-readable reason for the debit. The edge function
+                // writes "DEBIT (auto|sweep, <method>[, via managed proxy for
+                // <partner>][, partial …]): <reason>". Split off the leading tag
+                // so the breakdown can show the routing context and the reason
+                // separately.
+                const rawDebitReason = autoDebitEntry?.reason || '';
+                const debitReasonText =
+                  rawDebitReason.includes('):')
+                    ? rawDebitReason.slice(rawDebitReason.indexOf('):') + 2).trim()
+                    : rawDebitReason.trim();
+                const debitProxyPartner = (() => {
+                  const m = rawDebitReason.match(/via managed proxy for ([^,):]+)/i);
+                  return m ? m[1].trim() : null;
+                })();
+                const debitIsPartial = /partial/i.test(rawDebitReason);
+                const debitAmountValue = autoDebitEntry?.amount ?? autoImpact?.amount ?? Number(r.amount ?? 0);
                 // Already-credited incoming deposit (linked to a non-terminal
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
@@ -3558,6 +3574,65 @@ export function EmailTransactionsPanel() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
+                    {/* Debit breakdown: when this email auto-charged a wallet,
+                        spell out exactly which wallet was hit (the matched user
+                        or a managed proxy agent), the charged person's name, the
+                        amount, and the reason — so Financial Ops never has to
+                        guess where the money came from. */}
+                    {isAutoDebited && (
+                      <div
+                        className={`mt-1.5 rounded-md border px-2.5 py-1.5 text-[11px] ${
+                          isProxyDebit
+                            ? 'border-amber-500/40 bg-amber-500/10'
+                            : 'border-rose-500/40 bg-rose-500/10'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span className="uppercase tracking-wide font-semibold text-[9px] text-muted-foreground">
+                            Debit breakdown
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] px-1.5 py-0 ${
+                              isProxyDebit
+                                ? 'bg-amber-600/15 text-amber-700 border-amber-600/40'
+                                : 'bg-rose-600/15 text-rose-700 border-rose-600/40'
+                            }`}
+                          >
+                            {isProxyDebit ? 'Proxy agent wallet' : 'Matched user wallet'}
+                          </Badge>
+                          {debitIsPartial && (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-orange-500/10 text-orange-700 border-orange-500/30">
+                              partial
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5">
+                          <p>
+                            <span className="text-muted-foreground">Charged: </span>
+                            <span className="font-semibold">{debitedName}</span>
+                            {isProxyDebit && (
+                              <span className="text-muted-foreground">
+                                {' '}(proxy{debitProxyPartner ? ` for ${debitProxyPartner}` : ''})
+                              </span>
+                            )}
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Amount: </span>
+                            <span className="font-semibold tabular-nums">−{fmtUgx(debitAmountValue)}</span>
+                            {autoImpact && autoImpact.newAvail !== null && (
+                              <span className="text-muted-foreground"> · left {fmtUgx(autoImpact.newAvail)}</span>
+                            )}
+                          </p>
+                          {debitReasonText && (
+                            <p className="sm:col-span-2">
+                              <span className="text-muted-foreground">Reason: </span>
+                              <span>{debitReasonText}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {/* "Not Matched Yet" details: show which reference signals
                         are present vs missing so reviewers know what to fix. */}
                     {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
