@@ -1468,6 +1468,36 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Deposit-decision audit trail — record the final outcome of every
+    // processed deposit attempt (approved / rejected / failed) alongside
+    // the block/reject reasons already logged above.
+    for (const r of results) {
+      await logDepositDecision(supabaseAdmin, {
+        source: "approval",
+        decision: r.status === "error" ? "failed" : r.status,
+        reason:
+          r.status === "rejected"
+            ? (safeRejectionReason ?? "rejected")
+            : r.status === "error"
+              ? "processing_error"
+              : null,
+        deposit_request_id: r.id,
+        amount: Number(r.amount),
+        actor_id: user.id,
+        actor_email: actorEmail,
+        metadata: {
+          action,
+          target_user_id: r.user_id,
+          auto_approved: !!auto_approved,
+          system_auto_credit: isSystemAutoCredit,
+          auto_match_method: auto_match_method ?? null,
+          repayment_applied: (r as any).repayment_applied ?? null,
+          debt_cleared: (r as any).debt_cleared ?? null,
+          days_prepaid: (r as any).days_prepaid ?? null,
+        },
+      });
+    }
+
 
     // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
