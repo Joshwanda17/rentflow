@@ -146,8 +146,10 @@ export default function COODashboard() {
         // 2. Active earning agents — need distinct agent_ids
         supabase.from('agent_earnings').select('agent_id')
           .gte('created_at', sevenDaysAgo),
-        // 3. Active tenants with balances
-        supabase.from('rent_requests').select('id', { count: 'exact', head: true })
+        // 3. Active tenants with balances — fetch per-tenant figures so we can
+        // dedupe by tenant and only count those with a NET positive balance
+        // (matches the detail view's source of truth exactly).
+        supabase.from('rent_requests').select('tenant_id, total_repayment, amount_repaid')
           .in('status', ['funded', 'approved']),
         // 4. New rent requests today
         supabase.from('rent_requests').select('id', { count: 'exact', head: true })
@@ -184,7 +186,15 @@ export default function COODashboard() {
       const activeUsers = activeUsersRes.count || 0;
       // Distinct counts for agents, supporters, landlords
       const activeAgents = new Set((earningAgentsRes.data || []).map(r => r.agent_id)).size;
-      const tenantsWithBalances = tenantsWithBalancesRes.count || 0;
+      // Dedupe by tenant and count only tenants whose aggregate outstanding > 0
+      // so this KPI equals the deduped/filtered detail table (no raw-row inflation).
+      const tenantBalanceAgg = new Map<string, number>();
+      ((tenantsWithBalancesRes.data as any[]) || []).forEach((r) => {
+        if (!r.tenant_id) return;
+        const prev = tenantBalanceAgg.get(r.tenant_id) || 0;
+        tenantBalanceAgg.set(r.tenant_id, prev + ((r.total_repayment || 0) - (r.amount_repaid || 0)));
+      });
+      const tenantsWithBalances = Array.from(tenantBalanceAgg.values()).filter((v) => v > 0).length;
       const newRentToday = newRentRequestsRes.count || 0;
       const newRentWeek = newRentRequestsWeekRes.count || 0;
       const activeSupporters = (activeSupportersRes.data || []).length;

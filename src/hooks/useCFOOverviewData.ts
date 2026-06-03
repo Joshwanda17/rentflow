@@ -90,19 +90,34 @@ export function useCFOOverviewData() {
         0
       );
 
+      // Pull every advance so we can show issued / recovered / outstanding and a
+      // status breakdown — all from the existing agent_advances table.
       const { data: advances } = await supabase
         .from('agent_advances')
-        .select('outstanding_balance')
-        .eq('status', 'active');
+        .select('principal, outstanding_balance, status');
 
-      const advancesOutstanding = (advances || []).reduce(
-        (sum, a) => sum + Number(a.outstanding_balance || 0),
-        0
-      );
+      let advancesPrincipal = 0;
+      let advancesOutstandingAll = 0;
+      let advancesOutstanding = 0; // active only — feeds totalReceivables (unchanged behaviour)
+      const advanceStatusCounts: Record<string, number> = {};
+      (advances || []).forEach((a: any) => {
+        const principal = Number(a.principal || 0);
+        const outstanding = Number(a.outstanding_balance || 0);
+        advancesPrincipal += principal;
+        advancesOutstandingAll += outstanding;
+        advanceStatusCounts[a.status] = (advanceStatusCounts[a.status] || 0) + 1;
+        if (a.status === 'active') advancesOutstanding += outstanding;
+      });
+      // Recovered = everything issued that is no longer outstanding.
+      const advancesRecovered = Math.max(0, advancesPrincipal - advancesOutstandingAll);
 
       return {
         tenantOutstanding,
         advancesOutstanding,
+        advancesPrincipal,
+        advancesOutstandingAll,
+        advancesRecovered,
+        advanceStatusCounts,
         totalReceivables: tenantOutstanding + advancesOutstanding,
       };
     },
