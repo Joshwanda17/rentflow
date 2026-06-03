@@ -3953,18 +3953,31 @@ function StatCard({
   /** Preferred alignment along the chosen side. */
   tooltipAlign?: 'start' | 'center' | 'end';
 }) {
+  // Controlled open state so the info tooltip is fully keyboard-operable:
+  // Enter/Space toggles it, Escape closes it, focus opens it, blur/pointer-leave closes it.
+  const [tipOpen, setTipOpen] = React.useState(false);
   return (
     <div className="rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30">
       <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
         <span className="truncate">{label}</span>
         {info && (
           <TooltipProvider delayDuration={150}>
-            <Tooltip>
+            <Tooltip open={tipOpen} onOpenChange={setTipOpen}>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label="How this is calculated"
-                  className="inline-flex items-center justify-center text-muted-foreground/70 hover:text-foreground transition-colors"
+                  aria-label={`How "${label}" is calculated. Press Enter or Space to ${tipOpen ? 'hide' : 'show'} details, Escape to close.`}
+                  aria-expanded={tipOpen}
+                  className="inline-flex items-center justify-center text-muted-foreground/70 hover:text-foreground transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => setTipOpen((o) => !o)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                      e.preventDefault();
+                      setTipOpen((o) => !o);
+                    } else if (e.key === 'Escape') {
+                      setTipOpen(false);
+                    }
+                  }}
                 >
                   <Info className="h-3 w-3" />
                 </button>
@@ -3976,6 +3989,7 @@ function StatCard({
                 avoidCollisions
                 collisionPadding={12}
                 className="max-w-[min(18rem,calc(100vw-1.5rem))]"
+                onEscapeKeyDown={() => setTipOpen(false)}
               >
                 {info}
               </TooltipContent>
