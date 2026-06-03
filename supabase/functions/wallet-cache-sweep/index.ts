@@ -145,6 +145,9 @@ Deno.serve(async (req) => {
         transaction_date: nowIso,
         recipient_type: recipientType,
         classification: "admin_correction",
+        // Required by enforce_no_negative_wallet_ledger for admin_correction
+        // cash_out wallet legs. A cache sweep is an operator-seeded correction.
+        solvency_bypass_reason: "admin_correction_seed",
       },
       {
         direction: "cash_in",
