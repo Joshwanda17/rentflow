@@ -695,6 +695,9 @@ export function EmailTransactionsPanel() {
   // so the actual email list lands above the fold. On sm+ they're always expanded.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileStatsOpen, setMobileStatsOpen] = useState(false);
+  // Selected zoom window on the In-vs-Out daily chart (Brush start/end indices).
+  // null = full range. Drives the summary card above the chart.
+  const [chartBrush, setChartBrush] = useState<{ start: number; end: number } | null>(null);
   // User-preferred tooltip placement for the stat-card info bubbles. Persisted
   // in localStorage. 'auto' lets Radix pick/flip via avoidCollisions.
   const [tooltipPlacement, setTooltipPlacement] = useState<'auto' | 'top' | 'bottom' | 'left' | 'right'>(() => {
@@ -2499,6 +2502,53 @@ export function EmailTransactionsPanel() {
               {dailySeries.length > 1 ? ' · drag the slider below to zoom' : ''}
             </span>
           </div>
+          {(() => {
+            // Summary for the currently-zoomed window. Defaults to the full series
+            // when no brush selection is active.
+            const start = chartBrush ? Math.max(0, Math.min(chartBrush.start, dailySeries.length - 1)) : 0;
+            const end = chartBrush ? Math.max(start, Math.min(chartBrush.end, dailySeries.length - 1)) : dailySeries.length - 1;
+            const windowDays = dailySeries.slice(start, end + 1);
+            if (windowDays.length === 0) return null;
+            const winIn = windowDays.reduce((s, d) => s + d.in, 0);
+            const winOut = windowDays.reduce((s, d) => s + d.out, 0);
+            const winNet = winIn - winOut;
+            const isZoomed = !!chartBrush && (start > 0 || end < dailySeries.length - 1);
+            return (
+              <div className="px-4 pt-3 pb-1 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
+                <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                  <span className="text-muted-foreground">{isZoomed ? 'Zoomed' : 'Full range'}:</span>
+                  {format(new Date(windowDays[0].date), 'MMM d')}
+                  {windowDays.length > 1 ? ` – ${format(new Date(windowDays[windowDays.length - 1].date), 'MMM d, yyyy')}` : `, ${format(new Date(windowDays[0].date), 'yyyy')}`}
+                  <span className="text-muted-foreground">({windowDays.length} day{windowDays.length === 1 ? '' : 's'})</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ background: 'hsl(142 71% 45%)' }} />
+                  <span className="text-muted-foreground">In</span>
+                  <span className="font-mono font-semibold text-emerald-600">{fmtUgx(winIn)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ background: 'hsl(0 72% 51%)' }} />
+                  <span className="text-muted-foreground">Out</span>
+                  <span className="font-mono font-semibold text-rose-600">{fmtUgx(winOut)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Net</span>
+                  <span className={`font-mono font-semibold ${winNet >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {winNet < 0 ? '-' : ''}{fmtUgx(Math.abs(winNet))}
+                  </span>
+                </span>
+                {isZoomed && (
+                  <button
+                    type="button"
+                    onClick={() => setChartBrush(null)}
+                    className="ml-auto text-[11px] font-medium text-primary hover:underline"
+                  >
+                    Reset zoom
+                  </button>
+                )}
+              </div>
+            );
+          })()}
           <div className="p-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailySeries} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
@@ -2535,6 +2585,13 @@ export function EmailTransactionsPanel() {
                     stroke="hsl(var(--primary))"
                     fill="hsl(var(--muted))"
                     tickFormatter={(v) => format(new Date(v as string), 'MMM d')}
+                    startIndex={chartBrush ? Math.min(chartBrush.start, dailySeries.length - 1) : 0}
+                    endIndex={chartBrush ? Math.min(chartBrush.end, dailySeries.length - 1) : dailySeries.length - 1}
+                    onChange={(range: { startIndex?: number; endIndex?: number }) => {
+                      if (typeof range.startIndex === 'number' && typeof range.endIndex === 'number') {
+                        setChartBrush({ start: range.startIndex, end: range.endIndex });
+                      }
+                    }}
                   />
                 )}
               </LineChart>
