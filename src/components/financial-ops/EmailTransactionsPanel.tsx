@@ -3273,7 +3273,7 @@ export function EmailTransactionsPanel() {
                           }
                         >
                           <ArrowRight className="h-3 w-3" />
-                          {isReversed ? 'rerouted · reversed' : 'routed'}
+                          {isReversed ? 'sent again (undone first)' : 'sent to wallet'}
                           {history.length > 1 && (
                             <span className="font-mono tabular-nums opacity-80">×{history.length}</span>
                           )}
