@@ -624,6 +624,10 @@ export function EmailTransactionsPanel() {
     created_at: string;
   }
   const [userRecentTx, setUserRecentTx] = useState<Record<string, RecentTx[]>>({});
+  // Timestamp of the last forced wallet-balance refresh (set after an
+  // auto-debit run completes). Drives the visible "Balance refreshed"
+  // indicator so Financial Ops knows the figures on screen are post-debit.
+  const [balanceRefreshedAt, setBalanceRefreshedAt] = useState<number | null>(null);
   // Per-history-entry busy flag for the Reverse action so the button can
   // show a spinner without blocking other entries.
   const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
@@ -2928,6 +2932,9 @@ export function EmailTransactionsPanel() {
           // each charged wallet visibly drops by the debited amount. Without this
           // the cache only fetches missing ids and keeps showing pre-debit values.
           setUserBalances({});
+          // Stamp the refresh so the UI can show a visible "Balance refreshed"
+          // confirmation that the figures on screen are now post-debit.
+          setBalanceRefreshedAt(Date.now());
           toast({
             title: `Auto-debit complete`,
             description: `${okCount} succeeded, ${failCount} skipped/failed of ${highConf.length}. Skips usually mean the matched user has 0 withdrawable balance — see console for details.`,
@@ -2964,6 +2971,12 @@ export function EmailTransactionsPanel() {
                   {' '}· <span className="text-emerald-700">{autoDebitProgress.ok} ok</span>
                   {autoDebitProgress.failed > 0 && <> · <span className="text-rose-700">{autoDebitProgress.failed} failed</span></>}
                 </p>
+              )}
+              {balanceRefreshedAt && !autoDebitBusy && (
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
+                  <RefreshCw className="h-3 w-3" />
+                  Balances refreshed · {new Date(balanceRefreshedAt).toLocaleTimeString()}
+                </span>
               )}
             </div>
             {highConf.length > 0 && (
