@@ -3096,11 +3096,19 @@ export function EmailTransactionsPanel() {
                 const isReversed = history.some((h) => /revers/i.test(h.reason || ''));
                 // Auto-debited rows: a withdrawable debit posted by the
                 // auto-debit run. Detected from the routing history reason
-                // (prefixed "DEBIT (auto, ...)") so the badge survives reloads.
+                // (prefixed "DEBIT (auto, ...)" or "DEBIT (sweep, ...)") so the
+                // badge survives reloads. Matches both the realtime poller and
+                // the backlog sweep.
                 const autoDebitEntry = history.find(
-                  (h) => h.route === 'withdrawable_debit' && /auto/i.test(h.reason || ''),
+                  (h) => h.route === 'withdrawable_debit' && /^DEBIT\b/i.test(h.reason || ''),
                 );
                 const isAutoDebited = !!autoDebitEntry && !isReversed;
+                // Whether the debit landed on a managed proxy agent's wallet
+                // (user had insufficient balance). Detected from the reason
+                // string written by the edge functions.
+                const isProxyDebit = /via managed proxy/i.test(autoDebitEntry?.reason || '');
+                const debitedName = autoDebitEntry?.target_user_name
+                  || autoImpactNameFallback(autoDebitResults[r.id]);
                 const autoImpact = autoDebitResults[r.id];
                 // Already-credited incoming deposit (linked to a non-terminal
                 // deposit_request by the poller). Distinct emerald treatment
