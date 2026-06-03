@@ -184,7 +184,7 @@ async function notifyOne(
       event_type: "expiry_notice_emailed",
       amount: row.amount,
       detail: "Expiry/auto-rejection notice emailed to the depositor.",
-      metadata: { emailed_to: email, expires_at: row.expires_at ?? null },
+      metadata: { emailed_to: email, in_app: true, expires_at: row.expires_at ?? null },
     } as any);
   } catch (e) {
     console.error("[notify-expired] audit insert failed", e);
