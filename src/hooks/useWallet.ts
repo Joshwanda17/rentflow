@@ -23,6 +23,10 @@ interface Wallet {
   id: string;
   user_id: string;
   balance: number;
+  /** Strict ledger-derived withdrawable balance (the only transferable bucket). */
+  withdrawable: number;
+  /** Operational float — company money, never transferable/withdrawable. */
+  float_balance: number;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +71,8 @@ export function useWallet() {
         id: `strict-${user.id}`,
         user_id: user.id,
         balance: withdrawable + floatBalance,
+        withdrawable,
+        float_balance: floatBalance,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
