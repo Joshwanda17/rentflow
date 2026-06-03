@@ -1562,6 +1562,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     filterRoiMode !== 'all' ||
     filterContact !== 'all' ||
     filterWallet !== 'all' ||
+    filterProspect !== 'all' ||
     !!payoutDateFrom ||
     !!payoutDateTo;
   // When local filters are active we work over the full search-scoped dataset
