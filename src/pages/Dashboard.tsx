@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, Suspense, lazy, memo } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense, memo } from 'react';
 
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
