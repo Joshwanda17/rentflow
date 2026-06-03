@@ -143,13 +143,19 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       setNotes('');
       setPaymentMethod('wallet');
       setFundSource('withdrawable');
+      setSelectedUser(null);
+      setSelectedUserWallet(null);
+      setSearchTerm('');
+      setSearchResults([]);
     }
     onOpenChange(isOpen);
   };
 
   const activeWallet = paymentMethod === 'wallet'
     ? partnerWallet
-    : (proxyAgent ? { withdrawable: proxyAgent.withdrawable, float: proxyAgent.float } : null);
+    : paymentMethod === 'user_wallet'
+      ? selectedUserWallet
+      : (proxyAgent ? { withdrawable: proxyAgent.withdrawable, float: proxyAgent.float } : null);
   const selectedBalance = activeWallet
     ? (fundSource === 'withdrawable' ? activeWallet.withdrawable : activeWallet.float)
     : null;
