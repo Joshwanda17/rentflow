@@ -2878,6 +2878,18 @@ export function EmailTransactionsPanel() {
                 ...prev,
                 [row.id]: { amount: debitAmt, newAvail, userName: top.full_name },
               }));
+              // Refresh the displayed wallet figure for this user immediately so
+              // the panel reflects the reduced balance instead of the stale
+              // pre-debit value cached in `userBalances`.
+              if (newAvail !== null) {
+                setUserBalances((cur) => ({ ...cur, [top.id]: newAvail as number }));
+              } else {
+                setUserBalances((cur) => {
+                  const next = { ...cur };
+                  delete next[top.id];
+                  return next;
+                });
+              }
               // Best-effort history insert so the row immediately shows as routed.
               if (me?.id) {
                 try {
@@ -2912,6 +2924,10 @@ export function EmailTransactionsPanel() {
             setAutoDebitProgress({ done: i + 1, total: highConf.length, ok: okCount, failed: failCount });
           }
           setAutoDebitBusy(false);
+          // Force an authoritative re-fetch of every displayed strict balance so
+          // each charged wallet visibly drops by the debited amount. Without this
+          // the cache only fetches missing ids and keeps showing pre-debit values.
+          setUserBalances({});
           toast({
             title: `Auto-debit complete`,
             description: `${okCount} succeeded, ${failCount} skipped/failed of ${highConf.length}. Skips usually mean the matched user has 0 withdrawable balance — see console for details.`,
