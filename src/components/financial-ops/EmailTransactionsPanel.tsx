@@ -3896,7 +3896,23 @@ export function EmailTransactionsPanel() {
   );
 }
 
-function StatCard({ label, value, sub, info }: { label: string; value: string; sub?: React.ReactNode; info?: React.ReactNode }) {
+function StatCard({
+  label,
+  value,
+  sub,
+  info,
+  tooltipSide = 'bottom',
+  tooltipAlign = 'center',
+}: {
+  label: string;
+  value: string;
+  sub?: React.ReactNode;
+  info?: React.ReactNode;
+  /** Preferred tooltip side. Radix flips it automatically if it would clip on small screens. */
+  tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
+  /** Preferred alignment along the chosen side. */
+  tooltipAlign?: 'start' | 'center' | 'end';
+}) {
   return (
     <div className="rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30">
       <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -3913,7 +3929,14 @@ function StatCard({ label, value, sub, info }: { label: string; value: string; s
                   <Info className="h-3 w-3" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" align="start" className="max-w-xs">
+              <TooltipContent
+                side={tooltipSide}
+                align={tooltipAlign}
+                sideOffset={6}
+                avoidCollisions
+                collisionPadding={12}
+                className="max-w-[min(18rem,calc(100vw-1.5rem))]"
+              >
                 {info}
               </TooltipContent>
             </Tooltip>
