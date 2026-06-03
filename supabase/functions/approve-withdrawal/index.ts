@@ -1352,7 +1352,14 @@ Deno.serve(async (req) => {
             .eq("status", "approved")
             .not("metadata->coo_approved_by", "is", null)
             .in("source_id", portfolioIds)
-            .order("created_at", { ascending: true });
+            // Settle NEWEST approvals first so the order matches the UI, which
+            // displays and lets the agent act on the newest CFO-approved payout
+            // per partner (see ProxyPartnerFunds partnerBalances: rows are
+            // sorted descending by created_at and allocated newest-first).
+            // Settling oldest-first here retired stale old approvals while the
+            // newest (displayed) card stayed visible forever — making already
+            // paid-out proxy cards reappear.
+            .order("created_at", { ascending: false });
 
           // Drop already-settled
           const { data: existing } = await admin
