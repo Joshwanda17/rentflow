@@ -1601,7 +1601,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       let p = 0;
       // Hard cap to avoid runaway loops; matches the 2000-match limit upstream.
       while (p < 200) {
-        const { ids } = await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
+        const { ids } = filterProspect === 'prospects_only'
+          ? await fetchVerifiedFundedProspectIds(p, PAGE_SIZE, debouncedSearch)
+          : await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
         if (ids.length === 0) break;
         allIds.push(...ids);
         if (ids.length < PAGE_SIZE) break;
