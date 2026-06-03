@@ -306,7 +306,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Source</span>
                   <span className="font-medium text-foreground">
-                    {paymentMethod === 'wallet' ? 'Partner Wallet' : `${proxyAgent?.agentName} (Proxy Agent)`}
+                    {(paymentMethod === 'wallet' ? 'Partner' : `${proxyAgent?.agentName} (Proxy)`)} · {fundSource === 'float' ? 'Operational Float' : 'Personal Deposit'}
                   </span>
                 </div>
                 <div className="flex items-start gap-1.5 pt-1 border-t border-border/50">
