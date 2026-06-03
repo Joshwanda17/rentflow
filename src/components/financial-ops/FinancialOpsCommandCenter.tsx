@@ -17,6 +17,7 @@ import { MismatchMetricsPanel } from './MismatchMetricsPanel';
 import { ReconciliationReviewScreen } from './ReconciliationReviewScreen';
 import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
 import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
+import { PartnershipTopupAuditLog } from './PartnershipTopupAuditLog';
 import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
 import { EmailTransactionsPanel } from './EmailTransactionsPanel';
 import { BulkBankPayoutPanel } from './BulkBankPayoutPanel';
@@ -33,7 +34,7 @@ import {
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
-  ArrowRightLeft
+  ArrowRightLeft, ScrollText
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -44,6 +45,7 @@ type Tool =
   | 'withdrawals' | 'opportunities' | 'requisitions'
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics'
+  | 'topup_audit'
   | 'float_to_withdrawable' | 'momo_sms_template';
 
 
@@ -62,6 +64,7 @@ const moreActions: MoreAction[] = [
   { kind: 'view', id: 'offline_collections', label: 'Offline Collections', desc: 'Drafts agents submitted with proof', icon: WifiOff },
   { kind: 'tool', id: 'funded_tenants', label: 'Funded Landlords & Tenants', desc: 'Tenants whose landlords have been paid — share to agent on WhatsApp', icon: HomeIcon },
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
+  { kind: 'tool', id: 'topup_audit', label: 'Top-Up Audit Log', desc: 'Each partnership top-up: fund source, recipient routing & both ledger legs', icon: ScrollText },
   { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
   { kind: 'tool', id: 'ops', label: 'Ops Center', desc: 'Automation & monitoring', icon: Gauge },
   { kind: 'tool', id: 'queue', label: 'Approval Queue', desc: 'Pending approvals', icon: ClipboardList },
@@ -191,6 +194,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'funded_tenants' && <FundedTenantsList />}
         {activeTool === 'proxy_diagnostics' && <ProxyWithdrawalDiagnosticsPanel />}
         {activeTool === 'float_to_withdrawable' && <FloatToWithdrawablePanel />}
+        {activeTool === 'topup_audit' && <PartnershipTopupAuditLog />}
         {activeTool === 'momo_sms_template' && <MomoSignupSmsTemplatePanel />}
       </div>
     );
