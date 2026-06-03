@@ -666,6 +666,22 @@ Deno.serve(async (req) => {
       else if ((error as any)?.code === '23505') {
         // Race: another poll inserted this row between our check and insert. Safe to ignore.
       }
+      if (!error) {
+        await logDepositDecision(supabase, {
+          source: 'poller',
+          decision: isParsed ? 'ingested_parsed' : 'ingested_unparsed',
+          reason: isParsed ? null : (reasons.join(',') || 'unparsed'),
+          amount: parsed.amount ?? null,
+          metadata: {
+            gmail_message_id: m.id,
+            from: fromEmail,
+            subject,
+            transaction_id: parsed.transaction_id ?? null,
+            direction: parsed.direction ?? null,
+            channel: parsed.channel ?? null,
+          },
+        });
+      }
 
       // ── Auto-credit operational float ───────────────────────────────
       // If this is a parsed INCOMING MTN/Airtel MoMo receipt whose
