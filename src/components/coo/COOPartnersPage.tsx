@@ -3361,7 +3361,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                   autoFocus
                 />
                 {(() => {
-                  const maxBal = walletTransferMethod === 'wallet' ? detailPartner.walletBalance : (proxyAgentInfo?.walletBalance ?? 0);
+                  const maxBal = walletTransferMethod === 'wallet'
+                    ? (walletTransferFundSource === 'float' ? detailPartner.floatBalance : detailPartner.withdrawableBalance)
+                    : (walletTransferFundSource === 'float' ? (proxyAgentInfo?.float ?? 0) : (proxyAgentInfo?.withdrawable ?? 0));
                   return (
                     <div className="flex gap-2 flex-wrap">
                       {[50000, 100000, 500000, 1000000].filter(a => a <= maxBal).map(a => (
@@ -3380,7 +3382,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                   );
                 })()}
                 {(() => {
-                  const maxBal = walletTransferMethod === 'wallet' ? detailPartner.walletBalance : (proxyAgentInfo?.walletBalance ?? 0);
+                  const maxBal = walletTransferMethod === 'wallet'
+                    ? (walletTransferFundSource === 'float' ? detailPartner.floatBalance : detailPartner.withdrawableBalance)
+                    : (walletTransferFundSource === 'float' ? (proxyAgentInfo?.float ?? 0) : (proxyAgentInfo?.withdrawable ?? 0));
                   const amt = Number(walletToPortfolioAmount) || 0;
                   if (amt > maxBal && maxBal >= 0) {
                     return <p className="text-[10px] text-destructive font-medium">Insufficient balance ({formatUGX(maxBal)} available)</p>;
