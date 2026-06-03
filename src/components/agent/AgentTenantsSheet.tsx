@@ -83,6 +83,8 @@ interface AgentTenantsSheetProps {
   initialPipelineTab?: 'submitted' | 'approved' | 'rejected' | 'landlords';
   /** Record id to scroll to and highlight when opening into the pipeline. */
   initialHighlightId?: string | null;
+  /** When set on open, jump straight to this tenant's profile (payments + outstanding). */
+  initialProfileTenantId?: string | null;
 }
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
@@ -296,7 +298,7 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
   );
 }
 
-export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipelineTab, initialHighlightId }: AgentTenantsSheetProps) {
+export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipelineTab, initialHighlightId, initialProfileTenantId }: AgentTenantsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [view, setView] = useState<'tenants' | 'pipeline'>(initialView ?? 'tenants');
@@ -305,6 +307,11 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
   useEffect(() => {
     if (open && initialView) setView(initialView);
   }, [open, initialView]);
+  // When the sheet is opened by tapping a specific tenant, jump straight to
+  // that tenant's profile so the agent sees their payments + outstanding.
+  useEffect(() => {
+    if (open && initialProfileTenantId) setProfileTenantId(initialProfileTenantId);
+  }, [open, initialProfileTenantId]);
   const [applyAdvanceOpen, setApplyAdvanceOpen] = useState(false);
   const { limit: advanceLimit, loading: advanceLoading } = useCreditAccessLimit(user?.id);
   const allocatedTotal = Math.max(0, Math.round((advanceLimit.bonusFromAgentAllocations || 0) / 2));

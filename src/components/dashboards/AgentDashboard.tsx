@@ -257,6 +257,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [businessAdvanceOpen, setBusinessAdvanceOpen] = useState(false);
   const { event: commissionEvent, dismiss: dismissCommission } = useBusinessAdvanceCommissionListener();
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
+  // When an agent taps a specific tenant in the inline list, open the sheet
+  // straight into that tenant's profile (payments + outstanding balance).
+  const [tenantProfileId, setTenantProfileId] = useState<string | undefined>(undefined);
   // When opening the submissions sheet via the global "open-submissions" event
   // (fired from registration success screens), remember which view/tab to land on.
   const [submissionsView, setSubmissionsView] = useState<'tenants' | 'pipeline' | undefined>(undefined);
@@ -961,7 +964,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
             <h3 className="text-[11px] sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">My Tenants</h3>
             <AgentTenantInlineList
-              onOpenTenantSheet={() => setTenantsSheetOpen(true)}
+              onOpenTenantSheet={(tenantId) => { setTenantProfileId(tenantId); setTenantsSheetOpen(true); }}
               onAddTenant={() => setRentRequestOpen(true)}
             />
           </div>
@@ -1211,11 +1214,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             setSubmissionsView(undefined);
             setSubmissionsTab(undefined);
             setSubmissionsHighlightId(undefined);
+            setTenantProfileId(undefined);
           }
         }}
         initialView={submissionsView}
         initialPipelineTab={submissionsTab}
         initialHighlightId={submissionsHighlightId}
+        initialProfileTenantId={tenantProfileId}
       />
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
       

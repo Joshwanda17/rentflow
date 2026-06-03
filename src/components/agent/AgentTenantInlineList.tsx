@@ -17,7 +17,7 @@ interface Tenant {
 }
 
 interface AgentTenantInlineListProps {
-  onOpenTenantSheet: () => void;
+  onOpenTenantSheet: (tenantId?: string) => void;
   onAddTenant: () => void;
 }
 
@@ -283,7 +283,7 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
             return (
               <button
                 key={tenant.id}
-                onClick={onOpenTenantSheet}
+                onClick={() => onOpenTenantSheet(tenant.id)}
                 className="w-full flex items-center gap-5 p-5 rounded-3xl bg-card border-2 border-border/60 active:scale-[0.97] transition-all text-left touch-manipulation shadow-sm hover:shadow-md"
                 style={{ touchAction: 'manipulation', minHeight: '104px' }}
               >
