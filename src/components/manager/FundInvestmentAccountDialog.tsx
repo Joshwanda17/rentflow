@@ -229,10 +229,41 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
                 })}
               </div>
 
-              {/* Balance display */}
+              {/* Bucket (deploy from) selector */}
+              <Label className="text-xs mt-2 block">Deploy From</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: 'withdrawable' as FundSource, label: 'Personal Deposit', icon: PiggyBank, bal: activeWallet?.withdrawable },
+                  { value: 'float' as FundSource, label: 'Operational Float', icon: Building2, bal: activeWallet?.float },
+                ]).map(opt => {
+                  const Icon = opt.icon;
+                  const selected = fundSource === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setFundSource(opt.value)}
+                      className={cn(
+                        "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all text-center cursor-pointer",
+                        selected
+                          ? "border-primary bg-primary/10 shadow-sm"
+                          : "border-border bg-background hover:border-muted-foreground/30"
+                      )}
+                    >
+                      <Icon className={cn("h-4 w-4", selected ? "text-primary" : "text-muted-foreground")} />
+                      <span className={cn("text-xs font-medium", selected ? "text-primary" : "text-muted-foreground")}>{opt.label}</span>
+                      <span className="text-[10px] font-semibold text-foreground">
+                        {loadingBalance ? '...' : opt.bal !== undefined ? formatUGX(opt.bal) : '—'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected balance display */}
               <div className="mt-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
-                  {paymentMethod === 'wallet' ? 'Partner Wallet Balance' : `${proxyAgent?.agentName || 'Agent'} Wallet`}
+                  {fundSource === 'float' ? 'Operational Float' : 'Personal Deposit'} available
                 </span>
                 <span className="text-sm font-bold text-foreground">
                   {loadingBalance ? '...' : selectedBalance !== null ? formatUGX(selectedBalance) : '—'}
