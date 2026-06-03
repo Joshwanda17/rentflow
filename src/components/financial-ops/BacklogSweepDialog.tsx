@@ -29,6 +29,8 @@ interface ReportRow {
   debited_amount?: number | null;
   available_balance?: number | null;
   detail?: string | null;
+  via_proxy?: boolean;
+  proxy_for_name?: string | null;
 }
 
 interface SweepResult {
