@@ -70,8 +70,11 @@ describe('Cash deposit 2-minute code expiry — end to end', () => {
     expect(codeInput).toBeEnabled();
     expect(screen.getByText(/the deposit is auto-rejected/i)).toBeInTheDocument();
 
-    // Advance to 1 second before expiry — still enabled.
-    await act(async () => { vi.advanceTimersByTime((CODE_TTL_SECONDS - 1) * 1000); });
+    // Tick second-by-second (the countdown reschedules itself each render, so a
+    // single big jump won't cascade). Stop 1 second before expiry — still enabled.
+    for (let i = 0; i < CODE_TTL_SECONDS - 1; i++) {
+      await act(async () => { vi.advanceTimersByTime(1000); });
+    }
     expect(codeInput).toBeEnabled();
 
     // Cross the 2-minute boundary — input must disable exactly at zero.
