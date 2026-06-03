@@ -28,6 +28,7 @@ import { downloadCsv } from '@/lib/csvExport';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid, Legend, Brush } from 'recharts';
 import { DebitBucketAuditSearch } from './DebitBucketAuditSearch';
 import { CashDepositCodesPanel } from './CashDepositCodesPanel';
+import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
 
 interface GmailTx {
   id: string;
