@@ -3173,7 +3173,7 @@ export function EmailTransactionsPanel() {
                         }`}
                         title={`${manualMark.mark} by ${manualMark.marked_by_name || manualMark.marked_by} at ${new Date(manualMark.created_at).toLocaleString()}${manualMark.reason ? ' — ' + manualMark.reason : ''}`}
                       >
-                        {manualMark.mark === 'credited' ? '✓ marked' : '↺ unmarked'}
+                        {manualMark.mark === 'credited' ? '✓ marked paid in' : '↺ marked not paid in'}
                       </div>
                     )}
                   </div>
@@ -3417,7 +3417,7 @@ export function EmailTransactionsPanel() {
                           title={hasUserMatch ? 'A depositing user was matched' : 'No depositing user matched'}
                         >
                           {hasUserMatch ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                          Depositing user
+                          Who paid
                         </span>
                         <Button
                           size="sm"
