@@ -3103,13 +3103,13 @@ export function EmailTransactionsPanel() {
                   (h) => h.route === 'withdrawable_debit' && /^DEBIT\b/i.test(h.reason || ''),
                 );
                 const isAutoDebited = !!autoDebitEntry && !isReversed;
+                const autoImpact = autoDebitResults[r.id];
                 // Whether the debit landed on a managed proxy agent's wallet
                 // (user had insufficient balance). Detected from the reason
                 // string written by the edge functions.
                 const isProxyDebit = /via managed proxy/i.test(autoDebitEntry?.reason || '');
                 const debitedName = autoDebitEntry?.target_user_name
-                  || autoImpactNameFallback(autoDebitResults[r.id]);
-                const autoImpact = autoDebitResults[r.id];
+                  || autoImpact?.userName || 'matched user';
                 // Already-credited incoming deposit (linked to a non-terminal
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
