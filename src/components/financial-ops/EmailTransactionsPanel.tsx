@@ -4095,6 +4095,30 @@ export function EmailTransactionsPanel() {
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
+                              {(r.direction === 'out' || r.direction === 'charge') && userProxies[u.id] && (
+                                <ProxyDebitBreakdownDialog
+                                  partner={{ id: u.id, name: u.full_name }}
+                                  proxy={userProxies[u.id]}
+                                  onChanged={() => setUserBalances({})}
+                                >
+                                  <Badge
+                                    variant="outline"
+                                    role="button"
+                                    title={`See proxy-wallet debits charged for ${u.full_name}`}
+                                    className="text-[10px] gap-1 cursor-pointer border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+                                  >
+                                    <Users className="h-2.5 w-2.5" />
+                                    <span className="font-medium">proxy: {userProxies[u.id].agentName || 'agent'}</span>
+                                    <span className="font-mono tabular-nums opacity-90 border-l border-current/30 pl-1 ml-0.5 inline-flex items-center gap-0.5">
+                                      <Wallet className="h-2.5 w-2.5" />
+                                      {userBalances[userProxies[u.id].agentId] === undefined
+                                        ? '…'
+                                        : Math.round(userBalances[userProxies[u.id].agentId]).toLocaleString()}
+                                    </span>
+                                  </Badge>
+                                </ProxyDebitBreakdownDialog>
+                              )}
+                              </Fragment>
                             );
                           })}
                         </TooltipProvider>
