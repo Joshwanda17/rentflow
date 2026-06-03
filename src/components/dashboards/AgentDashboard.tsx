@@ -257,6 +257,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [businessAdvanceOpen, setBusinessAdvanceOpen] = useState(false);
   const { event: commissionEvent, dismiss: dismissCommission } = useBusinessAdvanceCommissionListener();
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
+  // When an agent taps a specific tenant in the inline list, open the sheet
+  // straight into that tenant's profile (payments + outstanding balance).
+  const [tenantProfileId, setTenantProfileId] = useState<string | undefined>(undefined);
   // When opening the submissions sheet via the global "open-submissions" event
   // (fired from registration success screens), remember which view/tab to land on.
   const [submissionsView, setSubmissionsView] = useState<'tenants' | 'pipeline' | undefined>(undefined);
