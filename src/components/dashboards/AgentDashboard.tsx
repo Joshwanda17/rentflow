@@ -823,6 +823,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
             />
             <AgentCompanyDebtCard onViewBreakdown={() => { hapticTap(); setTenantsSheetOpen(true); }} />
+            <AgentMyAdvancesCard />
             <AgentRiskExposureCard />
             <EarnedSinceLastWithdrawalCard />
             <AgentLandlordFloatCard
