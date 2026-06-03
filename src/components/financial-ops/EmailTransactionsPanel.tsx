@@ -2961,10 +2961,10 @@ export function EmailTransactionsPanel() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('credited')}>
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark credited
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as paid in
                   </Button>
                   <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => applyBulkMark('uncredited')}>
-                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Mark uncredited
+                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Mark as not paid in
                   </Button>
                   <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedIds(new Set())}>
                     Clear
