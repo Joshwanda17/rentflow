@@ -18,7 +18,7 @@ import {
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
   Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake, Scissors, Info,
-  Mail, MailCheck, MailX, MailWarning
+  Mail, MailCheck, MailX, MailWarning, Sparkles
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
@@ -27,7 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { generateNearingPayoutsPdf, downloadBlob as downloadNearingBlob } from '@/lib/nearingPayoutsPdf';
 import { sharePayoutCardViaWhatsApp, type PayoutCardData } from '@/lib/payoutShareCard';
-import { fetchAllUserIdsByRole, batchedQuery, fetchPaginatedSupporterIds, fetchSupporterSummary, fetchAllNearingPayoutPortfolios } from '@/lib/supabaseBatchUtils';
+import { fetchAllUserIdsByRole, batchedQuery, fetchPaginatedSupporterIds, fetchVerifiedFundedProspectIds, fetchSupporterSummary, fetchAllNearingPayoutPortfolios } from '@/lib/supabaseBatchUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -252,6 +252,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [filterRoiMode, setFilterRoiMode] = useState<'all' | 'monthly_payout' | 'monthly_compounding'>('all');
   const [filterContact, setFilterContact] = useState<'all' | 'has_phone' | 'no_phone' | 'has_email' | 'no_email'>('all');
   const [filterWallet, setFilterWallet] = useState<'all' | 'has_balance' | 'empty'>('all');
+  // Prospect mode: when 'prospects_only', the table swaps its data source to
+  // verified, wallet-funded users who don't own a portfolio yet.
+  const [filterProspect, setFilterProspect] = useState<'all' | 'prospects_only'>('all');
   const [payoutDateFrom, setPayoutDateFrom] = useState<Date | undefined>(undefined);
   const [payoutDateTo, setPayoutDateTo] = useState<Date | undefined>(undefined);
   // When a payout date range is active we need to filter across ALL partners,
@@ -679,7 +682,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   /* ─── Core fetch logic: server-side paginated ─── */
   const fetchDataCore = useCallback(async (fetchPage: number, searchTerm: string) => {
-    const { ids: supporterIds, totalCount: count } = await fetchPaginatedSupporterIds(fetchPage, PAGE_SIZE, searchTerm);
+    const { ids: supporterIds, totalCount: count } = filterProspect === 'prospects_only'
+      ? await fetchVerifiedFundedProspectIds(fetchPage, PAGE_SIZE, searchTerm)
+      : await fetchPaginatedSupporterIds(fetchPage, PAGE_SIZE, searchTerm);
     setTotalCount(count);
 
     if (supporterIds.length === 0) {
@@ -692,7 +697,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
     const tableRows = await buildRowsForIds(supporterIds);
     setRows(tableRows);
-  }, [buildRowsForIds]);
+  }, [buildRowsForIds, filterProspect]);
 
   /* ─── Nearing payouts: loaded independently from ALL supporters ─── */
   const [nearingPayoutsLoading, setNearingPayoutsLoading] = useState(false); // eslint-disable-line -- top-level hook, after all other useState
@@ -1466,6 +1471,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       filterRoiMode !== 'all' ||
       filterContact !== 'all' ||
       filterWallet !== 'all' ||
+      filterProspect !== 'all' ||
       !!payoutDateFrom ||
       !!payoutDateTo;
     if (!filterActive) {
@@ -1479,7 +1485,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const allIds: string[] = [];
         let p = 0;
         while (p < 200) {
-          const { ids } = await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
+          const { ids } = filterProspect === 'prospects_only'
+            ? await fetchVerifiedFundedProspectIds(p, PAGE_SIZE, debouncedSearch)
+            : await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
           if (ids.length === 0) break;
           allIds.push(...ids);
           if (ids.length < PAGE_SIZE) break;
@@ -1496,7 +1504,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo, debouncedSearch, buildRowsForIds]);
+  }, [filterStatus, filterRoiMode, filterContact, filterWallet, filterProspect, payoutDateFrom, payoutDateTo, debouncedSearch, buildRowsForIds]);
 
   /* ─── Filtered / Sorted (local filters on current page, search is server-side) ─── */
   const processed = useMemo(() => {
@@ -1554,6 +1562,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     filterRoiMode !== 'all' ||
     filterContact !== 'all' ||
     filterWallet !== 'all' ||
+    filterProspect !== 'all' ||
     !!payoutDateFrom ||
     !!payoutDateTo;
   // When local filters are active we work over the full search-scoped dataset
@@ -1592,7 +1601,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       let p = 0;
       // Hard cap to avoid runaway loops; matches the 2000-match limit upstream.
       while (p < 200) {
-        const { ids } = await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
+        const { ids } = filterProspect === 'prospects_only'
+          ? await fetchVerifiedFundedProspectIds(p, PAGE_SIZE, debouncedSearch)
+          : await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
         if (ids.length === 0) break;
         allIds.push(...ids);
         if (ids.length < PAGE_SIZE) break;
@@ -1856,7 +1867,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors underline-offset-2 group-hover:underline flex items-center gap-1.5">
           <span className="truncate">{r.name}</span>
           {r.isProspect && (
-            <span className="shrink-0 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide">New</span>
+            <span className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide"><Sparkles className="h-2.5 w-2.5" />New prospect</span>
           )}
         </p>
         <p className="text-[10px] text-muted-foreground">{r.phone || '—'}</p>
@@ -2040,6 +2051,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <SelectItem value="empty">Empty</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterProspect} onValueChange={(v: any) => { setFilterProspect(v); setPage(0); }}>
+          <SelectTrigger className={cn("w-[170px] h-9 text-xs", filterProspect === 'prospects_only' && "border-amber-500 text-amber-600 dark:text-amber-400")}>
+            <Sparkles className="h-3 w-3 mr-1" /><SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Partners</SelectItem>
+            <SelectItem value="prospects_only">New Prospects Only</SelectItem>
+          </SelectContent>
+        </Select>
         {/* Payment Date Range Filter */}
         <Popover>
           <PopoverTrigger asChild>
@@ -2141,7 +2161,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 <tr>
                   <td colSpan={columns.length + 1} className="px-4 py-12 text-center text-sm text-muted-foreground italic">
                     {hasLocalFilter
-                      ? 'No partners match the selected filters'
+                      ? (filterProspect === 'prospects_only'
+                          ? 'No verified wallet-funded prospects without a portfolio'
+                          : 'No partners match the selected filters')
                       : search
                         ? `No matching partners found for "${search}"`
                         : 'No partners registered'}
