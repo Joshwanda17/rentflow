@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { 
   Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles, UserCheck, UserX,
   Mail, UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
-  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, Lock
+  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, Lock, AlertTriangle
 } from 'lucide-react';
 
 interface SendMoneyDialogProps {
@@ -553,6 +553,24 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 initial="hidden"
                 animate="visible"
               >
+                {(wallet?.float_balance || 0) > 0 && (
+                  <motion.div
+                    variants={itemVariants}
+                    className="flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="text-xs text-foreground space-y-0.5 min-w-0">
+                      <p className="font-semibold text-amber-700 dark:text-amber-300">
+                        Part of your balance is locked float
+                      </p>
+                      <p className="text-muted-foreground leading-snug">
+                        {formatCurrency(wallet?.float_balance || 0)} is operational / company float and
+                        cannot be transferred wallet-to-wallet. You can only send your transferable
+                        balance of <span className="font-medium text-foreground">{formatCurrency(wallet?.withdrawable || 0)}</span>.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
                 <motion.div variants={itemVariants} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor={mode === 'phone' ? 'phone' : 'email'} className="flex items-center gap-2">
