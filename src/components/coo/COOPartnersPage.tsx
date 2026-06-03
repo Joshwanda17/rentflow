@@ -171,11 +171,13 @@ interface PartnerDetail {
     frozen_reason: string | null;
   };
   walletBalance: number;
+  withdrawableBalance: number;
+  floatBalance: number;
   totalFunded: number;
   totalDeals: number;
   totalROIEarned: number;
   portfolios: PortfolioRow[];
-}
+ }
 
 interface SummaryData {
   totalPartners: number;
@@ -894,7 +896,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     try {
       const [profileRes, walletRes, portfolioRes, ledgerRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at, frozen_reason').eq('id', partnerId).single(),
-        supabase.from('wallets').select('balance').eq('user_id', partnerId).single(),
+        supabase.from('wallets').select('balance, withdrawable_balance, float_balance').eq('user_id', partnerId).single(),
         supabase.from('investor_portfolios')
           .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
           .or(`investor_id.eq.${partnerId},agent_id.eq.${partnerId}`)
@@ -977,6 +979,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setDetailPartner({
         profile: profileRes.data as any,
         walletBalance: walletRes.data?.balance || 0,
+        withdrawableBalance: (walletRes.data as any)?.withdrawable_balance || 0,
+        floatBalance: (walletRes.data as any)?.float_balance || 0,
         totalFunded,
         totalDeals,
         totalROIEarned,
@@ -2629,7 +2633,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                     <Wallet className="h-3.5 w-3.5 text-primary" /> Partner Wallet
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1 truncate">{detailPartner?.profile.full_name}</p>
-                  <p className="text-sm font-bold mt-1">{detailPartner ? formatUGX(detailPartner.walletBalance) : '—'}</p>
+                  <div className="mt-1.5 space-y-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted-foreground">Withdrawable</span>
+                      <span className="text-xs font-bold text-primary">{detailPartner ? formatUGX(detailPartner.withdrawableBalance) : '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted-foreground">Float</span>
+                      <span className="text-xs font-semibold text-muted-foreground">{detailPartner ? formatUGX(detailPartner.floatBalance) : '—'}</span>
+                    </div>
+                  </div>
                 </button>
                 <button
                   type="button"
@@ -2659,8 +2672,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               {addPortfolioFundingSource === 'proxy_agent' && proxyAgentInfo && Number(addPortfolioAmount) > proxyAgentInfo.walletBalance && (
                 <p className="text-[11px] text-destructive">⚠ Amount exceeds proxy agent wallet balance</p>
               )}
-              {addPortfolioFundingSource === 'wallet' && detailPartner && Number(addPortfolioAmount) > detailPartner.walletBalance && (
-                <p className="text-[11px] text-destructive">⚠ Amount exceeds partner wallet balance</p>
+              {addPortfolioFundingSource === 'wallet' && detailPartner && Number(addPortfolioAmount) > detailPartner.withdrawableBalance && (
+                <p className="text-[11px] text-destructive">
+                  ⚠ Amount exceeds withdrawable balance. Only {formatUGX(detailPartner.withdrawableBalance)} is investable
+                  {detailPartner.floatBalance > 0 && <> — {formatUGX(detailPartner.floatBalance)} is operational float and cannot be used.</>}
+                </p>
               )}
             </div>
 
