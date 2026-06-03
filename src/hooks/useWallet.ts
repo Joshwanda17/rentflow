@@ -23,6 +23,10 @@ interface Wallet {
   id: string;
   user_id: string;
   balance: number;
+  /** Strict ledger-derived withdrawable balance (the only transferable bucket). */
+  withdrawable: number;
+  /** Operational float — company money, never transferable/withdrawable. */
+  float_balance: number;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +71,8 @@ export function useWallet() {
         id: `strict-${user.id}`,
         user_id: user.id,
         balance: withdrawable + floatBalance,
+        withdrawable,
+        float_balance: floatBalance,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -160,9 +166,10 @@ export function useWallet() {
       return { error: new Error(transferCheck.errors?.[0] || 'Validation failed') };
     }
 
-    // Optional balance pre-check (fail-fast)
+    // Optional balance pre-check (fail-fast) — gate on transferable
+    // withdrawable only; float is company money and never transferable.
     if (wallet) {
-      const balanceCheck = checkBalance(wallet.balance, amount);
+      const balanceCheck = checkBalance(wallet.withdrawable, amount);
       if (!balanceCheck.shouldProceed) {
         return { error: new Error(balanceCheck.errors?.[0] || 'Insufficient balance') };
       }

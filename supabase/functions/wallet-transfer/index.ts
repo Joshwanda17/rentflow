@@ -188,23 +188,31 @@ Deno.serve(async (req) => {
     const recipientLabel =
       recipientProfile?.full_name?.trim() || recipientProfile?.phone || 'Welile user';
 
-    // Pre-check sender balance
-    const { data: senderWallet, error: senderError } = await adminClient
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', senderId)
-      .single();
-
-    if (senderError || !senderWallet) {
+    // Pre-check sender balance — STRICT withdrawable only.
+    // Wallet transfers move money out of the withdrawable bucket
+    // (recipient_type: 'user'). Operational float is company money and is
+    // NEVER transferable, so we gate on the canonical strict figure
+    // `get_user_available_balance` (cache + ledger + holds, capped) instead
+    // of the raw cached total. This prevents a float-only user from passing
+    // the pre-check only to hit a cryptic ledger rejection downstream.
+    const { data: availableRaw, error: availableError } = await adminClient.rpc(
+      'get_user_available_balance',
+      { p_user_id: senderId },
+    );
+    if (availableError) {
+      console.error('Available-balance RPC error:', availableError);
       return new Response(
-        JSON.stringify({ error: 'Sender wallet not found' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Could not verify your balance. Please try again.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const withdrawable = Number(availableRaw ?? 0);
 
-    if (senderWallet.balance < amount) {
+    if (withdrawable < amount) {
       return new Response(
-        JSON.stringify({ error: 'Insufficient balance' }),
+        JSON.stringify({
+          error: `Insufficient transferable balance. Available to send: UGX ${withdrawable.toLocaleString('en-US')}. Operational float cannot be transferred.`,
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
