@@ -252,20 +252,24 @@ Deno.serve(async (req) => {
             direction: "cash_out",
             category: "partner_funding",
             ledger_scope: "wallet",
-            recipient_type: "user",
-            wallet_bucket: "withdrawable",
+            recipient_type: fundSource === "float" ? "operational_wallet" : "user",
+            wallet_bucket: fundSource === "float" ? "float" : "withdrawable",
             routing_source: fundingLabel === "proxy_agent"
               ? "create_investor_portfolio_managed_proxy"
-              : "create_investor_portfolio",
+              : fundingLabel === "user_wallet"
+                ? "create_investor_portfolio_user_wallet"
+                : "create_investor_portfolio",
             description: fundingLabel === "proxy_agent"
               ? `Proxy agent wallet deduction for partner portfolio ${codeData}`
-              : `Wallet deduction for portfolio ${codeData}`,
+              : fundingLabel === "user_wallet"
+                ? `${fundingUserName || "User"} wallet (${fundSource === "float" ? "float" : "personal deposit"}) deduction for portfolio ${codeData}`
+                : `Wallet deduction for portfolio ${codeData}`,
             source_table: "investor_portfolios",
             source_id: portfolio.id,
             reference_id: refId,
             currency: "UGX",
             transaction_date: nowIso,
-            linked_party: fundingLabel === "proxy_agent" ? investorId : "platform",
+            linked_party: fundingLabel === "partner" ? "platform" : investorId,
           },
           {
             user_id: user.id, // actor (COO/manager/etc) — platform leg, not a wallet credit
