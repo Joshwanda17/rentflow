@@ -252,6 +252,7 @@ Deno.serve(async (req) => {
           direction: "cash_out",
           category: "partner_funding",
           ledger_scope: "wallet",
+          recipient_type: fundSource === "float" ? "operational_wallet" : "user",
           description: `Wallet deduction for ${accountLabel} top-up`,
           source_table: "investor_portfolios",
           source_id: portfolio_id,
