@@ -2161,7 +2161,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 <tr>
                   <td colSpan={columns.length + 1} className="px-4 py-12 text-center text-sm text-muted-foreground italic">
                     {hasLocalFilter
-                      ? 'No partners match the selected filters'
+                      ? (filterProspect === 'prospects_only'
+                          ? 'No verified wallet-funded prospects without a portfolio'
+                          : 'No partners match the selected filters')
                       : search
                         ? `No matching partners found for "${search}"`
                         : 'No partners registered'}
