@@ -3240,15 +3240,19 @@ export function EmailTransactionsPanel() {
                             ];
                         const tip = lines.filter(Boolean).join('\n');
                         return (
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] capitalize gap-1 ${tone}`}
-                            title={tip}
+                          <BadgeTip
+                            plain="How we think this money was sent (the payment channel), and how sure we are."
+                            details={tip}
                           >
-                            {resolved.channel.replace(/_/g, ' ')}
-                            {inferred && <span className="opacity-70">•</span>}
-                            <span className="font-mono tabular-nums opacity-80">{score}%</span>
-                          </Badge>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] capitalize gap-1 ${tone}`}
+                            >
+                              {resolved.channel.replace(/_/g, ' ')}
+                              {inferred && <span className="opacity-70">•</span>}
+                              <span className="font-mono tabular-nums opacity-80">{score}%</span>
+                            </Badge>
+                          </BadgeTip>
                         );
                       })()}
                       <button
