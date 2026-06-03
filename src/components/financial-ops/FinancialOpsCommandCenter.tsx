@@ -19,6 +19,7 @@ import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
 import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
 import { PartnershipTopupAuditLog } from './PartnershipTopupAuditLog';
 import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
+import { FinOpsWalletMovePanel } from './FinOpsWalletMovePanel';
 import { EmailTransactionsPanel } from './EmailTransactionsPanel';
 import { BulkBankPayoutPanel } from './BulkBankPayoutPanel';
 import { FundedTenantsList } from './FundedTenantsList';
@@ -151,7 +152,12 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             onCreateNewAllocation={() => setView('deposits')}
           />
         )}
-        {activeTool === 'wallet_breakdown' && <WalletBreakdownReadOnly />}
+        {activeTool === 'wallet_breakdown' && (
+          <div className="space-y-8">
+            <FinOpsWalletMovePanel />
+            <WalletBreakdownReadOnly />
+          </div>
+        )}
         {activeTool === 'ledgers' && <LedgerHub />}
         {activeTool === 'audit' && <AuditFeed />}
         {activeTool === 'withdrawals' && (
