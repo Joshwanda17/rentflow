@@ -960,6 +960,12 @@ async function tryAutoDebitPayout(
         category_label: 'Email charge → Withdrawable (auto)',
         recipient_type: 'user',
         sub_category: parsed.transaction_id ?? null,
+        // Idempotency keys: guarantee at-most-once debit even if the backlog
+        // sweep races this poller on the same email. gmail_message_id is
+        // always present, so no-TID emails are still protected.
+        gmail_transaction_id: gmailRow.id,
+        gmail_message_id: gmailMessageId,
+        email_tid: parsed.transaction_id ?? null,
       }),
     });
     const out = await res.json().catch(() => ({}));

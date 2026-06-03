@@ -227,7 +227,13 @@ Deno.serve(async (req) => {
           ? rawEmailTid
           : (looksLikeTxnRef(sub_category) ? sub_category : null));
     const effectiveGmailMsgId: string | null = isManualCredit ? null : gmailMsgId;
-    const isEmailOriginCredit = op === "credit" && (effectiveGmailMsgId || emailTid);
+    // Email-origin idempotency applies to BOTH credits and debits. The
+    // outgoing-payout auto-debit (gmail-poll-transactions) and the backlog
+    // sweep (sweep-payout-debits) can run concurrently on the same email;
+    // reserving a row in email_credit_idempotency (unique on
+    // gmail_message_id+user and email_tid+user) BEFORE posting the ledger
+    // guarantees the second worker fails fast with 409 and never debits twice.
+    const isEmailOriginGuarded = (op === "credit" || op === "debit") && !!(effectiveGmailMsgId || emailTid);
 
     // ── Forced reversal mode ────────────────────────────────────────────
     // Email-deposit rerouting and other recovery workflows may need to
@@ -493,7 +499,7 @@ Deno.serve(async (req) => {
     // bypassed the client pre-flight — fails fast with HTTP 409 and never
     // creates a second ledger entry. This is the authoritative duplicate
     // gate; the client `verify-email-credit-status` call is advisory.
-    if (isEmailOriginCredit) {
+    if (isEmailOriginGuarded) {
       const { error: idemErr } = await adminClient
         .from("email_credit_idempotency")
         .insert({
@@ -573,7 +579,7 @@ Deno.serve(async (req) => {
       if (rpcErr) {
         console.error("[cfo-direct-credit] Credit ledger error:", rpcErr.message);
         // Roll back the idempotency reservation so the caller can legitimately retry.
-        if (isEmailOriginCredit) {
+        if (isEmailOriginGuarded) {
           await adminClient
             .from("email_credit_idempotency")
             .delete()
@@ -631,6 +637,14 @@ Deno.serve(async (req) => {
       });
       if (rpcErr) {
         console.error("[cfo-direct-credit] Debit ledger error:", rpcErr.message);
+        // Roll back the idempotency reservation so a failed debit can be
+        // legitimately retried (mirrors the credit branch above).
+        if (isEmailOriginGuarded) {
+          await adminClient
+            .from("email_credit_idempotency")
+            .delete()
+            .eq("reference_id", refId);
+        }
         throw new Error(`Ledger error: ${rpcErr.message}`);
       }
 

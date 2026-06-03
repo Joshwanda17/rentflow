@@ -286,9 +286,30 @@ Deno.serve(async (req) => {
             category_label: 'Email charge → Withdrawable (sweep)',
             recipient_type: 'user',
             sub_category: row.transaction_id ?? null,
+            // Idempotency keys: guarantee at-most-once debit even if the
+            // realtime poller races this sweep on the same email.
+            // gmail_message_id is always present so no-TID emails are covered.
+            gmail_transaction_id: row.id,
+            gmail_message_id: row.gmail_message_id ?? null,
+            email_tid: row.transaction_id ?? null,
           }),
         });
         const out = await res.json().catch(() => ({}));
+        // A 409 means the realtime poller already debited this exact email for
+        // this user — treat it as an idempotent skip, not an error.
+        if (res.status === 409 || (out as any)?.reason === 'DUPLICATE_EMAIL_CREDIT') {
+          report.push({
+            ...base,
+            outcome: 'skipped_already_routed',
+            match_method: matchMethod,
+            target_user_id: profile.id,
+            target_user_name: profile.full_name,
+            available_balance: avail,
+            detail: 'Already debited by realtime poller (idempotency guard).',
+          });
+          skippedCount++;
+          continue;
+        }
         if (!res.ok || (out as any)?.error) {
           report.push({
             ...base,
