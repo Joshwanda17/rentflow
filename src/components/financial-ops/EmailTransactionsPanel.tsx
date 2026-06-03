@@ -3181,9 +3181,9 @@ export function EmailTransactionsPanel() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm truncate">{r.from_name || r.from_email || 'Unknown'}</span>
                       {r.parsed ? (
-                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">parsed</Badge>
+                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">read OK</Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[10px]">unparsed</Badge>
+                        <Badge variant="outline" className="text-[10px]">couldn't read</Badge>
                       )}
                       {r.parsed && !validity.get(r.id)!.valid && (
                         <Badge
@@ -3191,7 +3191,7 @@ export function EmailTransactionsPanel() {
                           className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
                           title={validity.get(r.id)!.reason}
                         >
-                          <AlertTriangle className="h-3 w-3" /> flagged · review
+                          <AlertTriangle className="h-3 w-3" /> please check
                         </Badge>
                       )}
                       {(() => {
