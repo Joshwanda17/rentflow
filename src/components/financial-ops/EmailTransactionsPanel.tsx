@@ -624,6 +624,10 @@ export function EmailTransactionsPanel() {
     created_at: string;
   }
   const [userRecentTx, setUserRecentTx] = useState<Record<string, RecentTx[]>>({});
+  // Timestamp of the last forced wallet-balance refresh (set after an
+  // auto-debit run completes). Drives the visible "Balance refreshed"
+  // indicator so Financial Ops knows the figures on screen are post-debit.
+  const [balanceRefreshedAt, setBalanceRefreshedAt] = useState<number | null>(null);
   // Per-history-entry busy flag for the Reverse action so the button can
   // show a spinner without blocking other entries.
   const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
