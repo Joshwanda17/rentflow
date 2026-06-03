@@ -73,6 +73,27 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Duplicate guard (app-level): block a second payout for the same rent request
+    // when one already exists in any non-failed state. This prevents paying the
+    // same tenant's landlord twice. Failed payouts are allowed to be retried.
+    const { data: existingPayouts, error: dupErr } = await adminClient
+      .from("landlord_payouts")
+      .select("id, status")
+      .eq("rent_request_id", rent_request_id)
+      .not("status", "in", "(failed)");
+    if (dupErr) {
+      console.error("[landlord-payout-disburse] duplicate check failed:", dupErr);
+    } else if (existingPayouts && existingPayouts.length > 0) {
+      return new Response(
+        JSON.stringify({
+          error: "A landlord payout for this tenant has already been processed.",
+          existing_payout_id: existingPayouts[0].id,
+          existing_status: existingPayouts[0].status,
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Insert payout row (eligibility trigger validates cutoff/float/landlord)
     const { data: payout, error: insertErr } = await adminClient
       .from("landlord_payouts")
