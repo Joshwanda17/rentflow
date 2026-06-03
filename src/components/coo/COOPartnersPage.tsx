@@ -18,7 +18,7 @@ import {
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
   Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake, Scissors, Info,
-  Mail, MailCheck, MailX, MailWarning
+  Mail, MailCheck, MailX, MailWarning, Sparkles
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
