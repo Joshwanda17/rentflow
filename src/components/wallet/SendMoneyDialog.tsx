@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { 
   Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles, UserCheck, UserX,
   Mail, UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
-  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike
+  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, Lock
 } from 'lucide-react';
 
 interface SendMoneyDialogProps {
