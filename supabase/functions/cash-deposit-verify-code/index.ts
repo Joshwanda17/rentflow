@@ -227,26 +227,36 @@ Deno.serve(async (req) => {
     }
 
     if (decision.kind === "mismatch") {
-      const { newAttempts, attemptsRemaining: remaining, lock: lockNow } = decision;
+      // STRICT REJECTION: a single wrong code immediately rejects the deposit.
+      // No retries — the verification is closed and the pending deposit request
+      // is explicitly marked 'rejected' so it leaves the pending queue.
+      const newAttempts = Number(ver.attempts) + 1;
       await admin
         .from("cash_deposit_verifications")
-        .update({ attempts: newAttempts, ...(lockNow ? { status: "expired" } : {}) })
+        .update({ attempts: newAttempts, status: "expired" })
         .eq("id", ver.id);
+      // Mark the deposit request rejected (only while still pending — never
+      // touch an already-credited / verified row).
+      await admin
+        .from("deposit_requests")
+        .update({
+          status: "rejected",
+          rejection_reason: "Cash deposit rejected automatically — wrong receipt code entered.",
+        } as any)
+        .eq("id", depositId)
+        .eq("status", "pending");
       await logEvent(admin, {
         verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
-        event_type: lockNow ? "locked_out" : "code_mismatch",
-        attempt_no: newAttempts, attempts_remaining: remaining, amount: Number(ver.amount),
-        detail: lockNow
-          ? "Incorrect code — verification locked after exhausting all attempts."
-          : `Incorrect code entered. ${remaining} attempt(s) remaining.`,
-        metadata: { max_attempts: Number(ver.max_attempts) },
+        event_type: "rejected",
+        attempt_no: newAttempts, attempts_remaining: 0, amount: Number(ver.amount),
+        detail: "Incorrect code — deposit rejected automatically on first wrong attempt.",
+        metadata: { max_attempts: Number(ver.max_attempts), auto_rejected: true },
       });
       return json(400, {
         error: "code_mismatch",
-        message: lockNow
-          ? "Incorrect code. Too many attempts — please start a new cash deposit."
-          : `Incorrect code. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`,
-        attempts_remaining: remaining,
+        rejected: true,
+        message: "Incorrect code. This deposit has been rejected — please start a new cash deposit.",
+        attempts_remaining: 0,
       });
     }
 
