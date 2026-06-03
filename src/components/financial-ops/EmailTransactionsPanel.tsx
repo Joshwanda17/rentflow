@@ -3309,6 +3309,21 @@ export function EmailTransactionsPanel() {
                           Needs Routing
                         </Badge>
                       )}
+                      {/* Quick "Route Now" action — sits right next to the
+                          Needs Routing badge so ops can jump straight into the
+                          routing dialog without scanning across the row to the
+                          amount-side CTA. Shown for any uncredited, unrouted
+                          incoming deposit (parsed or not). */}
+                      {r.direction === 'in' && !isCredited && !isRouted && (
+                        <Button
+                          size="sm"
+                          className="h-6 px-2 text-[10px] gap-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                          title="Route this deposit now — search any user by name or number and credit it to their wallet."
+                          onClick={() => navigateToRow(r, 'credit')}
+                        >
+                          <Zap className="h-3 w-3" /> Route Now
+                        </Button>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
                     {/* "Not Matched Yet" details: show which reference signals
