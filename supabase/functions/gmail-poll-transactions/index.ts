@@ -593,6 +593,19 @@ Deno.serve(async (req) => {
               internal_date: internalMs ? new Date(internalMs).toISOString() : null,
             });
           }
+          await logDepositDecision(supabase, {
+            source: 'poller',
+            decision: 'skipped',
+            reason,
+            amount: parsed.amount ?? null,
+            metadata: {
+              gmail_message_id: m.id,
+              from: fromEmail,
+              subject,
+              matched_transaction_id: (dup as any).transaction_id ?? null,
+              matched_row_id: (dup as any).id,
+            },
+          });
           continue;
         }
       }
