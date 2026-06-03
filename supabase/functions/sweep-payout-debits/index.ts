@@ -33,6 +33,7 @@ type Outcome =
   | 'skipped_ambiguous'
   | 'skipped_no_balance'
   | 'skipped_already_routed'
+  | 'skipped_withdrawal_settled'
   | 'error';
 
 interface ReportRow {
