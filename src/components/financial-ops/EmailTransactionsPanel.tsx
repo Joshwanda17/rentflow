@@ -3240,23 +3240,11 @@ export function EmailTransactionsPanel() {
               </div>
             )}
             {(() => {
-              const visible = filteredRows.filter((r) => {
-                if (directionFilter === 'in' && r.direction !== 'in') return false;
-                if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
-                if (needsRoutingOnly && !isNeedsRouting(r)) return false;
-                if (matchFilter === 'all') return true;
-                const list = userMatches[r.id] ?? [];
-                if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
-                if (matchFilter === 'from') return list.some((u) => u.matched_on.startsWith('from '));
-                return list.some(
-                  (u) => u.matched_on.startsWith('reference ') || u.matched_on.startsWith('from ')
-                );
-              });
-              const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+              const totalPages = Math.max(1, Math.ceil(visibleRows.length / pageSize));
               const safePage = Math.min(currentPage, totalPages);
               const startIdx = (safePage - 1) * pageSize;
-              const pageRows = visible.slice(startIdx, startIdx + pageSize);
-              (window as any).__emailPaginationMeta = { totalPages, safePage, total: visible.length };
+              const pageRows = visibleRows.slice(startIdx, startIdx + pageSize);
+              (window as any).__emailPaginationMeta = { totalPages, safePage, total: visibleRows.length };
               return pageRows.map((r) => {
                 const matches = userMatches[r.id] ?? [];
                 const hasRef = matches.some((u) => u.matched_on.startsWith('reference '));
