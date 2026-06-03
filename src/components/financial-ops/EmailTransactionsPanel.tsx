@@ -3292,7 +3292,7 @@ export function EmailTransactionsPanel() {
                           ].filter(Boolean).join('\n')}
                         >
                           <Zap className="h-3 w-3" />
-                          auto-debited −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
+                          auto-taken −{fmtUgx(autoDebitEntry?.amount ?? autoImpact?.amount ?? r.amount)}
                           {autoImpact && autoImpact.newAvail !== null && (
                             <span className="opacity-80">· left {fmtUgx(autoImpact.newAvail)}</span>
                           )}
@@ -3318,7 +3318,7 @@ export function EmailTransactionsPanel() {
                           ].filter(Boolean).join('\n')}
                         >
                           <CheckCircle2 className="h-3 w-3" />
-                          {isFullyCredited ? 'credited' : 'partial'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
+                          {isFullyCredited ? 'paid into wallet' : 'partly paid in'} · {fmtUgx(totalCredited)}{creditShortfall > 0 ? ` / ${fmtUgx(emailAmount)}` : ''}
                           {credited.length > 1 && <span className="font-mono tabular-nums opacity-80">×{credited.length}</span>}
                         </Badge>
                       )}
@@ -3339,7 +3339,7 @@ export function EmailTransactionsPanel() {
                           ].filter(Boolean).join('\n')}
                         >
                           <ShieldCheck className="h-3 w-3" />
-                          Already Credited — No Routing Needed
+                          Already in a wallet — nothing to do
                           {matchedByTid && <span className="opacity-75">· via TID</span>}
                         </Badge>
                       )}
