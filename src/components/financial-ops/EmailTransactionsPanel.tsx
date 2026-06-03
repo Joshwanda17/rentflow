@@ -3579,14 +3579,27 @@ export function EmailTransactionsPanel() {
                       {r.internal_date ? format(new Date(r.internal_date), 'MMM d, HH:mm') : '—'}
                     </p>
                     {r.amount && r.amount > 0 && r.direction !== 'out' && (
+                      (() => {
+                        // Money that has NOT landed in any wallet (not auto-credited
+                        // and not already routed) gets a loud, filled CTA so ops can
+                        // immediately search out ANY user and drop it into their
+                        // wallet. Already-handled rows keep the quiet outline button.
+                        const needsWallet = !isCredited && !isRouted;
+                        return (
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="mt-1.5 h-8 sm:h-7 text-[11px] gap-1"
+                        variant={needsWallet ? 'default' : 'outline'}
+                        className={`mt-1.5 h-8 sm:h-7 text-[11px] gap-1 ${
+                          needsWallet
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-500/40 ring-offset-1'
+                            : ''
+                        }`}
                         title={
-                          isRouted && !isReversed
-                            ? 'Already routed to a user. You can still route it to a different user — routing it to the same user again will be blocked.'
-                            : 'Route this deposit to a user wallet'
+                          needsWallet
+                            ? 'This money is not in any wallet yet. Search any user by name or number and credit it to their wallet.'
+                            : isRouted && !isReversed
+                              ? 'Already routed to a user. You can still route it to a different user — routing it to the same user again will be blocked.'
+                              : 'Route this deposit to a user wallet'
                         }
                         onClick={() => {
                           const matches = userMatches[r.id] ?? [];
@@ -3608,8 +3621,14 @@ export function EmailTransactionsPanel() {
                           setRoutingRow(r);
                         }}
                       >
-                        {isRouted && !isReversed ? <>Route to another user <ArrowRight className="h-3 w-3" /></> : <>Route to user <ArrowRight className="h-3 w-3" /></>}
+                        {needsWallet
+                          ? <><Wallet className="h-3 w-3" /> Put in a user's wallet</>
+                          : isRouted && !isReversed
+                            ? <>Route to another user <ArrowRight className="h-3 w-3" /></>
+                            : <>Route to user <ArrowRight className="h-3 w-3" /></>}
                       </Button>
+                        );
+                      })()
                     )}
                     {r.amount && r.amount > 0 && (r.direction === 'out' || r.direction === 'charge') && (
                       (() => {
