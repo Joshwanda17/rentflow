@@ -337,7 +337,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [walletToPortfolioReason, setWalletToPortfolioReason] = useState('');
   const [walletToPortfolioSaving, setWalletToPortfolioSaving] = useState(false);
   const [walletTransferMethod, setWalletTransferMethod] = useState<'wallet' | 'proxy_agent'>('wallet');
-  const [proxyAgentInfo, setProxyAgentInfo] = useState<{ agentId: string; agentName: string; walletBalance: number } | null>(null);
+  const [walletTransferFundSource, setWalletTransferFundSource] = useState<'withdrawable' | 'float'>('withdrawable');
+  const [proxyAgentInfo, setProxyAgentInfo] = useState<{ agentId: string; agentName: string; walletBalance: number; withdrawable?: number; float?: number } | null>(null);
   const [loadingProxyAgent, setLoadingProxyAgent] = useState(false);
 
   // Pending top-ups per portfolio (status: pending)
