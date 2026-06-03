@@ -15,6 +15,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 type Bucket = 'withdrawable' | 'float';
 type Mode = 'user_to_user' | 'error_correction';
@@ -48,6 +49,7 @@ const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
  */
 export function FinOpsWalletMovePanel() {
   const [mode, setMode] = useState<Mode>('user_to_user');
+  const queryClient = useQueryClient();
 
   const [term, setTerm] = useState('');
   const [searching, setSearching] = useState(false);
@@ -160,6 +162,14 @@ export function FinOpsWalletMovePanel() {
     if (error || !data) return;
     toast.success(data.message);
     setResult(data);
+    // Invalidate every wallet/balance/ledger-backed panel so the new balances
+    // appear immediately everywhere (the panels above derive from the strict view).
+    queryClient.invalidateQueries({
+      predicate: (q) => {
+        const k = q.queryKey.join(' ').toLowerCase();
+        return /wallet|balance|ledger|finops|withdraw|float|recon|drift|overview/.test(k);
+      },
+    });
     reset();
   };
 
