@@ -1735,14 +1735,41 @@ async function sweepLinkedPendingDeposits(
         console.warn(
           `[gmail-poll] sweep approve-deposit non-200 dep=${(dep as any).id} status=${res.status} body=${txt.slice(0, 200)}`,
         );
+        await logDepositDecision(supabase, {
+          source: 'poller',
+          decision: 'failed',
+          reason: 'sweep_approve_non_200',
+          deposit_request_id: (dep as any).id,
+          amount: Number((dep as any).amount),
+          actor_id: (dep as any).user_id,
+          metadata: { status: res.status, body: txt.slice(0, 300), auto_match_method: 'linked_pending_sweep' },
+        });
       } else {
         console.log(
           `[gmail-poll] sweep auto-credited linked-pending deposit dep=${(dep as any).id} ` +
           `amt=${(dep as any).amount} user=${(dep as any).user_id}`,
         );
+        await logDepositDecision(supabase, {
+          source: 'poller',
+          decision: 'auto_credited',
+          reason: 'linked_pending_sweep',
+          deposit_request_id: (dep as any).id,
+          amount: Number((dep as any).amount),
+          actor_id: (dep as any).user_id,
+          metadata: { auto_match_method: 'linked_pending_sweep' },
+        });
       }
     } catch (e) {
       console.warn('[gmail-poll] sweep approve-deposit invoke failed:', e);
+      await logDepositDecision(supabase, {
+        source: 'poller',
+        decision: 'failed',
+        reason: 'sweep_approve_invoke_error',
+        deposit_request_id: (dep as any).id,
+        amount: Number((dep as any).amount),
+        actor_id: (dep as any).user_id,
+        metadata: { error: String(e) },
+      });
     }
   }
 }
