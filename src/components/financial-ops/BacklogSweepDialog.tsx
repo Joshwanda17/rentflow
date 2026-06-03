@@ -178,6 +178,11 @@ export function BacklogSweepLauncher() {
                       <span className="font-medium">
                         {r.target_user_name || r.counterparty || '—'}
                       </span>
+                      {r.via_proxy && (
+                        <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 dark:text-amber-300">
+                          proxy for {r.proxy_for_name || 'partner'}
+                        </Badge>
+                      )}
                       <span className="text-muted-foreground">
                         {UGX(r.amount)}
                         {r.debited_amount != null && r.debited_amount !== r.amount
