@@ -2051,6 +2051,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <SelectItem value="empty">Empty</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterProspect} onValueChange={(v: any) => { setFilterProspect(v); setPage(0); }}>
+          <SelectTrigger className={cn("w-[170px] h-9 text-xs", filterProspect === 'prospects_only' && "border-amber-500 text-amber-600 dark:text-amber-400")}>
+            <Sparkles className="h-3 w-3 mr-1" /><SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Partners</SelectItem>
+            <SelectItem value="prospects_only">New Prospects Only</SelectItem>
+          </SelectContent>
+        </Select>
         {/* Payment Date Range Filter */}
         <Popover>
           <PopoverTrigger asChild>
