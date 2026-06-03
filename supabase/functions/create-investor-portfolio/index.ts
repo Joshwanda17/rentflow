@@ -78,6 +78,16 @@ Deno.serve(async (req) => {
     const payoutDay = typeof body.payout_day === 'number' && body.payout_day >= 1 && body.payout_day <= 31 ? body.payout_day : 15;
     const instantDeduct = creatorIsBackOffice && !!investorId;
 
+    // ── Explicit "fund from any user" mode ──
+    // Back-office creators may deploy capital from ANY user's wallet (e.g. a
+    // partner pooling on behalf of someone), choosing the bucket to draw from.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const explicitFundingUserId =
+      typeof body.funding_user_id === 'string' && UUID_RE.test(body.funding_user_id)
+        ? body.funding_user_id
+        : null;
+    const fundSource: 'withdrawable' | 'float' = body.fund_source === 'float' ? 'float' : 'withdrawable';
+
     // Payment method fields
     const paymentMethod = typeof body.payment_method === 'string' && ['mobile_money', 'bank'].includes(body.payment_method) ? body.payment_method : null;
     const mobileNetwork = typeof body.mobile_network === 'string' && ['mtn', 'airtel'].includes(body.mobile_network) ? body.mobile_network : null;
