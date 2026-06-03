@@ -71,7 +71,13 @@ Deno.serve(async (req) => {
 
     // Validate payment method
     if (!payment_method || !VALID_METHODS.includes(payment_method)) {
-      return jsonRes({ error: "Invalid payment method. Use: wallet or proxy_agent" }, 400);
+      return jsonRes({ error: "Invalid payment method. Use: wallet, proxy_agent or user_wallet" }, 400);
+    }
+
+    // For the explicit "fund from any user" mode the caller MUST supply a
+    // valid source wallet user id. This is the wallet that will be debited.
+    if (payment_method === "user_wallet" && (!source_wallet_user_id || !UUID_RE.test(source_wallet_user_id))) {
+      return jsonRes({ error: "A valid user must be selected to fund from their wallet" }, 400);
     }
 
     const safeNotes = typeof notes === "string" ? notes.slice(0, 500) : "";
