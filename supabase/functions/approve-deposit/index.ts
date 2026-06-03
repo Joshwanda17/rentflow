@@ -173,6 +173,14 @@ Deno.serve(async (req) => {
     // bypass it. The reason is also stamped onto deposit_requests.rejection_reason
     // and broadcast in the user notification — never accept a blank.
     if (action === 'reject' && (!safeRejectionReason || safeRejectionReason.length < 10)) {
+      await logDepositDecision(supabaseAdmin, {
+        source: "approval",
+        decision: "blocked",
+        reason: "rejection_reason_required",
+        actor_id: user?.id ?? null,
+        actor_email: actorEmail,
+        metadata: { ids: idsToProcess, action },
+      });
       return new Response(
         JSON.stringify({
           error: 'rejection_reason_required',
