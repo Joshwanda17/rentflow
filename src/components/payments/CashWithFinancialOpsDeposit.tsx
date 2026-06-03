@@ -133,8 +133,10 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
         const body = await readEdgeBody(error);
         const msg = body?.message || body?.error || 'Could not verify the code.';
         const isLocked =
+          body?.rejected === true ||
           body?.error === 'too_many_attempts' ||
           body?.error === 'expired' ||
+          body?.error === 'code_mismatch' ||
           (typeof body?.attempts_remaining === 'number' && body.attempts_remaining <= 0);
         toast.error(msg);
         setCodeError(msg);
