@@ -1165,12 +1165,28 @@ async function _tryAutoCreditOperationalFloat(
           console.log(`[gmail-poll] MTN name-fallback resolved "${rawName}" (${nameMatches.length} matches) via ${tiebreaker} → user=${winner.id}`);
         } else {
           console.log(`[gmail-poll] MTN name-fallback ambiguous for "${rawName}" (${nameMatches.length} matches, no clear winner) — skipping auto-credit`);
+          await logDepositDecision(supabase, {
+            source: 'matcher',
+            decision: 'skipped',
+            reason: 'name_match_ambiguous',
+            amount: parsed.amount ?? null,
+            metadata: { gmail_message_id: gmailMessageId, raw_name: rawName, match_count: nameMatches.length },
+          });
         }
       }
     }
   }
 
-  if (!profile?.id) return;
+  if (!profile?.id) {
+    await logDepositDecision(supabase, {
+      source: 'matcher',
+      decision: 'skipped',
+      reason: 'no_user_match',
+      amount: parsed.amount ?? null,
+      metadata: { gmail_message_id: gmailMessageId, parsed_tid: parsed.transaction_id ?? null },
+    });
+    return;
+  }
 
   // Find the gmail_transactions row we just wrote so we can link it.
   const { data: gmailRow } = await supabase
