@@ -253,6 +253,11 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Receipt code</Label>
+              {!locked && secondsLeft !== null && (
+                <p className={`text-xs font-medium text-center tabular-nums ${secondsLeft <= 30 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  Enter the code within {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')} or the deposit is auto-rejected.
+                </p>
+              )}
               <Input
                 placeholder="e.g. 1234"
                 value={code}
