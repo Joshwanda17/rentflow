@@ -314,6 +314,23 @@ Deno.serve(async (req) => {
         );
         const unverified = cashDeposits.filter((d) => !verifiedSet.has(d.id));
         if (unverified.length > 0) {
+          for (const d of unverified) {
+            await logDepositDecision(supabaseAdmin, {
+              source: "approval",
+              decision: "blocked",
+              reason: "cash_code_required",
+              deposit_request_id: d.id,
+              amount: Number(d.amount),
+              actor_id: user?.id ?? null,
+              actor_email: actorEmail,
+              metadata: {
+                provider: d.provider ?? null,
+                auto_approved: !!auto_approved,
+                system_auto_credit: isSystemAutoCredit,
+                auto_match_method: auto_match_method ?? null,
+              },
+            });
+          }
           return new Response(
             JSON.stringify({
               error: "cash_code_required",
