@@ -324,8 +324,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       return "You can't send money to your own account.";
     }
     if (!amount.trim() || isNaN(amountNum) || amountNum <= 0) return 'Enter an amount greater than 0 UGX.';
-    if (wallet && amountNum > (wallet.balance || 0)) {
-      return `Insufficient balance. Available: ${formatCurrency(wallet.balance || 0)}.`;
+    if (wallet && amountNum > (wallet.withdrawable || 0)) {
+      return `Insufficient transferable balance. Available: ${formatCurrency(wallet.withdrawable || 0)}.`;
     }
     return null;
   };
