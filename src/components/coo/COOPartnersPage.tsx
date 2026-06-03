@@ -979,6 +979,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setDetailPartner({
         profile: profileRes.data as any,
         walletBalance: walletRes.data?.balance || 0,
+        withdrawableBalance: (walletRes.data as any)?.withdrawable_balance || 0,
+        floatBalance: (walletRes.data as any)?.float_balance || 0,
         totalFunded,
         totalDeals,
         totalROIEarned,
