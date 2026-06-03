@@ -530,6 +530,12 @@ Deno.serve(async (req) => {
         /^cash deposit code\b/i.test(String(subject ?? '').trim());
       if (isSelfCashCodeEmail) {
         if (debug) debugReport.push({ id: m.id, decision: 'skipped', reason: 'self_cash_code_notification', from: fromEmail, subject });
+        await logDepositDecision(supabase, {
+          source: 'poller',
+          decision: 'skipped',
+          reason: 'self_cash_code_notification',
+          metadata: { gmail_message_id: m.id, from: fromEmail, subject },
+        });
         if (internalMs > newestMs) newestMs = internalMs;
         continue;
       }
