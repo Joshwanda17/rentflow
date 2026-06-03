@@ -77,6 +77,12 @@ Deno.serve(async (req) => {
     // Validate payment method (default to wallet for backward compat)
     let method = payment_method && VALID_METHODS.includes(payment_method) ? payment_method : "wallet";
 
+    // Which wallet bucket to deploy from: "withdrawable" (personal deposit, default)
+    // or "float" (operational / company float). Routed on the wallet leg via
+    // recipient_type so the correct bucket is decremented.
+    const fundSource: "withdrawable" | "float" =
+      body.fund_source === "float" ? "float" : "withdrawable";
+
     // Fetch portfolio
     const { data: portfolio, error: pErr } = await supabase
       .from("investor_portfolios")
@@ -177,22 +183,34 @@ Deno.serve(async (req) => {
       return jsonRes({ error: "Could not verify wallet balance. Please retry." }, 500);
     }
     const strictAvail = Number(strictAvailRaw ?? 0);
-    const spendable = strictAvail + advanceBal;
-    if (spendable < topupAmount) {
-      const parts: string[] = [];
-      if (strictAvail > 0) parts.push(`Withdrawable: UGX ${strictAvail.toLocaleString()}`);
-      if (floatBal > 0) parts.push(`Float (locked): UGX ${floatBal.toLocaleString()}`);
-      const breakdown = parts.length ? ` (${parts.join(" · ")})` : "";
-      return jsonRes({
-        error:
-          `Insufficient withdrawable balance in ${walletOwnerLabel.toLowerCase()}. ` +
-          `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${spendable.toLocaleString()} is spendable${breakdown}. ` +
-          (floatBal > 0 && withdrawable > strictAvail
-            ? `Cached wallet shows more, but the ledger of record only allows UGX ${strictAvail.toLocaleString()}. Please reconcile before retrying.`
-            : floatBal > 0
-            ? `Funds in Float must be released to Withdrawable before topping up.`
-            : ``),
-      }, 400);
+    if (fundSource === "float") {
+      // ── OPERATIONAL FLOAT source ── deploy company float as capital.
+      if (floatBal < topupAmount) {
+        return jsonRes({
+          error:
+            `Insufficient operational float in ${walletOwnerLabel.toLowerCase()}. ` +
+            `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${floatBal.toLocaleString()} is available in Float.`,
+        }, 400);
+      }
+    } else {
+      // ── PERSONAL DEPOSIT (WITHDRAWABLE) source ──
+      const spendable = strictAvail + advanceBal;
+      if (spendable < topupAmount) {
+        const parts: string[] = [];
+        if (strictAvail > 0) parts.push(`Withdrawable: UGX ${strictAvail.toLocaleString()}`);
+        if (floatBal > 0) parts.push(`Float (locked): UGX ${floatBal.toLocaleString()}`);
+        const breakdown = parts.length ? ` (${parts.join(" · ")})` : "";
+        return jsonRes({
+          error:
+            `Insufficient withdrawable balance in ${walletOwnerLabel.toLowerCase()}. ` +
+            `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${spendable.toLocaleString()} is spendable${breakdown}. ` +
+            (floatBal > 0 && withdrawable > strictAvail
+              ? `Cached wallet shows more, but the ledger of record only allows UGX ${strictAvail.toLocaleString()}. Please reconcile before retrying.`
+              : floatBal > 0
+              ? `Funds in Float must be released to Withdrawable before topping up, or deploy from Operational Float instead.`
+              : ``),
+        }, 400);
+      }
     }
 
     const txGroupId = crypto.randomUUID();
@@ -247,6 +265,7 @@ Deno.serve(async (req) => {
           amount: topupAmount,
           direction: "cash_out",
           category: "partner_funding",
+          recipient_type: fundSource === "float" ? "operational_wallet" : "user",
           description: `Wallet deduction for ${accountLabel} top-up`,
           source_table: "investor_portfolios",
           source_id: portfolio_id,
@@ -293,6 +312,7 @@ Deno.serve(async (req) => {
         initiated_by: user.id,
         initiated_by_role: "coo",
         payment_method: method,
+        fund_source: fundSource,
         source_wallet_user_id: walletOwnerId,
         source_wallet_owner: walletOwnerLabel,
         agent_name: agentName,
@@ -322,6 +342,7 @@ Deno.serve(async (req) => {
         amount: topupAmount,
         current_capital: Number(portfolio.investment_amount),
         payment_method: method,
+        fund_source: fundSource,
         wallet_balance_before: currentBalance,
         wallet_balance_after: currentBalance - topupAmount,
         reason: safeReason,

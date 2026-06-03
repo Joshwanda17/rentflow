@@ -337,7 +337,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [walletToPortfolioReason, setWalletToPortfolioReason] = useState('');
   const [walletToPortfolioSaving, setWalletToPortfolioSaving] = useState(false);
   const [walletTransferMethod, setWalletTransferMethod] = useState<'wallet' | 'proxy_agent'>('wallet');
-  const [proxyAgentInfo, setProxyAgentInfo] = useState<{ agentId: string; agentName: string; walletBalance: number } | null>(null);
+  const [walletTransferFundSource, setWalletTransferFundSource] = useState<'withdrawable' | 'float'>('withdrawable');
+  const [proxyAgentInfo, setProxyAgentInfo] = useState<{ agentId: string; agentName: string; walletBalance: number; withdrawable?: number; float?: number } | null>(null);
   const [loadingProxyAgent, setLoadingProxyAgent] = useState(false);
 
   // Pending top-ups per portfolio (status: pending)
@@ -1673,12 +1674,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       if (proxyAssignment?.agent_id) {
         const [profileRes, walletRes] = await Promise.all([
           supabase.from('profiles').select('full_name').eq('id', proxyAssignment.agent_id).single(),
-          supabase.from('wallets').select('balance').eq('user_id', proxyAssignment.agent_id).maybeSingle(),
+          supabase.from('wallets').select('balance, withdrawable_balance, float_balance').eq('user_id', proxyAssignment.agent_id).maybeSingle(),
         ]);
         setProxyAgentInfo({
           agentId: proxyAssignment.agent_id,
           agentName: profileRes.data?.full_name || 'Agent',
           walletBalance: walletRes.data ? Number(walletRes.data.balance) : 0,
+          withdrawable: walletRes.data ? Number((walletRes.data as any).withdrawable_balance ?? 0) : 0,
+          float: walletRes.data ? Number((walletRes.data as any).float_balance ?? 0) : 0,
         });
       }
     } catch { /* ignore */ }
@@ -1691,11 +1694,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const amt = Number(walletToPortfolioAmount);
 
     const sourceBalance = walletTransferMethod === 'wallet'
-      ? detailPartner.walletBalance
-      : proxyAgentInfo?.walletBalance ?? 0;
+      ? (walletTransferFundSource === 'float' ? detailPartner.floatBalance : detailPartner.withdrawableBalance)
+      : (walletTransferFundSource === 'float' ? (proxyAgentInfo?.float ?? 0) : (proxyAgentInfo?.withdrawable ?? proxyAgentInfo?.walletBalance ?? 0));
+    const bucketLabel = walletTransferFundSource === 'float' ? 'operational float' : 'personal deposit';
 
     if (isNaN(amt) || amt < 1000) { toast.error('Minimum: UGX 1,000'); return; }
-    if (amt > sourceBalance) { toast.error(`Only ${formatUGX(sourceBalance)} available in ${walletTransferMethod === 'wallet' ? 'partner wallet' : 'proxy agent wallet'}`); return; }
+    if (amt > sourceBalance) { toast.error(`Only ${formatUGX(sourceBalance)} available in ${walletTransferMethod === 'wallet' ? 'partner' : 'proxy agent'} ${bucketLabel}`); return; }
     if (walletToPortfolioReason.trim().length < 10) { toast.error('Reason must be at least 10 characters'); return; }
     if (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo) { toast.error('No proxy agent assigned'); return; }
 
@@ -1707,19 +1711,21 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           amount: amt,
           reason: walletToPortfolioReason.trim(),
           payment_method: walletTransferMethod,
+          fund_source: walletTransferFundSource,
           source_wallet_user_id: walletTransferMethod === 'proxy_agent' ? proxyAgentInfo?.agentId : detailPartner?.profile?.id,
         },
       });
       if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
       if (result?.error) throw new Error(result.error);
 
-      const sourceLabel = walletTransferMethod === 'wallet' ? 'partner wallet' : `${proxyAgentInfo?.agentName}'s wallet`;
+      const sourceLabel = `${walletTransferMethod === 'wallet' ? 'partner' : `${proxyAgentInfo?.agentName}'s`} ${bucketLabel}`;
       toast.success(`${formatUGX(amt)} top-up processed for ${walletToPortfolio.account_name || walletToPortfolio.portfolio_code}`, {
         description: `Deducted from ${sourceLabel}. Applied at maturity.`,
       });
       setWalletToPortfolio(null);
       setWalletToPortfolioAmount('');
       setWalletToPortfolioReason('');
+      setWalletTransferFundSource('withdrawable');
       setProxyAgentInfo(null);
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
       refreshInBackground();
@@ -3299,16 +3305,46 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </div>
               </div>
 
+              {/* Deploy-from bucket selector */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Deploy From</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    {
+                      value: 'withdrawable' as const, label: 'Personal Deposit',
+                      bal: walletTransferMethod === 'wallet' ? detailPartner.withdrawableBalance : (proxyAgentInfo?.withdrawable ?? 0),
+                    },
+                    {
+                      value: 'float' as const, label: 'Operational Float',
+                      bal: walletTransferMethod === 'wallet' ? detailPartner.floatBalance : (proxyAgentInfo?.float ?? 0),
+                    },
+                  ]).map(opt => {
+                    const selected = walletTransferFundSource === opt.value;
+                    return (
+                      <button key={opt.value} type="button"
+                        onClick={() => setWalletTransferFundSource(opt.value)}
+                        className={cn(
+                          "flex flex-col items-start gap-0.5 rounded-lg border-2 p-2.5 transition-all text-left",
+                          selected ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-background hover:border-muted-foreground/30"
+                        )}>
+                        <span className={cn("text-xs font-medium", selected ? "text-primary" : "text-muted-foreground")}>{opt.label}</span>
+                        <span className="text-sm font-bold text-foreground">{formatUGX(opt.bal)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Balance display */}
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/60">
                 <Wallet className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  {walletTransferMethod === 'wallet' ? 'Partner Wallet:' : `${proxyAgentInfo?.agentName || 'Agent'} Wallet:`}
+                  {walletTransferFundSource === 'float' ? 'Operational Float:' : 'Personal Deposit:'}
                 </span>
                 <span className="text-sm font-bold">
                   {walletTransferMethod === 'wallet'
-                    ? formatUGX(detailPartner.walletBalance)
-                    : proxyAgentInfo ? formatUGX(proxyAgentInfo.walletBalance) : '—'}
+                    ? formatUGX(walletTransferFundSource === 'float' ? detailPartner.floatBalance : detailPartner.withdrawableBalance)
+                    : proxyAgentInfo ? formatUGX(walletTransferFundSource === 'float' ? (proxyAgentInfo.float ?? 0) : (proxyAgentInfo.withdrawable ?? 0)) : '—'}
                 </span>
               </div>
 
@@ -3325,7 +3361,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                   autoFocus
                 />
                 {(() => {
-                  const maxBal = walletTransferMethod === 'wallet' ? detailPartner.walletBalance : (proxyAgentInfo?.walletBalance ?? 0);
+                  const maxBal = walletTransferMethod === 'wallet'
+                    ? (walletTransferFundSource === 'float' ? detailPartner.floatBalance : detailPartner.withdrawableBalance)
+                    : (walletTransferFundSource === 'float' ? (proxyAgentInfo?.float ?? 0) : (proxyAgentInfo?.withdrawable ?? 0));
                   return (
                     <div className="flex gap-2 flex-wrap">
                       {[50000, 100000, 500000, 1000000].filter(a => a <= maxBal).map(a => (
@@ -3344,7 +3382,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                   );
                 })()}
                 {(() => {
-                  const maxBal = walletTransferMethod === 'wallet' ? detailPartner.walletBalance : (proxyAgentInfo?.walletBalance ?? 0);
+                  const maxBal = walletTransferMethod === 'wallet'
+                    ? (walletTransferFundSource === 'float' ? detailPartner.floatBalance : detailPartner.withdrawableBalance)
+                    : (walletTransferFundSource === 'float' ? (proxyAgentInfo?.float ?? 0) : (proxyAgentInfo?.withdrawable ?? 0));
                   const amt = Number(walletToPortfolioAmount) || 0;
                   if (amt > maxBal && maxBal >= 0) {
                     return <p className="text-[10px] text-destructive font-medium">Insufficient balance ({formatUGX(maxBal)} available)</p>;
