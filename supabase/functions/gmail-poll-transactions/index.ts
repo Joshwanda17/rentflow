@@ -1362,6 +1362,14 @@ async function _tryAutoCreditOperationalFloat(
     .single();
   if (depErr || !newDep?.id) {
     console.warn('[gmail-poll] auto-credit: could not insert deposit_request', depErr);
+    await logDepositDecision(supabase, {
+      source: 'matcher',
+      decision: 'failed',
+      reason: 'deposit_insert_failed',
+      amount: parsed.amount ?? null,
+      actor_id: profile.id,
+      metadata: { gmail_message_id: gmailMessageId, error: depErr?.message ?? null, match_method: matchMethod },
+    });
     return;
   }
 
