@@ -2496,9 +2496,10 @@ export function EmailTransactionsPanel() {
             <span className="text-[11px] text-muted-foreground">
               {dailySeries.length} day{dailySeries.length === 1 ? '' : 's'}
               {rangeActive ? ' in selected range' : ''}
+              {dailySeries.length > 1 ? ' · drag the slider below to zoom' : ''}
             </span>
           </div>
-          <div className="p-4 h-64">
+          <div className="p-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailySeries} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -2526,6 +2527,16 @@ export function EmailTransactionsPanel() {
                 <Line type="monotone" dataKey="in" name="In" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="out" name="Out" stroke="hsl(0 72% 51%)" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="net" name="Net" stroke="hsl(var(--primary))" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                {dailySeries.length > 1 && (
+                  <Brush
+                    dataKey="date"
+                    height={22}
+                    travellerWidth={10}
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--muted))"
+                    tickFormatter={(v) => format(new Date(v as string), 'MMM d')}
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
