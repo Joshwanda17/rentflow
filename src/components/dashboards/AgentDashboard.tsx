@@ -1214,11 +1214,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             setSubmissionsView(undefined);
             setSubmissionsTab(undefined);
             setSubmissionsHighlightId(undefined);
+            setTenantProfileId(undefined);
           }
         }}
         initialView={submissionsView}
         initialPipelineTab={submissionsTab}
         initialHighlightId={submissionsHighlightId}
+        initialProfileTenantId={tenantProfileId}
       />
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
       
