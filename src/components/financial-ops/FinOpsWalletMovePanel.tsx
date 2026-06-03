@@ -296,8 +296,36 @@ export function FinOpsWalletMovePanel() {
                 </div>
               )}
             </div>
-            <Button variant="outline" size="sm" onClick={() => setResult(null)}>
-              Make another move
+
+            {/* Step-by-step refresh progress */}
+            <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs">
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                <span className="font-medium">Move posted to the ledger</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {step === 'refreshing' ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                )}
+                <span className={step === 'refreshing' ? 'font-medium' : 'text-muted-foreground'}>
+                  {step === 'refreshing'
+                    ? `Refreshing wallet panels${refetching > 0 ? ` (${refetching} updating…)` : '…'}`
+                    : 'All wallet panels refreshed'}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={step === 'refreshing'}
+              onClick={() => { setResult(null); setStep('idle'); }}
+              className="gap-2"
+            >
+              {step === 'refreshing' && <Loader2 className="h-4 w-4 animate-spin" />}
+              {step === 'refreshing' ? 'Refreshing…' : 'Make another move'}
             </Button>
           </CardContent>
         </Card>
