@@ -825,6 +825,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   useEffect(() => { fetchSummaryStats(); }, [fetchSummaryStats]);
   useEffect(() => { fetchNearingPayoutsAsync(); }, [fetchNearingPayoutsAsync]);
 
+  // Refresh wallet balances whenever the Wallet → Portfolio dialog opens
+  useEffect(() => {
+    if (walletToPortfolio) {
+      refreshDetailWalletBalances();
+    }
+  }, [walletToPortfolio]);
+
   // Single portfolio approve
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const handleApprovePortfolio = async (portfolioId: string) => {
@@ -988,6 +995,29 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
     } catch (e) { console.error(e); toast.error('Failed to load partner details'); }
     finally { setDetailLoading(false); }
+  }
+
+  /* ─── Refresh only wallet balances for the open detail partner ─── */
+  async function refreshDetailWalletBalances() {
+    if (!detailPartner?.profile?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('balance, withdrawable_balance, float_balance')
+        .eq('user_id', detailPartner.profile.id)
+        .single();
+      if (error || !data) return;
+      setDetailPartner(prev =>
+        prev
+          ? {
+              ...prev,
+              walletBalance: data.balance || 0,
+              withdrawableBalance: (data as any).withdrawable_balance || 0,
+              floatBalance: (data as any).float_balance || 0,
+            }
+          : prev
+      );
+    } catch { /* silently ignore refresh failures */ }
   }
 
   /* ─── Submit Pending Top-Ups for Financial Ops Verification ─── */
