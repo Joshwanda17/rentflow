@@ -2055,13 +2055,16 @@ export function EmailTransactionsPanel() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5">
-            <Mail className="h-6 w-6 text-primary" /> Email Transaction Extractor
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Live feed from the connected Gmail inbox. Polls every minute and parses MoMo, Airtel & bank confirmation emails.
-          </p>
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Mail className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Email Transaction Extractor</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Live feed from your Gmail inbox. Reads MoMo, Airtel &amp; bank confirmation emails automatically every minute.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -2069,9 +2072,9 @@ export function EmailTransactionsPanel() {
 
       <CashDepositCodesPanel />
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-3">
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[120px]">
+      <div className="rounded-xl border bg-card p-3 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[130px]">
             {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Poll now
           </Button>
@@ -2091,6 +2094,9 @@ export function EmailTransactionsPanel() {
           >
             <FileText className="h-4 w-4" /> Export PDF
           </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-full sm:w-auto sm:mr-1">More tools</span>
           <ArchivedPdfsDrawer />
           <ReconnectGmailDialog />
           <DebugPollDialog />
@@ -2252,7 +2258,7 @@ export function EmailTransactionsPanel() {
           {mobileStatsOpen ? 'Hide summary' : `Summary · ${rows.length} emails · net ${netAmount < 0 ? '-' : ''}${fmtUgx(Math.abs(netAmount))}`}
         </Button>
       </div>
-      <div className={`grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3 ${mobileStatsOpen ? 'grid' : 'hidden sm:grid'}`}>
+      <div className={`grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 ${mobileStatsOpen ? 'grid' : 'hidden sm:grid'}`}>
         <StatCard label="Emails captured" value={rows.length.toString()} />
         <StatCard label="Parsed transactions" value={parsedCount.toString()} />
         <StatCard label="Total amount (parsed)" value={fmtUgx(totalAmount)} />
@@ -3871,9 +3877,9 @@ export function EmailTransactionsPanel() {
 
 function StatCard({ label, value, sub, info }: { label: string; value: string; sub?: React.ReactNode; info?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
-        {label}
+    <div className="rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30">
+      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+        <span className="truncate">{label}</span>
         {info && (
           <TooltipProvider delayDuration={150}>
             <Tooltip>
@@ -3893,8 +3899,8 @@ function StatCard({ label, value, sub, info }: { label: string; value: string; s
           </TooltipProvider>
         )}
       </p>
-      <p className="font-black text-lg mt-1">{value}</p>
-      {sub && <div className="mt-1">{sub}</div>}
+      <p className="font-bold text-xl tracking-tight mt-1.5 tabular-nums">{value}</p>
+      {sub && <div className="mt-1.5">{sub}</div>}
     </div>
   );
 }
