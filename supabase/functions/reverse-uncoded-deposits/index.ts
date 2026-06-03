@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
             user_id: dr.user_id,
             amount: creditedAmount,
             direction: "cash_out",
-            category: "system_balance_correction",
+            category: "wallet_deduction_cash_payout_retraction",
             ledger_scope: "wallet",
             wallet_bucket: bucket,
             classification: "production",
@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
           {
             amount: creditedAmount,
             direction: "cash_in",
-            category: "system_balance_correction",
+            category: "wallet_deduction_cash_payout_retraction",
             ledger_scope: "platform",
             classification: "production",
             source_table: "deposit_requests",
