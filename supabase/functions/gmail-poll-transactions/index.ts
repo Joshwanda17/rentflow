@@ -518,6 +518,21 @@ Deno.serve(async (req) => {
       const combined = [subject, snippet, body].filter(Boolean).join('\n');
       const parsed = parseTransaction(combined);
 
+      // ── Guard: never ingest our OWN cash-deposit code-notification emails ──
+      // cash-deposit-request-code sends "Cash deposit code NNNN — UGX X from <name>"
+      // to weliletenants@gmail.com. If we ingest that outgoing email it gets
+      // mis-read as an INCOMING deposit and self-matched to the very deposit it
+      // was meant to verify — auto-crediting the wallet before the user enters
+      // the code. Skip these entirely so they can never enter the matcher pool.
+      const isSelfCashCodeEmail =
+        (fromEmail === 'weliletenants@gmail.com') &&
+        /^cash deposit code\b/i.test(String(subject ?? '').trim());
+      if (isSelfCashCodeEmail) {
+        if (debug) debugReport.push({ id: m.id, decision: 'skipped', reason: 'self_cash_code_notification', from: fromEmail, subject });
+        if (internalMs > newestMs) newestMs = internalMs;
+        continue;
+      }
+
       if (lastMs && internalMs && internalMs <= lastMs) {
         if (debug) debugReport.push({
           id: m.id, decision: 'skipped', reason: 'older_than_last_poll',
