@@ -1694,11 +1694,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const amt = Number(walletToPortfolioAmount);
 
     const sourceBalance = walletTransferMethod === 'wallet'
-      ? detailPartner.walletBalance
-      : proxyAgentInfo?.walletBalance ?? 0;
+      ? (walletTransferFundSource === 'float' ? detailPartner.floatBalance : detailPartner.withdrawableBalance)
+      : (walletTransferFundSource === 'float' ? (proxyAgentInfo?.float ?? 0) : (proxyAgentInfo?.withdrawable ?? proxyAgentInfo?.walletBalance ?? 0));
+    const bucketLabel = walletTransferFundSource === 'float' ? 'operational float' : 'personal deposit';
 
     if (isNaN(amt) || amt < 1000) { toast.error('Minimum: UGX 1,000'); return; }
-    if (amt > sourceBalance) { toast.error(`Only ${formatUGX(sourceBalance)} available in ${walletTransferMethod === 'wallet' ? 'partner wallet' : 'proxy agent wallet'}`); return; }
+    if (amt > sourceBalance) { toast.error(`Only ${formatUGX(sourceBalance)} available in ${walletTransferMethod === 'wallet' ? 'partner' : 'proxy agent'} ${bucketLabel}`); return; }
     if (walletToPortfolioReason.trim().length < 10) { toast.error('Reason must be at least 10 characters'); return; }
     if (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo) { toast.error('No proxy agent assigned'); return; }
 
@@ -1710,19 +1711,21 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           amount: amt,
           reason: walletToPortfolioReason.trim(),
           payment_method: walletTransferMethod,
+          fund_source: walletTransferFundSource,
           source_wallet_user_id: walletTransferMethod === 'proxy_agent' ? proxyAgentInfo?.agentId : detailPartner?.profile?.id,
         },
       });
       if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
       if (result?.error) throw new Error(result.error);
 
-      const sourceLabel = walletTransferMethod === 'wallet' ? 'partner wallet' : `${proxyAgentInfo?.agentName}'s wallet`;
+      const sourceLabel = `${walletTransferMethod === 'wallet' ? 'partner' : `${proxyAgentInfo?.agentName}'s`} ${bucketLabel}`;
       toast.success(`${formatUGX(amt)} top-up processed for ${walletToPortfolio.account_name || walletToPortfolio.portfolio_code}`, {
         description: `Deducted from ${sourceLabel}. Applied at maturity.`,
       });
       setWalletToPortfolio(null);
       setWalletToPortfolioAmount('');
       setWalletToPortfolioReason('');
+      setWalletTransferFundSource('withdrawable');
       setProxyAgentInfo(null);
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
       refreshInBackground();
