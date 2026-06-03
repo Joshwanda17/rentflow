@@ -137,6 +137,33 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Double-debit guard: skip when a withdrawal request already consumed
+        // this payout. The auto-approve flow (gmail-poll / EmailPayoutAutoMatch)
+        // stamps the email's transaction id onto withdrawal_requests.fin_ops_reference
+        // and ALREADY debits the recipient's wallet via approve-withdrawal.
+        // Charging it again here would double-debit the same payout.
+        const settledRefs = new Set<string>();
+        if (row.transaction_id) settledRefs.add(String(row.transaction_id).trim().toUpperCase());
+        if (row.gmail_message_id) settledRefs.add(`MOMO-${String(row.gmail_message_id).slice(0, 12)}`.toUpperCase());
+        if (settledRefs.size > 0) {
+          const { data: settledRows } = await supabase
+            .from('withdrawal_requests')
+            .select('id, status, fin_ops_reference')
+            .in('fin_ops_reference', Array.from(settledRefs));
+          const consumed = (settledRows ?? []).some(
+            (r: any) => !['rejected', 'cancelled', 'failed', 'expired'].includes(String(r.status)),
+          );
+          if (consumed) {
+            report.push({
+              ...base,
+              outcome: 'skipped_withdrawal_settled',
+              detail: 'Payout already settled a withdrawal request — wallet already debited by approve-withdrawal.',
+            });
+            skippedCount++;
+            continue;
+          }
+        }
+
         // Resolve the recipient from `counterparty` (phone for MoMo, name for bank).
         const cp = (row.counterparty ?? '').toString().trim();
         if (!cp) {
