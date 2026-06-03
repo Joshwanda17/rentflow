@@ -3236,7 +3236,7 @@ export function EmailTransactionsPanel() {
                       {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
                         <Badge
                           variant="outline"
-                          className="text-[10px] gap-1 bg-orange-500/15 text-orange-700 border-orange-500/40"
+                          className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
                           title={[
                             'Not Matched Yet — this deposit has not been credited to any wallet.',
                             `MoMo TID: ${hasMomoTid ? normTidForRow : 'missing'}`,
@@ -3246,7 +3246,20 @@ export function EmailTransactionsPanel() {
                           ].join('\n')}
                         >
                           <AlertTriangle className="h-3 w-3" />
-                          Not Matched Yet
+                          Needs Routing
+                        </Badge>
+                      )}
+                      {/* Same clear status for incoming deposits that never even
+                          parsed: still uncredited and unrouted, so they need ops
+                          attention just as much. */}
+                      {!r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
+                          title="Needs Routing — this incoming deposit email has not been credited to any wallet. Open it to route the money to the right user."
+                        >
+                          <AlertTriangle className="h-3 w-3" />
+                          Needs Routing
                         </Badge>
                       )}
                     </div>
