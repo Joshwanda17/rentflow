@@ -257,6 +257,36 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         />
       </div>
 
+      {/* ── AGENT ADVANCES ── */}
+      {(receivables?.advancesPrincipal ?? 0) > 0 && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-semibold text-sm flex items-center gap-2">
+              <HandCoins className="h-4 w-4 text-purple-600" /> Agent Advances
+            </p>
+            <span className="text-xs text-muted-foreground">
+              {Object.entries(receivables?.advanceStatusCounts ?? {})
+                .map(([s, c]) => `${c} ${s}`)
+                .join(' · ')}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="text-[11px] text-muted-foreground">Issued</p>
+              <p className="text-sm font-semibold">{fmtShort(receivables?.advancesPrincipal ?? 0)}</p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">Recovered</p>
+              <p className="text-sm font-semibold text-emerald-600">{fmtShort(receivables?.advancesRecovered ?? 0)}</p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">Outstanding</p>
+              <p className="text-sm font-semibold text-amber-600">{fmtShort(receivables?.advancesOutstandingAll ?? 0)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── TODAY'S MOVEMENT ── */}
       <Card className="rounded-2xl overflow-hidden">
         <CardContent className="p-0">
