@@ -359,6 +359,25 @@ Deno.serve(async (req) => {
           sms_error: null,
         });
 
+        // Audit: user skipped (insufficient balance) → managed proxy debited.
+        if (viaProxy && target.proxyForUserId) {
+          await logProxyFallbackAudit(supabase, {
+            actorId: callerId,
+            source: 'backlog_sweep',
+            gmailTransactionId: row.id ?? null,
+            gmailMessageId: row.gmail_message_id ?? null,
+            emailTid: row.transaction_id ?? null,
+            skippedUserId: target.proxyForUserId,
+            skippedUserName: target.proxyForName,
+            proxyUserId: debitTargetId,
+            proxyUserName: debitName,
+            requestedAmount: base.amount,
+            debitedAmount: debitAmt,
+            isPartial,
+            ledgerReferenceId: referenceId,
+          });
+        }
+
         report.push({
           ...base,
           outcome: isPartial ? 'partial' : 'debited',
