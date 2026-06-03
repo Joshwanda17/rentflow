@@ -4108,16 +4108,6 @@ function friendlyPollError(raw: string | null | undefined): { title: string; des
 const RECENT_LEGEND_KEY = 'gmail_recent_legend_open_v1';
 
 /**
- * Plain-language legend for the Recent emails list. Explains every coloured
- * badge and action button a reviewer sees on a row, so someone new can read
- * the list without guessing. Pure presentation; remembers open/closed state.
- */
-function RecentEmailsLegend() {
-  // (legend component continues below)
-  return _RecentEmailsLegendBody();
-}
-
-/**
  * Small wrapper that shows a plain-language explanation for a Recent emails
  * badge on hover OR keyboard focus. The trigger is a focusable span so the
  * tooltip is reachable without a mouse; the badge inside keeps its own styles.
@@ -4153,7 +4143,12 @@ function BadgeTip({
   );
 }
 
-function _RecentEmailsLegendBody() {
+/**
+ * Plain-language legend for the Recent emails list. Explains every coloured
+ * badge and action button a reviewer sees on a row, so someone new can read
+ * the list without guessing. Pure presentation; remembers open/closed state.
+ */
+function RecentEmailsLegend() {
   const [open, setOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     try { return localStorage.getItem(RECENT_LEGEND_KEY) === '1'; } catch { return false; }
