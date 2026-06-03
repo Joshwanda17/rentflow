@@ -77,6 +77,12 @@ Deno.serve(async (req) => {
     // Validate payment method (default to wallet for backward compat)
     let method = payment_method && VALID_METHODS.includes(payment_method) ? payment_method : "wallet";
 
+    // Which wallet bucket to deploy from: "withdrawable" (personal deposit, default)
+    // or "float" (operational / company float). Routed on the wallet leg via
+    // recipient_type so the correct bucket is decremented.
+    const fundSource: "withdrawable" | "float" =
+      body.fund_source === "float" ? "float" : "withdrawable";
+
     // Fetch portfolio
     const { data: portfolio, error: pErr } = await supabase
       .from("investor_portfolios")
