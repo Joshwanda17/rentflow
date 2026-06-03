@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,6 +28,7 @@ import { downloadCsv } from '@/lib/csvExport';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid, Legend, Brush } from 'recharts';
 import { DebitBucketAuditSearch } from './DebitBucketAuditSearch';
 import { CashDepositCodesPanel } from './CashDepositCodesPanel';
+import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
 
 interface GmailTx {
   id: string;
@@ -606,6 +607,12 @@ export function EmailTransactionsPanel() {
   // see the recipient's current wallet position at a glance before/after
   // routing or reversing a transaction.
   const [userBalances, setUserBalances] = useState<Record<string, number>>({});
+  // Managed proxy agent resolved for each possible-user (partner) id, when one
+  // exists (active + approved + is_managed_account assignment). Lets the
+  // possible-recipient list show whose proxy wallet would be charged when the
+  // user can't cover the payout, and opens a per-user proxy debit breakdown.
+  interface ManagedProxy { agentId: string; agentName: string | null }
+  const [userProxies, setUserProxies] = useState<Record<string, ManagedProxy>>({});
   // Latest 3 wallet ledger entries per possible-user, shown in the tooltip
   // so Financial Ops can see recent activity at a glance before routing.
   interface RecentTx {
@@ -1268,6 +1275,9 @@ export function EmailTransactionsPanel() {
     for (const list of Object.values(routingHistory)) {
       for (const h of list) if (h.target_user_id) ids.add(h.target_user_id);
     }
+    // Also fetch wallet positions for any resolved managed proxy agents so the
+    // possible-recipient list and breakdown can show the proxy wallet balance.
+    for (const p of Object.values(userProxies)) if (p.agentId) ids.add(p.agentId);
     const missing = Array.from(ids).filter((id) => userBalances[id] === undefined);
     if (missing.length === 0) return;
     let cancelled = false;
@@ -1315,7 +1325,50 @@ export function EmailTransactionsPanel() {
       });
     })();
     return () => { cancelled = true; };
-  }, [userMatches, routingHistory, userBalances]);
+  }, [userMatches, routingHistory, userBalances, userProxies]);
+
+  // Resolve the managed proxy agent (if any) for every possible-user candidate.
+  // Mirrors the server-side `resolveManagedProxy`: an active, approved,
+  // is_managed_account assignment where the candidate is the beneficiary.
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const list of Object.values(userMatches)) {
+      for (const u of list) ids.add(u.id);
+    }
+    const missing = Array.from(ids).filter((id) => userProxies[id] === undefined);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const { data: assigns, error } = await (supabase.from('proxy_agent_assignments') as any)
+        .select('beneficiary_id, agent_id')
+        .in('beneficiary_id', missing)
+        .eq('is_active', true)
+        .eq('is_managed_account', true)
+        .eq('approval_status', 'approved');
+      if (cancelled || error || !assigns?.length) return;
+      const agentIds = Array.from(new Set(assigns.map((a: any) => a.agent_id).filter(Boolean)));
+      const nameById: Record<string, string | null> = {};
+      if (agentIds.length) {
+        const { data: profs } = await (supabase.from('profiles') as any)
+          .select('id, full_name')
+          .in('id', agentIds);
+        for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null }>) {
+          nameById[p.id] = p.full_name ?? null;
+        }
+      }
+      if (cancelled) return;
+      setUserProxies((cur) => {
+        const next = { ...cur };
+        for (const a of assigns as Array<{ beneficiary_id: string; agent_id: string }>) {
+          if (a.beneficiary_id && a.agent_id && next[a.beneficiary_id] === undefined) {
+            next[a.beneficiary_id] = { agentId: a.agent_id, agentName: nameById[a.agent_id] ?? null };
+          }
+        }
+        return next;
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [userMatches, userProxies]);
 
   // Reverse a single routing-history entry. Posts the opposite leg through
   // `cfo-direct-credit` against the same target user/bucket, then writes a
@@ -3945,7 +3998,8 @@ export function EmailTransactionsPanel() {
                                 ? 'bg-primary text-primary-foreground border-primary ring-1 ring-primary/30'
                                 : 'bg-primary/10 text-primary border-primary/30';
                             return (
-                              <Tooltip key={u.id}>
+                              <Fragment key={u.id}>
+                              <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Badge
                                     variant="outline"
@@ -4041,6 +4095,30 @@ export function EmailTransactionsPanel() {
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
+                              {(r.direction === 'out' || r.direction === 'charge') && userProxies[u.id] && (
+                                <ProxyDebitBreakdownDialog
+                                  partner={{ id: u.id, name: u.full_name }}
+                                  proxy={userProxies[u.id]}
+                                  onChanged={() => setUserBalances({})}
+                                >
+                                  <Badge
+                                    variant="outline"
+                                    role="button"
+                                    title={`See proxy-wallet debits charged for ${u.full_name}`}
+                                    className="text-[10px] gap-1 cursor-pointer border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+                                  >
+                                    <Users className="h-2.5 w-2.5" />
+                                    <span className="font-medium">proxy: {userProxies[u.id].agentName || 'agent'}</span>
+                                    <span className="font-mono tabular-nums opacity-90 border-l border-current/30 pl-1 ml-0.5 inline-flex items-center gap-0.5">
+                                      <Wallet className="h-2.5 w-2.5" />
+                                      {userBalances[userProxies[u.id].agentId] === undefined
+                                        ? '…'
+                                        : Math.round(userBalances[userProxies[u.id].agentId]).toLocaleString()}
+                                    </span>
+                                  </Badge>
+                                </ProxyDebitBreakdownDialog>
+                              )}
+                              </Fragment>
                             );
                           })}
                         </TooltipProvider>
