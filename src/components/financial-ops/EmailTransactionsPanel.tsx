@@ -2950,7 +2950,7 @@ export function EmailTransactionsPanel() {
           <div className="p-10 text-center text-sm text-muted-foreground space-y-2">
             <Mail className="h-8 w-8 mx-auto opacity-30" />
             <p>No transaction emails captured yet.</p>
-            <p className="text-xs">Click <strong>Poll now</strong> to fetch from Gmail, or wait for the next minute.</p>
+            <p className="text-xs">Click <strong>Poll now</strong> to check Gmail for new emails, or just wait a minute — it checks on its own.</p>
           </div>
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto">
