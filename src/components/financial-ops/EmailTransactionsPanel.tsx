@@ -3374,21 +3374,24 @@ export function EmailTransactionsPanel() {
                           transaction reference (TID) when that's what matched it
                           so reviewers trust the auto-detection. */}
                       {isCredited && isFullyCredited && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] gap-1 bg-emerald-600/15 text-emerald-700 border-emerald-600/50 font-semibold"
-                          title={[
+                        <BadgeTip
+                          plain="This money is settled — it already reached a wallet. Do not send it again."
+                          details={[
                             'Already Credited — No Routing Needed',
                             matchedByTid && matchedTid
                               ? `Matched by transaction reference (TID): ${matchedTid}`
                               : 'Matched to a credited deposit for this email.',
-                            'This money already landed in a wallet — do not route it again.',
                           ].filter(Boolean).join('\n')}
                         >
-                          <ShieldCheck className="h-3 w-3" />
-                          Already in a wallet — nothing to do
-                          {matchedByTid && <span className="opacity-75">· via TID</span>}
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-1 bg-emerald-600/15 text-emerald-700 border-emerald-600/50 font-semibold"
+                          >
+                            <ShieldCheck className="h-3 w-3" />
+                            Already in a wallet — nothing to do
+                            {matchedByTid && <span className="opacity-75">· via TID</span>}
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {/* Incoming deposit whose money never landed in any
                           wallet (no credit + not routed). Flag it clearly and
