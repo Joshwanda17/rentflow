@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,10 @@ const QUICK_AMOUNTS = [10000, 50000, 100000, 250000];
 
 type Step = 'form' | 'code' | 'success';
 
+// Depositor must enter the receipt code within this window or the deposit is
+// auto-rejected by the backend expiry sweep. Mirror it here for the countdown.
+const CODE_TTL_SECONDS = 120;
+
 /**
  * Cash-with-Financial-Ops deposit secured by a receipt code.
  *  1. The depositor enters the amount.
@@ -53,9 +57,24 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   const [creditedAmount, setCreditedAmount] = useState(0);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [locked, setLocked] = useState(false);
+  // Seconds remaining before the receipt code expires (null = not started).
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   // Confirms an intentional cancel of the blocking code-entry screen.
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [copiedExample, setCopiedExample] = useState<string | null>(null);
+
+  // Countdown for the 2-minute code window. When it hits zero, lock the input
+  // and surface the auto-rejection (the backend sweep rejects it server-side).
+  useEffect(() => {
+    if (step !== 'code' || secondsLeft === null || locked) return;
+    if (secondsLeft <= 0) {
+      setLocked(true);
+      setCodeError('This code expired. The deposit was auto-rejected — start a new deposit.');
+      return;
+    }
+    const id = setTimeout(() => setSecondsLeft((s) => (s === null ? s : s - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [step, secondsLeft, locked]);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -79,7 +98,7 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   const reset = () => {
     setStep('form'); setAmount(''); setLoading(false); setDepositId(null);
     setCode(''); setCodeError(''); setCreditedAmount(0); setAttemptsLeft(null); setLocked(false);
-    setConfirmCancel(false);
+    setConfirmCancel(false); setSecondsLeft(null);
   };
 
   const close = () => { reset(); onOpenChange(false); };
@@ -108,6 +127,7 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
       setCodeError('');
       setLocked(false);
       setAttemptsLeft(null);
+      setSecondsLeft(CODE_TTL_SECONDS);
       setStep('code');
       toast.success('Request sent to Financial Ops. They will give you a code after receiving your cash.');
     } catch (e) {
@@ -233,6 +253,11 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Receipt code</Label>
+              {!locked && secondsLeft !== null && (
+                <p className={`text-xs font-medium text-center tabular-nums ${secondsLeft <= 30 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  Enter the code within {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')} or the deposit is auto-rejected.
+                </p>
+              )}
               <Input
                 placeholder="e.g. 1234"
                 value={code}

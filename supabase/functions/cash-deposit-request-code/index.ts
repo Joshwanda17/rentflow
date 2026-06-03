@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
       user_id: user.id,
       event_type: "code_issued",
       amount,
-      detail: "Receipt code generated and emailed to the cash verifier (24h expiry).",
+      detail: "Receipt code generated and emailed to the cash verifier (2-minute expiry).",
       metadata: {
         emailed_to: VERIFIER_EMAIL,
         max_attempts: (verRow as any)?.max_attempts ?? null,
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
       `Started:       ${new Date().toLocaleString("en-UG")}`,
       "",
       "Only read this code back AFTER you have received the matching cash.",
-      "Entering the code instantly credits the user's wallet. Code expires in 24h.",
+      "Entering the code instantly credits the user's wallet. Code expires in 2 minutes.",
     ].filter(Boolean).join("\n");
 
     try {
