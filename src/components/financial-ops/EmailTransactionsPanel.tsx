@@ -607,6 +607,12 @@ export function EmailTransactionsPanel() {
   // see the recipient's current wallet position at a glance before/after
   // routing or reversing a transaction.
   const [userBalances, setUserBalances] = useState<Record<string, number>>({});
+  // Managed proxy agent resolved for each possible-user (partner) id, when one
+  // exists (active + approved + is_managed_account assignment). Lets the
+  // possible-recipient list show whose proxy wallet would be charged when the
+  // user can't cover the payout, and opens a per-user proxy debit breakdown.
+  interface ManagedProxy { agentId: string; agentName: string | null }
+  const [userProxies, setUserProxies] = useState<Record<string, ManagedProxy>>({});
   // Latest 3 wallet ledger entries per possible-user, shown in the tooltip
   // so Financial Ops can see recent activity at a glance before routing.
   interface RecentTx {
