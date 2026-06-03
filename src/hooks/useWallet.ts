@@ -166,9 +166,10 @@ export function useWallet() {
       return { error: new Error(transferCheck.errors?.[0] || 'Validation failed') };
     }
 
-    // Optional balance pre-check (fail-fast)
+    // Optional balance pre-check (fail-fast) — gate on transferable
+    // withdrawable only; float is company money and never transferable.
     if (wallet) {
-      const balanceCheck = checkBalance(wallet.balance, amount);
+      const balanceCheck = checkBalance(wallet.withdrawable, amount);
       if (!balanceCheck.shouldProceed) {
         return { error: new Error(balanceCheck.errors?.[0] || 'Insufficient balance') };
       }
