@@ -23,6 +23,7 @@ import { RejectedFieldDepositsList } from './RejectedFieldDepositsList';
 import { EmailAutoMatchPanel } from './EmailAutoMatchPanel';
 import { EmailNeedsReviewPanel } from './EmailNeedsReviewPanel';
 import { EmailMatchAuditLogPanel } from './EmailMatchAuditLogPanel';
+import { DepositDecisionAuditPanel } from './DepositDecisionAuditPanel';
 import { supabase } from '@/integrations/supabase/client';
 import type { DepositChannel } from '@/lib/fieldDepositBatches';
 import { cn } from '@/lib/utils';
@@ -498,6 +499,19 @@ export function VerifyDepositsHub() {
               subtitle="Every match, cancellation and skip is recorded here."
             />
             <EmailMatchAuditLogPanel />
+          </section>
+
+          <section
+            id="sec-decision-audit"
+            aria-label="Deposit decision audit trail"
+            className="scroll-mt-24"
+          >
+            <SectionHeader
+              icon={ScrollText}
+              title="Decision audit trail"
+              subtitle="Every matcher/poller decision and approval rejection, with the exact reason per deposit attempt."
+            />
+            <DepositDecisionAuditPanel />
           </section>
         </TabsContent>
 

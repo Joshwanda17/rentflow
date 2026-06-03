@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { logDepositDecision } from "../_shared/depositDecisionAudit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,6 +80,11 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
+    // Admin client is created up-front so the deposit-decision audit trail can
+    // record EVERY rejection/block — including the early validation returns
+    // below — not just the ones that happen after the main flow starts.
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
     const body = await req.json().catch(() => ({}));
     const { deposit_request_id, action, rejection_reason, bulk_ids, access_token, auto_approved, auto_match_method, system_auto_credit } = body as {
       deposit_request_id?: string;
@@ -111,6 +117,7 @@ Deno.serve(async (req) => {
       !!system_auto_credit && authHeader === `Bearer ${supabaseServiceKey}`;
 
     let user: { id: string } | null = null;
+    let actorEmail: string | null = null;
     if (!isSystemAutoCredit) {
       const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } },
@@ -123,6 +130,9 @@ Deno.serve(async (req) => {
         );
       }
       user = { id: authUser.id };
+      actorEmail = authUser.email ?? null;
+    } else {
+      actorEmail = "system_auto_credit";
     }
 
     if (!action || !["approve", "reject", "reopen"].includes(action)) {
@@ -163,6 +173,14 @@ Deno.serve(async (req) => {
     // bypass it. The reason is also stamped onto deposit_requests.rejection_reason
     // and broadcast in the user notification — never accept a blank.
     if (action === 'reject' && (!safeRejectionReason || safeRejectionReason.length < 10)) {
+      await logDepositDecision(supabaseAdmin, {
+        source: "approval",
+        decision: "blocked",
+        reason: "rejection_reason_required",
+        actor_id: user?.id ?? null,
+        actor_email: actorEmail,
+        metadata: { ids: idsToProcess, action },
+      });
       return new Response(
         JSON.stringify({
           error: 'rejection_reason_required',
@@ -171,8 +189,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // ── Reopen flow ──────────────────────────────────────────────────
     // Financial Ops can put a previously-rejected user deposit back into
@@ -298,6 +314,23 @@ Deno.serve(async (req) => {
         );
         const unverified = cashDeposits.filter((d) => !verifiedSet.has(d.id));
         if (unverified.length > 0) {
+          for (const d of unverified) {
+            await logDepositDecision(supabaseAdmin, {
+              source: "approval",
+              decision: "blocked",
+              reason: "cash_code_required",
+              deposit_request_id: d.id,
+              amount: Number(d.amount),
+              actor_id: user?.id ?? null,
+              actor_email: actorEmail,
+              metadata: {
+                provider: d.provider ?? null,
+                auto_approved: !!auto_approved,
+                system_auto_credit: isSystemAutoCredit,
+                auto_match_method: auto_match_method ?? null,
+              },
+            });
+          }
           return new Response(
             JSON.stringify({
               error: "cash_code_required",
@@ -418,6 +451,18 @@ Deno.serve(async (req) => {
           if (Number(gmailMatch.amount) !== Number(dep.amount)) { allVerified = false; break; }
         }
         if (!allVerified) {
+          for (const d of depositRequests) {
+            await logDepositDecision(supabaseAdmin, {
+              source: "approval",
+              decision: "blocked",
+              reason: "auto_approve_unverified",
+              deposit_request_id: d.id,
+              amount: Number(d.amount),
+              actor_id: user?.id ?? null,
+              actor_email: actorEmail,
+              metadata: { provider: d.provider ?? null, transaction_id: d.transaction_id ?? null },
+            });
+          }
           return new Response(
             JSON.stringify({
               error: 'auto_approve_unverified',
@@ -431,6 +476,18 @@ Deno.serve(async (req) => {
       } else {
       const unauthorized = depositRequests.filter(d => d.agent_id !== user.id);
       if (unauthorized.length > 0) {
+        for (const d of unauthorized) {
+          await logDepositDecision(supabaseAdmin, {
+            source: "approval",
+            decision: "blocked",
+            reason: "not_authorized",
+            deposit_request_id: d.id,
+            amount: Number(d.amount),
+            actor_id: user?.id ?? null,
+            actor_email: actorEmail,
+            metadata: { action },
+          });
+        }
         return new Response(
           JSON.stringify({ error: "Not authorized to process some requests" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -1409,6 +1466,36 @@ Deno.serve(async (req) => {
       if (r.status !== 'error') {
         logSystemEvent(supabaseAdmin, action === 'approve' ? 'deposit_approved' : 'deposit_rejected', user.id, 'deposit_requests', r.id, { amount: r.amount, user_id: r.user_id });
       }
+    }
+
+    // Deposit-decision audit trail — record the final outcome of every
+    // processed deposit attempt (approved / rejected / failed) alongside
+    // the block/reject reasons already logged above.
+    for (const r of results) {
+      await logDepositDecision(supabaseAdmin, {
+        source: "approval",
+        decision: r.status === "error" ? "failed" : r.status,
+        reason:
+          r.status === "rejected"
+            ? (safeRejectionReason ?? "rejected")
+            : r.status === "error"
+              ? "processing_error"
+              : null,
+        deposit_request_id: r.id,
+        amount: Number(r.amount),
+        actor_id: user.id,
+        actor_email: actorEmail,
+        metadata: {
+          action,
+          target_user_id: r.user_id,
+          auto_approved: !!auto_approved,
+          system_auto_credit: isSystemAutoCredit,
+          auto_match_method: auto_match_method ?? null,
+          repayment_applied: (r as any).repayment_applied ?? null,
+          debt_cleared: (r as any).debt_cleared ?? null,
+          days_prepaid: (r as any).days_prepaid ?? null,
+        },
+      });
     }
 
 

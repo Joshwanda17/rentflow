@@ -5615,6 +5615,48 @@ export type Database = {
           },
         ]
       }
+      deposit_decision_audit: {
+        Row: {
+          actor_email: string | null
+          actor_id: string | null
+          amount: number | null
+          created_at: string
+          decision: string
+          deposit_request_id: string | null
+          gmail_transaction_id: string | null
+          id: string
+          metadata: Json
+          reason: string | null
+          source: string
+        }
+        Insert: {
+          actor_email?: string | null
+          actor_id?: string | null
+          amount?: number | null
+          created_at?: string
+          decision: string
+          deposit_request_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          source: string
+        }
+        Update: {
+          actor_email?: string | null
+          actor_id?: string | null
+          amount?: number | null
+          created_at?: string
+          decision?: string
+          deposit_request_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       deposit_guardrail_alert_config: {
         Row: {
           cooldown_minutes: number

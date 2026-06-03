@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { logDepositDecision } from '../_shared/depositDecisionAudit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -529,6 +530,12 @@ Deno.serve(async (req) => {
         /^cash deposit code\b/i.test(String(subject ?? '').trim());
       if (isSelfCashCodeEmail) {
         if (debug) debugReport.push({ id: m.id, decision: 'skipped', reason: 'self_cash_code_notification', from: fromEmail, subject });
+        await logDepositDecision(supabase, {
+          source: 'poller',
+          decision: 'skipped',
+          reason: 'self_cash_code_notification',
+          metadata: { gmail_message_id: m.id, from: fromEmail, subject },
+        });
         if (internalMs > newestMs) newestMs = internalMs;
         continue;
       }
@@ -586,6 +593,19 @@ Deno.serve(async (req) => {
               internal_date: internalMs ? new Date(internalMs).toISOString() : null,
             });
           }
+          await logDepositDecision(supabase, {
+            source: 'poller',
+            decision: 'skipped',
+            reason,
+            amount: parsed.amount ?? null,
+            metadata: {
+              gmail_message_id: m.id,
+              from: fromEmail,
+              subject,
+              matched_transaction_id: (dup as any).transaction_id ?? null,
+              matched_row_id: (dup as any).id,
+            },
+          });
           continue;
         }
       }
@@ -645,6 +665,22 @@ Deno.serve(async (req) => {
       if (!error) inserted++;
       else if ((error as any)?.code === '23505') {
         // Race: another poll inserted this row between our check and insert. Safe to ignore.
+      }
+      if (!error) {
+        await logDepositDecision(supabase, {
+          source: 'poller',
+          decision: isParsed ? 'ingested_parsed' : 'ingested_unparsed',
+          reason: isParsed ? null : (reasons.join(',') || 'unparsed'),
+          amount: parsed.amount ?? null,
+          metadata: {
+            gmail_message_id: m.id,
+            from: fromEmail,
+            subject,
+            transaction_id: parsed.transaction_id ?? null,
+            direction: parsed.direction ?? null,
+            channel: parsed.channel ?? null,
+          },
+        });
       }
 
       // ── Auto-credit operational float ───────────────────────────────
@@ -1129,12 +1165,28 @@ async function _tryAutoCreditOperationalFloat(
           console.log(`[gmail-poll] MTN name-fallback resolved "${rawName}" (${nameMatches.length} matches) via ${tiebreaker} → user=${winner.id}`);
         } else {
           console.log(`[gmail-poll] MTN name-fallback ambiguous for "${rawName}" (${nameMatches.length} matches, no clear winner) — skipping auto-credit`);
+          await logDepositDecision(supabase, {
+            source: 'matcher',
+            decision: 'skipped',
+            reason: 'name_match_ambiguous',
+            amount: parsed.amount ?? null,
+            metadata: { gmail_message_id: gmailMessageId, raw_name: rawName, match_count: nameMatches.length },
+          });
         }
       }
     }
   }
 
-  if (!profile?.id) return;
+  if (!profile?.id) {
+    await logDepositDecision(supabase, {
+      source: 'matcher',
+      decision: 'skipped',
+      reason: 'no_user_match',
+      amount: parsed.amount ?? null,
+      metadata: { gmail_message_id: gmailMessageId, parsed_tid: parsed.transaction_id ?? null },
+    });
+    return;
+  }
 
   // Find the gmail_transactions row we just wrote so we can link it.
   const { data: gmailRow } = await supabase
@@ -1173,6 +1225,14 @@ async function _tryAutoCreditOperationalFloat(
           `[gmail-poll] late-link skipped: amount mismatch dep=${existingDep.id} ` +
           `dep_amount=${existingDep.amount} email_amount=${parsed.amount}`,
         );
+        await logDepositDecision(supabase, {
+          source: 'matcher',
+          decision: 'skipped',
+          reason: 'late_link_amount_mismatch',
+          deposit_request_id: existingDep.id,
+          amount: parsed.amount ?? null,
+          metadata: { gmail_message_id: gmailMessageId, dep_amount: Number(existingDep.amount), email_amount: Number(parsed.amount) },
+        });
         return;
       }
       // Link gmail row → existing pending deposit so approve-deposit re-verification passes.
@@ -1224,14 +1284,39 @@ async function _tryAutoCreditOperationalFloat(
         if (!res.ok) {
           const txt = await res.text();
           console.warn('[gmail-poll] late-link approve-deposit non-200:', res.status, txt.slice(0, 300));
+          await logDepositDecision(supabase, {
+            source: 'matcher',
+            decision: 'failed',
+            reason: 'late_link_approve_non_200',
+            deposit_request_id: existingDep.id,
+            amount: parsed.amount ?? null,
+            metadata: { gmail_message_id: gmailMessageId, status: res.status, body: txt.slice(0, 300), auto_match_method: 'late_email_tid_match' },
+          });
         } else {
           console.log(
             `[gmail-poll] late-link auto-credited existing pending deposit user=${profile.id} ` +
             `dep=${existingDep.id} amt=${parsed.amount} tid=${parsed.transaction_id}`,
           );
+          await logDepositDecision(supabase, {
+            source: 'matcher',
+            decision: 'auto_credited',
+            reason: 'late_email_tid_match',
+            deposit_request_id: existingDep.id,
+            amount: parsed.amount ?? null,
+            actor_id: profile.id,
+            metadata: { gmail_message_id: gmailMessageId, tid: parsed.transaction_id ?? null },
+          });
         }
       } catch (e) {
         console.warn('[gmail-poll] late-link approve-deposit invoke failed:', e);
+        await logDepositDecision(supabase, {
+          source: 'matcher',
+          decision: 'failed',
+          reason: 'late_link_approve_invoke_error',
+          deposit_request_id: existingDep.id,
+          amount: parsed.amount ?? null,
+          metadata: { gmail_message_id: gmailMessageId, error: String(e) },
+        });
       }
       return;
     }
@@ -1277,6 +1362,14 @@ async function _tryAutoCreditOperationalFloat(
     .single();
   if (depErr || !newDep?.id) {
     console.warn('[gmail-poll] auto-credit: could not insert deposit_request', depErr);
+    await logDepositDecision(supabase, {
+      source: 'matcher',
+      decision: 'failed',
+      reason: 'deposit_insert_failed',
+      amount: parsed.amount ?? null,
+      actor_id: profile.id,
+      metadata: { gmail_message_id: gmailMessageId, error: depErr?.message ?? null, match_method: matchMethod },
+    });
     return;
   }
 
@@ -1308,12 +1401,39 @@ async function _tryAutoCreditOperationalFloat(
     if (!res.ok) {
       const txt = await res.text();
       console.warn('[gmail-poll] approve-deposit non-200:', res.status, txt.slice(0, 300));
+      await logDepositDecision(supabase, {
+        source: 'matcher',
+        decision: 'failed',
+        reason: 'approve_non_200',
+        deposit_request_id: newDep.id,
+        amount: parsed.amount ?? null,
+        actor_id: profile.id,
+        metadata: { gmail_message_id: gmailMessageId, status: res.status, body: txt.slice(0, 300), match_method: matchMethod },
+      });
       return;
     } else {
       console.log(`[gmail-poll] auto-credited float for user=${profile.id} dep=${newDep.id} amt=${parsed.amount}`);
+      await logDepositDecision(supabase, {
+        source: 'matcher',
+        decision: 'auto_credited',
+        reason: 'gmail_phone+tid+amount',
+        deposit_request_id: newDep.id,
+        amount: parsed.amount ?? null,
+        actor_id: profile.id,
+        metadata: { gmail_message_id: gmailMessageId, match_method: matchMethod, provider },
+      });
     }
   } catch (e) {
     console.warn('[gmail-poll] approve-deposit invoke failed:', e);
+    await logDepositDecision(supabase, {
+      source: 'matcher',
+      decision: 'failed',
+      reason: 'approve_invoke_error',
+      deposit_request_id: newDep.id,
+      amount: parsed.amount ?? null,
+      actor_id: profile.id,
+      metadata: { gmail_message_id: gmailMessageId, error: String(e) },
+    });
     return;
   }
 
@@ -1615,14 +1735,41 @@ async function sweepLinkedPendingDeposits(
         console.warn(
           `[gmail-poll] sweep approve-deposit non-200 dep=${(dep as any).id} status=${res.status} body=${txt.slice(0, 200)}`,
         );
+        await logDepositDecision(supabase, {
+          source: 'poller',
+          decision: 'failed',
+          reason: 'sweep_approve_non_200',
+          deposit_request_id: (dep as any).id,
+          amount: Number((dep as any).amount),
+          actor_id: (dep as any).user_id,
+          metadata: { status: res.status, body: txt.slice(0, 300), auto_match_method: 'linked_pending_sweep' },
+        });
       } else {
         console.log(
           `[gmail-poll] sweep auto-credited linked-pending deposit dep=${(dep as any).id} ` +
           `amt=${(dep as any).amount} user=${(dep as any).user_id}`,
         );
+        await logDepositDecision(supabase, {
+          source: 'poller',
+          decision: 'auto_credited',
+          reason: 'linked_pending_sweep',
+          deposit_request_id: (dep as any).id,
+          amount: Number((dep as any).amount),
+          actor_id: (dep as any).user_id,
+          metadata: { auto_match_method: 'linked_pending_sweep' },
+        });
       }
     } catch (e) {
       console.warn('[gmail-poll] sweep approve-deposit invoke failed:', e);
+      await logDepositDecision(supabase, {
+        source: 'poller',
+        decision: 'failed',
+        reason: 'sweep_approve_invoke_error',
+        deposit_request_id: (dep as any).id,
+        amount: Number((dep as any).amount),
+        actor_id: (dep as any).user_id,
+        metadata: { error: String(e) },
+      });
     }
   }
 }
