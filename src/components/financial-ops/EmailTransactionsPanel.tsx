@@ -2045,6 +2045,8 @@ export function EmailTransactionsPanel() {
 
       <DebitBucketAuditSearch />
 
+      <CashDepositCodesPanel />
+
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-3">
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <Button onClick={pollNow} disabled={polling} className="gap-2 flex-1 sm:flex-none min-w-[120px]">
