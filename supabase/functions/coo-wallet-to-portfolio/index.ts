@@ -342,6 +342,7 @@ Deno.serve(async (req) => {
         amount: topupAmount,
         current_capital: Number(portfolio.investment_amount),
         payment_method: method,
+        fund_source: fundSource,
         wallet_balance_before: currentBalance,
         wallet_balance_after: currentBalance - topupAmount,
         reason: safeReason,
