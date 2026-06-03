@@ -964,7 +964,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
             <h3 className="text-[11px] sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">My Tenants</h3>
             <AgentTenantInlineList
-              onOpenTenantSheet={() => setTenantsSheetOpen(true)}
+              onOpenTenantSheet={(tenantId) => { setTenantProfileId(tenantId); setTenantsSheetOpen(true); }}
               onAddTenant={() => setRentRequestOpen(true)}
             />
           </div>
