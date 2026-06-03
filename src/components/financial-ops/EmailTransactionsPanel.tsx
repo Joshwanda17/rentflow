@@ -3955,7 +3955,7 @@ function StatCard({
 }) {
   // Controlled open state so the info tooltip is fully keyboard-operable:
   // Enter/Space toggles it, Escape closes it, focus opens it, blur/pointer-leave closes it.
-  const [tipOpen, setTipOpen] = React.useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
   return (
     <div className="rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30">
       <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
