@@ -1471,6 +1471,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       filterRoiMode !== 'all' ||
       filterContact !== 'all' ||
       filterWallet !== 'all' ||
+      filterProspect !== 'all' ||
       !!payoutDateFrom ||
       !!payoutDateTo;
     if (!filterActive) {
@@ -1484,7 +1485,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const allIds: string[] = [];
         let p = 0;
         while (p < 200) {
-          const { ids } = await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
+          const { ids } = filterProspect === 'prospects_only'
+            ? await fetchVerifiedFundedProspectIds(p, PAGE_SIZE, debouncedSearch)
+            : await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
           if (ids.length === 0) break;
           allIds.push(...ids);
           if (ids.length < PAGE_SIZE) break;
@@ -1501,7 +1504,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo, debouncedSearch, buildRowsForIds]);
+  }, [filterStatus, filterRoiMode, filterContact, filterWallet, filterProspect, payoutDateFrom, payoutDateTo, debouncedSearch, buildRowsForIds]);
 
   /* ─── Filtered / Sorted (local filters on current page, search is server-side) ─── */
   const processed = useMemo(() => {
