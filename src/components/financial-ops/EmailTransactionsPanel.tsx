@@ -2546,6 +2546,24 @@ export function EmailTransactionsPanel() {
                     Reset zoom
                   </button>
                 )}
+                <div className={`flex items-center gap-1.5 ${isZoomed ? '' : 'ml-auto'}`}>
+                  <button
+                    type="button"
+                    onClick={() => exportZoomWindowCsv({ days: windowDays, totalIn: winIn, totalOut: winOut, net: winNet, zoomed: isZoomed })}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                    title="Export this date-range summary to CSV"
+                  >
+                    <FileDown className="h-3 w-3" /> CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => exportZoomWindowPdf({ days: windowDays, totalIn: winIn, totalOut: winOut, net: winNet, zoomed: isZoomed })}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                    title="Export this date-range summary to PDF"
+                  >
+                    <FileText className="h-3 w-3" /> PDF
+                  </button>
+                </div>
               </div>
             );
           })()}
@@ -5060,6 +5078,80 @@ type ExportPayload = {
   netAmount: number;
   channelBreakdown: ChannelBreakdownRow[];
 };
+
+type ZoomWindowDay = { date: string; in: number; out: number; net: number };
+type ZoomWindowPayload = {
+  days: ZoomWindowDay[];
+  totalIn: number;
+  totalOut: number;
+  net: number;
+  zoomed: boolean;
+};
+
+/** Export the currently-selected In/Out zoom window summary to CSV. */
+function exportZoomWindowCsv({ days, totalIn, totalOut, net, zoomed }: ZoomWindowPayload) {
+  if (days.length === 0) return;
+  const fromDay = days[0].date;
+  const toDay = days[days.length - 1].date;
+  const stamp = format(new Date(), 'yyyy-MM-dd_HHmm');
+  const headers = ['Section', 'Key', 'Total in (UGX)', 'Total out (UGX)', 'Net (UGX)'];
+  const body: (string | number)[][] = [];
+  body.push(['Summary', `${zoomed ? 'Zoomed' : 'Full range'} ${fromDay} → ${toDay} (${days.length} day${days.length === 1 ? '' : 's'})`, Math.round(totalIn), Math.round(totalOut), Math.round(net)]);
+  body.push(['', '', '', '', '']);
+  for (const d of days) {
+    body.push(['Day', d.date, Math.round(d.in), Math.round(d.out), Math.round(d.net)]);
+  }
+  downloadCsv(`in-vs-out-zoom_${fromDay}_to_${toDay}_${stamp}.csv`, headers, body);
+}
+
+/** Export the currently-selected In/Out zoom window summary to PDF. */
+async function exportZoomWindowPdf({ days, totalIn, totalOut, net, zoomed }: ZoomWindowPayload) {
+  if (days.length === 0) return;
+  const [{ default: jsPDF }, autoTableModule] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+  const autoTable = (autoTableModule as any).default ?? (autoTableModule as any);
+  const fromDay = days[0].date;
+  const toDay = days[days.length - 1].date;
+  const stamp = format(new Date(), 'yyyy-MM-dd HH:mm');
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.text('In vs Out — Zoom Window Summary', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(`Generated ${stamp}`, 14, 25);
+  doc.text(`${zoomed ? 'Zoomed' : 'Full'} range: ${fromDay} → ${toDay} (${days.length} day${days.length === 1 ? '' : 's'})`, 14, 31);
+  doc.setTextColor(0);
+
+  autoTable(doc, {
+    startY: 38,
+    head: [['Metric', 'Value']],
+    body: [
+      ['Total in (received)', `UGX ${Math.round(totalIn).toLocaleString()}`],
+      ['Total out (sent + charges)', `UGX ${Math.round(totalOut).toLocaleString()}`],
+      ['Net (in − out)', `UGX ${Math.round(net).toLocaleString()}`],
+      ['Days in window', String(days.length)],
+    ],
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [30, 41, 59] },
+  });
+
+  autoTable(doc, {
+    head: [['Day', 'Total in', 'Total out', 'Net']],
+    body: days.map(d => [
+      d.date,
+      `UGX ${Math.round(d.in).toLocaleString()}`,
+      `UGX ${Math.round(d.out).toLocaleString()}`,
+      `UGX ${Math.round(d.net).toLocaleString()}`,
+    ]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [30, 41, 59] },
+  });
+
+  downloadPdfMobileSafe(doc, `in-vs-out-zoom_${fromDay}_to_${toDay}_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`);
+}
 
 function buildPerDayBreakdown(rows: GmailTx[]) {
   const map = new Map<string, { inCount: number; inTotal: number; outCount: number; outTotal: number }>();
