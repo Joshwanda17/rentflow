@@ -1674,12 +1674,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       if (proxyAssignment?.agent_id) {
         const [profileRes, walletRes] = await Promise.all([
           supabase.from('profiles').select('full_name').eq('id', proxyAssignment.agent_id).single(),
-          supabase.from('wallets').select('balance').eq('user_id', proxyAssignment.agent_id).maybeSingle(),
+          supabase.from('wallets').select('balance, withdrawable_balance, float_balance').eq('user_id', proxyAssignment.agent_id).maybeSingle(),
         ]);
         setProxyAgentInfo({
           agentId: proxyAssignment.agent_id,
           agentName: profileRes.data?.full_name || 'Agent',
           walletBalance: walletRes.data ? Number(walletRes.data.balance) : 0,
+          withdrawable: walletRes.data ? Number((walletRes.data as any).withdrawable_balance ?? 0) : 0,
+          float: walletRes.data ? Number((walletRes.data as any).float_balance ?? 0) : 0,
         });
       }
     } catch { /* ignore */ }
