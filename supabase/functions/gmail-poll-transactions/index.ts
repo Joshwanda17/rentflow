@@ -952,7 +952,7 @@ async function tryAutoDebitPayout(
       },
       body: JSON.stringify({
         system_auto_debit: true,
-        target_user_id: profile.id,
+        target_user_id: target.targetUserId,
         amount: debitAmt,
         reason,
         operation: 'debit',
@@ -977,8 +977,8 @@ async function tryAutoDebitPayout(
     }
     referenceId = (out as any)?.reference_id ?? null;
     console.log(
-      `[gmail-poll] auto-debited UGX ${debitAmt.toLocaleString()} from ${profile.full_name} ` +
-      `(${matchMethod}) tid=${parsed.transaction_id ?? 'n/a'} ref=${referenceId}`,
+      `[gmail-poll] auto-debited UGX ${debitAmt.toLocaleString()} from ${target.targetName} ` +
+      `(${matchMethod}${viaProxy ? ', via managed proxy' : ''}) tid=${parsed.transaction_id ?? 'n/a'} ref=${referenceId}`,
     );
   } catch (e) {
     console.warn('[gmail-poll] auto-debit cfo-direct-credit invoke failed:', e);
@@ -997,12 +997,12 @@ async function tryAutoDebitPayout(
       subject: gmailRow.subject,
       amount: debitAmt,
       route: 'withdrawable_debit',
-      target_user_id: profile.id,
-      target_user_name: profile.full_name,
-      target_user_phone: profile.phone,
-      reason: `DEBIT (auto, ${matchMethod}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${parsed.amount.toLocaleString()}` : ''}): ${reason}`,
+      target_user_id: target.targetUserId,
+      target_user_name: target.targetName,
+      target_user_phone: target.targetPhone,
+      reason: `DEBIT (auto, ${matchMethod}${viaProxy ? `, via managed proxy for ${target.proxyForName ?? 'partner'}` : ''}${isPartial ? `, partial ${debitAmt.toLocaleString()}/${parsed.amount.toLocaleString()}` : ''}): ${reason}`,
       ledger_reference_id: referenceId,
-      routed_by: profile.id,
+      routed_by: target.targetUserId,
       routed_by_name: 'System Auto-Debit',
       sms_sent: false,
       sms_error: null,
