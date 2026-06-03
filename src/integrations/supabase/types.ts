@@ -18205,6 +18205,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      expire_stale_cash_deposit_codes: { Args: never; Returns: number }
       export_users_with_password_hashes: { Args: never; Returns: string }
       extract_operational_float_allocations: {
         Args: { p_notes: string }
