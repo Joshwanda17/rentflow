@@ -83,6 +83,8 @@ interface AgentTenantsSheetProps {
   initialPipelineTab?: 'submitted' | 'approved' | 'rejected' | 'landlords';
   /** Record id to scroll to and highlight when opening into the pipeline. */
   initialHighlightId?: string | null;
+  /** When set on open, jump straight to this tenant's profile (payments + outstanding). */
+  initialProfileTenantId?: string | null;
 }
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
