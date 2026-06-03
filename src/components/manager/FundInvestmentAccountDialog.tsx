@@ -52,6 +52,36 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   const [proxyAgent, setProxyAgent] = useState<ProxyAgentInfo | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
 
+  // "Any user" funding source
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<UserResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserResult | null>(null);
+  const [selectedUserWallet, setSelectedUserWallet] = useState<{ withdrawable: number; float: number } | null>(null);
+
+  const searchUsers = async (q: string) => {
+    setSearchTerm(q);
+    if (q.trim().length < 3) { setSearchResults([]); return; }
+    setSearching(true);
+    const { data } = await supabase.from('profiles').select('id, full_name, phone')
+      .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`).limit(10);
+    setSearchResults(data || []);
+    setSearching(false);
+  };
+
+  const pickUser = async (u: UserResult) => {
+    setSelectedUser(u);
+    setSearchResults([]);
+    setSearchTerm('');
+    setSelectedUserWallet(null);
+    const { data } = await supabase.from('wallets')
+      .select('withdrawable_balance, float_balance').eq('user_id', u.id).maybeSingle();
+    setSelectedUserWallet({
+      withdrawable: data ? Number((data as any).withdrawable_balance ?? 0) : 0,
+      float: data ? Number((data as any).float_balance ?? 0) : 0,
+    });
+  };
+
   // Fetch partner wallet balance AND proxy agent info when dialog opens
   useEffect(() => {
     if (!open || !account) {
