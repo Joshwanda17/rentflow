@@ -138,10 +138,42 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
     [tenants, tenantBalances]
   );
 
+  // Source-of-truth total outstanding: sum of per-tenant (deduped) balances
+  // across only tenants whose aggregate outstanding > 0 — mirrors the COO
+  // "Tenants With Balances" methodology so agents see the same figure.
+  const totalOutstanding = useMemo(
+    () =>
+      tenants.reduce((sum, t) => {
+        const bal = tenantBalances[t.id] || 0;
+        return bal > 0 ? sum + bal : sum;
+      }, 0),
+    [tenants, tenantBalances]
+  );
+
   return (
     <div className="space-y-4">
       {/* Daily capacity — how am I doing today & can I still post rents */}
       <AgentDailyCapacityStrip />
+
+      {/* Outstanding summary — deduped per tenant, only owing > 0 (matches COO) */}
+      {!loading && owingCount > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border-2 border-rose-200 bg-rose-50 px-4 py-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="rounded-full bg-rose-100 p-1.5 shrink-0">
+              <AlertCircle className="h-4 w-4 text-rose-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-rose-700 leading-none">
+                {owingCount} {owingCount === 1 ? 'tenant' : 'tenants'} owing
+              </p>
+              <p className="text-[11px] text-rose-600/80 mt-0.5">Total outstanding balance</p>
+            </div>
+          </div>
+          <p className="text-lg font-black font-mono text-rose-700 tabular-nums shrink-0">
+            {formatUGX(totalOutstanding)}
+          </p>
+        </div>
+      )}
 
       {/* Search + Filters */}
       <div className="space-y-3">
