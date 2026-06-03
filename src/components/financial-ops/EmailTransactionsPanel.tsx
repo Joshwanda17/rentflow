@@ -3286,25 +3286,33 @@ export function EmailTransactionsPanel() {
                         </BadgeTip>
                       )}
                       {isRouted && (
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] gap-1 ${
+                        <BadgeTip
+                          plain={
                             isReversed
-                              ? 'bg-rose-500/10 text-rose-700 border-rose-500/30'
-                              : 'bg-violet-500/15 text-violet-700 border-violet-500/30'
-                          }`}
-                          title={
+                              ? 'This money was sent again: the first credit was undone, then it was put in the right wallet.'
+                              : 'A staff member already put this money into a user wallet.'
+                          }
+                          details={
                             isReversed
-                              ? 'Re-routed with a reversal against the original auto-credit'
-                              : 'Manually routed by Financial Ops'
+                              ? 'Re-routed with a reversal against the original auto-credit.'
+                              : 'Manually routed by Financial Ops.'
                           }
                         >
-                          <ArrowRight className="h-3 w-3" />
-                          {isReversed ? 'sent again (undone first)' : 'sent to wallet'}
-                          {history.length > 1 && (
-                            <span className="font-mono tabular-nums opacity-80">×{history.length}</span>
-                          )}
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] gap-1 ${
+                              isReversed
+                                ? 'bg-rose-500/10 text-rose-700 border-rose-500/30'
+                                : 'bg-violet-500/15 text-violet-700 border-violet-500/30'
+                            }`}
+                          >
+                            <ArrowRight className="h-3 w-3" />
+                            {isReversed ? 'sent again (undone first)' : 'sent to wallet'}
+                            {history.length > 1 && (
+                              <span className="font-mono tabular-nums opacity-80">×{history.length}</span>
+                            )}
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {isAutoDebited && (
                         <Badge
