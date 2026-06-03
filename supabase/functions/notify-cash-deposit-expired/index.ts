@@ -139,6 +139,20 @@ async function notifyOne(
   const { email, name } = await resolveDepositor(admin, row.user_id);
   if (!email) {
     console.error("[notify-expired] no email on file for user", row.user_id);
+    // Record the idempotency event so the cron sweep doesn't re-insert the
+    // in-app notification every cycle for users without an email on file.
+    try {
+      await admin.from("cash_deposit_verification_events").insert({
+        deposit_request_id: depositId,
+        user_id: row.user_id,
+        event_type: "expiry_notice_emailed",
+        amount: row.amount,
+        detail: "Expiry/auto-rejection in-app notice delivered; no email on file.",
+        metadata: { emailed_to: null, in_app: true, expires_at: row.expires_at ?? null },
+      } as any);
+    } catch (e) {
+      console.error("[notify-expired] audit insert failed (no_email path)", e);
+    }
     return "notified_in_app_no_email";
   }
 
