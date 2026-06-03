@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
     // ── Candidate payout emails: parsed, outgoing, with a positive amount ─
     const { data: candidates, error: candErr } = await supabase
       .from('gmail_transactions')
-      .select('id, from_name, from_email, subject, amount, transaction_id, direction, counterparty, internal_date')
+      .select('id, gmail_message_id, from_name, from_email, subject, amount, transaction_id, direction, counterparty, internal_date')
       .eq('parsed', true)
       .eq('direction', 'out')
       .gt('amount', 0)
