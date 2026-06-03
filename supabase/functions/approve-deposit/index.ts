@@ -268,6 +268,49 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── FORTRESS: cash-code deposits can ONLY be approved after the depositor
+    // entered the receipt code. Regardless of caller (manager, Financial-Ops
+    // matcher auto-approve, auto_approved flag, or system auto-credit), every
+    // provider='cash_deposit' row in this batch MUST have a matching
+    // `cash_deposit_verifications` row with status='verified'. The legit
+    // cash-deposit-verify-code flow stamps status='verified' BEFORE invoking us,
+    // so it passes; any other path (e.g. an email auto-match) is blocked here.
+    if (action === "approve") {
+      const cashDeposits = depositRequests.filter(
+        (d) => String(d.provider || "").toLowerCase() === "cash_deposit",
+      );
+      if (cashDeposits.length > 0) {
+        const cashIds = cashDeposits.map((d) => d.id);
+        const { data: vers, error: verErr } = await supabaseAdmin
+          .from("cash_deposit_verifications")
+          .select("deposit_request_id, status")
+          .in("deposit_request_id", cashIds);
+        if (verErr) {
+          return new Response(
+            JSON.stringify({ error: "verification_lookup_failed", message: verErr.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const verifiedSet = new Set(
+          (vers ?? [])
+            .filter((v) => String((v as any).status) === "verified")
+            .map((v) => (v as any).deposit_request_id),
+        );
+        const unverified = cashDeposits.filter((d) => !verifiedSet.has(d.id));
+        if (unverified.length > 0) {
+          return new Response(
+            JSON.stringify({
+              error: "cash_code_required",
+              message:
+                "Cash deposits can only be credited after the depositor enters the receipt code. This deposit has not been code-verified.",
+              unverified_ids: unverified.map((d) => d.id),
+            }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+    }
+
     // For system auto-credit, impersonate the deposit owner now that we
     // know who it is. All rows in a single call must belong to the same
     // owner — refuse otherwise.
