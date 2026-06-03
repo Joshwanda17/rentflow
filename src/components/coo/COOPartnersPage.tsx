@@ -108,6 +108,7 @@ interface PartnerRow {
   lastActivity: string;
   nextRoiDate: string | null;
   payoutDates?: string[];
+  isProspect?: boolean;
 }
 
 interface NearingPayoutPortfolio {
@@ -669,6 +670,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         lastActivity: agg.lastActivity || '',
         nextRoiDate: agg.nextRoiDate,
         payoutDates: agg.payoutDates,
+        // No portfolios yet → a prospect surfaced by search (e.g. a verified
+        // depositor with wallet money). Ops can still invest/top-up from wallet.
+        isProspect: agg.deals === 0,
       };
     });
   }, []);
@@ -1849,7 +1853,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         onClick={() => openPartnerDetail(r.id)}
         className="min-w-0 text-left group"
       >
-        <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors underline-offset-2 group-hover:underline">{r.name}</p>
+        <p className="font-semibold text-foreground truncate group-hover:text-primary transition-colors underline-offset-2 group-hover:underline flex items-center gap-1.5">
+          <span className="truncate">{r.name}</span>
+          {r.isProspect && (
+            <span className="shrink-0 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide">New</span>
+          )}
+        </p>
         <p className="text-[10px] text-muted-foreground">{r.phone || '—'}</p>
       </button>
     )},
