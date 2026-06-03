@@ -1,11 +1,16 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
   Loader2, ScrollText, PiggyBank, Building2, ArrowDownRight, ArrowUpRight,
-  CheckCircle2, AlertTriangle, User2,
+  CheckCircle2, AlertTriangle, User2, ChevronRight, KeyRound,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -23,6 +28,17 @@ interface LedgerLeg {
   linked_party: string | null;
   description: string | null;
   created_at: string;
+  transaction_date: string | null;
+  reference_id: string | null;
+  source_table: string | null;
+  source_id: string | null;
+  account: string | null;
+  classification: string | null;
+  currency: string | null;
+  running_balance: number | null;
+  routing_source: string | null;
+  idempotency_key: string | null;
+  transaction_group_id: string | null;
 }
 
 interface TopupRow {
@@ -42,6 +58,8 @@ interface TopupRow {
   source_wallet_owner: string;
   reason: string | null;
   legs: LedgerLeg[];
+  idempotency_key: string | null;
+  metadata: Record<string, any>;
 }
 
 /**
@@ -73,7 +91,7 @@ export function PartnershipTopupAuditLog() {
         groupIds.length
           ? supabase
               .from('general_ledger')
-              .select('id, amount, direction, category, ledger_scope, recipient_type, wallet_bucket, user_id, linked_party, description, created_at, transaction_group_id')
+              .select('id, amount, direction, category, ledger_scope, recipient_type, wallet_bucket, user_id, linked_party, description, created_at, transaction_date, reference_id, source_table, source_id, account, classification, currency, running_balance, routing_source, idempotency_key, transaction_group_id')
               .in('transaction_group_id', groupIds)
           : Promise.resolve({ data: [] as any[] }),
         portfolioIds.length
@@ -115,6 +133,11 @@ export function PartnershipTopupAuditLog() {
           walletLeg?.recipient_type ||
           (fundSource === 'float' ? 'operational_wallet' : 'user');
 
+        // Idempotency key is stamped on the ledger legs at creation time;
+        // both balanced legs share it. Fall back to any leg that carries one.
+        const idempotencyKey =
+          legs.find((l) => l.idempotency_key)?.idempotency_key ?? null;
+
         return {
           id: o.id,
           amount: Number(o.amount),
@@ -132,11 +155,15 @@ export function PartnershipTopupAuditLog() {
           source_wallet_owner: meta.source_wallet_owner || meta.source || '—',
           reason: meta.reason ?? meta.notes ?? null,
           legs: legs.sort((a, b) => (a.ledger_scope === 'wallet' ? -1 : 1)),
+          idempotency_key: idempotencyKey,
+          metadata: meta,
         };
       });
     },
     refetchInterval: 60_000,
   });
+
+  const [selected, setSelected] = useState<TopupRow | null>(null);
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
