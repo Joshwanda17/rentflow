@@ -529,8 +529,17 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_direction', directionFilter); } catch {} }, [directionFilter]);
 
+  // "Needs Routing" filter — when on, show only incoming deposits whose money
+  // never landed in a wallet (not credited and not routed). Persisted so the
+  // operator's triage view survives a refresh.
+  const [needsRoutingOnly, setNeedsRoutingOnly] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('gmail_filter_needs_routing') === '1';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_needs_routing', needsRoutingOnly ? '1' : '0'); } catch {} }, [needsRoutingOnly]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly]);
 
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
