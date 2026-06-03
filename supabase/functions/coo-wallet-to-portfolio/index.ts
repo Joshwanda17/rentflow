@@ -183,22 +183,34 @@ Deno.serve(async (req) => {
       return jsonRes({ error: "Could not verify wallet balance. Please retry." }, 500);
     }
     const strictAvail = Number(strictAvailRaw ?? 0);
-    const spendable = strictAvail + advanceBal;
-    if (spendable < topupAmount) {
-      const parts: string[] = [];
-      if (strictAvail > 0) parts.push(`Withdrawable: UGX ${strictAvail.toLocaleString()}`);
-      if (floatBal > 0) parts.push(`Float (locked): UGX ${floatBal.toLocaleString()}`);
-      const breakdown = parts.length ? ` (${parts.join(" · ")})` : "";
-      return jsonRes({
-        error:
-          `Insufficient withdrawable balance in ${walletOwnerLabel.toLowerCase()}. ` +
-          `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${spendable.toLocaleString()} is spendable${breakdown}. ` +
-          (floatBal > 0 && withdrawable > strictAvail
-            ? `Cached wallet shows more, but the ledger of record only allows UGX ${strictAvail.toLocaleString()}. Please reconcile before retrying.`
-            : floatBal > 0
-            ? `Funds in Float must be released to Withdrawable before topping up.`
-            : ``),
-      }, 400);
+    if (fundSource === "float") {
+      // ── OPERATIONAL FLOAT source ── deploy company float as capital.
+      if (floatBal < topupAmount) {
+        return jsonRes({
+          error:
+            `Insufficient operational float in ${walletOwnerLabel.toLowerCase()}. ` +
+            `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${floatBal.toLocaleString()} is available in Float.`,
+        }, 400);
+      }
+    } else {
+      // ── PERSONAL DEPOSIT (WITHDRAWABLE) source ──
+      const spendable = strictAvail + advanceBal;
+      if (spendable < topupAmount) {
+        const parts: string[] = [];
+        if (strictAvail > 0) parts.push(`Withdrawable: UGX ${strictAvail.toLocaleString()}`);
+        if (floatBal > 0) parts.push(`Float (locked): UGX ${floatBal.toLocaleString()}`);
+        const breakdown = parts.length ? ` (${parts.join(" · ")})` : "";
+        return jsonRes({
+          error:
+            `Insufficient withdrawable balance in ${walletOwnerLabel.toLowerCase()}. ` +
+            `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${spendable.toLocaleString()} is spendable${breakdown}. ` +
+            (floatBal > 0 && withdrawable > strictAvail
+              ? `Cached wallet shows more, but the ledger of record only allows UGX ${strictAvail.toLocaleString()}. Please reconcile before retrying.`
+              : floatBal > 0
+              ? `Funds in Float must be released to Withdrawable before topping up, or deploy from Operational Float instead.`
+              : ``),
+        }, 400);
+      }
     }
 
     const txGroupId = crypto.randomUUID();
