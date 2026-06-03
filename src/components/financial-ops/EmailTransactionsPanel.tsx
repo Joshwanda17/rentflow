@@ -3264,13 +3264,27 @@ export function EmailTransactionsPanel() {
                         <Pencil className="h-3 w-3" />
                       </button>
                       {r.direction && (
-                        <Badge variant="outline" className={`text-[10px] capitalize ${
-                          r.direction === 'in' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
-                          : r.direction === 'out' ? 'bg-rose-500/10 text-rose-700 border-rose-500/20'
-                          : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
-                        }`}>{r.direction === 'in' ? 'money in' : r.direction === 'out' ? 'money out' : 'fee'}</Badge>
+                        <BadgeTip
+                          plain={
+                            r.direction === 'in'
+                              ? 'Money came in — a deposit or payment was received.'
+                              : r.direction === 'out'
+                              ? 'Money went out — a payment was sent.'
+                              : 'A fee or charge, not a deposit.'
+                          }
+                        >
+                          <Badge variant="outline" className={`text-[10px] capitalize ${
+                            r.direction === 'in' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                            : r.direction === 'out' ? 'bg-rose-500/10 text-rose-700 border-rose-500/20'
+                            : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
+                          }`}>{r.direction === 'in' ? 'money in' : r.direction === 'out' ? 'money out' : 'fee'}</Badge>
+                        </BadgeTip>
                       )}
-                      {r.transaction_id && <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>}
+                      {r.transaction_id && (
+                        <BadgeTip plain="The transaction / receipt code taken from this email. We use it to match the payment.">
+                          <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>
+                        </BadgeTip>
+                      )}
                       {isRouted && (
                         <Badge
                           variant="outline"
