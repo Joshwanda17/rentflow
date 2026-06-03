@@ -3360,7 +3360,7 @@ export function EmailTransactionsPanel() {
                           ].join('\n')}
                         >
                           <AlertTriangle className="h-3 w-3" />
-                          Needs Routing
+                          Needs sorting
                         </Badge>
                       )}
                       {/* Same clear status for incoming deposits that never even
@@ -3373,7 +3373,7 @@ export function EmailTransactionsPanel() {
                           title="Needs Routing — this incoming deposit email has not been credited to any wallet. Open it to route the money to the right user."
                         >
                           <AlertTriangle className="h-3 w-3" />
-                          Needs Routing
+                          Needs sorting
                         </Badge>
                       )}
                       {/* Quick "Route Now" action — sits right next to the
@@ -3388,7 +3388,7 @@ export function EmailTransactionsPanel() {
                           title="Route this deposit now — search any user by name or number and credit it to their wallet."
                           onClick={() => navigateToRow(r, 'credit')}
                         >
-                          <Zap className="h-3 w-3" /> Route Now
+                          <Zap className="h-3 w-3" /> Send to wallet
                         </Button>
                       )}
                     </div>
@@ -3397,7 +3397,7 @@ export function EmailTransactionsPanel() {
                         are present vs missing so reviewers know what to fix. */}
                     {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
-                        <span className="uppercase tracking-wide font-semibold text-orange-600/90">Missing to match:</span>
+                        <span className="uppercase tracking-wide font-semibold text-orange-600/90">Still missing:</span>
                         <span
                           className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono ${hasMomoTid ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700' : 'border-orange-500/40 bg-orange-500/10 text-orange-700'}`}
                           title={hasMomoTid ? `MoMo TID present: ${normTidForRow}` : 'No MoMo transaction ID parsed from this email'}
@@ -3445,7 +3445,7 @@ export function EmailTransactionsPanel() {
                           }}
                         >
                           <Wrench className="h-3 w-3" />
-                          Manually resolve
+                          Sort it myself
                         </Button>
                       </div>
                     )}
