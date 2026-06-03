@@ -108,6 +108,7 @@ interface PartnerRow {
   lastActivity: string;
   nextRoiDate: string | null;
   payoutDates?: string[];
+  isProspect?: boolean;
 }
 
 interface NearingPayoutPortfolio {
