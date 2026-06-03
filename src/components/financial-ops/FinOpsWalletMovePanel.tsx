@@ -80,16 +80,21 @@ export function FinOpsWalletMovePanel() {
   const refetching = useIsFetching({ predicate: (q) => isWalletQuery(q.queryKey) });
   const refreshStartedRef = useRef(false);
 
-  // Once the refetch wave drains, mark the refresh complete.
+  // Once the refetch wave drains, mark the refresh complete. A fallback timer
+  // guarantees completion even if no wallet panels are currently mounted
+  // (invalidate only refetches active queries).
   useEffect(() => {
     if (step !== 'refreshing') return;
     if (refetching > 0) {
       refreshStartedRef.current = true;
       return;
     }
-    if (refreshStartedRef.current && refetching === 0) {
+    if (refreshStartedRef.current) {
       setStep('done');
+      return;
     }
+    const fallback = setTimeout(() => setStep('done'), 1500);
+    return () => clearTimeout(fallback);
   }, [step, refetching]);
 
   const search = async () => {
