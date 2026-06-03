@@ -3398,10 +3398,9 @@ export function EmailTransactionsPanel() {
                           explain which reference fields are missing so the
                           operator knows why it couldn't auto-map. */}
                       {r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
-                          title={[
+                        <BadgeTip
+                          plain="This money has not reached any wallet yet — it still needs to be sorted and sent to the right person."
+                          details={[
                             'Not Matched Yet — this deposit has not been credited to any wallet.',
                             `MoMo TID: ${hasMomoTid ? normTidForRow : 'missing'}`,
                             `Receipt code: ${hasReceiptCode ? receiptCodeForRow : 'missing'}`,
@@ -3409,22 +3408,31 @@ export function EmailTransactionsPanel() {
                             'Use Redirect deposit to send it to the right wallet.',
                           ].join('\n')}
                         >
-                          <AlertTriangle className="h-3 w-3" />
-                          Needs sorting
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            Needs sorting
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {/* Same clear status for incoming deposits that never even
                           parsed: still uncredited and unrouted, so they need ops
                           attention just as much. */}
                       {!r.parsed && r.direction === 'in' && !isCredited && !isRouted && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
-                          title="Needs Routing — this incoming deposit email has not been credited to any wallet. Open it to route the money to the right user."
+                        <BadgeTip
+                          plain="This money has not reached any wallet yet — it still needs to be sorted and sent to the right person."
+                          details="Needs Routing — this incoming deposit email has not been credited to any wallet. Open it to route the money to the right user."
                         >
-                          <AlertTriangle className="h-3 w-3" />
-                          Needs sorting
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-1 bg-orange-500/20 text-orange-700 border-orange-500/50 font-semibold uppercase tracking-wide ring-1 ring-orange-500/30"
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            Needs sorting
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {/* Quick "Route Now" action — sits right next to the
                           Needs Routing badge so ops can jump straight into the
