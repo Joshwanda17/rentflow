@@ -23,6 +23,7 @@ import { RejectedFieldDepositsList } from './RejectedFieldDepositsList';
 import { EmailAutoMatchPanel } from './EmailAutoMatchPanel';
 import { EmailNeedsReviewPanel } from './EmailNeedsReviewPanel';
 import { EmailMatchAuditLogPanel } from './EmailMatchAuditLogPanel';
+import { DepositDecisionAuditPanel } from './DepositDecisionAuditPanel';
 import { supabase } from '@/integrations/supabase/client';
 import type { DepositChannel } from '@/lib/fieldDepositBatches';
 import { cn } from '@/lib/utils';
