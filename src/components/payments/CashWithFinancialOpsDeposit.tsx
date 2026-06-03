@@ -98,7 +98,7 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   const reset = () => {
     setStep('form'); setAmount(''); setLoading(false); setDepositId(null);
     setCode(''); setCodeError(''); setCreditedAmount(0); setAttemptsLeft(null); setLocked(false);
-    setConfirmCancel(false);
+    setConfirmCancel(false); setSecondsLeft(null);
   };
 
   const close = () => { reset(); onOpenChange(false); };
@@ -127,6 +127,7 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
       setCodeError('');
       setLocked(false);
       setAttemptsLeft(null);
+      setSecondsLeft(CODE_TTL_SECONDS);
       setStep('code');
       toast.success('Request sent to Financial Ops. They will give you a code after receiving your cash.');
     } catch (e) {
