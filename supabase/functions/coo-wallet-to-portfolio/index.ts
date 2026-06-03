@@ -145,18 +145,54 @@ Deno.serve(async (req) => {
       walletOwnerLabel = `Proxy Agent (${agentName})`;
     }
 
-    // ── Check wallet balance ──
+    // ── Check wallet balance (bucket-aware, WITHDRAWABLE-only) ──
+    // The wallet leg routes to the WITHDRAWABLE bucket. Checking aggregate
+    // `balance` is misleading because funds may be parked in `float_balance`
+    // (e.g. agents) and would trip the wallets_buckets_nonneg constraint when
+    // withdrawable goes negative — i.e. bucket drift.
     const { data: wallet, error: wErr } = await supabase
       .from("wallets")
-      .select("balance")
+      .select("balance, withdrawable_balance, float_balance, advance_balance")
       .eq("user_id", walletOwnerId)
       .single();
 
     if (wErr || !wallet) return jsonRes({ error: `${walletOwnerLabel} wallet not found` }, 404);
 
     const currentBalance = Number(wallet.balance);
-    if (currentBalance < topupAmount) {
-      return jsonRes({ error: `Insufficient ${walletOwnerLabel.toLowerCase()} balance. Available: UGX ${currentBalance.toLocaleString()}` }, 400);
+    const withdrawable = Number(wallet.withdrawable_balance ?? 0);
+    const floatBal = Number(wallet.float_balance ?? 0);
+    const advanceBal = Number(wallet.advance_balance ?? 0);
+
+    // STRICT withdrawable per WITHDRAWABLE STRICT RULE — same gate as
+    // approve-withdrawal and manager-portfolio-topup. Cached buckets can be
+    // inflated relative to the ledger; trusting them would let us write a
+    // wallet_transactions row and then hit a 500 from
+    // `enforce_no_negative_wallet_ledger` after money has "left".
+    const { data: strictAvailRaw, error: availErr } = await supabase.rpc(
+      "get_user_available_balance",
+      { p_user_id: walletOwnerId },
+    );
+    if (availErr) {
+      console.error("[coo-wallet-to-portfolio] strict balance lookup failed:", availErr);
+      return jsonRes({ error: "Could not verify wallet balance. Please retry." }, 500);
+    }
+    const strictAvail = Number(strictAvailRaw ?? 0);
+    const spendable = strictAvail + advanceBal;
+    if (spendable < topupAmount) {
+      const parts: string[] = [];
+      if (strictAvail > 0) parts.push(`Withdrawable: UGX ${strictAvail.toLocaleString()}`);
+      if (floatBal > 0) parts.push(`Float (locked): UGX ${floatBal.toLocaleString()}`);
+      const breakdown = parts.length ? ` (${parts.join(" · ")})` : "";
+      return jsonRes({
+        error:
+          `Insufficient withdrawable balance in ${walletOwnerLabel.toLowerCase()}. ` +
+          `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${spendable.toLocaleString()} is spendable${breakdown}. ` +
+          (floatBal > 0 && withdrawable > strictAvail
+            ? `Cached wallet shows more, but the ledger of record only allows UGX ${strictAvail.toLocaleString()}. Please reconcile before retrying.`
+            : floatBal > 0
+            ? `Funds in Float must be released to Withdrawable before topping up.`
+            : ``),
+      }, 400);
     }
 
     const txGroupId = crypto.randomUUID();
