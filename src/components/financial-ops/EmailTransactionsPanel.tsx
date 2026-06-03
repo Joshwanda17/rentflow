@@ -3877,9 +3877,9 @@ export function EmailTransactionsPanel() {
 
 function StatCard({ label, value, sub, info }: { label: string; value: string; sub?: React.ReactNode; info?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1">
-        {label}
+    <div className="rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30">
+      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+        <span className="truncate">{label}</span>
         {info && (
           <TooltipProvider delayDuration={150}>
             <Tooltip>
@@ -3899,8 +3899,8 @@ function StatCard({ label, value, sub, info }: { label: string; value: string; s
           </TooltipProvider>
         )}
       </p>
-      <p className="font-black text-lg mt-1">{value}</p>
-      {sub && <div className="mt-1">{sub}</div>}
+      <p className="font-bold text-xl tracking-tight mt-1.5 tabular-nums">{value}</p>
+      {sub && <div className="mt-1.5">{sub}</div>}
     </div>
   );
 }
