@@ -500,6 +500,19 @@ export function VerifyDepositsHub() {
             />
             <EmailMatchAuditLogPanel />
           </section>
+
+          <section
+            id="sec-decision-audit"
+            aria-label="Deposit decision audit trail"
+            className="scroll-mt-24"
+          >
+            <SectionHeader
+              icon={ScrollText}
+              title="Decision audit trail"
+              subtitle="Every matcher/poller decision and approval rejection, with the exact reason per deposit attempt."
+            />
+            <DepositDecisionAuditPanel />
+          </section>
         </TabsContent>
 
         <TabsContent value="field" className="mt-5 space-y-3">
