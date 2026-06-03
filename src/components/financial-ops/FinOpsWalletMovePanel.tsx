@@ -10,7 +10,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  ArrowRightLeft, Search, Loader2, Wallet, Building2, Undo2, Users, AlertTriangle,
+  ArrowRightLeft, Search, Loader2, Wallet, Building2, Undo2, Users, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
@@ -18,6 +18,15 @@ import { toast } from 'sonner';
 
 type Bucket = 'withdrawable' | 'float';
 type Mode = 'user_to_user' | 'error_correction';
+
+interface MoveResult {
+  message: string;
+  amount: number;
+  mode: Mode;
+  reference_id: string;
+  source: { name: string; withdrawable_after: number; float_after: number };
+  dest: { name: string; withdrawable_after?: number; float_after?: number };
+}
 
 interface UserHit {
   id: string;
@@ -54,6 +63,7 @@ export function FinOpsWalletMovePanel() {
   const [reason, setReason] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<MoveResult | null>(null);
 
   const search = async () => {
     const q = term.trim();
@@ -133,7 +143,7 @@ export function FinOpsWalletMovePanel() {
   const submit = async () => {
     if (!source) return;
     setSubmitting(true);
-    const { data, error } = await invokeEdgeFunction<{ message: string }>('finops-wallet-move', {
+    const { data, error } = await invokeEdgeFunction<MoveResult>('finops-wallet-move', {
       body: {
         mode,
         source_user_id: source.id,
@@ -149,6 +159,7 @@ export function FinOpsWalletMovePanel() {
     setConfirmOpen(false);
     if (error || !data) return;
     toast.success(data.message);
+    setResult(data);
     reset();
   };
 
@@ -212,11 +223,55 @@ export function FinOpsWalletMovePanel() {
         </p>
       </div>
 
+      {/* Post-move confirmation — proves the wallets actually changed */}
+      {result && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="pt-5 space-y-3">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold text-sm">{result.message}</p>
+                <p className="text-xs text-muted-foreground">Ref {result.reference_id}</p>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border border-border bg-background p-3">
+                <p className="text-xs text-muted-foreground">{result.source.name} (after)</p>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  <Badge variant="outline" className="gap-1 text-[10px]">
+                    <Wallet className="h-3 w-3" /> Withdrawable {fmt(result.source.withdrawable_after)}
+                  </Badge>
+                  <Badge variant="secondary" className="gap-1 text-[10px]">
+                    <Building2 className="h-3 w-3" /> Float {fmt(result.source.float_after)}
+                  </Badge>
+                </div>
+              </div>
+              {result.mode === 'user_to_user' && (
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-xs text-muted-foreground">{result.dest.name} (after)</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    <Badge variant="outline" className="gap-1 text-[10px]">
+                      <Wallet className="h-3 w-3" /> Withdrawable {fmt(result.dest.withdrawable_after ?? 0)}
+                    </Badge>
+                    <Badge variant="secondary" className="gap-1 text-[10px]">
+                      <Building2 className="h-3 w-3" /> Float {fmt(result.dest.float_after ?? 0)}
+                    </Badge>
+                  </div>
+                </div>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setResult(null)}>
+              Make another move
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Mode switch */}
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
-          onClick={() => { setMode('user_to_user'); reset(); }}
+          onClick={() => { setMode('user_to_user'); reset(); setResult(null); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'user_to_user' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
@@ -226,7 +281,7 @@ export function FinOpsWalletMovePanel() {
         </button>
         <button
           type="button"
-          onClick={() => { setMode('error_correction'); reset(); }}
+          onClick={() => { setMode('error_correction'); reset(); setResult(null); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'error_correction' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
