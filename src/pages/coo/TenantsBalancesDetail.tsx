@@ -112,7 +112,9 @@ export default function TenantsBalancesDetail() {
         .filter(r => r.outstanding > 0)
         .sort((a, b) => b.outstanding - a.outstanding);
 
-      setData({ count: items.length, totalOutstanding, collectionRate, agingChart, totalRepaid, tableRows });
+      // "count" must match the deduped, outstanding>0 tenant rows shown in the
+      // table (and the COO dashboard KPI) — not the raw rent_request row count.
+      setData({ count: tableRows.length, totalOutstanding, collectionRate, agingChart, totalRepaid, tableRows });
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); }
   }
