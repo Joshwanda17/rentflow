@@ -3182,18 +3182,26 @@ export function EmailTransactionsPanel() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm truncate">{r.from_name || r.from_email || 'Unknown'}</span>
                       {r.parsed ? (
-                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">read OK</Badge>
+                        <BadgeTip plain="We understood this email and found the money amount inside it.">
+                          <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 border-emerald-500/20">read OK</Badge>
+                        </BadgeTip>
                       ) : (
-                        <Badge variant="outline" className="text-[10px]">couldn't read</Badge>
+                        <BadgeTip plain="We could not pull a money amount out of this email, so a person needs to look at it.">
+                          <Badge variant="outline" className="text-[10px]">couldn't read</Badge>
+                        </BadgeTip>
                       )}
                       {r.parsed && !validity.get(r.id)!.valid && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
-                          title={validity.get(r.id)!.reason}
+                        <BadgeTip
+                          plain="Something looks off about this email — please give it a quick look."
+                          details={validity.get(r.id)!.reason}
                         >
-                          <AlertTriangle className="h-3 w-3" /> please check
-                        </Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/30 gap-1"
+                          >
+                            <AlertTriangle className="h-3 w-3" /> please check
+                          </Badge>
+                        </BadgeTip>
                       )}
                       {(() => {
                         const resolved = ch(r);
