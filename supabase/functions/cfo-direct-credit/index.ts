@@ -252,19 +252,13 @@ Deno.serve(async (req) => {
       'legacy_real_backfill', 'dispute_resolution', 'regulatory_adjustment',
       'duplicate_reversal', 'other_with_note',
     ]);
-    const solvencyBypassReason: string | null =
+    let solvencyBypassReason: string | null =
       typeof rawSolvencyReason === 'string' && SOLVENCY_BYPASS_REASONS.has(rawSolvencyReason)
         ? rawSolvencyReason
         : null;
-    if (allowOverdraw && !solvencyBypassReason) {
+    if (typeof rawSolvencyReason === 'string' && rawSolvencyReason && !solvencyBypassReason) {
       return new Response(JSON.stringify({
-        error: 'SOLVENCY_BYPASS_REASON_REQUIRED: forced reversals must include a solvency_bypass_reason code (one of: ' +
-          [...SOLVENCY_BYPASS_REASONS].join(', ') + ').',
-      }), { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    if (allowOverdraw && solvencyBypassReason === 'other_with_note' && (reason ?? '').length < 30) {
-      return new Response(JSON.stringify({
-        error: 'SOLVENCY_BYPASS_NOTE_REQUIRED: reason code other_with_note requires a description of at least 30 characters.',
+        error: 'INVALID_SOLVENCY_BYPASS_REASON: use one of: ' + [...SOLVENCY_BYPASS_REASONS].join(', ') + '.',
       }), { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -357,6 +351,36 @@ Deno.serve(async (req) => {
       ? 'wallet_deposit'
       : walletCatRaw;
     const impact = ['revenue', 'expense', 'neutral'].includes(financial_impact) ? financial_impact : 'neutral';
+
+    // `trg_enforce_correction_classification` turns correction categories into
+    // admin_correction before the wallet solvency guard runs. Therefore CFO
+    // debit legs using these categories need the structured reason even when
+    // they are not an explicit overdraw/forced reversal.
+    const SOLVENCY_REASON_CATEGORIES = new Set([
+      'system_balance_correction', 'wallet_route_repair', 'admin_adjustment', 'platform_loss_writeoff',
+    ]);
+    const debitNeedsSolvencyBypassReason = op === 'debit'
+      && (allowOverdraw || SOLVENCY_REASON_CATEGORIES.has(walletCat));
+    if (debitNeedsSolvencyBypassReason && !solvencyBypassReason) {
+      const reasonText = `${category_label ?? ''} ${reason ?? ''} ${walletCat} ${sub_category ?? ''}`.toLowerCase();
+      solvencyBypassReason = allowOverdraw || /reverse|reversal|retract|duplicate|rerout|auto-credit|misrout|overpayment/.test(reasonText)
+        ? 'duplicate_reversal'
+        : /regulat|bou|cma/.test(reasonText)
+          ? 'regulatory_adjustment'
+          : /dispute/.test(reasonText)
+            ? 'dispute_resolution'
+            : /write.?off|uncollect/.test(reasonText)
+              ? 'write_off'
+              : 'other_with_note';
+    }
+    if (debitNeedsSolvencyBypassReason && solvencyBypassReason === 'other_with_note') {
+      const debitDescriptionPreview = `${allowOverdraw ? 'CFO Forced Reversal' : 'CFO Debit'} [${category_label || walletCat}]: ${reason ?? ''}`;
+      if (debitDescriptionPreview.length < 30) {
+        return new Response(JSON.stringify({
+          error: 'SOLVENCY_BYPASS_NOTE_REQUIRED: reason code other_with_note requires a description of at least 30 characters.',
+        }), { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
 
     // ── Wallet Routing v2: category ↔ recipient_type compatibility check ──
     // Money owned by an individual cannot land in an operational wallet.
