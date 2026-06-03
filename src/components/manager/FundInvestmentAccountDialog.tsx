@@ -5,16 +5,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Wallet, Users, CheckCircle2 } from 'lucide-react';
+import { Loader2, Wallet, Users, CheckCircle2, PiggyBank, Building2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 
 type PaymentMethod = 'wallet' | 'proxy_agent';
+type FundSource = 'withdrawable' | 'float';
 
 interface ProxyAgentInfo {
   agentId: string;
   agentName: string;
-  walletBalance: number;
+  withdrawable: number;
+  float: number;
 }
 
 interface FundInvestmentAccountDialogProps {
@@ -37,15 +39,16 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wallet');
+  const [fundSource, setFundSource] = useState<FundSource>('withdrawable');
   const [saving, setSaving] = useState(false);
-  const [partnerWalletBalance, setPartnerWalletBalance] = useState<number | null>(null);
+  const [partnerWallet, setPartnerWallet] = useState<{ withdrawable: number; float: number } | null>(null);
   const [proxyAgent, setProxyAgent] = useState<ProxyAgentInfo | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
 
   // Fetch partner wallet balance AND proxy agent info when dialog opens
   useEffect(() => {
     if (!open || !account) {
-      setPartnerWalletBalance(null);
+      setPartnerWallet(null);
       setProxyAgent(null);
       return;
     }
@@ -57,7 +60,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       try {
         // Fetch partner wallet + proxy agent assignment in parallel
         const [walletRes, proxyRes] = await Promise.all([
-          supabase.from('wallets').select('balance').eq('user_id', partnerId).maybeSingle(),
+          supabase.from('wallets').select('withdrawable_balance, float_balance').eq('user_id', partnerId).maybeSingle(),
           supabase.from('proxy_agent_assignments')
             .select('agent_id')
             .eq('beneficiary_id', partnerId)
@@ -67,24 +70,28 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
             .maybeSingle(),
         ]);
 
-        setPartnerWalletBalance(walletRes.data ? Number(walletRes.data.balance) : 0);
+        setPartnerWallet({
+          withdrawable: walletRes.data ? Number((walletRes.data as any).withdrawable_balance ?? 0) : 0,
+          float: walletRes.data ? Number((walletRes.data as any).float_balance ?? 0) : 0,
+        });
 
         if (proxyRes.data?.agent_id) {
           // Fetch agent profile + wallet
           const [profileRes, agentWalletRes] = await Promise.all([
             supabase.from('profiles').select('full_name').eq('id', proxyRes.data.agent_id).single(),
-            supabase.from('wallets').select('balance').eq('user_id', proxyRes.data.agent_id).maybeSingle(),
+            supabase.from('wallets').select('withdrawable_balance, float_balance').eq('user_id', proxyRes.data.agent_id).maybeSingle(),
           ]);
           setProxyAgent({
             agentId: proxyRes.data.agent_id,
             agentName: profileRes.data?.full_name || 'Agent',
-            walletBalance: agentWalletRes.data ? Number(agentWalletRes.data.balance) : 0,
+            withdrawable: agentWalletRes.data ? Number((agentWalletRes.data as any).withdrawable_balance ?? 0) : 0,
+            float: agentWalletRes.data ? Number((agentWalletRes.data as any).float_balance ?? 0) : 0,
           });
         } else {
           setProxyAgent(null);
         }
       } catch {
-        setPartnerWalletBalance(0);
+        setPartnerWallet(null);
         setProxyAgent(null);
       } finally {
         setLoadingBalance(false);
@@ -98,11 +105,17 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       setAmount('');
       setNotes('');
       setPaymentMethod('wallet');
+      setFundSource('withdrawable');
     }
     onOpenChange(isOpen);
   };
 
-  const selectedBalance = paymentMethod === 'wallet' ? partnerWalletBalance : proxyAgent?.walletBalance ?? null;
+  const activeWallet = paymentMethod === 'wallet'
+    ? partnerWallet
+    : (proxyAgent ? { withdrawable: proxyAgent.withdrawable, float: proxyAgent.float } : null);
+  const selectedBalance = activeWallet
+    ? (fundSource === 'withdrawable' ? activeWallet.withdrawable : activeWallet.float)
+    : null;
   const parsedAmount = parseFloat(amount) || 0;
   const insufficient = selectedBalance !== null && parsedAmount > selectedBalance;
 
