@@ -57,9 +57,24 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   const [creditedAmount, setCreditedAmount] = useState(0);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [locked, setLocked] = useState(false);
+  // Seconds remaining before the receipt code expires (null = not started).
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   // Confirms an intentional cancel of the blocking code-entry screen.
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [copiedExample, setCopiedExample] = useState<string | null>(null);
+
+  // Countdown for the 2-minute code window. When it hits zero, lock the input
+  // and surface the auto-rejection (the backend sweep rejects it server-side).
+  useEffect(() => {
+    if (step !== 'code' || secondsLeft === null || locked) return;
+    if (secondsLeft <= 0) {
+      setLocked(true);
+      setCodeError('This code expired. The deposit was auto-rejected — start a new deposit.');
+      return;
+    }
+    const id = setTimeout(() => setSecondsLeft((s) => (s === null ? s : s - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [step, secondsLeft, locked]);
 
   const copyToClipboard = async (text: string) => {
     try {
