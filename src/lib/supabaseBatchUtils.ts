@@ -162,9 +162,14 @@ export async function fetchPaginatedSupporterIds(
       .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
       .limit(2000);
 
-    const matchedIds = (matches || [])
-      .map((p: any) => p.id as string)
-      .filter(id => partnerSet.has(id));
+    // Surface BOTH existing partners and any other user who matches (e.g. a
+    // verified depositor with wallet money but no portfolio yet). This lets
+    // Partnership Ops find and invest/top-up from any user's wallet, not just
+    // people who already own a portfolio. Existing partners are ordered first.
+    const allMatched = (matches || []).map((p: any) => p.id as string);
+    const partnerMatches = allMatched.filter(id => partnerSet.has(id));
+    const prospectMatches = allMatched.filter(id => !partnerSet.has(id));
+    const matchedIds = [...partnerMatches, ...prospectMatches];
     const start = page * pageSize;
     return {
       ids: matchedIds.slice(start, start + pageSize),
