@@ -2885,6 +2885,7 @@ export function EmailTransactionsPanel() {
               const visible = filteredRows.filter((r) => {
                 if (directionFilter === 'in' && r.direction !== 'in') return false;
                 if (directionFilter === 'out' && r.direction !== 'out' && r.direction !== 'charge') return false;
+                if (needsRoutingOnly && !isNeedsRouting(r)) return false;
                 if (matchFilter === 'all') return true;
                 const list = userMatches[r.id] ?? [];
                 if (matchFilter === 'reference') return list.some((u) => u.matched_on.startsWith('reference '));
