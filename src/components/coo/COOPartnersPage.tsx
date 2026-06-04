@@ -3636,6 +3636,164 @@ function MiniKPI({ icon, label, value, variant }: {
   );
 }
 
+/* ─── Portfolio expiry helper ─── */
+// Expiration is anchored to the contribution date (created_at) + duration_months.
+function computePortfolioExpiry(createdAt: string, durationMonths: number) {
+  const start = new Date(createdAt);
+  const expiry = new Date(start);
+  expiry.setMonth(expiry.getMonth() + (Number(durationMonths) || 12));
+  const now = new Date();
+  const remainingDays = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return { expiry, remainingDays };
+}
+
+const EXPIRY_WINDOW_DAYS = 90; // "about to expire" = within 3 months
+
+function getExpiringPortfolios(portfolios: NearingPayoutPortfolio[]) {
+  return portfolios
+    .filter(p => p.status === 'active' || p.status == null)
+    .map(p => {
+      const { expiry, remainingDays } = computePortfolioExpiry(p.createdAt, p.durationMonths);
+      return { ...p, expiry, remainingDays };
+    })
+    .filter(p => p.remainingDays >= 0 && p.remainingDays <= EXPIRY_WINDOW_DAYS)
+    .sort((a, b) => a.remainingDays - b.remainingDays);
+}
+
+/* ─── Expiring Portfolios Card ─── */
+function ExpiringPortfoliosCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
+  const expiring = useMemo(() => getExpiringPortfolios(portfolios), [portfolios]);
+  const count = expiring.length;
+  const soonest = count > 0 ? expiring[0].remainingDays : null;
+  const hasExpiring = count > 0;
+  return (
+    <button onClick={onClick} aria-label={`${count} portfolio(s) expiring within 3 months`} className={cn(
+      'rounded-2xl border p-4 space-y-2.5 text-left w-full transition-all hover:shadow-lg active:scale-[0.98]',
+      hasExpiring ? 'border-rose-500/40 bg-rose-500/5 ring-2 ring-rose-500/20 shadow-sm' : 'border-primary/20 bg-primary/[0.03]'
+    )}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className={cn('p-2 rounded-xl', hasExpiring ? 'bg-rose-500/10 text-rose-600' : 'bg-primary/10 text-primary')}>
+            <Hourglass className="h-5 w-5" />
+          </div>
+          <div>
+            <span className={cn('text-xs font-bold uppercase tracking-wider', hasExpiring ? 'text-rose-700 dark:text-rose-400' : 'text-muted-foreground')}>
+              Expiring Soon · 3 mo
+            </span>
+            <p className={cn('text-[11px] leading-snug mt-0.5', hasExpiring ? 'text-rose-600/80 font-medium' : 'text-muted-foreground')}>
+              {hasExpiring ? `Soonest in ${soonest} day${soonest === 1 ? '' : 's'}` : 'None expiring soon'}
+            </p>
+          </div>
+        </div>
+        <div className={cn('text-2xl font-black tabular-nums px-3 py-1 rounded-xl', hasExpiring ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300' : 'text-foreground')}>
+          {count}
+        </div>
+      </div>
+      {hasExpiring && (
+        <div className="flex items-center justify-center gap-1.5 pt-1 border-t border-border/40">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tap to review →</span>
+        </div>
+      )}
+    </button>
+  );
+}
+
+/* ─── Expiring Portfolios Dialog ─── */
+function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
+  open: boolean; onOpenChange: (v: boolean) => void; portfolios: NearingPayoutPortfolio[];
+}) {
+  const [search, setSearch] = useState('');
+  const expiring = useMemo(() => getExpiringPortfolios(portfolios), [portfolios]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return expiring;
+    return expiring.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.portfolioName.toLowerCase().includes(q) ||
+      (p.phone || '').toLowerCase().includes(q)
+    );
+  }, [expiring, search]);
+
+  const fmtDate = (d: Date) => d.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' });
+  const urgency = (days: number) =>
+    days <= 14 ? { tone: 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/30' }
+    : days <= 30 ? { tone: 'text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30' }
+    : { tone: 'text-primary bg-primary/10 border-primary/30' };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent stable className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-sm flex items-center gap-2">
+            <Hourglass className="h-4 w-4 text-rose-600" /> Portfolios Expiring Soon
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            {expiring.length} active portfolio{expiring.length === 1 ? '' : 's'} reaching maturity within the next 3 months (based on contribution date + duration).
+          </DialogDescription>
+        </DialogHeader>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search by partner, portfolio or phone…"
+            className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30" />
+        </div>
+        <div className="flex-1 overflow-y-auto -mx-1 px-1">
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <CalendarClock className="h-8 w-8 mb-2 opacity-40" />
+              <p className="text-sm">No portfolios expiring within 3 months.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-1">
+              {filtered.map(p => {
+                const u = urgency(p.remainingDays);
+                return (
+                  <div key={p.portfolioId} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate">{p.portfolioName}</p>
+                        <p className="text-[11px] text-muted-foreground font-mono">#{p.portfolioId.slice(0, 8)}</p>
+                      </div>
+                      <span className={cn('shrink-0 text-[11px] font-bold px-2 py-1 rounded-lg border tabular-nums', u.tone)}>
+                        {p.remainingDays} day{p.remainingDays === 1 ? '' : 's'} left
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-2">
+                      <div className="p-1.5 rounded-lg bg-primary/10 text-primary"><Users className="h-3.5 w-3.5" /></div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold truncate">{p.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{p.phone || p.email || 'No contact'}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Expiry Date</p>
+                        <p className="font-semibold flex items-center gap-1"><CalendarClock className="h-3 w-3 text-rose-600" />{fmtDate(p.expiry)}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Started</p>
+                        <p className="font-semibold">{new Date(p.createdAt).toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Principal</p>
+                        <p className="font-semibold tabular-nums">{formatUGX(p.investmentAmount)}</p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Duration</p>
+                        <p className="font-semibold tabular-nums">{p.durationMonths} mo · {p.roiPercentage}% {p.roiMode === 'monthly_compounding' ? 'cmp' : 'pay'}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ─── Nearing Payouts Card ─── */
 function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
   // Single source of truth: portfolios whose Next Payout Date == today (local TZ string compare).
