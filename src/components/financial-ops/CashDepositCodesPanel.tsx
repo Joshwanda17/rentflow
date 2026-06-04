@@ -136,9 +136,16 @@ export function CashDepositCodesPanel() {
 
   if (denied) return null;
 
-  const activeCount = rows.filter(
+  const activeRows = rows.filter(
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
-  ).length;
+  );
+
+  // Auto-hide expired rows from the table (they may still appear in the RPC cache briefly)
+  const displayRows = rows.filter(
+    (r) => !(r.expires_at && new Date(r.expires_at).getTime() <= Date.now()),
+  );
+
+  const activeCount = activeRows.length;
 
   return (
     <div className="rounded-xl border bg-card p-4 sm:p-5 space-y-4">
