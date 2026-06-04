@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Home, Users, Calendar, ArrowRight, Sparkles, X } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
+import { ContrastPanel } from '@/components/ui/contrast-panel';
+
+// Solid panel surfaces — text colour is auto-derived for guaranteed contrast.
+const PANEL_BG = 'hsl(150 60% 16%)'; // deep emerald, white text auto-picked
+const CTA_BG = '#ffffff'; // light CTA, dark text auto-picked
 
 const BONUS_PER_LANDLORD = 5000;
 const WEEKLY_PRIZE = 70000;
