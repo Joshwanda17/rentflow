@@ -1031,16 +1031,34 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
               {/* Inline landlord verification checklist — status & progress shown
                   before the Approve button is enabled (Landlord Ops stage only) */}
               {isLandlordStage && (
-                <div className="mt-2 rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold flex items-center gap-1.5 text-purple-700 dark:text-purple-300">
-                      <ShieldCheck className="h-4 w-4" />
-                      Do these 2 steps first
+                <div className="mt-2 space-y-2">
+                  {/* Big visible progress indicator above the checklist */}
+                  <div className={`flex items-center gap-2 rounded-lg px-3 py-2 border ${checklistComplete ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${checklistComplete ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>
+                      {checklistComplete ? '✓' : `${checklistDone}`}
                     </span>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${checklistComplete ? 'bg-emerald-500/15 text-emerald-700' : 'bg-amber-500/15 text-amber-700'}`}>
-                      {checklistComplete ? '✓ All done' : `${checklistDone} of 2 done`}
-                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-bold ${checklistComplete ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300'}`}>
+                        {checklistComplete
+                          ? 'All done — tap Approve now'
+                          : `${checklistDone} of 2 done — finish the steps below`}
+                      </p>
+                      {/* Progress bar */}
+                      <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${checklistComplete ? 'bg-emerald-500 w-full' : checklistDone === 1 ? 'bg-amber-500 w-1/2' : 'bg-amber-500 w-0'}`}
+                        />
+                      </div>
+                    </div>
                   </div>
+
+                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold flex items-center gap-1.5 text-purple-700 dark:text-purple-300">
+                        <ShieldCheck className="h-4 w-4" />
+                        Do these 2 steps first
+                      </span>
+                    </div>
 
                   {/* Step 1 — call the landlord. Whole box is tappable for easy phone use. */}
                   <button
@@ -1085,6 +1103,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     </p>
                   )}
                 </div>
+              </div>
               )}
               </div>
               );
