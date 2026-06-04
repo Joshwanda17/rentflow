@@ -110,8 +110,8 @@ describe('Cash deposit 10-minute code expiry — end to end', () => {
     expect(store.get('ver-1')?.status).toBe('expired');
   });
 
-  it('boundary at exactly 2:00 — the backend accepts when now === expires_at, then rejects 1ms later', () => {
-    // The receipt window opened 2 minutes ago, so it expires *exactly* now.
+  it('boundary at exactly the expiry — the backend accepts when now === expires_at, then rejects 1ms later', () => {
+    // The receipt window opened 10 minutes ago, so it expires *exactly* now.
     const expiresAtMs = Date.now();
     const rec: VerificationRecord = {
       status: 'awaiting_code',
