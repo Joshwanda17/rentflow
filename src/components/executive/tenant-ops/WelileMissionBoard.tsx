@@ -1559,7 +1559,15 @@ function LandlordReceivablesDialog({
   onOpenLandlord: (id: string) => void;
 }) {
   const [search, setSearch] = useState('');
-  const { data, isLoading } = useMissionLandlordReceivables(open);
+  const [range, setRange] = useState<DateRange | undefined>(undefined);
+  const fromISO = range?.from ? range.from.toISOString() : null;
+  // exclusive upper bound: include the whole selected end day
+  const toISO = range?.to
+    ? new Date(range.to.getFullYear(), range.to.getMonth(), range.to.getDate() + 1).toISOString()
+    : (range?.from
+        ? new Date(range.from.getFullYear(), range.from.getMonth(), range.from.getDate() + 1).toISOString()
+        : null);
+  const { data, isLoading } = useMissionLandlordReceivables(open, fromISO, toISO);
   const rows: MissionLandlordReceivable[] = data ?? [];
 
   const searchLower = search.trim().toLowerCase();
@@ -1596,6 +1604,44 @@ function LandlordReceivablesDialog({
               className="pl-7 h-8 text-xs"
             />
           </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn('h-8 gap-1.5 text-[11px] shrink-0', !range?.from && 'text-muted-foreground')}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                {range?.from
+                  ? (range.to
+                      ? `${format(range.from, 'd MMM')} – ${format(range.to, 'd MMM')}`
+                      : format(range.from, 'd MMM yyyy'))
+                  : 'Date range'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="range"
+                selected={range}
+                onSelect={setRange}
+                numberOfMonths={2}
+                initialFocus
+                className={cn('p-3 pointer-events-auto')}
+              />
+              {range?.from && (
+                <div className="border-t p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-full text-[11px] gap-1"
+                    onClick={() => setRange(undefined)}
+                  >
+                    <X className="h-3.5 w-3.5" /> Clear date range
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
           <div className="rounded-lg bg-emerald-500/10 px-2 py-1 text-right shrink-0">
             <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 leading-none">Total</p>
             <p className="text-xs font-bold text-emerald-700 tabular-nums leading-tight">{formatUGX(grandTotal)}</p>
