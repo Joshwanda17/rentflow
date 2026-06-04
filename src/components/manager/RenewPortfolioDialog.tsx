@@ -185,6 +185,8 @@ export function RenewPortfolioDialog({ open, onOpenChange, portfolio, onSuccess 
                   portfolio_name: portfolio.account_name || portfolio.portfolio_code,
                   portfolio_id: portfolio.portfolio_code,
                   amount: newAmount,
+                  old_principal: portfolio.investment_amount,
+                  new_principal: newAmount,
                   return_rate: `${newRoi}%`,
                   renewal_date: fmtDate(startDate),
                   maturity_date: fmtDate(maturity),
