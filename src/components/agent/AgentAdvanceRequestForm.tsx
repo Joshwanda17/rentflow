@@ -551,12 +551,21 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
                             Repayment breakdown
                           </p>
-                          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                          {/* Column headers so it reads at a glance */}
+                          <div className="grid grid-cols-3 gap-2 px-1 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                            <span>Date</span>
+                            <span className="text-right">Paid</span>
+                            <span className="text-right">Balance left</span>
+                          </div>
+                          <div className="space-y-0 max-h-60 overflow-y-auto pr-1">
                             {repaidEntries.map((e: any, i: number) => (
-                              <div key={i} className="flex items-center justify-between gap-2 text-[11px]">
-                                <span className="text-muted-foreground">{format(new Date(e.date), 'MMM d, yyyy')}</span>
-                                <span className="font-semibold text-emerald-600 tabular-nums">− {formatUGX(Number(e.amount_deducted))}</span>
-                                <span className="text-muted-foreground tabular-nums">bal {formatUGX(Number(e.closing_balance))}</span>
+                              <div
+                                key={i}
+                                className="grid grid-cols-3 gap-2 items-center px-1 py-1.5 text-[11px] border-t border-border/40"
+                              >
+                                <span className="text-foreground font-medium">{format(new Date(e.date), 'MMM d, yyyy')}</span>
+                                <span className="text-right font-semibold text-emerald-600 tabular-nums">− {formatUGX(Number(e.amount_deducted))}</span>
+                                <span className="text-right font-semibold tabular-nums">{formatUGX(Number(e.closing_balance))}</span>
                               </div>
                             ))}
                           </div>
