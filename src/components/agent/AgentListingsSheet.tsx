@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, ChevronUp, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2, MessageCircle } from 'lucide-react';
+import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw, Building2, ChevronDown, ChevronRight, ChevronUp, User, UserCog, Pencil, Search, X, MoreVertical, Eye, Trash2, Loader2, MessageCircle, Trophy, Sparkles } from 'lucide-react';
 import { UserMinus, Repeat } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -388,6 +388,25 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
             <Home className="h-5 w-5 text-primary" />
             My Listed Houses
           </SheetTitle>
+          {vacantOnly && (
+            <div className="mt-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 flex items-start gap-2">
+              <div className="mt-0.5 shrink-0 rounded-full bg-emerald-500 text-white p-1">
+                <Trophy className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-emerald-900">Promo Mode</span>
+                  <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide border border-amber-200">
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Weekly Prize
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-700 mt-0.5 leading-relaxed">
+                  You’re viewing your <span className="font-semibold text-emerald-900">empty houses</span> eligible for the campaign. Register more landlords with empty houses to hit <span className="font-bold text-emerald-900">10 this week</span> and win <span className="font-bold text-emerald-900">UGX 70,000</span>.
+                </p>
+              </div>
+            </div>
+          )}
           {!loading && listings.length > 0 && (
             <div className="space-y-2 pt-2">
               {(() => {
