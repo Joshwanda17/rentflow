@@ -2043,9 +2043,19 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
           .from('profiles').select('id, full_name, phone').in('id', ids);
         nameMap = new Map((profs ?? []).map((p: any) => [p.id, p]));
       }
+      // Recorded payable A/C entries from the dedicated landlord sub-ledger.
+      const { data: recorded } = await supabase
+        .from('landlord_account_ledger')
+        .select('rent_request_id, amount, updated_at')
+        .eq('landlord_id', landlordId)
+        .eq('entry_type', 'payable');
+      const recordedMap = new Map(
+        (recorded ?? []).map((r: any) => [r.rent_request_id, r]),
+      );
       return rows.map((r: any) => {
         const monthlyRent = Number(r.rent_amount || 0);
         const dailyRent = Number(r.daily_repayment || 0);
+        const rec = recordedMap.get(r.id) as any;
         return {
           ...r,
           tenant: nameMap.get(r.tenant_id) ?? null,
@@ -2055,6 +2065,8 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
           annualPayable: monthlyRent * 12,
           // Annual receivable from the rental = daily rent × 30 days × 12 months.
           annualReceivable: dailyRent * 30 * 12,
+          // Recorded payable from the sub-ledger (null if not yet generated).
+          recordedPayable: rec ? Number(rec.amount) : null,
         };
       });
     },
@@ -2065,9 +2077,10 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
       (acc, r) => {
         acc.payable += r.annualPayable;
         acc.receivable += r.annualReceivable;
+        if (r.recordedPayable != null) { acc.recordedPayable += r.recordedPayable; acc.recordedCount += 1; }
         return acc;
       },
-      { payable: 0, receivable: 0 },
+      { payable: 0, receivable: 0, recordedPayable: 0, recordedCount: 0 },
     );
   }, [placed]);
 
