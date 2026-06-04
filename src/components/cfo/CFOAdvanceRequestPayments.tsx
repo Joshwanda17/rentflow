@@ -750,7 +750,7 @@ export function CFOAdvanceRequestPayments() {
                             disabled={revokeApprovalMutation.isPending || payMutation.isPending}
                             className="w-full h-7 text-[11px] text-muted-foreground"
                           >
-                            {revokeApprovalMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Revoke approval &amp; re-open for editing'}
+                            {revokeApprovalMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Revoke approval & re-open for editing'}
                           </Button>
                           <p className="text-[10px] text-muted-foreground text-center">
                             Approved by CFO{req.cfo_approved_at ? ` on ${format(new Date(req.cfo_approved_at), 'MMM d, HH:mm')}` : ''}. Edits are locked — revoke to change.
