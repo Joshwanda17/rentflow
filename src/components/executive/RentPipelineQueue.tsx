@@ -214,6 +214,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const hasChecklistHydratedRef = useRef(false);
   // Timestamp of the last checklist save so the operator knows their ticks are stored.
   const [checklistSavedAt, setChecklistSavedAt] = useState<Date | null>(null);
+  // Server sync status for the checklist ticks so operators know whether their
+  // ticks actually reached the server: 'idle' | 'saving' | 'saved' | 'failed'.
+  const [checklistSyncStatus, setChecklistSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const getCardChecklist = (id: string) => cardChecklist[id] || { called: false, acknowledged: false };
   const toggleCardCheck = (id: string, key: 'called' | 'acknowledged', value: boolean) => {
     setCardChecklist(prev => ({
@@ -355,6 +358,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
     try { localStorage.setItem(LANDLORD_CHECKLIST_LS_KEY, JSON.stringify(cardChecklist)); } catch { /* noop */ }
     setChecklistSavedAt(new Date());
     if (!user?.id) return;
+    setChecklistSyncStatus('saving');
     (async () => {
       try {
         const { error } = await supabase
@@ -363,8 +367,14 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             { user_id: user.id, key: LANDLORD_CHECKLIST_PREF_KEY, value: cardChecklist },
             { onConflict: 'user_id,key' },
           );
-        if (error) console.warn('[RentPipelineQueue] checklist cloud write failed, using localStorage', error);
+        if (error) {
+          setChecklistSyncStatus('failed');
+          console.warn('[RentPipelineQueue] checklist cloud write failed, using localStorage', error);
+        } else {
+          setChecklistSyncStatus('saved');
+        }
       } catch (err) {
+        setChecklistSyncStatus('failed');
         console.warn('[RentPipelineQueue] checklist write failed, using localStorage', err);
       }
     })();
@@ -1101,15 +1111,33 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   before the Approve button is enabled (Landlord Ops stage only) */}
               {isLandlordStage && (
                 <div className="mt-2 space-y-2">
-                  {/* Saved indicator — tells the operator their ticks are stored */}
-                  {checklistSavedAt && (
+                  {/* Sync status — tells the operator whether their ticks reached the server */}
+                  {checklistSyncStatus !== 'idle' && (
                     <div className="flex items-center gap-1.5">
-                      <Cloud className="h-3 w-3 text-emerald-500" />
-                      <span className="text-[10px] font-medium text-emerald-600">
-                        {Date.now() - checklistSavedAt.getTime() < 5000
-                          ? 'Saved just now'
-                          : `Last saved: ${format(checklistSavedAt, 'h:mm a')}`}
-                      </span>
+                      {checklistSyncStatus === 'saving' && (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                          <span className="text-[10px] font-medium text-muted-foreground">Saving…</span>
+                        </>
+                      )}
+                      {checklistSyncStatus === 'saved' && (
+                        <>
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          <span className="text-[10px] font-medium text-emerald-600">
+                            {checklistSavedAt && Date.now() - checklistSavedAt.getTime() < 5000
+                              ? 'Saved'
+                              : `Saved${checklistSavedAt ? ` · ${format(checklistSavedAt, 'h:mm a')}` : ''}`}
+                          </span>
+                        </>
+                      )}
+                      {checklistSyncStatus === 'failed' && (
+                        <>
+                          <AlertCircle className="h-3 w-3 text-destructive" />
+                          <span className="text-[10px] font-medium text-destructive">
+                            Not saved to server — saved on this phone only
+                          </span>
+                        </>
+                      )}
                     </div>
                   )}
 
