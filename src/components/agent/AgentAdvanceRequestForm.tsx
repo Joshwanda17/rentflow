@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Loader2, ArrowRight, Shield, Banknote, Calendar, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
-import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, ListChecks } from 'lucide-react';
+import { ChevronRight, ArrowLeft, History as HistoryIcon, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
