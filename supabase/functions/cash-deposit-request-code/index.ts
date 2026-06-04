@@ -220,17 +220,18 @@ Deno.serve(async (req) => {
       "Entering the code instantly credits the user's wallet. Code expires in 10 minutes.",
     ].filter(Boolean).join("\n");
 
+    let emailed = true;
     try {
       await sendGmail(VERIFIER_EMAIL, subject, emailBody);
     } catch (mailErr) {
       console.error("[cash-request-code] email send failed", mailErr);
-      // Keep the pending row; surface a clear error so the user can retry.
-      return new Response(JSON.stringify({ error: "email_failed", message: "Could not send the code to the verifier. Please try again." }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // Email is now only a fallback — the verifier reads the code from the
+      // in-app "Cash Deposit Codes" panel (fin_ops_recent_cash_codes RPC).
+      // Don't fail the deposit just because the mailbox is unreachable.
+      emailed = false;
     }
 
-    return new Response(JSON.stringify({ ok: true, deposit_request_id: depositId, verifier: VERIFIER_EMAIL }), {
+    return new Response(JSON.stringify({ ok: true, deposit_request_id: depositId, verifier: VERIFIER_EMAIL, emailed }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
