@@ -1732,7 +1732,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           source_wallet_user_id: walletTransferMethod === 'proxy_agent' ? proxyAgentInfo?.agentId : detailPartner?.profile?.id,
         },
       });
-      if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
+      if (error) throw new Error(await extractFromErrorObject(error, 'Transfer failed.'));
       if (result?.error) throw new Error(result.error);
 
       const sourceLabel = `${walletTransferMethod === 'wallet' ? 'partner' : `${proxyAgentInfo?.agentName}'s`} ${bucketLabel}`;
