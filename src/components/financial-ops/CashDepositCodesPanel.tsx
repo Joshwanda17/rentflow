@@ -192,97 +192,106 @@ export function CashDepositCodesPanel() {
 
   const activeCount = activeRows.length;
 
+  const [open, setOpen] = useState(true);
+
   return (
-    <div className="rounded-xl border bg-card p-4 sm:p-5 space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
-            <KeyRound className="h-5 w-5 text-primary" /> Cash Deposit Codes
-            {activeCount > 0 && (
-              <Badge className="bg-amber-500 text-white hover:bg-amber-500">{activeCount} active</Badge>
-            )}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Read the active code back to the depositor only after you have received the matching cash. Codes expire in 10 minutes.
-          </p>
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border bg-card">
+      <CollapsibleTrigger asChild>
+        <div className="flex items-center justify-between gap-3 cursor-pointer p-4 sm:p-5 hover:bg-muted/30 transition-colors rounded-t-xl">
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" /> Cash Deposit Codes
+              {activeCount > 0 && (
+                <Badge className="bg-amber-500 text-white hover:bg-amber-500">{activeCount} active</Badge>
+              )}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Read the active code back to the depositor only after you have received the matching cash. Codes expire in 10 minutes.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge
+              variant="outline"
+              className="hidden sm:inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground border-dashed"
+            >
+              <Radio className={`h-3 w-3 animate-pulse ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
+              {realtimeHealthy ? `Live · safety refresh ${secondsToRefresh}s` : `Fallback refresh ${secondsToRefresh}s`}
+            </Badge>
+            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); load(); }} className="gap-1.5">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Refresh
+            </Button>
+            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Badge
-            variant="outline"
-            className="hidden sm:inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground border-dashed"
-          >
-            <Radio className={`h-3 w-3 animate-pulse ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
-            {realtimeHealthy ? `Live · safety refresh ${secondsToRefresh}s` : `Fallback refresh ${secondsToRefresh}s`}
-          </Badge>
-          <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Refresh
-          </Button>
-        </div>
-      </div>
+      </CollapsibleTrigger>
 
-      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-        <Radio className={`h-3 w-3 ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
-        <span>
-          {realtimeHealthy
-            ? 'Realtime connected'
-            : 'Realtime unavailable — polling fallback active'}
-          {' '}— last updated {new Date(lastRefreshedAt).toLocaleTimeString()}
-        </span>
-      </div>
+      <CollapsibleContent>
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-4">
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <Radio className={`h-3 w-3 ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
+            <span>
+              {realtimeHealthy
+                ? 'Realtime connected'
+                : 'Realtime unavailable — polling fallback active'}
+              {' '}— last updated {new Date(lastRefreshedAt).toLocaleTimeString()}
+            </span>
+          </div>
 
-      {loading && displayRows.length === 0 ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading codes…
+          {loading && displayRows.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading codes…
+            </div>
+          ) : displayRows.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-6 text-center">No cash deposit codes yet.</div>
+          ) : (
+            <div className="overflow-x-auto -mx-1">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground border-b">
+                    <th className="py-2 px-2 font-medium">Code</th>
+                    <th className="py-2 px-2 font-medium">Amount</th>
+                    <th className="py-2 px-2 font-medium">Depositor</th>
+                    <th className="py-2 px-2 font-medium">Purpose</th>
+                    <th className="py-2 px-2 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayRows.map((r) => (
+                    <tr key={r.verification_id} className="border-b last:border-0 hover:bg-muted/40">
+                      <td className="py-2 px-2 align-top">
+                        {r.code ? (
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => copy(r.code!)}
+                              className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-foreground rounded-md px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 transition-colors w-fit"
+                              title="Click to copy"
+                            >
+                              {r.code}
+                              {copied === r.code ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                            </button>
+                            <Countdown expiresAt={r.expires_at} inline />
+                          </div>
+                        ) : (
+                          <span className="font-mono text-muted-foreground">••••</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-2 font-medium whitespace-nowrap">{fmtUgx(r.amount)}</td>
+                      <td className="py-2 px-2">
+                        <div className="font-medium truncate max-w-[160px]">{r.depositor_name || '—'}</div>
+                        <div className="text-xs text-muted-foreground">{r.depositor_phone || ''}</div>
+                      </td>
+                      <td className="py-2 px-2 whitespace-nowrap text-xs">{purposeLabel(r.deposit_purpose)}</td>
+                      <td className="py-2 px-2"><StatusBadge status={r.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      ) : displayRows.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-6 text-center">No cash deposit codes yet.</div>
-      ) : (
-        <div className="overflow-x-auto -mx-1">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="text-left text-xs text-muted-foreground border-b">
-                <th className="py-2 px-2 font-medium">Code</th>
-                <th className="py-2 px-2 font-medium">Amount</th>
-                <th className="py-2 px-2 font-medium">Depositor</th>
-                <th className="py-2 px-2 font-medium">Purpose</th>
-                <th className="py-2 px-2 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayRows.map((r) => (
-                <tr key={r.verification_id} className="border-b last:border-0 hover:bg-muted/40">
-                  <td className="py-2 px-2 align-top">
-                    {r.code ? (
-                      <div className="flex flex-col gap-1">
-                        <button
-                          type="button"
-                          onClick={() => copy(r.code!)}
-                          className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-foreground rounded-md px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 transition-colors w-fit"
-                          title="Click to copy"
-                        >
-                          {r.code}
-                          {copied === r.code ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                        </button>
-                        <Countdown expiresAt={r.expires_at} inline />
-                      </div>
-                    ) : (
-                      <span className="font-mono text-muted-foreground">••••</span>
-                    )}
-                  </td>
-                  <td className="py-2 px-2 font-medium whitespace-nowrap">{fmtUgx(r.amount)}</td>
-                  <td className="py-2 px-2">
-                    <div className="font-medium truncate max-w-[160px]">{r.depositor_name || '—'}</div>
-                    <div className="text-xs text-muted-foreground">{r.depositor_phone || ''}</div>
-                  </td>
-                  <td className="py-2 px-2 whitespace-nowrap text-xs">{purposeLabel(r.deposit_purpose)}</td>
-                  <td className="py-2 px-2"><StatusBadge status={r.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
