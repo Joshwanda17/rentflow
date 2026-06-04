@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { KeyRound, RefreshCw, Loader2, Copy, Check, Clock } from 'lucide-react';
+import { KeyRound, RefreshCw, Loader2, Copy, Check, Clock, Radio } from 'lucide-react';
 
 interface CashCodeRow {
   verification_id: string;
