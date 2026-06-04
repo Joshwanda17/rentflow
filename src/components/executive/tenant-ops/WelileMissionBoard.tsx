@@ -451,6 +451,12 @@ export function WelileMissionBoard() {
         onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
       />
 
+      <LandlordReceivablesDialog
+        open={landlordRecvOpen}
+        onClose={() => setLandlordRecvOpen(false)}
+        onOpenLandlord={(id) => { setLandlordRecvOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
+      />
+
       <AgentNetworkDriverDialog
         driver={driverOpen?.key ?? null}
         label={driverOpen?.label ?? ''}
