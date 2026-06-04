@@ -211,17 +211,20 @@ export function CashDepositCodesPanel() {
             <tbody>
               {displayRows.map((r) => (
                 <tr key={r.verification_id} className="border-b last:border-0 hover:bg-muted/40">
-                  <td className="py-2 px-2">
+                  <td className="py-2 px-2 align-top">
                     {r.code ? (
-                      <button
-                        type="button"
-                        onClick={() => copy(r.code!)}
-                        className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-foreground rounded-md px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
-                        title="Click to copy"
-                      >
-                        {r.code}
-                        {copied === r.code ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                      </button>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() => copy(r.code!)}
+                          className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-foreground rounded-md px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 transition-colors w-fit"
+                          title="Click to copy"
+                        >
+                          {r.code}
+                          {copied === r.code ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </button>
+                        <Countdown expiresAt={r.expires_at} inline />
+                      </div>
                     ) : (
                       <span className="font-mono text-muted-foreground">••••</span>
                     )}
