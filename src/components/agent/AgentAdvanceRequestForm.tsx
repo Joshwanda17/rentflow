@@ -52,11 +52,36 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [amountMax, setAmountMax] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // Sorting
+  // Sorting — persisted to localStorage across reloads
+  const SORT_STORAGE_KEY = 'agent-advance-sort';
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+  // Load persisted sort on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SORT_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.sortBy === 'date' || parsed.sortBy === 'amount') {
+          setSortBy(parsed.sortBy);
+        }
+        if (parsed.sortOrder === 'asc' || parsed.sortOrder === 'desc') {
+          setSortOrder(parsed.sortOrder);
+        }
+      }
+    } catch {
+      // ignore corrupt storage
+    }
+  }, []);
+
+  // Persist sort whenever it changes
+  useEffect(() => {
+    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify({ sortBy, sortOrder }));
+  }, [sortBy, sortOrder]);
+
   // Always return to the menu when the sheet (re)opens.
+  // NOTE: sort is NOT reset — it persists across sheet opens and reloads.
   useEffect(() => {
     if (open) {
       setView('menu');
@@ -67,8 +92,6 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
       setAmountMin('');
       setAmountMax('');
       setFiltersOpen(false);
-      setSortBy('date');
-      setSortOrder('desc');
     }
   }, [open]);
 
