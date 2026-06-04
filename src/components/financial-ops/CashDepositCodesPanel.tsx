@@ -235,7 +235,6 @@ export function CashDepositCodesPanel() {
                   </td>
                   <td className="py-2 px-2 whitespace-nowrap text-xs">{purposeLabel(r.deposit_purpose)}</td>
                   <td className="py-2 px-2"><StatusBadge status={r.status} /></td>
-                  <td className="py-2 px-2 whitespace-nowrap"><Countdown expiresAt={r.expires_at} /></td>
                 </tr>
               ))}
             </tbody>
