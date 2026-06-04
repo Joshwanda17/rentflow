@@ -11,6 +11,7 @@ import {
   Wallet, HandCoins, Banknote, Landmark, AlertTriangle, Loader2,
   ArrowDownLeft, ArrowUpRight, User, ChevronRight, Search, Info,
 } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 /**
  * Financial Ops — per-user wallet statements.
@@ -106,6 +107,12 @@ interface LedgerRow {
   category: string | null;
   description: string | null;
   amount: number;
+  wallet_bucket: string | null;
+  ledger_scope: string | null;
+  source_table: string | null;
+  source_id: string | null;
+  classification: string | null;
+  currency: string | null;
 }
 
 /* ── Wallet (cache) summary ── */
@@ -147,7 +154,7 @@ function BucketStatement({ userId, bucket }: { userId: string; bucket: BucketKey
     queryFn: async () => {
       const { data: rows, error } = await supabase
         .from('general_ledger')
-        .select('id, transaction_date, direction, category, description, amount')
+        .select('id, transaction_date, direction, category, description, amount, wallet_bucket, ledger_scope, source_table, source_id, classification, currency')
         .eq('user_id', userId)
         .eq('ledger_scope', 'wallet')
         .eq('wallet_bucket', bucket)
