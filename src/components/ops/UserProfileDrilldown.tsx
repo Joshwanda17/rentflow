@@ -41,7 +41,7 @@ function Row({ label, value }: { label: ReactNode; value: ReactNode }) {
   );
 }
 
-export function UserProfileDrilldown({ open, onOpenChange, userId }: Props) {
+export function UserProfileDrilldown({ open, onOpenChange, userId, breadcrumbs }: Props) {
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['profile-drilldown', userId],
     enabled: !!userId && open,
