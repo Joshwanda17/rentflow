@@ -42,12 +42,28 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [cycleDays, setCycleDays] = useState<number>(30);
   const [reason, setReason] = useState('');
   const [allocOpen, setAllocOpen] = useState(false);
-  // Landing menu inside the sheet: choose between viewing history or submitting.
   const [view, setView] = useState<'menu' | 'history' | 'request'>('menu');
+
+  // History filters
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'repaid' | 'outstanding'>('all');
+  const [amountMin, setAmountMin] = useState('');
+  const [amountMax, setAmountMax] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Always return to the menu when the sheet (re)opens.
   useEffect(() => {
-    if (open) setView('menu');
+    if (open) {
+      setView('menu');
+      // Reset filters when sheet opens fresh
+      setDateFrom(undefined);
+      setDateTo(undefined);
+      setStatusFilter('all');
+      setAmountMin('');
+      setAmountMax('');
+      setFiltersOpen(false);
+    }
   }, [open]);
 
   // Always recompute the limit from latest data when the sheet opens so
