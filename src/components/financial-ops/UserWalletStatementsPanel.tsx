@@ -5,10 +5,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { UserProfileDrilldown } from '@/components/ops/UserProfileDrilldown';
 import { formatUGX } from '@/lib/rentCalculations';
+import { plainDeductionReason } from '@/lib/deductionReason';
 import { format } from 'date-fns';
 import {
   Wallet, HandCoins, Banknote, Landmark, AlertTriangle, Loader2,
-  ArrowDownLeft, ArrowUpRight, User, ChevronRight, Search,
+  ArrowDownLeft, ArrowUpRight, User, ChevronRight, Search, Info,
 } from 'lucide-react';
 
 /**
