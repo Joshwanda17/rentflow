@@ -201,7 +201,7 @@ export function CashDepositCodesPanel() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {displayRows.map((r) => (
                 <tr key={r.verification_id} className="border-b last:border-0 hover:bg-muted/40">
                   <td className="py-2 px-2">
                     {r.code ? (
