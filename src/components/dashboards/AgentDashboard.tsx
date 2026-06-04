@@ -860,15 +860,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                   onClick: () => { hapticTap(); setFloatAllocationsOpen(true); },
                 },
                 {
-                  key: 'dashboard',
-                  label: 'Agent Dashboard',
-                  sub: 'Back to your home overview',
+                  key: 'advance',
+                  label: 'Agent Advance',
+                  sub: 'Request advance for tenant business',
                   amount: null,
-                  icon: LayoutDashboard,
-                  tone: 'text-amber-600',
-                  ring: 'ring-amber-500/30',
-                  bg: 'bg-amber-500/10',
-                  onClick: () => { hapticTap(); setSlideDirection(null); setActiveTab('home'); },
+                  icon: Briefcase,
+                  tone: 'text-primary',
+                  ring: 'ring-primary/30',
+                  bg: 'bg-primary/10',
+                  onClick: () => { hapticTap(); setBusinessAdvanceOpen(true); },
                 },
               ].map((c) => {
                 const Icon = c.icon;
