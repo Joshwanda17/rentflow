@@ -37,6 +37,8 @@ interface FundInvestmentAccountDialogProps {
     investor_id: string | null;
     agent_id: string;
     investor_name?: string;
+    investor_verified_at?: string | null;
+    investor_signup_source?: string | null;
   } | null;
   onSuccess: () => void;
 }
