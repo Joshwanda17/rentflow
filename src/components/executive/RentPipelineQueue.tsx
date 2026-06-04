@@ -429,14 +429,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       setSelectedRequest(req);
       return;
     }
-    // For Landlord Ops stage — enforce checklist.
-    // Outstanding-balance rows never reach this stage (trigger short-circuits
-    // them straight to completed), but guard anyway.
+    // For Landlord Ops stage — open the review drawer so the operator can drill
+    // down the landlord details, inspect the house photos, and complete the
+    // verification checklist before approving. The inline button can't approve
+    // directly because the landlord verification checklist lives inside the
+    // detail drawer (this is why the inline Approve previously appeared to "do
+    // nothing" — it silently failed the checklist guard).
     if (config.showLandlordChecklist && !isOutstanding) {
-      if (!landlordCalled || !landlordAcknowledged) {
-        toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
-        return;
-      }
+      setSelectedRequest(req);
+      return;
     }
     setQuickProcessingId(req.id);
     try {
