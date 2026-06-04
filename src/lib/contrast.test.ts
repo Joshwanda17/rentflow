@@ -196,46 +196,26 @@ describe("assertReadableContrast", () => {
   });
 
   it("warns in development for low-contrast pairs", () => {
-    const original = (import.meta as any).env;
-    (import.meta as any).env = { PROD: false };
-
-    assertReadableContrast("#cccccc", "#dddddd", "test-panel");
+    assertReadableContrast("#cccccc", "#dddddd", "test-panel", AA_NORMAL, false);
     expect(warnSpy).toHaveBeenCalledOnce();
     const call = warnSpy.mock.calls[0] as [string];
     expect(call[0]).toContain("Low contrast");
     expect(call[0]).toContain("test-panel");
-
-    (import.meta as any).env = original;
   });
 
   it("does not warn for high-contrast pairs", () => {
-    const original = (import.meta as any).env;
-    (import.meta as any).env = { PROD: false };
-
-    assertReadableContrast("#000000", "#ffffff", "ok-panel");
+    assertReadableContrast("#000000", "#ffffff", "ok-panel", AA_NORMAL, false);
     expect(warnSpy).not.toHaveBeenCalled();
-
-    (import.meta as any).env = original;
   });
 
   it("no-ops in production", () => {
-    const original = (import.meta as any).env;
-    (import.meta as any).env = { PROD: true };
-
-    assertReadableContrast("#cccccc", "#dddddd", "prod-panel");
+    assertReadableContrast("#cccccc", "#dddddd", "prod-panel", AA_NORMAL, true);
     expect(warnSpy).not.toHaveBeenCalled();
-
-    (import.meta as any).env = original;
   });
 
   it("no-ops for unparsable colours", () => {
-    const original = (import.meta as any).env;
-    (import.meta as any).env = { PROD: false };
-
-    assertReadableContrast("bad", "#ffffff", "unparsable-panel");
+    assertReadableContrast("bad", "#ffffff", "unparsable-panel", AA_NORMAL, false);
     expect(warnSpy).not.toHaveBeenCalled();
-
-    (import.meta as any).env = original;
   });
 });
 
