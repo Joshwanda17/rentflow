@@ -214,6 +214,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const hasChecklistHydratedRef = useRef(false);
   // Timestamp of the last checklist save so the operator knows their ticks are stored.
   const [checklistSavedAt, setChecklistSavedAt] = useState<Date | null>(null);
+  // Server sync status for the checklist ticks so operators know whether their
+  // ticks actually reached the server: 'idle' | 'saving' | 'saved' | 'failed'.
+  const [checklistSyncStatus, setChecklistSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const getCardChecklist = (id: string) => cardChecklist[id] || { called: false, acknowledged: false };
   const toggleCardCheck = (id: string, key: 'called' | 'acknowledged', value: boolean) => {
     setCardChecklist(prev => ({
