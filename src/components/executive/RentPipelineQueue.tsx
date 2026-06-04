@@ -199,6 +199,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Agent profile drilldown
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
+  // Landlord profile drilldown — full location, contacts, houses
+  const [drilldownLandlordId, setDrilldownLandlordId] = useState<string | null>(null);
   // Tenant selector — CFO picks which tenant's landlord to fund before approving.
   // localStorage acts as an offline mirror; the durable cross-device source of
   // truth is the per-user `user_ui_preferences` row keyed by TENANT_FILTER_PREF_KEY.
