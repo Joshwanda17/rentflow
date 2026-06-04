@@ -28,7 +28,7 @@ describe("parseColor", () => {
     const rgb = parseColor("hsl(150, 60%, 16%)");
     expect(rgb).not.toBeNull();
     expect(rgb!.r).toBeCloseTo(16, 0);
-    expect(rgb!.g).toBeCloseTo(41, 0);
+    expect(rgb!.g).toBeCloseTo(65, 0);
     expect(rgb!.b).toBeCloseTo(41, 0);
   });
 
@@ -36,7 +36,7 @@ describe("parseColor", () => {
     const rgb = parseColor("hsl(150 60% 16%)");
     expect(rgb).not.toBeNull();
     expect(rgb!.r).toBeCloseTo(16, 0);
-    expect(rgb!.g).toBeCloseTo(41, 0);
+    expect(rgb!.g).toBeCloseTo(65, 0);
     expect(rgb!.b).toBeCloseTo(41, 0);
   });
 
