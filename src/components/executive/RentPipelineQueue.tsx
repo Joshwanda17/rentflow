@@ -909,8 +909,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             {filtered.map(req => (
               <div
                 key={req.id}
-                className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors flex items-center gap-2"
+                className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors"
               >
+              <div className="flex items-center gap-2">
                 {/* COO bulk select checkbox */}
                 {isCooStage && (
                   <Checkbox
