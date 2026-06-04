@@ -50,7 +50,7 @@ const REGIONS = [
 
 import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
 
-export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone }: ListEmptyHouseDialogProps) {
+export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
   const geo = useGeolocation(true);
   const geoLoading = geo.loading;
   const position = geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null;
