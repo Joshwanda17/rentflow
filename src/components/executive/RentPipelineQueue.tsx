@@ -212,6 +212,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   // Guards the cloud-write effect so the initial localStorage value doesn't
   // overwrite a fresher cloud value before hydration completes.
   const hasChecklistHydratedRef = useRef(false);
+  // Timestamp of the last checklist save so the operator knows their ticks are stored.
+  const [checklistSavedAt, setChecklistSavedAt] = useState<Date | null>(null);
   const getCardChecklist = (id: string) => cardChecklist[id] || { called: false, acknowledged: false };
   const toggleCardCheck = (id: string, key: 'called' | 'acknowledged', value: boolean) => {
     setCardChecklist(prev => ({
