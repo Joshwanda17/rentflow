@@ -914,8 +914,8 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-foreground">{formatUGX(Number(req.total_payable))}</p>
-                      <p className="text-[10px] text-muted-foreground">total</p>
+                      <p className="text-sm font-bold text-primary">{req.cycle_days}d</p>
+                      <p className="text-[10px] text-muted-foreground">term</p>
                     </div>
                   </div>
                 );
