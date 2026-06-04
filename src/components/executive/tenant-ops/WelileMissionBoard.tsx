@@ -205,8 +205,18 @@ export function WelileMissionBoard() {
                   {p.key === 'place' && receivables && (
                     <div className="mt-2 rounded-lg bg-emerald-500/10 px-2 py-1.5">
                       <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 leading-none">Receivables A/C</p>
-                      <p className="text-sm font-bold text-emerald-700 tabular-nums leading-tight mt-0.5">{formatUGX(receivables.placed_receivable_total)}</p>
-                      <p className="text-[10px] text-muted-foreground leading-none">{receivables.placed_receivable_count.toLocaleString()} placed tenants · daily × 30 × 12</p>
+                      <p className="text-sm font-bold text-emerald-700 tabular-nums leading-tight mt-0.5">{formatUGX(receivables.placed_receivable_total + receivables.empty_receivable_total)}</p>
+                      <p className="text-[10px] text-muted-foreground leading-none">total receivable</p>
+                      <div className="mt-1.5 space-y-1 border-t border-emerald-500/20 pt-1.5">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-[10px] text-muted-foreground">Recorded · {receivables.placed_receivable_count.toLocaleString()} placed</span>
+                          <span className="text-[11px] font-semibold text-emerald-700 tabular-nums">{formatUGX(receivables.placed_receivable_total)}</span>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-[10px] text-muted-foreground">Projected · {receivables.empty_houses_count.toLocaleString()} empty</span>
+                          <span className="text-[11px] font-semibold text-amber-700 tabular-nums">{formatUGX(receivables.empty_receivable_total)}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                   {p.key === 'list' && receivables && (
