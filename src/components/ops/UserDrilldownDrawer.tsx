@@ -2184,8 +2184,15 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
             </p>
           </div>
           <div className="rounded-md border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/40 p-2">
-            <p className="text-[10px] uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Receivable A/C</p>
-            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{fmtUGX(accountTotals.receivable)}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Receivable A/C</p>
+              {accountTotals.recordedRecvCount > 0 && (
+                <Badge variant="outline" className="text-[8px] border-emerald-300 text-emerald-700 dark:text-emerald-300">{accountTotals.recordedRecvCount} recorded</Badge>
+              )}
+            </div>
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+              {fmtUGX(accountTotals.recordedRecvCount > 0 ? accountTotals.recordedReceivable : accountTotals.receivable)}
+            </p>
           </div>
         </div>
         {(placed as any[]).length === 0 ? (
@@ -2207,6 +2214,7 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                     {r.recordedPayable != null && <span className="ml-1 text-[9px] opacity-70">●</span>}
                   </span>
                   <span className="text-emerald-700 dark:text-emerald-300">Receivable {fmtUGX(r.annualReceivable)}</span>
+                  </span>
                 </div>
               </li>
             ))}
