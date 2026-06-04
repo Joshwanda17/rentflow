@@ -1103,6 +1103,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     </p>
                   )}
                 </div>
+              </div>
               )}
               </div>
               );
