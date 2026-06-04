@@ -1333,7 +1333,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentListingsSheet
         open={myListingsOpen}
         onOpenChange={setMyListingsOpen}
-        onListHouse={() => setListHouseOpen(true)}
+        onListHouse={() => { setListHouseFromPromo(false); setListHouseOpen(true); }}
       />
 
       {/* Phase 1: Agent Operations Dialogs */}
