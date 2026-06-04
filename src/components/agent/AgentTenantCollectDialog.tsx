@@ -94,6 +94,10 @@ export function AgentTenantCollectDialog({
   const [celebrationData, setCelebrationData] = useState<{ commission: number; amount: number } | null>(null);
   const [draftSaved, setDraftSaved] = useState<{ provisional_receipt_no: string; amount: number } | null>(null);
   const [rpcError, setRpcError] = useState<string | null>(null);
+  // Best-effort tenant SMS status for the allocation notification, so the
+  // agent can see if it failed and manually resend from the success view.
+  const [smsStatus, setSmsStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const [smsResending, setSmsResending] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -103,6 +107,8 @@ export function AgentTenantCollectDialog({
       setConfirming(false);
       setDraftSaved(null);
       setRpcError(null);
+      setSmsStatus('idle');
+      setSmsResending(false);
       refetchBalances();
     }
   }, [open]);
@@ -363,6 +369,72 @@ export function AgentTenantCollectDialog({
   const handleClose = () => {
     if (result || draftSaved) onSuccess?.();
     onOpenChange(false);
+  };
+
+  // Send (or resend) the branded allocation SMS to the tenant. Tracks
+  // status so the success view can show "sent / failed" and offer a
+  // manual resend if the initial best-effort attempt failed.
+  const sendAllocationSms = async (opts: {
+    paidAmount: number;
+    remaining: number;
+    isResend?: boolean;
+  }): Promise<boolean> => {
+    if (!tenant?.phone) return false;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const shareUrl = origin ? `${origin}/limit/${tenant.id}` : null;
+    if (opts.isResend) setSmsResending(true);
+    else setSmsStatus('sending');
+    try {
+      const { error, data } = await supabase.functions.invoke('send-rent-access-sms', {
+        body: {
+          tenant_id: tenant.id,
+          tenant_name: tenant.full_name,
+          tenant_phone: tenant.phone,
+          share_url: shareUrl,
+          allocation_amount: opts.paidAmount,
+          paid_amount: opts.paidAmount,
+          remaining_balance: opts.remaining,
+          mode: 'allocation',
+        },
+      });
+      const ok = !error && Boolean(data?.success);
+      setSmsStatus(ok ? 'sent' : 'failed');
+      if (user) {
+        void import('@/lib/rentAccessShareAudit').then(({ recordRentAccessShare }) =>
+          recordRentAccessShare({
+            agentId: user.id,
+            tenantId: tenant.id,
+            tenantName: tenant.full_name,
+            tenantPhone: tenant.phone,
+            channel: 'sms',
+            limitAmount: null,
+            shareUrl,
+            success: ok,
+            errorMessage: error?.message ?? (ok ? null : 'carrier_rejected'),
+            metadata: {
+              mode: 'allocation',
+              allocation_amount: opts.paidAmount,
+              auto: !opts.isResend,
+              resend: Boolean(opts.isResend),
+            },
+          }),
+        );
+      }
+      if (opts.isResend) {
+        if (ok) toast.success('SMS resent to tenant');
+        else toast.error('SMS resend failed', { description: 'The carrier rejected the message. Try again shortly.' });
+      } else if (!ok) {
+        console.warn('[AgentTenantCollectDialog] auto SMS failed', error, data);
+      }
+      return ok;
+    } catch (e) {
+      console.warn('[AgentTenantCollectDialog] SMS send threw', e);
+      setSmsStatus('failed');
+      if (opts.isResend) toast.error('SMS resend failed');
+      return false;
+    } finally {
+      if (opts.isResend) setSmsResending(false);
+    }
   };
 
   const handleSaveOfflineDraft = async () => {
