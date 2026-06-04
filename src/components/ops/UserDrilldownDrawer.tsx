@@ -2138,6 +2138,51 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         <LandlordEditCard landlordId={landlordId} landlord={landlord} canEdit={isOps} />
       </Card>
 
+      {/* Landlord Account (Annual) — admin-side payable & receivable */}
+      <Card className="p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <ReceiptText className="h-4 w-4 text-primary" /> Landlord account (annual)
+          </div>
+          <Badge variant="outline" className="text-[10px]">{(placed as any[]).length} placed</Badge>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          Payable = monthly rent × 12 (rent Welile owes this landlord per year).
+          Receivable = daily rent × 30 × 12 (collected from the rental per year).
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/40 p-2">
+            <p className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-300">Payable A/C</p>
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">{fmtUGX(accountTotals.payable)}</p>
+          </div>
+          <div className="rounded-md border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/40 p-2">
+            <p className="text-[10px] uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Receivable A/C</p>
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{fmtUGX(accountTotals.receivable)}</p>
+          </div>
+        </div>
+        {(placed as any[]).length === 0 ? (
+          <p className="text-xs text-muted-foreground">No placed tenants recorded for this landlord.</p>
+        ) : (
+          <ul className="space-y-1.5 text-xs">
+            {(placed as any[]).map((r) => (
+              <li key={r.id} className="border border-border/40 rounded-md p-2 space-y-1">
+                <div className="flex justify-between gap-2">
+                  <span className="truncate font-medium">{r.tenant?.full_name ?? 'Tenant'}</span>
+                  <Badge variant="outline" className="text-[9px] capitalize shrink-0">{r.status}</Badge>
+                </div>
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>Monthly {fmtUGX(r.monthlyRent)} · Daily {fmtUGX(r.dailyRent)}</span>
+                </div>
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-amber-700 dark:text-amber-300">Payable {fmtUGX(r.annualPayable)}</span>
+                  <span className="text-emerald-700 dark:text-emerald-300">Receivable {fmtUGX(r.annualReceivable)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
       <Card className="p-3 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-medium">
