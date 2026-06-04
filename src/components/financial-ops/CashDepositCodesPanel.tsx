@@ -185,10 +185,9 @@ export function CashDepositCodesPanel() {
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
   );
 
-  // Auto-hide expired rows from the table (they may still appear in the RPC cache briefly)
-  const displayRows = rows.filter(
-    (r) => !(r.expires_at && new Date(r.expires_at).getTime() <= Date.now()),
-  );
+  // Show every recent code — including expired ones — so verifiers can still
+  // read a code back to a depositor after the active window has lapsed.
+  const displayRows = rows;
 
   const activeCount = activeRows.length;
 
@@ -236,7 +235,7 @@ export function CashDepositCodesPanel() {
           <Loader2 className="h-4 w-4 animate-spin" /> Loading codes…
         </div>
       ) : displayRows.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-6 text-center">No active cash deposit codes.</div>
+        <div className="text-sm text-muted-foreground py-6 text-center">No cash deposit codes yet.</div>
       ) : (
         <div className="overflow-x-auto -mx-1">
           <table className="w-full text-sm border-collapse">
