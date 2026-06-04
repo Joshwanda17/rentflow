@@ -280,6 +280,26 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     scrollDialogToTop();
   };
 
+  // ─── Preflight gate check ───
+  // Compute every MANDATORY requirement up front so the agent can see at a
+  // glance exactly what is still missing (and on which step) before they can
+  // submit. Each gate carries the wizard step the agent should go back to.
+  type PreflightGate = { label: string; ok: boolean; hint: string; step: number };
+  const landlordOk = (!!selectedLandlord) || (manualLandlord && !!form.landlord_name.trim() && !!form.landlord_phone.trim());
+  const caretakerOk = form.caretaker_type !== 'other' || (!!form.caretaker_name.trim() && !!form.caretaker_phone.trim());
+  const lc1Err = validateLc1Selection(lc1Selection);
+  const preflightGates: PreflightGate[] = [
+    { label: 'Landlord selected or added', ok: landlordOk, hint: 'Search the landlord, then pick them or add a new one', step: 1 },
+    { label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 1 },
+    { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 2 },
+    { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 3 },
+    { label: 'Address entered', ok: !!form.address.trim(), hint: 'Enter the house address', step: 3 },
+    { label: 'Village / Zone entered', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 3 },
+    { label: 'LC1 chairperson', ok: !lc1Err, hint: lc1Err || 'Search or register the LC1 chairperson', step: 4 },
+  ];
+  const missingGates = preflightGates.filter((g) => !g.ok);
+  const allGatesPass = missingGates.length === 0;
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     // If the form is submitted (e.g. Enter key) before the last step, just
