@@ -353,6 +353,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   useEffect(() => {
     if (!hasChecklistHydratedRef.current) return;
     try { localStorage.setItem(LANDLORD_CHECKLIST_LS_KEY, JSON.stringify(cardChecklist)); } catch { /* noop */ }
+    setChecklistSavedAt(new Date());
     if (!user?.id) return;
     (async () => {
       try {
