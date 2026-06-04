@@ -1340,7 +1340,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           source_wallet_user_id: sourceUserId,
         },
       });
-      if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
+      if (error) throw new Error(await extractFromErrorObject(error, 'Portfolio creation failed.'));
       if (result?.error) throw new Error(result.error);
 
       const sourceLabel = addPortfolioFundingSource === 'wallet'
