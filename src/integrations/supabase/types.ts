@@ -129,6 +129,8 @@ export type Database = {
           agent_ops_reviewed_at: string | null
           approved_by_coo: string | null
           cfo_adjusted_rate: number | null
+          cfo_approved_at: string | null
+          cfo_approved_by: string | null
           cfo_notes: string | null
           cfo_paid_at: string | null
           coo_approved_at: string | null
@@ -161,6 +163,8 @@ export type Database = {
           agent_ops_reviewed_at?: string | null
           approved_by_coo?: string | null
           cfo_adjusted_rate?: number | null
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
           cfo_notes?: string | null
           cfo_paid_at?: string | null
           coo_approved_at?: string | null
@@ -193,6 +197,8 @@ export type Database = {
           agent_ops_reviewed_at?: string | null
           approved_by_coo?: string | null
           cfo_adjusted_rate?: number | null
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
           cfo_notes?: string | null
           cfo_paid_at?: string | null
           coo_approved_at?: string | null
@@ -285,6 +291,41 @@ export type Database = {
           {
             foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
             columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
             isOneToOne: false
             referencedRelation: "vw_agent_ops_directory"
             referencedColumns: ["agent_id"]

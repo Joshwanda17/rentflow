@@ -32,7 +32,7 @@ export function CFOAdvanceRequestPayments() {
   const [adjustedCycles, setAdjustedCycles] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'coo_approved'>('all');
+  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'coo_approved' | 'cfo_approved'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   // Income Statement Impact preview — date range
@@ -56,7 +56,7 @@ export function CFOAdvanceRequestPayments() {
       const { data, error } = await supabase
         .from('agent_advance_requests')
         .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
-        .in('status', ['pending', 'coo_approved'])
+        .in('status', ['pending', 'coo_approved', 'cfo_approved'])
         .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];
@@ -65,11 +65,14 @@ export function CFOAdvanceRequestPayments() {
 
   const pendingApplications = (allRequests as any[]).filter(r => r.status === 'pending');
   const cooApproved = (allRequests as any[]).filter(r => r.status === 'coo_approved');
+  const cfoApproved = (allRequests as any[]).filter(r => r.status === 'cfo_approved');
   const requests = stageFilter === 'pending'
     ? pendingApplications
     : stageFilter === 'coo_approved'
       ? cooApproved
-      : allRequests;
+      : stageFilter === 'cfo_approved'
+        ? cfoApproved
+        : allRequests;
 
   // Update global default rate
   const updateConfigMutation = useMutation({
@@ -92,6 +95,11 @@ export function CFOAdvanceRequestPayments() {
   const payMutation = useMutation({
     mutationFn: async (req: any) => {
       if (!user?.id) throw new Error('Not authenticated');
+      // Approval gate: disbursement is only allowed once the CFO has approved
+      // (and edited) the request. Anything not yet at 'cfo_approved' is blocked.
+      if (req.status !== 'cfo_approved') {
+        throw new Error('Approve the advance before disbursing to the wallet');
+      }
       const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
       const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
       const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
@@ -210,6 +218,60 @@ export function CFOAdvanceRequestPayments() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // Step 1 of the gate: CFO approves (and locks in edits). No money moves here.
+  const approveMutation = useMutation({
+    mutationFn: async (req: any) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+      const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      if (principal <= 0) throw new Error('Principal must be greater than zero');
+      const registrationFee = calculateRegistrationFee(principal);
+      const newAccessFee = calculateAccessFee(principal, cycleDays, adjustedRate);
+      const newTotal = principal + newAccessFee + registrationFee;
+      const newDaily = Math.ceil(newTotal / cycleDays);
+
+      const { error } = await supabase.from('agent_advance_requests').update({
+        status: 'cfo_approved',
+        cfo_approved_by: user.id,
+        cfo_approved_at: new Date().toISOString(),
+        cfo_adjusted_rate: adjustedRate !== Number(req.monthly_rate) ? adjustedRate : null,
+        cfo_notes: notes[req.id] || null,
+        principal,
+        cycle_days: cycleDays,
+        registration_fee: registrationFee,
+        access_fee: newAccessFee,
+        total_payable: newTotal,
+        daily_payment: newDaily,
+        monthly_rate: adjustedRate,
+      }).eq('id', req.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Advance approved — ready to disburse');
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Allow the CFO to re-open an approved request for further editing before payout.
+  const revokeApprovalMutation = useMutation({
+    mutationFn: async (req: any) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const { error } = await supabase.from('agent_advance_requests').update({
+        status: 'pending',
+        cfo_approved_by: null,
+        cfo_approved_at: null,
+      }).eq('id', req.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Approval revoked — request re-opened for editing');
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   // Portfolio-level revenue economics across all pending requests
   const revenueTotals = useMemo(() => {
     let principal = 0, accessFee = 0, regFee = 0;
@@ -297,7 +359,7 @@ export function CFOAdvanceRequestPayments() {
           <h2 className="text-base font-bold">Applications &amp; Payouts</h2>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Live view of every agent advance application. Pending items are awaiting COO approval; COO-approved items are ready for you to pay out.
+          Live view of every agent advance application. Review &amp; edit a request, then <strong>Approve</strong> it. Disbursement to the agent&apos;s wallet only unlocks <em>after</em> CFO approval.
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
           <Button
@@ -323,6 +385,14 @@ export function CFOAdvanceRequestPayments() {
             onClick={() => setStageFilter('coo_approved')}
           >
             Ready to Pay <span className="ml-1 opacity-70">{cooApproved.length}</span>
+          </Button>
+          <Button
+            size="sm"
+            variant={stageFilter === 'cfo_approved' ? 'default' : 'outline'}
+            className="h-7 text-[11px]"
+            onClick={() => setStageFilter('cfo_approved')}
+          >
+            Approved · Disburse <span className="ml-1 opacity-70">{cfoApproved.length}</span>
           </Button>
         </div>
       </div>
@@ -526,7 +596,7 @@ export function CFOAdvanceRequestPayments() {
         <>
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold">
-              {stageFilter === 'pending' ? 'Agent-Submitted Applications' : stageFilter === 'coo_approved' ? 'COO-Approved · Ready to Pay' : 'All Agent Advance Applications'}
+              {stageFilter === 'pending' ? 'Agent-Submitted Applications' : stageFilter === 'coo_approved' ? 'COO-Approved · Awaiting CFO Approval' : stageFilter === 'cfo_approved' ? 'CFO-Approved · Ready to Disburse' : 'All Agent Advance Applications'}
             </h3>
             <Badge variant="secondary">{requests.length} shown</Badge>
           </div>
@@ -534,6 +604,7 @@ export function CFOAdvanceRequestPayments() {
             const profile = req.profiles;
             const isExpanded = expandedId === req.id;
             const isPending = req.status === 'pending';
+            const isCfoApproved = req.status === 'cfo_approved';
             const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
             const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
             const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
@@ -558,12 +629,14 @@ export function CFOAdvanceRequestPayments() {
                             variant="outline"
                             className={cn(
                               'text-[9px] px-1.5 py-0 h-4 uppercase tracking-wider',
-                              isPending
-                                ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400'
-                                : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400'
+                              isCfoApproved
+                                ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-400'
+                                : isPending
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400'
+                                  : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400'
                             )}
                           >
-                            {isPending ? 'Agent Applied' : 'COO Approved'}
+                            {isCfoApproved ? 'CFO Approved' : isPending ? 'Agent Applied' : 'COO Approved'}
                           </Badge>
                           <span>{profile?.phone} • {format(new Date(req.created_at), 'MMM d')}</span>
                           {!isPending && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
@@ -588,7 +661,8 @@ export function CFOAdvanceRequestPayments() {
                             min={1000}
                             step={1000}
                             onChange={e => setAdjustedPrincipals(prev => ({ ...prev, [req.id]: Math.max(0, Number(e.target.value) || 0) }))}
-                            className="h-8 text-sm"
+                            disabled={isCfoApproved}
+                            className="h-8 text-sm disabled:opacity-70"
                           />
                         </div>
                         <div className="space-y-1">
@@ -599,7 +673,8 @@ export function CFOAdvanceRequestPayments() {
                             min={1}
                             max={365}
                             onChange={e => setAdjustedCycles(prev => ({ ...prev, [req.id]: Math.max(1, Number(e.target.value) || 1) }))}
-                            className="h-8 text-sm"
+                            disabled={isCfoApproved}
+                            className="h-8 text-sm disabled:opacity-70"
                           />
                         </div>
                       </div>
@@ -614,13 +689,14 @@ export function CFOAdvanceRequestPayments() {
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0"
+                              disabled={isCfoApproved}
                               onClick={() => setEditingRate(editingRate === req.id ? null : req.id)}
                             >
                               <Pencil className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
-                        {editingRate === req.id && (
+                        {editingRate === req.id && !isCfoApproved && (
                           <Slider
                             min={28}
                             max={33}
@@ -656,21 +732,45 @@ export function CFOAdvanceRequestPayments() {
                         className="text-sm"
                       />
 
-                      <Button
-                        onClick={() => setConfirmingId(req.id)}
-                        disabled={payMutation.isPending}
-                        className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
-                      >
-                        {payMutation.isPending
-                          ? <Loader2 className="h-4 w-4 animate-spin" />
-                          : isPending
-                            ? <><CheckCircle2 className="h-4 w-4" /> Approve &amp; Pay {formatUGX(currentPrincipal)} to Agent Wallet</>
-                            : <><CheckCircle2 className="h-4 w-4" /> Pay {formatUGX(currentPrincipal)} to Agent Wallet</>}
-                      </Button>
-                      {isPending && (
-                        <p className="text-[10px] text-muted-foreground text-center">
-                          Principal, cycle days, and rate remain editable until you approve &amp; submit the payout.
-                        </p>
+                      {isCfoApproved ? (
+                        <>
+                          <Button
+                            onClick={() => setConfirmingId(req.id)}
+                            disabled={payMutation.isPending}
+                            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
+                          >
+                            {payMutation.isPending
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <><Banknote className="h-4 w-4" /> Disburse {formatUGX(currentPrincipal)} to Withdrawable Wallet</>}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => revokeApprovalMutation.mutate(req)}
+                            disabled={revokeApprovalMutation.isPending || payMutation.isPending}
+                            className="w-full h-7 text-[11px] text-muted-foreground"
+                          >
+                            {revokeApprovalMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Revoke approval & re-open for editing'}
+                          </Button>
+                          <p className="text-[10px] text-muted-foreground text-center">
+                            Approved by CFO{req.cfo_approved_at ? ` on ${format(new Date(req.cfo_approved_at), 'MMM d, HH:mm')}` : ''}. Edits are locked — revoke to change.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            onClick={() => approveMutation.mutate(req)}
+                            disabled={approveMutation.isPending || currentPrincipal <= 0}
+                            className="w-full gap-2 disabled:bg-muted disabled:text-muted-foreground"
+                          >
+                            {approveMutation.isPending
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <><CheckCircle2 className="h-4 w-4" /> Approve advance ({formatUGX(currentPrincipal)})</>}
+                          </Button>
+                          <p className="text-[10px] text-muted-foreground text-center">
+                            Disbursement is locked until you approve. Principal, cycle days, and rate stay editable until then.
+                          </p>
+                        </>
                       )}
                     </div>
                   )}
@@ -872,7 +972,7 @@ export function CFOAdvanceRequestPayments() {
                   className="w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Confirm &amp; Pay {formatUGX(principal)}
+                  Confirm &amp; Disburse {formatUGX(principal)}
                 </Button>
               </DialogFooter>
             </DialogContent>
