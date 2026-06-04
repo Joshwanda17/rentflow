@@ -1422,6 +1422,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         agentId={drilldownAgentId}
         defaultTab="agent"
       />
+      <UserDrilldownDrawer
+        open={!!drilldownLandlordId}
+        onOpenChange={(v) => { if (!v) setDrilldownLandlordId(null); }}
+        landlordId={drilldownLandlordId}
+        defaultTab="landlord"
+      />
     </Card>
   );
 }
