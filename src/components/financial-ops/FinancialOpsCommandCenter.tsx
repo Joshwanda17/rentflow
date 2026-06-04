@@ -203,6 +203,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'float_to_withdrawable' && <FloatToWithdrawablePanel />}
         {activeTool === 'topup_audit' && <PartnershipTopupAuditLog />}
         {activeTool === 'momo_sms_template' && <MomoSignupSmsTemplatePanel />}
+        {activeTool === 'cash_codes' && <CashDepositCodesPanel />}
       </div>
     );
   }
