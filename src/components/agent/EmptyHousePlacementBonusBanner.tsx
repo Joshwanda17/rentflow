@@ -125,16 +125,18 @@ export function EmptyHousePlacementBonusBanner() {
 
           <div className="space-y-2">
             {listings.slice(0, 3).map((l) => (
-              <div
+              <ContrastPanel
                 key={l.id}
-                className="flex items-center gap-3 bg-white/15 hover:bg-white/25 active:scale-[0.98] transition-all rounded-xl p-2.5 backdrop-blur-sm"
+                background={ROW_BG}
+                label="empty-house-row"
+                className="flex items-center gap-3 hover:opacity-90 active:scale-[0.98] transition-all rounded-xl p-2.5 border border-white/10"
               >
                 <div className="h-9 w-9 rounded-lg bg-white/25 flex items-center justify-center shrink-0">
                   <Home className="h-4 w-4 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm truncate">{l.title}</p>
-                  <div className="flex items-center gap-1 text-white/80 text-[11px]">
+                  <p className="font-bold text-sm truncate">{l.title}</p>
+                  <div className="flex items-center gap-1 text-[11px] opacity-80">
                     <MapPin className="h-3 w-3 shrink-0" />
                     <span className="truncate">{l.address || l.region}</span>
                   </div>
@@ -151,20 +153,24 @@ export function EmptyHousePlacementBonusBanner() {
                 >
                   <Share2 className="h-4 w-4" />
                 </Button>
-              </div>
+              </ContrastPanel>
             ))}
           </div>
 
-          <Button
+          <ContrastPanel
+            as="button"
+            background={CTA_BG}
+            largeText
+            label="empty-house-cta"
             onClick={() => {
               hapticTap();
               setOpenListings(true);
             }}
-            className="w-full bg-white text-orange-700 hover:bg-white/90 font-bold rounded-xl"
+            className="w-full inline-flex items-center justify-center h-11 px-5 font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all touch-manipulation"
           >
             View all {listings.length} empty {listings.length === 1 ? 'house' : 'houses'}
             <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
+          </ContrastPanel>
         </CardContent>
       </Card>
 
