@@ -34,11 +34,11 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant="outline" className="text-muted-foreground capitalize">{status.replace(/_/g, ' ')}</Badge>;
 }
 
-/** Live mm:ss countdown to expiry; shows "expired" when past. */
-function Countdown({ expiresAt }: { expiresAt: string | null }) {
+/** Live mm:ss countdown to expiry; color shifts from emerald → amber → rose as time runs low. */
+function Countdown({ expiresAt, inline = false }: { expiresAt: string | null; inline?: boolean }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(t);
   }, []);
   if (!expiresAt) return <span className="text-muted-foreground">—</span>;
@@ -47,9 +47,17 @@ function Countdown({ expiresAt }: { expiresAt: string | null }) {
   const s = Math.floor(ms / 1000);
   const mm = Math.floor(s / 60);
   const ss = s % 60;
+  // Color tier: >90s emerald, 31-90s amber, ≤30s rose
+  const colorClass =
+    ms > 90_000
+      ? 'text-emerald-600'
+      : ms > 30_000
+        ? 'text-amber-600'
+        : 'text-rose-600 animate-pulse';
   return (
-    <span className="inline-flex items-center gap-1 text-emerald-600 font-medium tabular-nums">
-      <Clock className="h-3 w-3" />{mm}:{String(ss).padStart(2, '0')}
+    <span className={`inline-flex items-center gap-1 font-medium tabular-nums ${colorClass} ${inline ? 'text-xs' : 'text-sm'}`}>
+      <Clock className="h-3 w-3" />
+      {mm}:{String(ss).padStart(2, '0')}
     </span>
   );
 }
