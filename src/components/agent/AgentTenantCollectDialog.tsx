@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp, WifiOff, ShieldAlert, Unlock } from 'lucide-react';
+import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp, WifiOff, ShieldAlert, Unlock, MessageSquare, RefreshCw, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -94,6 +94,10 @@ export function AgentTenantCollectDialog({
   const [celebrationData, setCelebrationData] = useState<{ commission: number; amount: number } | null>(null);
   const [draftSaved, setDraftSaved] = useState<{ provisional_receipt_no: string; amount: number } | null>(null);
   const [rpcError, setRpcError] = useState<string | null>(null);
+  // Best-effort tenant SMS status for the allocation notification, so the
+  // agent can see if it failed and manually resend from the success view.
+  const [smsStatus, setSmsStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const [smsResending, setSmsResending] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -103,6 +107,8 @@ export function AgentTenantCollectDialog({
       setConfirming(false);
       setDraftSaved(null);
       setRpcError(null);
+      setSmsStatus('idle');
+      setSmsResending(false);
       refetchBalances();
     }
   }, [open]);
@@ -296,47 +302,12 @@ export function AgentTenantCollectDialog({
       // allocation flow — failures are logged client-side and surfaced
       // as a non-blocking toast hint.
       if (tenant.phone) {
-        try {
-          const origin = typeof window !== 'undefined' ? window.location.origin : '';
-          const shareUrl = origin ? `${origin}/limit/${tenant.id}` : null;
-          supabase.functions
-            .invoke('send-rent-access-sms', {
-              body: {
-                tenant_id: tenant.id,
-                tenant_name: tenant.full_name,
-                tenant_phone: tenant.phone,
-                share_url: shareUrl,
-                allocation_amount: amount,
-                paid_amount: amount,
-                remaining_balance: Math.max(0, outstandingBalance - amount),
-                mode: 'allocation',
-              },
-            })
-            .then(({ error, data }) => {
-              if (error || !data?.success) {
-                console.warn('[AgentTenantCollectDialog] auto SMS failed', error, data);
-              }
-              if (user) {
-                void import('@/lib/rentAccessShareAudit').then(({ recordRentAccessShare }) =>
-                  recordRentAccessShare({
-                    agentId: user.id,
-                    tenantId: tenant.id,
-                    tenantName: tenant.full_name,
-                    tenantPhone: tenant.phone,
-                    channel: 'sms',
-                    limitAmount: null,
-                    shareUrl,
-                    success: !error && Boolean(data?.success),
-                    errorMessage: error?.message ?? (data?.success ? null : 'carrier_rejected'),
-                    metadata: { mode: 'allocation', allocation_amount: amount, auto: true },
-                  }),
-                );
-              }
-            })
-            .catch((e) => console.warn('[AgentTenantCollectDialog] auto SMS threw', e));
-        } catch (e) {
-          console.warn('[AgentTenantCollectDialog] auto SMS dispatch failed', e);
-        }
+        // Fire-and-forget initial best-effort send; status is tracked so the
+        // success view can offer a manual resend if it fails.
+        void sendAllocationSms({
+          paidAmount: amount,
+          remaining: Math.max(0, outstandingBalance - amount),
+        });
       }
     } catch (err: any) {
       const raw = err instanceof Error ? err.message : 'Allocation failed. Please try again.';
@@ -363,6 +334,72 @@ export function AgentTenantCollectDialog({
   const handleClose = () => {
     if (result || draftSaved) onSuccess?.();
     onOpenChange(false);
+  };
+
+  // Send (or resend) the branded allocation SMS to the tenant. Tracks
+  // status so the success view can show "sent / failed" and offer a
+  // manual resend if the initial best-effort attempt failed.
+  const sendAllocationSms = async (opts: {
+    paidAmount: number;
+    remaining: number;
+    isResend?: boolean;
+  }): Promise<boolean> => {
+    if (!tenant?.phone) return false;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const shareUrl = origin ? `${origin}/limit/${tenant.id}` : null;
+    if (opts.isResend) setSmsResending(true);
+    else setSmsStatus('sending');
+    try {
+      const { error, data } = await supabase.functions.invoke('send-rent-access-sms', {
+        body: {
+          tenant_id: tenant.id,
+          tenant_name: tenant.full_name,
+          tenant_phone: tenant.phone,
+          share_url: shareUrl,
+          allocation_amount: opts.paidAmount,
+          paid_amount: opts.paidAmount,
+          remaining_balance: opts.remaining,
+          mode: 'allocation',
+        },
+      });
+      const ok = !error && Boolean(data?.success);
+      setSmsStatus(ok ? 'sent' : 'failed');
+      if (user) {
+        void import('@/lib/rentAccessShareAudit').then(({ recordRentAccessShare }) =>
+          recordRentAccessShare({
+            agentId: user.id,
+            tenantId: tenant.id,
+            tenantName: tenant.full_name,
+            tenantPhone: tenant.phone,
+            channel: 'sms',
+            limitAmount: null,
+            shareUrl,
+            success: ok,
+            errorMessage: error?.message ?? (ok ? null : 'carrier_rejected'),
+            metadata: {
+              mode: 'allocation',
+              allocation_amount: opts.paidAmount,
+              auto: !opts.isResend,
+              resend: Boolean(opts.isResend),
+            },
+          }),
+        );
+      }
+      if (opts.isResend) {
+        if (ok) toast.success('SMS resent to tenant');
+        else toast.error('SMS resend failed', { description: 'The carrier rejected the message. Try again shortly.' });
+      } else if (!ok) {
+        console.warn('[AgentTenantCollectDialog] auto SMS failed', error, data);
+      }
+      return ok;
+    } catch (e) {
+      console.warn('[AgentTenantCollectDialog] SMS send threw', e);
+      setSmsStatus('failed');
+      if (opts.isResend) toast.error('SMS resend failed');
+      return false;
+    } finally {
+      if (opts.isResend) setSmsResending(false);
+    }
   };
 
   const handleSaveOfflineDraft = async () => {
@@ -801,6 +838,67 @@ export function AgentTenantCollectDialog({
                 </div>
               )}
             </div>
+
+            {/* Tenant SMS notification status + manual resend */}
+            {tenant.phone ? (
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                    Tenant SMS
+                  </span>
+                  {smsStatus === 'sending' && (
+                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Sending…
+                    </span>
+                  )}
+                  {smsStatus === 'sent' && (
+                    <span className="text-[11px] font-medium text-success flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Sent
+                    </span>
+                  )}
+                  {smsStatus === 'failed' && (
+                    <span className="text-[11px] font-medium text-destructive flex items-center gap-1">
+                      <XCircle className="h-3 w-3" /> Failed
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  {smsStatus === 'failed'
+                    ? `We couldn't reach ${tenant.phone}. Tap resend to try again.`
+                    : smsStatus === 'sent'
+                      ? `Payment confirmation sent to ${tenant.phone}.`
+                      : `Sending payment confirmation to ${tenant.phone}.`}
+                </p>
+                <Button
+                  variant={smsStatus === 'failed' ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full h-9"
+                  disabled={smsResending || smsStatus === 'sending'}
+                  onClick={() =>
+                    sendAllocationSms({
+                      paidAmount: Number(result.amount) || 0,
+                      remaining: Math.max(0, Number(result.outstanding_remaining) || 0),
+                      isResend: true,
+                    })
+                  }
+                >
+                  {smsResending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-1.5" />
+                  )}
+                  {smsStatus === 'failed' ? 'Resend SMS' : 'Resend SMS'}
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  No phone on file for this tenant — SMS not sent.
+                </p>
+              </div>
+            )}
 
             <Button onClick={handleClose} className="w-full h-12 font-bold">Done</Button>
           </div>
