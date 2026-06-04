@@ -10,7 +10,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   MapPin, Phone, Mail, Smartphone, ShieldCheck, Briefcase, TrendingUp,
-  Loader2, User, Navigation, Building2,
+  Loader2, User, Navigation, Building2, ChevronLeft, ChevronRight, Wallet,
 } from 'lucide-react';
 
 /**
