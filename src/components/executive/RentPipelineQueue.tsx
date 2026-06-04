@@ -26,6 +26,11 @@ import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 // Per-user preference key for the CFO's selected tenant filter (cross-device).
 const TENANT_FILTER_PREF_KEY = 'rentPipeline.selectedTenantId';
 
+// Per-user preference key for the Landlord Ops verification checklist ticks so
+// they auto-save and survive a refresh or a switch to another phone.
+const LANDLORD_CHECKLIST_PREF_KEY = 'rentPipeline.landlordChecklist';
+const LANDLORD_CHECKLIST_LS_KEY = 'rentPipeline_landlordChecklist';
+
 export type PipelineStage =
   | 'pending'
   | 'agent_ops_approved'
