@@ -36,7 +36,7 @@ import {
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
-  ArrowRightLeft, ScrollText
+  ArrowRightLeft, ScrollText, KeyRound
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -48,7 +48,7 @@ type Tool =
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics'
   | 'topup_audit'
-  | 'float_to_withdrawable' | 'momo_sms_template';
+  | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes';
 
 
 /**
