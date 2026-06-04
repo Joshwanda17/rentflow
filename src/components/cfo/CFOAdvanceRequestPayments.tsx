@@ -56,7 +56,7 @@ export function CFOAdvanceRequestPayments() {
       const { data, error } = await supabase
         .from('agent_advance_requests')
         .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
-        .in('status', ['pending', 'coo_approved'])
+        .in('status', ['pending', 'coo_approved', 'cfo_approved'])
         .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];
@@ -65,11 +65,14 @@ export function CFOAdvanceRequestPayments() {
 
   const pendingApplications = (allRequests as any[]).filter(r => r.status === 'pending');
   const cooApproved = (allRequests as any[]).filter(r => r.status === 'coo_approved');
+  const cfoApproved = (allRequests as any[]).filter(r => r.status === 'cfo_approved');
   const requests = stageFilter === 'pending'
     ? pendingApplications
     : stageFilter === 'coo_approved'
       ? cooApproved
-      : allRequests;
+      : stageFilter === 'cfo_approved'
+        ? cfoApproved
+        : allRequests;
 
   // Update global default rate
   const updateConfigMutation = useMutation({
