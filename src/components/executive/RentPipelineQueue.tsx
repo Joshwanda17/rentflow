@@ -1014,7 +1014,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   />
                 )}
                 <button
-                  onClick={() => setSelectedRequest(req)}
+                  onClick={() => openRequestDetail(req)}
                   className="min-w-0 flex-1 text-left"
                 >
                   <div className="flex items-start justify-between gap-2">
