@@ -301,6 +301,12 @@ const detailCard: React.CSSProperties = { border: `1px solid ${BORDER}`, borderR
 const detailHeader: React.CSSProperties = { backgroundColor: '#f8fafc', padding: '25px 30px', borderBottom: `1px solid ${BORDER}` }
 const detailEyebrow: React.CSSProperties = { margin: '0 0 5px 0', color: SUB, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }
 const detailTitle: React.CSSProperties = { margin: 0, color: INK, fontSize: '18px', fontWeight: 700 }
+const principalRowCell: React.CSSProperties = { padding: '25px 30px 10px 30px', borderBottom: `1px solid ${BORDER}` }
+const arrowCell: React.CSSProperties = { fontSize: '24px', color: '#a855f7', fontWeight: 800 }
+const oldPrincipalLabel: React.CSSProperties = { margin: '0 0 5px 0', color: MUTED, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }
+const oldPrincipalValue: React.CSSProperties = { margin: 0, color: SUB, fontSize: '18px', fontWeight: 700 }
+const newPrincipalLabel: React.CSSProperties = { margin: '0 0 5px 0', color: BRAND, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }
+const newPrincipalValue: React.CSSProperties = { margin: 0, color: BRAND, fontSize: '22px', fontWeight: 800 }
 const fieldLabel: React.CSSProperties = { margin: '0 0 5px 0', color: MUTED, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }
 const fieldValue: React.CSSProperties = { margin: 0, color: INK, fontSize: '16px', fontWeight: 700 }
 const fieldValueSub: React.CSSProperties = { margin: 0, color: BODY, fontSize: '15px', fontWeight: 600 }
@@ -311,7 +317,7 @@ const insightBody: React.CSSProperties = { margin: 0, color: '#0f766e', fontSize
 
 const outroText: React.CSSProperties = { margin: 0, color: BODY, fontSize: '15px', lineHeight: '24px' }
 const signatureText: React.CSSProperties = { margin: '25px 0 0 0', color: INK, fontSize: '15px', fontWeight: 600 }
-const signatureSub: React.CSSProperties = { fontWeight: 400, color: BODY }
+const signatureSub: React.CSSProperties = { fontWeight: 700, color: BODY }
 
 const taglineCell: React.CSSProperties = { padding: '20px 40px', textAlign: 'center', borderTop: `1px solid #e5e7eb` }
 const taglineText: React.CSSProperties = { margin: 0, color: MUTED, fontSize: '12px', lineHeight: '18px', fontWeight: 500 }
@@ -333,7 +339,9 @@ export const template = {
     partner_name: 'Sarah Nakato',
     portfolio_name: 'Welile Growth Partnership',
     portfolio_id: 'a1b2c3d4-1111-2222-3333-444455556666',
-    amount: 1_500_000,
+    amount: 1_800_000,
+    old_principal: 1_500_000,
+    new_principal: 1_800_000,
     return_rate: '20%',
     renewal_date: '28 April 2026',
     maturity_date: '28 April 2027',
