@@ -84,7 +84,7 @@ export function AgentLandlordPromoBanner({ onRegisterLandlord }: AgentLandlordPr
         {/* Top row: badge + dismiss + countdown */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/30 backdrop-blur-sm border border-white/25">
               <Sparkles className="h-3 w-3 text-emerald-100" />
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-50">
                 This Week Only
@@ -119,7 +119,7 @@ export function AgentLandlordPromoBanner({ onRegisterLandlord }: AgentLandlordPr
         </div>
 
         {/* Prize highlight card */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-950/30 backdrop-blur-sm border border-white/20">
           <div className="h-10 w-10 rounded-lg bg-amber-500/25 flex items-center justify-center shrink-0">
             <Trophy className="h-5 w-5 text-amber-200" />
           </div>
@@ -135,14 +135,14 @@ export function AgentLandlordPromoBanner({ onRegisterLandlord }: AgentLandlordPr
 
         {/* Two mini stats */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-white/10">
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-950/30 border border-white/10">
             <Home className="h-4 w-4 text-emerald-200 shrink-0" />
             <div>
               <p className="text-white font-bold text-sm">UGX {BONUS_PER_LANDLORD.toLocaleString()}</p>
               <p className="text-emerald-100/70 text-[10px]">Per empty house</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-white/10">
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-950/30 border border-white/10">
             <Users className="h-4 w-4 text-emerald-200 shrink-0" />
             <div>
               <p className="text-white font-bold text-sm">10 Landlords</p>
