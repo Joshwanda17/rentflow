@@ -29,6 +29,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   userId: string | null;
+  breadcrumbs?: { label: string; onClick?: () => void }[];
 }
 
 function Row({ label, value }: { label: ReactNode; value: ReactNode }) {
