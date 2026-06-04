@@ -3319,6 +3319,23 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
           {walletToPortfolio && detailPartner && (
             <div className="space-y-4 py-2">
+              {/* Verification status banner */}
+              {!detailPartner.profile.funder_verified_at && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                      <Shield className="h-3 w-3" /> Transfer blocked — funder not verified
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                      {detailPartner.profile.signup_source === 'self_registered'
+                        ? `${detailPartner.profile.full_name} self-registered and is awaiting Partner Ops approval. Verify them before any wallet → portfolio transfer.`
+                        : `${detailPartner.profile.full_name} is not yet verified. Approve in Partner Ops → Verify Funder before any wallet → portfolio transfer.`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Portfolio info */}
               <div className="rounded-lg border border-primary/20 p-3 bg-primary/5">
                 <p className="text-sm font-semibold text-foreground">{walletToPortfolio.account_name || walletToPortfolio.portfolio_code}</p>
