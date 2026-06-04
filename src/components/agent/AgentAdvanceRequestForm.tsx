@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { Loader2, ArrowRight, Shield, Banknote, Calendar as CalendarIcon, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
-import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, Filter, SlidersHorizontal } from 'lucide-react';
+import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, Filter, SlidersHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +52,10 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [amountMax, setAmountMax] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  // Sorting
+  const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
   // Always return to the menu when the sheet (re)opens.
   useEffect(() => {
     if (open) {
@@ -63,6 +67,8 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
       setAmountMin('');
       setAmountMax('');
       setFiltersOpen(false);
+      setSortBy('date');
+      setSortOrder('desc');
     }
   }, [open]);
 
@@ -167,10 +173,10 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     enabled: !!user?.id,
   });
 
-  // Filtered advances for the history view
+  // Filtered & sorted advances for the history view
   const filteredAdvances = useMemo(() => {
     if (!issuedAdvances.length) return [];
-    return issuedAdvances.filter((adv: any) => {
+    const filtered = issuedAdvances.filter((adv: any) => {
       const outstanding = Number(adv.outstanding_balance || 0);
       const isDone = adv.status === 'completed' || outstanding <= 0;
       const principal = Number(adv.principal || 0);
@@ -195,7 +201,20 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
       return true;
     });
-  }, [issuedAdvances, statusFilter, amountMin, amountMax, dateFrom, dateTo]);
+
+    return [...filtered].sort((a: any, b: any) => {
+      const dir = sortOrder === 'asc' ? 1 : -1;
+      if (sortBy === 'date') {
+        const da = a.issued_at ? new Date(a.issued_at).getTime() : 0;
+        const db = b.issued_at ? new Date(b.issued_at).getTime() : 0;
+        return (da - db) * dir;
+      }
+      // amount
+      const pa = Number(a.principal || 0);
+      const pb = Number(b.principal || 0);
+      return (pa - pb) * dir;
+    });
+  }, [issuedAdvances, statusFilter, amountMin, amountMax, dateFrom, dateTo, sortBy, sortOrder]);
 
   const activeFilterCount = [
     dateFrom || dateTo,
@@ -550,7 +569,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
         {view === 'history' && (
         <div className="space-y-5">
-          {/* Header with filter toggle */}
+          {/* Header with filter + sort */}
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Advances taken</h3>
@@ -561,22 +580,64 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               </p>
             </div>
             {issuedAdvances.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setFiltersOpen(o => !o)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold transition-all",
-                  activeFilterCount > 0
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filter
-                {activeFilterCount > 0 && (
-                  <span className="rounded-full bg-white/20 px-1.5 py-0 text-[9px] font-bold">{activeFilterCount}</span>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Sort controls */}
+                <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
+                  <button
+                    type="button"
+                    onClick={() => setSortBy('date')}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all",
+                      sortBy === 'date'
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Date
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortBy('amount')}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all",
+                      sortBy === 'amount'
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Amount
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+                    className="rounded-lg bg-background p-1 text-muted-foreground hover:text-foreground transition-all"
+                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                  >
+                    {sortOrder === 'asc' ? (
+                      <ArrowUp className="h-3 w-3" />
+                    ) : (
+                      <ArrowDown className="h-3 w-3" />
+                    )}
+                  </button>
+                </div>
+                {/* Filter toggle */}
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen(o => !o)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold transition-all",
+                    activeFilterCount > 0
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Filter
+                  {activeFilterCount > 0 && (
+                    <span className="rounded-full bg-white/20 px-1.5 py-0 text-[9px] font-bold">{activeFilterCount}</span>
+                  )}
+                </button>
+              </div>
             )}
           </div>
 
