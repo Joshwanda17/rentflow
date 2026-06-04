@@ -41,7 +41,6 @@ export function PortfolioRenewal({
   portfolio_name = 'Partnership Portfolio',
   portfolio_id = '',
   amount = 0,
-  old_principal,
   new_principal,
   return_rate = '',
   renewal_date = '',
@@ -55,11 +54,8 @@ export function PortfolioRenewal({
   privacy_url = 'https://welilereceipts.com/privacy',
 }: PortfolioRenewalProps) {
   const year = new Date().getFullYear()
-  // New layout shows an old → new principal comparison. Fall back to the
-  // legacy single `amount` field when new_principal is not supplied.
   const resolvedNew = new_principal ?? amount
   const formattedAmount = formatAmount(resolvedNew, currency)
-  const formattedOld = formatAmount(old_principal, currency)
   const formattedRate = formatRate(return_rate)
   const displayId = portfolio_id || ''
 
@@ -102,7 +98,7 @@ export function PortfolioRenewal({
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 25px 40px' }}>
                     <Text style={greetingText}>Dear {partner_name},</Text>
                     <Text style={{ ...introText, margin: 0 }}>
-                      This is to confirm that your partnership portfolio has been successfully renewed. Your portfolio has rolled over into a new return cycle. Below are the key renewal details, including your old and new principal amounts.
+                      This is to confirm that your partnership portfolio has been successfully renewed. Your portfolio has rolled over into a new return cycle. Below are the key renewal details.
                     </Text>
                   </td>
                 </tr>
@@ -124,16 +120,9 @@ export function PortfolioRenewal({
                             <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
                               <tbody>
                                 <tr>
-                                  <td width="42%" valign="top" className="td-block" style={{ paddingBottom: '5px' }}>
-                                    <Text style={oldPrincipalLabel}>Old Principal</Text>
-                                    <Text style={oldPrincipalValue}>{formattedOld}</Text>
-                                  </td>
-                                  <td width="16%" align="center" valign="middle" className="td-block" style={arrowCell}>
-                                    &rarr;
-                                  </td>
-                                  <td width="42%" valign="top" className="td-block">
-                                    <Text style={newPrincipalLabel}>New Principal</Text>
-                                    <Text style={newPrincipalValue}>{formattedAmount}</Text>
+                                  <td width="100%" valign="top">
+                                    <Text style={principalLabel}>Principal</Text>
+                                    <Text style={principalValue}>{formattedAmount}</Text>
                                   </td>
                                 </tr>
                               </tbody>
@@ -150,7 +139,7 @@ export function PortfolioRenewal({
                                     <Text style={fieldValueSub}>{renewal_date || '—'}</Text>
                                   </td>
                                   <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
-                                    <Text style={fieldLabel}>New Maturity Date</Text>
+                                    <Text style={fieldLabel}>Maturity Date</Text>
                                     <Text style={fieldValueSub}>{maturity_date || '—'}</Text>
                                   </td>
                                 </tr>
@@ -181,7 +170,7 @@ export function PortfolioRenewal({
                           <td style={{ padding: '15px 20px' }}>
                             <Text style={insightTitle}>Insight</Text>
                             <Text style={insightBody}>
-                              Your renewed portfolio is active. Returns will continue to accrue on your new principal value of <strong>{formattedAmount}</strong>. You can monitor the progress and daily tenant updates directly from your dashboard.
+                              Your renewed portfolio is active. Returns will continue to accrue on your principal value of <strong>{formattedAmount}</strong>. You can monitor the progress and daily tenant updates directly from your dashboard.
                             </Text>
                           </td>
                         </tr>
@@ -302,11 +291,8 @@ const detailHeader: React.CSSProperties = { backgroundColor: '#f8fafc', padding:
 const detailEyebrow: React.CSSProperties = { margin: '0 0 5px 0', color: SUB, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }
 const detailTitle: React.CSSProperties = { margin: 0, color: INK, fontSize: '18px', fontWeight: 700 }
 const principalRowCell: React.CSSProperties = { padding: '25px 30px 10px 30px', borderBottom: `1px solid ${BORDER}` }
-const arrowCell: React.CSSProperties = { fontSize: '24px', color: '#a855f7', fontWeight: 800 }
-const oldPrincipalLabel: React.CSSProperties = { margin: '0 0 5px 0', color: MUTED, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }
-const oldPrincipalValue: React.CSSProperties = { margin: 0, color: SUB, fontSize: '18px', fontWeight: 700 }
-const newPrincipalLabel: React.CSSProperties = { margin: '0 0 5px 0', color: BRAND, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }
-const newPrincipalValue: React.CSSProperties = { margin: 0, color: BRAND, fontSize: '22px', fontWeight: 800 }
+const principalLabel: React.CSSProperties = { margin: '0 0 5px 0', color: BRAND, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }
+const principalValue: React.CSSProperties = { margin: 0, color: BRAND, fontSize: '22px', fontWeight: 800 }
 const fieldLabel: React.CSSProperties = { margin: '0 0 5px 0', color: MUTED, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }
 const fieldValue: React.CSSProperties = { margin: 0, color: INK, fontSize: '16px', fontWeight: 700 }
 const fieldValueSub: React.CSSProperties = { margin: 0, color: BODY, fontSize: '15px', fontWeight: 600 }
