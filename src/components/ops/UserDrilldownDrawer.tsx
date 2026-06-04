@@ -2213,7 +2213,9 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                     Payable {fmtUGX(r.recordedPayable ?? r.annualPayable)}
                     {r.recordedPayable != null && <span className="ml-1 text-[9px] opacity-70">●</span>}
                   </span>
-                  <span className="text-emerald-700 dark:text-emerald-300">Receivable {fmtUGX(r.annualReceivable)}</span>
+                  <span className="text-emerald-700 dark:text-emerald-300">
+                    Receivable {fmtUGX(r.recordedReceivable ?? r.annualReceivable)}
+                    {r.recordedReceivable != null && <span className="ml-1 text-[9px] opacity-70">●</span>}
                   </span>
                 </div>
               </li>
