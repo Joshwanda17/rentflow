@@ -1333,7 +1333,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
       <AgentListingsSheet
         open={myListingsOpen}
-        onOpenChange={setMyListingsOpen}
+        onOpenChange={(open) => {
+          setMyListingsOpen(open);
+          if (!open) setMyListingsVacantOnly(false);
+        }}
+        vacantOnly={myListingsVacantOnly}
         onListHouse={() => { setListHouseFromPromo(false); setListHouseOpen(true); }}
       />
 
