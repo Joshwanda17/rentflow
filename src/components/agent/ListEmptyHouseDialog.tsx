@@ -691,6 +691,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </DialogDescription>
         </DialogHeader>
 
+        {/* Promotional campaign badge when opened from the agent dashboard banner */}
+        {fromPromoBanner && (
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <div className="h-8 w-8 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
+              <Trophy className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-emerald-700 leading-tight">
+                Weekly Prize Campaign
+              </p>
+              <p className="text-xs text-emerald-600/80 leading-snug">
+                This listing counts toward the UGX 70,000 prize. Register 10 landlords with empty houses to win.
+              </p>
+            </div>
+            <div className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 border border-amber-400/25">
+              <Sparkles className="h-3 w-3 text-amber-600" />
+              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Promo</span>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           {/* Progress stepper — big, visual, minimal reading */}
           <div className="flex items-center gap-1.5">
