@@ -359,7 +359,7 @@ export function CFOAdvanceRequestPayments() {
           <h2 className="text-base font-bold">Applications &amp; Payouts</h2>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Live view of every agent advance application. Pending items are awaiting COO approval; COO-approved items are ready for you to pay out.
+          Live view of every agent advance application. Review &amp; edit a request, then <strong>Approve</strong> it. Disbursement to the agent&apos;s wallet only unlocks <em>after</em> CFO approval.
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
           <Button
@@ -385,6 +385,14 @@ export function CFOAdvanceRequestPayments() {
             onClick={() => setStageFilter('coo_approved')}
           >
             Ready to Pay <span className="ml-1 opacity-70">{cooApproved.length}</span>
+          </Button>
+          <Button
+            size="sm"
+            variant={stageFilter === 'cfo_approved' ? 'default' : 'outline'}
+            className="h-7 text-[11px]"
+            onClick={() => setStageFilter('cfo_approved')}
+          >
+            Approved · Disburse <span className="ml-1 opacity-70">{cfoApproved.length}</span>
           </Button>
         </div>
       </div>
