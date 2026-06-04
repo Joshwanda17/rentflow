@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Loader2, ArrowRight, Shield, Banknote, Calendar, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ChevronRight, ArrowLeft, History as HistoryIcon, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,13 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [cycleDays, setCycleDays] = useState<number>(30);
   const [reason, setReason] = useState('');
   const [allocOpen, setAllocOpen] = useState(false);
+  // Landing menu inside the sheet: choose between viewing history or submitting.
+  const [view, setView] = useState<'menu' | 'history' | 'request'>('menu');
+
+  // Always return to the menu when the sheet (re)opens.
+  useEffect(() => {
+    if (open) setView('menu');
+  }, [open]);
 
   // Always recompute the limit from latest data when the sheet opens so
   // recent allocations are reflected before the agent submits. The hero
@@ -104,6 +112,39 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
         .limit(20);
       if (error) throw error;
       return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Every advance ever ISSUED to this agent, plus the day-by-day repayment
+  // ledger so we can show exactly how each advance was paid back.
+  const { data: issuedAdvances = [], isLoading: issuedLoading } = useQuery({
+    queryKey: ['my-issued-advances-history', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data: advances, error } = await supabase
+        .from('agent_advances')
+        .select('id, principal, outstanding_balance, access_fee, registration_fee, cycle_days, status, issued_at, expires_at')
+        .eq('agent_id', user.id)
+        .order('issued_at', { ascending: false });
+      if (error) throw error;
+      const list = advances || [];
+      if (list.length === 0) return [];
+      const ids = list.map((a: any) => a.id);
+      const { data: ledger } = await supabase
+        .from('agent_advance_ledger')
+        .select('advance_id, date, opening_balance, interest_accrued, amount_deducted, closing_balance')
+        .in('advance_id', ids)
+        .order('date', { ascending: true });
+      const byAdvance: Record<string, any[]> = {};
+      (ledger || []).forEach((row: any) => {
+        (byAdvance[row.advance_id] ||= []).push(row);
+      });
+      return list.map((a: any) => {
+        const entries = byAdvance[a.id] || [];
+        const totalRepaid = entries.reduce((s: number, e: any) => s + Number(e.amount_deducted || 0), 0);
+        return { ...a, ledger: entries, totalRepaid };
+      });
     },
     enabled: !!user?.id,
   });
@@ -178,6 +219,63 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
             </div>
           </div>
         </div>
+
+        {/* Landing menu — two clear, simple choices */}
+        {view === 'menu' && (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setView('history')}
+              className="w-full flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/40"
+            >
+              <div className="rounded-2xl bg-primary/10 p-3 shrink-0">
+                <HistoryIcon className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold text-foreground">My advance history</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                  See every advance you've ever taken and how each one was paid back.
+                </p>
+                <p className="text-[11px] font-semibold text-primary mt-1">
+                  {issuedLoading ? 'Loading…' : `${issuedAdvances.length} advance${issuedAdvances.length === 1 ? '' : 's'} taken`}
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setView('request')}
+              className="w-full flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/40"
+            >
+              <div className="rounded-2xl bg-primary/10 p-3 shrink-0">
+                <Send className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold text-foreground">Request a new advance</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                  Apply for funds and submit your request to the CFO for approval.
+                </p>
+                <p className="text-[11px] font-semibold text-primary mt-1">Submit to CFO →</p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+            </button>
+          </div>
+        )}
+
+        {/* Back to menu */}
+        {view !== 'menu' && (
+          <button
+            type="button"
+            onClick={() => setView('menu')}
+            className="mb-3 flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+        )}
+
+        {view === 'request' && (
+        <>
 
         {/* Credit limit indicator */}
         <div className="rounded-2xl bg-muted/50 p-3 mb-4">
@@ -393,11 +491,88 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
             )}
           </Button>
         </div>
+        </>
+        )}
 
-        {/* History */}
-        <div>
-          <h3 className="text-sm font-semibold text-foreground mb-3">My Advance Requests</h3>
-          {historyLoading ? (
+        {view === 'history' && (
+        <div className="space-y-6">
+          {/* Issued advances with full repayment breakdown */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-1">Advances taken</h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Every advance Welile has issued you, and how it was paid back day by day.
+            </p>
+            {issuedLoading ? (
+              <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : issuedAdvances.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No advances taken yet</p>
+            ) : (
+              <div className="space-y-3">
+                {issuedAdvances.map((adv: any) => {
+                  const repaidEntries = (adv.ledger || []).filter((e: any) => Number(e.amount_deducted || 0) > 0);
+                  const outstanding = Number(adv.outstanding_balance || 0);
+                  const isDone = adv.status === 'completed' || outstanding <= 0;
+                  return (
+                    <div key={adv.id} className="rounded-2xl border border-border/60 bg-card p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-base font-bold text-foreground tabular-nums">{formatUGX(Number(adv.principal))}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Taken {format(new Date(adv.issued_at), 'MMM d, yyyy')} · {adv.cycle_days}d term
+                          </p>
+                        </div>
+                        <Badge className={cn(
+                          'text-[10px] font-bold border-0',
+                          isDone ? 'bg-emerald-500 text-white' : adv.status === 'overdue' ? 'bg-red-500 text-white' : 'bg-amber-500 text-white',
+                        )}>
+                          {isDone ? 'Fully repaid' : adv.status === 'overdue' ? 'Overdue' : 'Repaying'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                        <div className="rounded-xl bg-muted/40 py-2">
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Repaid</p>
+                          <p className="text-xs font-bold text-emerald-600 tabular-nums">{formatUGX(adv.totalRepaid)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/40 py-2">
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Outstanding</p>
+                          <p className="text-xs font-bold tabular-nums">{formatUGX(outstanding)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/40 py-2">
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Fees</p>
+                          <p className="text-xs font-bold text-orange-600 tabular-nums">
+                            {formatUGX(Number(adv.access_fee || 0) + Number(adv.registration_fee || 0))}
+                          </p>
+                        </div>
+                      </div>
+
+                      {repaidEntries.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-dashed border-border">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                            Repayment breakdown
+                          </p>
+                          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                            {repaidEntries.map((e: any, i: number) => (
+                              <div key={i} className="flex items-center justify-between gap-2 text-[11px]">
+                                <span className="text-muted-foreground">{format(new Date(e.date), 'MMM d, yyyy')}</span>
+                                <span className="font-semibold text-emerald-600 tabular-nums">− {formatUGX(Number(e.amount_deducted))}</span>
+                                <span className="text-muted-foreground tabular-nums">bal {formatUGX(Number(e.closing_balance))}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Requests submitted to the CFO */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">My advance requests</h3>
+            {historyLoading ? (
             <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : myRequests.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No advance requests yet</p>
@@ -436,7 +611,9 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               })}
             </div>
           )}
+          </div>
         </div>
+        )}
       </SheetContent>
     </Sheet>
   );
