@@ -1321,7 +1321,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentReceiptDialog open={receiptOpen} onOpenChange={setReceiptOpen} />
       <AgentLandlordMapSheet open={landlordMapOpen} onOpenChange={setLandlordMapOpen} />
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
-      <ListEmptyHouseDialog open={listHouseOpen} onOpenChange={setListHouseOpen} onSuccess={refreshOfflineData} />
+      <ListEmptyHouseDialog
+        open={listHouseOpen}
+        onOpenChange={(open) => {
+          setListHouseOpen(open);
+          if (!open) setListHouseFromPromo(false);
+        }}
+        onSuccess={refreshOfflineData}
+        fromPromoBanner={listHouseFromPromo}
+      />
       <AgentListingsSheet
         open={myListingsOpen}
         onOpenChange={setMyListingsOpen}
