@@ -78,22 +78,38 @@ Deno.serve(async (req) => {
       .eq("user_id", body.partner_id).eq("role", "supporter").maybeSingle();
     if (!partnerRole) return json({ error: "Selected user is not a registered partner/supporter" }, 400);
 
-    // ── MANAGED-PROXY HARD GUARDRAIL ──
-    // If the partner is managed by a proxy agent (is_managed_account=true),
-    // ALL portfolio creation funding MUST come from the proxy agent's wallet
-    // — regardless of what the UI submitted. This is enforced server-side
-    // so no client path can bypass it.
+    // ── MANAGED-PROXY DEFAULT (operator selection wins) ──
+    // If the partner is managed by a proxy agent (is_managed_account=true) the
+    // proxy wallet is the *default* funding source. However, the Welile
+    // Operations operator explicitly chooses the funding wallet in the UI
+    // (partner-wallet card vs proxy-agent card). We MUST honour that explicit
+    // choice — when the operator selects the partner's own wallet, fund from
+    // the partner wallet; only fall back to the proxy wallet when the operator
+    // did not specify a valid source. Both paths are independently validated
+    // below (proxy assignment must be approved; wallet source must equal the
+    // partner), so respecting the selection cannot bypass any control.
     const managedProxyForCreate = await resolveManagedProxy(adminClient, body.partner_id);
     if (managedProxyForCreate) {
-      if (body.payment_method !== "proxy_agent" || body.source_wallet_user_id !== managedProxyForCreate.agentId) {
+      const operatorChosePartnerWallet =
+        body.payment_method === "wallet" && body.source_wallet_user_id === body.partner_id;
+      const operatorChoseProxyWallet =
+        body.payment_method === "proxy_agent" && body.source_wallet_user_id === managedProxyForCreate.agentId;
+
+      if (operatorChosePartnerWallet || operatorChoseProxyWallet) {
+        console.log(
+          `[coo-create-portfolio] Honouring operator wallet selection for managed partner=${body.partner_id}: ` +
+          `method=${body.payment_method} source=${body.source_wallet_user_id}`,
+        );
+      } else {
+        // Ambiguous / unspecified selection → default to the managed proxy wallet.
         console.warn(
-          `[coo-create-portfolio] Managed-proxy override: partner=${body.partner_id} ` +
-          `forced payment_method=proxy_agent source=${managedProxyForCreate.agentId} ` +
+          `[coo-create-portfolio] Managed-proxy default applied: partner=${body.partner_id} ` +
+          `defaulted payment_method=proxy_agent source=${managedProxyForCreate.agentId} ` +
           `(was method=${body.payment_method} source=${body.source_wallet_user_id})`,
         );
+        body.payment_method = "proxy_agent";
+        body.source_wallet_user_id = managedProxyForCreate.agentId;
       }
-      body.payment_method = "proxy_agent";
-      body.source_wallet_user_id = managedProxyForCreate.agentId;
     }
 
     // If proxy_agent, validate the assignment is real & approved
