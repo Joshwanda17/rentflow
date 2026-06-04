@@ -36,8 +36,8 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
     queryKey: ['advance-requests-queue', stage],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('agent_advance_requests')
-        .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
+        .from('agent_advance_requests_privileged')
+        .select('*')
         .eq('status', config.filterStatus)
         .order('created_at', { ascending: true });
       if (error) throw error;
