@@ -783,7 +783,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* 5) Secondary shortcuts — collected receipt helper + my listed houses */}
             <button
               type="button"
-              onClick={() => { hapticTap(); setMyListingsOpen(true); }}
+              onClick={() => { hapticTap(); setMyListingsVacantOnly(false); setMyListingsOpen(true); }}
               aria-label="View my listed houses"
               title="View my listed houses"
               className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-card hover:bg-accent/40 active:scale-[0.99] transition-all text-left touch-manipulation min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
