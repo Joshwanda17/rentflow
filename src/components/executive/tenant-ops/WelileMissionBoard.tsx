@@ -1545,3 +1545,96 @@ function FundersDialog({
     </Dialog>
   );
 }
+
+// ===== Per-landlord recorded receivables dialog =====
+
+function LandlordReceivablesDialog({
+  open, onClose, onOpenLandlord,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onOpenLandlord: (id: string) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const { data, isLoading } = useMissionLandlordReceivables(open);
+  const rows: MissionLandlordReceivable[] = data ?? [];
+
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    if (!searchLower) return rows;
+    return rows.filter((r) =>
+      (r.landlord_name?.toLowerCase().includes(searchLower) ?? false) ||
+      (r.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
+      (r.property_address?.toLowerCase().includes(searchLower) ?? false));
+  }, [rows, searchLower]);
+
+  const grandTotal = useMemo(() => rows.reduce((s, r) => s + Number(r.receivable_total || 0), 0), [rows]);
+  const totalPlacements = useMemo(() => rows.reduce((s, r) => s + Number(r.placement_count || 0), 0), [rows]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-emerald-600" /> Recorded receivables by landlord
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Recorded A/C receivables per landlord from placed tenants. Tap a landlord to open their profile.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search landlord, phone, address…"
+              className="pl-7 h-8 text-xs"
+            />
+          </div>
+          <div className="rounded-lg bg-emerald-500/10 px-2 py-1 text-right shrink-0">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 leading-none">Total</p>
+            <p className="text-xs font-bold text-emerald-700 tabular-nums leading-tight">{formatUGX(grandTotal)}</p>
+            <p className="text-[9px] text-muted-foreground leading-none">{rows.length.toLocaleString()} landlords · {totalPlacements.toLocaleString()} placements</p>
+          </div>
+        </div>
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2 py-2">
+              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="text-center text-xs text-muted-foreground py-8">No recorded receivables found.</p>
+          ) : (
+            <ul className="space-y-1.5 py-1">
+              {filtered.map((r) => (
+                <li key={r.landlord_id}>
+                  <button
+                    type="button"
+                    onClick={() => onOpenLandlord(r.landlord_id)}
+                    className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left transition hover:bg-muted/40"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate">{r.landlord_name || 'Unnamed landlord'}</p>
+                      <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                        {r.landlord_phone && <><Phone className="h-3 w-3" /> {r.landlord_phone}</>}
+                        {r.property_address && <span className="truncate">· {r.property_address}</span>}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold text-emerald-700 tabular-nums leading-tight">{formatUGX(Number(r.receivable_total || 0))}</p>
+                      <p className="text-[10px] text-muted-foreground leading-none">{Number(r.placement_count || 0).toLocaleString()} placement{Number(r.placement_count) === 1 ? '' : 's'}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
