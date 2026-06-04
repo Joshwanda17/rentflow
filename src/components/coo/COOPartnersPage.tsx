@@ -307,6 +307,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   // Nearing payouts dialog
   const [nearingPayoutsOpen, setNearingPayoutsOpen] = useState(false);
   const [allPortfoliosForPayout, setAllPortfoliosForPayout] = useState<NearingPayoutPortfolio[]>([]);
+  const [expiringPortfoliosOpen, setExpiringPortfoliosOpen] = useState(false);
   const [editPortfolioDuration, setEditPortfolioDuration] = useState('');
   const [editPortfolioStatus, setEditPortfolioStatus] = useState('');
   const [editPortfolioDate, setEditPortfolioDate] = useState('');
