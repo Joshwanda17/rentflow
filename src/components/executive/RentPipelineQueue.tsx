@@ -1111,15 +1111,33 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   before the Approve button is enabled (Landlord Ops stage only) */}
               {isLandlordStage && (
                 <div className="mt-2 space-y-2">
-                  {/* Saved indicator — tells the operator their ticks are stored */}
-                  {checklistSavedAt && (
+                  {/* Sync status — tells the operator whether their ticks reached the server */}
+                  {checklistSyncStatus !== 'idle' && (
                     <div className="flex items-center gap-1.5">
-                      <Cloud className="h-3 w-3 text-emerald-500" />
-                      <span className="text-[10px] font-medium text-emerald-600">
-                        {Date.now() - checklistSavedAt.getTime() < 5000
-                          ? 'Saved just now'
-                          : `Last saved: ${format(checklistSavedAt, 'h:mm a')}`}
-                      </span>
+                      {checklistSyncStatus === 'saving' && (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                          <span className="text-[10px] font-medium text-muted-foreground">Saving…</span>
+                        </>
+                      )}
+                      {checklistSyncStatus === 'saved' && (
+                        <>
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          <span className="text-[10px] font-medium text-emerald-600">
+                            {checklistSavedAt && Date.now() - checklistSavedAt.getTime() < 5000
+                              ? 'Saved'
+                              : `Saved${checklistSavedAt ? ` · ${format(checklistSavedAt, 'h:mm a')}` : ''}`}
+                          </span>
+                        </>
+                      )}
+                      {checklistSyncStatus === 'failed' && (
+                        <>
+                          <AlertCircle className="h-3 w-3 text-destructive" />
+                          <span className="text-[10px] font-medium text-destructive">
+                            Not saved to server — saved on this phone only
+                          </span>
+                        </>
+                      )}
                     </div>
                   )}
 
