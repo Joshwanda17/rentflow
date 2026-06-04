@@ -216,7 +216,8 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   };
 
   const canSubmit = !saving && parsedAmount >= 1000 && notes.trim().length >= 10 && !insufficient &&
-    (paymentMethod === 'wallet' || !!proxyAgent);
+    (paymentMethod === 'wallet' || !!proxyAgent) &&
+    !!account?.investor_verified_at;
 
   const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Wallet; description: string; disabled?: boolean }[] = [
     { value: 'wallet', label: 'Wallet', icon: Wallet, description: 'Partner wallet' },
