@@ -203,7 +203,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   // Per-card (per request) Landlord Ops verification checklist progress, shown
   // inline on the review queue so the operator can see status/progress and the
   // Approve button only enables once both checks are confirmed.
-  const [cardChecklist, setCardChecklist] = useState<Record<string, { called: boolean; acknowledged: boolean }>>({});
+  const [cardChecklist, setCardChecklist] = useState<Record<string, { called: boolean; acknowledged: boolean }>>(() => {
+    try {
+      const raw = localStorage.getItem(LANDLORD_CHECKLIST_LS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  // Guards the cloud-write effect so the initial localStorage value doesn't
+  // overwrite a fresher cloud value before hydration completes.
+  const hasChecklistHydratedRef = useRef(false);
   const getCardChecklist = (id: string) => cardChecklist[id] || { called: false, acknowledged: false };
   const toggleCardCheck = (id: string, key: 'called' | 'acknowledged', value: boolean) => {
     setCardChecklist(prev => ({
