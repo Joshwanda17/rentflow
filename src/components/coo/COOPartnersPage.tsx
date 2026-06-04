@@ -19,7 +19,7 @@ import {
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
   Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake, Scissors, Info,
-  Mail, MailCheck, MailX, MailWarning, Sparkles, Hourglass, CalendarClock
+  Mail, MailCheck, MailX, MailWarning, Sparkles, Hourglass, CalendarClock, AlertTriangle
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
@@ -171,6 +171,8 @@ interface PartnerDetail {
     created_at: string;
     frozen_at: string | null;
     frozen_reason: string | null;
+    funder_verified_at: string | null;
+    signup_source: string | null;
   };
   walletBalance: number;
   withdrawableBalance: number;
@@ -914,7 +916,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setDetailPartner(null);
     try {
       const [profileRes, walletRes, portfolioRes, ledgerRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at, frozen_reason').eq('id', partnerId).single(),
+        supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at, frozen_reason, funder_verified_at, signup_source').eq('id', partnerId).single(),
         supabase.from('wallets').select('balance, withdrawable_balance, float_balance').eq('user_id', partnerId).single(),
         supabase.from('investor_portfolios')
           .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id, payment_method, mobile_network, mobile_money_number, bank_name, bank_account_name, account_number')
@@ -1708,6 +1710,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   /* ─── Wallet → Portfolio Transfer ─── */
   async function handleWalletToPortfolio() {
     if (!walletToPortfolio || !detailPartner) return;
+    if (!detailPartner.profile.funder_verified_at) {
+      toast.error('Transfer blocked — funder not verified. Approve in Partner Ops → Verify Funder.');
+      return;
+    }
     const amt = Number(walletToPortfolioAmount);
 
     const sourceBalance = walletTransferMethod === 'wallet'
@@ -2232,6 +2238,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                       <Badge variant={detailPartner.profile.frozen_at ? 'destructive' : 'default'} className="text-[10px]">
                         {detailPartner.profile.frozen_at ? 'Suspended' : 'Active'}
                       </Badge>
+                      {detailPartner.profile.funder_verified_at ? (
+                        <Badge variant="outline" className="text-[10px] border-success/40 text-success bg-success/10 gap-1">
+                          <ShieldCheck className="h-3 w-3" /> Verified
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 bg-amber-500/10 gap-1">
+                          <Shield className="h-3 w-3" /> Unverified
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground flex-wrap">
                       <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{detailPartner.profile.phone || '—'}</span>
@@ -2245,6 +2260,21 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                       <p className="text-[11px] text-destructive mt-1.5 bg-destructive/10 px-2 py-1 rounded-md inline-block">
                         <Shield className="h-3 w-3 inline mr-1" />Suspended: {detailPartner.profile.frozen_reason || 'No reason given'}
                       </p>
+                    )}
+                    {!detailPartner.profile.funder_verified_at && (
+                      <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 flex items-start gap-2">
+                        <Shield className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-[11px]">
+                          <p className="font-bold text-amber-700 dark:text-amber-400">
+                            Top-ups blocked — funder not verified
+                          </p>
+                          <p className="text-muted-foreground mt-0.5">
+                            {detailPartner.profile.signup_source === 'self_registered'
+                              ? 'Self-registered partner. Approve in Partner Ops → Verify Funder before any portfolio top-up.'
+                              : 'Partner not verified. Approve in Partner Ops → Verify Funder before any portfolio top-up.'}
+                          </p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -3270,6 +3300,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           investor_id: topUpPortfolio.investor_id,
           agent_id: topUpPortfolio.agent_id,
           investor_name: detailPartner?.profile?.full_name,
+          investor_verified_at: detailPartner?.profile?.funder_verified_at ?? null,
+          investor_signup_source: detailPartner?.profile?.signup_source ?? null,
         } : null}
         onSuccess={() => {
           if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
@@ -3291,6 +3323,23 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
           {walletToPortfolio && detailPartner && (
             <div className="space-y-4 py-2">
+              {/* Verification status banner */}
+              {!detailPartner.profile.funder_verified_at && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                      <Shield className="h-3 w-3" /> Transfer blocked — funder not verified
+                    </p>
+                    <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                      {detailPartner.profile.signup_source === 'self_registered'
+                        ? `${detailPartner.profile.full_name} self-registered and is awaiting Partner Ops approval. Verify them before any wallet → portfolio transfer.`
+                        : `${detailPartner.profile.full_name} is not yet verified. Approve in Partner Ops → Verify Funder before any wallet → portfolio transfer.`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Portfolio info */}
               <div className="rounded-lg border border-primary/20 p-3 bg-primary/5">
                 <p className="text-sm font-semibold text-foreground">{walletToPortfolio.account_name || walletToPortfolio.portfolio_code}</p>
@@ -3485,12 +3534,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <Button variant="outline" onClick={() => setWalletToPortfolio(null)}>Cancel</Button>
             <Button
               onClick={handleWalletToPortfolio}
-              disabled={walletToPortfolioSaving || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10 || (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo)}
+              disabled={walletToPortfolioSaving || !detailPartner?.profile?.funder_verified_at || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10 || (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo)}
             >
               {walletToPortfolioSaving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-              {walletTransferMethod === 'proxy_agent'
-                ? `Charge ${proxyAgentInfo?.agentName || 'Proxy Agent'}'s Wallet`
-                : `Charge ${detailPartner?.profile?.full_name || 'Partner'}'s Wallet`}
+              {!detailPartner?.profile?.funder_verified_at
+                ? 'Blocked — Funder Not Verified'
+                : walletTransferMethod === 'proxy_agent'
+                  ? `Charge ${proxyAgentInfo?.agentName || 'Proxy Agent'}'s Wallet`
+                  : `Charge ${detailPartner?.profile?.full_name || 'Partner'}'s Wallet`}
             </Button>
           </DialogFooter>
         </DialogContent>

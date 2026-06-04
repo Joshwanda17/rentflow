@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Wallet, Users, CheckCircle2, PiggyBank, Building2, Search, User, X } from 'lucide-react';
+import { Loader2, Wallet, Users, CheckCircle2, PiggyBank, Building2, Search, User, X, Shield, AlertTriangle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
@@ -37,6 +37,8 @@ interface FundInvestmentAccountDialogProps {
     investor_id: string | null;
     agent_id: string;
     investor_name?: string;
+    investor_verified_at?: string | null;
+    investor_signup_source?: string | null;
   } | null;
   onSuccess: () => void;
 }
@@ -214,7 +216,8 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   };
 
   const canSubmit = !saving && parsedAmount >= 1000 && notes.trim().length >= 10 && !insufficient &&
-    (paymentMethod === 'wallet' || !!proxyAgent);
+    (paymentMethod === 'wallet' || !!proxyAgent) &&
+    !!account?.investor_verified_at;
 
   const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Wallet; description: string; disabled?: boolean }[] = [
     { value: 'wallet', label: 'Wallet', icon: Wallet, description: 'Partner wallet' },
@@ -233,6 +236,23 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
 
         {account && (
           <div className="space-y-4 py-2">
+            {/* Verification status banner */}
+            {!account.investor_verified_at && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                    <Shield className="h-3 w-3" /> Top-up blocked — funder not verified
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                    {account.investor_signup_source === 'self_registered'
+                      ? `${account.investor_name || 'This partner'} self-registered and is awaiting Partner Ops approval. Verify them before any portfolio top-up.`
+                      : `${account.investor_name || 'This partner'} is not yet verified. Approve in Partner Ops → Verify Funder before any portfolio top-up.`}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Portfolio info */}
             <div className="rounded-lg border border-primary/20 p-3 bg-primary/5">
               <p className="text-sm font-semibold text-foreground">{account.account_name || account.portfolio_code}</p>
@@ -367,7 +387,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={!canSubmit}>
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-            Submit Top-Up
+            {!account?.investor_verified_at ? 'Blocked — Funder Not Verified' : 'Submit Top-Up'}
           </Button>
         </DialogFooter>
       </DialogContent>
