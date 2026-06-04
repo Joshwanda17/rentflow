@@ -334,6 +334,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [listHouseOpen, setListHouseOpen] = useState(false);
   const [listHouseFromPromo, setListHouseFromPromo] = useState(false);
   const [myListingsOpen, setMyListingsOpen] = useState(false);
+  const [myListingsVacantOnly, setMyListingsVacantOnly] = useState(false);
 
   // Phase 1: Agent Operations dialogs
   const [visitDialogOpen, setVisitDialogOpen] = useState(false);
