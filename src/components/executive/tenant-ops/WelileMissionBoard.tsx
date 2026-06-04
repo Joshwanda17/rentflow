@@ -37,7 +37,7 @@ import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
-  ChevronsUpDown, X, Image as ImageIcon,
+  ChevronsUpDown, X, Image as ImageIcon, CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
