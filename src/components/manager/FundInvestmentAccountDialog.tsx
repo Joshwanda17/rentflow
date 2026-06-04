@@ -235,6 +235,23 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
 
         {account && (
           <div className="space-y-4 py-2">
+            {/* Verification status banner */}
+            {!account.investor_verified_at && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                    <Shield className="h-3 w-3" /> Top-up blocked — funder not verified
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                    {account.investor_signup_source === 'self_registered'
+                      ? `${account.investor_name || 'This partner'} self-registered and is awaiting Partner Ops approval. Verify them before any portfolio top-up.`
+                      : `${account.investor_name || 'This partner'} is not yet verified. Approve in Partner Ops → Verify Funder before any portfolio top-up.`}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Portfolio info */}
             <div className="rounded-lg border border-primary/20 p-3 bg-primary/5">
               <p className="text-sm font-semibold text-foreground">{account.account_name || account.portfolio_code}</p>
