@@ -20538,6 +20538,15 @@ export type Database = {
           verified: boolean
         }[]
       }
+      welile_mission_receivables: {
+        Args: never
+        Returns: {
+          empty_houses_count: number
+          empty_receivable_total: number
+          placed_receivable_count: number
+          placed_receivable_total: number
+        }[]
+      }
       welile_mission_summary: {
         Args: { p_since?: string }
         Returns: {
