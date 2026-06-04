@@ -1488,7 +1488,10 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox
                         checked={landlordCalled}
-                        onCheckedChange={(v) => setLandlordCalled(!!v)}
+                        onCheckedChange={(v) => {
+                          setLandlordCalled(!!v);
+                          if (selectedRequest) toggleCardCheck(selectedRequest.id, 'called', !!v);
+                        }}
                       />
                       <span className="text-sm">I have called the landlord</span>
                     </label>
@@ -1496,7 +1499,10 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox
                         checked={landlordAcknowledged}
-                        onCheckedChange={(v) => setLandlordAcknowledged(!!v)}
+                        onCheckedChange={(v) => {
+                          setLandlordAcknowledged(!!v);
+                          if (selectedRequest) toggleCardCheck(selectedRequest.id, 'acknowledged', !!v);
+                        }}
                       />
                       <span className="text-sm">Landlord acknowledges Welile as the payer</span>
                     </label>
