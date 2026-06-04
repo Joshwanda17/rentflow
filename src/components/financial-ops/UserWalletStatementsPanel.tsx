@@ -404,6 +404,10 @@ export function UserWalletStatementsPanel() {
             open={drillOpen}
             onOpenChange={setDrillOpen}
             userId={selected.id}
+            breadcrumbs={[
+              { label: 'Wallet Statements', onClick: () => setDrillOpen(false) },
+              { label: selected.full_name || 'User' },
+            ]}
           />
         </>
       )}
