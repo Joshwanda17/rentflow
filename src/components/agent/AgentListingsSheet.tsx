@@ -32,9 +32,12 @@ interface AgentListingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onListHouse?: () => void;
+  /** When true (e.g. opened from the empty-house promo banner), force the
+   *  "vacant / empty houses" filter so only campaign-eligible listings show. */
+  vacantOnly?: boolean;
 }
 
-export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentListingsSheetProps) {
+export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly = false }: AgentListingsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { listings, loading, refresh } = useHouseListings({
@@ -121,6 +124,13 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentLis
       localStorage.setItem(storageKey, JSON.stringify({ search, statusFilter, regionFilter, sortBy, minPrice, maxPrice }));
     } catch { /* ignore */ }
   }, [search, statusFilter, regionFilter, sortBy, minPrice, maxPrice, storageKey]);
+
+  // Empty-house promo: when launched from the campaign banner, auto-apply the
+  // "vacant" filter on open so agents land straight on their empty houses.
+  useEffect(() => {
+    if (open && vacantOnly) setStatusFilter('vacant');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, vacantOnly]);
 
   // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
   const [enrichment, setEnrichment] = useState<{

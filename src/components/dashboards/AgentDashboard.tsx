@@ -334,6 +334,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [listHouseOpen, setListHouseOpen] = useState(false);
   const [listHouseFromPromo, setListHouseFromPromo] = useState(false);
   const [myListingsOpen, setMyListingsOpen] = useState(false);
+  const [myListingsVacantOnly, setMyListingsVacantOnly] = useState(false);
 
   // Phase 1: Agent Operations dialogs
   const [visitDialogOpen, setVisitDialogOpen] = useState(false);
@@ -677,7 +678,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              */}
 
             {/* 0) PROMO — prominent weekly landlord registration drive */}
-            <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setListHouseFromPromo(true); setListHouseOpen(true); }} />
+            <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setMyListingsVacantOnly(true); setMyListingsOpen(true); }} />
 
             {/* 0b) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
             {isCashoutAgent && showMerchantOnboard && (
@@ -782,7 +783,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* 5) Secondary shortcuts — collected receipt helper + my listed houses */}
             <button
               type="button"
-              onClick={() => { hapticTap(); setMyListingsOpen(true); }}
+              onClick={() => { hapticTap(); setMyListingsVacantOnly(false); setMyListingsOpen(true); }}
               aria-label="View my listed houses"
               title="View my listed houses"
               className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-card hover:bg-accent/40 active:scale-[0.99] transition-all text-left touch-manipulation min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -1137,7 +1138,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onViewLandlordMap={() => { setMenuOpen(false); setLandlordMapOpen(true); }}
         onFindRentals={() => { setMenuOpen(false); setRentalFinderOpen(true); }}
         onListEmptyHouse={() => { setMenuOpen(false); setListHouseFromPromo(false); setListHouseOpen(true); }}
-        onViewMyListings={() => { setMenuOpen(false); setMyListingsOpen(true); }}
+        onViewMyListings={() => { setMenuOpen(false); setMyListingsVacantOnly(false); setMyListingsOpen(true); }}
         onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
         onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
         onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
@@ -1332,7 +1333,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
       <AgentListingsSheet
         open={myListingsOpen}
-        onOpenChange={setMyListingsOpen}
+        onOpenChange={(open) => {
+          setMyListingsOpen(open);
+          if (!open) setMyListingsVacantOnly(false);
+        }}
+        vacantOnly={myListingsVacantOnly}
         onListHouse={() => { setListHouseFromPromo(false); setListHouseOpen(true); }}
       />
 
