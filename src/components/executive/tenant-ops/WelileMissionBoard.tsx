@@ -219,6 +219,16 @@ export function WelileMissionBoard() {
                           <span className="text-[11px] font-semibold text-amber-700 tabular-nums">{formatUGX(receivables.empty_receivable_total)}</span>
                         </div>
                       </div>
+                      {receivables.placed_receivable_count > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setLandlordRecvOpen(true)}
+                          className="mt-1.5 flex w-full items-center justify-between gap-1 border-t border-emerald-500/20 pt-1.5 text-[10px] font-semibold text-emerald-700 hover:text-emerald-800"
+                        >
+                          <span>View per-landlord receivables</span>
+                          <ChevronRight className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                   )}
                   {p.key === 'list' && receivables && (
