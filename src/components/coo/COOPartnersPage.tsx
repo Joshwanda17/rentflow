@@ -2234,6 +2234,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                       <Badge variant={detailPartner.profile.frozen_at ? 'destructive' : 'default'} className="text-[10px]">
                         {detailPartner.profile.frozen_at ? 'Suspended' : 'Active'}
                       </Badge>
+                      {detailPartner.profile.funder_verified_at ? (
+                        <Badge variant="outline" className="text-[10px] border-success/40 text-success bg-success/10 gap-1">
+                          <ShieldCheck className="h-3 w-3" /> Verified
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 bg-amber-500/10 gap-1">
+                          <Shield className="h-3 w-3" /> Unverified
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground flex-wrap">
                       <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{detailPartner.profile.phone || '—'}</span>
