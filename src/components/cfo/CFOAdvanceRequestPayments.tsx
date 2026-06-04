@@ -732,21 +732,45 @@ export function CFOAdvanceRequestPayments() {
                         className="text-sm"
                       />
 
-                      <Button
-                        onClick={() => setConfirmingId(req.id)}
-                        disabled={payMutation.isPending}
-                        className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
-                      >
-                        {payMutation.isPending
-                          ? <Loader2 className="h-4 w-4 animate-spin" />
-                          : isPending
-                            ? <><CheckCircle2 className="h-4 w-4" /> Approve &amp; Pay {formatUGX(currentPrincipal)} to Agent Wallet</>
-                            : <><CheckCircle2 className="h-4 w-4" /> Pay {formatUGX(currentPrincipal)} to Agent Wallet</>}
-                      </Button>
-                      {isPending && (
-                        <p className="text-[10px] text-muted-foreground text-center">
-                          Principal, cycle days, and rate remain editable until you approve &amp; submit the payout.
-                        </p>
+                      {isCfoApproved ? (
+                        <>
+                          <Button
+                            onClick={() => setConfirmingId(req.id)}
+                            disabled={payMutation.isPending}
+                            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-muted disabled:text-muted-foreground"
+                          >
+                            {payMutation.isPending
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <><Banknote className="h-4 w-4" /> Disburse {formatUGX(currentPrincipal)} to Withdrawable Wallet</>}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => revokeApprovalMutation.mutate(req)}
+                            disabled={revokeApprovalMutation.isPending || payMutation.isPending}
+                            className="w-full h-7 text-[11px] text-muted-foreground"
+                          >
+                            {revokeApprovalMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Revoke approval &amp; re-open for editing'}
+                          </Button>
+                          <p className="text-[10px] text-muted-foreground text-center">
+                            Approved by CFO{req.cfo_approved_at ? ` on ${format(new Date(req.cfo_approved_at), 'MMM d, HH:mm')}` : ''}. Edits are locked — revoke to change.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            onClick={() => approveMutation.mutate(req)}
+                            disabled={approveMutation.isPending || currentPrincipal <= 0}
+                            className="w-full gap-2 disabled:bg-muted disabled:text-muted-foreground"
+                          >
+                            {approveMutation.isPending
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <><CheckCircle2 className="h-4 w-4" /> Approve advance ({formatUGX(currentPrincipal)})</>}
+                          </Button>
+                          <p className="text-[10px] text-muted-foreground text-center">
+                            Disbursement is locked until you approve. Principal, cycle days, and rate stay editable until then.
+                          </p>
+                        </>
                       )}
                     </div>
                   )}
