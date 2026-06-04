@@ -82,7 +82,6 @@ Deno.serve(async (req) => {
           source_id: rent_request_id,
           description: `UGX 5,000 landlord verification bonus – ${landlordName}`,
           currency: 'UGX',
-          linked_party: request.tenant_id,
           transaction_date: now,
         },
         {
