@@ -147,6 +147,26 @@ Deno.serve(async (req) => {
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
     const sourceName = sourceProfileRes.data?.full_name || (body.payment_method === "proxy_agent" ? "Proxy Agent" : partnerName);
 
+    // ── Funder verification gate (BEFORE any money moves) ──
+    // Self-registered funders (signup_source = 'funder-onboarding') must be
+    // approved by Partner Ops / COO before a portfolio can be created.
+    // The DB trigger enforce_funder_verified_for_portfolio also blocks this,
+    // but that fires AFTER the wallet is debited — leaving funds stranded and
+    // surfacing a cryptic "Edge Function" error. Check here first so we never
+    // deduct money and return a clear, plain-language reason.
+    {
+      const { data: funderProfile } = await adminClient
+        .from("profiles")
+        .select("signup_source, funder_verified_at")
+        .eq("id", body.partner_id)
+        .maybeSingle();
+      if (funderProfile?.signup_source === "funder-onboarding" && !funderProfile?.funder_verified_at) {
+        return json({
+          error: `${partnerName} self-registered and is not yet verified. Approve them in Partner Ops (Verify Funder) before creating or topping up a portfolio.`,
+        }, 400);
+      }
+    }
+
     // Reference + dates
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);

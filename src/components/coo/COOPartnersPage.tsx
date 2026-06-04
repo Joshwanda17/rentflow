@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
   dateOnlyToLocalDate,
   dateOnlyToUtcMiddayIso,
@@ -1339,7 +1340,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           source_wallet_user_id: sourceUserId,
         },
       });
-      if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
+      if (error) throw new Error(await extractFromErrorObject(error, 'Portfolio creation failed.'));
       if (result?.error) throw new Error(result.error);
 
       const sourceLabel = addPortfolioFundingSource === 'wallet'
@@ -1663,7 +1664,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const { data: result, error } = await supabase.functions.invoke('coo-invest-for-partner', {
         body: { partner_id: investPartner.id, amount: amt },
       });
-      if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
+      if (error) throw new Error(await extractFromErrorObject(error, 'Investment failed.'));
       if (result?.error) throw new Error(result.error);
       toast.success(`Invested ${formatUGX(amt)} for ${investPartner.name}`, { description: `Ref: ${result.reference_id}` });
       setInvestPartner(null);
@@ -1731,7 +1732,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           source_wallet_user_id: walletTransferMethod === 'proxy_agent' ? proxyAgentInfo?.agentId : detailPartner?.profile?.id,
         },
       });
-      if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
+      if (error) throw new Error(await extractFromErrorObject(error, 'Transfer failed.'));
       if (result?.error) throw new Error(result.error);
 
       const sourceLabel = `${walletTransferMethod === 'wallet' ? 'partner' : `${proxyAgentInfo?.agentName}'s`} ${bucketLabel}`;
