@@ -220,6 +220,63 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
           </div>
         </div>
 
+        {/* Landing menu — two clear, simple choices */}
+        {view === 'menu' && (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setView('history')}
+              className="w-full flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/40"
+            >
+              <div className="rounded-2xl bg-primary/10 p-3 shrink-0">
+                <HistoryIcon className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold text-foreground">My advance history</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                  See every advance you've ever taken and how each one was paid back.
+                </p>
+                <p className="text-[11px] font-semibold text-primary mt-1">
+                  {issuedLoading ? 'Loading…' : `${issuedAdvances.length} advance${issuedAdvances.length === 1 ? '' : 's'} taken`}
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setView('request')}
+              className="w-full flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 text-left transition-all active:scale-[0.98] hover:border-primary/40"
+            >
+              <div className="rounded-2xl bg-primary/10 p-3 shrink-0">
+                <Send className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold text-foreground">Request a new advance</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                  Apply for funds and submit your request to the CFO for approval.
+                </p>
+                <p className="text-[11px] font-semibold text-primary mt-1">Submit to CFO →</p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+            </button>
+          </div>
+        )}
+
+        {/* Back to menu */}
+        {view !== 'menu' && (
+          <button
+            type="button"
+            onClick={() => setView('menu')}
+            className="mb-3 flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+        )}
+
+        {view === 'request' && (
+        <>
+
         {/* Credit limit indicator */}
         <div className="rounded-2xl bg-muted/50 p-3 mb-4">
           <div className="flex items-center gap-3">
