@@ -27,6 +27,7 @@ import { AutoCreditReviewPanel } from './AutoCreditReviewPanel';
 import { ProxyWithdrawalDiagnosticsPanel } from './ProxyWithdrawalDiagnosticsPanel';
 import { FloatToWithdrawablePanel } from './FloatToWithdrawablePanel';
 import { MomoSignupSmsTemplatePanel } from './MomoSignupSmsTemplatePanel';
+import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -35,7 +36,7 @@ import {
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
-  ArrowRightLeft, ScrollText
+  ArrowRightLeft, ScrollText, KeyRound
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -47,7 +48,7 @@ type Tool =
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics'
   | 'topup_audit'
-  | 'float_to_withdrawable' | 'momo_sms_template';
+  | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes';
 
 
 /**
@@ -202,6 +203,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'float_to_withdrawable' && <FloatToWithdrawablePanel />}
         {activeTool === 'topup_audit' && <PartnershipTopupAuditLog />}
         {activeTool === 'momo_sms_template' && <MomoSignupSmsTemplatePanel />}
+        {activeTool === 'cash_codes' && <CashDepositCodesPanel />}
       </div>
     );
   }
@@ -285,7 +287,23 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             </div>
           </button>
 
-          {/* 3. More — everything else */}
+          {/* 3. Cash Deposit Codes — time-sensitive (codes expire in 2 min) */}
+          <button
+            onClick={() => openTool('cash_codes')}
+            className="w-full max-w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all text-left min-h-[88px] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+              <KeyRound className="h-6 w-6 sm:h-7 sm:w-7 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base sm:text-lg break-words">Cash Deposit Codes</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 break-words">
+                Read pending codes back to depositors — no email needed
+              </p>
+            </div>
+          </button>
+
+          {/* 4. More — everything else */}
           <button
             onClick={() => setMoreSheet(true)}
             className="w-full max-w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl border border-border bg-card hover:bg-accent/40 transition-all text-left min-h-[88px] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
