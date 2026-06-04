@@ -95,6 +95,11 @@ export function CFOAdvanceRequestPayments() {
   const payMutation = useMutation({
     mutationFn: async (req: any) => {
       if (!user?.id) throw new Error('Not authenticated');
+      // Approval gate: disbursement is only allowed once the CFO has approved
+      // (and edited) the request. Anything not yet at 'cfo_approved' is blocked.
+      if (req.status !== 'cfo_approved') {
+        throw new Error('Approve the advance before disbursing to the wallet');
+      }
       const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
       const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
       const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
