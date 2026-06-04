@@ -171,6 +171,8 @@ interface PartnerDetail {
     created_at: string;
     frozen_at: string | null;
     frozen_reason: string | null;
+    funder_verified_at: string | null;
+    signup_source: string | null;
   };
   walletBalance: number;
   withdrawableBalance: number;
