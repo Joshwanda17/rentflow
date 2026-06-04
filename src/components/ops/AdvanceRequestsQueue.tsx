@@ -36,8 +36,8 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
     queryKey: ['advance-requests-queue', stage],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('agent_advance_requests')
-        .select('*, profiles!agent_advance_requests_agent_id_fkey(full_name, phone)')
+        .from('agent_advance_requests_privileged')
+        .select('*')
         .eq('status', config.filterStatus)
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -100,7 +100,6 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         <Badge variant="secondary" className="text-xs">{requests.length} pending</Badge>
       </div>
       {requests.map((req: any) => {
-        const profile = req.profiles;
         const isExpanded = expandedId === req.id;
         return (
           <Card key={req.id} className="overflow-hidden">
@@ -112,8 +111,8 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
                     <User className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate">{profile?.full_name || 'Agent'}</p>
-                    <p className="text-[10px] text-muted-foreground">{profile?.phone || ''} • {format(new Date(req.created_at), 'MMM d, yyyy')}</p>
+                    <p className="text-sm font-bold truncate">{req.agent_full_name || 'Agent'}</p>
+                    <p className="text-[10px] text-muted-foreground">{req.agent_phone || ''} • {format(new Date(req.created_at), 'MMM d, yyyy')}</p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-base font-bold text-primary">{formatUGX(Number(req.principal))}</p>

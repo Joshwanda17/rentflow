@@ -165,7 +165,7 @@ export function useAgentOpsReportData() {
           .order('created_at', { ascending: false })
           .limit(MAX_ROWS),
         supabase
-          .from('agent_advance_requests')
+          .from('agent_advance_requests_privileged')
           .select('id, agent_id, principal, total_payable, status, reason, created_at')
           .gte('created_at', since)
           .order('created_at', { ascending: false })
