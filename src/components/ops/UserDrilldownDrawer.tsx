@@ -2043,19 +2043,25 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
           .from('profiles').select('id, full_name, phone').in('id', ids);
         nameMap = new Map((profs ?? []).map((p: any) => [p.id, p]));
       }
-      // Recorded payable A/C entries from the dedicated landlord sub-ledger.
+      // Recorded A/C entries (payable + receivable) from the dedicated
+      // landlord sub-ledger.
       const { data: recorded } = await supabase
         .from('landlord_account_ledger')
-        .select('rent_request_id, amount, updated_at')
-        .eq('landlord_id', landlordId)
-        .eq('entry_type', 'payable');
-      const recordedMap = new Map(
-        (recorded ?? []).map((r: any) => [r.rent_request_id, r]),
+        .select('rent_request_id, entry_type, amount, updated_at')
+        .eq('landlord_id', landlordId);
+      const payableMap = new Map(
+        (recorded ?? []).filter((r: any) => r.entry_type === 'payable')
+          .map((r: any) => [r.rent_request_id, r]),
+      );
+      const receivableMap = new Map(
+        (recorded ?? []).filter((r: any) => r.entry_type === 'receivable')
+          .map((r: any) => [r.rent_request_id, r]),
       );
       return rows.map((r: any) => {
         const monthlyRent = Number(r.rent_amount || 0);
         const dailyRent = Number(r.daily_repayment || 0);
-        const rec = recordedMap.get(r.id) as any;
+        const recPay = payableMap.get(r.id) as any;
+        const recRec = receivableMap.get(r.id) as any;
         return {
           ...r,
           tenant: nameMap.get(r.tenant_id) ?? null,
@@ -2065,8 +2071,9 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
           annualPayable: monthlyRent * 12,
           // Annual receivable from the rental = daily rent × 30 days × 12 months.
           annualReceivable: dailyRent * 30 * 12,
-          // Recorded payable from the sub-ledger (null if not yet generated).
-          recordedPayable: rec ? Number(rec.amount) : null,
+          // Recorded amounts from the sub-ledger (null if not yet generated).
+          recordedPayable: recPay ? Number(recPay.amount) : null,
+          recordedReceivable: recRec ? Number(recRec.amount) : null,
         };
       });
     },
@@ -2078,9 +2085,10 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         acc.payable += r.annualPayable;
         acc.receivable += r.annualReceivable;
         if (r.recordedPayable != null) { acc.recordedPayable += r.recordedPayable; acc.recordedCount += 1; }
+        if (r.recordedReceivable != null) { acc.recordedReceivable += r.recordedReceivable; acc.recordedRecvCount += 1; }
         return acc;
       },
-      { payable: 0, receivable: 0, recordedPayable: 0, recordedCount: 0 },
+      { payable: 0, receivable: 0, recordedPayable: 0, recordedCount: 0, recordedReceivable: 0, recordedRecvCount: 0 },
     );
   }, [placed]);
 
