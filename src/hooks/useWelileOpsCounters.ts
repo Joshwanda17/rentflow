@@ -220,6 +220,28 @@ export function useMissionReceivables(refetchIntervalMs?: number | false) {
   });
 }
 
+export interface MissionLandlordReceivable {
+  landlord_id: string;
+  landlord_name: string | null;
+  landlord_phone: string | null;
+  property_address: string | null;
+  receivable_total: number;
+  placement_count: number;
+}
+
+export function useMissionLandlordReceivables(enabled: boolean) {
+  return useQuery({
+    enabled,
+    queryKey: ['welile-mission-landlord-receivables'],
+    staleTime: 60_000,
+    queryFn: async (): Promise<MissionLandlordReceivable[]> => {
+      const { data, error } = await supabase.rpc('welile_mission_landlord_receivables' as any);
+      if (error) throw error;
+      return (data ?? []) as MissionLandlordReceivable[];
+    },
+  });
+}
+
 export function useMissionLeaderboard(win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
   const since = windowToISO(win);
   return useQuery({
