@@ -123,6 +123,7 @@ import { AgentReceiptDialog } from '@/components/agent/AgentReceiptDialog';
 import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet';
 import { RentalFinderSheet } from '@/components/agent/RentalFinderSheet';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
+import { AgentLandlordPromoBanner } from '@/components/agent/AgentLandlordPromoBanner';
 import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
 import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
 import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
@@ -131,7 +132,6 @@ import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSh
 import { ShareLandlordLinkDialog } from '@/components/agent/ShareLandlordLinkDialog';
 import { FunderManagementSheet } from '@/components/agent/FunderManagementSheet';
 import { AgentPartnerDashboardSheet } from '@/components/agent/AgentPartnerDashboardSheet';
-import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
@@ -675,7 +675,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              * "Grow" button via AgentMenuDrawer so no functionality is lost.
              */}
 
-            {/* 0) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
+            {/* 0) PROMO — prominent weekly landlord registration drive */}
+            <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setRegisterUserOpen(true); }} />
+
+            {/* 0b) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
             {isCashoutAgent && showMerchantOnboard && (
               <div className="w-full rounded-2xl border border-primary/30 bg-primary/5 p-4 relative animate-fade-in">
                 <button
