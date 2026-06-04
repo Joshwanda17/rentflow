@@ -1710,6 +1710,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   /* ─── Wallet → Portfolio Transfer ─── */
   async function handleWalletToPortfolio() {
     if (!walletToPortfolio || !detailPartner) return;
+    if (!detailPartner.profile.funder_verified_at) {
+      toast.error('Transfer blocked — funder not verified. Approve in Partner Ops → Verify Funder.');
+      return;
+    }
     const amt = Number(walletToPortfolioAmount);
 
     const sourceBalance = walletTransferMethod === 'wallet'
