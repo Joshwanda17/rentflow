@@ -206,6 +206,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'topup_audit' && <PartnershipTopupAuditLog />}
         {activeTool === 'momo_sms_template' && <MomoSignupSmsTemplatePanel />}
         {activeTool === 'cash_codes' && <CashDepositCodesPanel />}
+        {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
       </div>
     );
   }
