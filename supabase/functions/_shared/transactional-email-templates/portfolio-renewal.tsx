@@ -9,6 +9,8 @@ interface PortfolioRenewalProps {
   portfolio_name?: string
   portfolio_id?: string
   amount?: string | number
+  old_principal?: string | number
+  new_principal?: string | number
   return_rate?: string | number
   renewal_date?: string
   maturity_date?: string
@@ -39,6 +41,8 @@ export function PortfolioRenewal({
   portfolio_name = 'Partnership Portfolio',
   portfolio_id = '',
   amount = 0,
+  old_principal,
+  new_principal,
   return_rate = '',
   renewal_date = '',
   maturity_date = '',
@@ -51,7 +55,11 @@ export function PortfolioRenewal({
   privacy_url = 'https://welilereceipts.com/privacy',
 }: PortfolioRenewalProps) {
   const year = new Date().getFullYear()
-  const formattedAmount = formatAmount(amount, currency)
+  // New layout shows an old → new principal comparison. Fall back to the
+  // legacy single `amount` field when new_principal is not supplied.
+  const resolvedNew = new_principal ?? amount
+  const formattedAmount = formatAmount(resolvedNew, currency)
+  const formattedOld = formatAmount(old_principal, currency)
   const formattedRate = formatRate(return_rate)
   const displayId = portfolio_id || ''
 
@@ -77,7 +85,7 @@ export function PortfolioRenewal({
                           <Img src={logo_url} alt={`${company_name} Technologies Limited`} width="130" style={logoImg} />
                         </td>
                         <td align="right" valign="middle" className="hide-mobile" style={secureLabel}>
-                          Portfolio Renewal
+                          Portfolio Renewed
                         </td>
                       </tr></tbody>
                     </table>
@@ -86,7 +94,7 @@ export function PortfolioRenewal({
 
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '40px 40px 20px 40px' }}>
-                    <Heading style={heroH1}>Portfolio Renewal Confirmation</Heading>
+                    <Heading style={heroH1}>Portfolio Successfully Renewed</Heading>
                   </td>
                 </tr>
 
@@ -94,7 +102,7 @@ export function PortfolioRenewal({
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 25px 40px' }}>
                     <Text style={greetingText}>Dear {partner_name},</Text>
                     <Text style={{ ...introText, margin: 0 }}>
-                      This is to confirm that your partnership portfolio has been successfully renewed. Your portfolio has been extended for a new return cycle under the applicable terms. Returns will continue to accrue based on the updated cycle.
+                      This is to confirm that your partnership portfolio has been successfully renewed. Your portfolio has rolled over into a new return cycle. Below are the key renewal details, including your old and new principal amounts.
                     </Text>
                   </td>
                 </tr>
@@ -105,10 +113,31 @@ export function PortfolioRenewal({
                       <tbody>
                         <tr>
                           <td style={detailHeader}>
-                            <Text style={detailEyebrow}>Portfolio Detail</Text>
+                            <Text style={detailEyebrow}>Portfolio Name</Text>
                             <Text style={detailTitle}>
                               {portfolio_name} {displayId && <span style={{ color: '#a855f7', fontSize: '15px' }}>(#{displayId})</span>}
                             </Text>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={principalRowCell}>
+                            <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
+                              <tbody>
+                                <tr>
+                                  <td width="42%" valign="top" className="td-block" style={{ paddingBottom: '5px' }}>
+                                    <Text style={oldPrincipalLabel}>Old Principal</Text>
+                                    <Text style={oldPrincipalValue}>{formattedOld}</Text>
+                                  </td>
+                                  <td width="16%" align="center" valign="middle" className="td-block" style={arrowCell}>
+                                    &rarr;
+                                  </td>
+                                  <td width="42%" valign="top" className="td-block">
+                                    <Text style={newPrincipalLabel}>New Principal</Text>
+                                    <Text style={newPrincipalValue}>{formattedAmount}</Text>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
                           </td>
                         </tr>
                         <tr>
@@ -117,26 +146,20 @@ export function PortfolioRenewal({
                               <tbody>
                                 <tr>
                                   <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
-                                    <Text style={fieldLabel}>Renewal Amount</Text>
-                                    <Text style={fieldValue}>{formattedAmount}</Text>
-                                  </td>
-                                  <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
-                                    <Text style={fieldLabel}>Return Rate</Text>
-                                    <Text style={{ ...fieldValue, color: '#059669' }}>{formattedRate}</Text>
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
                                     <Text style={fieldLabel}>Renewal Date</Text>
                                     <Text style={fieldValueSub}>{renewal_date || '—'}</Text>
                                   </td>
                                   <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
-                                    <Text style={fieldLabel}>Maturity Date</Text>
+                                    <Text style={fieldLabel}>New Maturity Date</Text>
                                     <Text style={fieldValueSub}>{maturity_date || '—'}</Text>
                                   </td>
                                 </tr>
                                 <tr>
-                                  <td width="100%" valign="top" colSpan={2}>
+                                  <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
+                                    <Text style={fieldLabel}>Return Rate</Text>
+                                    <Text style={{ ...fieldValue, color: '#059669' }}>{formattedRate}</Text>
+                                  </td>
+                                  <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
                                     <Text style={fieldLabel}>Cycle / Duration</Text>
                                     <Text style={fieldValueSub}>{duration || '—'}</Text>
                                   </td>
@@ -158,7 +181,7 @@ export function PortfolioRenewal({
                           <td style={{ padding: '15px 20px' }}>
                             <Text style={insightTitle}>Insight</Text>
                             <Text style={insightBody}>
-                              Your portfolio remains active and continues to generate returns. You can monitor its performance in real-time from your dashboard.
+                              Your renewed portfolio is active. Returns will continue to accrue on your new principal value of <strong>{formattedAmount}</strong>. You can monitor the progress and daily tenant updates directly from your dashboard.
                             </Text>
                           </td>
                         </tr>
@@ -170,11 +193,11 @@ export function PortfolioRenewal({
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
                     <Text style={outroText}>
-                      If you require further details regarding this renewal, please feel free to reply directly to this email with your portfolio reference {displayId && <span>(#{displayId})</span>}.
+                      If you have any questions or require further clarification regarding this renewal, please reply directly to this email or reach out to our team at <Link href="mailto:partnership@welile.com">partnership@welile.com</Link> with your portfolio ID {displayId && <span>(#{displayId})</span>}.
                     </Text>
                     <Text style={signatureText}>
                       Warm regards,<br />
-                      <span style={signatureSub}>The PARTNERSHIP TEAM</span>
+                      <span style={signatureSub}>Partnership Team</span>
                     </Text>
                   </td>
                 </tr>
@@ -182,7 +205,7 @@ export function PortfolioRenewal({
                 <tr>
                   <td style={taglineCell}>
                     <Text style={taglineText}>
-                      <em>"Automated Notification System"</em>
+                      <em>"Automated Notification System • Welile is turning rent into an asset."</em>
                     </Text>
                   </td>
                 </tr>
