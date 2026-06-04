@@ -37,7 +37,7 @@ import {
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
-  ArrowRightLeft, ScrollText, KeyRound
+  ArrowRightLeft, ScrollText, KeyRound, ReceiptText
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
