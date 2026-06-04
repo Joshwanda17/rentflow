@@ -205,7 +205,6 @@ export function CashDepositCodesPanel() {
                 <th className="py-2 px-2 font-medium">Depositor</th>
                 <th className="py-2 px-2 font-medium">Purpose</th>
                 <th className="py-2 px-2 font-medium">Status</th>
-                <th className="py-2 px-2 font-medium">Expires</th>
               </tr>
             </thead>
             <tbody>
