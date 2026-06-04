@@ -491,11 +491,88 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
             )}
           </Button>
         </div>
+        </>
+        )}
 
-        {/* History */}
-        <div>
-          <h3 className="text-sm font-semibold text-foreground mb-3">My Advance Requests</h3>
-          {historyLoading ? (
+        {view === 'history' && (
+        <div className="space-y-6">
+          {/* Issued advances with full repayment breakdown */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-1">Advances taken</h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Every advance Welile has issued you, and how it was paid back day by day.
+            </p>
+            {issuedLoading ? (
+              <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : issuedAdvances.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No advances taken yet</p>
+            ) : (
+              <div className="space-y-3">
+                {issuedAdvances.map((adv: any) => {
+                  const repaidEntries = (adv.ledger || []).filter((e: any) => Number(e.amount_deducted || 0) > 0);
+                  const outstanding = Number(adv.outstanding_balance || 0);
+                  const isDone = adv.status === 'completed' || outstanding <= 0;
+                  return (
+                    <div key={adv.id} className="rounded-2xl border border-border/60 bg-card p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-base font-bold text-foreground tabular-nums">{formatUGX(Number(adv.principal))}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Taken {format(new Date(adv.issued_at), 'MMM d, yyyy')} · {adv.cycle_days}d term
+                          </p>
+                        </div>
+                        <Badge className={cn(
+                          'text-[10px] font-bold border-0',
+                          isDone ? 'bg-emerald-500 text-white' : adv.status === 'overdue' ? 'bg-red-500 text-white' : 'bg-amber-500 text-white',
+                        )}>
+                          {isDone ? 'Fully repaid' : adv.status === 'overdue' ? 'Overdue' : 'Repaying'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                        <div className="rounded-xl bg-muted/40 py-2">
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Repaid</p>
+                          <p className="text-xs font-bold text-emerald-600 tabular-nums">{formatUGX(adv.totalRepaid)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/40 py-2">
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Outstanding</p>
+                          <p className="text-xs font-bold tabular-nums">{formatUGX(outstanding)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/40 py-2">
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Fees</p>
+                          <p className="text-xs font-bold text-orange-600 tabular-nums">
+                            {formatUGX(Number(adv.access_fee || 0) + Number(adv.registration_fee || 0))}
+                          </p>
+                        </div>
+                      </div>
+
+                      {repaidEntries.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-dashed border-border">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                            Repayment breakdown
+                          </p>
+                          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                            {repaidEntries.map((e: any, i: number) => (
+                              <div key={i} className="flex items-center justify-between gap-2 text-[11px]">
+                                <span className="text-muted-foreground">{format(new Date(e.date), 'MMM d, yyyy')}</span>
+                                <span className="font-semibold text-emerald-600 tabular-nums">− {formatUGX(Number(e.amount_deducted))}</span>
+                                <span className="text-muted-foreground tabular-nums">bal {formatUGX(Number(e.closing_balance))}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Requests submitted to the CFO */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">My advance requests</h3>
+            {historyLoading ? (
             <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : myRequests.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No advance requests yet</p>
@@ -534,7 +611,9 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               })}
             </div>
           )}
+          </div>
         </div>
+        )}
       </SheetContent>
     </Sheet>
   );
