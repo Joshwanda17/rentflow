@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -30,7 +31,7 @@ interface Props {
   userId: string | null;
 }
 
-function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
+function Row({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3 py-2 border-b border-border/40 last:border-0">
       <span className="text-xs text-muted-foreground shrink-0">{label}</span>
