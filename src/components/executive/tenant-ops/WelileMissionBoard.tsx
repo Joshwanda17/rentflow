@@ -202,6 +202,20 @@ export function WelileMissionBoard() {
                     <span className="text-[11px] text-muted-foreground">{m.label}</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>
+                  {p.key === 'place' && receivables && (
+                    <div className="mt-2 rounded-lg bg-emerald-500/10 px-2 py-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 leading-none">Receivables A/C</p>
+                      <p className="text-sm font-bold text-emerald-700 tabular-nums leading-tight mt-0.5">{formatUGX(receivables.placed_receivable_total)}</p>
+                      <p className="text-[10px] text-muted-foreground leading-none">{receivables.placed_receivable_count.toLocaleString()} placed tenants · daily × 30 × 12</p>
+                    </div>
+                  )}
+                  {p.key === 'list' && receivables && (
+                    <div className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">Projected receivables</p>
+                      <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatUGX(receivables.empty_receivable_total)}</p>
+                      <p className="text-[10px] text-muted-foreground leading-none">{receivables.empty_houses_count.toLocaleString()} empty houses · monthly × 12</p>
+                    </div>
+                  )}
                   {p.key === 'list' && (
                     <Button
                       variant="outline"
