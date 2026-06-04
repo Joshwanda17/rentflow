@@ -358,6 +358,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
     try { localStorage.setItem(LANDLORD_CHECKLIST_LS_KEY, JSON.stringify(cardChecklist)); } catch { /* noop */ }
     setChecklistSavedAt(new Date());
     if (!user?.id) return;
+    setChecklistSyncStatus('saving');
     (async () => {
       try {
         const { error } = await supabase
@@ -366,8 +367,14 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             { user_id: user.id, key: LANDLORD_CHECKLIST_PREF_KEY, value: cardChecklist },
             { onConflict: 'user_id,key' },
           );
-        if (error) console.warn('[RentPipelineQueue] checklist cloud write failed, using localStorage', error);
+        if (error) {
+          setChecklistSyncStatus('failed');
+          console.warn('[RentPipelineQueue] checklist cloud write failed, using localStorage', error);
+        } else {
+          setChecklistSyncStatus('saved');
+        }
       } catch (err) {
+        setChecklistSyncStatus('failed');
         console.warn('[RentPipelineQueue] checklist write failed, using localStorage', err);
       }
     })();
