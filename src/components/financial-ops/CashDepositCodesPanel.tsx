@@ -34,11 +34,11 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant="outline" className="text-muted-foreground capitalize">{status.replace(/_/g, ' ')}</Badge>;
 }
 
-/** Live mm:ss countdown to expiry; shows "expired" when past. */
-function Countdown({ expiresAt }: { expiresAt: string | null }) {
+/** Live mm:ss countdown to expiry; color shifts from emerald → amber → rose as time runs low. */
+function Countdown({ expiresAt, inline = false }: { expiresAt: string | null; inline?: boolean }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(t);
   }, []);
   if (!expiresAt) return <span className="text-muted-foreground">—</span>;
@@ -47,9 +47,17 @@ function Countdown({ expiresAt }: { expiresAt: string | null }) {
   const s = Math.floor(ms / 1000);
   const mm = Math.floor(s / 60);
   const ss = s % 60;
+  // Color tier: >90s emerald, 31-90s amber, ≤30s rose
+  const colorClass =
+    ms > 90_000
+      ? 'text-emerald-600'
+      : ms > 30_000
+        ? 'text-amber-600'
+        : 'text-rose-600 animate-pulse';
   return (
-    <span className="inline-flex items-center gap-1 text-emerald-600 font-medium tabular-nums">
-      <Clock className="h-3 w-3" />{mm}:{String(ss).padStart(2, '0')}
+    <span className={`inline-flex items-center gap-1 font-medium tabular-nums ${colorClass} ${inline ? 'text-xs' : 'text-sm'}`}>
+      <Clock className="h-3 w-3" />
+      {mm}:{String(ss).padStart(2, '0')}
     </span>
   );
 }
@@ -136,9 +144,16 @@ export function CashDepositCodesPanel() {
 
   if (denied) return null;
 
-  const activeCount = rows.filter(
+  const activeRows = rows.filter(
     (r) => r.status === 'awaiting_code' && r.expires_at && new Date(r.expires_at).getTime() > Date.now(),
-  ).length;
+  );
+
+  // Auto-hide expired rows from the table (they may still appear in the RPC cache briefly)
+  const displayRows = rows.filter(
+    (r) => !(r.expires_at && new Date(r.expires_at).getTime() <= Date.now()),
+  );
+
+  const activeCount = activeRows.length;
 
   return (
     <div className="rounded-xl border bg-card p-4 sm:p-5 space-y-4">
@@ -174,12 +189,12 @@ export function CashDepositCodesPanel() {
         <span>Auto-refresh enabled — last updated {new Date(lastRefreshedAt).toLocaleTimeString()}</span>
       </div>
 
-      {loading && rows.length === 0 ? (
+      {loading && displayRows.length === 0 ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading codes…
         </div>
-      ) : rows.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-6 text-center">No recent cash deposit codes.</div>
+      ) : displayRows.length === 0 ? (
+        <div className="text-sm text-muted-foreground py-6 text-center">No active cash deposit codes.</div>
       ) : (
         <div className="overflow-x-auto -mx-1">
           <table className="w-full text-sm border-collapse">
@@ -190,23 +205,25 @@ export function CashDepositCodesPanel() {
                 <th className="py-2 px-2 font-medium">Depositor</th>
                 <th className="py-2 px-2 font-medium">Purpose</th>
                 <th className="py-2 px-2 font-medium">Status</th>
-                <th className="py-2 px-2 font-medium">Expires</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {displayRows.map((r) => (
                 <tr key={r.verification_id} className="border-b last:border-0 hover:bg-muted/40">
-                  <td className="py-2 px-2">
+                  <td className="py-2 px-2 align-top">
                     {r.code ? (
-                      <button
-                        type="button"
-                        onClick={() => copy(r.code!)}
-                        className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-foreground rounded-md px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
-                        title="Click to copy"
-                      >
-                        {r.code}
-                        {copied === r.code ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                      </button>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() => copy(r.code!)}
+                          className="inline-flex items-center gap-1.5 font-mono text-base font-bold tracking-widest text-foreground rounded-md px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 transition-colors w-fit"
+                          title="Click to copy"
+                        >
+                          {r.code}
+                          {copied === r.code ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </button>
+                        <Countdown expiresAt={r.expires_at} inline />
+                      </div>
                     ) : (
                       <span className="font-mono text-muted-foreground">••••</span>
                     )}
@@ -218,7 +235,6 @@ export function CashDepositCodesPanel() {
                   </td>
                   <td className="py-2 px-2 whitespace-nowrap text-xs">{purposeLabel(r.deposit_purpose)}</td>
                   <td className="py-2 px-2"><StatusBadge status={r.status} /></td>
-                  <td className="py-2 px-2 whitespace-nowrap"><Countdown expiresAt={r.expires_at} /></td>
                 </tr>
               ))}
             </tbody>
