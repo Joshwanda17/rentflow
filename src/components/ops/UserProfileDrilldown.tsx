@@ -97,10 +97,43 @@ export function UserProfileDrilldown({ open, onOpenChange, userId, breadcrumbs }
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-screen h-screen max-w-none sm:max-w-none overflow-y-auto p-0">
-        <SheetHeader className="px-4 sm:px-6 pt-5 pb-3 border-b">
-          <SheetTitle className="text-lg flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" /> User profile
-          </SheetTitle>
+        <SheetHeader className="px-4 sm:px-6 pt-5 pb-3 border-b space-y-2">
+          {/* Breadcrumbs + back */}
+          {breadcrumbs && breadcrumbs.length > 0 && (
+            <nav className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              {breadcrumbs.map((crumb, idx) => (
+                <span key={idx} className="flex items-center gap-1">
+                  {idx > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground/60" />}
+                  {crumb.onClick ? (
+                    <button
+                      type="button"
+                      onClick={crumb.onClick}
+                      className="hover:text-primary transition-colors underline underline-offset-2"
+                    >
+                      {crumb.label}
+                    </button>
+                  ) : (
+                    <span className={idx === breadcrumbs.length - 1 ? 'text-foreground font-medium' : ''}>
+                      {crumb.label}
+                    </span>
+                  )}
+                </span>
+              ))}
+            </nav>
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-8 w-8 rounded-lg border border-border bg-background flex items-center justify-center hover:bg-accent transition-colors shrink-0"
+              aria-label="Back"
+            >
+              <ChevronLeft className="h-4 w-4 text-foreground" />
+            </button>
+            <SheetTitle className="text-lg flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" /> User profile
+            </SheetTitle>
+          </div>
           <SheetDescription className="text-xs">
             Location, contacts, roles and portfolios. View only.
           </SheetDescription>
