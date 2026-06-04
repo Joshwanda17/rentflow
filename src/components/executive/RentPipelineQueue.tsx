@@ -1093,7 +1093,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={(e) => { e.stopPropagation(); setSelectedRequest(req); }}
+                    onClick={(e) => { e.stopPropagation(); openRequestDetail(req); }}
                     disabled={quickProcessingId === req.id}
                     className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                     title="Reject"
