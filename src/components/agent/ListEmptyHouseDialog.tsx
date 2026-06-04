@@ -132,6 +132,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialLandlordName, initialLandlordPhone]);
 
+  // Promo banner mode: pre-apply empty-house defaults and show campaign badge.
+  useEffect(() => {
+    if (open && fromPromoBanner) {
+      setForm((f) => ({ ...f, is_furnished: false }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, fromPromoBanner]);
+
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
 
