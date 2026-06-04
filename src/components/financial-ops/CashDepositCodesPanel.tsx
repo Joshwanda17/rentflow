@@ -77,10 +77,16 @@ export function CashDepositCodesPanel() {
   const [denied, setDenied] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number>(Date.now());
-  const [secondsToRefresh, setSecondsToRefresh] = useState<number>(5);
+  const [realtimeHealthy, setRealtimeHealthy] = useState(false);
+  const [secondsToRefresh, setSecondsToRefresh] = useState<number>(3);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fast fallback poll while realtime is down; relaxed safety-net poll while it's healthy.
+  const FAST_POLL_SECONDS = 3;
+  const SAFETY_POLL_SECONDS = 15;
+  const pollSeconds = realtimeHealthy ? SAFETY_POLL_SECONDS : FAST_POLL_SECONDS;
 
   const load = useCallback(async () => {
     const { data, error } = await (supabase.rpc as any)('fin_ops_recent_cash_codes', { p_limit: 50 });
@@ -92,20 +98,37 @@ export function CashDepositCodesPanel() {
     setRows((data ?? []) as CashCodeRow[]);
     setLoading(false);
     setLastRefreshedAt(Date.now());
-    setSecondsToRefresh(5);
   }, []);
 
+  // Adaptive polling fallback: keeps codes fresh even if realtime events stop
+  // arriving. Cadence tightens automatically whenever realtime is unhealthy.
   useEffect(() => {
     load();
-    // Poll every 5s since codes expire in 2 min — keep verifiers on the freshest data
-    intervalRef.current = setInterval(load, 5_000);
-    // Countdown ticker so the UI shows when the next refresh happens
+    setSecondsToRefresh(pollSeconds);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(load, pollSeconds * 1_000);
+    // Countdown ticker so the UI shows when the next safety refresh happens
+    if (countdownRef.current) clearInterval(countdownRef.current);
     countdownRef.current = setInterval(() => {
-      setSecondsToRefresh((prev) => (prev > 0 ? prev - 1 : 5));
+      setSecondsToRefresh((prev) => (prev > 1 ? prev - 1 : pollSeconds));
     }, 1_000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [load, pollSeconds]);
+
+  // Refetch immediately when the tab regains focus/visibility — covers the case
+  // where realtime dropped silently while the tab was backgrounded.
+  useEffect(() => {
+    const onActive = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    window.addEventListener('focus', onActive);
+    document.addEventListener('visibilitychange', onActive);
+    return () => {
+      window.removeEventListener('focus', onActive);
+      document.removeEventListener('visibilitychange', onActive);
     };
   }, [load]);
 
@@ -125,8 +148,22 @@ export function CashDepositCodesPanel() {
           load();
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Mark realtime healthy only when fully subscribed; any error/closure
+        // flips us back to the fast fallback polling cadence.
+        if (status === 'SUBSCRIBED') {
+          setRealtimeHealthy(true);
+          load();
+        } else if (
+          status === 'CHANNEL_ERROR' ||
+          status === 'TIMED_OUT' ||
+          status === 'CLOSED'
+        ) {
+          setRealtimeHealthy(false);
+        }
+      });
     return () => {
+      setRealtimeHealthy(false);
       supabase.removeChannel(channel);
     };
   }, [load]);
@@ -174,8 +211,8 @@ export function CashDepositCodesPanel() {
             variant="outline"
             className="hidden sm:inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground border-dashed"
           >
-            <Radio className="h-3 w-3 text-emerald-500 animate-pulse" />
-            Refresh in {secondsToRefresh}s
+            <Radio className={`h-3 w-3 animate-pulse ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
+            {realtimeHealthy ? `Live · safety refresh ${secondsToRefresh}s` : `Fallback refresh ${secondsToRefresh}s`}
           </Badge>
           <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -185,8 +222,13 @@ export function CashDepositCodesPanel() {
       </div>
 
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-        <Radio className="h-3 w-3 text-emerald-500" />
-        <span>Auto-refresh enabled — last updated {new Date(lastRefreshedAt).toLocaleTimeString()}</span>
+        <Radio className={`h-3 w-3 ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
+        <span>
+          {realtimeHealthy
+            ? 'Realtime connected'
+            : 'Realtime unavailable — polling fallback active'}
+          {' '}— last updated {new Date(lastRefreshedAt).toLocaleTimeString()}
+        </span>
       </div>
 
       {loading && displayRows.length === 0 ? (
