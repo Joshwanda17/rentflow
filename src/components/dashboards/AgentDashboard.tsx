@@ -744,7 +744,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
               onOpenFieldCollect={() => setFieldCollectOpen(true)}
               onOpenNewTenant={() => setRentRequestOpen(true)}
-              onOpenListHouse={() => setListHouseOpen(true)}
+              onOpenListHouse={() => { hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
             />
 
             {/* 2) Today's collected total — single most useful at-a-glance number */}
