@@ -387,7 +387,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={!canSubmit}>
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-            Submit Top-Up
+            {!account?.investor_verified_at ? 'Blocked — Funder Not Verified' : 'Submit Top-Up'}
           </Button>
         </DialogFooter>
       </DialogContent>
