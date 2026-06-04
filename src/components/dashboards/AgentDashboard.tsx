@@ -39,6 +39,8 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Wallet, Landmark, LayoutDashboard, ChevronRight } from 'lucide-react';
+import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -821,6 +823,88 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* === MONEY TAB === Wallet, advances, payouts, recovery */}
         {activeTab === 'money' && (
           <div className={cn("space-y-5", tabAnimClass)}>
+            {/* Quick-access money cards: 4 clear destinations */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                {
+                  key: 'withdrawable',
+                  label: 'Withdrawable Wallet',
+                  sub: 'Your money you can cash out',
+                  amount: withdrawableBalance,
+                  icon: Wallet,
+                  tone: 'text-emerald-600',
+                  ring: 'ring-emerald-500/30',
+                  bg: 'bg-emerald-500/10',
+                  onClick: () => { hapticTap(); setShowWallet(true); },
+                },
+                {
+                  key: 'operational',
+                  label: 'Operational Float',
+                  sub: 'Company money for rent & ops',
+                  amount: walletFloatBalance,
+                  icon: Banknote,
+                  tone: 'text-primary',
+                  ring: 'ring-primary/30',
+                  bg: 'bg-primary/10',
+                  onClick: () => { hapticTap(); setShowWallet(true); },
+                },
+                {
+                  key: 'landlord',
+                  label: 'Landlord Float',
+                  sub: 'CFO funds for landlord payouts',
+                  amount: landlordPayoutFloat,
+                  icon: Landmark,
+                  tone: 'text-[#9234EA]',
+                  ring: 'ring-[#9234EA]/30',
+                  bg: 'bg-[#9234EA]/10',
+                  onClick: () => { hapticTap(); setFloatAllocationsOpen(true); },
+                },
+                {
+                  key: 'dashboard',
+                  label: 'Agent Dashboard',
+                  sub: 'Back to your home overview',
+                  amount: null,
+                  icon: LayoutDashboard,
+                  tone: 'text-amber-600',
+                  ring: 'ring-amber-500/30',
+                  bg: 'bg-amber-500/10',
+                  onClick: () => { hapticTap(); setSlideDirection(null); setActiveTab('home'); },
+                },
+              ].map((c) => {
+                const Icon = c.icon;
+                return (
+                  <button
+                    key={c.key}
+                    onClick={c.onClick}
+                    className={cn(
+                      'flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 ring-1',
+                      c.ring,
+                      'active:scale-[0.97] transition-all touch-manipulation text-left min-h-[112px]',
+                    )}
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <div className="flex w-full items-center justify-between">
+                      <div className={cn('p-2 rounded-xl', c.bg)}>
+                        <Icon className={cn('h-5 w-5', c.tone)} strokeWidth={2.2} />
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="w-full">
+                      <p className="text-[13px] font-bold text-foreground leading-tight">{c.label}</p>
+                      {c.amount !== null ? (
+                        <p className={cn('text-base font-extrabold mt-0.5 truncate', c.tone)}>
+                          {formatUGX(c.amount)}
+                        </p>
+                      ) : (
+                        <p className="text-base font-extrabold mt-0.5 text-foreground">Open →</p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{c.sub}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
             <AgentWalletDetailsCard
               agentId={user.id}
               onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
