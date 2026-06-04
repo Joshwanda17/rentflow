@@ -103,6 +103,7 @@ export function WelileMissionBoard() {
   const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(win, showAgents, intervalMs);
   const agents: MissionAgentRow[] = agentData ?? [];
   const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(win, intervalMs);
+  const { data: receivables } = useMissionReceivables(intervalMs);
 
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
