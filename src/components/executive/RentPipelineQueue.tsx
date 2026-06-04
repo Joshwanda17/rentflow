@@ -224,6 +224,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       [id]: { ...{ called: false, acknowledged: false }, ...prev[id], [key]: value },
     }));
   };
+  // Open the detail sheet AND seed the sheet's landlord checklist from the ticks
+  // the operator already made on the card (otherwise the sheet's checkboxes start
+  // empty and the Approve button silently refuses with "Complete the checklist").
+  const openRequestDetail = (req: any) => {
+    const cl = getCardChecklist(req.id);
+    setLandlordCalled(cl.called || !!req.landlord_called);
+    setLandlordAcknowledged(cl.acknowledged || !!req.landlord_acknowledged);
+    setSelectedRequest(req);
+  };
   // COO bulk approval state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Agent profile drilldown
@@ -1005,7 +1014,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   />
                 )}
                 <button
-                  onClick={() => setSelectedRequest(req)}
+                  onClick={() => openRequestDetail(req)}
                   className="min-w-0 flex-1 text-left"
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -1084,7 +1093,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={(e) => { e.stopPropagation(); setSelectedRequest(req); }}
+                    onClick={(e) => { e.stopPropagation(); openRequestDetail(req); }}
                     disabled={quickProcessingId === req.id}
                     className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                     title="Reject"
@@ -1479,7 +1488,10 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox
                         checked={landlordCalled}
-                        onCheckedChange={(v) => setLandlordCalled(!!v)}
+                        onCheckedChange={(v) => {
+                          setLandlordCalled(!!v);
+                          if (selectedRequest) toggleCardCheck(selectedRequest.id, 'called', !!v);
+                        }}
                       />
                       <span className="text-sm">I have called the landlord</span>
                     </label>
@@ -1487,7 +1499,10 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox
                         checked={landlordAcknowledged}
-                        onCheckedChange={(v) => setLandlordAcknowledged(!!v)}
+                        onCheckedChange={(v) => {
+                          setLandlordAcknowledged(!!v);
+                          if (selectedRequest) toggleCardCheck(selectedRequest.id, 'acknowledged', !!v);
+                        }}
                       />
                       <span className="text-sm">Landlord acknowledges Welile as the payer</span>
                     </label>
