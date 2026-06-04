@@ -147,6 +147,8 @@ export function CFOAdvanceRequestPayments() {
             direction: 'cash_in',
             amount: principal,
             category: 'agent_advance_credit',
+            recipient_type: 'user',
+            wallet_bucket: 'withdrawable',
             source_table: 'agent_advance_requests',
             source_id: req.id,
             description: `Agent advance disbursement - ${cycleDays}d @ ${Math.round(adjustedRate * 100)}%`,
