@@ -1101,6 +1101,18 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   before the Approve button is enabled (Landlord Ops stage only) */}
               {isLandlordStage && (
                 <div className="mt-2 space-y-2">
+                  {/* Saved indicator — tells the operator their ticks are stored */}
+                  {checklistSavedAt && (
+                    <div className="flex items-center gap-1.5">
+                      <Cloud className="h-3 w-3 text-emerald-500" />
+                      <span className="text-[10px] font-medium text-emerald-600">
+                        {Date.now() - checklistSavedAt.getTime() < 5000
+                          ? 'Saved just now'
+                          : `Last saved: ${format(checklistSavedAt, 'h:mm a')}`}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Big visible progress indicator above the checklist */}
                   <div className={`flex items-center gap-2 rounded-lg px-3 py-2 border ${checklistComplete ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
                     <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${checklistComplete ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>
