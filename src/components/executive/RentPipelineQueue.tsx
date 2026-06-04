@@ -442,15 +442,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       setSelectedRequest(req);
       return;
     }
-    // For Landlord Ops stage — open the review drawer so the operator can drill
-    // down the landlord details, inspect the house photos, and complete the
-    // verification checklist before approving. The inline button can't approve
-    // directly because the landlord verification checklist lives inside the
-    // detail drawer (this is why the inline Approve previously appeared to "do
-    // nothing" — it silently failed the checklist guard).
+    // For Landlord Ops stage — the inline verification checklist (rendered on the
+    // card) must be completed first. The Approve button is disabled until both
+    // checks are confirmed, but we guard here too as a safety net.
     if (config.showLandlordChecklist && !isOutstanding) {
-      setSelectedRequest(req);
-      return;
+      const cl = getCardChecklist(req.id);
+      if (!cl.called || !cl.acknowledged) {
+        toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
+        return;
+      }
     }
     setQuickProcessingId(req.id);
     try {
