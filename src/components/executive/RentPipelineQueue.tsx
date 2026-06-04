@@ -224,6 +224,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       [id]: { ...{ called: false, acknowledged: false }, ...prev[id], [key]: value },
     }));
   };
+  // Open the detail sheet AND seed the sheet's landlord checklist from the ticks
+  // the operator already made on the card (otherwise the sheet's checkboxes start
+  // empty and the Approve button silently refuses with "Complete the checklist").
+  const openRequestDetail = (req: any) => {
+    const cl = getCardChecklist(req.id);
+    setLandlordCalled(cl.called || !!req.landlord_called);
+    setLandlordAcknowledged(cl.acknowledged || !!req.landlord_acknowledged);
+    setSelectedRequest(req);
+  };
   // COO bulk approval state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Agent profile drilldown
