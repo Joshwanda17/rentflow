@@ -195,6 +195,17 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [landlordAcknowledged, setLandlordAcknowledged] = useState(false);
   const [landlordVerificationMethod, setLandlordVerificationMethod] = useState('');
   const [landlordCallNotes, setLandlordCallNotes] = useState('');
+  // Per-card (per request) Landlord Ops verification checklist progress, shown
+  // inline on the review queue so the operator can see status/progress and the
+  // Approve button only enables once both checks are confirmed.
+  const [cardChecklist, setCardChecklist] = useState<Record<string, { called: boolean; acknowledged: boolean }>>({});
+  const getCardChecklist = (id: string) => cardChecklist[id] || { called: false, acknowledged: false };
+  const toggleCardCheck = (id: string, key: 'called' | 'acknowledged', value: boolean) => {
+    setCardChecklist(prev => ({
+      ...prev,
+      [id]: { ...{ called: false, acknowledged: false }, ...prev[id], [key]: value },
+    }));
+  };
   // COO bulk approval state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Agent profile drilldown
@@ -431,15 +442,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       setSelectedRequest(req);
       return;
     }
-    // For Landlord Ops stage — open the review drawer so the operator can drill
-    // down the landlord details, inspect the house photos, and complete the
-    // verification checklist before approving. The inline button can't approve
-    // directly because the landlord verification checklist lives inside the
-    // detail drawer (this is why the inline Approve previously appeared to "do
-    // nothing" — it silently failed the checklist guard).
+    // For Landlord Ops stage — the inline verification checklist (rendered on the
+    // card) must be completed first. The Approve button is disabled until both
+    // checks are confirmed, but we guard here too as a safety net.
     if (config.showLandlordChecklist && !isOutstanding) {
-      setSelectedRequest(req);
-      return;
+      const cl = getCardChecklist(req.id);
+      if (!cl.called || !cl.acknowledged) {
+        toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
+        return;
+      }
     }
     setQuickProcessingId(req.id);
     try {
@@ -895,11 +906,17 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {filtered.map(req => (
+            {filtered.map(req => {
+              const isLandlordStage = config.showLandlordChecklist && req.registration_type !== 'outstanding_balance';
+              const cl = getCardChecklist(req.id);
+              const checklistDone = (cl.called ? 1 : 0) + (cl.acknowledged ? 1 : 0);
+              const checklistComplete = checklistDone === 2;
+              return (
               <div
                 key={req.id}
-                className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors flex items-center gap-2"
+                className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors"
               >
+              <div className="flex items-center gap-2">
                 {/* COO bulk select checkbox */}
                 {isCooStage && (
                   <Checkbox
@@ -998,8 +1015,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   <Button
                     size="sm"
                     onClick={(e) => handleQuickApprove(req, e)}
-                    disabled={quickProcessingId === req.id}
-                    className="h-8 px-3 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={quickProcessingId === req.id || (isLandlordStage && !checklistComplete)}
+                    title={isLandlordStage && !checklistComplete ? `Complete the landlord verification checklist (${checklistDone}/2)` : undefined}
+                    className="h-8 px-3 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
                   >
                     {quickProcessingId === req.id ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1010,7 +1028,47 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   </Button>
                 </div>
               </div>
-            ))}
+              {/* Inline landlord verification checklist — status & progress shown
+                  before the Approve button is enabled (Landlord Ops stage only) */}
+              {isLandlordStage && (
+                <div className="mt-2 rounded-lg border border-purple-500/30 bg-purple-500/5 p-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold flex items-center gap-1.5 text-purple-700 dark:text-purple-300">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Landlord Verification
+                    </span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${checklistComplete ? 'bg-emerald-500/15 text-emerald-700' : 'bg-amber-500/15 text-amber-700'}`}>
+                      {checklistComplete ? '✓ Verified' : `${checklistDone}/2 done`}
+                    </span>
+                  </div>
+                  {/* progress bar */}
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${checklistComplete ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                      style={{ width: `${(checklistDone / 2) * 100}%` }}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={cl.called}
+                        onCheckedChange={(v) => toggleCardCheck(req.id, 'called', !!v)}
+                      />
+                      <span className="text-[11px]">Called the landlord{req.landlord_phone ? ` (${req.landlord_phone})` : ''}</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={cl.acknowledged}
+                        onCheckedChange={(v) => toggleCardCheck(req.id, 'acknowledged', !!v)}
+                      />
+                      <span className="text-[11px]">Landlord acknowledges Welile as the payer</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+              </div>
+              );
+            })}
           </div>
         )}
       </CardContent>
