@@ -1036,7 +1036,18 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Landlord</p>
-                  <p className="font-semibold">{selectedRequest.landlord_name}</p>
+                  {selectedRequest.landlord_id ? (
+                    <button
+                      type="button"
+                      onClick={() => setDrilldownLandlordId(selectedRequest.landlord_id)}
+                      className="font-semibold text-primary hover:underline text-left"
+                      title="Open full landlord profile"
+                    >
+                      {selectedRequest.landlord_name}
+                    </button>
+                  ) : (
+                    <p className="font-semibold">{selectedRequest.landlord_name}</p>
+                  )}
                   <div className="flex items-center gap-1 mt-0.5">
                     <span className="text-xs text-muted-foreground">{selectedRequest.landlord_phone}</span>
                     <WhatsAppButton phone={selectedRequest.landlord_phone} name={selectedRequest.landlord_name} label="WhatsApp" />
