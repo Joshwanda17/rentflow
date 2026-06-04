@@ -661,7 +661,8 @@ export function CFOAdvanceRequestPayments() {
                             min={1000}
                             step={1000}
                             onChange={e => setAdjustedPrincipals(prev => ({ ...prev, [req.id]: Math.max(0, Number(e.target.value) || 0) }))}
-                            className="h-8 text-sm"
+                            disabled={isCfoApproved}
+                            className="h-8 text-sm disabled:opacity-70"
                           />
                         </div>
                         <div className="space-y-1">
@@ -672,7 +673,8 @@ export function CFOAdvanceRequestPayments() {
                             min={1}
                             max={365}
                             onChange={e => setAdjustedCycles(prev => ({ ...prev, [req.id]: Math.max(1, Number(e.target.value) || 1) }))}
-                            className="h-8 text-sm"
+                            disabled={isCfoApproved}
+                            className="h-8 text-sm disabled:opacity-70"
                           />
                         </div>
                       </div>
@@ -687,13 +689,14 @@ export function CFOAdvanceRequestPayments() {
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0"
+                              disabled={isCfoApproved}
                               onClick={() => setEditingRate(editingRate === req.id ? null : req.id)}
                             >
                               <Pencil className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
-                        {editingRate === req.id && (
+                        {editingRate === req.id && !isCfoApproved && (
                           <Slider
                             min={28}
                             max={33}
