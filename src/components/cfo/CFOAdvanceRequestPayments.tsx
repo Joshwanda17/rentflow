@@ -218,6 +218,60 @@ export function CFOAdvanceRequestPayments() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // Step 1 of the gate: CFO approves (and locks in edits). No money moves here.
+  const approveMutation = useMutation({
+    mutationFn: async (req: any) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const adjustedRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
+      const principal = adjustedPrincipals[req.id] ?? Number(req.principal);
+      const cycleDays = adjustedCycles[req.id] ?? Number(req.cycle_days);
+      if (principal <= 0) throw new Error('Principal must be greater than zero');
+      const registrationFee = calculateRegistrationFee(principal);
+      const newAccessFee = calculateAccessFee(principal, cycleDays, adjustedRate);
+      const newTotal = principal + newAccessFee + registrationFee;
+      const newDaily = Math.ceil(newTotal / cycleDays);
+
+      const { error } = await supabase.from('agent_advance_requests').update({
+        status: 'cfo_approved',
+        cfo_approved_by: user.id,
+        cfo_approved_at: new Date().toISOString(),
+        cfo_adjusted_rate: adjustedRate !== Number(req.monthly_rate) ? adjustedRate : null,
+        cfo_notes: notes[req.id] || null,
+        principal,
+        cycle_days: cycleDays,
+        registration_fee: registrationFee,
+        access_fee: newAccessFee,
+        total_payable: newTotal,
+        daily_payment: newDaily,
+        monthly_rate: adjustedRate,
+      }).eq('id', req.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Advance approved — ready to disburse');
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  // Allow the CFO to re-open an approved request for further editing before payout.
+  const revokeApprovalMutation = useMutation({
+    mutationFn: async (req: any) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const { error } = await supabase.from('agent_advance_requests').update({
+        status: 'pending',
+        cfo_approved_by: null,
+        cfo_approved_at: null,
+      }).eq('id', req.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Approval revoked — request re-opened for editing');
+      queryClient.invalidateQueries({ queryKey: ['cfo-advance-requests'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   // Portfolio-level revenue economics across all pending requests
   const revenueTotals = useMemo(() => {
     let principal = 0, accessFee = 0, regFee = 0;
