@@ -839,6 +839,67 @@ export function AgentTenantCollectDialog({
               )}
             </div>
 
+            {/* Tenant SMS notification status + manual resend */}
+            {tenant.phone ? (
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                    Tenant SMS
+                  </span>
+                  {smsStatus === 'sending' && (
+                    <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Sending…
+                    </span>
+                  )}
+                  {smsStatus === 'sent' && (
+                    <span className="text-[11px] font-medium text-success flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Sent
+                    </span>
+                  )}
+                  {smsStatus === 'failed' && (
+                    <span className="text-[11px] font-medium text-destructive flex items-center gap-1">
+                      <XCircle className="h-3 w-3" /> Failed
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  {smsStatus === 'failed'
+                    ? `We couldn't reach ${tenant.phone}. Tap resend to try again.`
+                    : smsStatus === 'sent'
+                      ? `Payment confirmation sent to ${tenant.phone}.`
+                      : `Sending payment confirmation to ${tenant.phone}.`}
+                </p>
+                <Button
+                  variant={smsStatus === 'failed' ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full h-9"
+                  disabled={smsResending || smsStatus === 'sending'}
+                  onClick={() =>
+                    sendAllocationSms({
+                      paidAmount: Number(result.amount) || 0,
+                      remaining: Math.max(0, Number(result.outstanding_remaining) || 0),
+                      isResend: true,
+                    })
+                  }
+                >
+                  {smsResending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-1.5" />
+                  )}
+                  {smsStatus === 'failed' ? 'Resend SMS' : 'Resend SMS'}
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  No phone on file for this tenant — SMS not sent.
+                </p>
+              </div>
+            )}
+
             <Button onClick={handleClose} className="w-full h-12 font-bold">Done</Button>
           </div>
         ) : (
