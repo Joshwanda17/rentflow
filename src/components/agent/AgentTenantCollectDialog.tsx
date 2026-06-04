@@ -302,47 +302,12 @@ export function AgentTenantCollectDialog({
       // allocation flow — failures are logged client-side and surfaced
       // as a non-blocking toast hint.
       if (tenant.phone) {
-        try {
-          const origin = typeof window !== 'undefined' ? window.location.origin : '';
-          const shareUrl = origin ? `${origin}/limit/${tenant.id}` : null;
-          supabase.functions
-            .invoke('send-rent-access-sms', {
-              body: {
-                tenant_id: tenant.id,
-                tenant_name: tenant.full_name,
-                tenant_phone: tenant.phone,
-                share_url: shareUrl,
-                allocation_amount: amount,
-                paid_amount: amount,
-                remaining_balance: Math.max(0, outstandingBalance - amount),
-                mode: 'allocation',
-              },
-            })
-            .then(({ error, data }) => {
-              if (error || !data?.success) {
-                console.warn('[AgentTenantCollectDialog] auto SMS failed', error, data);
-              }
-              if (user) {
-                void import('@/lib/rentAccessShareAudit').then(({ recordRentAccessShare }) =>
-                  recordRentAccessShare({
-                    agentId: user.id,
-                    tenantId: tenant.id,
-                    tenantName: tenant.full_name,
-                    tenantPhone: tenant.phone,
-                    channel: 'sms',
-                    limitAmount: null,
-                    shareUrl,
-                    success: !error && Boolean(data?.success),
-                    errorMessage: error?.message ?? (data?.success ? null : 'carrier_rejected'),
-                    metadata: { mode: 'allocation', allocation_amount: amount, auto: true },
-                  }),
-                );
-              }
-            })
-            .catch((e) => console.warn('[AgentTenantCollectDialog] auto SMS threw', e));
-        } catch (e) {
-          console.warn('[AgentTenantCollectDialog] auto SMS dispatch failed', e);
-        }
+        // Fire-and-forget initial best-effort send; status is tracked so the
+        // success view can offer a manual resend if it fails.
+        void sendAllocationSms({
+          paidAmount: amount,
+          remaining: Math.max(0, outstandingBalance - amount),
+        });
       }
     } catch (err: any) {
       const raw = err instanceof Error ? err.message : 'Allocation failed. Please try again.';
