@@ -67,6 +67,8 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
       setAmountMin('');
       setAmountMax('');
       setFiltersOpen(false);
+      setSortBy('date');
+      setSortOrder('desc');
     }
   }, [open]);
 
