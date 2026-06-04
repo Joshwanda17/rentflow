@@ -146,6 +146,99 @@ function useWalletSummary(userId: string | null) {
   });
 }
 
+/* ── Single expandable ledger row ── */
+function LedgerRowItem({ row: r }: { row: LedgerRow }) {
+  const [open, setOpen] = useState(false);
+  const isIn = r.direction === 'cash_in';
+  const why = !isIn ? plainDeductionReason(r) : null;
+
+  const rawFields: { label: string; value: string | null }[] = [
+    { label: 'Category', value: r.category },
+    { label: 'Direction', value: r.direction },
+    { label: 'Wallet bucket', value: r.wallet_bucket },
+    { label: 'Ledger scope', value: r.ledger_scope },
+    { label: 'Classification', value: r.classification },
+    { label: 'Currency', value: r.currency },
+    { label: 'Source table', value: r.source_table },
+    { label: 'Source ID', value: r.source_id },
+    { label: 'Ledger ID', value: r.id },
+    { label: 'Transaction date', value: r.transaction_date },
+  ];
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors"
+      >
+        <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${isIn ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
+          {isIn ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground truncate">{why ? why.title : labelFor(r.category)}</p>
+          {!open && (
+            why ? (
+              <p className="text-[11px] text-muted-foreground leading-snug line-clamp-1">{why.reason}</p>
+            ) : (
+              r.description && (
+                <p className="text-[11px] text-muted-foreground leading-snug line-clamp-1">{r.description}</p>
+              )
+            )
+          )}
+          <p className="text-[11px] text-muted-foreground/80 mt-0.5">{fmtTs(r.transaction_date)}</p>
+        </div>
+        <p className={`text-sm font-black tabular-nums shrink-0 ${isIn ? 'text-emerald-600' : 'text-destructive'}`}>
+          {isIn ? '+' : '−'}{formatUGX(Number(r.amount))}
+        </p>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-3 pb-3 space-y-2">
+          {why && (
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-2">
+              <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-snug flex items-start gap-1.5">
+                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span><span className="font-semibold">Why this was deducted: </span>{why.reason}</span>
+              </p>
+              {(why.phone || why.tid) && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {why.phone && (
+                    <span className="text-[10px] font-medium rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 px-1.5 py-0.5">Phone: {why.phone}</span>
+                  )}
+                  {why.tid && (
+                    <span className="text-[10px] font-medium rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 px-1.5 py-0.5">Ref: {why.tid}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {r.description && (
+            <div className="rounded-lg bg-muted/50 border border-border/60 px-2.5 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Original ledger note</p>
+              <p className="text-[11px] text-foreground/90 leading-snug break-words">{r.description}</p>
+            </div>
+          )}
+
+          <div className="rounded-lg bg-muted/40 border border-border/60 overflow-hidden">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2.5 pt-2">Ledger fields</p>
+            <dl className="divide-y divide-border/40 mt-1">
+              {rawFields.filter((f) => f.value != null && f.value !== '').map((f) => (
+                <div key={f.label} className="flex items-start justify-between gap-3 px-2.5 py-1.5">
+                  <dt className="text-[11px] text-muted-foreground shrink-0">{f.label}</dt>
+                  <dd className="text-[11px] font-medium text-foreground/90 text-right break-all">{f.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Wallet-bucket ledger statement (withdrawable / float / advance) ── */
 function BucketStatement({ userId, bucket }: { userId: string; bucket: BucketKey }) {
   const { data, isLoading, error } = useQuery({
