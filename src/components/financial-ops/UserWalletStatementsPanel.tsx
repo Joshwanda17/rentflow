@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
+import { UserProfileDrilldown } from '@/components/ops/UserProfileDrilldown';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
@@ -400,11 +400,10 @@ export function UserWalletStatementsPanel() {
             </TabsContent>
           </Tabs>
 
-          <UserDrilldownDrawer
+          <UserProfileDrilldown
             open={drillOpen}
             onOpenChange={setDrillOpen}
-            tenantId={selected.id}
-            defaultTab="tenant"
+            userId={selected.id}
           />
         </>
       )}
