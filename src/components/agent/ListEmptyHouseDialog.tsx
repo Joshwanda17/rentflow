@@ -1143,6 +1143,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               💰 You earn UGX 5,000 the moment a tenant is placed in this house
             </p>
           </div>
+
+          {/* ── Preflight check: exactly what's still required before listing ── */}
+          <div className={`rounded-xl border p-3 space-y-2 ${allGatesPass ? 'border-success/30 bg-success/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+            <p className={`text-xs font-bold flex items-center gap-1.5 ${allGatesPass ? 'text-success' : 'text-amber-700 dark:text-amber-400'}`}>
+              {allGatesPass ? <Check className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+              {allGatesPass
+                ? 'All set — you can list this house'
+                : `${missingGates.length} thing${missingGates.length === 1 ? '' : 's'} still needed before you can list`}
+            </p>
+            <ul className="space-y-1.5">
+              {preflightGates.map((g) => (
+                <li key={g.label} className="flex items-start gap-2 text-xs">
+                  <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${g.ok ? 'bg-success text-success-foreground' : 'bg-amber-500 text-white'}`}>
+                    {g.ok ? <Check className="h-2.5 w-2.5" /> : '!'}
+                  </span>
+                  <span className="min-w-0">
+                    <span className={g.ok ? 'text-muted-foreground line-through' : 'font-medium text-foreground'}>{g.label}</span>
+                    {!g.ok && (
+                      <span className="block text-[11px] text-amber-700 dark:text-amber-400">
+                        {g.hint}
+                        {g.step !== 4 && (
+                          <button type="button" onClick={() => { setStep(g.step); scrollDialogToTop(); }} className="ml-1 underline font-semibold">
+                            Fix on step {g.step}
+                          </button>
+                        )}
+                      </span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
           </>
           )}
 
@@ -1161,7 +1193,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <Button
                 type="submit"
                 className="h-12 flex-[2] text-base"
-                disabled={submitting}
+                disabled={submitting || !allGatesPass}
                 onClick={(e) => {
                   // Defensive: some mobile browsers swallow form submit when
                   // a native-validated input (e.g. type="number") rejects silently.
@@ -1171,7 +1203,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 }}
               >
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Home className="h-5 w-5 mr-2" />}
-                List house
+                {allGatesPass ? 'List house' : `${missingGates.length} item${missingGates.length === 1 ? '' : 's'} left`}
               </Button>
             )}
           </div>
