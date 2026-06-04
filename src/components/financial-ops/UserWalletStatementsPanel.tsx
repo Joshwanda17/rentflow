@@ -6,13 +6,14 @@ import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { UserProfileDrilldown } from '@/components/ops/UserProfileDrilldown';
 import { formatUGX } from '@/lib/rentCalculations';
 import { plainDeductionReason } from '@/lib/deductionReason';
+import { deductionTimeline } from '@/lib/deductionReason';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import {
   Wallet, HandCoins, Banknote, Landmark, AlertTriangle, Loader2,
   ArrowDownLeft, ArrowUpRight, User, ChevronRight, Search, Info,
 } from 'lucide-react';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ChevronDown, ExternalLink, Clock } from 'lucide-react';
 
 /**
  * Financial Ops — per-user wallet statements.
@@ -152,6 +153,7 @@ function LedgerRowItem({ row: r }: { row: LedgerRow }) {
   const [open, setOpen] = useState(false);
   const isIn = r.direction === 'cash_in';
   const why = !isIn ? plainDeductionReason(r) : null;
+  const timeline = !isIn ? deductionTimeline(r) : null;
 
   const rawFields: { label: string; value: string | null }[] = [
     { label: 'Category', value: r.category },
@@ -213,6 +215,39 @@ function LedgerRowItem({ row: r }: { row: LedgerRow }) {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {timeline && (
+            <div className="rounded-lg bg-muted/40 border border-border/60 px-3 py-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                Deduction timeline
+                {timeline.isAutoDebit && (
+                  <span className="ml-auto text-[9px] font-bold rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 normal-case tracking-normal">
+                    Auto-debit
+                  </span>
+                )}
+              </p>
+              <ol className="relative space-y-3">
+                {timeline.steps.map((s, i) => (
+                  <li key={s.key} className="relative pl-5">
+                    <span className="absolute left-1 top-1 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
+                    {i < timeline.steps.length - 1 && (
+                      <span className="absolute left-[7px] top-3 -bottom-3 w-px bg-border" />
+                    )}
+                    <p className="text-[11px] font-semibold text-foreground leading-snug">{s.title}</p>
+                    <p className="text-[11px] text-muted-foreground leading-snug">{s.detail}</p>
+                    {s.meta.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {s.meta.map((m) => (
+                          <span key={m} className="text-[10px] font-medium rounded bg-muted text-foreground/80 px-1.5 py-0.5">{m}</span>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
 
