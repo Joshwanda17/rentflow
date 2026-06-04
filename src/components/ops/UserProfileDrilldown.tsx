@@ -30,7 +30,7 @@ interface Props {
   userId: string | null;
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+function Row({ label, value }: { label: React.ReactNode; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3 py-2 border-b border-border/40 last:border-0">
       <span className="text-xs text-muted-foreground shrink-0">{label}</span>
@@ -187,9 +187,9 @@ export function UserProfileDrilldown({ open, onOpenChange, userId }: Props) {
                       <ContactActions phone={profile.phone} size="xs" />
                     </div>
                   </div>
-                  <Row label={<span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Email</span> as any} value={profile.email} />
+                  <Row label={<span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Email</span>} value={profile.email} />
                   <Row label="WhatsApp verified" value={profile.whatsapp_verified ? 'Yes' : 'No'} />
-                  <Row label={<span className="flex items-center gap-1.5"><Smartphone className="h-3.5 w-3.5" /> Has smartphone</span> as any} value={profile.has_smartphone ? 'Yes' : 'No'} />
+                  <Row label={<span className="flex items-center gap-1.5"><Smartphone className="h-3.5 w-3.5" /> Has smartphone</span>} value={profile.has_smartphone ? 'Yes' : 'No'} />
                   <Row label="Mobile money" value={profile.mobile_money_number ? `${profile.mobile_money_number}${profile.mobile_money_provider ? ` (${profile.mobile_money_provider})` : ''}` : '—'} />
                   <Row label="Occupation" value={profile.occupation} />
                   {profile.ops_note && (
