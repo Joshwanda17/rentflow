@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
   dateOnlyToLocalDate,
   dateOnlyToUtcMiddayIso,
