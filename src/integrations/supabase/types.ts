@@ -8225,6 +8225,54 @@ export type Database = {
           },
         ]
       }
+      landlord_account_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          daily_rent: number
+          days_per_month: number
+          entry_type: string
+          id: string
+          landlord_id: string
+          monthly_rent: number
+          months: number
+          placement_status: string | null
+          rent_request_id: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          daily_rent?: number
+          days_per_month?: number
+          entry_type: string
+          id?: string
+          landlord_id: string
+          monthly_rent?: number
+          months?: number
+          placement_status?: string | null
+          rent_request_id: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          daily_rent?: number
+          days_per_month?: number
+          entry_type?: string
+          id?: string
+          landlord_id?: string
+          monthly_rent?: number
+          months?: number
+          placement_status?: string | null
+          rent_request_id?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       landlord_ambassador_referrals: {
         Row: {
           commission_earned: number
@@ -18646,6 +18694,7 @@ export type Database = {
         }[]
       }
       generate_employee_id: { Args: { _full_name: string }; Returns: string }
+      generate_landlord_payables: { Args: never; Returns: number }
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }

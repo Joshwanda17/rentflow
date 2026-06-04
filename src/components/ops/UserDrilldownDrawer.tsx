@@ -2043,9 +2043,19 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
           .from('profiles').select('id, full_name, phone').in('id', ids);
         nameMap = new Map((profs ?? []).map((p: any) => [p.id, p]));
       }
+      // Recorded payable A/C entries from the dedicated landlord sub-ledger.
+      const { data: recorded } = await supabase
+        .from('landlord_account_ledger')
+        .select('rent_request_id, amount, updated_at')
+        .eq('landlord_id', landlordId)
+        .eq('entry_type', 'payable');
+      const recordedMap = new Map(
+        (recorded ?? []).map((r: any) => [r.rent_request_id, r]),
+      );
       return rows.map((r: any) => {
         const monthlyRent = Number(r.rent_amount || 0);
         const dailyRent = Number(r.daily_repayment || 0);
+        const rec = recordedMap.get(r.id) as any;
         return {
           ...r,
           tenant: nameMap.get(r.tenant_id) ?? null,
@@ -2055,6 +2065,8 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
           annualPayable: monthlyRent * 12,
           // Annual receivable from the rental = daily rent × 30 days × 12 months.
           annualReceivable: dailyRent * 30 * 12,
+          // Recorded payable from the sub-ledger (null if not yet generated).
+          recordedPayable: rec ? Number(rec.amount) : null,
         };
       });
     },
@@ -2065,9 +2077,10 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
       (acc, r) => {
         acc.payable += r.annualPayable;
         acc.receivable += r.annualReceivable;
+        if (r.recordedPayable != null) { acc.recordedPayable += r.recordedPayable; acc.recordedCount += 1; }
         return acc;
       },
-      { payable: 0, receivable: 0 },
+      { payable: 0, receivable: 0, recordedPayable: 0, recordedCount: 0 },
     );
   }, [placed]);
 
@@ -2152,8 +2165,15 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
         </p>
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/40 p-2">
-            <p className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-300">Payable A/C</p>
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">{fmtUGX(accountTotals.payable)}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-300">Payable A/C</p>
+              {accountTotals.recordedCount > 0 && (
+                <Badge variant="outline" className="text-[8px] border-amber-300 text-amber-700 dark:text-amber-300">{accountTotals.recordedCount} recorded</Badge>
+              )}
+            </div>
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+              {fmtUGX(accountTotals.recordedCount > 0 ? accountTotals.recordedPayable : accountTotals.payable)}
+            </p>
           </div>
           <div className="rounded-md border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/40 p-2">
             <p className="text-[10px] uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Receivable A/C</p>
@@ -2174,7 +2194,10 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
                   <span>Monthly {fmtUGX(r.monthlyRent)} · Daily {fmtUGX(r.dailyRent)}</span>
                 </div>
                 <div className="flex justify-between text-[11px]">
-                  <span className="text-amber-700 dark:text-amber-300">Payable {fmtUGX(r.annualPayable)}</span>
+                  <span className="text-amber-700 dark:text-amber-300">
+                    Payable {fmtUGX(r.recordedPayable ?? r.annualPayable)}
+                    {r.recordedPayable != null && <span className="ml-1 text-[9px] opacity-70">●</span>}
+                  </span>
                   <span className="text-emerald-700 dark:text-emerald-300">Receivable {fmtUGX(r.annualReceivable)}</span>
                 </div>
               </li>
