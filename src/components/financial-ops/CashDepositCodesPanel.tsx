@@ -211,8 +211,8 @@ export function CashDepositCodesPanel() {
             variant="outline"
             className="hidden sm:inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground border-dashed"
           >
-            <Radio className="h-3 w-3 text-emerald-500 animate-pulse" />
-            Refresh in {secondsToRefresh}s
+            <Radio className={`h-3 w-3 animate-pulse ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
+            {realtimeHealthy ? `Live · safety refresh ${secondsToRefresh}s` : `Fallback refresh ${secondsToRefresh}s`}
           </Badge>
           <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -222,8 +222,13 @@ export function CashDepositCodesPanel() {
       </div>
 
       <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-        <Radio className="h-3 w-3 text-emerald-500" />
-        <span>Auto-refresh enabled — last updated {new Date(lastRefreshedAt).toLocaleTimeString()}</span>
+        <Radio className={`h-3 w-3 ${realtimeHealthy ? 'text-emerald-500' : 'text-amber-500'}`} />
+        <span>
+          {realtimeHealthy
+            ? 'Realtime connected'
+            : 'Realtime unavailable — polling fallback active'}
+          {' '}— last updated {new Date(lastRefreshedAt).toLocaleTimeString()}
+        </span>
       </div>
 
       {loading && displayRows.length === 0 ? (
