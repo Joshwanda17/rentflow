@@ -199,6 +199,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Agent profile drilldown
   const [drilldownAgentId, setDrilldownAgentId] = useState<string | null>(null);
+  // Landlord profile drilldown — full location, contacts, houses
+  const [drilldownLandlordId, setDrilldownLandlordId] = useState<string | null>(null);
   // Tenant selector — CFO picks which tenant's landlord to fund before approving.
   // localStorage acts as an offline mirror; the durable cross-device source of
   // truth is the per-user `user_ui_preferences` row keyed by TENANT_FILTER_PREF_KEY.
@@ -429,14 +431,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       setSelectedRequest(req);
       return;
     }
-    // For Landlord Ops stage — enforce checklist.
-    // Outstanding-balance rows never reach this stage (trigger short-circuits
-    // them straight to completed), but guard anyway.
+    // For Landlord Ops stage — open the review drawer so the operator can drill
+    // down the landlord details, inspect the house photos, and complete the
+    // verification checklist before approving. The inline button can't approve
+    // directly because the landlord verification checklist lives inside the
+    // detail drawer (this is why the inline Approve previously appeared to "do
+    // nothing" — it silently failed the checklist guard).
     if (config.showLandlordChecklist && !isOutstanding) {
-      if (!landlordCalled || !landlordAcknowledged) {
-        toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
-        return;
-      }
+      setSelectedRequest(req);
+      return;
     }
     setQuickProcessingId(req.id);
     try {
@@ -922,10 +925,24 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                         )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Home className="h-3 w-3" />
-                          {req.landlord_name}
-                        </span>
+                        {req.landlord_id ? (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); setDrilldownLandlordId(req.landlord_id); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setDrilldownLandlordId(req.landlord_id); } }}
+                            className="flex items-center gap-1 text-primary hover:underline cursor-pointer"
+                            title="Open landlord profile"
+                          >
+                            <Home className="h-3 w-3" />
+                            {req.landlord_name}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Home className="h-3 w-3" />
+                            {req.landlord_name}
+                          </span>
+                        )}
                         {(req.assigned_agent_id || req.agent_id) ? (
                           <span
                             role="button"
@@ -1033,7 +1050,18 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Landlord</p>
-                  <p className="font-semibold">{selectedRequest.landlord_name}</p>
+                  {selectedRequest.landlord_id ? (
+                    <button
+                      type="button"
+                      onClick={() => setDrilldownLandlordId(selectedRequest.landlord_id)}
+                      className="font-semibold text-primary hover:underline text-left"
+                      title="Open full landlord profile"
+                    >
+                      {selectedRequest.landlord_name}
+                    </button>
+                  ) : (
+                    <p className="font-semibold">{selectedRequest.landlord_name}</p>
+                  )}
                   <div className="flex items-center gap-1 mt-0.5">
                     <span className="text-xs text-muted-foreground">{selectedRequest.landlord_phone}</span>
                     <WhatsAppButton phone={selectedRequest.landlord_phone} name={selectedRequest.landlord_name} label="WhatsApp" />
@@ -1407,6 +1435,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         onOpenChange={(v) => { if (!v) setDrilldownAgentId(null); }}
         agentId={drilldownAgentId}
         defaultTab="agent"
+      />
+      <UserDrilldownDrawer
+        open={!!drilldownLandlordId}
+        onOpenChange={(v) => { if (!v) setDrilldownLandlordId(null); }}
+        landlordId={drilldownLandlordId}
+        defaultTab="landlord"
       />
     </Card>
   );
