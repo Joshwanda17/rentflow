@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Home, Users, Calendar, ArrowRight, Sparkles, X } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
+import { ContrastPanel } from '@/components/ui/contrast-panel';
+
+// Solid panel surfaces — text colour is auto-derived for guaranteed contrast.
+const PANEL_BG = 'hsl(150 60% 16%)'; // deep emerald, white text auto-picked
+const CTA_BG = '#ffffff'; // light CTA, dark text auto-picked
 
 const BONUS_PER_LANDLORD = 5000;
 const WEEKLY_PRIZE = 70000;
@@ -119,48 +124,64 @@ export function AgentLandlordPromoBanner({ onRegisterLandlord }: AgentLandlordPr
         </div>
 
         {/* Prize highlight card */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-950/30 backdrop-blur-sm border border-white/20">
+        <ContrastPanel
+          background={PANEL_BG}
+          label="promo-prize-card"
+          className="flex items-center gap-3 p-3 rounded-xl border border-white/20"
+        >
           <div className="h-10 w-10 rounded-lg bg-amber-500/25 flex items-center justify-center shrink-0">
             <Trophy className="h-5 w-5 text-amber-200" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-bold text-sm leading-tight">
+            <p className="font-bold text-sm leading-tight">
               Win UGX {WEEKLY_PRIZE.toLocaleString()} this week
             </p>
-            <p className="text-emerald-100/80 text-xs leading-snug">
-              The first agent to register <span className="font-bold text-white">10 landlords</span> with empty houses takes the prize from Welile Technologies.
+            <p className="text-xs leading-snug opacity-80">
+              The first agent to register <span className="font-bold opacity-100">10 landlords</span> with empty houses takes the prize from Welile Technologies.
             </p>
           </div>
-        </div>
+        </ContrastPanel>
 
         {/* Two mini stats */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-950/30 border border-white/10">
+          <ContrastPanel
+            background={PANEL_BG}
+            label="promo-stat-bonus"
+            className="flex items-center gap-2 p-2.5 rounded-lg border border-white/10"
+          >
             <Home className="h-4 w-4 text-emerald-200 shrink-0" />
             <div>
-              <p className="text-white font-bold text-sm">UGX {BONUS_PER_LANDLORD.toLocaleString()}</p>
-              <p className="text-emerald-100/70 text-[10px]">Per empty house</p>
+              <p className="font-bold text-sm">UGX {BONUS_PER_LANDLORD.toLocaleString()}</p>
+              <p className="text-[10px] opacity-70">Per empty house</p>
             </div>
-          </div>
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-950/30 border border-white/10">
+          </ContrastPanel>
+          <ContrastPanel
+            background={PANEL_BG}
+            label="promo-stat-landlords"
+            className="flex items-center gap-2 p-2.5 rounded-lg border border-white/10"
+          >
             <Users className="h-4 w-4 text-emerald-200 shrink-0" />
             <div>
-              <p className="text-white font-bold text-sm">10 Landlords</p>
-              <p className="text-emerald-100/70 text-[10px]">To win UGX {WEEKLY_PRIZE.toLocaleString()}</p>
+              <p className="font-bold text-sm">10 Landlords</p>
+              <p className="text-[10px] opacity-70">To win UGX {WEEKLY_PRIZE.toLocaleString()}</p>
             </div>
-          </div>
+          </ContrastPanel>
         </div>
 
         {/* CTA */}
-        <button
+        <ContrastPanel
+          as="button"
+          background={CTA_BG}
+          largeText
+          label="promo-cta"
           onClick={() => { hapticTap(); onRegisterLandlord?.(); }}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white text-emerald-800 font-bold text-sm hover:bg-white/90 active:scale-[0.98] transition-all touch-manipulation"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all touch-manipulation"
           style={{ WebkitTapHighlightColor: 'transparent' }}
         >
           <Home className="h-4 w-4" />
           Register a Landlord Now
           <ArrowRight className="h-4 w-4" />
-        </button>
+        </ContrastPanel>
       </div>
     </motion.div>
   );
