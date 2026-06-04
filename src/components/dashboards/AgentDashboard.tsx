@@ -123,7 +123,7 @@ import { AgentReceiptDialog } from '@/components/agent/AgentReceiptDialog';
 import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet';
 import { RentalFinderSheet } from '@/components/agent/RentalFinderSheet';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
-import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
+import { AgentLandlordPromoBanner } from '@/components/agent/AgentLandlordPromoBanner';
 import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
 import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
 import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
