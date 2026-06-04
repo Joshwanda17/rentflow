@@ -906,7 +906,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {filtered.map(req => (
+            {filtered.map(req => {
+              const isLandlordStage = config.showLandlordChecklist && req.registration_type !== 'outstanding_balance';
+              const cl = getCardChecklist(req.id);
+              const checklistDone = (cl.called ? 1 : 0) + (cl.acknowledged ? 1 : 0);
+              const checklistComplete = checklistDone === 2;
+              return (
               <div
                 key={req.id}
                 className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors"
