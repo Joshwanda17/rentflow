@@ -234,6 +234,15 @@ function LedgerRowItem({ row: r }: { row: LedgerRow }) {
               ))}
             </dl>
           </div>
+
+          <Link
+            to={`/cfo/n/${r.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[12px] font-semibold text-primary hover:bg-primary/10 transition-colors"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Open full ledger record
+          </Link>
         </div>
       )}
     </div>
