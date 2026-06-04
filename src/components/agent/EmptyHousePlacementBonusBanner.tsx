@@ -8,6 +8,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
 import { hapticTap } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { ContrastPanel } from '@/components/ui/contrast-panel';
+
+// Solid panel surfaces — text colour auto-derived for guaranteed contrast.
+const ROW_BG = 'hsl(22 80% 30%)'; // deep amber/orange, white text auto-picked
+const CTA_BG = '#ffffff'; // light CTA, dark text auto-picked
 
 interface EmptyListing {
   id: string;
