@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera } from 'lucide-react';
+import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera, Trophy, Sparkles } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -26,6 +26,8 @@ interface ListEmptyHouseDialogProps {
   /** Pre-fill the landlord fields (e.g. when opened from the landlord registration form). */
   initialLandlordName?: string;
   initialLandlordPhone?: string;
+  /** When true, shows promotional campaign badge and applies promo defaults (opened from the agent dashboard banner). */
+  fromPromoBanner?: boolean;
 }
 
 const HOUSE_CATEGORIES = [
@@ -48,7 +50,7 @@ const REGIONS = [
 
 import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
 
-export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone }: ListEmptyHouseDialogProps) {
+export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
   const geo = useGeolocation(true);
   const geoLoading = geo.loading;
   const position = geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null;
@@ -129,6 +131,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialLandlordName, initialLandlordPhone]);
+
+  // Promo banner mode: pre-apply empty-house defaults and show campaign badge.
+  useEffect(() => {
+    if (open && fromPromoBanner) {
+      setForm((f) => ({ ...f, is_furnished: false }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, fromPromoBanner]);
 
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
@@ -680,6 +690,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             Register an available rental · Earn UGX 5,000 when a tenant is placed
           </DialogDescription>
         </DialogHeader>
+
+        {/* Promotional campaign badge when opened from the agent dashboard banner */}
+        {fromPromoBanner && (
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <div className="h-8 w-8 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
+              <Trophy className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-emerald-700 leading-tight">
+                Weekly Prize Campaign
+              </p>
+              <p className="text-xs text-emerald-600/80 leading-snug">
+                This listing counts toward the UGX 70,000 prize. Register 10 landlords with empty houses to win.
+              </p>
+            </div>
+            <div className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/15 border border-amber-400/25">
+              <Sparkles className="h-3 w-3 text-amber-600" />
+              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Promo</span>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           {/* Progress stepper — big, visual, minimal reading */}

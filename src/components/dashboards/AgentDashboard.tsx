@@ -332,6 +332,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [landlordMapOpen, setLandlordMapOpen] = useState(false);
   const [rentalFinderOpen, setRentalFinderOpen] = useState(false);
   const [listHouseOpen, setListHouseOpen] = useState(false);
+  const [listHouseFromPromo, setListHouseFromPromo] = useState(false);
   const [myListingsOpen, setMyListingsOpen] = useState(false);
 
   // Phase 1: Agent Operations dialogs
@@ -676,7 +677,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              */}
 
             {/* 0) PROMO — prominent weekly landlord registration drive */}
-            <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setListHouseOpen(true); }} />
+            <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setListHouseFromPromo(true); setListHouseOpen(true); }} />
 
             {/* 0b) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
             {isCashoutAgent && showMerchantOnboard && (
@@ -743,7 +744,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenWallet={() => { hapticTap(); setShowWallet(true); }}
               onOpenFieldCollect={() => setFieldCollectOpen(true)}
               onOpenNewTenant={() => setRentRequestOpen(true)}
-              onOpenListHouse={() => setListHouseOpen(true)}
+              onOpenListHouse={() => { hapticTap(); setListHouseFromPromo(false); setListHouseOpen(true); }}
             />
 
             {/* 2) Today's collected total — single most useful at-a-glance number */}
@@ -1135,7 +1136,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onIssueReceipt={() => { setMenuOpen(false); setReceiptOpen(true); }}
         onViewLandlordMap={() => { setMenuOpen(false); setLandlordMapOpen(true); }}
         onFindRentals={() => { setMenuOpen(false); setRentalFinderOpen(true); }}
-        onListEmptyHouse={() => { setMenuOpen(false); setListHouseOpen(true); }}
+        onListEmptyHouse={() => { setMenuOpen(false); setListHouseFromPromo(false); setListHouseOpen(true); }}
         onViewMyListings={() => { setMenuOpen(false); setMyListingsOpen(true); }}
         onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
         onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
@@ -1320,11 +1321,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentReceiptDialog open={receiptOpen} onOpenChange={setReceiptOpen} />
       <AgentLandlordMapSheet open={landlordMapOpen} onOpenChange={setLandlordMapOpen} />
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
-      <ListEmptyHouseDialog open={listHouseOpen} onOpenChange={setListHouseOpen} onSuccess={refreshOfflineData} />
+      <ListEmptyHouseDialog
+        open={listHouseOpen}
+        onOpenChange={(open) => {
+          setListHouseOpen(open);
+          if (!open) setListHouseFromPromo(false);
+        }}
+        onSuccess={refreshOfflineData}
+        fromPromoBanner={listHouseFromPromo}
+      />
       <AgentListingsSheet
         open={myListingsOpen}
         onOpenChange={setMyListingsOpen}
-        onListHouse={() => setListHouseOpen(true)}
+        onListHouse={() => { setListHouseFromPromo(false); setListHouseOpen(true); }}
       />
 
       {/* Phase 1: Agent Operations Dialogs */}
