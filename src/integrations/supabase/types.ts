@@ -17288,6 +17288,291 @@ export type Database = {
       }
     }
     Views: {
+      agent_advance_requests_privileged: {
+        Row: {
+          access_fee: number | null
+          agent_full_name: string | null
+          agent_id: string | null
+          agent_ops_notes: string | null
+          agent_ops_reviewed_at: string | null
+          agent_phone: string | null
+          approved_by_coo: string | null
+          cfo_adjusted_rate: number | null
+          cfo_approved_at: string | null
+          cfo_approved_by: string | null
+          cfo_notes: string | null
+          cfo_paid_at: string | null
+          coo_approved_at: string | null
+          coo_notes: string | null
+          created_at: string | null
+          cycle_days: number | null
+          daily_payment: number | null
+          id: string | null
+          landlord_ops_notes: string | null
+          landlord_ops_reviewed_at: string | null
+          monthly_rate: number | null
+          paid_by_cfo: string | null
+          principal: number | null
+          reason: string | null
+          registration_fee: number | null
+          rejection_reason: string | null
+          reviewed_by_agent_ops: string | null
+          reviewed_by_landlord_ops: string | null
+          reviewed_by_tenant_ops: string | null
+          status: string | null
+          tenant_ops_notes: string | null
+          tenant_ops_reviewed_at: string | null
+          total_payable: number | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_cfo_approved_by_fkey"
+            columns: ["cfo_approved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "v_tenant_location_pivot"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       agent_misrouted_deposits_preview: {
         Row: {
           agent_id: string | null
