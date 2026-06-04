@@ -3296,6 +3296,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           investor_id: topUpPortfolio.investor_id,
           agent_id: topUpPortfolio.agent_id,
           investor_name: detailPartner?.profile?.full_name,
+          investor_verified_at: detailPartner?.profile?.funder_verified_at ?? null,
+          investor_signup_source: detailPartner?.profile?.signup_source ?? null,
         } : null}
         onSuccess={() => {
           if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
