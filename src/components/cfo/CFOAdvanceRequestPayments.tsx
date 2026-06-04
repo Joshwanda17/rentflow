@@ -596,7 +596,7 @@ export function CFOAdvanceRequestPayments() {
         <>
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold">
-              {stageFilter === 'pending' ? 'Agent-Submitted Applications' : stageFilter === 'coo_approved' ? 'COO-Approved · Ready to Pay' : 'All Agent Advance Applications'}
+              {stageFilter === 'pending' ? 'Agent-Submitted Applications' : stageFilter === 'coo_approved' ? 'COO-Approved · Awaiting CFO Approval' : stageFilter === 'cfo_approved' ? 'CFO-Approved · Ready to Disburse' : 'All Agent Advance Applications'}
             </h3>
             <Badge variant="secondary">{requests.length} shown</Badge>
           </div>
@@ -604,6 +604,7 @@ export function CFOAdvanceRequestPayments() {
             const profile = req.profiles;
             const isExpanded = expandedId === req.id;
             const isPending = req.status === 'pending';
+            const isCfoApproved = req.status === 'cfo_approved';
             const currentRate = adjustedRates[req.id] ?? Number(req.monthly_rate);
             const currentPrincipal = adjustedPrincipals[req.id] ?? Number(req.principal);
             const currentCycle = adjustedCycles[req.id] ?? Number(req.cycle_days);
