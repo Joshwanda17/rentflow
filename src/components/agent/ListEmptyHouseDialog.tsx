@@ -26,6 +26,8 @@ interface ListEmptyHouseDialogProps {
   /** Pre-fill the landlord fields (e.g. when opened from the landlord registration form). */
   initialLandlordName?: string;
   initialLandlordPhone?: string;
+  /** When true, shows promotional campaign badge and applies promo defaults (opened from the agent dashboard banner). */
+  fromPromoBanner?: boolean;
 }
 
 const HOUSE_CATEGORIES = [
