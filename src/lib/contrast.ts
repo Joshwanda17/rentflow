@@ -129,8 +129,11 @@ export function assertReadableContrast(
   background: string,
   label = 'panel',
   threshold: number = AA_NORMAL,
+  /** Override for testing the production short-circuit. */
+  _isProd?: boolean,
 ): void {
-  if (import.meta.env?.PROD) return;
+  const isProd = _isProd ?? import.meta.env?.PROD;
+  if (isProd) return;
   const fg = parseColor(foreground);
   const bg = parseColor(background);
   if (!fg || !bg) return;
