@@ -1988,7 +1988,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <SummaryCard icon={<Users className="h-4 w-4" />} label="Total Partners" value={summary.totalPartners}
             sub={`${summary.activePartners} active · ${summary.suspendedPartners} suspended`} accent="primary" />
           <SummaryCard icon={<Banknote className="h-4 w-4" />} label="Total Funded" value={formatUGX(summary.totalFunded)}
@@ -1996,6 +1996,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           <SummaryCard icon={<Wallet className="h-4 w-4" />} label="Wallet Balances" value={formatUGX(summary.totalWalletBalance)}
             sub="Across all partner wallets" accent="amber" />
           <NearingPayoutsCard portfolios={allPortfoliosForPayout} onClick={() => setNearingPayoutsOpen(true)} />
+          <ExpiringPortfoliosCard portfolios={allPortfoliosForPayout} onClick={() => setExpiringPortfoliosOpen(true)} />
           <a href="/reinvestment-history" className="block">
             <SummaryCard icon={<RefreshCw className="h-4 w-4" />} label="Reinvestment History" value="View"
               sub="Compounding growth timeline" accent="primary" />
