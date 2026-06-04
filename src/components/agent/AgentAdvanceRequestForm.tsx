@@ -558,11 +558,6 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                 <span className="text-xs text-muted-foreground">Daily Repayment</span>
                 <span className="text-sm font-bold text-primary">{formatUGX(dailyPayment)}</span>
               </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Total Repayment</span>
-                <span className="text-sm font-bold text-foreground">{formatUGX(totalPayable)}</span>
-              </div>
             </div>
           )}
 
