@@ -629,12 +629,14 @@ export function CFOAdvanceRequestPayments() {
                             variant="outline"
                             className={cn(
                               'text-[9px] px-1.5 py-0 h-4 uppercase tracking-wider',
-                              isPending
-                                ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400'
-                                : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400'
+                              isCfoApproved
+                                ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/30 dark:text-blue-400'
+                                : isPending
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400'
+                                  : 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400'
                             )}
                           >
-                            {isPending ? 'Agent Applied' : 'COO Approved'}
+                            {isCfoApproved ? 'CFO Approved' : isPending ? 'Agent Applied' : 'COO Approved'}
                           </Badge>
                           <span>{profile?.phone} • {format(new Date(req.created_at), 'MMM d')}</span>
                           {!isPending && <span>• We earn <span className="text-emerald-600 font-bold">+{formatUGX(profitPerRequest)}</span></span>}
