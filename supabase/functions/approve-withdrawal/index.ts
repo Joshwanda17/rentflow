@@ -1608,13 +1608,56 @@ Deno.serve(async (req) => {
           agentEmail = agentProfile?.email || undefined;
         }
 
-        const { data: portfolio } = await admin
-          .from("investor_portfolios")
-         .select("portfolio_code, roi_percentage, investment_amount")
-          .eq("investor_id", partnerId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        // ── Resolve the EXACT portfolio this withdrawal is for ───────────
+        // The proxy withdrawal dialog stamps the chosen portfolio into the
+        // request reason as "... | Route: portfolio <portfolio_code|id>".
+        // We MUST base the disbursement email's principal / ROI % on that
+        // specific portfolio — not just the partner's most-recently-created
+        // one. Partners commonly hold many portfolios (incident: every
+        // email for a 9-portfolio partner showed the newest portfolio's
+        // principal regardless of which portfolio was actually withdrawn
+        // for, 2026-06-04).
+        let portfolio:
+          | { portfolio_code: string | null; roi_percentage: number | null; investment_amount: number | null }
+          | null = null;
+        const _routeMatch = typeof wr.reason === "string"
+          ? wr.reason.match(/Route:\s*portfolio\s+(\S+)/i)
+          : null;
+        const _routeToken = _routeMatch?.[1]?.trim() || "";
+        const _isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(_routeToken);
+        if (_routeToken) {
+          const { data: routedPortfolio } = await admin
+            .from("investor_portfolios")
+            .select("portfolio_code, roi_percentage, investment_amount")
+            .eq("investor_id", partnerId)
+            .eq(_isUuid ? "id" : "portfolio_code", _routeToken)
+            .maybeSingle();
+          if (routedPortfolio) {
+            portfolio = routedPortfolio as typeof portfolio;
+            console.log(
+              `[approve-withdrawal] Disbursement principal sourced from routed portfolio ${_routeToken} ` +
+                `(principal=${(routedPortfolio as any).investment_amount}, roi=${(routedPortfolio as any).roi_percentage}%)`,
+            );
+          } else {
+            console.warn(
+              `[approve-withdrawal] Routed portfolio "${_routeToken}" not found for partner ${partnerId}; ` +
+                `falling back to most-recent portfolio for the disbursement email.`,
+            );
+          }
+        }
+        // Fallback: no explicit route token (e.g. saved-method payout) — use
+        // the partner's most-recently-created portfolio so the email still
+        // shows a sensible reference.
+        if (!portfolio) {
+          const { data: latestPortfolio } = await admin
+            .from("investor_portfolios")
+            .select("portfolio_code, roi_percentage, investment_amount")
+            .eq("investor_id", partnerId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          portfolio = (latestPortfolio as typeof portfolio) ?? null;
+        }
 
         // ── Returns-source guard ──────────────────────────────────────────
         // The "Returns Disbursement Confirmation" template must ONLY be sent
