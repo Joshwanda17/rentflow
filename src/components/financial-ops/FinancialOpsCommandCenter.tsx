@@ -28,6 +28,7 @@ import { ProxyWithdrawalDiagnosticsPanel } from './ProxyWithdrawalDiagnosticsPan
 import { FloatToWithdrawablePanel } from './FloatToWithdrawablePanel';
 import { MomoSignupSmsTemplatePanel } from './MomoSignupSmsTemplatePanel';
 import { CashDepositCodesPanel } from './CashDepositCodesPanel';
+import { UserWalletStatementsPanel } from './UserWalletStatementsPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -48,7 +49,7 @@ type Tool =
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics'
   | 'topup_audit'
-  | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes';
+  | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements';
 
 
 /**
@@ -61,6 +62,7 @@ type MoreAction =
   | { kind: 'view'; id: Exclude<View, 'home'>; label: string; desc: string; icon: typeof Gauge };
 
 const moreActions: MoreAction[] = [
+  { kind: 'tool', id: 'user_statements', label: 'User Wallet Statements', desc: 'Search a user — see withdrawable, float, landlord float & advance statements + full profile', icon: ReceiptText },
   { kind: 'tool', id: 'email_tx', label: 'Email Transactions', desc: 'Live transactions extracted from connected Gmail', icon: Mail },
   { kind: 'tool', id: 'auto_credit_review', label: 'Auto-Credit Review', desc: 'Confirm or reverse best-guess auto-credited deposits', icon: AlertTriangle },
   { kind: 'view', id: 'offline_collections', label: 'Offline Collections', desc: 'Drafts agents submitted with proof', icon: WifiOff },
