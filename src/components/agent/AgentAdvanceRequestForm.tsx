@@ -173,10 +173,10 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     enabled: !!user?.id,
   });
 
-  // Filtered advances for the history view
+  // Filtered & sorted advances for the history view
   const filteredAdvances = useMemo(() => {
     if (!issuedAdvances.length) return [];
-    return issuedAdvances.filter((adv: any) => {
+    const filtered = issuedAdvances.filter((adv: any) => {
       const outstanding = Number(adv.outstanding_balance || 0);
       const isDone = adv.status === 'completed' || outstanding <= 0;
       const principal = Number(adv.principal || 0);
@@ -201,7 +201,20 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
       return true;
     });
-  }, [issuedAdvances, statusFilter, amountMin, amountMax, dateFrom, dateTo]);
+
+    return [...filtered].sort((a: any, b: any) => {
+      const dir = sortOrder === 'asc' ? 1 : -1;
+      if (sortBy === 'date') {
+        const da = a.issued_at ? new Date(a.issued_at).getTime() : 0;
+        const db = b.issued_at ? new Date(b.issued_at).getTime() : 0;
+        return (da - db) * dir;
+      }
+      // amount
+      const pa = Number(a.principal || 0);
+      const pb = Number(b.principal || 0);
+      return (pa - pb) * dir;
+    });
+  }, [issuedAdvances, statusFilter, amountMin, amountMax, dateFrom, dateTo, sortBy, sortOrder]);
 
   const activeFilterCount = [
     dateFrom || dateTo,
