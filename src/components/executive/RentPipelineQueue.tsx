@@ -26,6 +26,11 @@ import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 // Per-user preference key for the CFO's selected tenant filter (cross-device).
 const TENANT_FILTER_PREF_KEY = 'rentPipeline.selectedTenantId';
 
+// Per-user preference key for the Landlord Ops verification checklist ticks so
+// they auto-save and survive a refresh or a switch to another phone.
+const LANDLORD_CHECKLIST_PREF_KEY = 'rentPipeline.landlordChecklist';
+const LANDLORD_CHECKLIST_LS_KEY = 'rentPipeline_landlordChecklist';
+
 export type PipelineStage =
   | 'pending'
   | 'agent_ops_approved'
@@ -198,7 +203,15 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   // Per-card (per request) Landlord Ops verification checklist progress, shown
   // inline on the review queue so the operator can see status/progress and the
   // Approve button only enables once both checks are confirmed.
-  const [cardChecklist, setCardChecklist] = useState<Record<string, { called: boolean; acknowledged: boolean }>>({});
+  const [cardChecklist, setCardChecklist] = useState<Record<string, { called: boolean; acknowledged: boolean }>>(() => {
+    try {
+      const raw = localStorage.getItem(LANDLORD_CHECKLIST_LS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  // Guards the cloud-write effect so the initial localStorage value doesn't
+  // overwrite a fresher cloud value before hydration completes.
+  const hasChecklistHydratedRef = useRef(false);
   const getCardChecklist = (id: string) => cardChecklist[id] || { called: false, acknowledged: false };
   const toggleCardCheck = (id: string, key: 'called' | 'acknowledged', value: boolean) => {
     setCardChecklist(prev => ({
@@ -300,6 +313,59 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       }
     })();
   }, [selectedTenantId, user?.id]);
+
+  // Hydrate the landlord checklist ticks from the server so an operator's
+  // in-progress checks follow them across devices/browsers (e.g. they start on
+  // one phone and finish on another), then mirror back into localStorage.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_ui_preferences')
+          .select('value')
+          .eq('user_id', user.id)
+          .eq('key', LANDLORD_CHECKLIST_PREF_KEY)
+          .maybeSingle();
+        if (cancelled || error) { hasChecklistHydratedRef.current = true; return; }
+        const cloudValue = data?.value && typeof data.value === 'object' && !Array.isArray(data.value)
+          ? data.value as Record<string, { called: boolean; acknowledged: boolean }>
+          : null;
+        if (cloudValue) {
+          setCardChecklist(cloudValue);
+          try { localStorage.setItem(LANDLORD_CHECKLIST_LS_KEY, JSON.stringify(cloudValue)); } catch { /* noop */ }
+        }
+      } catch (err) {
+        console.warn('[RentPipelineQueue] checklist hydrate failed', err);
+      } finally {
+        hasChecklistHydratedRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Auto-save every checklist change. localStorage is ALWAYS written first so the
+  // ticks survive a refresh even when the server is unreachable; the cloud write
+  // is best-effort on top so they also follow the operator to another device.
+  useEffect(() => {
+    if (!hasChecklistHydratedRef.current) return;
+    try { localStorage.setItem(LANDLORD_CHECKLIST_LS_KEY, JSON.stringify(cardChecklist)); } catch { /* noop */ }
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const { error } = await supabase
+          .from('user_ui_preferences')
+          .upsert(
+            { user_id: user.id, key: LANDLORD_CHECKLIST_PREF_KEY, value: cardChecklist },
+            { onConflict: 'user_id,key' },
+          );
+        if (error) console.warn('[RentPipelineQueue] checklist cloud write failed, using localStorage', error);
+      } catch (err) {
+        console.warn('[RentPipelineQueue] checklist write failed, using localStorage', err);
+      }
+    })();
+  }, [cardChecklist, user?.id]);
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
