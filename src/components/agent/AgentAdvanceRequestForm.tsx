@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Loader2, ArrowRight, Shield, Banknote, Calendar, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, ListChecks } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,13 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [cycleDays, setCycleDays] = useState<number>(30);
   const [reason, setReason] = useState('');
   const [allocOpen, setAllocOpen] = useState(false);
+  // Landing menu inside the sheet: choose between viewing history or submitting.
+  const [view, setView] = useState<'menu' | 'history' | 'request'>('menu');
+
+  // Always return to the menu when the sheet (re)opens.
+  useEffect(() => {
+    if (open) setView('menu');
+  }, [open]);
 
   // Always recompute the limit from latest data when the sheet opens so
   // recent allocations are reflected before the agent submits. The hero
