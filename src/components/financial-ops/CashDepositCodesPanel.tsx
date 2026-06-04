@@ -181,12 +181,12 @@ export function CashDepositCodesPanel() {
         <span>Auto-refresh enabled — last updated {new Date(lastRefreshedAt).toLocaleTimeString()}</span>
       </div>
 
-      {loading && rows.length === 0 ? (
+      {loading && displayRows.length === 0 ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading codes…
         </div>
-      ) : rows.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-6 text-center">No recent cash deposit codes.</div>
+      ) : displayRows.length === 0 ? (
+        <div className="text-sm text-muted-foreground py-6 text-center">No active cash deposit codes.</div>
       ) : (
         <div className="overflow-x-auto -mx-1">
           <table className="w-full text-sm border-collapse">
