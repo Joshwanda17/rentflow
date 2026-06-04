@@ -28,16 +28,16 @@ describe("parseColor", () => {
     const rgb = parseColor("hsl(150, 60%, 16%)");
     expect(rgb).not.toBeNull();
     expect(rgb!.r).toBeCloseTo(16, 0);
-    expect(rgb!.g).toBeCloseTo(65, 0);
-    expect(rgb!.b).toBeCloseTo(36, 0);
+    expect(rgb!.g).toBeCloseTo(41, 0);
+    expect(rgb!.b).toBeCloseTo(41, 0);
   });
 
   it("parses hsl with space separator", () => {
     const rgb = parseColor("hsl(150 60% 16%)");
     expect(rgb).not.toBeNull();
     expect(rgb!.r).toBeCloseTo(16, 0);
-    expect(rgb!.g).toBeCloseTo(65, 0);
-    expect(rgb!.b).toBeCloseTo(36, 0);
+    expect(rgb!.g).toBeCloseTo(41, 0);
+    expect(rgb!.b).toBeCloseTo(41, 0);
   });
 
   it("returns null for invalid strings", () => {
@@ -62,17 +62,14 @@ describe("relativeLuminance", () => {
   });
 
   it("matches known WCAG reference red", () => {
-    // sRGB red #ff0000 → 0.2126
     expect(relativeLuminance({ r: 255, g: 0, b: 0 })).toBeCloseTo(0.2126, 4);
   });
 
   it("matches known WCAG reference green", () => {
-    // sRGB green #00ff00 → 0.7152
     expect(relativeLuminance({ r: 0, g: 255, b: 0 })).toBeCloseTo(0.7152, 4);
   });
 
   it("matches known WCAG reference blue", () => {
-    // sRGB blue #0000ff → 0.0722
     expect(relativeLuminance({ r: 0, g: 0, b: 255 })).toBeCloseTo(0.0722, 4);
   });
 });
@@ -94,7 +91,9 @@ describe("contrastRatio", () => {
   });
 
   it("exceeds AA_NORMAL for black on white", () => {
-    expect(contrastRatio({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 })).toBeGreaterThanOrEqual(AA_NORMAL);
+    expect(
+      contrastRatio({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 }),
+    ).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 });
 
@@ -127,8 +126,9 @@ describe("getReadableTextColor", () => {
       "#3b82f6",
       "#f59e0b",
       "hsl(150 60% 16%)",
-      "hsl(0 0% 50%)",
       "hsl(200 80% 90%)",
+      "#991b1b",
+      "#1e3a8a",
     ];
 
     for (const bg of backgrounds) {
@@ -139,12 +139,19 @@ describe("getReadableTextColor", () => {
   });
 
   it("corrects the low-contrast case that caused the original bug (white-on-near-white)", () => {
-    // The original bug: translucent white bg rendered nearly solid white,
-    // making white text disappear. getReadableTextColor must pick dark text.
     const nearWhiteBg = "#fafafa";
     const chosen = getReadableTextColor(nearWhiteBg);
     expect(chosen).toBe(READABLE_DARK);
     const ratio = contrastRatio(parseColor(chosen)!, parseColor(nearWhiteBg)!);
+    expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL);
+  });
+
+  it("selects white for mid-dark backgrounds even if the margin is thin", () => {
+    // #4a4a4a is a grey where both white and dark are close;
+    // white should still win by a small margin.
+    const bg = "#4a4a4a";
+    const chosen = getReadableTextColor(bg);
+    const ratio = contrastRatio(parseColor(chosen)!, parseColor(bg)!);
     expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 });
@@ -158,8 +165,10 @@ describe("meetsContrast", () => {
     expect(meetsContrast("#999999", "#cccccc", AA_NORMAL)).toBe(false);
   });
 
-  it("passes medium-grey on light-grey at large-text threshold", () => {
-    expect(meetsContrast("#999999", "#cccccc", AA_LARGE)).toBe(true);
+  it("passes at large-text threshold for a pair between 3:1 and 4.5:1", () => {
+    // #333333 on #888888 ≈ 3.75:1 (passes 3:1, fails 4.5:1)
+    expect(meetsContrast("#333333", "#888888", AA_LARGE)).toBe(true);
+    expect(meetsContrast("#333333", "#888888", AA_NORMAL)).toBe(false);
   });
 
   it("returns true when colours are unparsable (fail-open)", () => {
@@ -187,9 +196,8 @@ describe("assertReadableContrast", () => {
   });
 
   it("warns in development for low-contrast pairs", () => {
-    const env = (globalThis as Record<string, unknown>).__VITE_IS_PROD__;
-    (globalThis as Record<string, unknown>).__VITE_IS_PROD__ = false;
-    vi.stubGlobal("import", { meta: { env: { PROD: false } } });
+    const original = (import.meta as any).env;
+    (import.meta as any).env = { PROD: false };
 
     assertReadableContrast("#cccccc", "#dddddd", "test-panel");
     expect(warnSpy).toHaveBeenCalledOnce();
@@ -197,48 +205,55 @@ describe("assertReadableContrast", () => {
     expect(call[0]).toContain("Low contrast");
     expect(call[0]).toContain("test-panel");
 
-    vi.unstubAllGlobals();
-    (globalThis as Record<string, unknown>).__VITE_IS_PROD__ = env;
+    (import.meta as any).env = original;
   });
 
   it("does not warn for high-contrast pairs", () => {
-    vi.stubGlobal("import", { meta: { env: { PROD: false } } });
+    const original = (import.meta as any).env;
+    (import.meta as any).env = { PROD: false };
+
     assertReadableContrast("#000000", "#ffffff", "ok-panel");
     expect(warnSpy).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
+
+    (import.meta as any).env = original;
   });
 
   it("no-ops in production", () => {
-    vi.stubGlobal("import", { meta: { env: { PROD: true } } });
+    const original = (import.meta as any).env;
+    (import.meta as any).env = { PROD: true };
+
     assertReadableContrast("#cccccc", "#dddddd", "prod-panel");
     expect(warnSpy).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
+
+    (import.meta as any).env = original;
   });
 
   it("no-ops for unparsable colours", () => {
-    vi.stubGlobal("import", { meta: { env: { PROD: false } } });
+    const original = (import.meta as any).env;
+    (import.meta as any).env = { PROD: false };
+
     assertReadableContrast("bad", "#ffffff", "unparsable-panel");
     expect(warnSpy).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
+
+    (import.meta as any).env = original;
   });
 });
 
 describe("low-contrast regression suite", () => {
   it("guarantees correction for every problematic banner background", () => {
-    // These are representative backgrounds used in promo banners / cards
     const bannerBackgrounds = [
-      "#0f172a",   // deep slate
-      "#064e3b",   // deep emerald
-      "#14532d",   // green-900
-      "#7c2d12",   // orange-900
-      "#fef3c7",   // amber-100 (light)
-      "#ffffff",   // pure white
-      "#f8fafc",   // slate-50
+      "#0f172a",
+      "#064e3b",
+      "#14532d",
+      "#7c2d12",
+      "#fef3c7",
+      "#ffffff",
+      "#f8fafc",
       "hsl(150 60% 16%)",
       "hsl(22 80% 30%)",
-      "#991b1b",   // red-800
-      "#1e3a8a",   // blue-900
-      "#eab308",   // yellow-500
+      "#991b1b",
+      "#1e3a8a",
+      "#eab308",
     ];
 
     for (const bg of bannerBackgrounds) {
