@@ -862,13 +862,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 {
                   key: 'advance',
                   label: 'Agent Advance',
-                  sub: 'Request advance for tenant business',
+                  sub: 'Welile lends you up to UGX 30M · pay back over 12 months',
                   amount: null,
                   icon: Briefcase,
                   tone: 'text-primary',
                   ring: 'ring-primary/30',
                   bg: 'bg-primary/10',
-                  onClick: () => { hapticTap(); setBusinessAdvanceOpen(true); },
+                  onClick: () => { hapticTap(); setAdvanceRequestOpen(true); },
                 },
               ].map((c) => {
                 const Icon = c.icon;
