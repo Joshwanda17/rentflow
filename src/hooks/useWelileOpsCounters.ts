@@ -199,6 +199,27 @@ export function useMissionSummary(win: CounterWindow, refetchIntervalMs?: number
   });
 }
 
+export interface MissionReceivables {
+  placed_receivable_total: number;
+  placed_receivable_count: number;
+  empty_receivable_total: number;
+  empty_houses_count: number;
+}
+
+export function useMissionReceivables(refetchIntervalMs?: number | false) {
+  return useQuery({
+    queryKey: ['welile-mission-receivables'],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<MissionReceivables | null> => {
+      const { data, error } = await supabase.rpc('welile_mission_receivables' as any);
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as MissionReceivables | null;
+    },
+  });
+}
+
 export function useMissionLeaderboard(win: CounterWindow, enabled: boolean, refetchIntervalMs?: number | false) {
   const since = windowToISO(win);
   return useQuery({
