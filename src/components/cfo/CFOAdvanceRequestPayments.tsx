@@ -32,7 +32,7 @@ export function CFOAdvanceRequestPayments() {
   const [adjustedCycles, setAdjustedCycles] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'coo_approved'>('all');
+  const [stageFilter, setStageFilter] = useState<'all' | 'pending' | 'coo_approved' | 'cfo_approved'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   // Income Statement Impact preview — date range
