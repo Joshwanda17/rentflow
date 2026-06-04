@@ -547,29 +547,21 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
             />
           </div>
 
-          {/* Breakdown */}
+          {/* Breakdown — agent sees only what they need to know */}
           {principal > 0 && (
-            <div className="space-y-2 p-3 rounded-xl bg-background/80">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Principal</span>
-                <span className="font-semibold">{formatUGX(principal)}</span>
+            <div className="space-y-3 p-4 rounded-xl bg-background/80">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Repayment Period</span>
+                <span className="text-sm font-bold text-foreground">{cycleDays} days</span>
               </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Access Fee (33%/mo)</span>
-                <span className="font-semibold text-orange-600">+ {formatUGX(accessFee)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Registration Fee</span>
-                <span className="font-semibold">+ {formatUGX(registrationFee)}</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Daily Repayment</span>
+                <span className="text-sm font-bold text-primary">{formatUGX(dailyPayment)}</span>
               </div>
               <Separator />
-              <div className="flex justify-between text-sm">
-                <span className="font-bold">Total Payable</span>
-                <span className="font-bold text-primary">{formatUGX(totalPayable)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Daily Deduction</span>
-                <span className="font-bold text-red-500">{formatUGX(dailyPayment)} / day</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Total Repayment</span>
+                <span className="text-sm font-bold text-foreground">{formatUGX(totalPayable)}</span>
               </div>
             </div>
           )}
