@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 
-// E2E test for the 2-minute cash-deposit receipt-code expiry.
+// E2E test for the 10-minute cash-deposit receipt-code expiry.
 // Part A (frontend): the code input stays enabled until the countdown hits
-//   zero, then disables at exactly 120s and surfaces the auto-rejection notice.
+//   zero, then disables at exactly 600s and surfaces the auto-rejection notice.
 // Part B (backend contract): the shared verification core (the exact decision
 //   logic the verify-code edge function runs) reports `expired` once the
 //   window passes, and the atomic claim refuses to credit — i.e. the deposit
@@ -32,7 +32,7 @@ import {
   type VerificationRecord,
 } from '../../../../supabase/functions/_shared/cash-verification-core';
 
-const CODE_TTL_SECONDS = 120;
+const CODE_TTL_SECONDS = 600;
 
 // Flush pending microtasks (resolves the mocked invoke + its setState chain).
 const flush = async () => {
@@ -54,8 +54,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('Cash deposit 2-minute code expiry — end to end', () => {
-  it('keeps the code input enabled until the countdown hits zero, then disables it exactly at 120s', async () => {
+describe('Cash deposit 10-minute code expiry — end to end', () => {
+  it('keeps the code input enabled until the countdown hits zero, then disables it exactly at 600s', async () => {
     render(<CashWithFinancialOpsDeposit open onOpenChange={() => {}} />);
 
     // Enter an amount and request the code.
@@ -110,8 +110,8 @@ describe('Cash deposit 2-minute code expiry — end to end', () => {
     expect(store.get('ver-1')?.status).toBe('expired');
   });
 
-  it('boundary at exactly 2:00 — the backend accepts when now === expires_at, then rejects 1ms later', () => {
-    // The receipt window opened 2 minutes ago, so it expires *exactly* now.
+  it('boundary at exactly the expiry — the backend accepts when now === expires_at, then rejects 1ms later', () => {
+    // The receipt window opened 10 minutes ago, so it expires *exactly* now.
     const expiresAtMs = Date.now();
     const rec: VerificationRecord = {
       status: 'awaiting_code',

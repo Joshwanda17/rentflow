@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
       return json(404, { error: "not_found", message: "No pending cash deposit found for this code." });
     }
 
-    // ── Pure decision: already-verified → expiry (24h) → attempt cap → hash ──
+    // ── Pure decision: already-verified → expiry → attempt cap → hash ──
     const enteredHash = await sha256Hex(enteredCode);
     const decision = evaluateAttempt(ver as any, enteredHash, Date.now());
 
@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
       await logEvent(admin, {
         verification_id: ver.id, deposit_request_id: depositId, user_id: user.id,
         event_type: "expired", attempt_no: Number(ver.attempts), amount: Number(ver.amount),
-        detail: "Code entry rejected — verification window (24h) has expired; deposit auto-rejected.",
+        detail: "Code entry rejected — verification window has expired; deposit auto-rejected.",
         metadata: { expires_at: ver.expires_at, auto_rejected: true },
       });
       // Email the depositor that their code expired and the deposit was rejected.

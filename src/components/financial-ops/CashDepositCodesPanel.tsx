@@ -166,7 +166,7 @@ export function CashDepositCodesPanel() {
             )}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Read the active code back to the depositor only after you have received the matching cash. Codes expire in 2 minutes.
+            Read the active code back to the depositor only after you have received the matching cash. Codes expire in 10 minutes.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

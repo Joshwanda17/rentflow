@@ -32,8 +32,9 @@ const QUICK_AMOUNTS = [10000, 50000, 100000, 250000];
 type Step = 'form' | 'code' | 'success';
 
 // Depositor must enter the receipt code within this window or the deposit is
-// auto-rejected by the backend expiry sweep. Mirror it here for the countdown.
-const CODE_TTL_SECONDS = 120;
+// auto-rejected by the backend expiry sweep. Mirror the DB default (10 min) here
+// for the countdown.
+const CODE_TTL_SECONDS = 600;
 
 /**
  * Cash-with-Financial-Ops deposit secured by a receipt code.
@@ -63,7 +64,7 @@ export default function CashWithFinancialOpsDeposit({ open, onOpenChange, onSucc
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [copiedExample, setCopiedExample] = useState<string | null>(null);
 
-  // Countdown for the 2-minute code window. When it hits zero, lock the input
+  // Countdown for the code window. When it hits zero, lock the input
   // and surface the auto-rejection (the backend sweep rejects it server-side).
   useEffect(() => {
     if (step !== 'code' || secondsLeft === null || locked) return;
