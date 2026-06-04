@@ -27,6 +27,7 @@ import { AutoCreditReviewPanel } from './AutoCreditReviewPanel';
 import { ProxyWithdrawalDiagnosticsPanel } from './ProxyWithdrawalDiagnosticsPanel';
 import { FloatToWithdrawablePanel } from './FloatToWithdrawablePanel';
 import { MomoSignupSmsTemplatePanel } from './MomoSignupSmsTemplatePanel';
+import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
