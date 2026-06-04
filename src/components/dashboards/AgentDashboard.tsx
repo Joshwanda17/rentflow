@@ -675,7 +675,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              * "Grow" button via AgentMenuDrawer so no functionality is lost.
              */}
 
-            {/* 0) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
+            {/* 0) PROMO — prominent weekly landlord registration drive */}
+            <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setRegisterUserOpen(true); }} />
+
+            {/* 0b) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
             {isCashoutAgent && showMerchantOnboard && (
               <div className="w-full rounded-2xl border border-primary/30 bg-primary/5 p-4 relative animate-fade-in">
                 <button
