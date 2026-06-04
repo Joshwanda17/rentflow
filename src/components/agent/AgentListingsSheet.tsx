@@ -125,6 +125,13 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     } catch { /* ignore */ }
   }, [search, statusFilter, regionFilter, sortBy, minPrice, maxPrice, storageKey]);
 
+  // Empty-house promo: when launched from the campaign banner, auto-apply the
+  // "vacant" filter on open so agents land straight on their empty houses.
+  useEffect(() => {
+    if (open && vacantOnly) setStatusFilter('vacant');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, vacantOnly]);
+
   // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
   const [enrichment, setEnrichment] = useState<{
     landlords: Record<string, { name: string; phone: string | null }>;
