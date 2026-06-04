@@ -167,6 +167,42 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     enabled: !!user?.id,
   });
 
+  // Filtered advances for the history view
+  const filteredAdvances = useMemo(() => {
+    if (!issuedAdvances.length) return [];
+    return issuedAdvances.filter((adv: any) => {
+      const outstanding = Number(adv.outstanding_balance || 0);
+      const isDone = adv.status === 'completed' || outstanding <= 0;
+      const principal = Number(adv.principal || 0);
+      const issuedDate = adv.issued_at ? parseISO(adv.issued_at) : null;
+
+      // Status filter
+      if (statusFilter === 'repaid' && !isDone) return false;
+      if (statusFilter === 'outstanding' && isDone) return false;
+
+      // Amount filter
+      const min = amountMin ? parseInt(amountMin) : 0;
+      const max = amountMax ? parseInt(amountMax) : Infinity;
+      if (principal < min || principal > max) return false;
+
+      // Date range filter
+      if (dateFrom && issuedDate) {
+        if (issuedDate < startOfDay(dateFrom)) return false;
+      }
+      if (dateTo && issuedDate) {
+        if (issuedDate > endOfDay(dateTo)) return false;
+      }
+
+      return true;
+    });
+  }, [issuedAdvances, statusFilter, amountMin, amountMax, dateFrom, dateTo]);
+
+  const activeFilterCount = [
+    dateFrom || dateTo,
+    statusFilter !== 'all',
+    amountMin || amountMax,
+  ].filter(Boolean).length;
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
