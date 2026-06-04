@@ -2022,6 +2022,55 @@ function LandlordPane({ landlordId, isOps }: { landlordId: string; isOps: boolea
     },
   });
 
+  // Placed tenants under this landlord — used to derive the annual
+  // payable (rent owed to the landlord) and receivable (collected from
+  // the rental). "Placed" = a tenant is actually in the house.
+  const { data: placed = [] } = useQuery({
+    queryKey: ['drilldown-landlord-placed', landlordId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('rent_requests')
+        .select('id, tenant_id, rent_amount, daily_repayment, status, created_at')
+        .eq('landlord_id', landlordId)
+        .in('status', ['funded', 'repaying', 'active', 'completed'])
+        .order('created_at', { ascending: false })
+        .limit(500);
+      const rows = data ?? [];
+      const ids = Array.from(new Set(rows.map((r: any) => r.tenant_id).filter(Boolean)));
+      let nameMap = new Map<string, any>();
+      if (ids.length) {
+        const { data: profs } = await supabase
+          .from('profiles').select('id, full_name, phone').in('id', ids);
+        nameMap = new Map((profs ?? []).map((p: any) => [p.id, p]));
+      }
+      return rows.map((r: any) => {
+        const monthlyRent = Number(r.rent_amount || 0);
+        const dailyRent = Number(r.daily_repayment || 0);
+        return {
+          ...r,
+          tenant: nameMap.get(r.tenant_id) ?? null,
+          monthlyRent,
+          dailyRent,
+          // Annual payable to the landlord = monthly rent × 12 months.
+          annualPayable: monthlyRent * 12,
+          // Annual receivable from the rental = daily rent × 30 days × 12 months.
+          annualReceivable: dailyRent * 30 * 12,
+        };
+      });
+    },
+  });
+
+  const accountTotals = useMemo(() => {
+    return (placed as any[]).reduce(
+      (acc, r) => {
+        acc.payable += r.annualPayable;
+        acc.receivable += r.annualReceivable;
+        return acc;
+      },
+      { payable: 0, receivable: 0 },
+    );
+  }, [placed]);
+
   const [linkFunder, setLinkFunder] = useState<UserBrief | null>(null);
   const [linkReason, setLinkReason] = useState('');
   const link = useMutation({
