@@ -569,7 +569,7 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
 
         {view === 'history' && (
         <div className="space-y-5">
-          {/* Header with filter + sort */}
+          {/* Header with filter */}
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Advances taken</h3>
@@ -580,66 +580,71 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
               </p>
             </div>
             {issuedAdvances.length > 0 && (
-              <div className="flex items-center gap-2">
-                {/* Sort controls */}
-                <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
-                  <button
-                    type="button"
-                    onClick={() => setSortBy('date')}
-                    className={cn(
-                      "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all",
-                      sortBy === 'date'
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Date
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSortBy('amount')}
-                    className={cn(
-                      "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all",
-                      sortBy === 'amount'
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Amount
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-                    className="rounded-lg bg-background p-1 text-muted-foreground hover:text-foreground transition-all"
-                    title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                  >
-                    {sortOrder === 'asc' ? (
-                      <ArrowUp className="h-3 w-3" />
-                    ) : (
-                      <ArrowDown className="h-3 w-3" />
-                    )}
-                  </button>
-                </div>
-                {/* Filter toggle */}
-                <button
-                  type="button"
-                  onClick={() => setFiltersOpen(o => !o)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold transition-all",
-                    activeFilterCount > 0
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Filter
-                  {activeFilterCount > 0 && (
-                    <span className="rounded-full bg-white/20 px-1.5 py-0 text-[9px] font-bold">{activeFilterCount}</span>
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(o => !o)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold transition-all",
+                  activeFilterCount > 0
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-white/20 px-1.5 py-0 text-[9px] font-bold">{activeFilterCount}</span>
+                )}
+              </button>
             )}
           </div>
+
+          {/* Sort by clickable column headers */}
+          {issuedAdvances.length > 0 && (
+            <div className="flex items-center gap-4 -mt-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sort by</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (sortBy === 'date') {
+                    setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('date');
+                    setSortOrder('desc');
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-1 text-[11px] font-bold transition-all",
+                  sortBy === 'date' ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Date
+                {sortBy === 'date' && (
+                  sortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (sortBy === 'amount') {
+                    setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('amount');
+                    setSortOrder('desc');
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-1 text-[11px] font-bold transition-all",
+                  sortBy === 'amount' ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Amount
+                {sortBy === 'amount' && (
+                  sortOrder === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Filter panel */}
           {filtersOpen && issuedAdvances.length > 0 && (
