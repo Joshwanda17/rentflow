@@ -116,6 +116,39 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     enabled: !!user?.id,
   });
 
+  // Every advance ever ISSUED to this agent, plus the day-by-day repayment
+  // ledger so we can show exactly how each advance was paid back.
+  const { data: issuedAdvances = [], isLoading: issuedLoading } = useQuery({
+    queryKey: ['my-issued-advances-history', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data: advances, error } = await supabase
+        .from('agent_advances')
+        .select('id, principal, outstanding_balance, access_fee, registration_fee, cycle_days, status, issued_at, expires_at')
+        .eq('agent_id', user.id)
+        .order('issued_at', { ascending: false });
+      if (error) throw error;
+      const list = advances || [];
+      if (list.length === 0) return [];
+      const ids = list.map((a: any) => a.id);
+      const { data: ledger } = await supabase
+        .from('agent_advance_ledger')
+        .select('advance_id, date, opening_balance, interest_accrued, amount_deducted, closing_balance')
+        .in('advance_id', ids)
+        .order('date', { ascending: true });
+      const byAdvance: Record<string, any[]> = {};
+      (ledger || []).forEach((row: any) => {
+        (byAdvance[row.advance_id] ||= []).push(row);
+      });
+      return list.map((a: any) => {
+        const entries = byAdvance[a.id] || [];
+        const totalRepaid = entries.reduce((s: number, e: any) => s + Number(e.amount_deducted || 0), 0);
+        return { ...a, ledger: entries, totalRepaid };
+      });
+    },
+    enabled: !!user?.id,
+  });
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
