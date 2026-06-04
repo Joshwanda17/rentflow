@@ -925,10 +925,24 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                         )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Home className="h-3 w-3" />
-                          {req.landlord_name}
-                        </span>
+                        {req.landlord_id ? (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); setDrilldownLandlordId(req.landlord_id); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setDrilldownLandlordId(req.landlord_id); } }}
+                            className="flex items-center gap-1 text-primary hover:underline cursor-pointer"
+                            title="Open landlord profile"
+                          >
+                            <Home className="h-3 w-3" />
+                            {req.landlord_name}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Home className="h-3 w-3" />
+                            {req.landlord_name}
+                          </span>
+                        )}
                         {(req.assigned_agent_id || req.agent_id) ? (
                           <span
                             role="button"
