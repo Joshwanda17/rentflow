@@ -88,6 +88,24 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ── Funder verification gate (BEFORE any money moves) ──
+    // Self-registered funders must be approved before a portfolio is created,
+    // otherwise the enforce_funder_verified_for_portfolio trigger rejects the
+    // insert AFTER the wallet is debited (stranded funds + cryptic error).
+    {
+      const { data: funderProfile } = await adminClient
+        .from("profiles")
+        .select("full_name, signup_source, funder_verified_at")
+        .eq("id", partner_id)
+        .maybeSingle();
+      if (funderProfile?.signup_source === "funder-onboarding" && !funderProfile?.funder_verified_at) {
+        const nm = funderProfile?.full_name || "This partner";
+        return new Response(JSON.stringify({
+          error: `${nm} self-registered and is not yet verified. Approve them in Partner Ops (Verify Funder) before investing.`,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // Generate reference
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
