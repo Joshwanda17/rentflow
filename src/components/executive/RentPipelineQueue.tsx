@@ -195,6 +195,17 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
   const [landlordAcknowledged, setLandlordAcknowledged] = useState(false);
   const [landlordVerificationMethod, setLandlordVerificationMethod] = useState('');
   const [landlordCallNotes, setLandlordCallNotes] = useState('');
+  // Per-card (per request) Landlord Ops verification checklist progress, shown
+  // inline on the review queue so the operator can see status/progress and the
+  // Approve button only enables once both checks are confirmed.
+  const [cardChecklist, setCardChecklist] = useState<Record<string, { called: boolean; acknowledged: boolean }>>({});
+  const getCardChecklist = (id: string) => cardChecklist[id] || { called: false, acknowledged: false };
+  const toggleCardCheck = (id: string, key: 'called' | 'acknowledged', value: boolean) => {
+    setCardChecklist(prev => ({
+      ...prev,
+      [id]: { ...{ called: false, acknowledged: false }, ...prev[id], [key]: value },
+    }));
+  };
   // COO bulk approval state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // Agent profile drilldown
