@@ -20506,17 +20506,29 @@ export type Database = {
           status: string
         }[]
       }
-      welile_mission_landlord_receivables: {
-        Args: never
-        Returns: {
-          landlord_id: string
-          landlord_name: string
-          landlord_phone: string
-          placement_count: number
-          property_address: string
-          receivable_total: number
-        }[]
-      }
+      welile_mission_landlord_receivables:
+        | {
+            Args: never
+            Returns: {
+              landlord_id: string
+              landlord_name: string
+              landlord_phone: string
+              placement_count: number
+              property_address: string
+              receivable_total: number
+            }[]
+          }
+        | {
+            Args: { p_from?: string; p_to?: string }
+            Returns: {
+              landlord_id: string
+              landlord_name: string
+              landlord_phone: string
+              placement_count: number
+              property_address: string
+              receivable_total: number
+            }[]
+          }
       welile_mission_leaderboard: {
         Args: { p_since?: string }
         Returns: {

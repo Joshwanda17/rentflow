@@ -229,13 +229,20 @@ export interface MissionLandlordReceivable {
   placement_count: number;
 }
 
-export function useMissionLandlordReceivables(enabled: boolean) {
+export function useMissionLandlordReceivables(
+  enabled: boolean,
+  from?: string | null,
+  to?: string | null,
+) {
   return useQuery({
     enabled,
-    queryKey: ['welile-mission-landlord-receivables'],
+    queryKey: ['welile-mission-landlord-receivables', from ?? null, to ?? null],
     staleTime: 60_000,
     queryFn: async (): Promise<MissionLandlordReceivable[]> => {
-      const { data, error } = await supabase.rpc('welile_mission_landlord_receivables' as any);
+      const { data, error } = await supabase.rpc('welile_mission_landlord_receivables' as any, {
+        p_from: from ?? null,
+        p_to: to ?? null,
+      });
       if (error) throw error;
       return (data ?? []) as MissionLandlordReceivable[];
     },
