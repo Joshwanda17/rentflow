@@ -1,0 +1,258 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  parseColor,
+  relativeLuminance,
+  contrastRatio,
+  getReadableTextColor,
+  meetsContrast,
+  assertReadableContrast,
+  READABLE_LIGHT,
+  READABLE_DARK,
+  AA_NORMAL,
+  AA_LARGE,
+} from "./contrast";
+
+describe("parseColor", () => {
+  it("parses 6-digit hex", () => {
+    expect(parseColor("#ffffff")).toEqual({ r: 255, g: 255, b: 255 });
+    expect(parseColor("#0f172a")).toEqual({ r: 15, g: 23, b: 42 });
+    expect(parseColor("#ff0000")).toEqual({ r: 255, g: 0, b: 0 });
+  });
+
+  it("parses 3-digit hex shorthand", () => {
+    expect(parseColor("#fff")).toEqual({ r: 255, g: 255, b: 255 });
+    expect(parseColor("#abc")).toEqual({ r: 170, g: 187, b: 204 });
+  });
+
+  it("parses hsl with comma separator", () => {
+    const rgb = parseColor("hsl(150, 60%, 16%)");
+    expect(rgb).not.toBeNull();
+    expect(rgb!.r).toBeCloseTo(16, 0);
+    expect(rgb!.g).toBeCloseTo(65, 0);
+    expect(rgb!.b).toBeCloseTo(36, 0);
+  });
+
+  it("parses hsl with space separator", () => {
+    const rgb = parseColor("hsl(150 60% 16%)");
+    expect(rgb).not.toBeNull();
+    expect(rgb!.r).toBeCloseTo(16, 0);
+    expect(rgb!.g).toBeCloseTo(65, 0);
+    expect(rgb!.b).toBeCloseTo(36, 0);
+  });
+
+  it("returns null for invalid strings", () => {
+    expect(parseColor("")).toBeNull();
+    expect(parseColor("rgb(255,0,0)")).toBeNull();
+    expect(parseColor("#gggggg")).toBeNull();
+    expect(parseColor("#12")).toBeNull();
+  });
+
+  it("returns null for null/undefined-like input", () => {
+    expect(parseColor("")).toBeNull();
+  });
+});
+
+describe("relativeLuminance", () => {
+  it("is 1 for pure white", () => {
+    expect(relativeLuminance({ r: 255, g: 255, b: 255 })).toBe(1);
+  });
+
+  it("is 0 for pure black", () => {
+    expect(relativeLuminance({ r: 0, g: 0, b: 0 })).toBe(0);
+  });
+
+  it("matches known WCAG reference red", () => {
+    // sRGB red #ff0000 → 0.2126
+    expect(relativeLuminance({ r: 255, g: 0, b: 0 })).toBeCloseTo(0.2126, 4);
+  });
+
+  it("matches known WCAG reference green", () => {
+    // sRGB green #00ff00 → 0.7152
+    expect(relativeLuminance({ r: 0, g: 255, b: 0 })).toBeCloseTo(0.7152, 4);
+  });
+
+  it("matches known WCAG reference blue", () => {
+    // sRGB blue #0000ff → 0.0722
+    expect(relativeLuminance({ r: 0, g: 0, b: 255 })).toBeCloseTo(0.0722, 4);
+  });
+});
+
+describe("contrastRatio", () => {
+  it("is 21:1 for black vs white", () => {
+    expect(contrastRatio({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 })).toBe(21);
+  });
+
+  it("is 1:1 for identical colours", () => {
+    const grey = { r: 128, g: 128, b: 128 };
+    expect(contrastRatio(grey, grey)).toBe(1);
+  });
+
+  it("is symmetric", () => {
+    const a = { r: 100, g: 50, b: 200 };
+    const b = { r: 200, g: 100, b: 50 };
+    expect(contrastRatio(a, b)).toBe(contrastRatio(b, a));
+  });
+
+  it("exceeds AA_NORMAL for black on white", () => {
+    expect(contrastRatio({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 })).toBeGreaterThanOrEqual(AA_NORMAL);
+  });
+});
+
+describe("getReadableTextColor", () => {
+  it("returns white on dark backgrounds", () => {
+    expect(getReadableTextColor("#000000")).toBe(READABLE_LIGHT);
+    expect(getReadableTextColor("#0f172a")).toBe(READABLE_LIGHT);
+    expect(getReadableTextColor("hsl(150 60% 16%)")).toBe(READABLE_LIGHT);
+  });
+
+  it("returns dark on light backgrounds", () => {
+    expect(getReadableTextColor("#ffffff")).toBe(READABLE_DARK);
+    expect(getReadableTextColor("#f0f9ff")).toBe(READABLE_DARK);
+    expect(getReadableTextColor("#e2e8f0")).toBe(READABLE_DARK);
+  });
+
+  it("falls back to white for unparsable input", () => {
+    expect(getReadableTextColor("")).toBe(READABLE_LIGHT);
+    expect(getReadableTextColor("banana")).toBe(READABLE_LIGHT);
+  });
+
+  it("always meets WCAG AA against the background it was chosen for", () => {
+    const backgrounds = [
+      "#000000",
+      "#ffffff",
+      "#0f172a",
+      "#e2e8f0",
+      "#ef4444",
+      "#22c55e",
+      "#3b82f6",
+      "#f59e0b",
+      "hsl(150 60% 16%)",
+      "hsl(0 0% 50%)",
+      "hsl(200 80% 90%)",
+    ];
+
+    for (const bg of backgrounds) {
+      const fg = getReadableTextColor(bg);
+      const ratio = contrastRatio(parseColor(fg)!, parseColor(bg)!);
+      expect(ratio, `contrast for ${fg} on ${bg}`).toBeGreaterThanOrEqual(AA_NORMAL);
+    }
+  });
+
+  it("corrects the low-contrast case that caused the original bug (white-on-near-white)", () => {
+    // The original bug: translucent white bg rendered nearly solid white,
+    // making white text disappear. getReadableTextColor must pick dark text.
+    const nearWhiteBg = "#fafafa";
+    const chosen = getReadableTextColor(nearWhiteBg);
+    expect(chosen).toBe(READABLE_DARK);
+    const ratio = contrastRatio(parseColor(chosen)!, parseColor(nearWhiteBg)!);
+    expect(ratio).toBeGreaterThanOrEqual(AA_NORMAL);
+  });
+});
+
+describe("meetsContrast", () => {
+  it("passes for black on white at normal threshold", () => {
+    expect(meetsContrast("#000000", "#ffffff", AA_NORMAL)).toBe(true);
+  });
+
+  it("fails for medium-grey on light-grey at normal threshold", () => {
+    expect(meetsContrast("#999999", "#cccccc", AA_NORMAL)).toBe(false);
+  });
+
+  it("passes medium-grey on light-grey at large-text threshold", () => {
+    expect(meetsContrast("#999999", "#cccccc", AA_LARGE)).toBe(true);
+  });
+
+  it("returns true when colours are unparsable (fail-open)", () => {
+    expect(meetsContrast("bad", "#ffffff")).toBe(true);
+    expect(meetsContrast("#ffffff", "")).toBe(true);
+  });
+
+  it("uses AA_NORMAL as default threshold", () => {
+    // #777 on #fff is ~4.47, just under 4.5
+    expect(meetsContrast("#777777", "#ffffff")).toBe(false);
+    // #666 on #fff is ~5.74, passes
+    expect(meetsContrast("#666666", "#ffffff")).toBe(true);
+  });
+});
+
+describe("assertReadableContrast", () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  it("warns in development for low-contrast pairs", () => {
+    const env = (globalThis as Record<string, unknown>).__VITE_IS_PROD__;
+    (globalThis as Record<string, unknown>).__VITE_IS_PROD__ = false;
+    vi.stubGlobal("import", { meta: { env: { PROD: false } } });
+
+    assertReadableContrast("#cccccc", "#dddddd", "test-panel");
+    expect(warnSpy).toHaveBeenCalledOnce();
+    const call = warnSpy.mock.calls[0] as [string];
+    expect(call[0]).toContain("Low contrast");
+    expect(call[0]).toContain("test-panel");
+
+    vi.unstubAllGlobals();
+    (globalThis as Record<string, unknown>).__VITE_IS_PROD__ = env;
+  });
+
+  it("does not warn for high-contrast pairs", () => {
+    vi.stubGlobal("import", { meta: { env: { PROD: false } } });
+    assertReadableContrast("#000000", "#ffffff", "ok-panel");
+    expect(warnSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("no-ops in production", () => {
+    vi.stubGlobal("import", { meta: { env: { PROD: true } } });
+    assertReadableContrast("#cccccc", "#dddddd", "prod-panel");
+    expect(warnSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("no-ops for unparsable colours", () => {
+    vi.stubGlobal("import", { meta: { env: { PROD: false } } });
+    assertReadableContrast("bad", "#ffffff", "unparsable-panel");
+    expect(warnSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("low-contrast regression suite", () => {
+  it("guarantees correction for every problematic banner background", () => {
+    // These are representative backgrounds used in promo banners / cards
+    const bannerBackgrounds = [
+      "#0f172a",   // deep slate
+      "#064e3b",   // deep emerald
+      "#14532d",   // green-900
+      "#7c2d12",   // orange-900
+      "#fef3c7",   // amber-100 (light)
+      "#ffffff",   // pure white
+      "#f8fafc",   // slate-50
+      "hsl(150 60% 16%)",
+      "hsl(22 80% 30%)",
+      "#991b1b",   // red-800
+      "#1e3a8a",   // blue-900
+      "#eab308",   // yellow-500
+    ];
+
+    for (const bg of bannerBackgrounds) {
+      const chosen = getReadableTextColor(bg);
+      const bgRgb = parseColor(bg);
+      const fgRgb = parseColor(chosen);
+      expect(bgRgb, `background ${bg} should parse`).not.toBeNull();
+      expect(fgRgb, `chosen text ${chosen} should parse`).not.toBeNull();
+
+      const ratio = contrastRatio(fgRgb!, bgRgb!);
+      expect(
+        ratio,
+        `${chosen} on ${bg} = ${ratio.toFixed(2)}:1 (needs ≥${AA_NORMAL}:1)`,
+      ).toBeGreaterThanOrEqual(AA_NORMAL);
+    }
+  });
+});
