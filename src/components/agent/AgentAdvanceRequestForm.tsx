@@ -842,9 +842,9 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
                         <p className="text-xs font-bold tabular-nums">{formatUGX(outstanding)}</p>
                       </div>
                       <div className="rounded-xl bg-muted/40 py-2">
-                        <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Total</p>
-                        <p className="text-xs font-bold text-foreground tabular-nums">
-                          {formatUGX(Number(adv.principal || 0) + Number(adv.access_fee || 0) + Number(adv.registration_fee || 0))}
+                        <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Daily</p>
+                        <p className="text-xs font-bold text-primary tabular-nums">
+                          {formatUGX(Math.round((Number(adv.principal || 0) + Number(adv.access_fee || 0) + Number(adv.registration_fee || 0)) / Math.max(1, Number(adv.cycle_days || 30))))}
                         </p>
                       </div>
                     </div>
