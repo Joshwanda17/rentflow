@@ -1031,39 +1031,59 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
               {/* Inline landlord verification checklist — status & progress shown
                   before the Approve button is enabled (Landlord Ops stage only) */}
               {isLandlordStage && (
-                <div className="mt-2 rounded-lg border border-purple-500/30 bg-purple-500/5 p-2.5 space-y-2">
+                <div className="mt-2 rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold flex items-center gap-1.5 text-purple-700 dark:text-purple-300">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Landlord Verification
+                    <span className="text-xs font-bold flex items-center gap-1.5 text-purple-700 dark:text-purple-300">
+                      <ShieldCheck className="h-4 w-4" />
+                      Do these 2 steps first
                     </span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${checklistComplete ? 'bg-emerald-500/15 text-emerald-700' : 'bg-amber-500/15 text-amber-700'}`}>
-                      {checklistComplete ? '✓ Verified' : `${checklistDone}/2 done`}
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${checklistComplete ? 'bg-emerald-500/15 text-emerald-700' : 'bg-amber-500/15 text-amber-700'}`}>
+                      {checklistComplete ? '✓ All done' : `${checklistDone} of 2 done`}
                     </span>
                   </div>
-                  {/* progress bar */}
-                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${checklistComplete ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                      style={{ width: `${(checklistDone / 2) * 100}%` }}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={cl.called}
-                        onCheckedChange={(v) => toggleCardCheck(req.id, 'called', !!v)}
-                      />
-                      <span className="text-[11px]">Called the landlord{req.landlord_phone ? ` (${req.landlord_phone})` : ''}</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={cl.acknowledged}
-                        onCheckedChange={(v) => toggleCardCheck(req.id, 'acknowledged', !!v)}
-                      />
-                      <span className="text-[11px]">Landlord acknowledges Welile as the payer</span>
-                    </label>
-                  </div>
+
+                  {/* Step 1 — call the landlord. Whole box is tappable for easy phone use. */}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); toggleCardCheck(req.id, 'called', !cl.called); }}
+                    className={`w-full flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors ${cl.called ? 'border-emerald-500 bg-emerald-500/10' : 'border-border bg-background active:bg-muted'}`}
+                  >
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${cl.called ? 'bg-emerald-500 text-white' : 'bg-muted text-foreground'}`}>
+                      {cl.called ? '✓' : '1'}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold">I called the landlord</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {req.landlord_phone ? `Call ${req.landlord_phone}, then tap here` : 'Call the landlord, then tap here'}
+                      </span>
+                    </span>
+                  </button>
+
+                  {/* Step 2 — landlord agreed Welile pays. */}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); toggleCardCheck(req.id, 'acknowledged', !cl.acknowledged); }}
+                    className={`w-full flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-colors ${cl.acknowledged ? 'border-emerald-500 bg-emerald-500/10' : 'border-border bg-background active:bg-muted'}`}
+                  >
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${cl.acknowledged ? 'bg-emerald-500 text-white' : 'bg-muted text-foreground'}`}>
+                      {cl.acknowledged ? '✓' : '2'}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold">Landlord said Welile will pay</span>
+                      <span className="block text-xs text-muted-foreground">They understand Welile sends the rent, not the tenant</span>
+                    </span>
+                  </button>
+
+                  {/* Plain-language hint about the Approve button */}
+                  {checklistComplete ? (
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 text-center">
+                      Great — now tap the green Approve button above.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-700 dark:text-amber-300 text-center">
+                      Tap both boxes above to turn on the Approve button.
+                    </p>
+                  )}
                 </div>
               )}
               </div>
