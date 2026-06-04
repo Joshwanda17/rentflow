@@ -124,7 +124,7 @@ import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet'
 import { RentalFinderSheet } from '@/components/agent/RentalFinderSheet';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { AgentLandlordPromoBanner } from '@/components/agent/AgentLandlordPromoBanner';
-import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
+import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
 import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
 import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
 import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
