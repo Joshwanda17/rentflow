@@ -154,10 +154,24 @@ export function CashDepositCodesPanel() {
             Read the active code back to the depositor only after you have received the matching cash. Codes expire in 2 minutes.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} className="gap-1.5 shrink-0">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge
+            variant="outline"
+            className="hidden sm:inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground border-dashed"
+          >
+            <Radio className="h-3 w-3 text-emerald-500 animate-pulse" />
+            Refresh in {secondsToRefresh}s
+          </Badge>
+          <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+        <Radio className="h-3 w-3 text-emerald-500" />
+        <span>Auto-refresh enabled — last updated {new Date(lastRefreshedAt).toLocaleTimeString()}</span>
       </div>
 
       {loading && rows.length === 0 ? (
