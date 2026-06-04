@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,10 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
-import { Loader2, ArrowRight, Shield, Banknote, Calendar, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
-import { ChevronRight, ArrowLeft, History as HistoryIcon, Send } from 'lucide-react';
-import { format } from 'date-fns';
+import { Loader2, ArrowRight, Shield, Banknote, Calendar as CalendarIcon, FileText, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ChevronRight, ArrowLeft, History as HistoryIcon, Send, Filter, SlidersHorizontal } from 'lucide-react';
+import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface AgentAdvanceRequestFormProps {
@@ -40,12 +42,28 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
   const [cycleDays, setCycleDays] = useState<number>(30);
   const [reason, setReason] = useState('');
   const [allocOpen, setAllocOpen] = useState(false);
-  // Landing menu inside the sheet: choose between viewing history or submitting.
   const [view, setView] = useState<'menu' | 'history' | 'request'>('menu');
+
+  // History filters
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'repaid' | 'outstanding'>('all');
+  const [amountMin, setAmountMin] = useState('');
+  const [amountMax, setAmountMax] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Always return to the menu when the sheet (re)opens.
   useEffect(() => {
-    if (open) setView('menu');
+    if (open) {
+      setView('menu');
+      // Reset filters when sheet opens fresh
+      setDateFrom(undefined);
+      setDateTo(undefined);
+      setStatusFilter('all');
+      setAmountMin('');
+      setAmountMax('');
+      setFiltersOpen(false);
+    }
   }, [open]);
 
   // Always recompute the limit from latest data when the sheet opens so
@@ -148,6 +166,42 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
     },
     enabled: !!user?.id,
   });
+
+  // Filtered advances for the history view
+  const filteredAdvances = useMemo(() => {
+    if (!issuedAdvances.length) return [];
+    return issuedAdvances.filter((adv: any) => {
+      const outstanding = Number(adv.outstanding_balance || 0);
+      const isDone = adv.status === 'completed' || outstanding <= 0;
+      const principal = Number(adv.principal || 0);
+      const issuedDate = adv.issued_at ? parseISO(adv.issued_at) : null;
+
+      // Status filter
+      if (statusFilter === 'repaid' && !isDone) return false;
+      if (statusFilter === 'outstanding' && isDone) return false;
+
+      // Amount filter
+      const min = amountMin ? parseInt(amountMin) : 0;
+      const max = amountMax ? parseInt(amountMax) : Infinity;
+      if (principal < min || principal > max) return false;
+
+      // Date range filter
+      if (dateFrom && issuedDate) {
+        if (issuedDate < startOfDay(dateFrom)) return false;
+      }
+      if (dateTo && issuedDate) {
+        if (issuedDate > endOfDay(dateTo)) return false;
+      }
+
+      return true;
+    });
+  }, [issuedAdvances, statusFilter, amountMin, amountMax, dateFrom, dateTo]);
+
+  const activeFilterCount = [
+    dateFrom || dateTo,
+    statusFilter !== 'all',
+    amountMin || amountMax,
+  ].filter(Boolean).length;
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -495,88 +549,260 @@ export function AgentAdvanceRequestForm({ open, onOpenChange }: AgentAdvanceRequ
         )}
 
         {view === 'history' && (
-        <div className="space-y-6">
-          {/* Issued advances with full repayment breakdown */}
-          <div>
-            <h3 className="text-sm font-semibold text-foreground mb-1">Advances taken</h3>
-            <p className="text-xs text-muted-foreground mb-3">
-              Every advance Welile has issued you, and how it was paid back day by day.
-            </p>
-            {issuedLoading ? (
-              <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-            ) : issuedAdvances.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No advances taken yet</p>
-            ) : (
-              <div className="space-y-3">
-                {issuedAdvances.map((adv: any) => {
-                  const repaidEntries = (adv.ledger || []).filter((e: any) => Number(e.amount_deducted || 0) > 0);
-                  const outstanding = Number(adv.outstanding_balance || 0);
-                  const isDone = adv.status === 'completed' || outstanding <= 0;
-                  return (
-                    <div key={adv.id} className="rounded-2xl border border-border/60 bg-card p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-base font-bold text-foreground tabular-nums">{formatUGX(Number(adv.principal))}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            Taken {format(new Date(adv.issued_at), 'MMM d, yyyy')} · {adv.cycle_days}d term
-                          </p>
-                        </div>
-                        <Badge className={cn(
-                          'text-[10px] font-bold border-0',
-                          isDone ? 'bg-emerald-500 text-white' : adv.status === 'overdue' ? 'bg-red-500 text-white' : 'bg-amber-500 text-white',
-                        )}>
-                          {isDone ? 'Fully repaid' : adv.status === 'overdue' ? 'Overdue' : 'Repaying'}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-                        <div className="rounded-xl bg-muted/40 py-2">
-                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Repaid</p>
-                          <p className="text-xs font-bold text-emerald-600 tabular-nums">{formatUGX(adv.totalRepaid)}</p>
-                        </div>
-                        <div className="rounded-xl bg-muted/40 py-2">
-                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Outstanding</p>
-                          <p className="text-xs font-bold tabular-nums">{formatUGX(outstanding)}</p>
-                        </div>
-                        <div className="rounded-xl bg-muted/40 py-2">
-                          <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Fees</p>
-                          <p className="text-xs font-bold text-orange-600 tabular-nums">
-                            {formatUGX(Number(adv.access_fee || 0) + Number(adv.registration_fee || 0))}
-                          </p>
-                        </div>
-                      </div>
-
-                      {repaidEntries.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-dashed border-border">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                            Repayment breakdown
-                          </p>
-                          {/* Column headers so it reads at a glance */}
-                          <div className="grid grid-cols-3 gap-2 px-1 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                            <span>Date</span>
-                            <span className="text-right">Paid</span>
-                            <span className="text-right">Balance left</span>
-                          </div>
-                          <div className="space-y-0 max-h-60 overflow-y-auto pr-1">
-                            {repaidEntries.map((e: any, i: number) => (
-                              <div
-                                key={i}
-                                className="grid grid-cols-3 gap-2 items-center px-1 py-1.5 text-[11px] border-t border-border/40"
-                              >
-                                <span className="text-foreground font-medium">{format(new Date(e.date), 'MMM d, yyyy')}</span>
-                                <span className="text-right font-semibold text-emerald-600 tabular-nums">− {formatUGX(Number(e.amount_deducted))}</span>
-                                <span className="text-right font-semibold tabular-nums">{formatUGX(Number(e.closing_balance))}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+        <div className="space-y-5">
+          {/* Header with filter toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Advances taken</h3>
+              <p className="text-xs text-muted-foreground">
+                {activeFilterCount > 0
+                  ? `${filteredAdvances.length} of ${issuedAdvances.length} shown`
+                  : `${issuedAdvances.length} advance${issuedAdvances.length === 1 ? '' : 's'}`}
+              </p>
+            </div>
+            {issuedAdvances.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(o => !o)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold transition-all",
+                  activeFilterCount > 0
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-white/20 px-1.5 py-0 text-[9px] font-bold">{activeFilterCount}</span>
+                )}
+              </button>
             )}
           </div>
+
+          {/* Filter panel */}
+          {filtersOpen && issuedAdvances.length > 0 && (
+            <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-4">
+              {/* Status chips */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</label>
+                <div className="flex gap-2">
+                  {([
+                    { key: 'all', label: 'All' },
+                    { key: 'repaid', label: 'Fully repaid' },
+                    { key: 'outstanding', label: 'Outstanding' },
+                  ] as const).map(s => (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => setStatusFilter(s.key)}
+                      className={cn(
+                        "rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all",
+                        statusFilter === s.key
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date range */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Date range</label>
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal rounded-xl h-10 text-xs",
+                          !dateFrom && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                        {dateFrom ? format(dateFrom, 'MMM d, yyyy') : 'From'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={setDateFrom}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <span className="text-muted-foreground text-xs">to</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal rounded-xl h-10 text-xs",
+                          !dateTo && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                        {dateTo ? format(dateTo, 'MMM d, yyyy') : 'To'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={setDateTo}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {/* Amount range */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Amount (UGX)</label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">MIN</span>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={amountMin}
+                      onChange={e => setAmountMin(e.target.value)}
+                      className="pl-10 bg-muted/40 border-0 rounded-xl h-10 text-xs font-semibold"
+                    />
+                  </div>
+                  <span className="text-muted-foreground text-xs">–</span>
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">MAX</span>
+                    <Input
+                      type="number"
+                      placeholder="∞"
+                      value={amountMax}
+                      onChange={e => setAmountMax(e.target.value)}
+                      className="pl-11 bg-muted/40 border-0 rounded-xl h-10 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Clear filters */}
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateFrom(undefined);
+                    setDateTo(undefined);
+                    setStatusFilter('all');
+                    setAmountMin('');
+                    setAmountMax('');
+                  }}
+                  className="text-[11px] font-bold text-primary hover:underline"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Results */}
+          {issuedLoading ? (
+            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : issuedAdvances.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No advances taken yet</p>
+          ) : filteredAdvances.length === 0 ? (
+            <div className="text-center py-8 space-y-2">
+              <Filter className="h-6 w-6 text-muted-foreground mx-auto" />
+              <p className="text-sm text-muted-foreground">No advances match your filters</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setDateFrom(undefined);
+                  setDateTo(undefined);
+                  setStatusFilter('all');
+                  setAmountMin('');
+                  setAmountMax('');
+                }}
+                className="text-[11px] font-bold text-primary hover:underline"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredAdvances.map((adv: any) => {
+                const repaidEntries = (adv.ledger || []).filter((e: any) => Number(e.amount_deducted || 0) > 0);
+                const outstanding = Number(adv.outstanding_balance || 0);
+                const isDone = adv.status === 'completed' || outstanding <= 0;
+                return (
+                  <div key={adv.id} className="rounded-2xl border border-border/60 bg-card p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-base font-bold text-foreground tabular-nums">{formatUGX(Number(adv.principal))}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Taken {format(new Date(adv.issued_at), 'MMM d, yyyy')} · {adv.cycle_days}d term
+                        </p>
+                      </div>
+                      <Badge className={cn(
+                        'text-[10px] font-bold border-0',
+                        isDone ? 'bg-emerald-500 text-white' : adv.status === 'overdue' ? 'bg-red-500 text-white' : 'bg-amber-500 text-white',
+                      )}>
+                        {isDone ? 'Fully repaid' : adv.status === 'overdue' ? 'Overdue' : 'Repaying'}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                      <div className="rounded-xl bg-muted/40 py-2">
+                        <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Repaid</p>
+                        <p className="text-xs font-bold text-emerald-600 tabular-nums">{formatUGX(adv.totalRepaid)}</p>
+                      </div>
+                      <div className="rounded-xl bg-muted/40 py-2">
+                        <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Outstanding</p>
+                        <p className="text-xs font-bold tabular-nums">{formatUGX(outstanding)}</p>
+                      </div>
+                      <div className="rounded-xl bg-muted/40 py-2">
+                        <p className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">Fees</p>
+                        <p className="text-xs font-bold text-orange-600 tabular-nums">
+                          {formatUGX(Number(adv.access_fee || 0) + Number(adv.registration_fee || 0))}
+                        </p>
+                      </div>
+                    </div>
+
+                    {repaidEntries.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-dashed border-border">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                          Repayment breakdown
+                        </p>
+                        {/* Column headers so it reads at a glance */}
+                        <div className="grid grid-cols-3 gap-2 px-1 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                          <span>Date</span>
+                          <span className="text-right">Paid</span>
+                          <span className="text-right">Balance left</span>
+                        </div>
+                        <div className="space-y-0 max-h-60 overflow-y-auto pr-1">
+                          {repaidEntries.map((e: any, i: number) => (
+                            <div
+                              key={i}
+                              className="grid grid-cols-3 gap-2 items-center px-1 py-1.5 text-[11px] border-t border-border/40"
+                            >
+                              <span className="text-foreground font-medium">{format(new Date(e.date), 'MMM d, yyyy')}</span>
+                              <span className="text-right font-semibold text-emerald-600 tabular-nums">− {formatUGX(Number(e.amount_deducted))}</span>
+                              <span className="text-right font-semibold tabular-nums">{formatUGX(Number(e.closing_balance))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Requests submitted to the CFO */}
           <div>
