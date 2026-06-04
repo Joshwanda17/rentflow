@@ -972,7 +972,7 @@ export function CFOAdvanceRequestPayments() {
                   className="w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   {payMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Confirm &amp; Pay {formatUGX(principal)}
+                  Confirm &amp; Disburse {formatUGX(principal)}
                 </Button>
               </DialogFooter>
             </DialogContent>
