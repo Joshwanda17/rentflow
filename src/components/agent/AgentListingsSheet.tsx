@@ -32,9 +32,12 @@ interface AgentListingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onListHouse?: () => void;
+  /** When true (e.g. opened from the empty-house promo banner), force the
+   *  "vacant / empty houses" filter so only campaign-eligible listings show. */
+  vacantOnly?: boolean;
 }
 
-export function AgentListingsSheet({ open, onOpenChange, onListHouse }: AgentListingsSheetProps) {
+export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly = false }: AgentListingsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { listings, loading, refresh } = useHouseListings({
