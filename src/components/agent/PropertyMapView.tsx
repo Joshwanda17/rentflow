@@ -73,7 +73,7 @@ export function PropertyMapView({
 }: Props) {
   // Maps JS API powers waypoint optimization (DirectionsService). The managed
   // browser key is referrer-restricted, so optimization must run client-side.
-  const { isReady: mapsReady, hasKey: mapsHasKey } = useGoogleMapsLoader(true);
+  const { hasKey: mapsHasKey } = useGoogleMapsLoader(true);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [optimizing, setOptimizing] = useState(false);
   const [route, setRoute] = useState<{
