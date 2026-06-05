@@ -13,6 +13,7 @@ interface PublicHouse {
   title: string;
   region: string;
   district: string | null;
+  address: string | null;
   house_category: string;
   number_of_rooms: number;
   daily_rate: number;
@@ -33,7 +34,7 @@ export function PublicHousesPreview() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase as any)
           .from('house_listings')
-          .select('id, title, region, district, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls, short_code')
+          .select('id, title, region, district, address, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls, short_code')
           .eq('status', 'available')
           .eq('is_hidden', false)
           .is('tenant_id', null)
@@ -138,6 +139,10 @@ export function PublicHousesPreview() {
                     dailyRate={house.daily_rate}
                     shortCode={house.short_code}
                     mode="whatsapp"
+                    address={house.address}
+                    monthlyRent={house.monthly_rent}
+                    rooms={house.number_of_rooms}
+                    category={house.house_category}
                   />
                 </span>
               </div>
