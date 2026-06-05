@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     // Optionally restrict to a specific subset via pending_op_ids.
     let q = adminClient
       .from("pending_wallet_operations")
-      .select("id, amount")
+      .select("id, amount, metadata")
       .eq("source_id", portfolio_id)
       .eq("source_table", "investor_portfolios")
       .eq("operation_type", "portfolio_topup")
