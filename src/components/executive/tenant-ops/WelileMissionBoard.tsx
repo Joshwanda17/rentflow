@@ -137,7 +137,7 @@ export function WelileMissionBoard() {
   const metricFor = (s: MissionSummary, key: PriorityKey) => {
     if (key === 'list') {
       const combinedEmpty = s.empty_houses_total + (receivables?.unlisted_landlord_count ?? 0);
-      return { big: s.listings_new, label: 'new houses listed', extra: `${combinedEmpty.toLocaleString()} empty in stock · ${s.listing_agents} agents` };
+      return { big: combinedEmpty, label: 'listed empty houses', extra: '' };
     }
     if (key === 'place') return { big: s.placements_new, label: 'tenants placed', extra: `${placementRate}% of listed houses occupied` };
     return { big: s.funders_new, label: 'new funders', extra: `${formatUGX(s.funders_amount)} committed · ${fundActivation}% active` };
@@ -213,7 +213,7 @@ export function WelileMissionBoard() {
                     <span className="text-2xl font-bold leading-none">{m.big.toLocaleString()}</span>
                     <span className="text-[11px] text-muted-foreground">{m.label}</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>
+                  {m.extra && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
                   {p.key === 'place' && receivables && (
                     <div className="mt-2 rounded-lg bg-emerald-500/10 px-2 py-1.5">
                       <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 leading-none">Receivables A/C</p>
@@ -257,19 +257,6 @@ export function WelileMissionBoard() {
                     >
                       <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
                     </Button>
-                  )}
-                  {p.key === 'list' && landlordBreakdown && (
-                    <button
-                      type="button"
-                      onClick={() => setLandlordBucket('priority1')}
-                      className="mt-2 w-full rounded-lg border border-[#9234EA]/30 bg-[#9234EA]/10 px-2 py-1.5 text-left hover:ring-1 hover:ring-[#9234EA]/40 transition"
-                    >
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-[#9234EA] leading-none">Landlords by agents · Priority 1</p>
-                      <p className="text-sm font-bold text-[#9234EA] tabular-nums leading-tight mt-0.5">{landlordBreakdown.priority1_empty.toLocaleString()}</p>
-                      <p className="text-[10px] text-muted-foreground leading-none">
-                        {landlordBreakdown.p1_listed_empty.toLocaleString()} listed-empty · {landlordBreakdown.p1_unlisted.toLocaleString()} not listed yet →
-                      </p>
-                    </button>
                   )}
                   {p.key === 'place' && (
                     <Button
