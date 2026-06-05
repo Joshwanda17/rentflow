@@ -24,8 +24,8 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="p-4 border-b">
+      <DialogContent className="max-w-md h-[85dvh] max-h-[85dvh] min-h-0 flex flex-col overflow-hidden p-0 gap-0">
+        <DialogHeader className="shrink-0 p-4 pr-10 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Landmark className="h-5 w-5 text-[#9234EA]" />
             Pick a Tenant to Pay Their Landlord
@@ -38,22 +38,22 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex justify-center py-10">
+          <div className="flex flex-1 min-h-0 justify-center py-10">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : allocations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 px-6 text-center text-muted-foreground">
+          <div className="flex flex-1 min-h-0 flex-col items-center justify-center py-10 px-6 text-center text-muted-foreground">
             <Inbox className="h-10 w-10 mb-2 opacity-50" />
             <p className="text-sm font-medium text-foreground">No tenants pending payout</p>
             <p className="text-xs mt-1">Once a rent request is fully approved and CFO disburses, it will appear here.</p>
           </div>
         ) : (
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <div className="px-4 py-3 bg-muted/30 border-b flex items-center justify-between">
+          <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+            <div className="shrink-0 px-4 py-3 bg-muted/30 border-b flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Total ring-fenced</span>
               <span className="font-bold text-foreground">{formatUGX(totalRemaining)}</span>
             </div>
-            <ScrollArea className="flex-1">
+            <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
               <div className="p-3 space-y-2">
                 {allocations.map((a) => (
                   <button
@@ -103,7 +103,7 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
           </div>
         )}
 
-        <div className="border-t p-3">
+        <div className="shrink-0 border-t p-3">
           <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
             Close
           </Button>
