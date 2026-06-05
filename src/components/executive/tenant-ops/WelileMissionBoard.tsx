@@ -59,8 +59,14 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
-function windowDateRangeLabel(w: CounterWindow): string {
-  if (w === 'all') return 'All time';
+function windowDateRangeLabel(w: CounterWindow, earliestDate?: string | null): string {
+  if (w === 'all') {
+    if (earliestDate) {
+      const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      return `${fmt(new Date(earliestDate))} – Present`;
+    }
+    return 'All time';
+  }
   const days = w === '7d' ? 7 : 30;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const today = new Date();
