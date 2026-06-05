@@ -396,6 +396,11 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
         });
         if (regErr || !regData?.user_id) throw new Error(regErr?.message || 'Failed to register tenant');
         tenantId = regData.user_id;
+        if (regData.existing) {
+          toast.info('Using existing tenant record', {
+            description: 'This phone is already registered on the platform.',
+          });
+        }
       }
 
       if (!tenantId) throw new Error('Could not resolve tenant');
