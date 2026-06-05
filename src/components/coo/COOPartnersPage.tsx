@@ -237,6 +237,7 @@ interface ExportPortfolio {
   portfolio_code: string | null;
   investment_amount: number;
   roi_percentage: number;
+  total_roi_earned: number | null;
   payout_day: number;
   roi_mode: string;
   next_roi_date: string | null;
@@ -295,7 +296,7 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
 
   const header = [
     'Name', 'Phone', 'Email', 'Status', 'Wallet',
-    'Principal', 'ROI %', 'ROI Mode', 'Payout Day & Date', 'Joined',
+    'Principal', 'ROI %', 'Returns', 'ROI Mode', 'Payout Day & Date', 'Joined',
   ];
 
   const sortedRows = [...rows].sort((a, b) =>
@@ -313,7 +314,7 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
     if (ports.length === 0) {
       csvRows.push([
         r.name, r.phone, r.email, statusLabel, r.walletBalance,
-        '', '', '', '', joined,
+        '', '', '', '', '', joined,
       ].map(csvEscape).join(','));
       return;
     }
@@ -324,6 +325,7 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
         name, r.phone, r.email, statusLabel, r.walletBalance,
         p.investment_amount ?? 0,
         p.roi_percentage ?? '',
+        p.total_roi_earned ?? 0,
         humanRoiMode(p.roi_mode),
         buildPayoutCell(p.next_roi_date, p.created_at, p.payout_day ?? 15),
         joined,
@@ -1770,7 +1772,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const filteredIds = filtered.map(r => r.id);
       const exportPortfoliosRaw = await batchedQuery<any>(filteredIds, (batch) =>
         supabase.from('investor_portfolios')
-          .select('id, investor_id, agent_id, account_name, portfolio_code, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date')
+          .select('id, investor_id, agent_id, account_name, portfolio_code, investment_amount, roi_percentage, total_roi_earned, payout_day, roi_mode, status, created_at, next_roi_date')
           .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
           .in('status', ['active', 'pending_approval', 'pending'])
           .order('created_at', { ascending: false })
