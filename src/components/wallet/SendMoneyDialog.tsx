@@ -556,24 +556,29 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 initial="hidden"
                 animate="visible"
               >
-                {(wallet?.float_balance || 0) > 0 && (
-                  <motion.div
-                    variants={itemVariants}
-                    className="flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5"
-                  >
-                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <div className="text-xs text-foreground space-y-0.5 min-w-0">
-                      <p className="font-semibold text-amber-700 dark:text-amber-300">
-                        Part of your balance is locked float
-                      </p>
-                      <p className="text-muted-foreground leading-snug">
-                        {formatCurrency(wallet?.float_balance || 0)} is operational / company float and
-                        cannot be transferred wallet-to-wallet. You can only send your transferable
-                        balance of <span className="font-medium text-foreground">{formatCurrency(wallet?.withdrawable || 0)}</span>.
+                {/* Balance summary — one calm card, big number, subtle locked notice */}
+                <motion.div
+                  variants={itemVariants}
+                  className="rounded-2xl border border-border/60 bg-muted/40 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Available to send
+                    </span>
+                    <span className="text-base font-bold text-success">
+                      {formatCurrency(wallet?.withdrawable || 0)}
+                    </span>
+                  </div>
+                  {(wallet?.float_balance || 0) > 0 && (
+                    <div className="mt-3 flex items-start gap-2 border-t border-border/50 pt-3">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        {formatCurrency(wallet?.float_balance || 0)} operational float is locked and
+                        cannot be transferred.
                       </p>
                     </div>
-                  </motion.div>
-                )}
+                  )}
+                </motion.div>
                 <motion.div variants={itemVariants} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor={mode === 'phone' ? 'phone' : 'email'} className="flex items-center gap-2">
