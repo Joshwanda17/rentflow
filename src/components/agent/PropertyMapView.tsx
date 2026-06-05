@@ -348,6 +348,11 @@ export function PropertyMapView({
                 <p className="text-xs font-bold text-foreground flex items-center gap-1">
                   <Route className="h-3.5 w-3.5 text-primary" />
                   {route.order.length} stop{route.order.length !== 1 ? 's' : ''} optimized
+                  {fromCache && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-500 ml-1">
+                      <Zap className="h-3 w-3" /> Cached
+                    </span>
+                  )}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   {route.distanceMeters != null && `${(route.distanceMeters / 1000).toFixed(1)} km`}
