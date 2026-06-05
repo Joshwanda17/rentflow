@@ -380,7 +380,7 @@ export function FinOpsWalletMovePanel() {
       )}
 
       {/* Mode switch */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <button
           type="button"
           onClick={() => { setMode('user_to_user'); reset(); setResult(null); }}
@@ -390,6 +390,16 @@ export function FinOpsWalletMovePanel() {
         >
           <span className="flex items-center gap-2 font-medium text-sm"><Users className="h-4 w-4" /> User → User</span>
           <span className="block text-xs text-muted-foreground mt-1">Move money to another person's wallet.</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => { setMode('same_user'); reset(); setResult(null); setSourceBucket('float'); }}
+          className={`rounded-lg border p-3 text-left transition-colors ${
+            mode === 'same_user' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
+          }`}
+        >
+          <span className="flex items-center gap-2 font-medium text-sm"><ArrowRightLeft className="h-4 w-4" /> Float → Withdrawable</span>
+          <span className="block text-xs text-muted-foreground mt-1">Same user: move their Operations Float into their Withdrawable.</span>
         </button>
         <button
           type="button"
@@ -459,10 +469,17 @@ export function FinOpsWalletMovePanel() {
         <div className="space-y-2">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">From</Label>
           <UserCard user={source} role="source" />
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-xs text-muted-foreground">Take from bucket</span>
-            <BucketToggle value={sourceBucket} onChange={setSourceBucket} />
-          </div>
+          {mode === 'same_user' ? (
+            <p className="text-xs text-muted-foreground">
+              Moving from their <span className="font-semibold text-foreground">Operations Float</span> into their{' '}
+              <span className="font-semibold text-foreground">Withdrawable</span>. Total balance is unchanged.
+            </p>
+          ) : (
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs text-muted-foreground">Take from bucket</span>
+              <BucketToggle value={sourceBucket} onChange={setSourceBucket} />
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Available in {sourceBucket === 'withdrawable' ? 'Withdrawable' : 'Float'}: <span className="font-semibold text-foreground">{fmt(sourceAvail)}</span>
           </p>
@@ -487,7 +504,7 @@ export function FinOpsWalletMovePanel() {
       )}
 
       {/* Amount + reason */}
-      {source && (mode === 'error_correction' || dest) && (
+      {source && (mode === 'error_correction' || mode === 'same_user' || dest) && (
         <Card>
           <CardContent className="space-y-4 pt-5">
             <div>
@@ -519,7 +536,11 @@ export function FinOpsWalletMovePanel() {
             </div>
             <Button onClick={() => setConfirmOpen(true)} disabled={!canSubmit} className="w-full gap-2">
               <ArrowRightLeft className="h-4 w-4" />
-              {mode === 'user_to_user' ? 'Move money' : 'Recover to platform'}
+              {mode === 'user_to_user'
+                ? 'Move money'
+                : mode === 'same_user'
+                  ? 'Move to Withdrawable'
+                  : 'Recover to platform'}
             </Button>
           </CardContent>
         </Card>
