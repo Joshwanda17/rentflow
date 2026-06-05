@@ -13,13 +13,17 @@ interface ShareHouseButtonProps {
   region: string;
   dailyRate: number;
   shortCode?: string | null;
+  address?: string | null;
+  monthlyRent?: number | null;
+  rooms?: number | null;
+  category?: string | null;
   /** 'icon' = small icon button, 'full' = full-width button with WhatsApp */
   variant?: 'icon' | 'full';
   /** 'share' = try native share first (default), 'copy' = copy to clipboard immediately, 'whatsapp' = copy link + open WhatsApp in one tap */
   mode?: 'share' | 'copy' | 'whatsapp';
 }
 
-export function ShareHouseButton({ listingId, title, region, dailyRate, shortCode, variant = 'icon', mode = 'share' }: ShareHouseButtonProps) {
+export function ShareHouseButton({ listingId, title, region, dailyRate, shortCode, address, monthlyRent, rooms, category, variant = 'icon', mode = 'share' }: ShareHouseButtonProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
@@ -30,7 +34,26 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
   const shareUrl = shortCode
     ? `${APP_URL}/house/${shortCode}`
     : `${APP_URL}/house/${listingId}`;
-  const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${ogUrl}`;
+
+  const locationLine = address ? `${address}${region ? `, ${region}` : ''}` : region;
+  const roomsLine = rooms ? `${rooms} room${rooms > 1 ? 's' : ''}${category ? ` · ${category}` : ''}` : (category || '');
+  const priceLine = monthlyRent
+    ? `💰 ${formatUGX(monthlyRent)}/month (≈ ${formatUGX(dailyRate)}/day)`
+    : `💰 ${formatUGX(dailyRate)}/day`;
+
+  const message = [
+    `🏠 *Check out this house on Welile!*`,
+    ``,
+    `*${title}*`,
+    `📍 ${locationLine}`,
+    ...(roomsLine ? [`🏠 ${roomsLine}`] : []),
+    priceLine,
+    ``,
+    `🎁 Move in TODAY — your first 7 days are FREE, then just pay daily.`,
+    `Pay daily, weekly, or monthly through Welile — no big upfront deposit needed.`,
+    ``,
+    `👉 View & reserve: ${shareUrl}`,
+  ].join('\n');
 
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
