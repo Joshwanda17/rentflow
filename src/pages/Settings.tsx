@@ -496,6 +496,9 @@ export default function Settings() {
                 {roles.includes('manager') && (
                   <LazySection name="MapKeySettings"><MapKeySettingsCard /></LazySection>
                 )}
+                {roles.includes('manager') && (
+                  <LazySection name="DriveVault"><DriveVaultCard /></LazySection>
+                )}
               </div>
             )}
 
