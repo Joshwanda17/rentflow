@@ -8,11 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { HouseListing, calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, X, AlertTriangle } from 'lucide-react';
+import { Loader2, X, AlertTriangle, Video, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
-import { Video, Check } from 'lucide-react';
 import { parseHouseVideo } from '@/lib/houseVideoUrl';
+import { FieldError } from '@/components/shared/FormFeedback';
 
 interface EditHouseListingDialogProps {
   open: boolean;
@@ -57,8 +57,10 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const trimmedVideo = videoUrl.trim();
   const parsedVideo = parseHouseVideo(trimmedVideo);
   const videoInvalid = trimmedVideo.length > 0 && !parsedVideo;
+  const videoTouched = videoUrl !== (listing?.video_url ?? '');
   const totalPhotos = existingUrls.length + newImages.length;
   const remainingSlots = Math.max(0, MAX_PHOTOS - existingUrls.length);
+  const canSave = !videoInvalid;
 
   const handleSave = async () => {
     if (!title.trim() || !address.trim() || !region.trim() || monthlyRent <= 0) {
@@ -158,15 +160,19 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
               id="edit-video"
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
+              onBlur={() => {
+                if (trimmedVideo.length > 0 && !parsedVideo) {
+                  toast({ title: 'Invalid video link', description: 'Only YouTube or Google Drive links are accepted.', variant: 'destructive' });
+                }
+              }}
               placeholder="Paste a YouTube or Google Drive link"
               inputMode="url"
               autoCapitalize="none"
               autoCorrect="off"
+              className={videoInvalid && videoTouched ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
             {videoInvalid ? (
-              <p className="text-[11px] text-destructive flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> Use a YouTube or Google Drive video link.
-              </p>
+              <FieldError message="Only YouTube or Google Drive links are accepted. Paste a valid share link or leave empty." />
             ) : parsedVideo ? (
               <p className="text-[11px] text-success flex items-center gap-1">
                 <Check className="h-3 w-3" /> {parsedVideo.provider === 'youtube' ? 'YouTube' : 'Google Drive'} video linked.
@@ -218,7 +224,7 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
+          <Button onClick={handleSave} disabled={saving || !canSave} className="gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save changes
           </Button>
