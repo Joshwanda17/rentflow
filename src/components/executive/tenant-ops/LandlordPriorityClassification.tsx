@@ -110,7 +110,7 @@ export function LandlordPriorityClassification({ win, refetchIntervalMs, onOpenL
   );
 }
 
-function LandlordBucketDialog({
+export function LandlordBucketDialog({
   bucket, win, refetchIntervalMs, onClose, onOpenLandlord, onOpenAgent,
 }: {
   bucket: LandlordPriorityBucket | null;
