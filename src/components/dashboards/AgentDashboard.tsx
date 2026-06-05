@@ -1286,7 +1286,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onOpenChange={setFloatAllocationsOpen}
         onSelectAllocation={() => {
           setFloatAllocationsOpen(false);
-          setFloatPayoutOpen(true);
+          // Defer opening the payout wizard until the allocations dialog has
+          // fully closed. Opening a second Radix dialog in the same tick steals
+          // focus/pointer state from the closing one, which makes the wizard
+          // flash open and immediately close.
+          setTimeout(() => setFloatPayoutOpen(true), 250);
         }}
       />
       <LandlordRecoveryLedger open={recoveryLedgerOpen} onOpenChange={setRecoveryLedgerOpen} />
