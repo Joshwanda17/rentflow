@@ -402,7 +402,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md overflow-hidden border-border/50 glass-card">
+      <DialogContent className="w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none overflow-y-auto border-border/50 glass-card sm:w-full sm:max-w-md sm:h-auto sm:max-h-[85vh] sm:rounded-xl">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
         
         <AnimatePresence mode="wait">
