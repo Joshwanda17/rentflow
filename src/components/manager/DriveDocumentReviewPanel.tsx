@@ -4,12 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   HardDrive, Loader2, RefreshCw, Search, FileText, Image as ImageIcon,
-  IdCard, ReceiptText, Clock, AlertTriangle,
+  IdCard, ReceiptText, Clock, AlertTriangle, Download,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { DriveArchiveLink } from '@/components/documents/DriveArchiveLink';
+import { getSignedUrl } from '@/lib/storageUtils';
+import { toast } from 'sonner';
 
 type ArchiveRow = {
   id: string;
@@ -53,6 +56,8 @@ export function DriveDocumentReviewPanel() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [zipping, setZipping] = useState(false);
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -101,6 +106,90 @@ export function DriveDocumentReviewPanel() {
     tenant_id: rows.filter((r) => r.doc_type === 'tenant_id').length,
     receipt: rows.filter((r) => r.doc_type === 'receipt').length,
   }), [rows]);
+
+  const toggleRow = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+  const toggleAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filtered.forEach((r) => next.delete(r.id));
+      } else {
+        filtered.forEach((r) => next.add(r.id));
+      }
+      return next;
+    });
+  };
+
+  const selectedRows = useMemo(
+    () => rows.filter((r) => selected.has(r.id)),
+    [rows, selected],
+  );
+
+  const downloadZip = async () => {
+    if (selectedRows.length === 0) return;
+    setZipping(true);
+    try {
+      const [{ default: JSZip }] = await Promise.all([import('jszip')]);
+      const zip = new JSZip();
+      const usedNames = new Set<string>();
+      let ok = 0;
+      let failed = 0;
+
+      for (const r of selectedRows) {
+        try {
+          const publicUrl = supabase.storage.from(r.source_bucket).getPublicUrl(r.source_path).data.publicUrl;
+          const url = await getSignedUrl(publicUrl);
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const blob = await res.blob();
+
+          const base = r.file_name || r.source_path.split('/').pop() || `${r.doc_type}-${r.id}`;
+          const folder = r.doc_type === 'tenant_id' ? 'Tenant IDs' : 'Receipts';
+          let name = `${folder}/${base}`;
+          let i = 1;
+          while (usedNames.has(name)) {
+            const dot = base.lastIndexOf('.');
+            const stem = dot > 0 ? base.slice(0, dot) : base;
+            const ext = dot > 0 ? base.slice(dot) : '';
+            name = `${folder}/${stem}-${i}${ext}`;
+            i += 1;
+          }
+          usedNames.add(name);
+          zip.file(name, blob);
+          ok += 1;
+        } catch (e) {
+          console.warn('[DriveDocumentReview] failed to fetch', r.source_path, e);
+          failed += 1;
+        }
+      }
+
+      if (ok === 0) {
+        toast.error('Could not download any of the selected documents.');
+        return;
+      }
+
+      const out = await zip.generateAsync({ type: 'blob' });
+      const href = URL.createObjectURL(out);
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = `welile-documents-${format(new Date(), 'yyyy-MM-dd-HHmm')}.zip`;
+      a.click();
+      URL.revokeObjectURL(href);
+      toast.success(`Exported ${ok} document${ok === 1 ? '' : 's'}${failed ? ` • ${failed} failed` : ''}`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to build ZIP');
+    } finally {
+      setZipping(false);
+    }
+  };
 
   return (
     <Card className="border-border/40 rounded-2xl">
