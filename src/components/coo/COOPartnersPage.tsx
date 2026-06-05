@@ -1765,7 +1765,23 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           });
         });
       }
-      exportToCSV(filtered);
+      // Fetch portfolios for the filtered partners so the CSV can break each
+      // deal out into its own row ("{{PartnerName}} ({{PortfolioName}})").
+      const filteredIds = filtered.map(r => r.id);
+      const exportPortfoliosRaw = await batchedQuery<any>(filteredIds, (batch) =>
+        supabase.from('investor_portfolios')
+          .select('id, investor_id, agent_id, account_name, portfolio_code, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date')
+          .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
+          .in('status', ['active', 'pending_approval', 'pending'])
+          .order('created_at', { ascending: false })
+      );
+      const seenExportPortfolioIds = new Set<string>();
+      const exportPortfolios = (exportPortfoliosRaw as any[]).filter(p => {
+        if (seenExportPortfolioIds.has(p.id)) return false;
+        seenExportPortfolioIds.add(p.id);
+        return true;
+      });
+      exportToCSV(filtered, exportPortfolios);
       toast.success(`Exported ${filtered.length} partner${filtered.length !== 1 ? 's' : ''}`);
     } catch (e: any) {
       console.error('Export failed', e);
