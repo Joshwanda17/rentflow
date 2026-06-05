@@ -314,7 +314,7 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
     if (ports.length === 0) {
       csvRows.push([
         r.name, r.phone, r.email, statusLabel, r.walletBalance,
-        '', '', '', '', joined,
+        '', '', '', '', '', joined,
       ].map(csvEscape).join(','));
       return;
     }
