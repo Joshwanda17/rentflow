@@ -290,7 +290,7 @@ export interface ReceivablesBackfillResult {
 export function useReceivablesBackfill() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (repair = false): Promise<ReceivablesBackfillResult> => {
+    mutationFn: async (repair?: boolean): Promise<ReceivablesBackfillResult> => {
       const { data, error } = await supabase.rpc('backfill_receivables_summary' as any, { p_repair: repair });
       if (error) throw error;
       return data as ReceivablesBackfillResult;
