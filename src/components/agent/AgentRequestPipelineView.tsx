@@ -1204,7 +1204,7 @@ function RequestDetailDrawer({
   });
   return (
     <Drawer open={!!row} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DrawerContent>
+      <DrawerContent className="z-[200]" overlayClassName="z-[190]">
         {row && (
           <div className="mx-auto w-full max-w-md">
             <DrawerHeader className="text-left">
