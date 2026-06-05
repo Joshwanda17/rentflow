@@ -151,6 +151,22 @@ export default function Auth() {
   const deepLinkToken = searchParams.get('token');
   const deepLinkAgent = searchParams.get('agent');
 
+  // If the OTP login fallback guard aborted a sign-in because the resolved
+  // account did not match the established session, let the user know here.
+  useEffect(() => {
+    let mismatch = false;
+    try { mismatch = localStorage.getItem('welile_otp_mismatch') === '1'; } catch { /* ignore */ }
+    if (mismatch) {
+      try { localStorage.removeItem('welile_otp_mismatch'); } catch { /* ignore */ }
+      setLoginMode('otp');
+      toast({
+        title: 'Couldn’t confirm your account',
+        description: 'We signed you out for safety. Please request a new code and try again.',
+        variant: 'destructive',
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (deepLinkPhone && deepLinkToken) {
       setLoginMode('otp');
