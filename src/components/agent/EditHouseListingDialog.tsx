@@ -149,6 +149,35 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
             <Textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </div>
 
+          {/* Walkthrough video link (external — YouTube / Google Drive) */}
+          <div className="space-y-1">
+            <Label htmlFor="edit-video" className="flex items-center gap-1.5">
+              <Video className="h-3.5 w-3.5" /> Walkthrough video (optional)
+            </Label>
+            <Input
+              id="edit-video"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="Paste a YouTube or Google Drive link"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+            />
+            {videoInvalid ? (
+              <p className="text-[11px] text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> Use a YouTube or Google Drive video link.
+              </p>
+            ) : parsedVideo ? (
+              <p className="text-[11px] text-success flex items-center gap-1">
+                <Check className="h-3 w-3" /> {parsedVideo.provider === 'youtube' ? 'YouTube' : 'Google Drive'} video linked.
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Record a short clip (≤30s), upload it to YouTube or Drive, then paste the share link here.
+              </p>
+            )}
+          </div>
+
           {/* Photos: existing (removable) + add new */}
           <div className="space-y-2 pt-1">
             <Label className="text-xs">Photos ({totalPhotos}/{MAX_PHOTOS})</Label>
