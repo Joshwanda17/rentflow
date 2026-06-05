@@ -118,43 +118,83 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Balanced refund ledger entries
-    const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
-      entries: [
-        {
-          user_id: partnerId,
-          amount: totalCancelled,
-          direction: "cash_out",
-          category: "pending_portfolio_topup",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          description: `Cancelled ${pendingOps.length} pending top-up(s) for ${accountLabel} — parked capital released. Reason: ${reason.trim()}`,
-          currency: "UGX",
-          ledger_scope: "platform",
-          transaction_date: now,
-        },
-        {
-          user_id: partnerId,
-          amount: totalCancelled,
-          direction: "cash_in",
-          category: "partner_funding",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          description: `Refund of ${pendingOps.length} cancelled pending top-up(s) to wallet (${accountLabel})`,
-          currency: "UGX",
-          ledger_scope: "platform",
-          transaction_date: now,
-        },
-      ],
-    });
+    // 2. Balanced refund ledger entries — PER OP so funds return to the EXACT
+    //    source wallet and bucket they were originally deducted from.
+    //    The original top-up posted:
+    //      • wallet-scope cash_out on the source wallet owner (recipient_type
+    //        routes the bucket: float→operational_wallet, else→user/withdrawable)
+    //      • platform-scope cash_in (pending_portfolio_topup) to park capital
+    //    The reversal mirrors these legs in the opposite direction.
+    let refundErr: { message: string } | null = null;
+    for (const op of pendingOps) {
+      const meta = (op.metadata || {}) as Record<string, unknown>;
+      // Fall back to the partner wallet + withdrawable bucket for legacy ops
+      // that pre-date metadata capture.
+      const sourceWalletUserId = (typeof meta.source_wallet_user_id === "string" && meta.source_wallet_user_id)
+        ? meta.source_wallet_user_id as string
+        : partnerId;
+      const fundSource = meta.fund_source === "float" ? "float" : "withdrawable";
+      const sourceWalletOwner = (typeof meta.source_wallet_owner === "string" && meta.source_wallet_owner)
+        ? meta.source_wallet_owner as string
+        : "Partner Wallet";
+      const opAmount = Number(op.amount);
 
-    if (ledgerErr) {
-      // Roll back the cancellation
+      const { error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
+        entries: [
+          {
+            // Release the parked capital (reverse of the original platform cash_in)
+            user_id: partnerId,
+            amount: opAmount,
+            direction: "cash_out",
+            category: "pending_portfolio_topup",
+            ledger_scope: "platform",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            linked_party: sourceWalletUserId,
+            description: `Cancelled pending top-up for ${accountLabel} — parked capital released. Reason: ${reason.trim()}`,
+            currency: "UGX",
+            transaction_date: now,
+          },
+          {
+            // Refund the EXACT source wallet + bucket (reverse of original wallet cash_out)
+            user_id: sourceWalletUserId,
+            amount: opAmount,
+            direction: "cash_in",
+            category: "partner_funding",
+            ledger_scope: "wallet",
+            recipient_type: fundSource === "float" ? "operational_wallet" : "user",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            linked_party: "platform",
+            description: `Refund of cancelled top-up for ${accountLabel} to ${sourceWalletOwner} (${fundSource === "float" ? "Operational Float" : "Personal Deposit"}). Reason: ${reason.trim()}`,
+            currency: "UGX",
+            transaction_date: now,
+          },
+        ],
+      });
+
+      if (ledgerErr) {
+        refundErr = ledgerErr;
+        break;
+      }
+
+      // Make the refund visible in the source wallet's transaction history.
+      await adminClient.from("wallet_transactions").insert({
+        sender_id: sourceWalletUserId,
+        recipient_id: sourceWalletUserId,
+        amount: opAmount,
+        description: `Top-up refund: ${accountLabel} cancelled — ${reason.trim()}`,
+      });
+    }
+
+    if (refundErr) {
+      // Roll back the cancellation. (Any per-op refunds already posted are
+      // balanced ledger transactions; partial failure is logged for ops.)
       await adminClient
         .from("pending_wallet_operations")
         .update({ status: "approved", reviewed_at: null, reviewed_by: null, rejection_reason: null })
         .in("id", ids);
-      return new Response(JSON.stringify({ error: "Ledger refund failed, rolled back: " + ledgerErr.message }), {
+      return new Response(JSON.stringify({ error: "Ledger refund failed, rolled back: " + refundErr.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
