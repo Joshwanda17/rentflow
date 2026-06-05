@@ -135,7 +135,10 @@ export function WelileMissionBoard() {
   const fundActivation = summary ? pct(summary.funders_activated, summary.funders_total) : 0;
 
   const metricFor = (s: MissionSummary, key: PriorityKey) => {
-    if (key === 'list') return { big: s.listings_new, label: 'new houses listed', extra: `${s.empty_houses_total.toLocaleString()} empty in stock · ${s.listing_agents} agents` };
+    if (key === 'list') {
+      const combinedEmpty = s.empty_houses_total + (receivables?.unlisted_landlord_count ?? 0);
+      return { big: s.listings_new, label: 'new houses listed', extra: `${combinedEmpty.toLocaleString()} empty in stock · ${s.listing_agents} agents` };
+    }
     if (key === 'place') return { big: s.placements_new, label: 'tenants placed', extra: `${placementRate}% of listed houses occupied` };
     return { big: s.funders_new, label: 'new funders', extra: `${formatUGX(s.funders_amount)} committed · ${fundActivation}% active` };
   };
