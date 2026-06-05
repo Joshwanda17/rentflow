@@ -214,6 +214,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       toast({ title: 'Top-up failed', description: e.message, variant: 'destructive' });
     } finally {
       setSaving(false);
+      setConfirming(false);
     }
   };
 
