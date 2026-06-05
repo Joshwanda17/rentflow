@@ -52,6 +52,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         if (!isMounted) return;
 
+        // OTP login fallback guard: when a session is established right after an
+        // OTP-initiated magic-link redirect, verify the resolved auth user id
+        // (stashed by the OTP login flow) matches the session we actually
+        // landed on. If a stale/mismatched email resolved a different account,
+        // abort and sign out instead of completing sign-in on the wrong account.
+        if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+          let expectedUid: string | null = null;
+          try { expectedUid = localStorage.getItem('welile_otp_expected_uid'); } catch { /* ignore */ }
+          if (expectedUid) {
+            if (expectedUid === session.user.id) {
+              // Matched — consume the guard and continue normally.
+              try { localStorage.removeItem('welile_otp_expected_uid'); } catch { /* ignore */ }
+            } else {
+              // Wrong account resolved — do not complete sign-in.
+              try {
+                localStorage.removeItem('welile_otp_expected_uid');
+                localStorage.setItem('welile_otp_mismatch', '1');
+              } catch { /* ignore */ }
+              setSession(null);
+              setUser(null);
+              // Defer signOut out of the callback — calling auth methods
+              // synchronously here deadlocks the auth client.
+              setTimeout(() => {
+                supabase.auth.signOut().finally(() => { window.location.href = '/auth'; });
+              }, 0);
+              return;
+            }
+          }
+        }
+
         // Only update session state if we actually have a session,
         // or if this is an explicit sign-out. This prevents transient
         // null sessions (e.g., during INITIAL_SESSION before token refresh)
