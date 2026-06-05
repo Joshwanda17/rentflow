@@ -204,6 +204,8 @@ export interface MissionReceivables {
   placed_receivable_count: number;
   empty_receivable_total: number;
   empty_houses_count: number;
+  unlisted_receivable_total: number;
+  unlisted_landlord_count: number;
 }
 
 export function useMissionReceivables(refetchIntervalMs?: number | false) {
