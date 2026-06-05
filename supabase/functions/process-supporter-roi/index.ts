@@ -9,6 +9,11 @@ import {
   resolveManagedProxy,
   dispatchTransactionalEmail,
 } from "../_shared/partnership-emails.ts";
+import {
+  kampalaTodayDateOnly,
+  effectiveNextRoiDateOnly,
+  isPortfolioRoiDue,
+} from "./roiDateGate.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,6 +53,7 @@ Deno.serve(async (req) => {
       totalAmount: 0,
       topupsMerged: 0,
       topupsMergedAmount: 0,
+      topupsSkippedNotDue: 0,
       errors: [] as string[],
     };
 
@@ -416,11 +422,27 @@ Deno.serve(async (req) => {
         // Resolve the portfolio — must be active to receive merged capital
         const { data: portfolio } = await supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, portfolio_code, account_name, investor_id, agent_id, status, roi_percentage')
+          .select('id, investment_amount, portfolio_code, account_name, investor_id, agent_id, status, roi_percentage, next_roi_date, created_at, payout_day')
           .eq('id', portfolioId)
           .maybeSingle();
 
         if (!portfolio || portfolio.status !== 'active') continue;
+
+        // ─── DATE GATE ───────────────────────────────────────────────────────
+        // Only merge parked top-ups for portfolios whose ROI date is actually due
+        // (effective next_roi_date <= today, Africa/Kampala). Future-dated
+        // portfolios keep their top-ups "parked" until their real cycle arrives.
+        // Without this gate the cron merged every portfolio with an open top-up,
+        // regardless of date (the bug that prematurely activated 15 portfolios).
+        if (!isPortfolioRoiDue(portfolio as any)) {
+          results.topupsSkippedNotDue++;
+          console.log(
+            `[process-supporter-roi] Skip top-up merge for ${portfolio.portfolio_code || portfolio.id}: ` +
+            `ROI date ${effectiveNextRoiDateOnly((portfolio as any).next_roi_date, (portfolio as any).created_at, (portfolio as any).payout_day)} ` +
+            `not due yet (today ${kampalaTodayDateOnly()}).`,
+          );
+          continue;
+        }
 
         const supporterId = portfolio.investor_id || portfolio.agent_id;
         // Respect reward pause: skip partners with paused rewards
@@ -611,7 +633,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[process-supporter-roi] Done: ${results.credited} wallet-credited, ${results.reinvested} auto-reinvested, ${results.topupsMerged} top-ups merged (${results.topupsMergedAmount}), total ROI: ${results.totalAmount}`);
+    console.log(`[process-supporter-roi] Done: ${results.credited} wallet-credited, ${results.reinvested} auto-reinvested, ${results.topupsMerged} top-ups merged (${results.topupsMergedAmount}), ${results.topupsSkippedNotDue} portfolios skipped (ROI date not due), total ROI: ${results.totalAmount}`);
 
 
     // Notify managers (fire-and-forget)
