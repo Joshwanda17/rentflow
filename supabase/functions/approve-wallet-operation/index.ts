@@ -134,6 +134,28 @@ Deno.serve(async (req) => {
         // Ensure transaction_group_id is always set so sync_wallet_from_ledger trigger fires
         const effectiveTxGroupId = op.transaction_group_id || crypto.randomUUID();
 
+        // ── CFO ROI override ──────────────────────────────────────────────
+        // The CFO may edit the ROI payout amount on the "pay out to user
+        // wallet" page before disbursing. Only applies to a SINGLE ROI payout
+        // operation (never bulk) to keep batch approvals predictable. Once set,
+        // every downstream ledger leg, wallet credit and notification reads the
+        // overridden `op.amount`, and the persisted row is updated to match.
+        const isSingleRoiOverride =
+          idsToProcess.length === 1 &&
+          override_amount !== undefined &&
+          override_amount !== null &&
+          (op.category === 'roi_payout' || op.category === 'supporter_platform_rewards');
+        if (isSingleRoiOverride) {
+          const newAmt = Number(override_amount);
+          if (!Number.isFinite(newAmt) || newAmt <= 0) {
+            return new Response(
+              JSON.stringify({ error: "Override amount must be a positive number" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          op.amount = Math.round(newAmt);
+        }
+
         const isRoiWalletPayout = op.category === 'roi_payout' || op.category === 'supporter_platform_rewards';
         // Managed-proxy ROI rule: if the partner has an active approved managed
         // proxy assignment, the FULL ROI wallet leg belongs on the proxy agent's
