@@ -70,6 +70,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 localStorage.removeItem('welile_otp_expected_uid');
                 localStorage.setItem('welile_otp_mismatch', '1');
               } catch { /* ignore */ }
+              // Audit the profile/session mismatch with both the expected
+              // (OTP-resolved) and actual (session) user ids. Fire-and-forget.
+              try {
+                const actualUid = session.user.id;
+                supabase.functions.invoke('otp-login', {
+                  body: {
+                    action: 'report_mismatch',
+                    expected_user_id: expectedUid,
+                    actual_user_id: actualUid,
+                  },
+                }).catch(() => { /* logging must not block sign-out */ });
+              } catch { /* ignore */ }
               setSession(null);
               setUser(null);
               // Defer signOut out of the callback — calling auth methods
