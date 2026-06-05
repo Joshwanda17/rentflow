@@ -498,12 +498,14 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 </div>
               </div>
 
-              <DialogFooter className="gap-2 sm:gap-0 mt-4">
+              <DialogFooter className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-2 gap-2 border-t border-border/50 bg-background/95 px-5 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:gap-0">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setConfirming(false)}
                   disabled={loading}
+                  size="lg"
+                  className="w-full sm:w-auto"
                 >
                   Back
                 </Button>
@@ -511,7 +513,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                   type="button"
                   onClick={executeSend}
                   disabled={loading}
-                  className="gap-2"
+                  size="lg"
+                  className="w-full sm:w-auto gap-2"
                 >
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
