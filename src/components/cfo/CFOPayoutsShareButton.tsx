@@ -3,7 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Share2, Loader2, CalendarIcon } from 'lucide-react';
-import { format, startOfMonth, endOfDay, startOfDay } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  endOfDay,
+  startOfDay,
+  startOfWeek,
+  subDays,
+  startOfQuarter,
+  startOfYear,
+} from 'date-fns';
 import { generateCfoPayoutsPdf, shareCfoPayoutsPdf, type CfoPayoutRow } from '@/lib/cfoPayoutsReportPdf';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
