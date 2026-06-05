@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, AlertTriangle, Calculator, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertTriangle, Calculator, RefreshCw, DatabaseZap, Wrench } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,9 +9,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  useMissionReceivables, useReceivablesAudit, type CounterWindow,
+  useMissionReceivables, useReceivablesAudit, useReceivablesBackfill, type CounterWindow,
 } from '@/hooks/useWelileOpsCounters';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
+import { toast } from 'sonner';
 
 const MARKUP = 1.33;
 const WINDOWS: { value: CounterWindow; label: string }[] = [
