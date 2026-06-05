@@ -127,6 +127,26 @@ export function WelileMissionBoard() {
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
 
   const intervalMs = autoRefresh ? 15_000 : false;
+  const queryClient = useQueryClient();
+
+  // Live-refresh Priority 1 (and the funnel) whenever a new empty house / landlord
+  // is listed or a rent request is posted, so the 33% projection reflects immediately.
+  useEffect(() => {
+    const refresh = () => {
+      queryClient.invalidateQueries({ queryKey: ['welile-mission-receivables'] });
+      queryClient.invalidateQueries({ queryKey: ['welile-mission-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['welile-mission-empty-houses'] });
+      queryClient.invalidateQueries({ queryKey: ['welile-receivables-audit'] });
+    };
+    const channel = supabase
+      .channel('mission-priority1-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'house_listings' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'landlords' }, refresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rent_requests' }, refresh)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
   const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(win, showAgents, intervalMs);
   const agents: MissionAgentRow[] = agentData ?? [];
