@@ -6,8 +6,8 @@
  * in `house_listings.video_url`. This keeps the database lean at 40M+ scale while
  * still letting tenants watch a short (≤30s) walkthrough on the listing page.
  *
- * `parseHouseVideo` validates the pasted link and returns an embeddable URL so we
- * can render it inline with an <iframe>. Unsupported links return null.
+ * `parseHouseVideo` validates the pasted link, returns an embeddable URL, and a
+ * canonical storage URL. Unsupported links return null.
  */
 
 export type HouseVideoProvider = 'youtube' | 'google_drive';
@@ -16,8 +16,8 @@ export interface ParsedHouseVideo {
   provider: HouseVideoProvider;
   /** URL safe to drop into an <iframe src>. */
   embedUrl: string;
-  /** The original link, for "open in new tab". */
-  watchUrl: string;
+  /** Normalized canonical URL stored in the database (e.g. youtu.be/{id} or drive.google.com/file/d/{id}/view). */
+  canonicalUrl: string;
 }
 
 function parseYouTube(url: URL): string | null {
