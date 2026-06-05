@@ -35,6 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
+import { FunderQuickActions } from '@/components/supporter/FunderQuickActions';
 
 interface LandlordDashboardProps {
   user: User;
@@ -88,6 +89,14 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             role="landlord"
             secondaryLabel="Withdrawable"
             secondaryValue={formatUGX(wallet?.balance ?? 0)}
+            onOpenWallet={handleViewWallet}
+            quickActions={
+              <FunderQuickActions
+                variant="hero"
+                availableBalance={wallet?.balance ?? 0}
+                onChanged={() => { refreshWallet(); }}
+              />
+            }
           />
 
           {/* Verification Checklist */}
