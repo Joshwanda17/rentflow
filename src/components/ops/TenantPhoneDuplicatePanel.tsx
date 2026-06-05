@@ -12,7 +12,9 @@ import {
   Phone,
   Check,
   EyeOff,
+  Settings2,
 } from 'lucide-react';
+import { TenantPhoneDuplicateSettingsDialog } from './TenantPhoneDuplicateSettingsDialog';
 
 interface DuplicateAlert {
   id: string;
@@ -49,6 +51,7 @@ export function TenantPhoneDuplicatePanel() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showResolved, setShowResolved] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const { data, isFetching, refetch, error } = useQuery({
     queryKey: ['tenant-phone-duplicate-alerts', showResolved],
@@ -137,6 +140,14 @@ export function TenantPhoneDuplicatePanel() {
               className="text-xs"
             >
               {showResolved ? 'Open only' : 'Show all'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSettingsOpen(true)}
+              className="text-xs"
+            >
+              <Settings2 className="h-4 w-4 mr-1" /> Settings
             </Button>
             <Button
               onClick={() => rescan.mutate()}
@@ -230,6 +241,7 @@ export function TenantPhoneDuplicatePanel() {
           </div>
         )}
       </CardContent>
+      <TenantPhoneDuplicateSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </Card>
   );
 }

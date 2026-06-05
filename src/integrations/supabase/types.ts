@@ -15516,6 +15516,36 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_phone_duplicate_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: boolean
+          match_digits: number
+          min_group_size: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: boolean
+          match_digits?: number
+          min_group_size?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: boolean
+          match_digits?: number
+          min_group_size?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       tenant_ratings: {
         Row: {
           created_at: string
