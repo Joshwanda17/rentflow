@@ -122,6 +122,7 @@ export function WelileMissionBoard() {
   const [emptyOpen, setEmptyOpen] = useState(false);
   const [placedOpen, setPlacedOpen] = useState(false);
   const [fundersOpen, setFundersOpen] = useState(false);
+  const [roiPayableOpen, setRoiPayableOpen] = useState(false);
   const [landlordRecvOpen, setLandlordRecvOpen] = useState(false);
   const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
