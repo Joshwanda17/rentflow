@@ -229,6 +229,9 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         onOpenReconciliation={() => openTool('recon')}
         onOpenBreakdown={() => openTool('wallet_breakdown')}
       />
+
+      {/* Drilldown table: every user's Operations Float and Withdrawable */}
+      <WalletBreakdownReadOnly />
       <FinancialOpsPulseStrip
         onSelect={(key) => {
           switch (key) {
