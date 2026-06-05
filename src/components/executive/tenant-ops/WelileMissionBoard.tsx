@@ -1797,6 +1797,7 @@ function ROIPayableDialog({
   const [sortAsc, setSortAsc] = useState<boolean>(true);
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['roi-payable-lines'],
@@ -1857,10 +1858,19 @@ function ROIPayableDialog({
     return rows;
   }, [filtered, sortField, sortAsc]);
 
+  const searched = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter((r) =>
+      (r.account_name?.toLowerCase().includes(q) ?? false) ||
+      (r.portfolio_code?.toLowerCase().includes(q) ?? false)
+    );
+  }, [sorted, searchQuery]);
+
   const total = filtered.reduce((s, r) => s + r.roi_amount, 0);
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(searched.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const paginated = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const paginated = searched.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -1907,8 +1917,17 @@ function ROIPayableDialog({
           <Badge className="text-[10px] text-amber-700 bg-amber-500/10">{formatUGX(total)} payable</Badge>
         </div>
 
-        {/* Sort + page-size bar */}
+        {/* Search + Sort + page-size bar */}
         <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-0 max-w-[220px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              placeholder="Search funder or portfolio…"
+              className="pl-7 h-7 text-xs"
+            />
+          </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-muted-foreground font-medium">Sort by</span>
             <Select
