@@ -6,8 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, Loader2, User, Wallet } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, User, Wallet, Pencil } from 'lucide-react';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { format } from 'date-fns';
 
@@ -30,6 +32,8 @@ export function ROIPayoutQueue() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
+  // CFO-editable payout amounts, keyed by operation id. Empty until the CFO edits.
+  const [editedAmounts, setEditedAmounts] = useState<Record<string, string>>({});
 
   const { data: operations = [], isLoading } = useQuery({
     queryKey: ['cfo-roi-requests', 'coo_approved'],
@@ -71,10 +75,11 @@ export function ROIPayoutQueue() {
   };
 
   const approveMutation = useMutation({
-    mutationFn: async (opId: string) => {
+    mutationFn: async ({ opId, overrideAmount }: { opId: string; overrideAmount?: number }) => {
       const op = operations.find(o => o.id === opId);
+      const finalAmount = overrideAmount ?? op?.amount;
       const { data, error } = await supabase.functions.invoke('approve-wallet-operation', {
-        body: { operation_id: opId, action: 'approve' },
+        body: { operation_id: opId, action: 'approve', ...(overrideAmount !== undefined ? { override_amount: overrideAmount } : {}) },
       });
       if (error) throw error;
       await supabase.from('audit_logs').insert({
@@ -83,7 +88,9 @@ export function ROIPayoutQueue() {
         table_name: 'pending_wallet_operations',
         record_id: opId,
         metadata: {
-          amount: op?.amount,
+          amount: finalAmount,
+          original_amount: op?.amount,
+          amount_edited: overrideAmount !== undefined && overrideAmount !== op?.amount,
           target_user_id: op?.target_wallet_user_id || op?.user_id,
           description: op?.description,
           source: 'send_money_inline',
@@ -153,6 +160,11 @@ export function ROIPayoutQueue() {
         const meta = op.metadata as Record<string, any> | null;
         const isProxy = !!op.target_wallet_user_id;
         const rejReason = rejectionReasons[op.id] || '';
+        const editedRaw = editedAmounts[op.id];
+        const hasEdit = editedRaw !== undefined && editedRaw !== '';
+        const editedAmount = hasEdit ? Math.round(Number(editedRaw)) : op.amount;
+        const editValid = !hasEdit || (Number.isFinite(editedAmount) && editedAmount > 0);
+        const amountChanged = hasEdit && editValid && editedAmount !== op.amount;
 
         return (
           <Card key={op.id} className="border-l-4 border-l-primary">
@@ -171,7 +183,12 @@ export function ROIPayoutQueue() {
                       </>
                     )}
                   </div>
-                  <p className="text-lg font-bold text-primary">{formatUGX(op.amount)}</p>
+                  <p className="text-lg font-bold text-primary">{formatUGX(editValid ? editedAmount : op.amount)}</p>
+                  {amountChanged && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Original: <span className="line-through">{formatUGX(op.amount)}</span>
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {format(new Date(op.created_at), 'dd MMM yyyy, HH:mm')} · Ref: {op.reference_id || '—'}
                   </p>
@@ -183,15 +200,32 @@ export function ROIPayoutQueue() {
               </div>
 
               <div className="space-y-3 pt-2 border-t">
-                <TreasuryImpactBanner payoutAmount={op.amount} />
+                {/* CFO-editable payout amount */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] flex items-center gap-1 text-muted-foreground">
+                    <Pencil className="h-3 w-3" /> Payout amount (editable)
+                  </Label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    value={editedRaw ?? String(op.amount)}
+                    onChange={e => setEditedAmounts(prev => ({ ...prev, [op.id]: e.target.value }))}
+                    className="h-9 text-sm font-mono"
+                  />
+                  {!editValid && (
+                    <p className="text-[11px] text-destructive">Enter a valid amount greater than 0.</p>
+                  )}
+                </div>
+                <TreasuryImpactBanner payoutAmount={editValid ? editedAmount : op.amount} />
                 <div className="flex items-end gap-2 flex-wrap">
                   <Button
                     size="sm"
-                    onClick={() => approveMutation.mutate(op.id)}
-                    disabled={approveMutation.isPending}
+                    onClick={() => approveMutation.mutate({ opId: op.id, overrideAmount: amountChanged ? editedAmount : undefined })}
+                    disabled={approveMutation.isPending || !editValid}
                   >
                     {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
-                    Approve
+                    {amountChanged ? `Approve ${formatUGX(editedAmount)}` : 'Approve'}
                   </Button>
                   <div className="flex-1 min-w-[200px]">
                     <Textarea

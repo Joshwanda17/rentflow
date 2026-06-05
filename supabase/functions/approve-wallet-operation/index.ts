@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { operation_id, action, rejection_reason, bulk_ids, display_currency, payment_method, payment_reference } = body as {
+    const { operation_id, action, rejection_reason, bulk_ids, display_currency, payment_method, payment_reference, override_amount } = body as {
       operation_id?: string;
       action: "approve" | "reject";
       rejection_reason?: string;
@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
       display_currency?: string;
       payment_method?: string;
       payment_reference?: string;
+      override_amount?: number;
     };
 
     // Validate action
@@ -132,6 +133,28 @@ Deno.serve(async (req) => {
       if (action === "approve") {
         // Ensure transaction_group_id is always set so sync_wallet_from_ledger trigger fires
         const effectiveTxGroupId = op.transaction_group_id || crypto.randomUUID();
+
+        // ── CFO ROI override ──────────────────────────────────────────────
+        // The CFO may edit the ROI payout amount on the "pay out to user
+        // wallet" page before disbursing. Only applies to a SINGLE ROI payout
+        // operation (never bulk) to keep batch approvals predictable. Once set,
+        // every downstream ledger leg, wallet credit and notification reads the
+        // overridden `op.amount`, and the persisted row is updated to match.
+        const isSingleRoiOverride =
+          idsToProcess.length === 1 &&
+          override_amount !== undefined &&
+          override_amount !== null &&
+          (op.category === 'roi_payout' || op.category === 'supporter_platform_rewards');
+        if (isSingleRoiOverride) {
+          const newAmt = Number(override_amount);
+          if (!Number.isFinite(newAmt) || newAmt <= 0) {
+            return new Response(
+              JSON.stringify({ error: "Override amount must be a positive number" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          op.amount = Math.round(newAmt);
+        }
 
         const isRoiWalletPayout = op.category === 'roi_payout' || op.category === 'supporter_platform_rewards';
         // Managed-proxy ROI rule: if the partner has an active approved managed
@@ -767,6 +790,7 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
             payment_method: payment_method || null,
             payment_reference: payment_reference || null,
+            amount: op.amount,
           })
           .eq("id", op.id);
 
