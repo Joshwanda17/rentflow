@@ -50,6 +50,8 @@ import type { DateRange } from 'react-day-picker';
 import { useNavigate } from 'react-router-dom';
 
 const WINDOWS: { id: CounterWindow; label: string }[] = [
+  { id: '1d', label: '1 day' },
+  { id: '2d', label: '2 days' },
   { id: '7d', label: '7 days' },
   { id: '30d', label: '30 days' },
   { id: 'all', label: 'All time' },
@@ -64,18 +66,23 @@ function fmtDate(iso: string | null): string {
 }
 
 function windowDateRangeLabel(w: CounterWindow, earliestDate?: string | null): string {
+  const fmtFull = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const fmtShort = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   if (w === 'all') {
     if (earliestDate) {
-      const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-      return `${fmt(new Date(earliestDate))} – Present`;
+      return `${fmtFull(new Date(earliestDate))} – Present`;
     }
     return 'All time';
   }
-  const days = w === '7d' ? 7 : 30;
+  if (w.startsWith('custom:')) {
+    const iso = w.slice('custom:'.length);
+    if (iso) return `${fmtShort(new Date(iso))} – ${fmtShort(new Date())}`;
+    return 'Custom';
+  }
+  const m = /^(\d+)d$/.exec(w);
+  const days = m ? parseInt(m[1], 10) : 7;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  const today = new Date();
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  return `${fmt(since)} – ${fmt(today)}`;
+  return `${fmtShort(since)} – ${fmtShort(new Date())}`;
 }
 
 type PriorityKey = 'list' | 'place' | 'fund';
@@ -115,6 +122,7 @@ export function WelileMissionBoard() {
   const navigate = useNavigate();
   const [win, setWin] = useState<CounterWindow>('7d');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<PriorityKey>('list');
@@ -251,6 +259,38 @@ export function WelileMissionBoard() {
                 {w.label}
               </button>
             ))}
+            <Popover open={customOpen} onOpenChange={setCustomOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  className={cn('flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold transition border-l border-border',
+                    win.startsWith('custom:') ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+                >
+                  <CalendarDays className="h-3 w-3" />
+                  {win.startsWith('custom:')
+                    ? windowDateRangeLabel(win)
+                    : 'Custom'}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <div className="px-3 pt-3 text-[11px] text-muted-foreground">
+                  Pick a start date — range runs from that day up to today.
+                </div>
+                <Calendar
+                  mode="single"
+                  selected={win.startsWith('custom:') ? new Date(win.slice('custom:'.length)) : undefined}
+                  onSelect={(d) => {
+                    if (!d) return;
+                    const start = new Date(d);
+                    start.setHours(0, 0, 0, 0);
+                    setWin(`custom:${start.toISOString()}` as CounterWindow);
+                    setCustomOpen(false);
+                  }}
+                  disabled={(d) => d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()}>
             <RefreshCw className={cn('h-4 w-4', (isFetching || isLoading) && 'animate-spin')} />

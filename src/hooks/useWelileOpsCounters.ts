@@ -6,7 +6,9 @@ import { useCallback } from 'react';
 
 export type CounterLevel = 'continent' | 'country' | 'city' | 'agent';
 export type CounterKind = 'rent' | 'landlord' | 'agent' | 'promissory';
-export type CounterWindow = '7d' | '30d' | 'all';
+// Window may be a preset ('1d', '2d', '7d', '30d', any 'Nd'), 'all', or a
+// custom "since" date encoded as `custom:<ISO>` (range = chosen date → now).
+export type CounterWindow = '1d' | '2d' | '7d' | '30d' | 'all' | `custom:${string}`;
 
 export interface CounterPath {
   continent?: string;
@@ -74,8 +76,16 @@ export function counterLevel(path: CounterPath): CounterLevel {
 
 export function windowToISO(w: CounterWindow): string | null {
   if (w === 'all') return null;
-  const days = w === '7d' ? 7 : 30;
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  if (w.startsWith('custom:')) {
+    const iso = w.slice('custom:'.length);
+    return iso || null;
+  }
+  const m = /^(\d+)d$/.exec(w);
+  if (m) {
+    const days = parseInt(m[1], 10);
+    return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  }
+  return null;
 }
 
 export function useOpsCounterBreakdown(path: CounterPath, win: CounterWindow, refetchIntervalMs?: number | false) {
