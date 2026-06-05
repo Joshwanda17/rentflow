@@ -7,6 +7,7 @@ import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummar
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOOverviewDashboard } from '@/components/cfo/CFOOverviewDashboard';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
+import { CFOPayoutsShareButton } from '@/components/cfo/CFOPayoutsShareButton';
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
@@ -79,8 +80,11 @@ export default function CFODashboardPage() {
                 <ArrowLeft className="h-4 w-4" />
                 Back to Treasury
               </button>
-              <h1 className="text-xl font-bold flex items-center gap-2 mb-1">💳 Pay Out to Any User's Wallet</h1>
-              <p className="text-sm text-muted-foreground mb-4">Search a user by name or phone number, enter the amount, and credit or debit their wallet instantly.</p>
+              <div className="flex items-start justify-between gap-2 flex-wrap mb-1">
+                <h1 className="text-xl font-bold flex items-center gap-2">💳 Pay Out to Any User's Wallet</h1>
+                <CFOPayoutsShareButton />
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">Search a user by name or phone number, enter the amount, and credit or debit their wallet instantly. Use “Share Payouts PDF” to send a list of everyone you've paid out via WhatsApp.</p>
               <DirectCreditTool />
             </div>
           </div>
