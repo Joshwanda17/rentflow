@@ -215,9 +215,17 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
     }
   };
 
+  // Cleared = explicitly verified OR a legacy partner who predates the
+  // self-registration (/partner-onboarding) verification flow. Only
+  // self-registered funders (signup_source = 'funder-onboarding') require an
+  // explicit verification — mirrors the backend gates so the UI never blocks
+  // a partner the server would allow.
+  const funderCleared = !!account &&
+    (!!account.investor_verified_at || account.investor_signup_source !== 'funder-onboarding');
+
   const canSubmit = !saving && parsedAmount >= 1000 && notes.trim().length >= 10 && !insufficient &&
     (paymentMethod === 'wallet' || !!proxyAgent) &&
-    !!account?.investor_verified_at;
+    funderCleared;
 
   const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Wallet; description: string; disabled?: boolean }[] = [
     { value: 'wallet', label: 'Wallet', icon: Wallet, description: 'Partner wallet' },
@@ -237,7 +245,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
         {account && (
           <div className="space-y-4 py-2">
             {/* Verification status banner */}
-            {!account.investor_verified_at && (
+            {!funderCleared && (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                 <div className="text-xs">
@@ -245,9 +253,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
                     <Shield className="h-3 w-3" /> Top-up blocked — funder not verified
                   </p>
                   <p className="text-muted-foreground mt-0.5 leading-relaxed">
-                    {account.investor_signup_source === 'self_registered'
-                      ? `${account.investor_name || 'This partner'} self-registered and is awaiting Partner Ops approval. Verify them before any portfolio top-up.`
-                      : `${account.investor_name || 'This partner'} is not yet verified. Approve in Partner Ops → Verify Funder before any portfolio top-up.`}
+                    {`${account.investor_name || 'This partner'} self-registered and is awaiting Partner Ops approval. Verify them before any portfolio top-up.`}
                   </p>
                 </div>
               </div>
@@ -387,7 +393,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={!canSubmit}>
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-            {!account?.investor_verified_at ? 'Blocked — Funder Not Verified' : 'Submit Top-Up'}
+            {!funderCleared ? 'Blocked — Funder Not Verified' : 'Submit Top-Up'}
           </Button>
         </DialogFooter>
       </DialogContent>

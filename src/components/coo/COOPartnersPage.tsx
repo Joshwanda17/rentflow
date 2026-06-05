@@ -183,6 +183,27 @@ interface PartnerDetail {
   portfolios: PortfolioRow[];
  }
 
+/**
+ * A partner is CLEARED to receive portfolio top-ups / wallet→portfolio
+ * transfers when they are EITHER explicitly verified (`funder_verified_at`)
+ * OR they are a legacy partner who predates the self-registration
+ * (`/partner-onboarding`) verification flow. Only self-registered funders
+ * (`signup_source = 'funder-onboarding'`) require an explicit verification.
+ *
+ * This mirrors `useFunderApprovalStatus` and the server-side gates in the
+ * `coo-create-portfolio` / `coo-invest-for-partner` edge functions and the
+ * `enforce_funder_verified_for_portfolio` DB trigger — so the UI never
+ * blocks a partner the backend would actually allow.
+ */
+const SELF_REG_SOURCE = 'funder-onboarding';
+function isFunderCleared(
+  p?: { funder_verified_at?: string | null; signup_source?: string | null } | null,
+): boolean {
+  if (!p) return false;
+  if (p.funder_verified_at) return true;          // explicitly verified
+  return p.signup_source !== SELF_REG_SOURCE;      // legacy partner → always cleared
+}
+
 interface SummaryData {
   totalPartners: number;
   activePartners: number;
@@ -1710,8 +1731,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   /* ─── Wallet → Portfolio Transfer ─── */
   async function handleWalletToPortfolio() {
     if (!walletToPortfolio || !detailPartner) return;
-    if (!detailPartner.profile.funder_verified_at) {
-      toast.error('Transfer blocked — funder not verified. Approve in Partner Ops → Verify Funder.');
+    if (!isFunderCleared(detailPartner.profile)) {
+      toast.error('Transfer blocked — self-registered funder not verified. Approve in Partner Ops → Verify Funder.');
       return;
     }
     const amt = Number(walletToPortfolioAmount);
@@ -2242,9 +2263,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                         <Badge variant="outline" className="text-[10px] border-success/40 text-success bg-success/10 gap-1">
                           <ShieldCheck className="h-3 w-3" /> Verified
                         </Badge>
-                      ) : (
+                      ) : detailPartner.profile.signup_source === SELF_REG_SOURCE ? (
                         <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 bg-amber-500/10 gap-1">
                           <Shield className="h-3 w-3" /> Unverified
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground gap-1">
+                          <ShieldCheck className="h-3 w-3" /> Legacy partner
                         </Badge>
                       )}
                     </div>
@@ -2261,7 +2286,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                         <Shield className="h-3 w-3 inline mr-1" />Suspended: {detailPartner.profile.frozen_reason || 'No reason given'}
                       </p>
                     )}
-                    {!detailPartner.profile.funder_verified_at && (
+                    {!isFunderCleared(detailPartner.profile) && (
                       <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 flex items-start gap-2">
                         <Shield className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                         <div className="text-[11px]">
@@ -2269,9 +2294,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                             Top-ups blocked — funder not verified
                           </p>
                           <p className="text-muted-foreground mt-0.5">
-                            {detailPartner.profile.signup_source === 'self_registered'
-                              ? 'Self-registered partner. Approve in Partner Ops → Verify Funder before any portfolio top-up.'
-                              : 'Partner not verified. Approve in Partner Ops → Verify Funder before any portfolio top-up.'}
+                            Self-registered partner. Approve in Partner Ops → Verify Funder before any portfolio top-up.
                           </p>
                         </div>
                       </div>
@@ -3324,7 +3347,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           {walletToPortfolio && detailPartner && (
             <div className="space-y-4 py-2">
               {/* Verification status banner */}
-              {!detailPartner.profile.funder_verified_at && (
+              {!isFunderCleared(detailPartner.profile) && (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5">
                   <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <div className="text-xs">
@@ -3332,9 +3355,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                       <Shield className="h-3 w-3" /> Transfer blocked — funder not verified
                     </p>
                     <p className="text-muted-foreground mt-0.5 leading-relaxed">
-                      {detailPartner.profile.signup_source === 'self_registered'
-                        ? `${detailPartner.profile.full_name} self-registered and is awaiting Partner Ops approval. Verify them before any wallet → portfolio transfer.`
-                        : `${detailPartner.profile.full_name} is not yet verified. Approve in Partner Ops → Verify Funder before any wallet → portfolio transfer.`}
+                      {`${detailPartner.profile.full_name} self-registered and is awaiting Partner Ops approval. Verify them before any wallet → portfolio transfer.`}
                     </p>
                   </div>
                 </div>
@@ -3534,10 +3555,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <Button variant="outline" onClick={() => setWalletToPortfolio(null)}>Cancel</Button>
             <Button
               onClick={handleWalletToPortfolio}
-              disabled={walletToPortfolioSaving || !detailPartner?.profile?.funder_verified_at || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10 || (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo)}
+              disabled={walletToPortfolioSaving || !isFunderCleared(detailPartner?.profile) || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10 || (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo)}
             >
               {walletToPortfolioSaving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-              {!detailPartner?.profile?.funder_verified_at
+              {!isFunderCleared(detailPartner?.profile)
                 ? 'Blocked — Funder Not Verified'
                 : walletTransferMethod === 'proxy_agent'
                   ? `Charge ${proxyAgentInfo?.agentName || 'Proxy Agent'}'s Wallet`
