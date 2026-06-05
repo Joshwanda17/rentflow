@@ -363,6 +363,7 @@ function AppRoutes() {
           <Route path="/my-watchlist" element={<MyWatchlist />} />
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="/receivables-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto', 'cfo', 'coo', 'ceo']}><ReceivablesAudit /></RoleGuard>} />
           <Route path="/deposit-history" element={<DepositHistory />} />
           <Route path="/deposit-history/:id" element={<DepositVerificationDetail />} />
           <Route path="/welile-homes" element={<WelileHomes />} />
