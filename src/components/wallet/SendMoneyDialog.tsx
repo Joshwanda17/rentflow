@@ -856,7 +856,10 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                   </AnimatePresence>
                 </motion.div>
 
-                <motion.div variants={itemVariants}>
+                <motion.div
+                  variants={itemVariants}
+                  className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-2 border-t border-border/50 bg-background/95 px-5 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+                >
                   <DialogFooter className="gap-2 sm:gap-0">
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Button type="button" variant="outline" onClick={() => handleClose(false)}>
