@@ -126,6 +126,49 @@ export async function generateCfoPayoutsPdf(
     },
   });
 
+  // ── Recipient Breakdown ──
+  if (breakdown && breakdown.length > 0) {
+    const finalY = (doc as any).lastAutoTable?.finalY || y + 20;
+    let by = finalY + 10;
+
+    // Section title
+    doc.setTextColor(...THEME_PRIMARY_DARK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Recipient Breakdown', margin, by);
+    by += 2;
+
+    doc.setDrawColor(...THEME_PRIMARY);
+    doc.setLineWidth(0.5);
+    doc.line(margin, by, pageWidth - margin, by);
+    by += 5;
+
+    const bHead = [['#', 'Recipient', 'Payouts', 'Total Amount']];
+    const bBody = breakdown.map((b, i) => [
+      String(i + 1),
+      b.recipient,
+      String(b.count),
+      fmtUGX(b.total),
+    ]);
+
+    autoTable(doc, {
+      head: bHead,
+      body: bBody,
+      startY: by,
+      margin: { left: margin, right: margin },
+      tableWidth: pageWidth - margin * 2,
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
+      headStyles: { fillColor: THEME_PRIMARY_DARK, textColor: 255, fontSize: 8, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: THEME_STRIPE },
+      columnStyles: {
+        0: { cellWidth: 8, halign: 'right' },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 24, halign: 'center' },
+        3: { halign: 'right', fontStyle: 'bold', cellWidth: 36 },
+      },
+    });
+  }
+
   // ── Footer ──
   const pageCount = (doc as any).internal.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
