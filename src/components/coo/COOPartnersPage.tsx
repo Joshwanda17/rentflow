@@ -2263,9 +2263,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                         <Badge variant="outline" className="text-[10px] border-success/40 text-success bg-success/10 gap-1">
                           <ShieldCheck className="h-3 w-3" /> Verified
                         </Badge>
-                      ) : (
+                      ) : detailPartner.profile.signup_source === SELF_REG_SOURCE ? (
                         <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 bg-amber-500/10 gap-1">
                           <Shield className="h-3 w-3" /> Unverified
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground gap-1">
+                          <ShieldCheck className="h-3 w-3" /> Legacy partner
                         </Badge>
                       )}
                     </div>
@@ -2282,7 +2286,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                         <Shield className="h-3 w-3 inline mr-1" />Suspended: {detailPartner.profile.frozen_reason || 'No reason given'}
                       </p>
                     )}
-                    {!detailPartner.profile.funder_verified_at && (
+                    {!isFunderCleared(detailPartner.profile) && (
                       <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 flex items-start gap-2">
                         <Shield className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                         <div className="text-[11px]">
@@ -2290,9 +2294,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                             Top-ups blocked — funder not verified
                           </p>
                           <p className="text-muted-foreground mt-0.5">
-                            {detailPartner.profile.signup_source === 'self_registered'
-                              ? 'Self-registered partner. Approve in Partner Ops → Verify Funder before any portfolio top-up.'
-                              : 'Partner not verified. Approve in Partner Ops → Verify Funder before any portfolio top-up.'}
+                            Self-registered partner. Approve in Partner Ops → Verify Funder before any portfolio top-up.
                           </p>
                         </div>
                       </div>
