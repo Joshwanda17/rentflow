@@ -279,7 +279,7 @@ function buildPayoutCell(nextRoiDate: string | null, createdAt: string, payoutDa
  *   named "{{PartnerName}} ({{PortfolioName}})".
  * - Joined date is human-readable; ROI Mode uses spaces (no underscores).
  */
-function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
+function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[], returnsByPortfolio: Map<string, number>) {
   const supporterIdSet = new Set(rows.map(r => r.id));
   const byOwner = new Map<string, ExportPortfolio[]>();
   portfolios.forEach(p => {
@@ -321,11 +321,13 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
 
     ports.forEach(p => {
       const name = ports.length > 1 ? `${r.name} (${exportPortfolioName(p)})` : r.name;
+      const ledgerReturns = returnsByPortfolio.get(p.id);
+      const returns = ledgerReturns != null && ledgerReturns > 0 ? ledgerReturns : (p.total_roi_earned ?? 0);
       csvRows.push([
         name, r.phone, r.email, statusLabel, r.walletBalance,
         p.investment_amount ?? 0,
         p.roi_percentage ?? '',
-        p.total_roi_earned ?? 0,
+        returns,
         humanRoiMode(p.roi_mode),
         buildPayoutCell(p.next_roi_date, p.created_at, p.payout_day ?? 15),
         joined,
