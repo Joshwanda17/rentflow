@@ -1283,6 +1283,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         .upload(path, optimized.file, { cacheControl: '86400', upsert: true });
       if (error) throw error;
       const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+      // Offsite backup: mirror the tenant ID photo into the Google Drive vault.
+      archiveToDrive('house-images', path, 'tenant_id');
       // Best-effort: also set on tenant profile avatar if missing
       if (tenantUserId) {
         try {
