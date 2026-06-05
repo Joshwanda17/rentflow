@@ -27,6 +27,7 @@ import {
   Eye, Navigation, Copy, MessageCircle, Video,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { parseHouseVideo } from '@/lib/houseVideoUrl';
 
 const SITE_URL = 'https://welilereceipts.com';
 
