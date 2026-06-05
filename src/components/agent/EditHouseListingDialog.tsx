@@ -11,7 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { Loader2, X, AlertTriangle, Video, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
-import { parseHouseVideo } from '@/lib/houseVideoUrl';
+import { parseHouseVideo, normalizeHouseVideoUrl } from '@/lib/houseVideoUrl';
 import { FieldError } from '@/components/shared/FormFeedback';
 
 interface EditHouseListingDialogProps {
@@ -91,7 +91,7 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
         description: description.trim() || null,
         monthly_rent: monthlyRent,
         image_urls: imageUrls,
-        video_url: trimmedVideo || null,
+        video_url: normalizeHouseVideoUrl(trimmedVideo) || null,
       };
       if (calc) {
         updates.access_fee = calc.accessFee;
