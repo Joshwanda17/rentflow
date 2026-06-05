@@ -4,6 +4,7 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { optimizeImage } from '@/lib/imageOptimizer';
+import { archiveToDrive } from '@/lib/archiveToDrive';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
