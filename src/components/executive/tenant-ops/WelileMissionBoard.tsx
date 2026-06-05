@@ -18,6 +18,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import { TenantBalanceEditPanel } from '@/components/executive/tenant-ops/TenantBalanceEditPanel';
 import { ListingPhotoGallery } from '@/components/executive/tenant-ops/ListingPhotoGallery';
+import { LandlordPriorityClassification } from '@/components/executive/tenant-ops/LandlordPriorityClassification';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
