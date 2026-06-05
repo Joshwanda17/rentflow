@@ -498,6 +498,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     />
                   </div>
                 </div>
+                <ExistingTenantPhoneNotice
+                  match={existingTenantByPhone}
+                  checking={checkingTenantPhone}
+                  onUse={useExistingTenantMatch}
+                />
               </div>
               )}
 
