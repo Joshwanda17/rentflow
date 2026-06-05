@@ -53,6 +53,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   const [partnerWallet, setPartnerWallet] = useState<{ withdrawable: number; float: number } | null>(null);
   const [proxyAgent, setProxyAgent] = useState<ProxyAgentInfo | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   // "Any user" funding source
   const [searchTerm, setSearchTerm] = useState('');
