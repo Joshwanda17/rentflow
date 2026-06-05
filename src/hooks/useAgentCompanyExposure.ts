@@ -51,7 +51,7 @@ export function useAgentCompanyExposure() {
       const [rentRes, chargesRes] = await Promise.all([
         supabase
           .from('rent_requests')
-          .select('id, tenant_id, rent_amount, total_repayment, amount_repaid, status')
+          .select('id, tenant_id, rent_amount, total_repayment, amount_repaid, status, agent_payment_status')
           .eq('agent_id', user.id)
           .in('status', HISTORICAL),
         supabase
@@ -72,10 +72,14 @@ export function useAgentCompanyExposure() {
         const disbursed = Number(r.rent_amount || 0);
         const owed = Number(r.total_repayment || 0);
         const repaid = Number(r.amount_repaid || 0);
+        // Tenants the agent marked "Not Paying" (inactive) are excluded from the
+        // live outstanding figure and the active cycle count — their house has
+        // been freed back to Priority 1, so they no longer count against the book.
+        const isInactive = ((r as any).agent_payment_status ?? 'paying') === 'not_paying';
         lifetimeDisbursed += disbursed;
         lifetimeRepaid += repaid;
         if (r.tenant_id) tenants.add(r.tenant_id);
-        if (ACTIVE.includes(r.status as string)) {
+        if (ACTIVE.includes(r.status as string) && !isInactive) {
           activeCycleCount += 1;
           outstandingCycles += Math.max(0, owed - repaid);
         }
