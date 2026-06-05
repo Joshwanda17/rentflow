@@ -790,6 +790,7 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
             payment_method: payment_method || null,
             payment_reference: payment_reference || null,
+            amount: op.amount,
           })
           .eq("id", op.id);
 
