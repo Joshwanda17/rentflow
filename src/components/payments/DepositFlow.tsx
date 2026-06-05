@@ -37,6 +37,7 @@ import {
 import { parseSMS } from '@/utils/smsParser';
 import { cn } from '@/lib/utils';
 import { validateDepositReference } from '@/lib/depositReferenceValidator';
+import { archiveToDrive } from '@/lib/archiveToDrive';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 
