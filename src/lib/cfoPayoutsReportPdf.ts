@@ -14,6 +14,11 @@ export interface CfoPayoutRow {
   performedBy?: string;
 }
 
+export interface CfoDateRange {
+  startDate: Date;
+  endDate: Date;
+}
+
 const fmtUGX = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n);
 
@@ -38,6 +43,7 @@ async function loadLogoBase64(): Promise<string | null> {
 export async function generateCfoPayoutsPdf(
   rows: CfoPayoutRow[],
   generatedAt: Date = new Date(),
+  dateRange?: CfoDateRange,
 ): Promise<Blob> {
   const { default: jsPDF } = await import('jspdf');
   const autoTableMod: any = await import('jspdf-autotable');
@@ -61,14 +67,25 @@ export async function generateCfoPayoutsPdf(
   doc.text('Wallet Payouts Report', logo ? margin + 20 : margin, 14);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(`Generated ${format(generatedAt, 'dd MMM yyyy, HH:mm')}`, logo ? margin + 20 : margin, 21);
+  const generatedLine = `Generated ${format(generatedAt, 'dd MMM yyyy, HH:mm')}`;
+  doc.text(generatedLine, logo ? margin + 20 : margin, 21);
 
-  const total = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-
+  // Show date range below header if provided
   let y = 40;
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
+
+  if (dateRange) {
+    doc.text(
+      `Period: ${format(dateRange.startDate, 'dd MMM yyyy')} – ${format(dateRange.endDate, 'dd MMM yyyy')}`,
+      margin,
+      y,
+    );
+    y += 5;
+  }
+
+  const total = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   doc.text(`${rows.length} payout${rows.length === 1 ? '' : 's'}`, margin, y);
   doc.text(`Total: ${fmtUGX(total)}`, pageWidth - margin, y, { align: 'right' });
   y += 4;
