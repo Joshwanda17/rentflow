@@ -8,6 +8,7 @@ import {
   resolveManagedProxy,
   dispatchTransactionalEmail,
 } from "../_shared/partnership-emails.ts";
+import { buildPartnershipTopupRequest } from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
