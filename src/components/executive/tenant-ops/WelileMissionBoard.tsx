@@ -255,6 +255,19 @@ export function WelileMissionBoard() {
                       <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
                     </Button>
                   )}
+                  {p.key === 'list' && landlordBreakdown && (
+                    <button
+                      type="button"
+                      onClick={() => setLandlordBucket('priority1')}
+                      className="mt-2 w-full rounded-lg border border-[#9234EA]/30 bg-[#9234EA]/10 px-2 py-1.5 text-left hover:ring-1 hover:ring-[#9234EA]/40 transition"
+                    >
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-[#9234EA] leading-none">Landlords by agents · Priority 1</p>
+                      <p className="text-sm font-bold text-[#9234EA] tabular-nums leading-tight mt-0.5">{landlordBreakdown.priority1_empty.toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground leading-none">
+                        {landlordBreakdown.p1_listed_empty.toLocaleString()} listed-empty · {landlordBreakdown.p1_unlisted.toLocaleString()} not listed yet →
+                      </p>
+                    </button>
+                  )}
                   {p.key === 'place' && (
                     <Button
                       variant="outline"
@@ -264,6 +277,19 @@ export function WelileMissionBoard() {
                     >
                       <Users className="h-3.5 w-3.5" /> View placed tenants
                     </Button>
+                  )}
+                  {p.key === 'place' && landlordBreakdown && (
+                    <button
+                      type="button"
+                      onClick={() => setLandlordBucket('priority2')}
+                      className="mt-2 w-full rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-left hover:ring-1 hover:ring-emerald-500/40 transition"
+                    >
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 leading-none">Landlords by agents · Priority 2</p>
+                      <p className="text-sm font-bold text-emerald-700 tabular-nums leading-tight mt-0.5">{landlordBreakdown.priority2_placed.toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground leading-none">
+                        {landlordBreakdown.total_landlords > 0 ? Math.round((landlordBreakdown.priority2_placed / landlordBreakdown.total_landlords) * 100) : 0}% of {landlordBreakdown.total_landlords.toLocaleString()} registered →
+                      </p>
+                    </button>
                   )}
                   {p.key === 'fund' && (
                     <Button
