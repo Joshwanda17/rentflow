@@ -264,6 +264,44 @@ export function useReceivablesAudit(win: CounterWindow, limit = 12, enabled = tr
   });
 }
 
+export interface ReceivablesBackfillMismatch {
+  id: string;
+  computed_at: string;
+  source_table: string;
+  stored_recorded: number;
+  expected_recorded: number;
+  stored_estimated: number;
+  expected_estimated: number;
+}
+
+export interface ReceivablesBackfillResult {
+  checked: number;
+  passed: number;
+  failed: number;
+  repaired: number;
+  repair_mode: boolean;
+  fresh_snapshot_added: boolean;
+  mismatches: ReceivablesBackfillMismatch[];
+  run_at: string;
+}
+
+/** One-click backfill: rebuilds welile_receivables_summary derived totals from
+ *  scratch and verifies every past snapshot against the live formula. */
+export function useReceivablesBackfill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (repair = false): Promise<ReceivablesBackfillResult> => {
+      const { data, error } = await supabase.rpc('backfill_receivables_summary' as any, { p_repair: repair });
+      if (error) throw error;
+      return data as ReceivablesBackfillResult;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['welile-mission-receivables'] });
+      qc.invalidateQueries({ queryKey: ['welile-receivables-audit'] });
+    },
+  });
+}
+
 export function useMissionLandlordReceivables(
   enabled: boolean,
   from?: string | null,
