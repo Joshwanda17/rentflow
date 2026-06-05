@@ -122,6 +122,7 @@ export function WelileMissionBoard() {
   const [emptyOpen, setEmptyOpen] = useState(false);
   const [placedOpen, setPlacedOpen] = useState(false);
   const [fundersOpen, setFundersOpen] = useState(false);
+  const [roiPayableOpen, setRoiPayableOpen] = useState(false);
   const [landlordRecvOpen, setLandlordRecvOpen] = useState(false);
   const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
@@ -411,14 +412,21 @@ export function WelileMissionBoard() {
                     </button>
                   )}
                   {p.key === 'fund' && (
-                    <div className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1.5">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">ROI payable · next cycle</p>
+                    <button
+                      type="button"
+                      onClick={() => setRoiPayableOpen(true)}
+                      className="mt-2 w-full rounded-lg bg-amber-500/10 px-2 py-1.5 text-left hover:ring-1 hover:ring-amber-500/40 transition"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">ROI payable · next cycle</p>
+                        <ChevronRight className="h-3 w-3 text-amber-700 shrink-0" />
+                      </div>
                       <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatUGX(roiPayable?.total ?? 0)}</p>
                       <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
                         {(roiPayable?.count ?? 0).toLocaleString()} portfolio{(roiPayable?.count ?? 0) !== 1 ? 's' : ''} due
-                        {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''}
+                        {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''} · tap for line items
                       </p>
-                    </div>
+                    </button>
                   )}
                   {p.key === 'fund' && (
                     <Button
@@ -621,6 +629,12 @@ export function WelileMissionBoard() {
         refetchIntervalMs={intervalMs}
         onClose={() => setFundersOpen(false)}
         onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
+      />
+
+      <ROIPayableDialog
+        open={roiPayableOpen}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setRoiPayableOpen(false)}
       />
 
       <LandlordReceivablesDialog
@@ -1746,6 +1760,151 @@ function FundersDialog({
                       </button>
                     </div>
                   )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ===== ROI payable (next cycle) drill-down dialog =====
+
+type ROIPeriodKey = '1d' | '7d' | 'custom' | '1m' | '1y';
+
+interface ROIPayableLine {
+  id: string;
+  portfolio_code: string;
+  account_name: string | null;
+  investment_amount: number;
+  roi_percentage: number;
+  next_roi_date: string;
+  roi_amount: number;
+}
+
+function ROIPayableDialog({
+  open, refetchIntervalMs, onClose,
+}: {
+  open: boolean;
+  refetchIntervalMs?: number | false;
+  onClose: () => void;
+}) {
+  const [period, setPeriod] = useState<ROIPeriodKey>('7d');
+  const [customDays, setCustomDays] = useState<number>(14);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['roi-payable-lines'],
+    enabled: open,
+    refetchInterval: open ? refetchIntervalMs : false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('investor_portfolios')
+        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, next_roi_date')
+        .eq('status', 'active')
+        .not('next_roi_date', 'is', null)
+        .order('next_roi_date', { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map((p: any): ROIPayableLine => ({
+        id: p.id,
+        portfolio_code: p.portfolio_code,
+        account_name: p.account_name,
+        investment_amount: Number(p.investment_amount) || 0,
+        roi_percentage: Number(p.roi_percentage) || 0,
+        next_roi_date: p.next_roi_date,
+        roi_amount: (Number(p.investment_amount) || 0) * (Number(p.roi_percentage) || 0) / 100,
+      }));
+    },
+  });
+
+  const periods: { key: ROIPeriodKey; label: string; days?: number }[] = [
+    { key: '1d', label: 'Next 1 day', days: 1 },
+    { key: '7d', label: 'Next 7 days', days: 7 },
+    { key: 'custom', label: 'Custom days' },
+    { key: '1m', label: 'Next month', days: 30 },
+    { key: '1y', label: 'Next 1 year', days: 365 },
+  ];
+
+  const windowDays = period === 'custom'
+    ? Math.max(1, Math.min(3650, Math.round(customDays || 0)))
+    : (periods.find((p) => p.key === period)?.days ?? 7);
+
+  const filtered = useMemo(() => {
+    const rows = data ?? [];
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date(start); end.setDate(end.getDate() + windowDays);
+    return rows.filter((r) => {
+      const d = new Date(r.next_roi_date);
+      return d >= start && d <= end;
+    });
+  }, [data, windowDays]);
+
+  const total = filtered.reduce((s, r) => s + r.roi_amount, 0);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="text-base flex items-center gap-2">
+            <Handshake className="h-4 w-4 text-amber-600" /> ROI payable — next cycle
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Returns due to funders by payout date. Pick a window to see each portfolio line, its amount and earliest payout date.
+          </p>
+        </DialogHeader>
+
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="flex rounded-lg border border-border overflow-hidden flex-wrap">
+            {periods.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => setPeriod(p.key)}
+                className={cn('px-2.5 py-1 text-[10px] font-semibold transition whitespace-nowrap',
+                  period === p.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {period === 'custom' && (
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                min={1}
+                max={3650}
+                value={customDays}
+                onChange={(e) => setCustomDays(Number(e.target.value))}
+                className="h-8 w-20 text-xs"
+              />
+              <span className="text-[11px] text-muted-foreground">days</span>
+            </div>
+          )}
+        </div>
+
+        <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5">
+          <Badge variant="outline" className="text-[10px]">{filtered.length} portfolio{filtered.length !== 1 ? 's' : ''} due · next {windowDays} day{windowDays !== 1 ? 's' : ''}</Badge>
+          <Badge className="text-[10px] text-amber-700 bg-amber-500/10">{formatUGX(total)} payable</Badge>
+        </div>
+
+        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No ROI payable in the next {windowDays} day{windowDays !== 1 ? 's' : ''}.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {filtered.map((r) => (
+                <li key={r.id} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm truncate flex-1">{r.account_name || 'Funder'}</span>
+                    <span className="text-sm font-bold text-amber-700 tabular-nums shrink-0">{formatUGX(r.roi_amount)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                    <span>Portfolio {r.portfolio_code}</span>
+                    <span>{r.roi_percentage}% of {formatUGX(r.investment_amount)}</span>
+                    <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> Payout {fmtDate(r.next_roi_date)}</span>
+                  </div>
                 </li>
               ))}
             </ul>
