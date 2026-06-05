@@ -416,7 +416,7 @@ Deno.serve(async (req) => {
         // Resolve the portfolio — must be active to receive merged capital
         const { data: portfolio } = await supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, portfolio_code, account_name, investor_id, agent_id, status')
+          .select('id, investment_amount, portfolio_code, account_name, investor_id, agent_id, status, roi_percentage')
           .eq('id', portfolioId)
           .maybeSingle();
 
