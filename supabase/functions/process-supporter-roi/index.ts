@@ -558,6 +558,37 @@ Deno.serve(async (req) => {
             metadata: { portfolio_id: portfolio.id, total_merged: totalPending, new_capital: newAmount },
           });
 
+          // 5b. Partnership Top-Up email — same template used by the manual approval flow.
+          //     Sent to the partner whose capital just activated automatically at the ROI cycle.
+          if (partnerId) {
+            try {
+              const { data: partnerProfile } = await supabase
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', partnerId)
+                .maybeSingle();
+              if (partnerProfile?.email) {
+                dispatchTransactionalEmail(
+                  supabaseUrl,
+                  supabaseServiceKey,
+                  buildPartnershipTopupRequest({
+                    recipientEmail: partnerProfile.email,
+                    partnerName: partnerProfile.full_name,
+                    partnerId,
+                    txGroupId: mergeGroupId, // unique per auto-merge batch
+                    topupAmount: totalPending,
+                    previousPortfolioValue: currentAmount,
+                    newTotalPartnershipValue: newAmount,
+                    roiPercentage: Number((portfolio as any).roi_percentage) || undefined,
+                  }),
+                  "process-supporter-roi",
+                );
+              }
+            } catch (emailErr) {
+              console.warn('[process-supporter-roi] Top-up email lookup failed (non-blocking):', emailErr);
+            }
+          }
+
           // Update reinvest map if applicable
           if (autoReinvestMap.has(supporterId) && autoReinvestMap.get(supporterId)!.portfolio_id === portfolio.id) {
             autoReinvestMap.get(supporterId)!.current_amount = newAmount;
