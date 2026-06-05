@@ -213,7 +213,7 @@ export function WelileMissionBoard() {
                     <span className="text-2xl font-bold leading-none">{m.big.toLocaleString()}</span>
                     <span className="text-[11px] text-muted-foreground">{m.label}</span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>
+                  {m.extra && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
                   {p.key === 'place' && receivables && (
                     <div className="mt-2 rounded-lg bg-emerald-500/10 px-2 py-1.5">
                       <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 leading-none">Receivables A/C</p>
