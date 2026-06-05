@@ -105,10 +105,25 @@ Deno.serve(async (req) => {
     const profile = profileMatches.find(p => p.email && !p.email.includes("@welile.")) || profileMatches[0];
     const userId = profile.id;
 
-    // Step 3: Generate a magic link / session via admin API
-    // We use generateLink to create a magic link, then exchange it
-    const email = profile.email || `${digits}@welile.user`;
-    
+    // Step 3: Resolve the CANONICAL auth account for this user id.
+    // The profiles.email column can drift from auth.users.email (e.g. the user
+    // changed their login email). Generating a magic link from the (possibly
+    // stale) profiles.email would either fail or silently create a brand-new
+    // empty account — bringing up the wrong account. We must use the email
+    // that auth.users actually has for THIS user id so OTP always lands on the
+    // real account linked to that profile.
+    const { data: authUserData, error: authUserError } = await adminClient.auth.admin.getUserById(userId);
+    if (authUserError || !authUserData?.user?.email) {
+      console.error("[otp-login] getUserById error:", authUserError);
+      return new Response(JSON.stringify({ error: "Could not locate your account. Please try password login." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const email = authUserData.user.email;
+
+    // Step 3b: Generate a magic link / session via admin API against the
+    // canonical auth email so we always log into the real linked account.
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
       type: "magiclink",
       email: email,
