@@ -20678,6 +20678,8 @@ export type Database = {
           empty_receivable_total: number
           placed_receivable_count: number
           placed_receivable_total: number
+          unlisted_landlord_count: number
+          unlisted_receivable_total: number
         }[]
       }
       welile_mission_summary: {
