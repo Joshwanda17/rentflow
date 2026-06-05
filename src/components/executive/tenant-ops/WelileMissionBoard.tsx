@@ -42,7 +42,7 @@ import {
   Target, Home, Users, Handshake, RefreshCw, ChevronRight, Phone,
   Search, Lightbulb, TrendingUp, ArrowRight, Building2, MapPin, ListChecks,
   ShieldCheck, BedDouble, UserPlus, Crosshair, Check, Loader2, Network, Award, Zap,
-  ChevronsUpDown, X, Image as ImageIcon, CalendarDays, Info,
+  ChevronsUpDown, X, Image as ImageIcon, CalendarDays, Info, ChevronLeft, ArrowUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -1793,6 +1793,10 @@ function ROIPayableDialog({
 }) {
   const [period, setPeriod] = useState<ROIPeriodKey>('7d');
   const [customDays, setCustomDays] = useState<number>(14);
+  const [sortField, setSortField] = useState<'roi_amount' | 'next_roi_date' | 'account_name' | 'roi_percentage'>('next_roi_date');
+  const [sortAsc, setSortAsc] = useState<boolean>(true);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(20);
 
   const { data, isLoading } = useQuery({
     queryKey: ['roi-payable-lines'],
@@ -1840,7 +1844,23 @@ function ROIPayableDialog({
     });
   }, [data, windowDays]);
 
+  const sorted = useMemo(() => {
+    const rows = [...filtered];
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'roi_amount') cmp = a.roi_amount - b.roi_amount;
+      else if (sortField === 'roi_percentage') cmp = a.roi_percentage - b.roi_percentage;
+      else if (sortField === 'next_roi_date') cmp = new Date(a.next_roi_date).getTime() - new Date(b.next_roi_date).getTime();
+      else if (sortField === 'account_name') cmp = (a.account_name || '').localeCompare(b.account_name || '');
+      return sortAsc ? cmp : -cmp;
+    });
+    return rows;
+  }, [filtered, sortField, sortAsc]);
+
   const total = filtered.reduce((s, r) => s + r.roi_amount, 0);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginated = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -1859,7 +1879,7 @@ function ROIPayableDialog({
             {periods.map((p) => (
               <button
                 key={p.key}
-                onClick={() => setPeriod(p.key)}
+                onClick={() => { setPeriod(p.key); setPage(1); }}
                 className={cn('px-2.5 py-1 text-[10px] font-semibold transition whitespace-nowrap',
                   period === p.key ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
               >
@@ -1887,14 +1907,64 @@ function ROIPayableDialog({
           <Badge className="text-[10px] text-amber-700 bg-amber-500/10">{formatUGX(total)} payable</Badge>
         </div>
 
-        <ScrollArea className="max-h-[60vh] px-4 pb-4">
+        {/* Sort + page-size bar */}
+        <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground font-medium">Sort by</span>
+            <Select
+              value={sortField}
+              onValueChange={(v) => { setSortField(v as typeof sortField); setPage(1); }}
+            >
+              <SelectTrigger className="h-7 text-[11px] w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="next_roi_date" className="text-[11px]">Payout date</SelectItem>
+                <SelectItem value="roi_amount" className="text-[11px]">ROI amount</SelectItem>
+                <SelectItem value="account_name" className="text-[11px]">Funder name</SelectItem>
+                <SelectItem value="roi_percentage" className="text-[11px]">ROI %</SelectItem>
+              </SelectContent>
+            </Select>
+            <button
+              type="button"
+              onClick={() => setSortAsc((v) => !v)}
+              className="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted/40 transition"
+              title={sortAsc ? 'Ascending' : 'Descending'}
+            >
+              {sortAsc ? (
+                <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+              ) : (
+                <ArrowUpDown className="h-3.5 w-3.5 text-primary rotate-180" />
+              )}
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <span className="text-[10px] text-muted-foreground font-medium">Show</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}
+            >
+              <SelectTrigger className="h-7 text-[11px] w-16">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100].map((n) => (
+                  <SelectItem key={n} value={String(n)} className="text-[11px]">{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-[10px] text-muted-foreground font-medium">per page</span>
+          </div>
+        </div>
+
+        <ScrollArea className="max-h-[55vh] px-4 pb-4">
           {isLoading ? (
             <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
-          ) : filtered.length === 0 ? (
+          ) : paginated.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No ROI payable in the next {windowDays} day{windowDays !== 1 ? 's' : ''}.</p>
           ) : (
             <ul className="space-y-1.5">
-              {filtered.map((r) => (
+              {paginated.map((r) => (
                 <li key={r.id} className="rounded-lg border border-border bg-card p-3">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm truncate flex-1">{r.account_name || 'Funder'}</span>
@@ -1910,6 +1980,35 @@ function ROIPayableDialog({
             </ul>
           )}
         </ScrollArea>
+
+        {/* Pagination footer */}
+        {sorted.length > 0 && (
+          <div className="px-4 pb-4 flex items-center justify-between gap-2">
+            <span className="text-[10px] text-muted-foreground">
+              {sorted.length.toLocaleString()} total · page {safePage} of {totalPages}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-[10px]"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+              >
+                <ChevronLeft className="h-3.5 w-3.5 mr-0.5" /> Prev
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-[10px]"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+              >
+                Next <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
