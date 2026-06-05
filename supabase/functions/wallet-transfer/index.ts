@@ -360,6 +360,14 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
+    // SMS to recipient: "You have received UGX ... from <sender name>" (fire-and-forget)
+    if (recipientProfile?.phone) {
+      const smsMessage =
+        `WELILE: You have received ${formattedAmount} from ${senderLabel}. ` +
+        `New funds are now in your wallet. Ref: ${transferReference}. Thank you for using WELILE.`;
+      sendSMS(recipientProfile.phone, smsMessage).catch(() => {});
+    }
+
 
     return new Response(
       JSON.stringify({
