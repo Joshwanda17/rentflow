@@ -160,6 +160,11 @@ export function ROIPayoutQueue() {
         const meta = op.metadata as Record<string, any> | null;
         const isProxy = !!op.target_wallet_user_id;
         const rejReason = rejectionReasons[op.id] || '';
+        const editedRaw = editedAmounts[op.id];
+        const hasEdit = editedRaw !== undefined && editedRaw !== '';
+        const editedAmount = hasEdit ? Math.round(Number(editedRaw)) : op.amount;
+        const editValid = !hasEdit || (Number.isFinite(editedAmount) && editedAmount > 0);
+        const amountChanged = hasEdit && editValid && editedAmount !== op.amount;
 
         return (
           <Card key={op.id} className="border-l-4 border-l-primary">
@@ -178,7 +183,12 @@ export function ROIPayoutQueue() {
                       </>
                     )}
                   </div>
-                  <p className="text-lg font-bold text-primary">{formatUGX(op.amount)}</p>
+                  <p className="text-lg font-bold text-primary">{formatUGX(editValid ? editedAmount : op.amount)}</p>
+                  {amountChanged && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Original: <span className="line-through">{formatUGX(op.amount)}</span>
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {format(new Date(op.created_at), 'dd MMM yyyy, HH:mm')} · Ref: {op.reference_id || '—'}
                   </p>
@@ -190,15 +200,32 @@ export function ROIPayoutQueue() {
               </div>
 
               <div className="space-y-3 pt-2 border-t">
-                <TreasuryImpactBanner payoutAmount={op.amount} />
+                {/* CFO-editable payout amount */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] flex items-center gap-1 text-muted-foreground">
+                    <Pencil className="h-3 w-3" /> Payout amount (editable)
+                  </Label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    value={editedRaw ?? String(op.amount)}
+                    onChange={e => setEditedAmounts(prev => ({ ...prev, [op.id]: e.target.value }))}
+                    className="h-9 text-sm font-mono"
+                  />
+                  {!editValid && (
+                    <p className="text-[11px] text-destructive">Enter a valid amount greater than 0.</p>
+                  )}
+                </div>
+                <TreasuryImpactBanner payoutAmount={editValid ? editedAmount : op.amount} />
                 <div className="flex items-end gap-2 flex-wrap">
                   <Button
                     size="sm"
-                    onClick={() => approveMutation.mutate(op.id)}
-                    disabled={approveMutation.isPending}
+                    onClick={() => approveMutation.mutate({ opId: op.id, overrideAmount: amountChanged ? editedAmount : undefined })}
+                    disabled={approveMutation.isPending || !editValid}
                   >
                     {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
-                    Approve
+                    {amountChanged ? `Approve ${formatUGX(editedAmount)}` : 'Approve'}
                   </Button>
                   <div className="flex-1 min-w-[200px]">
                     <Textarea
