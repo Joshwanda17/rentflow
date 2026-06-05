@@ -152,6 +152,11 @@ export function QuickRegisterTenantDialog({
                 disabled={loading}
                 className="h-12"
               />
+              <ExistingTenantPhoneNotice
+                match={existingTenantByPhone}
+                checking={checkingTenantPhone}
+                onUse={useExistingTenantMatch}
+              />
             </div>
 
             <div className="space-y-2">
