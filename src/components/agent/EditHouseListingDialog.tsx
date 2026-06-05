@@ -8,11 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { HouseListing, calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, X, AlertTriangle } from 'lucide-react';
+import { Loader2, X, AlertTriangle, Video, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
-import { Video, Check } from 'lucide-react';
 import { parseHouseVideo } from '@/lib/houseVideoUrl';
+import { FieldError } from '@/components/shared/FormFeedback';
 
 interface EditHouseListingDialogProps {
   open: boolean;
