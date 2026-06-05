@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, Users, ShieldCheck, Banknote, Pause, Play, MinusCircle, ChevronRight, Scale, AlertTriangle, CheckCircle2, ArrowRightLeft, BanknoteArrowDown } from 'lucide-react';
+import { Wallet, Users, ShieldCheck, Banknote, Pause, Play, MinusCircle, ChevronRight, Scale, AlertTriangle, CheckCircle2, ArrowRightLeft } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useFinOpsAutoRefresh, setFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { Switch } from '@/components/ui/switch';
