@@ -160,15 +160,19 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
               id="edit-video"
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
+              onBlur={() => {
+                if (trimmedVideo.length > 0 && !parsedVideo) {
+                  toast({ title: 'Invalid video link', description: 'Only YouTube or Google Drive links are accepted.', variant: 'destructive' });
+                }
+              }}
               placeholder="Paste a YouTube or Google Drive link"
               inputMode="url"
               autoCapitalize="none"
               autoCorrect="off"
+              className={videoInvalid && videoTouched ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
             {videoInvalid ? (
-              <p className="text-[11px] text-destructive flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> Use a YouTube or Google Drive video link.
-              </p>
+              <FieldError message="Only YouTube or Google Drive links are accepted. Paste a valid share link or leave empty." />
             ) : parsedVideo ? (
               <p className="text-[11px] text-success flex items-center gap-1">
                 <Check className="h-3 w-3" /> {parsedVideo.provider === 'youtube' ? 'YouTube' : 'Google Drive'} video linked.
