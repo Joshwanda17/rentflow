@@ -10,6 +10,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+function formatPhoneInternational(phone: string): string {
+  const digits = (phone || "").replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return `+${digits}`;
+}
+
+async function sendSMS(phone: string, message: string): Promise<void> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) return;
+
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+
+  const formattedPhone = formatPhoneInternational(phone);
+  if (!formattedPhone) return;
+
+  try {
+    const body = new URLSearchParams({
+      username,
+      to: formattedPhone,
+      message,
+      from: "WELILE",
+    });
+    await fetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        apiKey,
+        Accept: "application/json",
+      },
+      body: body.toString(),
+    });
+  } catch (err) {
+    console.error("[wallet-transfer] SMS send failed:", err);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -316,6 +359,14 @@ Deno.serve(async (req) => {
         payload: { title: "💰 Transfer Received", body: `UGX ${amount.toLocaleString()} received in your wallet`, url: "/dashboard/tenant", type: "success" },
       }),
     }).catch(() => {});
+
+    // SMS to recipient: "You have received UGX ... from <sender name>" (fire-and-forget)
+    if (recipientProfile?.phone) {
+      const smsMessage =
+        `WELILE: You have received ${formattedAmount} from ${senderLabel}. ` +
+        `New funds are now in your wallet. Ref: ${transferReference}. Thank you for using WELILE.`;
+      sendSMS(recipientProfile.phone, smsMessage).catch(() => {});
+    }
 
 
     return new Response(
