@@ -210,6 +210,7 @@ Deno.serve(async (req) => {
         before: beforeValues,
         after: { auth_email: null, auth_phone: null, profile_email: null, profile_phone: null, full_name: null },
         hard_delete: true,
+        dependency_purge: purgeSummary,
       },
     });
 
