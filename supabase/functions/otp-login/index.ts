@@ -10,19 +10,79 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+  const origin = req.headers.get("origin") || "";
+  const ipAddress =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    req.headers.get("cf-connecting-ip") ||
+    null;
+  const userAgent = req.headers.get("user-agent") || null;
+
+  // Fire-and-forget audit writer. Never throws — logging must not block or
+  // break the OTP sign-in flow.
+  const writeAudit = async (entry: {
+    phone?: string | null;
+    resolved_user_id?: string | null;
+    outcome: string;
+    reason?: string | null;
+    stage?: string | null;
+    expected_user_id?: string | null;
+    actual_user_id?: string | null;
+    metadata?: Record<string, unknown>;
+  }) => {
+    try {
+      await adminClient.from("otp_login_audit").insert([{
+        phone: entry.phone ?? null,
+        resolved_user_id: entry.resolved_user_id ?? null,
+        outcome: entry.outcome,
+        reason: entry.reason ?? null,
+        stage: entry.stage ?? null,
+        expected_user_id: entry.expected_user_id ?? null,
+        actual_user_id: entry.actual_user_id ?? null,
+        origin: origin || null,
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        metadata: (entry.metadata ?? {}) as Record<string, unknown>,
+      }]);
+    } catch (e) {
+      console.warn("[otp-login] audit write failed:", e instanceof Error ? e.message : e);
+    }
+  };
+
   try {
-    const { phone, otp } = await req.json();
+    const body = await req.json();
+
+    // Mode B: client-reported profile/session mismatch after the magic-link
+    // redirect resolved the wrong account. Logged with both the expected and
+    // actual user ids so the divergence is fully auditable.
+    if (body?.action === "report_mismatch") {
+      await writeAudit({
+        phone: body.phone ?? null,
+        resolved_user_id: body.expected_user_id ?? null,
+        outcome: "session_mismatch",
+        stage: "client_session_guard",
+        reason: "Resolved auth user id did not match the established session user id; sign-in aborted on client.",
+        expected_user_id: body.expected_user_id ?? null,
+        actual_user_id: body.actual_user_id ?? null,
+      });
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { phone, otp } = body;
 
     if (!phone || !otp) {
+      await writeAudit({ phone: phone ?? null, outcome: "rejected", stage: "validation", reason: "Phone and OTP are required" });
       return new Response(JSON.stringify({ error: "Phone and OTP are required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     // Clean phone digits
     const digits = phone.replace(/\D/g, "");
@@ -55,12 +115,14 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (expiredRecord) {
+        await writeAudit({ phone, outcome: "failed", stage: "otp_verify", reason: "Code expired. Please request a new one." });
         return new Response(JSON.stringify({ error: "Code expired. Please request a new one." }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
+      await writeAudit({ phone, outcome: "failed", stage: "otp_verify", reason: "Invalid code." });
       return new Response(JSON.stringify({ error: "Invalid code. Please check and try again." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -69,6 +131,7 @@ Deno.serve(async (req) => {
 
     // Check attempts
     if (otpRecord.attempts >= 5) {
+      await writeAudit({ phone, outcome: "rejected", stage: "rate_limit", reason: "Too many attempts." });
       return new Response(JSON.stringify({ error: "Too many attempts. Please request a new code." }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -95,6 +158,7 @@ Deno.serve(async (req) => {
       .limit(5);
 
     if (!profileMatches?.length) {
+      await writeAudit({ phone, outcome: "no_account", stage: "profile_lookup", reason: "No account found with this phone number." });
       return new Response(JSON.stringify({ error: "No account found with this phone number. Please sign up first." }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -115,6 +179,7 @@ Deno.serve(async (req) => {
     const { data: authUserData, error: authUserError } = await adminClient.auth.admin.getUserById(userId);
     if (authUserError || !authUserData?.user?.email) {
       console.error("[otp-login] getUserById error:", authUserError);
+      await writeAudit({ phone, resolved_user_id: userId, outcome: "error", stage: "auth_resolve", reason: "Could not locate canonical auth account for resolved profile." });
       return new Response(JSON.stringify({ error: "Could not locate your account. Please try password login." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -134,6 +199,7 @@ Deno.serve(async (req) => {
 
     if (linkError || !linkData) {
       console.error("[otp-login] generateLink error:", linkError);
+      await writeAudit({ phone, resolved_user_id: userId, outcome: "error", stage: "generate_link", reason: "Failed to create login session." });
       return new Response(JSON.stringify({ error: "Failed to create login session. Please try password login." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -151,6 +217,15 @@ Deno.serve(async (req) => {
       .eq("id", userId);
 
     console.log(`[otp-login] OTP login successful for user ${userId}`);
+
+    await writeAudit({
+      phone,
+      resolved_user_id: userId,
+      outcome: "success",
+      stage: "magic_link_issued",
+      reason: "Magic link issued for canonical auth account.",
+      metadata: { profile_matches: profileMatches.length, email_was_placeholder: email.includes("@welile.") },
+    });
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -170,6 +245,7 @@ Deno.serve(async (req) => {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     console.error("[otp-login] Error:", msg);
+    await writeAudit({ outcome: "error", stage: "exception", reason: msg });
     return new Response(JSON.stringify({ error: "Service temporarily unavailable" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
