@@ -59,6 +59,15 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
+function windowDateRangeLabel(w: CounterWindow): string {
+  if (w === 'all') return 'All time';
+  const days = w === '7d' ? 7 : 30;
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const today = new Date();
+  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return `${fmt(since)} – ${fmt(today)}`;
+}
+
 type PriorityKey = 'list' | 'place' | 'fund';
 
 const PRIORITIES: {
