@@ -20777,6 +20777,20 @@ export type Database = {
           rent_funded_count: number
         }[]
       }
+      welile_receivables_audit: {
+        Args: { p_limit?: number; p_since?: string }
+        Returns: {
+          annual_projection: number
+          daily_projected: number
+          label: string
+          monthly_rent: number
+          region: string
+          rent_bucket: string
+          rent_plus_markup: number
+          src: string
+          unit_id: string
+        }[]
+      }
       writedown_historical_drift: {
         Args: { p_amount: number; p_reason: string; p_review_id: string }
         Returns: string
