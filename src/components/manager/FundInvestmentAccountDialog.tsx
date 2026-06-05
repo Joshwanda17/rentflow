@@ -151,6 +151,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       setSearchTerm('');
       setSearchResults([]);
     }
+    setConfirming(false);
     onOpenChange(isOpen);
   };
 
