@@ -18379,6 +18379,10 @@ export type Database = {
         Args: { _email: string }
         Returns: Json
       }
+      backfill_receivables_summary: {
+        Args: { p_repair?: boolean }
+        Returns: Json
+      }
       begin_ledger_maintenance: {
         Args: { p_minutes?: number; p_reason?: string }
         Returns: string

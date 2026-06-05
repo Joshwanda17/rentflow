@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, AlertTriangle, Calculator, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertTriangle, Calculator, RefreshCw, DatabaseZap, Wrench } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,9 +9,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  useMissionReceivables, useReceivablesAudit, type CounterWindow,
+  useMissionReceivables, useReceivablesAudit, useReceivablesBackfill, type CounterWindow,
 } from '@/hooks/useWelileOpsCounters';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
+import { toast } from 'sonner';
 
 const MARKUP = 1.33;
 const WINDOWS: { value: CounterWindow; label: string }[] = [
@@ -39,9 +40,25 @@ export default function ReceivablesAudit() {
   const [win, setWin] = useState<CounterWindow>('all');
   const { data: rec, isLoading: recLoading, refetch: refetchRec, isFetching: recFetching } = useMissionReceivables(win);
   const { data: rows = [], isLoading: rowsLoading, refetch: refetchRows, isFetching: rowsFetching } = useReceivablesAudit(win, 12);
+  const backfill = useReceivablesBackfill();
+  const report = backfill.data;
 
   const refreshAll = () => { refetchRec(); refetchRows(); };
   const fetching = recFetching || rowsFetching;
+
+  const runBackfill = (repair: boolean) => {
+    backfill.mutate(repair, {
+      onSuccess: (res) => {
+        refreshAll();
+        toast.success(
+          res.failed === 0
+            ? `Backfill complete — ${res.checked} snapshots verified, all match the live formula.`
+            : `Backfill complete — ${res.failed} of ${res.checked} snapshots drifted${repair ? ` (${res.repaired} repaired)` : ''}.`,
+        );
+      },
+      onError: (e: unknown) => toast.error(e instanceof Error ? e.message : 'Backfill failed'),
+    });
+  };
 
   // Aggregate reconciliation (all numbers derive from the same RPC the dashboard uses)
   const recordedTotal = rec ? rec.empty_receivable_total + rec.unlisted_receivable_total : 0;
@@ -223,6 +240,87 @@ export default function ReceivablesAudit() {
             </CardContent>
           </Card>
         )}
+
+        {/* One-click backfill / verification */}
+        <Card className="border-primary/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <DatabaseZap className="h-4 w-4 text-primary" />
+              Rebuild &amp; verify snapshot history
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Re-derives every saved snapshot's recorded &amp; estimated totals from its stored
+              components using the live formula (rent × 1.33 × 12), flags any that drifted, and
+              records a fresh snapshot anchored to current data.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => runBackfill(false)} disabled={backfill.isPending}>
+                <DatabaseZap className={`h-4 w-4 mr-1.5 ${backfill.isPending ? 'animate-pulse' : ''}`} />
+                {backfill.isPending ? 'Running…' : 'Run backfill & verify'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => runBackfill(true)}
+                disabled={backfill.isPending || (!!report && report.failed === 0)}
+              >
+                <Wrench className="h-4 w-4 mr-1.5" />
+                Run &amp; repair drift
+              </Button>
+            </div>
+
+            {report && (
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  <span>Checked: <b className="tabular-nums">{report.checked}</b></span>
+                  <span className="text-emerald-700">Passed: <b className="tabular-nums">{report.passed}</b></span>
+                  <span className={report.failed > 0 ? 'text-destructive' : ''}>
+                    Failed: <b className="tabular-nums">{report.failed}</b>
+                  </span>
+                  {report.repaired > 0 && <span>Repaired: <b className="tabular-nums">{report.repaired}</b></span>}
+                  <span className="text-muted-foreground">+1 fresh snapshot</span>
+                </div>
+
+                {report.failed === 0 ? (
+                  <p className="text-xs text-emerald-700 inline-flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Every past snapshot reconciles with the live formula.
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="text-xs text-destructive inline-flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" /> Drifted snapshots
+                      {report.repair_mode ? ' (now repaired)' : ' — run "Run & repair drift" to fix'}:
+                    </p>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Computed at</TableHead>
+                            <TableHead>Source</TableHead>
+                            <TableHead className="text-right">Stored est.</TableHead>
+                            <TableHead className="text-right">Expected est.</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {report.mismatches.map((m) => (
+                            <TableRow key={m.id}>
+                              <TableCell className="text-xs">{new Date(m.computed_at).toLocaleString()}</TableCell>
+                              <TableCell className="text-xs">{m.source_table}</TableCell>
+                              <TableCell className="text-right tabular-nums text-xs">{formatUGX(m.stored_estimated)}</TableCell>
+                              <TableCell className="text-right tabular-nums text-xs font-medium">{formatUGX(m.expected_estimated)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <p className="text-[11px] text-muted-foreground text-center pb-6">
           Read-only audit · figures recompute live from house_listings + landlords · access limited to operations roles.

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
 export type CounterLevel = 'continent' | 'country' | 'city' | 'agent';
@@ -259,6 +260,44 @@ export function useReceivablesAudit(win: CounterWindow, limit = 12, enabled = tr
       const { data, error } = await supabase.rpc('welile_receivables_audit' as any, { p_since: since, p_limit: limit });
       if (error) throw error;
       return (data ?? []) as ReceivableAuditRow[];
+    },
+  });
+}
+
+export interface ReceivablesBackfillMismatch {
+  id: string;
+  computed_at: string;
+  source_table: string;
+  stored_recorded: number;
+  expected_recorded: number;
+  stored_estimated: number;
+  expected_estimated: number;
+}
+
+export interface ReceivablesBackfillResult {
+  checked: number;
+  passed: number;
+  failed: number;
+  repaired: number;
+  repair_mode: boolean;
+  fresh_snapshot_added: boolean;
+  mismatches: ReceivablesBackfillMismatch[];
+  run_at: string;
+}
+
+/** One-click backfill: rebuilds welile_receivables_summary derived totals from
+ *  scratch and verifies every past snapshot against the live formula. */
+export function useReceivablesBackfill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (repair?: boolean): Promise<ReceivablesBackfillResult> => {
+      const { data, error } = await supabase.rpc('backfill_receivables_summary' as any, { p_repair: repair });
+      if (error) throw error;
+      return data as ReceivablesBackfillResult;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['welile-mission-receivables'] });
+      qc.invalidateQueries({ queryKey: ['welile-receivables-audit'] });
     },
   });
 }
