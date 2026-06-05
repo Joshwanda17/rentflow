@@ -40,9 +40,25 @@ export default function ReceivablesAudit() {
   const [win, setWin] = useState<CounterWindow>('all');
   const { data: rec, isLoading: recLoading, refetch: refetchRec, isFetching: recFetching } = useMissionReceivables(win);
   const { data: rows = [], isLoading: rowsLoading, refetch: refetchRows, isFetching: rowsFetching } = useReceivablesAudit(win, 12);
+  const backfill = useReceivablesBackfill();
+  const report = backfill.data;
 
   const refreshAll = () => { refetchRec(); refetchRows(); };
   const fetching = recFetching || rowsFetching;
+
+  const runBackfill = (repair: boolean) => {
+    backfill.mutate(repair, {
+      onSuccess: (res) => {
+        refreshAll();
+        toast.success(
+          res.failed === 0
+            ? `Backfill complete — ${res.checked} snapshots verified, all match the live formula.`
+            : `Backfill complete — ${res.failed} of ${res.checked} snapshots drifted${repair ? ` (${res.repaired} repaired)` : ''}.`,
+        );
+      },
+      onError: (e: unknown) => toast.error(e instanceof Error ? e.message : 'Backfill failed'),
+    });
+  };
 
   // Aggregate reconciliation (all numbers derive from the same RPC the dashboard uses)
   const recordedTotal = rec ? rec.empty_receivable_total + rec.unlisted_receivable_total : 0;
