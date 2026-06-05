@@ -19,7 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useIsFetching } from '@tanstack/react-query';
 
 type Bucket = 'withdrawable' | 'float';
-type Mode = 'user_to_user' | 'error_correction';
+type Mode = 'user_to_user' | 'error_correction' | 'same_user';
 type MoveStep = 'idle' | 'posting' | 'refreshing' | 'done';
 
 /** Matches every wallet/balance/ledger-backed panel query. */
@@ -158,7 +158,8 @@ export function FinOpsWalletMovePanel() {
     : 0;
   const validAmount = Number.isInteger(amountNum) && amountNum > 0 && amountNum <= 500_000_000;
   const enough = !!source && amountNum <= sourceAvail;
-  const destOk = mode === 'error_correction' || (!!dest && dest.id !== source?.id);
+  const destOk =
+    mode !== 'user_to_user' || (!!dest && dest.id !== source?.id);
   const canSubmit =
     !!source && destOk && validAmount && enough && reason.trim().length >= 10 && !submitting;
 
@@ -176,6 +177,48 @@ export function FinOpsWalletMovePanel() {
     if (!source) return;
     setSubmitting(true);
     setStep('posting');
+
+    // Same-user Float → Withdrawable reclassification uses the dedicated,
+    // balanced edge function (never overdraws, leaves total balance unchanged).
+    if (mode === 'same_user') {
+      const { data, error } = await invokeEdgeFunction<{
+        message: string;
+        float_after: number;
+        withdrawable_after: number;
+      }>('admin-float-to-withdrawable', {
+        body: {
+          target_user_id: source.id,
+          amount: amountNum,
+          reason: reason.trim(),
+        },
+        errorTitle: 'Move failed',
+      });
+      setSubmitting(false);
+      setConfirmOpen(false);
+      if (error || !data) {
+        setStep('idle');
+        return;
+      }
+      toast.success(data.message);
+      setResult({
+        message: data.message,
+        amount: amountNum,
+        mode: 'same_user',
+        reference_id: '—',
+        source: {
+          name: source.full_name || 'User',
+          withdrawable_after: data.withdrawable_after,
+          float_after: data.float_after,
+        },
+        dest: { name: source.full_name || 'User' },
+      });
+      refreshStartedRef.current = false;
+      setStep('refreshing');
+      queryClient.invalidateQueries({ predicate: (q) => isWalletQuery(q.queryKey) });
+      reset();
+      return;
+    }
+
     const { data, error } = await invokeEdgeFunction<MoveResult>('finops-wallet-move', {
       body: {
         mode,
