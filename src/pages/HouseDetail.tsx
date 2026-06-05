@@ -94,6 +94,7 @@ export default function HouseDetail() {
     ? `${OG_FUNCTION_URL}?c=${listing.short_code}`
     : `${OG_FUNCTION_URL}?id=${id}`;
   const images = listing?.image_urls || [];
+  const houseVideo = parseHouseVideo(listing?.video_url);
   const lightboxImages = useMemo(() =>
     images.map((url, i) => ({ id: `detail-${i}`, image_url: url })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
