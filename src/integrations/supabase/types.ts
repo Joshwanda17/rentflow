@@ -20674,9 +20674,13 @@ export type Database = {
       welile_mission_receivables: {
         Args: { p_since?: string }
         Returns: {
+          avg_known_monthly: number
           earliest_date: string
           empty_houses_count: number
           empty_receivable_total: number
+          estimated_full_total: number
+          known_rent_count: number
+          missing_rent_count: number
           placed_receivable_count: number
           placed_receivable_total: number
           unlisted_landlord_count: number
