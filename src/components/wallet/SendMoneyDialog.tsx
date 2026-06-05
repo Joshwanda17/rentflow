@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { 
   Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles, UserCheck, UserX,
   Mail, UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
-  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, Lock, AlertTriangle
+  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, AlertTriangle, ArrowRight
 } from 'lucide-react';
 
 interface SendMoneyDialogProps {
@@ -556,24 +556,29 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 initial="hidden"
                 animate="visible"
               >
-                {(wallet?.float_balance || 0) > 0 && (
-                  <motion.div
-                    variants={itemVariants}
-                    className="flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5"
-                  >
-                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <div className="text-xs text-foreground space-y-0.5 min-w-0">
-                      <p className="font-semibold text-amber-700 dark:text-amber-300">
-                        Part of your balance is locked float
-                      </p>
-                      <p className="text-muted-foreground leading-snug">
-                        {formatCurrency(wallet?.float_balance || 0)} is operational / company float and
-                        cannot be transferred wallet-to-wallet. You can only send your transferable
-                        balance of <span className="font-medium text-foreground">{formatCurrency(wallet?.withdrawable || 0)}</span>.
+                {/* Balance summary — one calm card, big number, subtle locked notice */}
+                <motion.div
+                  variants={itemVariants}
+                  className="rounded-2xl border border-border/60 bg-muted/40 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Available to send
+                    </span>
+                    <span className="text-base font-bold text-success">
+                      {formatCurrency(wallet?.withdrawable || 0)}
+                    </span>
+                  </div>
+                  {(wallet?.float_balance || 0) > 0 && (
+                    <div className="mt-3 flex items-start gap-2 border-t border-border/50 pt-3">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        {formatCurrency(wallet?.float_balance || 0)} operational float is locked and
+                        cannot be transferred.
                       </p>
                     </div>
-                  </motion.div>
-                )}
+                  )}
+                </motion.div>
                 <motion.div variants={itemVariants} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor={mode === 'phone' ? 'phone' : 'email'} className="flex items-center gap-2">
@@ -782,42 +787,30 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     <Coins className="h-3.5 w-3.5 text-muted-foreground" />
                     Amount (UGX)
                   </Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    placeholder="Enter amount"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    inputMode="numeric"
-                    className="h-14 bg-background/50 border-border/50 focus:border-primary/50 transition-all text-xl font-semibold"
-                    min="1"
-                    required
-                  />
-                  <div className="rounded-lg border border-border/50 bg-background/40 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-success" />
-                        Transferable balance
-                      </span>
-                      <span className="text-sm font-bold text-success">
-                        {formatCurrency(wallet?.withdrawable || 0)}
-                      </span>
-                    </div>
-                    {(wallet?.float_balance || 0) > 0 && (
-                      <div className="flex items-center justify-between border-t border-border/40 pt-2">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <Lock className="h-3 w-3" />
-                          Operational float (locked)
-                        </span>
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {formatCurrency(wallet?.float_balance || 0)}
-                        </span>
-                      </div>
-                    )}
-                    <p className="text-[11px] leading-snug text-muted-foreground">
-                      You can only send your <span className="font-medium text-foreground">withdrawable</span> balance.
-                      Operational / float funds are company money and cannot be transferred wallet-to-wallet.
-                    </p>
+                  <div className="relative flex items-center">
+                    <span className="pointer-events-none absolute left-4 text-lg font-bold text-muted-foreground">
+                      USh
+                    </span>
+                    <Input
+                      id="amount"
+                      type="number"
+                      placeholder="0"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      inputMode="numeric"
+                      className="h-16 pl-16 bg-background/50 border-2 border-border/50 focus:border-primary transition-all text-3xl font-bold"
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-center justify-between px-1 pt-0.5">
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Sparkles className="h-3.5 w-3.5 text-success" />
+                      Transferable balance
+                    </span>
+                    <span className="text-xs font-bold text-success">
+                      {formatCurrency(wallet?.withdrawable || 0)}
+                    </span>
                   </div>
                 </motion.div>
 
@@ -883,7 +876,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         type="submit"
                         disabled={sendDisabled}
                         size="lg"
-                        className="w-full sm:w-auto gap-2"
+                        className="w-full sm:w-auto gap-2 font-bold"
                         // Mirror the inline validation text exactly so the
                         // hover tooltip matches searching / not-found / self
                         // / invalid / insufficient-balance cases verbatim.
@@ -905,6 +898,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                           <Send className="h-4 w-4" />
                         )}
                         Send Money
+                        {!loading && <ArrowRight className="h-4 w-4" />}
                       </Button>
                     </motion.div>
                   </DialogFooter>
