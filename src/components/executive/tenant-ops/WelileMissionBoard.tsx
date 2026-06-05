@@ -59,6 +59,15 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
+function windowDateRangeLabel(w: CounterWindow): string {
+  if (w === 'all') return 'All time';
+  const days = w === '7d' ? 7 : 30;
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const today = new Date();
+  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return `${fmt(since)} – ${fmt(today)}`;
+}
+
 type PriorityKey = 'list' | 'place' | 'fund';
 
 const PRIORITIES: {
@@ -213,6 +222,12 @@ export function WelileMissionBoard() {
                     <span className="text-2xl font-bold leading-none">{m.big.toLocaleString()}</span>
                     <span className="text-[11px] text-muted-foreground">{m.label}</span>
                   </div>
+                  {p.key === 'list' && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      <CalendarDays className="inline h-3 w-3 mr-0.5 -translate-y-px" />
+                      {windowDateRangeLabel(win)}
+                    </p>
+                  )}
                   {m.extra && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
                   {p.key === 'place' && receivables && (
                     <div className="mt-2 rounded-lg bg-emerald-500/10 px-2 py-1.5">
