@@ -221,14 +221,13 @@ Deno.serve(async (req) => {
       try {
         await adminClient.from("wallet_overdraw_events").insert({
           user_id: targetUserId,
-          event_type: "negative_balance_post_move",
-          amount,
+          attempted_balance: amount,
+          clamped_to: 0,
           float_before: floatBefore,
           float_after: floatAfter,
           withdrawable_before: withdrawableBefore,
           withdrawable_after: withdrawableAfter,
-          reference_id: refId,
-          reason: `admin_float_to_withdrawable resulted in negative balance: float=${floatAfter}, withdrawable=${withdrawableAfter}`,
+          trigger_op: "admin_float_to_withdrawable_negative_post",
         });
       } catch (_) {
         // Best-effort anomaly log.
