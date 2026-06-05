@@ -156,6 +156,12 @@ Deno.serve(async (req) => {
       success: true, 
       verify_url: verifyUrl,
       user_name: profile.full_name,
+      // Resolved canonical auth user id. The client stores this and, after the
+      // magic-link redirect establishes a session, verifies the new session's
+      // user id matches it before completing sign-in. If they differ (e.g. the
+      // magic link resolved a different/stale account), the client aborts and
+      // signs out instead of landing the user on the wrong account.
+      user_id: userId,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
