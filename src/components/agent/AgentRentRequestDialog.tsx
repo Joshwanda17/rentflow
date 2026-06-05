@@ -515,6 +515,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<string>('');
   
+  // Live fraud guard: detect whether the tenant phone the agent is typing is
+  // already registered on the platform, and reveal the owner's name.
+  const { match: existingTenantByPhone, checking: checkingTenantPhone } =
+    useExistingTenantByPhone(tenantPhone);
+
   // Rent details
   const [rentAmount, setRentAmount] = useState('');
   const [outstandingBalance, setOutstandingBalance] = useState('');
