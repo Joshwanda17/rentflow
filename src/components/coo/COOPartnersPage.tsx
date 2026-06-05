@@ -231,6 +231,7 @@ function getOrdinalSuffix(day: number): string {
 
 /** Portfolio shape needed for the deal-breakdown CSV export. */
 interface ExportPortfolio {
+  id: string;
   investor_id: string | null;
   agent_id: string | null;
   account_name: string | null;
@@ -279,7 +280,7 @@ function buildPayoutCell(nextRoiDate: string | null, createdAt: string, payoutDa
  *   named "{{PartnerName}} ({{PortfolioName}})".
  * - Joined date is human-readable; ROI Mode uses spaces (no underscores).
  */
-function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
+function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[], returnsByPortfolio: Map<string, number>) {
   const supporterIdSet = new Set(rows.map(r => r.id));
   const byOwner = new Map<string, ExportPortfolio[]>();
   portfolios.forEach(p => {
@@ -321,11 +322,13 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
 
     ports.forEach(p => {
       const name = ports.length > 1 ? `${r.name} (${exportPortfolioName(p)})` : r.name;
+      const ledgerReturns = returnsByPortfolio.get(p.id);
+      const returns = ledgerReturns != null && ledgerReturns > 0 ? ledgerReturns : (p.total_roi_earned ?? 0);
       csvRows.push([
         name, r.phone, r.email, statusLabel, r.walletBalance,
         p.investment_amount ?? 0,
         p.roi_percentage ?? '',
-        p.total_roi_earned ?? 0,
+        returns,
         humanRoiMode(p.roi_mode),
         buildPayoutCell(p.next_roi_date, p.created_at, p.payout_day ?? 15),
         joined,
@@ -1783,7 +1786,28 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         seenExportPortfolioIds.add(p.id);
         return true;
       });
-      exportToCSV(filtered, exportPortfolios);
+
+      // Returns earned are tracked in the ledger (roi_wallet_credit / roi_payout /
+      // roi_reinvestment cash-in legs), not the mostly-empty total_roi_earned column.
+      // Sum them per portfolio so the CSV "Returns" column reflects real earnings.
+      const portfolioIdsForReturns = exportPortfolios.map(p => p.id);
+      const returnsByPortfolio = new Map<string, number>();
+      if (portfolioIdsForReturns.length > 0) {
+        const roiLedger = await batchedQuery<any>(portfolioIdsForReturns, (batch) =>
+          supabase.from('general_ledger')
+            .select('source_id, amount')
+            .eq('source_table', 'investor_portfolios')
+            .eq('direction', 'cash_in')
+            .in('category', ['roi_wallet_credit', 'roi_payout', 'roi_reinvestment'])
+            .in('source_id', batch)
+        );
+        (roiLedger as any[]).forEach(e => {
+          if (!e.source_id) return;
+          returnsByPortfolio.set(e.source_id, (returnsByPortfolio.get(e.source_id) || 0) + (Number(e.amount) || 0));
+        });
+      }
+
+      exportToCSV(filtered, exportPortfolios, returnsByPortfolio);
       toast.success(`Exported ${filtered.length} partner${filtered.length !== 1 ? 's' : ''}`);
     } catch (e: any) {
       console.error('Export failed', e);
