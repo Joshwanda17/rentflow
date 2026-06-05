@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Home, Users, Calendar, ArrowRight, Sparkles, X } from 'lucide-react';
+import { Trophy, Home, Users, Calendar, ArrowRight, Sparkles, X, MessageCircle, Loader2 } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { ContrastPanel } from '@/components/ui/contrast-panel';
+import { useAuth } from '@/hooks/useAuth';
+import { createShortLink } from '@/lib/createShortLink';
+import { toast } from 'sonner';
 
 // Solid panel surfaces — text colour is auto-derived for guaranteed contrast.
 const PANEL_BG = 'hsl(150 60% 16%)'; // deep emerald, white text auto-picked
@@ -39,8 +42,10 @@ interface AgentLandlordPromoBannerProps {
  *  - UGX 70,000 weekly prize for the agent who registers 10+ such landlords
  */
 export function AgentLandlordPromoBanner({ onRegisterLandlord }: AgentLandlordPromoBannerProps) {
+  const { user } = useAuth();
   const [dismissed, setDismissed] = useState(false);
   const [countdown, setCountdown] = useState('');
+  const [sharing, setSharing] = useState(false);
   const campaignEnd = getCampaignEndDate();
 
   useEffect(() => {
@@ -49,6 +54,37 @@ export function AgentLandlordPromoBanner({ onRegisterLandlord }: AgentLandlordPr
     const iv = setInterval(tick, 60000);
     return () => clearInterval(iv);
   }, [campaignEnd]);
+
+  const handleShareWhatsApp = async () => {
+    hapticTap();
+    if (!user?.id) {
+      toast.error('Please sign in to share your invite link');
+      return;
+    }
+    setSharing(true);
+    try {
+      const link = await createShortLink(user.id, '/landlord-signup', { ref: user.id });
+      const message =
+        `🏠 *Welile — This Week Only!*\n\n` +
+        `Got an empty house? Register as a Welile landlord and get *12 months of guaranteed rent* — we pay you on time every month, even if the tenant delays.\n\n` +
+        `Agents earn *UGX ${BONUS_PER_LANDLORD.toLocaleString()}* per landlord with an empty house, plus a *UGX ${WEEKLY_PRIZE.toLocaleString()}* weekly prize for the first to register 10!\n\n` +
+        `Sign up here 👇\n${link}`;
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'Register Landlords with Empty Houses', text: message, url: link });
+        } catch (err) {
+          if ((err as Error).name !== 'AbortError') window.open(waUrl, '_blank');
+        }
+      } else {
+        window.open(waUrl, '_blank');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to generate share link');
+    } finally {
+      setSharing(false);
+    }
+  };
 
   // Persist dismissal for this session only (refresh brings it back — marketing wants visibility)
   if (dismissed) return null;
@@ -182,6 +218,18 @@ export function AgentLandlordPromoBanner({ onRegisterLandlord }: AgentLandlordPr
           Register a Landlord Now
           <ArrowRight className="h-4 w-4" />
         </ContrastPanel>
+
+        {/* Share on WhatsApp — any agent can spread the campaign */}
+        <button
+          type="button"
+          onClick={handleShareWhatsApp}
+          disabled={sharing}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white bg-[#25D366] hover:bg-[#1fb855] active:scale-[0.98] transition-all touch-manipulation disabled:opacity-70"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+          {sharing ? 'Preparing link…' : 'Share on WhatsApp'}
+        </button>
       </div>
     </motion.div>
   );
