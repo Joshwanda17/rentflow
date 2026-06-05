@@ -18,11 +18,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import { TenantBalanceEditPanel } from '@/components/executive/tenant-ops/TenantBalanceEditPanel';
 import { ListingPhotoGallery } from '@/components/executive/tenant-ops/ListingPhotoGallery';
-import { LandlordPriorityClassification } from '@/components/executive/tenant-ops/LandlordPriorityClassification';
+import { LandlordBucketDialog } from '@/components/executive/tenant-ops/LandlordPriorityClassification';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
+import { useLandlordPriorityBreakdown, type LandlordPriorityBucket } from '@/hooks/useWelileOpsCounters';
 import { useMissionReceivables } from '@/hooks/useWelileOpsCounters';
 import { useMissionLandlordReceivables, type MissionLandlordReceivable } from '@/hooks/useWelileOpsCounters';
 import { useMissionAgentNetwork, type MissionAgentNetwork } from '@/hooks/useWelileOpsCounters';
