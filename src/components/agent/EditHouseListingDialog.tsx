@@ -224,7 +224,7 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
+          <Button onClick={handleSave} disabled={saving || !canSave} className="gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save changes
           </Button>
