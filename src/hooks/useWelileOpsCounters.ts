@@ -486,3 +486,67 @@ export function useBulkTargetLandlordsForOnboarding() {
     await qc.invalidateQueries({ queryKey: TARGETS_KEY });
   }, [qc]);
 }
+
+// ===== Landlord priority classification (agent-registered landlords → P1 empty / P2 placed) =====
+
+export interface LandlordPriorityBreakdown {
+  total_landlords: number;
+  priority1_empty: number;
+  priority2_placed: number;
+  p1_listed_empty: number;
+  p1_unlisted: number;
+}
+
+export function useLandlordPriorityBreakdown(win: CounterWindow, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
+  return useQuery({
+    queryKey: ['welile-landlord-priority-breakdown', win],
+    staleTime: 60_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<LandlordPriorityBreakdown | null> => {
+      const { data, error } = await supabase.rpc('welile_landlord_priority_breakdown' as any, { p_since: since });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as LandlordPriorityBreakdown | null;
+    },
+  });
+}
+
+export type LandlordPriorityBucket = 'priority1' | 'priority2' | 'listed_empty' | 'unlisted';
+
+export interface LandlordPriorityItem {
+  landlord_id: string;
+  landlord_name: string | null;
+  landlord_phone: string | null;
+  property_address: string | null;
+  agent_id: string | null;
+  agent_name: string | null;
+  listing_count: number;
+  empty_listing_count: number;
+  placed: boolean;
+  created_at: string;
+}
+
+export function useLandlordPriorityItems(
+  bucket: LandlordPriorityBucket | null,
+  win: CounterWindow,
+  enabled: boolean,
+  refetchIntervalMs?: number | false,
+) {
+  const since = windowToISO(win);
+  return useQuery({
+    enabled: enabled && !!bucket,
+    queryKey: ['welile-landlord-priority-items', bucket, win],
+    staleTime: 30_000,
+    refetchInterval: refetchIntervalMs || false,
+    queryFn: async (): Promise<LandlordPriorityItem[]> => {
+      const { data, error } = await supabase.rpc('welile_landlord_priority_items' as any, {
+        p_bucket: bucket,
+        p_since: since,
+        p_limit: 500,
+      });
+      if (error) throw error;
+      return (data ?? []) as LandlordPriorityItem[];
+    },
+  });
+}
