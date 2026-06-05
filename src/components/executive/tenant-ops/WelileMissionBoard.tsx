@@ -212,7 +212,7 @@ export function WelileMissionBoard() {
       return { big: combinedEmpty, label: 'listed empty houses', extra: '' };
     }
     if (key === 'place') return { big: s.placements_new, label: 'tenants placed', extra: `${placementRate}% of listed houses occupied` };
-    return { big: s.funders_new, label: 'new funders', extra: `${formatUGX(s.funders_amount)} committed · ${fundActivation}% active` };
+    return { big: s.funders_new, label: 'new funders', extra: `${formatUGX(s.funders_amount)} committed · ${fundActivation}% active (≥ UGX 10,000)` };
   };
 
   const recSeverityCls = rec?.severity === 'act'
