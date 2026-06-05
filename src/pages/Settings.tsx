@@ -500,6 +500,9 @@ export default function Settings() {
                 {roles.includes('manager') && (
                   <LazySection name="DriveVault"><DriveVaultCard /></LazySection>
                 )}
+                {(['manager', 'super_admin', 'coo', 'operations'] as const).some((r) => roles.includes(r)) && (
+                  <LazySection name="DriveDocumentReview"><DriveDocumentReviewPanel /></LazySection>
+                )}
               </div>
             )}
 
