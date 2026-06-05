@@ -965,7 +965,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .in('portfolio_id', portfolioIds),
           supabase
             .from('pending_wallet_operations')
-            .select('source_id, amount, status, reviewed_by, reviewed_at')
+            .select('source_id, amount, status, reviewed_by, reviewed_at, metadata')
             .in('source_id', portfolioIds)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
@@ -994,7 +994,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             awaiting[key].total += Number(op.amount);
           } else if (op.status === 'completed') {
             // Distinguish automatic ROI-cycle merges from manual "Apply Top-up".
-            const isAuto = op.reviewed_by === 'system:roi-merge';
+            // Auto-merges are flagged in metadata (reviewed_by is a UUID column and
+            // cannot hold a sentinel string).
+            const isAuto = op.metadata?.auto_applied_at_roi_cycle === true;
             const ts = op.reviewed_at ? new Date(op.reviewed_at).getTime() : 0;
             if (isAuto && ts >= autoAppliedSince) {
               if (!autoApplied[key]) autoApplied[key] = { count: 0, total: 0 };
