@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileUp, Loader2, Paperclip, Trash2, FileText, Image as ImageIcon, Download, ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
 import { archiveToDrive } from '@/lib/archiveToDrive';
+import { DriveArchiveLink, useDriveArchiveLinks } from '@/components/documents/DriveArchiveLink';
 import { format } from 'date-fns';
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB per file
@@ -58,6 +59,11 @@ export function BusinessAdvanceDocumentUploadPanel({ advanceId, tenantId, stageK
   }, [advanceId]);
 
   useEffect(() => { load(); }, [load]);
+
+  const driveLinks = useDriveArchiveLinks(
+    'business-advance-documents',
+    docs.map((d) => d.file_path),
+  );
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -233,6 +239,11 @@ export function BusinessAdvanceDocumentUploadPanel({ advanceId, tenantId, stageK
                     </div>
                     {d.note && (
                       <p className="text-[10px] text-muted-foreground italic mt-0.5 line-clamp-2">"{d.note}"</p>
+                    )}
+                    {driveLinks[d.file_path] && (
+                      <div className="mt-1">
+                        <DriveArchiveLink href={driveLinks[d.file_path]} />
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
