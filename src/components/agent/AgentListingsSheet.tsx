@@ -813,18 +813,16 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
 
                               <MoveInOfferBadge className="w-full justify-center" />
 
-                              {!l.tenant_id && l.status === 'available' && (
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <Button
-                                    size="sm"
-                                    className="w-full h-9 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    onClick={() => shareOnWhatsApp(l)}
-                                  >
-                                    <MessageCircle className="h-3.5 w-3.5" />
-                                    Share to tenants on WhatsApp
-                                  </Button>
-                                </div>
-                              )}
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  size="sm"
+                                  className="w-full h-9 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  onClick={() => shareOnWhatsApp(l)}
+                                >
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                  Share on WhatsApp
+                                </Button>
+                              </div>
 
                               <div className="rounded-md bg-muted/40 p-2 text-[11px] flex items-center gap-1.5">
                                 <User className="h-3 w-3 shrink-0" />
