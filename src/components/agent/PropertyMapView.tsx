@@ -76,6 +76,57 @@ export function PropertyMapView({
     }, {}),
   ).length;
 
+  // Map address -> optimized stop number (1-based) when a route is active.
+  const orderNumber = useMemo(() => {
+    if (!route) return null;
+    const map: Record<string, number> = {};
+    route.order.forEach((addr, i) => { map[addr] = i + 1; });
+    return map;
+  }, [route]);
+
+  async function optimizeRoute() {
+    if (markers.length === 0 || optimizing) return;
+    setOptimizing(true);
+    try {
+      const coords = await new Promise<{ lat: number; lng: number }>((resolve, reject) => {
+        if (!('geolocation' in navigator)) { reject(new Error('no-geo')); return; }
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+          () => reject(new Error('denied')),
+          { enableHighAccuracy: true, timeout: 10000 },
+        );
+      });
+      setOrigin(coords);
+
+      const stops = markers.map((m) => ({ id: m.addr, lat: m.loc.lat, lng: m.loc.lng, label: m.addr }));
+      const { data, error } = await supabase.functions.invoke('optimize-route', {
+        body: { origin: coords, stops, roundTrip: false },
+      });
+      if (error) throw error;
+      if (!data || data.error) throw new Error(data?.error || 'Route failed');
+
+      const order: string[] = (data.orderedStops || []).map((s: { id: string }) => s.id);
+      const polyline = data.encodedPolyline ? decodePolyline(data.encodedPolyline) : [];
+      setRoute({
+        order,
+        polyline,
+        mapsUrl: data.mapsUrl,
+        distanceMeters: data.distanceMeters ?? null,
+        durationSeconds: data.durationSeconds ?? null,
+      });
+      toast.success('Optimal visit route ready');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'no-geo' || msg === 'denied') {
+        toast.error('Allow location access to plan your route');
+      } else {
+        toast.error('Could not plan a route right now');
+      }
+    } finally {
+      setOptimizing(false);
+    }
+  }
+
   // Default to Kampala if no points
   const defaultCenter: [number, number] = points[0] || [0.3476, 32.5825];
 
