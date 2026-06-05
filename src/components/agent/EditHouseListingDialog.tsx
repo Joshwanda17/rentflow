@@ -57,8 +57,10 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const trimmedVideo = videoUrl.trim();
   const parsedVideo = parseHouseVideo(trimmedVideo);
   const videoInvalid = trimmedVideo.length > 0 && !parsedVideo;
+  const videoTouched = videoUrl !== (listing?.video_url ?? '');
   const totalPhotos = existingUrls.length + newImages.length;
   const remainingSlots = Math.max(0, MAX_PHOTOS - existingUrls.length);
+  const canSave = !videoInvalid;
 
   const handleSave = async () => {
     if (!title.trim() || !address.trim() || !region.trim() || monthlyRent <= 0) {
