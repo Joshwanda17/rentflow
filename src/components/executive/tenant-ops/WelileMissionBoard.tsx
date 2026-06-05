@@ -111,7 +111,7 @@ export function WelileMissionBoard() {
   const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(win, showAgents, intervalMs);
   const agents: MissionAgentRow[] = agentData ?? [];
   const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(win, intervalMs);
-  const { data: receivables } = useMissionReceivables(intervalMs);
+  const { data: receivables } = useMissionReceivables(win, intervalMs);
   const { data: landlordBreakdown } = useLandlordPriorityBreakdown(win, intervalMs);
 
   const searchLower = search.trim().toLowerCase();
@@ -136,7 +136,7 @@ export function WelileMissionBoard() {
 
   const metricFor = (s: MissionSummary, key: PriorityKey) => {
     if (key === 'list') {
-      const combinedEmpty = s.empty_houses_total + (receivables?.unlisted_landlord_count ?? 0);
+      const combinedEmpty = (receivables?.empty_houses_count ?? 0) + (receivables?.unlisted_landlord_count ?? 0);
       return { big: combinedEmpty, label: 'listed empty houses', extra: '' };
     }
     if (key === 'place') return { big: s.placements_new, label: 'tenants placed', extra: `${placementRate}% of listed houses occupied` };
