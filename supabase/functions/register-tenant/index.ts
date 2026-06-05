@@ -221,6 +221,22 @@ Deno.serve(async (req) => {
 
     if (createErr) {
       console.error("[register-tenant] Auth create error:", createErr.message);
+      // Race-condition defence: another agent may have just created this tenant.
+      // Look up the existing profile by phone and return it gracefully.
+      const errMsg = String(createErr.message).toLowerCase();
+      if (errMsg.includes("phone_already_registered") || errMsg.includes("23505") || errMsg.includes("unique_violation")) {
+        const { data: raced } = await supabaseAdmin
+          .from("profiles")
+          .select("id, phone, national_id")
+          .eq("phone", cleanPhone)
+          .maybeSingle();
+        if (raced) {
+          console.log("[register-tenant] Race won by other request; returning existing:", raced.id);
+          return new Response(JSON.stringify({ user_id: raced.id, existing: true }), {
+            status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
       return new Response(JSON.stringify({ error: `Failed to create tenant account: ${createErr.message}` }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

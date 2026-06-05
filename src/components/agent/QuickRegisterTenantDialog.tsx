@@ -89,7 +89,13 @@ export function QuickRegisterTenantDialog({
       if (data?.error) throw new Error(data.error);
 
       setDone(true);
-      toast.success(`${fullName.trim()} registered successfully`);
+      if (data?.existing) {
+        toast.info(`${fullName.trim()} is already registered`, {
+          description: 'Using the existing tenant record to proceed.',
+        });
+      } else {
+        toast.success(`${fullName.trim()} registered successfully`);
+      }
       onRegistered?.(phone.trim());
     } catch (err: any) {
       toast.error(err.message || 'Failed to register tenant');

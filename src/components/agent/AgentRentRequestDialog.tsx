@@ -1805,6 +1805,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       const tenantId = tenantResult.user_id;
 
+      if (tenantResult.existing) {
+        toast.info('Tenant already registered', {
+          description: 'Using the existing record to continue the rent request.',
+        });
+      }
+
       // Persist the property's town/city/district/village on the tenant's
       // profile so they roll up under a real location in the Tenant Ops
       // drill-down. Best-effort — never block submission on this.
