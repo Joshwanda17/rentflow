@@ -145,6 +145,22 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Failed to prepare account deletion: ' + preCleanupError.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // PRE-STEP 2: Automatically detect & clear EVERY remaining blocking dependent
+    // (ledger rows + rent_request children + profile references) so the auth.users
+    // cascade can never fail with "Database error deleting user".
+    let purgeSummary: unknown = null;
+    {
+      const { data: purgeData, error: purgeError } = await supabaseAdmin.rpc(
+        'admin_purge_user_dependencies',
+        { p_user_id: user_id },
+      );
+      if (purgeError) {
+        console.error('Dependency purge failed:', purgeError);
+        return new Response(JSON.stringify({ error: 'Failed to clear account dependencies: ' + purgeError.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      purgeSummary = purgeData ?? null;
+    }
+
     // STEP 1: Kill auth user to invalidate all sessions immediately.
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
     if (deleteError) {
