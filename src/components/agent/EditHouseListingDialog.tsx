@@ -11,6 +11,8 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { Loader2, X, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
+import { Video, Check } from 'lucide-react';
+import { parseHouseVideo } from '@/lib/houseVideoUrl';
 
 interface EditHouseListingDialogProps {
   open: boolean;
@@ -29,6 +31,7 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   const [region, setRegion] = useState('');
   const [monthlyRent, setMonthlyRent] = useState<number>(0);
   const [description, setDescription] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   const [saving, setSaving] = useState(false);
   // Photos already stored on the listing (kept unless the agent removes them).
   const [existingUrls, setExistingUrls] = useState<string[]>([]);
@@ -42,6 +45,7 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
       setRegion(listing.region);
       setMonthlyRent(listing.monthly_rent);
       setDescription(listing.description ?? '');
+      setVideoUrl(listing.video_url ?? '');
       setExistingUrls(Array.isArray(listing.image_urls) ? listing.image_urls.filter(Boolean) : []);
       setNewImages([]);
     }
@@ -50,12 +54,19 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
   if (!listing) return null;
 
   const calc = monthlyRent > 0 ? calculateDailyRentalRate(monthlyRent) : null;
+  const trimmedVideo = videoUrl.trim();
+  const parsedVideo = parseHouseVideo(trimmedVideo);
+  const videoInvalid = trimmedVideo.length > 0 && !parsedVideo;
   const totalPhotos = existingUrls.length + newImages.length;
   const remainingSlots = Math.max(0, MAX_PHOTOS - existingUrls.length);
 
   const handleSave = async () => {
     if (!title.trim() || !address.trim() || !region.trim() || monthlyRent <= 0) {
       toast({ title: 'Missing info', description: 'Title, address, region and rent are required.', variant: 'destructive' });
+      return;
+    }
+    if (videoInvalid) {
+      toast({ title: 'Invalid video link', description: 'Paste a YouTube or Google Drive video link, or leave it empty.', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -78,6 +89,7 @@ export function EditHouseListingDialog({ open, onOpenChange, listing, onSaved }:
         description: description.trim() || null,
         monthly_rent: monthlyRent,
         image_urls: imageUrls,
+        video_url: trimmedVideo || null,
       };
       if (calc) {
         updates.access_fee = calc.accessFee;
