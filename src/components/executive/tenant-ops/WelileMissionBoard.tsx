@@ -635,7 +635,6 @@ export function WelileMissionBoard() {
         open={roiPayableOpen}
         refetchIntervalMs={intervalMs}
         onClose={() => setRoiPayableOpen(false)}
-        onOpenFunder={(id) => { setRoiPayableOpen(false); setDrawer({ tenantId: id, tab: 'tenant' }); }}
       />
 
       <LandlordReceivablesDialog
