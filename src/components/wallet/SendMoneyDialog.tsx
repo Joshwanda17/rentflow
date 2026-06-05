@@ -787,42 +787,30 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     <Coins className="h-3.5 w-3.5 text-muted-foreground" />
                     Amount (UGX)
                   </Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    placeholder="Enter amount"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    inputMode="numeric"
-                    className="h-14 bg-background/50 border-border/50 focus:border-primary/50 transition-all text-xl font-semibold"
-                    min="1"
-                    required
-                  />
-                  <div className="rounded-lg border border-border/50 bg-background/40 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-success" />
-                        Transferable balance
-                      </span>
-                      <span className="text-sm font-bold text-success">
-                        {formatCurrency(wallet?.withdrawable || 0)}
-                      </span>
-                    </div>
-                    {(wallet?.float_balance || 0) > 0 && (
-                      <div className="flex items-center justify-between border-t border-border/40 pt-2">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <Lock className="h-3 w-3" />
-                          Operational float (locked)
-                        </span>
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {formatCurrency(wallet?.float_balance || 0)}
-                        </span>
-                      </div>
-                    )}
-                    <p className="text-[11px] leading-snug text-muted-foreground">
-                      You can only send your <span className="font-medium text-foreground">withdrawable</span> balance.
-                      Operational / float funds are company money and cannot be transferred wallet-to-wallet.
-                    </p>
+                  <div className="relative flex items-center">
+                    <span className="pointer-events-none absolute left-4 text-lg font-bold text-muted-foreground">
+                      USh
+                    </span>
+                    <Input
+                      id="amount"
+                      type="number"
+                      placeholder="0"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      inputMode="numeric"
+                      className="h-16 pl-16 bg-background/50 border-2 border-border/50 focus:border-primary transition-all text-3xl font-bold"
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-center justify-between px-1 pt-0.5">
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Sparkles className="h-3.5 w-3.5 text-success" />
+                      Transferable balance
+                    </span>
+                    <span className="text-xs font-bold text-success">
+                      {formatCurrency(wallet?.withdrawable || 0)}
+                    </span>
                   </div>
                 </motion.div>
 
