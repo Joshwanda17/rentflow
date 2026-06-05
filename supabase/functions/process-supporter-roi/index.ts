@@ -668,7 +668,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[process-supporter-roi] Done: ${results.credited} wallet-credited, ${results.reinvested} auto-reinvested, ${results.topupsMerged} top-ups merged (${results.topupsMergedAmount}), total ROI: ${results.totalAmount}`);
+    console.log(`[process-supporter-roi] Done: ${results.credited} wallet-credited, ${results.reinvested} auto-reinvested, ${results.topupsMerged} top-ups merged (${results.topupsMergedAmount}), ${results.topupsSkippedNotDue} portfolios skipped (ROI date not due), total ROI: ${results.totalAmount}`);
 
 
     // Notify managers (fire-and-forget)
