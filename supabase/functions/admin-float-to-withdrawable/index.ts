@@ -213,6 +213,36 @@ Deno.serve(async (req) => {
       .eq("user_id", targetUserId)
       .maybeSingle();
 
+    const floatAfter = Number(after?.float_balance ?? floatBefore - amount);
+    const withdrawableAfter = Number(after?.withdrawable_balance ?? withdrawableBefore + amount);
+
+    // Belt-and-suspenders: if a race condition caused a negative bucket, flag it.
+    if (floatAfter < 0 || withdrawableAfter < 0) {
+      try {
+        await adminClient.from("wallet_overdraw_events").insert({
+          user_id: targetUserId,
+          event_type: "negative_balance_post_move",
+          amount,
+          float_before: floatBefore,
+          float_after: floatAfter,
+          withdrawable_before: withdrawableBefore,
+          withdrawable_after: withdrawableAfter,
+          reference_id: refId,
+          reason: `admin_float_to_withdrawable resulted in negative balance: float=${floatAfter}, withdrawable=${withdrawableAfter}`,
+        });
+      } catch (_) {
+        // Best-effort anomaly log.
+      }
+      return json(
+        {
+          error: `Move resulted in a negative balance (float: UGX ${floatAfter.toLocaleString()}, withdrawable: UGX ${withdrawableAfter.toLocaleString()}). The transaction was posted but needs review.`,
+          float_after: floatAfter,
+          withdrawable_after: withdrawableAfter,
+        },
+        500,
+      );
+    }
+
     return json({
       success: true,
       reference_id: refId,
@@ -220,8 +250,8 @@ Deno.serve(async (req) => {
       amount,
       float_before: floatBefore,
       withdrawable_before: withdrawableBefore,
-      float_after: Number(after?.float_balance ?? floatBefore - amount),
-      withdrawable_after: Number(after?.withdrawable_balance ?? withdrawableBefore + amount),
+      float_after: floatAfter,
+      withdrawable_after: withdrawableAfter,
       message: `Moved UGX ${amount.toLocaleString()} from Float to Withdrawable for ${targetName}.`,
     });
   } catch (err) {
