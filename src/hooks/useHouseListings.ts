@@ -29,6 +29,7 @@ export interface HouseListing {
   amenities?: string[] | null;
   image_urls: string[] | null;
   status: string;
+  video_url?: string | null;
   tenant_id?: string | null;
   landlord_accepted?: boolean;
   verified?: boolean | null;
