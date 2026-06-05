@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Share2, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Share2, Loader2, CalendarIcon } from 'lucide-react';
+import { format, startOfMonth, endOfDay, startOfDay } from 'date-fns';
 import { generateCfoPayoutsPdf, shareCfoPayoutsPdf, type CfoPayoutRow } from '@/lib/cfoPayoutsReportPdf';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 // Audit-log action types that represent money actually paid OUT to a person/wallet.
 const PAYOUT_ACTIONS = [
@@ -33,18 +36,67 @@ const ACTION_LABEL: Record<string, string> = {
   cfo_service_centre_payout: 'Service Centre',
 };
 
+function DatePicker({
+  label,
+  date,
+  onSelect,
+}: {
+  label: string;
+  date?: Date;
+  onSelect: (d?: Date) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn('w-[145px] justify-start text-left font-normal gap-1.5', !date && 'text-muted-foreground')}
+        >
+          <CalendarIcon className="h-3.5 w-3.5" />
+          {date ? format(date, 'dd MMM yyyy') : label}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={onSelect}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function CFOPayoutsShareButton() {
   const [busy, setBusy] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
 
   const handleShare = async () => {
+    if (!startDate || !endDate) {
+      toast.error('Please select both start and end dates.');
+      return;
+    }
+    if (startDate > endDate) {
+      toast.error('Start date cannot be after end date.');
+      return;
+    }
+
     setBusy(true);
     try {
+      const from = startOfDay(startDate).toISOString();
+      const to = endOfDay(endDate).toISOString();
+
       const { data, error } = await supabase
         .from('audit_logs')
         .select('action_type, created_at, metadata')
         .in('action_type', PAYOUT_ACTIONS)
+        .gte('created_at', from)
+        .lte('created_at', to)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(500);
       if (error) throw error;
 
       const rows: CfoPayoutRow[] = (data || [])
@@ -65,14 +117,14 @@ export function CFOPayoutsShareButton() {
         .filter(r => r.amount > 0);
 
       if (rows.length === 0) {
-        toast.error('No payouts found to share yet.');
+        toast.error('No payouts found for the selected period.');
         return;
       }
 
-      const blob = await generateCfoPayoutsPdf(rows);
-      const filename = `welile-payouts-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      const blob = await generateCfoPayoutsPdf(rows, new Date(), { startDate, endDate });
+      const filename = `welile-payouts-${format(startDate, 'yyyy-MM-dd')}-to-${format(endDate, 'yyyy-MM-dd')}.pdf`;
       const total = rows.reduce((s, r) => s + r.amount, 0);
-      const caption = `Welile Wallet Payouts — ${rows.length} payouts totalling UGX ${total.toLocaleString()} (${format(new Date(), 'dd MMM yyyy')}).`;
+      const caption = `Welile Wallet Payouts — ${rows.length} payouts totalling UGX ${total.toLocaleString()} (${format(startDate, 'dd MMM yyyy')} – ${format(endDate, 'dd MMM yyyy')}).`;
       await shareCfoPayoutsPdf(blob, filename, caption);
     } catch (err: any) {
       toast.error('Could not generate payouts PDF', { description: err?.message });
@@ -82,9 +134,14 @@ export function CFOPayoutsShareButton() {
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={handleShare} disabled={busy} className="gap-1.5">
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-      Share Payouts PDF
-    </Button>
+    <div className="flex items-center gap-2 flex-wrap">
+      <DatePicker label="Start date" date={startDate} onSelect={setStartDate} />
+      <span className="text-muted-foreground text-sm">to</span>
+      <DatePicker label="End date" date={endDate} onSelect={setEndDate} />
+      <Button variant="outline" size="sm" onClick={handleShare} disabled={busy} className="gap-1.5">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+        Share Payouts PDF
+      </Button>
+    </div>
   );
 }
