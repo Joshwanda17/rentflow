@@ -1,9 +1,12 @@
-import { useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+/// <reference types="google.maps" />
+import { useEffect, useMemo, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Building2, Navigation } from 'lucide-react';
+import { MapPin, Building2, Navigation, Route, Loader2, X, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
+import { useGoogleMapsLoader } from '@/hooks/useGoogleMapsLoader';
 
 // Reset default leaflet icon paths (matches LandlordLocationsMap)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -22,6 +25,25 @@ const paidIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+// Numbered pin used when an optimized visit order is active.
+function orderedIcon(n: number, hasDebt: boolean) {
+  const bg = hasDebt ? '#e11d48' : '#059669';
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:${bg};color:#fff;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"><span style="transform:rotate(45deg);font-size:13px;font-weight:800">${n}</span></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 26],
+    popupAnchor: [0, -24],
+  });
+}
+
+const youIcon = L.divIcon({
+  className: '',
+  html: `<div style="background:#2563eb;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(37,99,235,.3)"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
 });
 
 interface Tenant { id: string; full_name: string; phone: string }
@@ -49,6 +71,19 @@ function FitBounds({ points }: { points: [number, number][] }) {
 export function PropertyMapView({
   tenants, tenantContext, tenantBalances, tenantDaily, propertyLocations, onSelectTenant,
 }: Props) {
+  // Maps JS API powers waypoint optimization (DirectionsService). The managed
+  // browser key is referrer-restricted, so optimization must run client-side.
+  const { hasKey: mapsHasKey } = useGoogleMapsLoader(true);
+  const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
+  const [optimizing, setOptimizing] = useState(false);
+  const [route, setRoute] = useState<{
+    order: string[];
+    polyline: [number, number][];
+    mapsUrl: string;
+    distanceMeters: number | null;
+    durationSeconds: number | null;
+  } | null>(null);
+
   // Group tenants by property and attach the location (only properties with coords are shown).
   const markers = useMemo(() => {
     const byProp = new Map<string, { loc: { lat: number; lng: number; address: string }; tenants: Tenant[]; owing: number; daily: number }>();
@@ -76,6 +111,76 @@ export function PropertyMapView({
     }, {}),
   ).length;
 
+  // Map address -> optimized stop number (1-based) when a route is active.
+  const orderNumber = useMemo(() => {
+    if (!route) return null;
+    const map: Record<string, number> = {};
+    route.order.forEach((addr, i) => { map[addr] = i + 1; });
+    return map;
+  }, [route]);
+
+  async function optimizeRoute() {
+    if (markers.length === 0 || optimizing) return;
+    if (!mapsHasKey) { toast.error('Route planning is unavailable right now'); return; }
+    setOptimizing(true);
+    try {
+      const coords = await new Promise<{ lat: number; lng: number }>((resolve, reject) => {
+        if (!('geolocation' in navigator)) { reject(new Error('no-geo')); return; }
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+          () => reject(new Error('denied')),
+          { enableHighAccuracy: true, timeout: 10000 },
+        );
+      });
+      setOrigin(coords);
+
+      const stops = markers.map((m) => ({ id: m.addr, lat: m.loc.lat, lng: m.loc.lng }));
+
+      // Ensure the Directions library is available, then optimize the visit order.
+      const { DirectionsService } = (await google.maps.importLibrary('routes')) as google.maps.RoutesLibrary;
+      const svc = new DirectionsService();
+      const res = await svc.route({
+        origin: coords,
+        destination: coords, // round trip back to the agent's start
+        waypoints: stops.map((s) => ({ location: { lat: s.lat, lng: s.lng }, stopover: true })),
+        optimizeWaypoints: true,
+        travelMode: google.maps.TravelMode.DRIVING,
+      });
+
+      const r = res.routes[0];
+      if (!r) throw new Error('no-route');
+
+      const order = (r.waypoint_order ?? stops.map((_, i) => i)).map((i) => stops[i].id);
+      const polyline = (r.overview_path ?? []).map((p) => [p.lat(), p.lng()] as [number, number]);
+      const distanceMeters = (r.legs ?? []).reduce((sum, leg) => sum + (leg.distance?.value ?? 0), 0);
+      const durationSeconds = (r.legs ?? []).reduce((sum, leg) => sum + (leg.duration?.value ?? 0), 0);
+
+      // Build a Google Maps directions URL in the optimized order (round trip).
+      const ordered = (r.waypoint_order ?? stops.map((_, i) => i)).map((i) => stops[i]);
+      const o = `${coords.lat},${coords.lng}`;
+      const params = new URLSearchParams({ api: '1', origin: o, destination: o, travelmode: 'driving' });
+      if (ordered.length > 0) params.set('waypoints', ordered.map((s) => `${s.lat},${s.lng}`).join('|'));
+
+      setRoute({
+        order,
+        polyline,
+        mapsUrl: `https://www.google.com/maps/dir/?${params.toString()}`,
+        distanceMeters: distanceMeters || null,
+        durationSeconds: durationSeconds || null,
+      });
+      toast.success('Optimal visit route ready');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg === 'no-geo' || msg === 'denied') {
+        toast.error('Allow location access to plan your route');
+      } else {
+        toast.error('Could not plan a route right now');
+      }
+    } finally {
+      setOptimizing(false);
+    }
+  }
+
   // Default to Kampala if no points
   const defaultCenter: [number, number] = points[0] || [0.3476, 32.5825];
 
@@ -100,25 +205,39 @@ export function PropertyMapView({
           <Building2 className="h-3 w-3" />
           {totalProps} mapped {totalProps === 1 ? 'property' : 'properties'}
         </span>
-        {missing > 0 && (
-          <span>{missing} without coordinates</span>
-        )}
+        <div className="flex items-center gap-2">
+          {missing > 0 && <span>{missing} without coordinates</span>}
+          <button
+            type="button"
+            onClick={optimizeRoute}
+            disabled={optimizing}
+            className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1 text-[11px] font-semibold disabled:opacity-60 active:scale-95 transition"
+          >
+            {optimizing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Route className="h-3 w-3" />}
+            {route ? 'Re-plan' : 'Plan route'}
+          </button>
+        </div>
       </div>
-      <div className="flex-1 rounded-2xl overflow-hidden border border-border/60">
+      <div className="relative flex-1 rounded-2xl overflow-hidden border border-border/60">
         <MapContainer center={defaultCenter} zoom={12} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
           <TileLayer
             attribution='&copy; OpenStreetMap'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <FitBounds points={points} />
+          {origin && <Marker position={[origin.lat, origin.lng]} icon={youIcon} />}
+          {route && route.polyline.length > 1 && (
+            <Polyline positions={route.polyline} pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.8 }} />
+          )}
           {markers.map(m => {
             const hasDebt = m.owing > 0;
+            const n = orderNumber?.[m.addr];
             return (
-              <Marker key={m.addr} position={[m.loc.lat, m.loc.lng]} icon={hasDebt ? owingIcon : paidIcon}>
+              <Marker key={m.addr} position={[m.loc.lat, m.loc.lng]} icon={n ? orderedIcon(n, hasDebt) : (hasDebt ? owingIcon : paidIcon)}>
                 <Popup minWidth={240} maxWidth={280}>
                   <div className="space-y-2">
                     <div>
-                      <p className="font-bold text-sm leading-tight">{m.addr}</p>
+                      <p className="font-bold text-sm leading-tight">{n ? `Stop ${n}: ` : ''}{m.addr}</p>
                       <p className="text-[11px] text-gray-500 mt-0.5">
                         {m.tenants.length} tenant{m.tenants.length !== 1 ? 's' : ''}
                         {' · '}
@@ -165,6 +284,41 @@ export function PropertyMapView({
             );
           })}
         </MapContainer>
+        {route && (
+          <div className="absolute bottom-2 left-2 right-2 z-[1000] rounded-xl bg-card/95 backdrop-blur border border-border shadow-lg p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground flex items-center gap-1">
+                  <Route className="h-3.5 w-3.5 text-primary" />
+                  {route.order.length} stop{route.order.length !== 1 ? 's' : ''} optimized
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {route.distanceMeters != null && `${(route.distanceMeters / 1000).toFixed(1)} km`}
+                  {route.distanceMeters != null && route.durationSeconds != null && ' · '}
+                  {route.durationSeconds != null && `${Math.round(route.durationSeconds / 60)} min drive`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <a
+                  href={route.mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1.5 text-[11px] font-semibold active:scale-95"
+                >
+                  <ExternalLink className="h-3 w-3" /> Navigate
+                </a>
+                <button
+                  type="button"
+                  onClick={() => { setRoute(null); setOrigin(null); }}
+                  aria-label="Clear route"
+                  className="p-1.5 rounded-full border border-border text-muted-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
