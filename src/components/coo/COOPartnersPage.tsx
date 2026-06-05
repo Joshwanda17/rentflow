@@ -331,7 +331,7 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
         returns,
         humanRoiMode(p.roi_mode),
         buildPayoutCell(p.next_roi_date, p.created_at, p.payout_day ?? 15),
-        joined,
+        p.created_at ? formatDateOnlyForDisplay(p.created_at) : joined,
       ].map(csvEscape).join(','));
     });
   });
