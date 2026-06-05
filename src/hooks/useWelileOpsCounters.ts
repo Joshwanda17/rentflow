@@ -206,6 +206,7 @@ export interface MissionReceivables {
   empty_houses_count: number;
   unlisted_receivable_total: number;
   unlisted_landlord_count: number;
+  earliest_date: string | null;
 }
 
 export function useMissionReceivables(win: CounterWindow, refetchIntervalMs?: number | false) {
