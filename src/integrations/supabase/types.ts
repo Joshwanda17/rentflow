@@ -17120,6 +17120,54 @@ export type Database = {
         }
         Relationships: []
       }
+      welile_receivables_summary: {
+        Row: {
+          avg_known_monthly: number
+          computed_at: string
+          created_at: string
+          empty_houses_count: number
+          empty_receivable_total: number
+          estimated_full_total: number
+          id: string
+          known_rent_count: number
+          missing_rent_count: number
+          recorded_total: number
+          source_table: string
+          unlisted_landlord_count: number
+          unlisted_receivable_total: number
+        }
+        Insert: {
+          avg_known_monthly?: number
+          computed_at?: string
+          created_at?: string
+          empty_houses_count?: number
+          empty_receivable_total?: number
+          estimated_full_total?: number
+          id?: string
+          known_rent_count?: number
+          missing_rent_count?: number
+          recorded_total?: number
+          source_table: string
+          unlisted_landlord_count?: number
+          unlisted_receivable_total?: number
+        }
+        Update: {
+          avg_known_monthly?: number
+          computed_at?: string
+          created_at?: string
+          empty_houses_count?: number
+          empty_receivable_total?: number
+          estimated_full_total?: number
+          id?: string
+          known_rent_count?: number
+          missing_rent_count?: number
+          recorded_total?: number
+          source_table?: string
+          unlisted_landlord_count?: number
+          unlisted_receivable_total?: number
+        }
+        Relationships: []
+      }
       welile_trust_score_cache: {
         Row: {
           agent_earned_vouch_ugx: number
@@ -20088,6 +20136,10 @@ export type Database = {
             }
             Returns: undefined
           }
+      recompute_receivables_summary: {
+        Args: { p_source: string }
+        Returns: undefined
+      }
       recompute_trust_score: { Args: { p_user_id: string }; Returns: undefined }
       recompute_trust_scores_batch: {
         Args: { p_limit?: number }
