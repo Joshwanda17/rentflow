@@ -120,12 +120,13 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
       const BATCH = 50;
 
       // Group portfolios by investor
-      const investorMap = new Map<string, { totalInvested: number; totalROI: number; portfolioCount: number; activePortfolios: number; earliestDate: string; status: string }>();
+      const investorMap = new Map<string, { totalInvested: number; maxPortfolio: number; totalROI: number; portfolioCount: number; activePortfolios: number; earliestDate: string; status: string }>();
       allPortfolios.forEach(p => {
         const investorId = p.investor_id;
         if (!investorId) return;
-        const existing = investorMap.get(investorId) || { totalInvested: 0, totalROI: 0, portfolioCount: 0, activePortfolios: 0, earliestDate: p.created_at, status: 'inactive' };
+        const existing = investorMap.get(investorId) || { totalInvested: 0, maxPortfolio: 0, totalROI: 0, portfolioCount: 0, activePortfolios: 0, earliestDate: p.created_at, status: 'inactive' };
         existing.totalInvested += p.investment_amount || 0;
+        existing.maxPortfolio = Math.max(existing.maxPortfolio, p.investment_amount || 0);
         existing.totalROI += p.total_roi_earned || 0;
         existing.portfolioCount++;
         if (p.status === 'active') { existing.activePortfolios++; existing.status = 'active'; }
@@ -150,8 +151,10 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
         const p: any = profileMap.get(id) || { id, full_name: 'Unknown', phone: '', email: '', avatar_url: null, created_at: null, territory: null, last_active_at: null };
         const inv = investorMap.get(id);
         const totalInvested = inv?.totalInvested || 0;
-        // ═══ ACTIVE RULE: any funder holding ≥ UGX 10,000 in portfolio is ACTIVE ═══
-        const derivedStatus = totalInvested >= 10000 ? 'active' : (inv?.status || 'new');
+        // ═══ ACTIVE RULE: any funder holding ≥ UGX 10,000 in a portfolio is ACTIVE ═══
+        const derivedStatus = (inv?.maxPortfolio || 0) >= 10000 || totalInvested >= 10000
+          ? 'active'
+          : (inv?.status || 'new');
         return {
           id: p.id,
           investor_id: p.id,
