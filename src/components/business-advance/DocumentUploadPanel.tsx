@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { FileUp, Loader2, Paperclip, Trash2, FileText, Image as ImageIcon, Download, ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
+import { archiveToDrive } from '@/lib/archiveToDrive';
 import { format } from 'date-fns';
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB per file
@@ -99,6 +100,9 @@ export function BusinessAdvanceDocumentUploadPanel({ advanceId, tenantId, stageK
         toast.error(`Could not record ${file.name}`, { description: dbErr.message });
         continue;
       }
+
+      // Offsite backup: mirror the contract/document into the Google Drive vault.
+      archiveToDrive('business-advance-documents', path, 'contract');
       okCount += 1;
     }
 
