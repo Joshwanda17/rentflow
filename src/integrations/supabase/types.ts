@@ -10643,6 +10643,54 @@ export type Database = {
         }
         Relationships: []
       }
+      otp_login_audit: {
+        Row: {
+          actual_user_id: string | null
+          created_at: string
+          expected_user_id: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json
+          origin: string | null
+          outcome: string
+          phone: string | null
+          reason: string | null
+          resolved_user_id: string | null
+          stage: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          actual_user_id?: string | null
+          created_at?: string
+          expected_user_id?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          origin?: string | null
+          outcome: string
+          phone?: string | null
+          reason?: string | null
+          resolved_user_id?: string | null
+          stage?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          actual_user_id?: string | null
+          created_at?: string
+          expected_user_id?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          origin?: string | null
+          outcome?: string
+          phone?: string | null
+          reason?: string | null
+          resolved_user_id?: string | null
+          stage?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       otp_verifications: {
         Row: {
           attempts: number
