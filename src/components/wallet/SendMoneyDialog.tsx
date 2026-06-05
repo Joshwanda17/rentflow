@@ -785,7 +785,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     placeholder="Enter amount"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="bg-background/50 border-border/50 focus:border-primary/50 transition-all text-lg font-medium"
+                    inputMode="numeric"
+                    className="h-14 bg-background/50 border-border/50 focus:border-primary/50 transition-all text-xl font-semibold"
                     min="1"
                     required
                   />
