@@ -5,6 +5,7 @@ import {
   buildReturnsDisbursementRequest,
   buildPartnerCompoundRequest,
   buildProxyManagedPayoutRequest,
+  buildPartnershipTopupRequest,
   resolveManagedProxy,
   dispatchTransactionalEmail,
 } from "../_shared/partnership-emails.ts";
@@ -415,7 +416,7 @@ Deno.serve(async (req) => {
         // Resolve the portfolio — must be active to receive merged capital
         const { data: portfolio } = await supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, portfolio_code, account_name, investor_id, agent_id, status')
+          .select('id, investment_amount, portfolio_code, account_name, investor_id, agent_id, status, roi_percentage')
           .eq('id', portfolioId)
           .maybeSingle();
 
@@ -556,6 +557,37 @@ Deno.serve(async (req) => {
             type: 'success',
             metadata: { portfolio_id: portfolio.id, total_merged: totalPending, new_capital: newAmount },
           });
+
+          // 5b. Partnership Top-Up email — same template used by the manual approval flow.
+          //     Sent to the partner whose capital just activated automatically at the ROI cycle.
+          if (partnerId) {
+            try {
+              const { data: partnerProfile } = await supabase
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', partnerId)
+                .maybeSingle();
+              if (partnerProfile?.email) {
+                dispatchTransactionalEmail(
+                  supabaseUrl,
+                  supabaseServiceKey,
+                  buildPartnershipTopupRequest({
+                    recipientEmail: partnerProfile.email,
+                    partnerName: partnerProfile.full_name,
+                    partnerId,
+                    txGroupId: mergeGroupId, // unique per auto-merge batch
+                    topupAmount: totalPending,
+                    previousPortfolioValue: currentAmount,
+                    newTotalPartnershipValue: newAmount,
+                    roiPercentage: Number((portfolio as any).roi_percentage) || undefined,
+                  }),
+                  "process-supporter-roi",
+                );
+              }
+            } catch (emailErr) {
+              console.warn('[process-supporter-roi] Top-up email lookup failed (non-blocking):', emailErr);
+            }
+          }
 
           // Update reinvest map if applicable
           if (autoReinvestMap.has(supporterId) && autoReinvestMap.get(supporterId)!.portfolio_id === portfolio.id) {
