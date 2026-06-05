@@ -7662,6 +7662,7 @@ export type Database = {
           short_code: string | null
           status: string
           sub_county: string | null
+          suspended_tenant_id: string | null
           tenant_id: string | null
           title: string
           total_monthly_cost: number
@@ -7717,6 +7718,7 @@ export type Database = {
           short_code?: string | null
           status?: string
           sub_county?: string | null
+          suspended_tenant_id?: string | null
           tenant_id?: string | null
           title: string
           total_monthly_cost?: number
@@ -7772,6 +7774,7 @@ export type Database = {
           short_code?: string | null
           status?: string
           sub_county?: string | null
+          suspended_tenant_id?: string | null
           tenant_id?: string | null
           title?: string
           total_monthly_cost?: number
