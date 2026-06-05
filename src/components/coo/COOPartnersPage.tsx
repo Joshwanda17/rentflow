@@ -183,6 +183,27 @@ interface PartnerDetail {
   portfolios: PortfolioRow[];
  }
 
+/**
+ * A partner is CLEARED to receive portfolio top-ups / wallet→portfolio
+ * transfers when they are EITHER explicitly verified (`funder_verified_at`)
+ * OR they are a legacy partner who predates the self-registration
+ * (`/partner-onboarding`) verification flow. Only self-registered funders
+ * (`signup_source = 'funder-onboarding'`) require an explicit verification.
+ *
+ * This mirrors `useFunderApprovalStatus` and the server-side gates in the
+ * `coo-create-portfolio` / `coo-invest-for-partner` edge functions and the
+ * `enforce_funder_verified_for_portfolio` DB trigger — so the UI never
+ * blocks a partner the backend would actually allow.
+ */
+const SELF_REG_SOURCE = 'funder-onboarding';
+function isFunderCleared(
+  p?: { funder_verified_at?: string | null; signup_source?: string | null } | null,
+): boolean {
+  if (!p) return false;
+  if (p.funder_verified_at) return true;          // explicitly verified
+  return p.signup_source !== SELF_REG_SOURCE;      // legacy partner → always cleared
+}
+
 interface SummaryData {
   totalPartners: number;
   activePartners: number;
