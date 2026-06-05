@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, Users, ShieldCheck, Banknote, Pause, Play, MinusCircle, ChevronRight, Scale, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Wallet, Users, ShieldCheck, Banknote, Pause, Play, MinusCircle, ChevronRight, Scale, AlertTriangle, CheckCircle2, ArrowRightLeft } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useFinOpsAutoRefresh, setFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { Switch } from '@/components/ui/switch';
@@ -48,6 +48,8 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         totalBalance: Number(d.total_balance ?? 0),
         walletCount: Number(d.total_wallets ?? 0),
         activeWallets: Number(d.active_wallets ?? 0),
+        totalFloat: Number(d.total_float ?? 0),
+        totalWithdrawable: Number(d.total_withdrawable ?? 0),
       };
     },
     staleTime: 60_000,
@@ -218,6 +220,29 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         )}
       </div>
 
+      {/* ─── Bucket Breakdown: Float + Withdrawable ─── */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="mt-4 grid grid-cols-2 gap-2"
+      >
+        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            <ArrowRightLeft className="h-3 w-3" /> Operations Float
+          </div>
+          <p className="text-lg sm:text-xl font-black tabular-nums mt-1 text-foreground break-all">
+            {isLoading ? '—' : formatUGX(data?.totalFloat ?? 0)}
+          </p>
+        </div>
+        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            <Banknote className="h-3 w-3" /> Withdrawable
+          </div>
+          <p className="text-lg sm:text-xl font-black tabular-nums mt-1 text-foreground break-all">
+            {isLoading ? '—' : formatUGX(data?.totalWithdrawable ?? 0)}
+          </p>
+        </div>
+      </div>
+
       {/* ─── Strict ledger truth row (operator transparency) ───
           The headline above is the cache total Fin Ops works from. This
           row shows what the ledger actually says so the operator can see,
@@ -276,3 +301,4 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
     </div>
   );
 }
+
