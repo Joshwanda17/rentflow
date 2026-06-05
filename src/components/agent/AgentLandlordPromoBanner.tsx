@@ -63,7 +63,7 @@ export function AgentLandlordPromoBanner({ onRegisterLandlord }: AgentLandlordPr
     }
     setSharing(true);
     try {
-      const link = await createShortLink(user.id, '/landlord-signup', { ref: user.id });
+      const link = await createShortLink(user.id, '/landlord-signup', { ref: user.id, campaign: 'agent-ll-emptyhouse-promo' });
       const message =
         `🏠 *Welile — This Week Only!*\n\n` +
         `Got an empty house? Register as a Welile landlord and get *12 months of guaranteed rent* — we pay you on time every month, even if the tenant delays.\n\n` +
