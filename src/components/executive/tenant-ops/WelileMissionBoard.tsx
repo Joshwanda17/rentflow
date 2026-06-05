@@ -949,6 +949,7 @@ function EmptyHousesDialog({
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<EmptySort>('rent_desc');
   const [targetFilter, setTargetFilter] = useState<'all' | 'targeted' | 'untargeted'>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { data, isLoading } = useMissionEmptyHouses(win, open, refetchIntervalMs);
   const houses: MissionEmptyHouseRow[] = data ?? [];
