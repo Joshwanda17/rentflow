@@ -3,7 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Share2, Loader2, CalendarIcon } from 'lucide-react';
-import { format, startOfMonth, endOfDay, startOfDay } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  endOfDay,
+  startOfDay,
+  startOfWeek,
+  subDays,
+  startOfQuarter,
+  startOfYear,
+} from 'date-fns';
 import { generateCfoPayoutsPdf, shareCfoPayoutsPdf, type CfoPayoutRow } from '@/lib/cfoPayoutsReportPdf';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -69,10 +78,36 @@ function DatePicker({
   );
 }
 
+type PresetKey = 'week' | '30days' | 'quarter' | 'ytd' | 'custom';
+
+const PRESETS: { key: PresetKey; label: string; getRange: () => { start: Date; end: Date } }[] = [
+  {
+    key: 'week',
+    label: 'This week',
+    getRange: () => ({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: new Date() }),
+  },
+  {
+    key: '30days',
+    label: 'Last 30 days',
+    getRange: () => ({ start: subDays(new Date(), 29), end: new Date() }),
+  },
+  {
+    key: 'quarter',
+    label: 'This quarter',
+    getRange: () => ({ start: startOfQuarter(new Date()), end: new Date() }),
+  },
+  {
+    key: 'ytd',
+    label: 'Year to date',
+    getRange: () => ({ start: startOfYear(new Date()), end: new Date() }),
+  },
+];
+
 export function CFOPayoutsShareButton() {
   const [busy, setBusy] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+  const [activePreset, setActivePreset] = useState<PresetKey>('custom');
 
   const handleShare = async () => {
     if (!startDate || !endDate) {
@@ -133,15 +168,50 @@ export function CFOPayoutsShareButton() {
     }
   };
 
+  const applyPreset = (key: PresetKey) => {
+    if (key === 'custom') return;
+    const preset = PRESETS.find(p => p.key === key);
+    if (!preset) return;
+    const { start, end } = preset.getRange();
+    setStartDate(start);
+    setEndDate(end);
+    setActivePreset(key);
+  };
+
+  const handleStartChange = (d?: Date) => {
+    setStartDate(d);
+    setActivePreset('custom');
+  };
+
+  const handleEndChange = (d?: Date) => {
+    setEndDate(d);
+    setActivePreset('custom');
+  };
+
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <DatePicker label="Start date" date={startDate} onSelect={setStartDate} />
-      <span className="text-muted-foreground text-sm">to</span>
-      <DatePicker label="End date" date={endDate} onSelect={setEndDate} />
-      <Button variant="outline" size="sm" onClick={handleShare} disabled={busy} className="gap-1.5">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-        Share Payouts PDF
-      </Button>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {PRESETS.map(p => (
+          <Button
+            key={p.key}
+            size="sm"
+            variant={activePreset === p.key ? 'default' : 'outline'}
+            onClick={() => applyPreset(p.key)}
+            className="text-xs h-7 px-2.5"
+          >
+            {p.label}
+          </Button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <DatePicker label="Start date" date={startDate} onSelect={handleStartChange} />
+        <span className="text-muted-foreground text-sm">to</span>
+        <DatePicker label="End date" date={endDate} onSelect={handleEndChange} />
+        <Button variant="outline" size="sm" onClick={handleShare} disabled={busy} className="gap-1.5">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+          Share Payouts PDF
+        </Button>
+      </div>
     </div>
   );
 }
