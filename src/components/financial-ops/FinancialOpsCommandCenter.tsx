@@ -88,6 +88,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   const [view, setView] = useState<View>('home');
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [moreSheet, setMoreSheet] = useState(false);
+  const [focusBucket, setFocusBucket] = useState<'float' | 'withdrawable' | null>(null);
 
   const openTool = (t: Tool) => {
     setActiveTool(t);
@@ -228,10 +229,14 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       <WalletOverviewCard
         onOpenReconciliation={() => openTool('recon')}
         onOpenBreakdown={() => openTool('wallet_breakdown')}
+        onDrillBucket={(bucket) => setFocusBucket(bucket)}
       />
 
       {/* Drilldown table: every user's Operations Float and Withdrawable */}
-      <WalletBreakdownReadOnly />
+      <WalletBreakdownReadOnly
+        focusBucket={focusBucket}
+        onClearFocus={() => setFocusBucket(null)}
+      />
       <FinancialOpsPulseStrip
         onSelect={(key) => {
           switch (key) {
