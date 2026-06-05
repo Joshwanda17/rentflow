@@ -229,12 +229,109 @@ function getOrdinalSuffix(day: number): string {
   }
 }
 
-function exportToCSV(rows: PartnerRow[]) {
-  const header = 'Name,Phone,Email,Status,Wallet,Total Funded,Deals,Avg Deal,ROI %,Payout Day,ROI Mode,Joined';
-  const csvRows = rows.map(r =>
-    `"${r.name}","${r.phone}","${r.email}","${r.status}","${r.walletBalance}","${r.funded}","${r.activeDeals}","${r.avgDeal}","${r.roiPercentage}","${r.payoutDay}","${r.roiMode}","${r.joinedAt}"`
+/** Portfolio shape needed for the deal-breakdown CSV export. */
+interface ExportPortfolio {
+  investor_id: string | null;
+  agent_id: string | null;
+  account_name: string | null;
+  portfolio_code: string | null;
+  investment_amount: number;
+  roi_percentage: number;
+  payout_day: number;
+  roi_mode: string;
+  next_roi_date: string | null;
+  created_at: string;
+}
+
+function csvEscape(v: unknown): string {
+  return `"${String(v ?? '').replace(/"/g, '""')}"`;
+}
+
+function exportPortfolioName(p: ExportPortfolio): string {
+  return (p.account_name?.trim() || p.portfolio_code || 'Portfolio').trim();
+}
+
+/** ROI mode with underscores swapped for spaces (e.g. monthly_payout → "monthly payout"). */
+function humanRoiMode(mode: string): string {
+  return (mode || '').replace(/_/g, ' ').trim();
+}
+
+/** "12 Jun 2026 - 7 days" style payout cell (date + days until next payout). */
+function buildPayoutCell(nextRoiDate: string | null, createdAt: string, payoutDay: number): string {
+  const dateStr = getNextPayoutDate(nextRoiDate, createdAt, payoutDay); // YYYY-MM-DD
+  const human = formatDateOnlyForDisplay(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = dateOnlyToLocalDate(dateStr);
+  const days = Math.round((d.getTime() - today.getTime()) / 86400000);
+  const daysLabel =
+    days === 0 ? 'Today'
+    : days > 0 ? `${days} day${days === 1 ? '' : 's'}`
+    : `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`;
+  return `${human} - ${daysLabel}`;
+}
+
+/**
+ * Build & download the partners CSV with per-deal (portfolio) breakdown.
+ * - Rows sorted by partner name ascending.
+ * - Partners with more than one deal are split into one row per portfolio,
+ *   named "{{PartnerName}} ({{PortfolioName}})".
+ * - Joined date is human-readable; ROI Mode uses spaces (no underscores).
+ */
+function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
+  const supporterIdSet = new Set(rows.map(r => r.id));
+  const byOwner = new Map<string, ExportPortfolio[]>();
+  portfolios.forEach(p => {
+    const ownerId = p.investor_id && supporterIdSet.has(p.investor_id)
+      ? p.investor_id
+      : p.agent_id && supporterIdSet.has(p.agent_id)
+        ? p.agent_id
+        : null;
+    if (!ownerId) return;
+    const arr = byOwner.get(ownerId) || [];
+    arr.push(p);
+    byOwner.set(ownerId, arr);
+  });
+
+  const header = [
+    'Name', 'Phone', 'Email', 'Status', 'Wallet',
+    'Principal', 'ROI %', 'ROI Mode', 'Payout Day & Date', 'Joined',
+  ];
+
+  const sortedRows = [...rows].sort((a, b) =>
+    (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
   );
-  const csv = [header, ...csvRows].join('\n');
+
+  const csvRows: string[] = [];
+  sortedRows.forEach(r => {
+    const statusLabel = r.status === 'suspended' ? 'Suspended' : 'Active';
+    const joined = r.joinedAt ? formatDateOnlyForDisplay(r.joinedAt) : '';
+    const ports = (byOwner.get(r.id) || []).slice().sort((a, b) =>
+      exportPortfolioName(a).localeCompare(exportPortfolioName(b), undefined, { sensitivity: 'base' })
+    );
+
+    if (ports.length === 0) {
+      csvRows.push([
+        r.name, r.phone, r.email, statusLabel, r.walletBalance,
+        '', '', '', '', joined,
+      ].map(csvEscape).join(','));
+      return;
+    }
+
+    ports.forEach(p => {
+      const name = ports.length > 1 ? `${r.name} (${exportPortfolioName(p)})` : r.name;
+      csvRows.push([
+        name, r.phone, r.email, statusLabel, r.walletBalance,
+        p.investment_amount ?? 0,
+        p.roi_percentage ?? '',
+        humanRoiMode(p.roi_mode),
+        buildPayoutCell(p.next_roi_date, p.created_at, p.payout_day ?? 15),
+        joined,
+      ].map(csvEscape).join(','));
+    });
+  });
+
+  const csv = [header.map(csvEscape).join(','), ...csvRows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
