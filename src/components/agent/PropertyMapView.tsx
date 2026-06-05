@@ -371,7 +371,7 @@ export function PropertyMapView({
                 </a>
                 <button
                   type="button"
-                  onClick={() => { setRoute(null); setOrigin(null); }}
+                  onClick={() => { setRoute(null); setOrigin(null); setFromCache(false); }}
                   aria-label="Clear route"
                   className="p-1.5 rounded-full border border-border text-muted-foreground"
                 >
