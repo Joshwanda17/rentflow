@@ -3,10 +3,55 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Building2, Navigation, Route, Loader2, X, ExternalLink } from 'lucide-react';
+import { MapPin, Building2, Navigation, Route, Loader2, X, ExternalLink, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useGoogleMapsLoader } from '@/hooks/useGoogleMapsLoader';
+
+// --- Route cache helpers ---
+const ROUTE_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+interface CachedRouteEntry {
+  origin: { lat: number; lng: number };
+  route: {
+    order: string[];
+    polyline: [number, number][];
+    mapsUrl: string;
+    distanceMeters: number | null;
+    durationSeconds: number | null;
+  };
+  cachedAt: number;
+}
+
+function buildRouteCacheKey(origin: { lat: number; lng: number }, stops: { id: string; lat: number; lng: number }[]) {
+  // Round origin to ~100 m grid to tolerate GPS jitter.
+  const o = `${origin.lat.toFixed(3)},${origin.lng.toFixed(3)}`;
+  const s = stops
+    .map((st) => `${st.id}:${st.lat.toFixed(4)}:${st.lng.toFixed(4)}`)
+    .sort()
+    .join('|');
+  return `welile_route_v1_${o}_${s}`;
+}
+
+function readCachedRoute(key: string): CachedRouteEntry | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedRouteEntry;
+    if (Date.now() - parsed.cachedAt > ROUTE_CACHE_TTL_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedRoute(key: string, entry: CachedRouteEntry) {
+  try {
+    localStorage.setItem(key, JSON.stringify(entry));
+  } catch {
+    // Storage full or private mode — silently skip caching.
+  }
+}
 
 // Reset default leaflet icon paths (matches LandlordLocationsMap)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -76,6 +121,7 @@ export function PropertyMapView({
   const { hasKey: mapsHasKey } = useGoogleMapsLoader(true);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [optimizing, setOptimizing] = useState(false);
+  const [fromCache, setFromCache] = useState(false);
   const [route, setRoute] = useState<{
     order: string[];
     polyline: [number, number][];
@@ -123,6 +169,7 @@ export function PropertyMapView({
     if (markers.length === 0 || optimizing) return;
     if (!mapsHasKey) { toast.error('Route planning is unavailable right now'); return; }
     setOptimizing(true);
+    setFromCache(false);
     try {
       const coords = await new Promise<{ lat: number; lng: number }>((resolve, reject) => {
         if (!('geolocation' in navigator)) { reject(new Error('no-geo')); return; }
@@ -135,6 +182,14 @@ export function PropertyMapView({
       setOrigin(coords);
 
       const stops = markers.map((m) => ({ id: m.addr, lat: m.loc.lat, lng: m.loc.lng }));
+      const cacheKey = buildRouteCacheKey(coords, stops);
+      const cached = readCachedRoute(cacheKey);
+      if (cached) {
+        setRoute(cached.route);
+        setFromCache(true);
+        toast.success('Optimal visit route ready (cached)');
+        return;
+      }
 
       // Ensure the Directions library is available, then optimize the visit order.
       const { DirectionsService } = (await google.maps.importLibrary('routes')) as google.maps.RoutesLibrary;
@@ -161,13 +216,15 @@ export function PropertyMapView({
       const params = new URLSearchParams({ api: '1', origin: o, destination: o, travelmode: 'driving' });
       if (ordered.length > 0) params.set('waypoints', ordered.map((s) => `${s.lat},${s.lng}`).join('|'));
 
-      setRoute({
+      const newRoute = {
         order,
         polyline,
         mapsUrl: `https://www.google.com/maps/dir/?${params.toString()}`,
         distanceMeters: distanceMeters || null,
         durationSeconds: durationSeconds || null,
-      });
+      };
+      setRoute(newRoute);
+      writeCachedRoute(cacheKey, { origin: coords, route: newRoute, cachedAt: Date.now() });
       toast.success('Optimal visit route ready');
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
@@ -291,6 +348,11 @@ export function PropertyMapView({
                 <p className="text-xs font-bold text-foreground flex items-center gap-1">
                   <Route className="h-3.5 w-3.5 text-primary" />
                   {route.order.length} stop{route.order.length !== 1 ? 's' : ''} optimized
+                  {fromCache && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-500 ml-1">
+                      <Zap className="h-3 w-3" /> Cached
+                    </span>
+                  )}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   {route.distanceMeters != null && `${(route.distanceMeters / 1000).toFixed(1)} km`}
@@ -309,7 +371,7 @@ export function PropertyMapView({
                 </a>
                 <button
                   type="button"
-                  onClick={() => { setRoute(null); setOrigin(null); }}
+                  onClick={() => { setRoute(null); setOrigin(null); setFromCache(false); }}
                   aria-label="Clear route"
                   className="p-1.5 rounded-full border border-border text-muted-foreground"
                 >
