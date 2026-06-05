@@ -429,7 +429,7 @@ Deno.serve(async (req) => {
           // Check for pending top-ups on this portfolio
           const { data: pendingOps } = await supabase
             .from('pending_wallet_operations')
-            .select('id, amount, transaction_group_id')
+            .select('id, amount, transaction_group_id, metadata')
             .eq('source_id', portfolio.id)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
@@ -459,25 +459,43 @@ Deno.serve(async (req) => {
           //    reviewed_by is a UUID column, so we CANNOT store a sentinel string
           //    there (the old 'system:roi-merge' value silently failed every merge
           //    and rolled it back). We leave reviewed_by NULL and flag the automatic
-          //    nature in metadata so the COO dashboard can surface an "auto-applied"
-          //    badge.
+          //    nature in each op's metadata (preserving any existing keys) so the
+          //    COO dashboard can surface an "auto-applied" badge.
           const pendingIds = pendingOps.map(op => op.id);
-          const { error: approveErr } = await supabase
-            .from('pending_wallet_operations')
-            .update({
-              status: 'completed',
-              reviewed_at: now.toISOString(),
-              reviewed_by: null,
-              metadata: { auto_applied_at_roi_cycle: true, merged_at: now.toISOString() },
-            })
-            .in('id', pendingIds);
+          const completeResults = await Promise.all(
+            pendingOps.map((op: any) =>
+              supabase
+                .from('pending_wallet_operations')
+                .update({
+                  status: 'completed',
+                  reviewed_at: now.toISOString(),
+                  reviewed_by: null,
+                  metadata: {
+                    ...(op.metadata && typeof op.metadata === 'object' ? op.metadata : {}),
+                    auto_applied_at_roi_cycle: true,
+                    merged_at: now.toISOString(),
+                  },
+                })
+                .eq('id', op.id)
+            )
+          );
+          const approveErr = completeResults.find((r: any) => r.error)?.error;
 
           if (approveErr) {
-            // Rollback
+            // Rollback — restore principal and revert any ops already flipped
             await supabase
               .from('investor_portfolios')
               .update({ investment_amount: currentAmount })
               .eq('id', portfolio.id);
+            const flippedIds = completeResults
+              .map((r: any, i: number) => (r.error ? null : pendingOps[i].id))
+              .filter(Boolean) as string[];
+            if (flippedIds.length > 0) {
+              await supabase
+                .from('pending_wallet_operations')
+                .update({ status: 'approved', reviewed_at: null, reviewed_by: null })
+                .in('id', flippedIds);
+            }
             console.error(`[process-supporter-roi] Rollback merge for portfolio ${portfolio.id}:`, approveErr.message);
             continue;
           }
