@@ -18085,6 +18085,14 @@ export type Database = {
           test_name: string
         }[]
       }
+      admin_purge_table_refs: {
+        Args: { p_parent_pk_values: string[]; p_parent_table: string }
+        Returns: number
+      }
+      admin_purge_user_dependencies: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       admin_reseed_wallet_cache: {
         Args: { p_balance: number; p_user_id: string; p_withdrawable: number }
         Returns: undefined
