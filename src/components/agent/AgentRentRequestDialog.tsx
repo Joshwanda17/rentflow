@@ -3033,6 +3033,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                     <FieldError message={vPhone(tenantPhone)} />
+                    <ExistingTenantPhoneNotice
+                      match={existingTenantByPhone}
+                      checking={checkingTenantPhone}
+                      onUse={useExistingTenantMatch}
+                    />
                   </div>
                 </div>
 
