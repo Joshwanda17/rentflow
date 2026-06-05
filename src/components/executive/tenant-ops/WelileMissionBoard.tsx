@@ -110,6 +110,7 @@ function recommend(s: MissionSummary): { key: PriorityKey; text: string; severit
 }
 
 export function WelileMissionBoard() {
+  const navigate = useNavigate();
   const [win, setWin] = useState<CounterWindow>('7d');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showAgents, setShowAgents] = useState(true);
