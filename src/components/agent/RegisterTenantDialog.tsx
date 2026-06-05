@@ -31,6 +31,8 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import RentRequestStatusTracker from '@/components/agent/RentRequestStatusTracker';
 import { useSmartLocation } from '@/hooks/useSmartLocation';
+import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhoneNotice';
+import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useExistingTenantByPhone';
 
 interface RegisterTenantDialogProps {
   open: boolean;
@@ -54,6 +56,15 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [tenantPhone, setTenantPhone] = useState('');
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [tenantFullName, setTenantFullName] = useState('');
+
+  // Live fraud guard: reveal if this tenant phone is already registered.
+  const { match: existingTenantByPhone, checking: checkingTenantPhone } =
+    useExistingTenantByPhone(tenantPhone);
+  const useExistingTenantMatch = (m: ExistingTenantMatch) => {
+    if (m.full_name) setTenantFullName(m.full_name);
+    if (m.national_id) { setTenantNationalId(m.national_id.toUpperCase()); setNationalIdError(''); }
+    toast.success(`Using ${m.full_name || 'existing tenant'}'s record`);
+  };
   
   // Landlord info
   const [landlordName, setLandlordName] = useState('');
