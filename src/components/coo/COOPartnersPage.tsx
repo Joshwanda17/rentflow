@@ -237,6 +237,7 @@ interface ExportPortfolio {
   portfolio_code: string | null;
   investment_amount: number;
   roi_percentage: number;
+  total_roi_earned: number | null;
   payout_day: number;
   roi_mode: string;
   next_roi_date: string | null;
