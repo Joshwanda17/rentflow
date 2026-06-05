@@ -29,9 +29,15 @@ interface WalletOverviewCardProps {
    * so a manager can search every wallet by name, phone or balance range.
    */
   onOpenBreakdown?: () => void;
+  /**
+   * Tapping the Operations Float or Withdrawable tile drills into the
+   * breakdown table focused on that specific bucket (filtered to wallets
+   * holding that bucket and sorted by it).
+   */
+  onDrillBucket?: (bucket: 'float' | 'withdrawable') => void;
 }
 
-export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOpenReconciliation, onOpenBreakdown }: WalletOverviewCardProps = {}) {
+export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOpenReconciliation, onOpenBreakdown, onDrillBucket }: WalletOverviewCardProps = {}) {
   // Operators reviewing a deposit don't want the screen reshuffling under
   // their cursor. The shared toggle gates polling on this card AND on the
   // Verify Deposits hub at the same time.
@@ -225,22 +231,56 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         onClick={(e) => e.stopPropagation()}
         className="mt-4 grid grid-cols-2 gap-2"
       >
-        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            <ArrowRightLeft className="h-3 w-3" /> Operations Float
+        {onDrillBucket ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDrillBucket('float'); }}
+            className="text-left rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3 transition-all hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Drill down on Operations Float"
+          >
+            <div className="flex items-center justify-between gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              <span className="flex items-center gap-1.5"><ArrowRightLeft className="h-3 w-3" /> Operations Float</span>
+              <ChevronRight className="h-3 w-3 text-primary" />
+            </div>
+            <p className="text-lg sm:text-xl font-black tabular-nums mt-1 text-foreground break-all">
+              {isLoading ? '—' : formatUGX(data?.totalFloat ?? 0)}
+            </p>
+          </button>
+        ) : (
+          <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              <ArrowRightLeft className="h-3 w-3" /> Operations Float
+            </div>
+            <p className="text-lg sm:text-xl font-black tabular-nums mt-1 text-foreground break-all">
+              {isLoading ? '—' : formatUGX(data?.totalFloat ?? 0)}
+            </p>
           </div>
-          <p className="text-lg sm:text-xl font-black tabular-nums mt-1 text-foreground break-all">
-            {isLoading ? '—' : formatUGX(data?.totalFloat ?? 0)}
-          </p>
-        </div>
-        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            <Banknote className="h-3 w-3" /> Withdrawable
+        )}
+        {onDrillBucket ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDrillBucket('withdrawable'); }}
+            className="text-left rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3 transition-all hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Drill down on Withdrawable"
+          >
+            <div className="flex items-center justify-between gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              <span className="flex items-center gap-1.5"><Banknote className="h-3 w-3" /> Withdrawable</span>
+              <ChevronRight className="h-3 w-3 text-primary" />
+            </div>
+            <p className="text-lg sm:text-xl font-black tabular-nums mt-1 text-foreground break-all">
+              {isLoading ? '—' : formatUGX(data?.totalWithdrawable ?? 0)}
+            </p>
+          </button>
+        ) : (
+          <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              <Banknote className="h-3 w-3" /> Withdrawable
+            </div>
+            <p className="text-lg sm:text-xl font-black tabular-nums mt-1 text-foreground break-all">
+              {isLoading ? '—' : formatUGX(data?.totalWithdrawable ?? 0)}
+            </p>
           </div>
-          <p className="text-lg sm:text-xl font-black tabular-nums mt-1 text-foreground break-all">
-            {isLoading ? '—' : formatUGX(data?.totalWithdrawable ?? 0)}
-          </p>
-        </div>
+        )}
       </div>
 
       {/* ─── Strict ledger truth row (operator transparency) ───
