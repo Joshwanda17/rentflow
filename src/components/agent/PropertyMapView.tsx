@@ -183,25 +183,39 @@ export function PropertyMapView({
           <Building2 className="h-3 w-3" />
           {totalProps} mapped {totalProps === 1 ? 'property' : 'properties'}
         </span>
-        {missing > 0 && (
-          <span>{missing} without coordinates</span>
-        )}
+        <div className="flex items-center gap-2">
+          {missing > 0 && <span>{missing} without coordinates</span>}
+          <button
+            type="button"
+            onClick={optimizeRoute}
+            disabled={optimizing}
+            className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1 text-[11px] font-semibold disabled:opacity-60 active:scale-95 transition"
+          >
+            {optimizing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Route className="h-3 w-3" />}
+            {route ? 'Re-plan' : 'Plan route'}
+          </button>
+        </div>
       </div>
-      <div className="flex-1 rounded-2xl overflow-hidden border border-border/60">
+      <div className="relative flex-1 rounded-2xl overflow-hidden border border-border/60">
         <MapContainer center={defaultCenter} zoom={12} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
           <TileLayer
             attribution='&copy; OpenStreetMap'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <FitBounds points={points} />
+          {origin && <Marker position={[origin.lat, origin.lng]} icon={youIcon} />}
+          {route && route.polyline.length > 1 && (
+            <Polyline positions={route.polyline} pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.8 }} />
+          )}
           {markers.map(m => {
             const hasDebt = m.owing > 0;
+            const n = orderNumber?.[m.addr];
             return (
-              <Marker key={m.addr} position={[m.loc.lat, m.loc.lng]} icon={hasDebt ? owingIcon : paidIcon}>
+              <Marker key={m.addr} position={[m.loc.lat, m.loc.lng]} icon={n ? orderedIcon(n, hasDebt) : (hasDebt ? owingIcon : paidIcon)}>
                 <Popup minWidth={240} maxWidth={280}>
                   <div className="space-y-2">
                     <div>
-                      <p className="font-bold text-sm leading-tight">{m.addr}</p>
+                      <p className="font-bold text-sm leading-tight">{n ? `Stop ${n}: ` : ''}{m.addr}</p>
                       <p className="text-[11px] text-gray-500 mt-0.5">
                         {m.tenants.length} tenant{m.tenants.length !== 1 ? 's' : ''}
                         {' · '}
@@ -248,6 +262,41 @@ export function PropertyMapView({
             );
           })}
         </MapContainer>
+        {route && (
+          <div className="absolute bottom-2 left-2 right-2 z-[1000] rounded-xl bg-card/95 backdrop-blur border border-border shadow-lg p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground flex items-center gap-1">
+                  <Route className="h-3.5 w-3.5 text-primary" />
+                  {route.order.length} stop{route.order.length !== 1 ? 's' : ''} optimized
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {route.distanceMeters != null && `${(route.distanceMeters / 1000).toFixed(1)} km`}
+                  {route.distanceMeters != null && route.durationSeconds != null && ' · '}
+                  {route.durationSeconds != null && `${Math.round(route.durationSeconds / 60)} min drive`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <a
+                  href={route.mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1.5 text-[11px] font-semibold active:scale-95"
+                >
+                  <ExternalLink className="h-3 w-3" /> Navigate
+                </a>
+                <button
+                  type="button"
+                  onClick={() => { setRoute(null); setOrigin(null); }}
+                  aria-label="Clear route"
+                  className="p-1.5 rounded-full border border-border text-muted-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
