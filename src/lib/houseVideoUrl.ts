@@ -67,7 +67,7 @@ export function parseHouseVideo(raw: string | null | undefined): ParsedHouseVide
     return {
       provider: 'youtube',
       embedUrl: `https://www.youtube-nocookie.com/embed/${ytId}`,
-      watchUrl: `https://youtu.be/${ytId}`,
+      canonicalUrl: `https://youtu.be/${ytId}`,
     };
   }
 
@@ -76,11 +76,16 @@ export function parseHouseVideo(raw: string | null | undefined): ParsedHouseVide
     return {
       provider: 'google_drive',
       embedUrl: `https://drive.google.com/file/d/${driveId}/preview`,
-      watchUrl: `https://drive.google.com/file/d/${driveId}/view`,
+      canonicalUrl: `https://drive.google.com/file/d/${driveId}/view`,
     };
   }
 
   return null;
+}
+
+/** Returns the normalized canonical URL string, or null if invalid. */
+export function normalizeHouseVideoUrl(raw: string | null | undefined): string | null {
+  return parseHouseVideo(raw)?.canonicalUrl ?? null;
 }
 
 /** True when the link is a recognised, embeddable house video. */

@@ -455,7 +455,7 @@ export default function HouseDetail() {
                 />
               </div>
               <a
-                href={houseVideo.watchUrl}
+                href={houseVideo.canonicalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
