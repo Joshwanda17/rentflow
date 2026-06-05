@@ -324,6 +324,16 @@ export function WelileMissionBoard() {
                       <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
                     </Button>
                   )}
+                  {p.key === 'list' && receivables && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-full mt-1.5 text-[11px] gap-1 text-amber-700 hover:text-amber-800"
+                      onClick={() => navigate('/receivables-audit')}
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" /> View validation / audit report
+                    </Button>
+                  )}
                   {p.key === 'place' && (
                     <Button
                       variant="outline"
