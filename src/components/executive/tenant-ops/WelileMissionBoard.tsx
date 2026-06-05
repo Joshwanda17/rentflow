@@ -242,11 +242,18 @@ export function WelileMissionBoard() {
                     </div>
                   )}
                   {p.key === 'list' && receivables && (
-                    <div className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1.5">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">Projected receivables</p>
+                    <button
+                      type="button"
+                      onClick={() => setEmptyOpen(true)}
+                      className="mt-2 w-full rounded-lg bg-amber-500/10 px-2 py-1.5 text-left hover:ring-1 hover:ring-amber-500/40 transition"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">Projected receivables</p>
+                        <ChevronRight className="h-3 w-3 text-amber-700 shrink-0" />
+                      </div>
                       <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatUGX(receivables.empty_receivable_total + receivables.unlisted_receivable_total)}</p>
-                      <p className="text-[10px] text-muted-foreground leading-none">{(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses · monthly × 12</p>
-                    </div>
+                      <p className="text-[10px] text-muted-foreground leading-none">{(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses · monthly × 12 · tap to view list</p>
+                    </button>
                   )}
                   {p.key === 'list' && (
                     <Button
