@@ -611,7 +611,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                             : { status: 'searching' }
                         );
                       }}
-                      className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
+                      className="h-12 text-base bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                       required
                     />
                   ) : (
@@ -629,7 +629,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                             : { status: 'searching' }
                         );
                       }}
-                      className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
+                      className="h-12 text-base bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                       required
                     />
                   )}
