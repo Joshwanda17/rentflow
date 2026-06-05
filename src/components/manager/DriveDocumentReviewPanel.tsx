@@ -239,6 +239,31 @@ export function DriveDocumentReviewPanel() {
           />
         </div>
 
+        {/* Bulk selection bar */}
+        {!loading && filtered.length > 0 && (
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              <Checkbox checked={allFilteredSelected} className="h-3.5 w-3.5" />
+              {allFilteredSelected ? 'Clear selection' : 'Select all'}
+              {selected.size > 0 && <span className="opacity-70">({selected.size} selected)</span>}
+            </button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={downloadZip}
+              disabled={selectedRows.length === 0 || zipping}
+              className="h-7 text-xs gap-1.5"
+            >
+              {zipping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              Download ZIP
+            </Button>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground py-4">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading documents…
@@ -253,6 +278,11 @@ export function DriveDocumentReviewPanel() {
               const FileIcon = isImg ? ImageIcon : FileText;
               return (
                 <li key={r.id} className="flex items-start gap-2 rounded-md border border-border bg-background p-2">
+                  <Checkbox
+                    checked={selected.has(r.id)}
+                    onCheckedChange={() => toggleRow(r.id)}
+                    className="h-3.5 w-3.5 mt-0.5 shrink-0"
+                  />
                   <FileIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-semibold truncate">{r.file_name || r.source_path.split('/').pop()}</p>
