@@ -411,6 +411,16 @@ export function WelileMissionBoard() {
                     </button>
                   )}
                   {p.key === 'fund' && (
+                    <div className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">ROI payable · next cycle</p>
+                      <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatUGX(roiPayable?.total ?? 0)}</p>
+                      <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
+                        {(roiPayable?.count ?? 0).toLocaleString()} portfolio{(roiPayable?.count ?? 0) !== 1 ? 's' : ''} due
+                        {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''}
+                      </p>
+                    </div>
+                  )}
+                  {p.key === 'fund' && (
                     <Button
                       variant="outline"
                       size="sm"
