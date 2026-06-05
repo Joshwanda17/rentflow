@@ -1,11 +1,13 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Search, Wallet, Lock, ChevronRight, ChevronDown } from 'lucide-react';
+import { Loader2, Search, Wallet, Lock, ChevronRight, ChevronDown, X, ArrowRightLeft, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { WalletBucketLedgerDetail } from './WalletBucketLedgerDetail';
+
+type FocusBucket = 'float' | 'withdrawable' | null;
 
 /**
  * Read-only wallet breakdown for managers / Fin Ops. Lists every wallet
@@ -14,14 +16,31 @@ import { WalletBucketLedgerDetail } from './WalletBucketLedgerDetail';
  * Filters:
  *   - Free-text search across full name / phone (case-insensitive)
  *   - Min / Max total balance range (UGX)
+ *   - Optional bucket focus (Operations Float / Withdrawable) driven by the
+ *     drilldown tiles on the wallet overview card
  *
  * No mutation hooks, no buttons. Pure observability.
  */
-export function WalletBreakdownReadOnly() {
+export function WalletBreakdownReadOnly({
+  focusBucket = null,
+  onClearFocus,
+}: {
+  focusBucket?: FocusBucket;
+  onClearFocus?: () => void;
+} = {}) {
   const [search, setSearch] = useState('');
   const [minBal, setMinBal] = useState<string>('');
   const [maxBal, setMaxBal] = useState<string>('');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // When a bucket drilldown is requested, scroll the table into view so the
+  // operator immediately lands on the focused breakdown.
+  useEffect(() => {
+    if (focusBucket && rootRef.current) {
+      rootRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [focusBucket]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['manager-wallet-breakdown'],
@@ -67,21 +86,37 @@ export function WalletBreakdownReadOnly() {
     const q = search.trim().toLowerCase();
     const min = minBal ? Number(minBal) : null;
     const max = maxBal ? Number(maxBal) : null;
-    return data.filter((row) => {
+    const rows = data.filter((row) => {
       if (q) {
         const hay = `${row.full_name} ${row.phone}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (min !== null && row.balance < min) return false;
       if (max !== null && row.balance > max) return false;
+      // Bucket focus: only show wallets actually holding that bucket.
+      if (focusBucket === 'float' && row.float <= 0) return false;
+      if (focusBucket === 'withdrawable' && row.withdrawable <= 0) return false;
       return true;
     });
-  }, [data, search, minBal, maxBal]);
+    // When focused on a bucket, sort by that bucket descending so the
+    // biggest holders surface first.
+    if (focusBucket === 'float') {
+      rows.sort((a, b) => b.float - a.float);
+    } else if (focusBucket === 'withdrawable') {
+      rows.sort((a, b) => b.withdrawable - a.withdrawable);
+    }
+    return rows;
+  }, [data, search, minBal, maxBal, focusBucket]);
 
   const totalShown = filtered.reduce((s, r) => s + r.balance, 0);
+  const focusTotal = filtered.reduce(
+    (s, r) => s + (focusBucket === 'float' ? r.float : focusBucket === 'withdrawable' ? r.withdrawable : 0),
+    0,
+  );
+  const focusLabel = focusBucket === 'float' ? 'Operations Float' : focusBucket === 'withdrawable' ? 'Withdrawable' : '';
 
   return (
-    <div className="space-y-5">
+    <div ref={rootRef} className="space-y-5 scroll-mt-4">
       <div>
         <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5">
           <Wallet className="h-6 w-6 text-primary" />
@@ -94,6 +129,36 @@ export function WalletBreakdownReadOnly() {
           Search every wallet by name, phone, or balance range. View only — no actions.
         </p>
       </div>
+
+      {/* Active bucket focus banner */}
+      {focusBucket && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3">
+          <div className="flex items-center gap-2 min-w-0">
+            {focusBucket === 'float' ? (
+              <ArrowRightLeft className="h-4 w-4 text-primary shrink-0" />
+            ) : (
+              <Banknote className="h-4 w-4 text-primary shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">
+                Drilldown: {focusLabel}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {filtered.length.toLocaleString()} wallets • {formatUGX(focusTotal)} total
+              </p>
+            </div>
+          </div>
+          {onClearFocus && (
+            <button
+              type="button"
+              onClick={onClearFocus}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0"
+            >
+              <X className="h-3.5 w-3.5" /> Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="grid gap-3 sm:grid-cols-3 rounded-xl border border-border bg-card p-4">
@@ -162,8 +227,8 @@ export function WalletBreakdownReadOnly() {
                 <th className="px-3 py-2 font-semibold w-8"></th>
                 <th className="px-3 py-2 font-semibold">Owner</th>
                 <th className="px-3 py-2 font-semibold text-right">Total</th>
-                <th className="px-3 py-2 font-semibold text-right">Withdrawable</th>
-                <th className="px-3 py-2 font-semibold text-right">Float</th>
+                <th className={`px-3 py-2 font-semibold text-right ${focusBucket === 'withdrawable' ? 'text-primary' : ''}`}>Withdrawable</th>
+                <th className={`px-3 py-2 font-semibold text-right ${focusBucket === 'float' ? 'text-primary' : ''}`}>Float</th>
                 <th className="px-3 py-2 font-semibold text-right">Advance</th>
                 <th className="px-3 py-2 font-semibold text-right">Locked</th>
               </tr>
@@ -199,8 +264,8 @@ export function WalletBreakdownReadOnly() {
                           <div className="text-[11px] text-muted-foreground">{row.phone || '—'}</div>
                         </td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold">{formatUGX(row.balance)}</td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums">{formatUGX(row.withdrawable)}</td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums">{formatUGX(row.float)}</td>
+                        <td className={`px-3 py-2 text-right font-mono tabular-nums ${focusBucket === 'withdrawable' ? 'text-primary font-semibold' : ''}`}>{formatUGX(row.withdrawable)}</td>
+                        <td className={`px-3 py-2 text-right font-mono tabular-nums ${focusBucket === 'float' ? 'text-primary font-semibold' : ''}`}>{formatUGX(row.float)}</td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-warning">{row.advance > 0 ? formatUGX(row.advance) : '—'}</td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">{row.locked > 0 ? formatUGX(row.locked) : '—'}</td>
                       </tr>
