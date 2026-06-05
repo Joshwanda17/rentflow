@@ -154,6 +154,37 @@ export function WelileMissionBoard() {
   const { data: receivables } = useMissionReceivables(win, intervalMs);
   const { data: landlordBreakdown } = useLandlordPriorityBreakdown(win, intervalMs);
 
+  // ROI payable OUT to funders in the next cycle (~next 31 days).
+  // Drives the "ROI payable next cycle" figure on Priority 3 (Onboard funders).
+  const { data: roiPayable } = useQuery({
+    queryKey: ['mission-roi-payable-next', intervalMs],
+    refetchInterval: intervalMs,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('investor_portfolios')
+        .select('investment_amount, roi_percentage, next_roi_date')
+        .eq('status', 'active')
+        .not('next_roi_date', 'is', null);
+      if (error) throw error;
+      const now = new Date();
+      const start = new Date(now); start.setHours(0, 0, 0, 0);
+      const end = new Date(start); end.setDate(end.getDate() + 31);
+      let total = 0;
+      let count = 0;
+      let earliest: Date | null = null;
+      (data ?? []).forEach((p: any) => {
+        if (!p.next_roi_date) return;
+        const d = new Date(p.next_roi_date);
+        if (d >= start && d <= end) {
+          total += (Number(p.investment_amount) || 0) * (Number(p.roi_percentage) || 0) / 100;
+          count += 1;
+          if (!earliest || d < earliest) earliest = d;
+        }
+      });
+      return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null };
+    },
+  });
+
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
     let r = [...agents];
