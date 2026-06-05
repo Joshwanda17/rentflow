@@ -231,6 +231,7 @@ function getOrdinalSuffix(day: number): string {
 
 /** Portfolio shape needed for the deal-breakdown CSV export. */
 interface ExportPortfolio {
+  id: string;
   investor_id: string | null;
   agent_id: string | null;
   account_name: string | null;
