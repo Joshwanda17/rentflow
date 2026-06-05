@@ -104,6 +104,7 @@ export function WelileMissionBoard() {
   const [fundersOpen, setFundersOpen] = useState(false);
   const [landlordRecvOpen, setLandlordRecvOpen] = useState(false);
   const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
+  const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
@@ -111,6 +112,7 @@ export function WelileMissionBoard() {
   const agents: MissionAgentRow[] = agentData ?? [];
   const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(win, intervalMs);
   const { data: receivables } = useMissionReceivables(intervalMs);
+  const { data: landlordBreakdown } = useLandlordPriorityBreakdown(win, intervalMs);
 
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
