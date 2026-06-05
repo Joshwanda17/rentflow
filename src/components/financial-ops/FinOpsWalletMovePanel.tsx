@@ -179,6 +179,44 @@ export function FinOpsWalletMovePanel() {
     setSubmitting(true);
     setStep('posting');
 
+    // Real-time guard: re-fetch the source user's LATEST wallet balances right
+    // before posting so we never act on a stale Operations Float / Withdrawable
+    // figure. Aborts the move (and refreshes the on-screen card) if the chosen
+    // bucket no longer covers the amount.
+    try {
+      const { data: fresh, error: freshErr } = await supabase
+        .from('wallets')
+        .select('withdrawable_balance, float_balance, balance')
+        .eq('user_id', source.id)
+        .maybeSingle();
+      if (freshErr) throw freshErr;
+      const freshW = Number(fresh?.withdrawable_balance ?? 0);
+      const freshF = Number(fresh?.float_balance ?? 0);
+      const freshT = Number(fresh?.balance ?? 0);
+      const freshAvail = sourceBucket === 'withdrawable' ? freshW : freshF;
+      // Keep the source card in sync with reality.
+      setSource((prev) =>
+        prev && prev.id === source.id
+          ? { ...prev, withdrawable_balance: freshW, float_balance: freshF, balance: freshT }
+          : prev,
+      );
+      if (amountNum > freshAvail) {
+        setSubmitting(false);
+        setConfirmOpen(false);
+        setStep('idle');
+        toast.error('Balance changed', {
+          description: `${source.full_name || 'This user'}'s ${sourceBucket} is now ${fmt(freshAvail)}. Adjust the amount and try again.`,
+        });
+        return;
+      }
+    } catch (e) {
+      setSubmitting(false);
+      setConfirmOpen(false);
+      setStep('idle');
+      toast.error('Could not verify latest balance', { description: (e as Error).message });
+      return;
+    }
+
     // Same-user Float → Withdrawable reclassification uses the dedicated,
     // balanced edge function (never overdraws, leaves total balance unchanged).
     if (mode === 'same_user') {
