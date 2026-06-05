@@ -1772,7 +1772,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const filteredIds = filtered.map(r => r.id);
       const exportPortfoliosRaw = await batchedQuery<any>(filteredIds, (batch) =>
         supabase.from('investor_portfolios')
-          .select('id, investor_id, agent_id, account_name, portfolio_code, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date')
+          .select('id, investor_id, agent_id, account_name, portfolio_code, investment_amount, roi_percentage, total_roi_earned, payout_day, roi_mode, status, created_at, next_roi_date')
           .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
           .in('status', ['active', 'pending_approval', 'pending'])
           .order('created_at', { ascending: false })
