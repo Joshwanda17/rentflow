@@ -484,13 +484,21 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-border/60 bg-background/50 p-4 space-y-2">
+                <div className="rounded-lg border border-border/60 bg-background/50 p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs uppercase tracking-wide text-muted-foreground">Amount</span>
+                    <span className="text-sm font-semibold text-foreground">{formatCurrency(parseFloat(amount) || 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">Transfer fee</span>
+                    <span className="text-sm font-semibold text-success">Free</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-border/60 pt-2.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-foreground">Total to send</span>
                     <span className="text-lg font-bold">{formatCurrency(parseFloat(amount) || 0)}</span>
                   </div>
                   {description.trim() && (
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3 border-t border-border/60 pt-2.5">
                       <span className="text-xs uppercase tracking-wide text-muted-foreground pt-0.5">For</span>
                       <span className="text-sm text-foreground text-right break-words">{description.trim()}</span>
                     </div>
