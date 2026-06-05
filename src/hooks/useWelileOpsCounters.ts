@@ -237,6 +237,32 @@ export interface MissionLandlordReceivable {
   placement_count: number;
 }
 
+export interface ReceivableAuditRow {
+  src: 'listing' | 'landlord';
+  unit_id: string;
+  label: string;
+  region: string;
+  monthly_rent: number;
+  rent_plus_markup: number;
+  daily_projected: number;
+  annual_projection: number;
+  rent_bucket: 'recorded' | 'missing';
+}
+
+export function useReceivablesAudit(win: CounterWindow, limit = 12, enabled = true) {
+  const since = windowToISO(win);
+  return useQuery({
+    queryKey: ['welile-receivables-audit', win, limit],
+    enabled,
+    staleTime: 60_000,
+    queryFn: async (): Promise<ReceivableAuditRow[]> => {
+      const { data, error } = await supabase.rpc('welile_receivables_audit' as any, { p_since: since, p_limit: limit });
+      if (error) throw error;
+      return (data ?? []) as ReceivableAuditRow[];
+    },
+  });
+}
+
 export function useMissionLandlordReceivables(
   enabled: boolean,
   from?: string | null,
