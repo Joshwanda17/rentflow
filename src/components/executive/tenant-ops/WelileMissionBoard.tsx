@@ -276,7 +276,27 @@ export function WelileMissionBoard() {
                       className="mt-2 w-full rounded-lg bg-amber-500/10 px-2 py-1.5 text-left hover:ring-1 hover:ring-amber-500/40 transition"
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">Projected receivables</p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">Projected receivables</p>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center justify-center rounded-full p-0.5 hover:bg-amber-500/20 transition-colors cursor-help">
+                                  <Info className="h-3 w-3 text-amber-700" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[260px] space-y-1.5">
+                                <p className="text-xs font-bold">Why two numbers?</p>
+                                <p className="text-[11px] text-muted-foreground leading-snug">
+                                  <strong>Recorded</strong> only sums houses with a rent value on file ({receivables.known_rent_count.toLocaleString()} houses). The other {receivables.missing_rent_count.toLocaleString()} listings had no rent recorded, so they previously contributed UGX&nbsp;0.
+                                </p>
+                                <p className="text-[11px] text-muted-foreground leading-snug">
+                                  <strong>Est. full potential</strong> fills missing rents using the average known rent (~{formatUGX(receivables.avg_known_monthly)}/mo), projecting what all {(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses could yield if fully documented.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                         <ChevronRight className="h-3 w-3 text-amber-700 shrink-0" />
                       </div>
                       <div className="mt-0.5 grid grid-cols-2 gap-2">
