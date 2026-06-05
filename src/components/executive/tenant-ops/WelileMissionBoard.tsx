@@ -222,6 +222,12 @@ export function WelileMissionBoard() {
                     <span className="text-2xl font-bold leading-none">{m.big.toLocaleString()}</span>
                     <span className="text-[11px] text-muted-foreground">{m.label}</span>
                   </div>
+                  {p.key === 'list' && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      <CalendarDays className="inline h-3 w-3 mr-0.5 -translate-y-px" />
+                      {windowDateRangeLabel(win)}
+                    </p>
+                  )}
                   {m.extra && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
                   {p.key === 'place' && receivables && (
                     <div className="mt-2 rounded-lg bg-emerald-500/10 px-2 py-1.5">
