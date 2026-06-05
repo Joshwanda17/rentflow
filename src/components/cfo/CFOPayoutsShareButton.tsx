@@ -156,7 +156,21 @@ export function CFOPayoutsShareButton() {
         return;
       }
 
-      const blob = await generateCfoPayoutsPdf(rows, new Date(), { startDate, endDate });
+      // Recipient breakdown: group by recipient and sum amounts
+      const breakdownMap = new Map<string, { recipient: string; count: number; total: number }>();
+      for (const r of rows) {
+        const key = r.recipient || '—';
+        const existing = breakdownMap.get(key);
+        if (existing) {
+          existing.count += 1;
+          existing.total += r.amount;
+        } else {
+          breakdownMap.set(key, { recipient: key, count: 1, total: r.amount });
+        }
+      }
+      const breakdown = Array.from(breakdownMap.values()).sort((a, b) => b.total - a.total);
+
+      const blob = await generateCfoPayoutsPdf(rows, new Date(), { startDate, endDate }, breakdown);
       const filename = `welile-payouts-${format(startDate, 'yyyy-MM-dd')}-to-${format(endDate, 'yyyy-MM-dd')}.pdf`;
       const total = rows.reduce((s, r) => s + r.amount, 0);
       const caption = `Welile Wallet Payouts — ${rows.length} payouts totalling UGX ${total.toLocaleString()} (${format(startDate, 'dd MMM yyyy')} – ${format(endDate, 'dd MMM yyyy')}).`;
