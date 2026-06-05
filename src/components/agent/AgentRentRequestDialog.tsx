@@ -1261,6 +1261,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
   }, [existingTenants]);
 
+  // When the live phone check reveals an existing user, let the agent re-use
+  // that record instead of creating a duplicate (fraud guard).
+  const useExistingTenantMatch = useCallback((m: ExistingTenantMatch) => {
+    if (m.full_name) setTenantName(formatNameInput(m.full_name));
+    if (m.phone) setTenantPhone(formatPhoneInput(m.phone));
+    if (m.national_id) setTenantNationalId(cleanNationalIdInput(m.national_id));
+    toast.success(`Using ${m.full_name || 'existing tenant'}'s record`);
+  }, []);
+
 
   const uploadTenantPhoto = async (requestId: string, tenantUserId?: string | null): Promise<string | null> => {
     if (!user || !tenantPhoto) return null;
