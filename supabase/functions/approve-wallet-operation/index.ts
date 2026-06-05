@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { operation_id, action, rejection_reason, bulk_ids, display_currency, payment_method, payment_reference } = body as {
+    const { operation_id, action, rejection_reason, bulk_ids, display_currency, payment_method, payment_reference, override_amount } = body as {
       operation_id?: string;
       action: "approve" | "reject";
       rejection_reason?: string;
@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
       display_currency?: string;
       payment_method?: string;
       payment_reference?: string;
+      override_amount?: number;
     };
 
     // Validate action
