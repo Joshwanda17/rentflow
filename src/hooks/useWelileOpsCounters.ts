@@ -208,13 +208,14 @@ export interface MissionReceivables {
   unlisted_landlord_count: number;
 }
 
-export function useMissionReceivables(refetchIntervalMs?: number | false) {
+export function useMissionReceivables(win: CounterWindow, refetchIntervalMs?: number | false) {
+  const since = windowToISO(win);
   return useQuery({
-    queryKey: ['welile-mission-receivables'],
+    queryKey: ['welile-mission-receivables', win],
     staleTime: 60_000,
     refetchInterval: refetchIntervalMs || false,
     queryFn: async (): Promise<MissionReceivables | null> => {
-      const { data, error } = await supabase.rpc('welile_mission_receivables' as any);
+      const { data, error } = await supabase.rpc('welile_mission_receivables' as any, { p_since: since });
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
       return (row ?? null) as MissionReceivables | null;
