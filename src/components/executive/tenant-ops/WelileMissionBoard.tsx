@@ -1147,6 +1147,20 @@ function EmptyHousesDialog({
               </button>
             ))}
           </div>
+          <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <SelectTrigger className="h-8 w-[150px] text-[11px] shrink-0">
+              <CalendarDays className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+              <SelectValue placeholder="Month listed" />
+            </SelectTrigger>
+            <SelectContent className="pointer-events-auto">
+              <SelectItem value="all" className="text-xs">All months</SelectItem>
+              {monthOptions.map((m) => (
+                <SelectItem key={m.key} value={m.key} className="text-xs">
+                  {m.label} ({m.count})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {!isLoading && houses.length > 0 && (
