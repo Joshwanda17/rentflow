@@ -50,6 +50,8 @@ import type { DateRange } from 'react-day-picker';
 import { useNavigate } from 'react-router-dom';
 
 const WINDOWS: { id: CounterWindow; label: string }[] = [
+  { id: '1d', label: '1 day' },
+  { id: '2d', label: '2 days' },
   { id: '7d', label: '7 days' },
   { id: '30d', label: '30 days' },
   { id: 'all', label: 'All time' },
@@ -64,18 +66,23 @@ function fmtDate(iso: string | null): string {
 }
 
 function windowDateRangeLabel(w: CounterWindow, earliestDate?: string | null): string {
+  const fmtFull = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const fmtShort = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   if (w === 'all') {
     if (earliestDate) {
-      const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-      return `${fmt(new Date(earliestDate))} – Present`;
+      return `${fmtFull(new Date(earliestDate))} – Present`;
     }
     return 'All time';
   }
-  const days = w === '7d' ? 7 : 30;
+  if (w.startsWith('custom:')) {
+    const iso = w.slice('custom:'.length);
+    if (iso) return `${fmtShort(new Date(iso))} – ${fmtShort(new Date())}`;
+    return 'Custom';
+  }
+  const m = /^(\d+)d$/.exec(w);
+  const days = m ? parseInt(m[1], 10) : 7;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  const today = new Date();
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  return `${fmt(since)} – ${fmt(today)}`;
+  return `${fmtShort(since)} – ${fmtShort(new Date())}`;
 }
 
 type PriorityKey = 'list' | 'place' | 'fund';
