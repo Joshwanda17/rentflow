@@ -402,7 +402,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md overflow-hidden border-border/50 glass-card">
+      <DialogContent className="w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none overflow-y-auto border-border/50 glass-card sm:w-full sm:max-w-md sm:h-auto sm:max-h-[85vh] sm:rounded-xl">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
         
         <AnimatePresence mode="wait">
@@ -498,12 +498,14 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 </div>
               </div>
 
-              <DialogFooter className="gap-2 sm:gap-0 mt-4">
+              <DialogFooter className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-2 gap-2 border-t border-border/50 bg-background/95 px-5 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:gap-0">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setConfirming(false)}
                   disabled={loading}
+                  size="lg"
+                  className="w-full sm:w-auto"
                 >
                   Back
                 </Button>
@@ -511,7 +513,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                   type="button"
                   onClick={executeSend}
                   disabled={loading}
-                  className="gap-2"
+                  size="lg"
+                  className="w-full sm:w-auto gap-2"
                 >
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -611,7 +614,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                             : { status: 'searching' }
                         );
                       }}
-                      className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
+                      className="h-12 text-base bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                       required
                     />
                   ) : (
@@ -629,7 +632,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                             : { status: 'searching' }
                         );
                       }}
-                      className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
+                      className="h-12 text-base bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                       required
                     />
                   )}
@@ -785,7 +788,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     placeholder="Enter amount"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="bg-background/50 border-border/50 focus:border-primary/50 transition-all text-lg font-medium"
+                    inputMode="numeric"
+                    className="h-14 bg-background/50 border-border/50 focus:border-primary/50 transition-all text-xl font-semibold"
                     min="1"
                     required
                   />
@@ -861,12 +865,13 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                   className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-2 border-t border-border/50 bg-background/95 px-5 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80"
                 >
                   <DialogFooter className="gap-2 sm:gap-0">
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button type="button" variant="outline" onClick={() => handleClose(false)}>
+                    <motion.div className="w-full sm:w-auto" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => handleClose(false)}>
                         Cancel
                       </Button>
                     </motion.div>
                     <motion.div
+                      className="w-full sm:w-auto"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       // Native tooltip on the wrapper so it still shows even when
@@ -877,7 +882,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                       <Button
                         type="submit"
                         disabled={sendDisabled}
-                        className="gap-2"
+                        size="lg"
+                        className="w-full sm:w-auto gap-2"
                         // Mirror the inline validation text exactly so the
                         // hover tooltip matches searching / not-found / self
                         // / invalid / insufficient-balance cases verbatim.
