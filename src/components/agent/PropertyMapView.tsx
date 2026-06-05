@@ -3,10 +3,55 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Building2, Navigation, Route, Loader2, X, ExternalLink } from 'lucide-react';
+import { MapPin, Building2, Navigation, Route, Loader2, X, ExternalLink, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useGoogleMapsLoader } from '@/hooks/useGoogleMapsLoader';
+
+// --- Route cache helpers ---
+const ROUTE_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+interface CachedRouteEntry {
+  origin: { lat: number; lng: number };
+  route: {
+    order: string[];
+    polyline: [number, number][];
+    mapsUrl: string;
+    distanceMeters: number | null;
+    durationSeconds: number | null;
+  };
+  cachedAt: number;
+}
+
+function buildRouteCacheKey(origin: { lat: number; lng: number }, stops: { id: string; lat: number; lng: number }[]) {
+  // Round origin to ~100 m grid to tolerate GPS jitter.
+  const o = `${origin.lat.toFixed(3)},${origin.lng.toFixed(3)}`;
+  const s = stops
+    .map((st) => `${st.id}:${st.lat.toFixed(4)}:${st.lng.toFixed(4)}`)
+    .sort()
+    .join('|');
+  return `welile_route_v1_${o}_${s}`;
+}
+
+function readCachedRoute(key: string): CachedRouteEntry | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedRouteEntry;
+    if (Date.now() - parsed.cachedAt > ROUTE_CACHE_TTL_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedRoute(key: string, entry: CachedRouteEntry) {
+  try {
+    localStorage.setItem(key, JSON.stringify(entry));
+  } catch {
+    // Storage full or private mode — silently skip caching.
+  }
+}
 
 // Reset default leaflet icon paths (matches LandlordLocationsMap)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
