@@ -1093,7 +1093,7 @@ function EmptyHousesDialog({
   const targetedCount = houses.filter((h) => h.landlord_id && targets?.[h.landlord_id]).length;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); setSelected(new Set()); } }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { onClose(); setSelected(new Set()); setMonthFilter('all'); } }}>
       <DialogContent className="max-w-2xl p-0 gap-0">
         <DialogHeader className="p-4 pb-2">
           <DialogTitle className="text-base flex items-center gap-2">
