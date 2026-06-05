@@ -53,6 +53,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   const [partnerWallet, setPartnerWallet] = useState<{ withdrawable: number; float: number } | null>(null);
   const [proxyAgent, setProxyAgent] = useState<ProxyAgentInfo | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   // "Any user" funding source
   const [searchTerm, setSearchTerm] = useState('');
@@ -150,6 +151,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       setSearchTerm('');
       setSearchResults([]);
     }
+    setConfirming(false);
     onOpenChange(isOpen);
   };
 
@@ -212,6 +214,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       toast({ title: 'Top-up failed', description: e.message, variant: 'destructive' });
     } finally {
       setSaving(false);
+      setConfirming(false);
     }
   };
 
@@ -226,6 +229,13 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   const canSubmit = !saving && parsedAmount >= 1000 && notes.trim().length >= 10 && !insufficient &&
     (paymentMethod === 'wallet' || !!proxyAgent) &&
     funderCleared;
+
+  const sourceOwnerLabel = paymentMethod === 'wallet'
+    ? (account?.investor_name || 'Partner')
+    : paymentMethod === 'user_wallet'
+      ? (selectedUser?.full_name || 'User')
+      : `${proxyAgent?.agentName || 'Agent'} (Proxy)`;
+  const sourceBucketLabel = fundSource === 'float' ? 'Operational Float' : 'Personal Deposit';
 
   const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Wallet; description: string; disabled?: boolean }[] = [
     { value: 'wallet', label: 'Wallet', icon: Wallet, description: 'Partner wallet' },
@@ -242,7 +252,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
           </DialogTitle>
         </DialogHeader>
 
-        {account && (
+        {account && !confirming && (
           <div className="space-y-4 py-2">
             {/* Verification status banner */}
             {!funderCleared && (
@@ -389,12 +399,63 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
           </div>
         )}
 
+        {/* Confirmation summary step */}
+        {account && confirming && (
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary" /> Confirm Top-Up
+              </p>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Portfolio</span>
+                  <span className="font-medium text-foreground text-right">{account.account_name || account.portfolio_code}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Top-up amount</span>
+                  <span className="font-bold text-foreground">{formatUGX(parsedAmount)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">From</span>
+                  <span className="font-medium text-foreground text-right">{sourceOwnerLabel}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Bucket</span>
+                  <span className="font-medium text-foreground text-right">{sourceBucketLabel}</span>
+                </div>
+                <div className="flex justify-between text-xs border-t border-border/50 pt-2">
+                  <span className="text-muted-foreground">New portfolio capital</span>
+                  <span className="font-bold text-foreground">{formatUGX(account.investment_amount + parsedAmount)}</span>
+                </div>
+                <div className="flex justify-between text-xs items-start gap-2">
+                  <span className="text-muted-foreground shrink-0">Reason</span>
+                  <span className="font-medium text-foreground text-right break-words">{notes.trim()}</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed border-t border-border/50 pt-2">
+                Funds are deducted instantly and parked until the next ROI cycle. If you cancel the top-up later, the full amount is returned to this source wallet.
+              </p>
+            </div>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-            {!funderCleared ? 'Blocked — Funder Not Verified' : 'Submit Top-Up'}
-          </Button>
+          {confirming ? (
+            <>
+              <Button variant="outline" onClick={() => setConfirming(false)} disabled={saving}>Back</Button>
+              <Button onClick={handleSubmit} disabled={!canSubmit}>
+                {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+                Confirm Top-Up
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button onClick={() => setConfirming(true)} disabled={!canSubmit}>
+                {!funderCleared ? 'Blocked — Funder Not Verified' : 'Review Top-Up'}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
