@@ -9,6 +9,8 @@ import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/La
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
+import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhoneNotice';
+import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useExistingTenantByPhone';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
