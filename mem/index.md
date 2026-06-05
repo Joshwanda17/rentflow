@@ -4,3 +4,5 @@
 - [Landlord account sub-ledger](mem://features/landlord/account-subledger) — Dedicated `landlord_account_ledger` (ops-only) for admin-side annual payables (monthly rent × 12) and receivables (daily × 30 × 12) per placed tenant; idempotent `generate_landlord_payables()` RPC; separate from `general_ledger`; shown in LandlordPane drill-down card
 
 - [Drive document vault backup](mem://features/documents/drive-vault-backup) — Offsite Google Drive mirror (drive-archive edge fn) of tenant IDs/contracts/receipts filed by Year/Month/Type; idempotent `drive_archive_log`; fire-and-forget `archiveToDrive` helper wired into upload flows; manager `DriveVaultCard` in Settings
+
+- [House Walkthrough Video](mem://features/house/walkthrough-video) — Agents paste an external YouTube/Drive link (≤30s) into `house_listings.video_url`; no binaries stored; `parseHouseVideo` helper validates+embeds; played inline on public `/house/:id`
