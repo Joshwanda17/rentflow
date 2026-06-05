@@ -48,7 +48,7 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
             <p className="text-xs mt-1">Once a rent request is fully approved and CFO disburses, it will appear here.</p>
           </div>
         ) : (
-          <>
+          <div className="flex flex-col flex-1 overflow-hidden">
             <div className="px-4 py-3 bg-muted/30 border-b flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Total ring-fenced</span>
               <span className="font-bold text-foreground">{formatUGX(totalRemaining)}</span>
@@ -100,7 +100,7 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
                 ))}
               </div>
             </ScrollArea>
-          </>
+          </div>
         )}
 
         <div className="border-t p-3">
