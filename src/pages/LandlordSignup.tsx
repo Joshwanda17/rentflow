@@ -23,6 +23,7 @@ const VALUE_PROPS = [
 export default function LandlordSignup() {
   const [params] = useSearchParams();
   const agentId = params.get('ref') || null;
+  const campaign = params.get('campaign') || params.get('utm_campaign') || null;
 
   // Calculator state
   const [calcRent, setCalcRent] = useState('');
@@ -61,6 +62,7 @@ export default function LandlordSignup() {
         number_of_units: Number(form.units),
         rent_per_unit: Number(form.rentPerUnit),
         referrer_agent_id: agentId,
+        campaign,
         status: 'new_lead',
       });
       if (error) throw error;

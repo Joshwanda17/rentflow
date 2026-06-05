@@ -8353,6 +8353,7 @@ export type Database = {
       }
       landlord_leads: {
         Row: {
+          campaign: string | null
           created_at: string
           full_name: string
           guaranteed_12m_income: number | null
@@ -8366,6 +8367,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          campaign?: string | null
           created_at?: string
           full_name: string
           guaranteed_12m_income?: number | null
@@ -8379,6 +8381,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          campaign?: string | null
           created_at?: string
           full_name?: string
           guaranteed_12m_income?: number | null
