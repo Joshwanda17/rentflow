@@ -50,6 +50,7 @@ export async function generateCfoPayoutsPdf(
   rows: CfoPayoutRow[],
   generatedAt: Date = new Date(),
   dateRange?: CfoDateRange,
+  breakdown?: CfoRecipientBreakdown[],
 ): Promise<Blob> {
   const { default: jsPDF } = await import('jspdf');
   const autoTableMod: any = await import('jspdf-autotable');
