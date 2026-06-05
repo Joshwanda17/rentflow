@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -153,6 +153,37 @@ export function WelileMissionBoard() {
   const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(win, intervalMs);
   const { data: receivables } = useMissionReceivables(win, intervalMs);
   const { data: landlordBreakdown } = useLandlordPriorityBreakdown(win, intervalMs);
+
+  // ROI payable OUT to funders in the next cycle (~next 31 days).
+  // Drives the "ROI payable next cycle" figure on Priority 3 (Onboard funders).
+  const { data: roiPayable } = useQuery({
+    queryKey: ['mission-roi-payable-next', intervalMs],
+    refetchInterval: intervalMs,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('investor_portfolios')
+        .select('investment_amount, roi_percentage, next_roi_date')
+        .eq('status', 'active')
+        .not('next_roi_date', 'is', null);
+      if (error) throw error;
+      const now = new Date();
+      const start = new Date(now); start.setHours(0, 0, 0, 0);
+      const end = new Date(start); end.setDate(end.getDate() + 31);
+      let total = 0;
+      let count = 0;
+      let earliest: Date | null = null;
+      (data ?? []).forEach((p: any) => {
+        if (!p.next_roi_date) return;
+        const d = new Date(p.next_roi_date);
+        if (d >= start && d <= end) {
+          total += (Number(p.investment_amount) || 0) * (Number(p.roi_percentage) || 0) / 100;
+          count += 1;
+          if (!earliest || d < earliest) earliest = d;
+        }
+      });
+      return { total, count, earliest: earliest ? (earliest as Date).toISOString() : null };
+    },
+  });
 
   const searchLower = search.trim().toLowerCase();
   const filteredAgents = useMemo(() => {
@@ -378,6 +409,16 @@ export function WelileMissionBoard() {
                         {landlordBreakdown.total_landlords > 0 ? Math.round((landlordBreakdown.priority2_placed / landlordBreakdown.total_landlords) * 100) : 0}% of {landlordBreakdown.total_landlords.toLocaleString()} registered →
                       </p>
                     </button>
+                  )}
+                  {p.key === 'fund' && (
+                    <div className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">ROI payable · next cycle</p>
+                      <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatUGX(roiPayable?.total ?? 0)}</p>
+                      <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
+                        {(roiPayable?.count ?? 0).toLocaleString()} portfolio{(roiPayable?.count ?? 0) !== 1 ? 's' : ''} due
+                        {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''}
+                      </p>
+                    </div>
                   )}
                   {p.key === 'fund' && (
                     <Button
