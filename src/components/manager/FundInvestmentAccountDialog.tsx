@@ -230,6 +230,13 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
     (paymentMethod === 'wallet' || !!proxyAgent) &&
     funderCleared;
 
+  const sourceOwnerLabel = paymentMethod === 'wallet'
+    ? (account?.investor_name || 'Partner')
+    : paymentMethod === 'user_wallet'
+      ? (selectedUser?.full_name || 'User')
+      : `${proxyAgent?.agentName || 'Agent'} (Proxy)`;
+  const sourceBucketLabel = fundSource === 'float' ? 'Operational Float' : 'Personal Deposit';
+
   const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Wallet; description: string; disabled?: boolean }[] = [
     { value: 'wallet', label: 'Wallet', icon: Wallet, description: 'Partner wallet' },
     { value: 'proxy_agent', label: 'Proxy Agent', icon: Users, description: proxyAgent ? proxyAgent.agentName : 'No agent assigned', disabled: !proxyAgent },
