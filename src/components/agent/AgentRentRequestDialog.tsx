@@ -9,6 +9,8 @@ import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/La
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
+import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhoneNotice';
+import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useExistingTenantByPhone';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
@@ -513,6 +515,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<string>('');
   
+  // Live fraud guard: detect whether the tenant phone the agent is typing is
+  // already registered on the platform, and reveal the owner's name.
+  const { match: existingTenantByPhone, checking: checkingTenantPhone } =
+    useExistingTenantByPhone(tenantPhone);
+
   // Rent details
   const [rentAmount, setRentAmount] = useState('');
   const [outstandingBalance, setOutstandingBalance] = useState('');
@@ -1253,6 +1260,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       setAutofillingTenant(false);
     }
   }, [existingTenants]);
+
+  // When the live phone check reveals an existing user, let the agent re-use
+  // that record instead of creating a duplicate (fraud guard).
+  const useExistingTenantMatch = useCallback((m: ExistingTenantMatch) => {
+    if (m.full_name) setTenantName(formatNameInput(m.full_name));
+    if (m.phone) setTenantPhone(formatPhoneInput(m.phone));
+    if (m.national_id) setTenantNationalId(cleanNationalIdInput(m.national_id));
+    toast.success(`Using ${m.full_name || 'existing tenant'}'s record`);
+  }, []);
 
 
   const uploadTenantPhoto = async (requestId: string, tenantUserId?: string | null): Promise<string | null> => {
@@ -2427,6 +2443,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           required
                         />
                         <FieldError message={vPhone(tenantPhone)} />
+                        <ExistingTenantPhoneNotice
+                          match={existingTenantByPhone}
+                          checking={checkingTenantPhone}
+                          onUse={useExistingTenantMatch}
+                        />
                       </div>
                     </div>
 
@@ -3012,6 +3033,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                     <FieldError message={vPhone(tenantPhone)} />
+                    <ExistingTenantPhoneNotice
+                      match={existingTenantByPhone}
+                      checking={checkingTenantPhone}
+                      onUse={useExistingTenantMatch}
+                    />
                   </div>
                 </div>
 
