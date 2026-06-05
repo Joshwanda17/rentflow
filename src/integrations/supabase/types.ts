@@ -20524,6 +20524,31 @@ export type Database = {
       welile_default_agent_vouch_floor_ugx:
         | { Args: never; Returns: number }
         | { Args: { p_agent_id: string }; Returns: number }
+      welile_landlord_priority_breakdown: {
+        Args: { p_since?: string }
+        Returns: {
+          p1_listed_empty: number
+          p1_unlisted: number
+          priority1_empty: number
+          priority2_placed: number
+          total_landlords: number
+        }[]
+      }
+      welile_landlord_priority_items: {
+        Args: { p_bucket?: string; p_limit?: number; p_since?: string }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          created_at: string
+          empty_listing_count: number
+          landlord_id: string
+          landlord_name: string
+          landlord_phone: string
+          listing_count: number
+          placed: boolean
+          property_address: string
+        }[]
+      }
       welile_mission_agent_network: {
         Args: { p_since?: string }
         Returns: {
