@@ -336,6 +336,14 @@ export function WelileMissionBoard() {
         </div>
       )}
 
+      {/* Landlords-by-agents priority classification (P1 empty houses vs P2 placed tenants) */}
+      <LandlordPriorityClassification
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onOpenLandlord={(id) => setDrawer({ landlordId: id, tab: 'landlord' })}
+        onOpenAgent={(id) => setDrawer({ agentId: id, tab: 'agent' })}
+      />
+
       {/* Agent leaderboard */}
       <div className="mt-3">
         <div className="flex items-center justify-between mb-2">
