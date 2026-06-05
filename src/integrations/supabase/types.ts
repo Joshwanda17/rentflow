@@ -6126,6 +6126,54 @@ export type Database = {
           },
         ]
       }
+      drive_archive_log: {
+        Row: {
+          created_at: string
+          doc_type: string
+          drive_file_id: string | null
+          drive_file_link: string | null
+          drive_folder_path: string | null
+          error: string | null
+          file_name: string | null
+          file_size: number | null
+          id: string
+          source_bucket: string
+          source_path: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          drive_file_id?: string | null
+          drive_file_link?: string | null
+          drive_folder_path?: string | null
+          error?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          source_bucket: string
+          source_path: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          drive_file_id?: string | null
+          drive_file_link?: string | null
+          drive_folder_path?: string | null
+          error?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          source_bucket?: string
+          source_path?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       earning_baselines: {
         Row: {
           avg_daily_earnings: number | null

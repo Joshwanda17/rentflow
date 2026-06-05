@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Camera, Upload, Loader2, CheckCircle2 } from 'lucide-react';
+import { archiveToDrive } from '@/lib/archiveToDrive';
 
 type Props = {
   open: boolean;
@@ -77,6 +78,8 @@ export function LandlordPayoutReceiptUpload({ open, onOpenChange, payout, onSucc
         .from('landlord-payout-receipts')
         .upload(path, file, { contentType: file.type, upsert: false });
       if (upErr) throw upErr;
+      // Offsite backup: mirror the landlord receipt into the Google Drive vault.
+      archiveToDrive('landlord-payout-receipts', path, 'receipt');
 
       const { error: fnErr } = await supabase.functions.invoke('submit-landlord-payout-receipt', {
         body: {

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Camera, MapPin, Loader2, Upload, CheckCircle2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { archiveToDrive } from '@/lib/archiveToDrive';
 
 interface AgentDeliveryConfirmationProps {
   disbursementId: string;
@@ -60,6 +61,8 @@ export function AgentDeliveryConfirmation({ disbursementId, rentRequestId, onCon
         if (upErr) throw upErr;
         const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(path);
         photoUrls.push(urlData.publicUrl);
+        // Offsite backup: mirror the receipt photo into the Google Drive vault.
+        archiveToDrive('receipts', path, 'receipt');
       }
 
       // Insert confirmation

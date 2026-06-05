@@ -37,6 +37,7 @@ import {
 import { parseSMS } from '@/utils/smsParser';
 import { cn } from '@/lib/utils';
 import { validateDepositReference } from '@/lib/depositReferenceValidator';
+import { archiveToDrive } from '@/lib/archiveToDrive';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 
@@ -1088,6 +1089,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         if (!uploadErr) {
           const { data: urlData } = supabase.storage.from('deposit-proofs').getPublicUrl(path);
           bankSlipUrl = urlData?.publicUrl || null;
+          // Offsite backup: mirror the bank slip into the Google Drive vault.
+          archiveToDrive('deposit-proofs', path, 'receipt');
         }
       }
 
