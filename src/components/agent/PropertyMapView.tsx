@@ -1,3 +1,4 @@
+/// <reference types="google.maps" />
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -5,8 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { MapPin, Building2, Navigation, Route, Loader2, X, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
-import { supabase } from '@/integrations/supabase/client';
-import { decodePolyline } from '@/lib/decodePolyline';
+import { useGoogleMapsLoader } from '@/hooks/useGoogleMapsLoader';
 
 // Reset default leaflet icon paths (matches LandlordLocationsMap)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -71,6 +71,9 @@ function FitBounds({ points }: { points: [number, number][] }) {
 export function PropertyMapView({
   tenants, tenantContext, tenantBalances, tenantDaily, propertyLocations, onSelectTenant,
 }: Props) {
+  // Maps JS API powers waypoint optimization (DirectionsService). The managed
+  // browser key is referrer-restricted, so optimization must run client-side.
+  const { isReady: mapsReady, hasKey: mapsHasKey } = useGoogleMapsLoader(true);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [optimizing, setOptimizing] = useState(false);
   const [route, setRoute] = useState<{
@@ -118,6 +121,7 @@ export function PropertyMapView({
 
   async function optimizeRoute() {
     if (markers.length === 0 || optimizing) return;
+    if (!mapsHasKey) { toast.error('Route planning is unavailable right now'); return; }
     setOptimizing(true);
     try {
       const coords = await new Promise<{ lat: number; lng: number }>((resolve, reject) => {
@@ -130,21 +134,39 @@ export function PropertyMapView({
       });
       setOrigin(coords);
 
-      const stops = markers.map((m) => ({ id: m.addr, lat: m.loc.lat, lng: m.loc.lng, label: m.addr }));
-      const { data, error } = await supabase.functions.invoke('optimize-route', {
-        body: { origin: coords, stops, roundTrip: false },
-      });
-      if (error) throw error;
-      if (!data || data.error) throw new Error(data?.error || 'Route failed');
+      const stops = markers.map((m) => ({ id: m.addr, lat: m.loc.lat, lng: m.loc.lng }));
 
-      const order: string[] = (data.orderedStops || []).map((s: { id: string }) => s.id);
-      const polyline = data.encodedPolyline ? decodePolyline(data.encodedPolyline) : [];
+      // Ensure the Directions library is available, then optimize the visit order.
+      const { DirectionsService } = (await google.maps.importLibrary('routes')) as google.maps.RoutesLibrary;
+      const svc = new DirectionsService();
+      const res = await svc.route({
+        origin: coords,
+        destination: coords, // round trip back to the agent's start
+        waypoints: stops.map((s) => ({ location: { lat: s.lat, lng: s.lng }, stopover: true })),
+        optimizeWaypoints: true,
+        travelMode: google.maps.TravelMode.DRIVING,
+      });
+
+      const r = res.routes[0];
+      if (!r) throw new Error('no-route');
+
+      const order = (r.waypoint_order ?? stops.map((_, i) => i)).map((i) => stops[i].id);
+      const polyline = (r.overview_path ?? []).map((p) => [p.lat(), p.lng()] as [number, number]);
+      const distanceMeters = (r.legs ?? []).reduce((sum, leg) => sum + (leg.distance?.value ?? 0), 0);
+      const durationSeconds = (r.legs ?? []).reduce((sum, leg) => sum + (leg.duration?.value ?? 0), 0);
+
+      // Build a Google Maps directions URL in the optimized order (round trip).
+      const ordered = (r.waypoint_order ?? stops.map((_, i) => i)).map((i) => stops[i]);
+      const o = `${coords.lat},${coords.lng}`;
+      const params = new URLSearchParams({ api: '1', origin: o, destination: o, travelmode: 'driving' });
+      if (ordered.length > 0) params.set('waypoints', ordered.map((s) => `${s.lat},${s.lng}`).join('|'));
+
       setRoute({
         order,
         polyline,
-        mapsUrl: data.mapsUrl,
-        distanceMeters: data.distanceMeters ?? null,
-        durationSeconds: data.durationSeconds ?? null,
+        mapsUrl: `https://www.google.com/maps/dir/?${params.toString()}`,
+        distanceMeters: distanceMeters || null,
+        durationSeconds: durationSeconds || null,
       });
       toast.success('Optimal visit route ready');
     } catch (e) {
