@@ -206,6 +206,10 @@ export interface MissionReceivables {
   empty_houses_count: number;
   unlisted_receivable_total: number;
   unlisted_landlord_count: number;
+  known_rent_count: number;
+  missing_rent_count: number;
+  avg_known_monthly: number;
+  estimated_full_total: number;
   earliest_date: string | null;
 }
 
