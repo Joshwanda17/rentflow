@@ -20674,6 +20674,7 @@ export type Database = {
       welile_mission_receivables: {
         Args: { p_since?: string }
         Returns: {
+          earliest_date: string
           empty_houses_count: number
           empty_receivable_total: number
           placed_receivable_count: number
