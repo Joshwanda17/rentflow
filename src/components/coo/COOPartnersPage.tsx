@@ -1786,7 +1786,28 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         seenExportPortfolioIds.add(p.id);
         return true;
       });
-      exportToCSV(filtered, exportPortfolios);
+
+      // Returns earned are tracked in the ledger (roi_wallet_credit / roi_payout /
+      // roi_reinvestment cash-in legs), not the mostly-empty total_roi_earned column.
+      // Sum them per portfolio so the CSV "Returns" column reflects real earnings.
+      const portfolioIdsForReturns = exportPortfolios.map(p => p.id);
+      const returnsByPortfolio = new Map<string, number>();
+      if (portfolioIdsForReturns.length > 0) {
+        const roiLedger = await batchedQuery<any>(portfolioIdsForReturns, (batch) =>
+          supabase.from('general_ledger')
+            .select('source_id, amount')
+            .eq('source_table', 'investor_portfolios')
+            .eq('direction', 'cash_in')
+            .in('category', ['roi_wallet_credit', 'roi_payout', 'roi_reinvestment'])
+            .in('source_id', batch)
+        );
+        (roiLedger as any[]).forEach(e => {
+          if (!e.source_id) return;
+          returnsByPortfolio.set(e.source_id, (returnsByPortfolio.get(e.source_id) || 0) + (Number(e.amount) || 0));
+        });
+      }
+
+      exportToCSV(filtered, exportPortfolios, returnsByPortfolio);
       toast.success(`Exported ${filtered.length} partner${filtered.length !== 1 ? 's' : ''}`);
     } catch (e: any) {
       console.error('Export failed', e);
