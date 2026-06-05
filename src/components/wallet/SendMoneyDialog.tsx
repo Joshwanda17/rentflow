@@ -876,7 +876,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                         type="submit"
                         disabled={sendDisabled}
                         size="lg"
-                        className="w-full sm:w-auto gap-2"
+                        className="w-full sm:w-auto gap-2 font-bold"
                         // Mirror the inline validation text exactly so the
                         // hover tooltip matches searching / not-found / self
                         // / invalid / insufficient-balance cases verbatim.
@@ -898,6 +898,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                           <Send className="h-4 w-4" />
                         )}
                         Send Money
+                        {!loading && <ArrowRight className="h-4 w-4" />}
                       </Button>
                     </motion.div>
                   </DialogFooter>
