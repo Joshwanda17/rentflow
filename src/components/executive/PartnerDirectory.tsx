@@ -149,6 +149,9 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
       return partnerIds.map(id => {
         const p: any = profileMap.get(id) || { id, full_name: 'Unknown', phone: '', email: '', avatar_url: null, created_at: null, territory: null, last_active_at: null };
         const inv = investorMap.get(id);
+        const totalInvested = inv?.totalInvested || 0;
+        // ═══ ACTIVE RULE: any funder holding ≥ UGX 10,000 in portfolio is ACTIVE ═══
+        const derivedStatus = totalInvested >= 10000 ? 'active' : (inv?.status || 'new');
         return {
           id: p.id,
           investor_id: p.id,
@@ -158,11 +161,11 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
           avatar_url: p.avatar_url,
           created_at: inv?.earliestDate || p.created_at,
           territory: p.territory,
-          totalInvested: inv?.totalInvested || 0,
+          totalInvested,
           totalROI: inv?.totalROI || 0,
           portfolioCount: inv?.portfolioCount || 0,
           activePortfolios: inv?.activePortfolios || 0,
-          status: inv?.status || 'new',
+          status: derivedStatus,
           tier: getPartnerTier(inv?.totalInvested || 0, inv?.activePortfolios || 0),
           lastActiveAt: p.last_active_at || null,
         } as PartnerRow;
