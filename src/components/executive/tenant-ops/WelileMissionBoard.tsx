@@ -365,12 +365,14 @@ export function WelileMissionBoard() {
         </div>
       )}
 
-      {/* Landlords-by-agents priority classification (P1 empty houses vs P2 placed tenants) */}
-      <LandlordPriorityClassification
+      {/* Landlords-by-agents drill-down (folded into Priority 1 / Priority 2 cards above) */}
+      <LandlordBucketDialog
+        bucket={landlordBucket}
         win={win}
         refetchIntervalMs={intervalMs}
-        onOpenLandlord={(id) => setDrawer({ landlordId: id, tab: 'landlord' })}
-        onOpenAgent={(id) => setDrawer({ agentId: id, tab: 'agent' })}
+        onClose={() => setLandlordBucket(null)}
+        onOpenLandlord={(id) => { setLandlordBucket(null); setDrawer({ landlordId: id, tab: 'landlord' }); }}
+        onOpenAgent={(id) => { setLandlordBucket(null); setDrawer({ agentId: id, tab: 'agent' }); }}
       />
 
       {/* Agent leaderboard */}
