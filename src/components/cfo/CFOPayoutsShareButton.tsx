@@ -78,10 +78,36 @@ function DatePicker({
   );
 }
 
+type PresetKey = 'week' | '30days' | 'quarter' | 'ytd' | 'custom';
+
+const PRESETS: { key: PresetKey; label: string; getRange: () => { start: Date; end: Date } }[] = [
+  {
+    key: 'week',
+    label: 'This week',
+    getRange: () => ({ start: startOfWeek(new Date(), { weekStartsOn: 1 }), end: new Date() }),
+  },
+  {
+    key: '30days',
+    label: 'Last 30 days',
+    getRange: () => ({ start: subDays(new Date(), 29), end: new Date() }),
+  },
+  {
+    key: 'quarter',
+    label: 'This quarter',
+    getRange: () => ({ start: startOfQuarter(new Date()), end: new Date() }),
+  },
+  {
+    key: 'ytd',
+    label: 'Year to date',
+    getRange: () => ({ start: startOfYear(new Date()), end: new Date() }),
+  },
+];
+
 export function CFOPayoutsShareButton() {
   const [busy, setBusy] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+  const [activePreset, setActivePreset] = useState<PresetKey>('custom');
 
   const handleShare = async () => {
     if (!startDate || !endDate) {
