@@ -235,7 +235,7 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         </div>
         <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            <BanknoteArrowDown className="h-3 w-3" /> Withdrawable
+            <Banknote className="h-3 w-3" /> Withdrawable
           </div>
           <p className="text-lg sm:text-xl font-black tabular-nums mt-1 text-foreground break-all">
             {isLoading ? '—' : formatUGX(data?.totalWithdrawable ?? 0)}
