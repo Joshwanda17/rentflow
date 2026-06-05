@@ -296,7 +296,7 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
 
   const header = [
     'Name', 'Phone', 'Email', 'Status', 'Wallet',
-    'Principal', 'ROI %', 'ROI Mode', 'Payout Day & Date', 'Joined',
+    'Principal', 'ROI %', 'Returns', 'ROI Mode', 'Payout Day & Date', 'Joined',
   ];
 
   const sortedRows = [...rows].sort((a, b) =>
