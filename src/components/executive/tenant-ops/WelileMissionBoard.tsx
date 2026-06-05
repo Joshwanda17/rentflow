@@ -231,7 +231,7 @@ export function WelileMissionBoard() {
                   {p.key === 'list' && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       <CalendarDays className="inline h-3 w-3 mr-0.5 -translate-y-px" />
-                      {windowDateRangeLabel(win)}
+                      {windowDateRangeLabel(win, receivables?.earliest_date)}
                     </p>
                   )}
                   {m.extra && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
