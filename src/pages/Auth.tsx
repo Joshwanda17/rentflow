@@ -151,6 +151,22 @@ export default function Auth() {
   const deepLinkToken = searchParams.get('token');
   const deepLinkAgent = searchParams.get('agent');
 
+  // If the OTP login fallback guard aborted a sign-in because the resolved
+  // account did not match the established session, let the user know here.
+  useEffect(() => {
+    let mismatch = false;
+    try { mismatch = localStorage.getItem('welile_otp_mismatch') === '1'; } catch { /* ignore */ }
+    if (mismatch) {
+      try { localStorage.removeItem('welile_otp_mismatch'); } catch { /* ignore */ }
+      setLoginMode('otp');
+      toast({
+        title: 'Couldn’t confirm your account',
+        description: 'We signed you out for safety. Please request a new code and try again.',
+        variant: 'destructive',
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (deepLinkPhone && deepLinkToken) {
       setLoginMode('otp');
@@ -223,6 +239,14 @@ export default function Auth() {
         if (data.user_name) localStorage.setItem('welile_last_user_name', data.user_name);
         localStorage.setItem('welile_last_login_method', 'otp');
         localStorage.setItem('welile_had_session', 'true');
+        // OTP login fallback guard: remember the auth user id the OTP backend
+        // resolved for this phone. After the magic-link redirect establishes a
+        // session, the auth listener verifies the session's user id matches
+        // this value before completing sign-in (and signs out on mismatch).
+        try {
+          if (data.user_id) localStorage.setItem('welile_otp_expected_uid', data.user_id);
+          else localStorage.removeItem('welile_otp_expected_uid');
+        } catch { /* storage unavailable — guard simply won't run */ }
         setDeviceTrust(rememberThisDevice);
         toast({ title: `Welcome back${data.user_name ? ', ' + data.user_name : ''}! 🎉`, description: 'Logging you in...' });
         window.location.href = data.verify_url;
