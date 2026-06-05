@@ -3555,10 +3555,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <Button variant="outline" onClick={() => setWalletToPortfolio(null)}>Cancel</Button>
             <Button
               onClick={handleWalletToPortfolio}
-              disabled={walletToPortfolioSaving || !detailPartner?.profile?.funder_verified_at || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10 || (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo)}
+              disabled={walletToPortfolioSaving || !isFunderCleared(detailPartner?.profile) || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10 || (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo)}
             >
               {walletToPortfolioSaving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-              {!detailPartner?.profile?.funder_verified_at
+              {!isFunderCleared(detailPartner?.profile)
                 ? 'Blocked — Funder Not Verified'
                 : walletTransferMethod === 'proxy_agent'
                   ? `Charge ${proxyAgentInfo?.agentName || 'Proxy Agent'}'s Wallet`
