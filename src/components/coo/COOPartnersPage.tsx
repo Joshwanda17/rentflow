@@ -325,6 +325,7 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[]) {
         name, r.phone, r.email, statusLabel, r.walletBalance,
         p.investment_amount ?? 0,
         p.roi_percentage ?? '',
+        p.total_roi_earned ?? 0,
         humanRoiMode(p.roi_mode),
         buildPayoutCell(p.next_roi_date, p.created_at, p.payout_day ?? 15),
         joined,
