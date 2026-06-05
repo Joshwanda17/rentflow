@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Loader2, UserPlus, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhoneNotice';
+import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useExistingTenantByPhone';
 
 interface QuickRegisterTenantDialogProps {
   open: boolean;
@@ -38,6 +40,15 @@ export function QuickRegisterTenantDialog({
   const [nationalId, setNationalId] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+
+  // Live fraud guard: reveal if this phone is already registered.
+  const { match: existingTenantByPhone, checking: checkingTenantPhone } =
+    useExistingTenantByPhone(phone);
+  const useExistingTenantMatch = (m: ExistingTenantMatch) => {
+    if (m.full_name) setFullName(m.full_name);
+    if (m.national_id) setNationalId(m.national_id.toUpperCase());
+    toast.success(`Using ${m.full_name || 'existing tenant'}'s record`);
+  };
 
   useEffect(() => {
     if (open) {
