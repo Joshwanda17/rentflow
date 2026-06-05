@@ -1,9 +1,12 @@
-import { useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect, useMemo, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Building2, Navigation } from 'lucide-react';
+import { MapPin, Building2, Navigation, Route, Loader2, X, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
+import { supabase } from '@/integrations/supabase/client';
+import { decodePolyline } from '@/lib/decodePolyline';
 
 // Reset default leaflet icon paths (matches LandlordLocationsMap)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -22,6 +25,25 @@ const paidIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+// Numbered pin used when an optimized visit order is active.
+function orderedIcon(n: number, hasDebt: boolean) {
+  const bg = hasDebt ? '#e11d48' : '#059669';
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:${bg};color:#fff;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"><span style="transform:rotate(45deg);font-size:13px;font-weight:800">${n}</span></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 26],
+    popupAnchor: [0, -24],
+  });
+}
+
+const youIcon = L.divIcon({
+  className: '',
+  html: `<div style="background:#2563eb;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(37,99,235,.3)"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
 });
 
 interface Tenant { id: string; full_name: string; phone: string }
@@ -49,6 +71,16 @@ function FitBounds({ points }: { points: [number, number][] }) {
 export function PropertyMapView({
   tenants, tenantContext, tenantBalances, tenantDaily, propertyLocations, onSelectTenant,
 }: Props) {
+  const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
+  const [optimizing, setOptimizing] = useState(false);
+  const [route, setRoute] = useState<{
+    order: string[];
+    polyline: [number, number][];
+    mapsUrl: string;
+    distanceMeters: number | null;
+    durationSeconds: number | null;
+  } | null>(null);
+
   // Group tenants by property and attach the location (only properties with coords are shown).
   const markers = useMemo(() => {
     const byProp = new Map<string, { loc: { lat: number; lng: number; address: string }; tenants: Tenant[]; owing: number; daily: number }>();
