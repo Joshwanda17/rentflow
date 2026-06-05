@@ -429,7 +429,7 @@ Deno.serve(async (req) => {
           // Check for pending top-ups on this portfolio
           const { data: pendingOps } = await supabase
             .from('pending_wallet_operations')
-            .select('id, amount, transaction_group_id, metadata')
+            .select('id, amount, transaction_group_id, metadata, status')
             .eq('source_id', portfolio.id)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
@@ -487,15 +487,16 @@ Deno.serve(async (req) => {
               .from('investor_portfolios')
               .update({ investment_amount: currentAmount })
               .eq('id', portfolio.id);
-            const flippedIds = completeResults
-              .map((r: any, i: number) => (r.error ? null : pendingOps[i].id))
-              .filter(Boolean) as string[];
-            if (flippedIds.length > 0) {
-              await supabase
-                .from('pending_wallet_operations')
-                .update({ status: 'approved', reviewed_at: null, reviewed_by: null })
-                .in('id', flippedIds);
-            }
+            await Promise.all(
+              completeResults.map((r: any, i: number) =>
+                r.error
+                  ? null
+                  : supabase
+                      .from('pending_wallet_operations')
+                      .update({ status: pendingOps[i].status, reviewed_at: null, reviewed_by: null })
+                      .eq('id', pendingOps[i].id)
+              )
+            );
             console.error(`[process-supporter-roi] Rollback merge for portfolio ${portfolio.id}:`, approveErr.message);
             continue;
           }
