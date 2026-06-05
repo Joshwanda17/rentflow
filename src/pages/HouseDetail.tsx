@@ -434,6 +434,38 @@ export default function HouseDetail() {
             </motion.div>
           )}
 
+          {/* ── Walkthrough video ── */}
+          {houseVideo && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.18, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <h2 className="font-bold text-sm text-foreground mb-2 flex items-center gap-1.5">
+                <Video className="h-4 w-4 text-primary" /> Video walkthrough
+              </h2>
+              <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-border bg-muted">
+                <iframe
+                  src={houseVideo.embedUrl}
+                  title={`${listing.title} walkthrough`}
+                  className="absolute inset-0 w-full h-full"
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+              <a
+                href={houseVideo.watchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Open on {houseVideo.provider === 'youtube' ? 'YouTube' : 'Google Drive'}
+              </a>
+            </motion.div>
+          )}
+
           {/* ── Map ── */}
           {mapEmbed && mapLink && (
             <motion.div
