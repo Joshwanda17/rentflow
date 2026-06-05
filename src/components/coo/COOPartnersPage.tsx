@@ -377,8 +377,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   // Top-ups approved and parked until next ROI cycle (status: approved)
   const [approvedTopUps, setApprovedTopUps] = useState<Record<string, { count: number; total: number }>>({});
   // Top-ups automatically merged into principal at the ROI cycle
-  // (status: completed, reviewed_by: system:roi-merge). Surfaced as a green
-  // "✅ Auto-applied" badge so COO knows the parked capital is now active.
+  // (status: completed, metadata.auto_applied_at_roi_cycle: true). Surfaced as a
+  // green "✅ Auto-applied" badge so COO knows the parked capital is now active.
   const [autoAppliedTopUps, setAutoAppliedTopUps] = useState<Record<string, { count: number; total: number }>>({});
   const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
   // Merge dialog state
@@ -965,7 +965,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .in('portfolio_id', portfolioIds),
           supabase
             .from('pending_wallet_operations')
-            .select('source_id, amount, status, reviewed_by, reviewed_at')
+            .select('source_id, amount, status, reviewed_by, reviewed_at, metadata')
             .in('source_id', portfolioIds)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
@@ -994,7 +994,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             awaiting[key].total += Number(op.amount);
           } else if (op.status === 'completed') {
             // Distinguish automatic ROI-cycle merges from manual "Apply Top-up".
-            const isAuto = op.reviewed_by === 'system:roi-merge';
+            // Auto-merges are flagged in metadata (reviewed_by is a UUID column and
+            // cannot hold a sentinel string).
+            const isAuto = op.metadata?.auto_applied_at_roi_cycle === true;
             const ts = op.reviewed_at ? new Date(op.reviewed_at).getTime() : 0;
             if (isAuto && ts >= autoAppliedSince) {
               if (!autoApplied[key]) autoApplied[key] = { count: 0, total: 0 };

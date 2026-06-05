@@ -391,30 +391,45 @@ Deno.serve(async (req) => {
     }
 
     // ═══ POST-PAYOUT: Merge pending top-ups into portfolio principal ═══
-    // After all ROI payouts, check each supporter's portfolios for approved pending top-ups
-    // and merge them into the active principal so next cycle uses the new amount.
-    const processedSupporterIds = [...new Set(
-      (fundedRequests || [])
-        .filter(rr => !pausedSupporterIds.has(rr.supporter_id))
-        .map(rr => rr.supporter_id)
+    // IMPORTANT: this MUST run for EVERY active portfolio that has approved/pending
+    // top-ups — NOT only for partners who happened to have a funded rent request
+    // this cycle. Previously the merge iterated over supporters derived from
+    // `fundedRequests`, so partners whose capital was not yet deployed to a funded
+    // tenant never got their approved top-ups merged (they stayed stuck forever).
+    //
+    // We now discover the work directly from the top-up queue: gather every
+    // approved/pending portfolio_topup, resolve its active portfolio, and merge.
+    const { data: openTopups } = await supabase
+      .from('pending_wallet_operations')
+      .select('source_id')
+      .eq('source_table', 'investor_portfolios')
+      .eq('operation_type', 'portfolio_topup')
+      .in('status', ['approved', 'pending']);
+
+    const portfolioIdsToMerge = [...new Set(
+      (openTopups || []).map((op: any) => op.source_id).filter(Boolean)
     )];
 
-    for (const supporterId of processedSupporterIds) {
+    for (const portfolioId of portfolioIdsToMerge) {
       try {
-        // Find all active portfolios for this supporter
-        const { data: portfolios } = await supabase
+        // Resolve the portfolio — must be active to receive merged capital
+        const { data: portfolio } = await supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, portfolio_code, account_name, investor_id, agent_id')
-          .or(`investor_id.eq.${supporterId},agent_id.eq.${supporterId}`)
-          .eq('status', 'active');
+          .select('id, investment_amount, portfolio_code, account_name, investor_id, agent_id, status')
+          .eq('id', portfolioId)
+          .maybeSingle();
 
-        if (!portfolios || portfolios.length === 0) continue;
+        if (!portfolio || portfolio.status !== 'active') continue;
 
-        for (const portfolio of portfolios) {
+        const supporterId = portfolio.investor_id || portfolio.agent_id;
+        // Respect reward pause: skip partners with paused rewards
+        if (supporterId && pausedSupporterIds.has(supporterId)) continue;
+
+        {
           // Check for pending top-ups on this portfolio
           const { data: pendingOps } = await supabase
             .from('pending_wallet_operations')
-            .select('id, amount, transaction_group_id')
+            .select('id, amount, transaction_group_id, metadata, status')
             .eq('source_id', portfolio.id)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
@@ -441,24 +456,47 @@ Deno.serve(async (req) => {
           }
 
           // 2. Mark pending ops as completed (auto-applied at the ROI cycle).
-          //    reviewed_by='system:roi-merge' flags this as an automatic merge
-          //    so the COO dashboard can surface an "auto-applied" badge.
+          //    reviewed_by is a UUID column, so we CANNOT store a sentinel string
+          //    there (the old 'system:roi-merge' value silently failed every merge
+          //    and rolled it back). We leave reviewed_by NULL and flag the automatic
+          //    nature in each op's metadata (preserving any existing keys) so the
+          //    COO dashboard can surface an "auto-applied" badge.
           const pendingIds = pendingOps.map(op => op.id);
-          const { error: approveErr } = await supabase
-            .from('pending_wallet_operations')
-            .update({
-              status: 'completed',
-              reviewed_at: now.toISOString(),
-              reviewed_by: 'system:roi-merge',
-            })
-            .in('id', pendingIds);
+          const completeResults = await Promise.all(
+            pendingOps.map((op: any) =>
+              supabase
+                .from('pending_wallet_operations')
+                .update({
+                  status: 'completed',
+                  reviewed_at: now.toISOString(),
+                  reviewed_by: null,
+                  metadata: {
+                    ...(op.metadata && typeof op.metadata === 'object' ? op.metadata : {}),
+                    auto_applied_at_roi_cycle: true,
+                    merged_at: now.toISOString(),
+                  },
+                })
+                .eq('id', op.id)
+            )
+          );
+          const approveErr = completeResults.find((r: any) => r.error)?.error;
 
           if (approveErr) {
-            // Rollback
+            // Rollback — restore principal and revert any ops already flipped
             await supabase
               .from('investor_portfolios')
               .update({ investment_amount: currentAmount })
               .eq('id', portfolio.id);
+            await Promise.all(
+              completeResults.map((r: any, i: number) =>
+                r.error
+                  ? null
+                  : supabase
+                      .from('pending_wallet_operations')
+                      .update({ status: pendingOps[i].status, reviewed_at: null, reviewed_by: null })
+                      .eq('id', pendingOps[i].id)
+              )
+            );
             console.error(`[process-supporter-roi] Rollback merge for portfolio ${portfolio.id}:`, approveErr.message);
             continue;
           }
@@ -536,8 +574,8 @@ Deno.serve(async (req) => {
         }
       } catch (mergeErr: unknown) {
         const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
-        console.error(`[process-supporter-roi] Merge error for supporter ${supporterId}:`, msg);
-        results.errors.push(`merge:${supporterId}: ${msg}`);
+        console.error(`[process-supporter-roi] Merge error for portfolio ${portfolioId}:`, msg);
+        results.errors.push(`merge:${portfolioId}: ${msg}`);
       }
     }
 
