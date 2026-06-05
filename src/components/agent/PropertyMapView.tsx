@@ -169,6 +169,7 @@ export function PropertyMapView({
     if (markers.length === 0 || optimizing) return;
     if (!mapsHasKey) { toast.error('Route planning is unavailable right now'); return; }
     setOptimizing(true);
+    setFromCache(false);
     try {
       const coords = await new Promise<{ lat: number; lng: number }>((resolve, reject) => {
         if (!('geolocation' in navigator)) { reject(new Error('no-geo')); return; }
@@ -181,6 +182,14 @@ export function PropertyMapView({
       setOrigin(coords);
 
       const stops = markers.map((m) => ({ id: m.addr, lat: m.loc.lat, lng: m.loc.lng }));
+      const cacheKey = buildRouteCacheKey(coords, stops);
+      const cached = readCachedRoute(cacheKey);
+      if (cached) {
+        setRoute(cached.route);
+        setFromCache(true);
+        toast.success('Optimal visit route ready (cached)');
+        return;
+      }
 
       // Ensure the Directions library is available, then optimize the visit order.
       const { DirectionsService } = (await google.maps.importLibrary('routes')) as google.maps.RoutesLibrary;
@@ -207,13 +216,15 @@ export function PropertyMapView({
       const params = new URLSearchParams({ api: '1', origin: o, destination: o, travelmode: 'driving' });
       if (ordered.length > 0) params.set('waypoints', ordered.map((s) => `${s.lat},${s.lng}`).join('|'));
 
-      setRoute({
+      const newRoute = {
         order,
         polyline,
         mapsUrl: `https://www.google.com/maps/dir/?${params.toString()}`,
         distanceMeters: distanceMeters || null,
         durationSeconds: durationSeconds || null,
-      });
+      };
+      setRoute(newRoute);
+      writeCachedRoute(cacheKey, { origin: coords, route: newRoute, cachedAt: Date.now() });
       toast.success('Optimal visit route ready');
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
