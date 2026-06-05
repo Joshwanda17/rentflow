@@ -411,14 +411,21 @@ export function WelileMissionBoard() {
                     </button>
                   )}
                   {p.key === 'fund' && (
-                    <div className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1.5">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">ROI payable · next cycle</p>
+                    <button
+                      type="button"
+                      onClick={() => setRoiPayableOpen(true)}
+                      className="mt-2 w-full rounded-lg bg-amber-500/10 px-2 py-1.5 text-left hover:ring-1 hover:ring-amber-500/40 transition"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">ROI payable · next cycle</p>
+                        <ChevronRight className="h-3 w-3 text-amber-700 shrink-0" />
+                      </div>
                       <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatUGX(roiPayable?.total ?? 0)}</p>
                       <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
                         {(roiPayable?.count ?? 0).toLocaleString()} portfolio{(roiPayable?.count ?? 0) !== 1 ? 's' : ''} due
-                        {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''}
+                        {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''} · tap for line items
                       </p>
-                    </div>
+                    </button>
                   )}
                   {p.key === 'fund' && (
                     <Button
