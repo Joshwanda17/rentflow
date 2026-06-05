@@ -258,6 +258,38 @@ export function WelileMissionBoard() {
                 {w.label}
               </button>
             ))}
+            <Popover open={customOpen} onOpenChange={setCustomOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  className={cn('flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold transition border-l border-border',
+                    win.startsWith('custom:') ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+                >
+                  <CalendarDays className="h-3 w-3" />
+                  {win.startsWith('custom:')
+                    ? windowDateRangeLabel(win)
+                    : 'Custom'}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <div className="px-3 pt-3 text-[11px] text-muted-foreground">
+                  Pick a start date — range runs from that day up to today.
+                </div>
+                <Calendar
+                  mode="single"
+                  selected={win.startsWith('custom:') ? new Date(win.slice('custom:'.length)) : undefined}
+                  onSelect={(d) => {
+                    if (!d) return;
+                    const start = new Date(d);
+                    start.setHours(0, 0, 0, 0);
+                    setWin(`custom:${start.toISOString()}` as CounterWindow);
+                    setCustomOpen(false);
+                  }}
+                  disabled={(d) => d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()}>
             <RefreshCw className={cn('h-4 w-4', (isFetching || isLoading) && 'animate-spin')} />
