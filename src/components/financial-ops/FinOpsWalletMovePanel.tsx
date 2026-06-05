@@ -157,11 +157,12 @@ export function FinOpsWalletMovePanel() {
       : source.float_balance
     : 0;
   const validAmount = Number.isInteger(amountNum) && amountNum > 0 && amountNum <= 500_000_000;
-  const enough = !!source && amountNum <= sourceAvail;
+  const exceedsBalance = !!source && amountNum > sourceAvail;
+  const wouldGoNegative = exceedsBalance; // sourceAvail - amountNum < 0
   const destOk =
     mode !== 'user_to_user' || (!!dest && dest.id !== source?.id);
   const canSubmit =
-    !!source && destOk && validAmount && enough && reason.trim().length >= 10 && !submitting;
+    !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 && !submitting;
 
   const reset = () => {
     setSource(null);
@@ -518,9 +519,17 @@ export function FinOpsWalletMovePanel() {
                 placeholder="0"
                 className="mt-1"
               />
-              {amount && !enough && (
+              {amount && exceedsBalance && (
                 <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" /> More than the available {sourceBucket} balance.
+                  <AlertTriangle className="h-3 w-3" /> Exceeds available {sourceBucket} balance. Maximum: {fmt(sourceAvail)}.
+                </p>
+              )}
+              {amount && !exceedsBalance && validAmount && sourceAvail > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Balance after move: <span className="font-semibold text-foreground">{fmt(Math.max(0, sourceAvail - amountNum))}</span> {sourceBucket}
+                  {mode === 'same_user' && (
+                    <> · Withdrawable becomes: <span className="font-semibold text-foreground">{fmt(source.withdrawable_balance + amountNum)}</span></>
+                  )}
                 </p>
               )}
             </div>

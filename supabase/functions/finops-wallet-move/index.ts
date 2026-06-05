@@ -321,6 +321,49 @@ Deno.serve(async (req) => {
       destAfter = data as typeof destAfter;
     }
 
+    const srcWithdrawableAfter = Number(srcAfter?.withdrawable_balance ?? 0);
+    const srcFloatAfter = Number(srcAfter?.float_balance ?? 0);
+    const srcBucketAfter = sourceBucket === "withdrawable" ? srcWithdrawableAfter : srcFloatAfter;
+
+    // Belt-and-suspenders: if a race condition caused a negative bucket, flag it.
+    if (srcBucketAfter < 0 || (destAfter && destBucket === "withdrawable" && Number(destAfter.withdrawable_balance) < 0) || (destAfter && destBucket === "float" && Number(destAfter.float_balance) < 0)) {
+      try {
+        await adminClient.from("wallet_overdraw_events").insert({
+          user_id: sourceUserId,
+          attempted_balance: amount,
+          clamped_to: 0,
+          float_before: srcFloat,
+          float_after: srcFloatAfter,
+          withdrawable_before: srcWithdrawable,
+          withdrawable_after: srcWithdrawableAfter,
+          trigger_op: "finops_wallet_move_negative_post",
+        });
+      } catch (_) {
+        // Best-effort anomaly log.
+      }
+      return json(
+        {
+          error: `Move resulted in a negative balance. The transaction was posted but needs review.`,
+          source: {
+            user_id: sourceUserId,
+            name: sourceName,
+            withdrawable_after: srcWithdrawableAfter,
+            float_after: srcFloatAfter,
+          },
+          dest:
+            mode === "user_to_user"
+              ? {
+                  user_id: destUserId,
+                  name: destName,
+                  withdrawable_after: Number(destAfter?.withdrawable_balance ?? 0),
+                  float_after: Number(destAfter?.float_balance ?? 0),
+                }
+              : { name: "Welile Platform" },
+        },
+        500,
+      );
+    }
+
     return json({
       success: true,
       mode,
@@ -330,8 +373,8 @@ Deno.serve(async (req) => {
       source: {
         user_id: sourceUserId,
         name: sourceName,
-        withdrawable_after: Number(srcAfter?.withdrawable_balance ?? 0),
-        float_after: Number(srcAfter?.float_balance ?? 0),
+        withdrawable_after: srcWithdrawableAfter,
+        float_after: srcFloatAfter,
       },
       dest:
         mode === "user_to_user"
