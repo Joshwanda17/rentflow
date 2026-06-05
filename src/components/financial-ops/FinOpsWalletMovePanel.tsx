@@ -157,11 +157,12 @@ export function FinOpsWalletMovePanel() {
       : source.float_balance
     : 0;
   const validAmount = Number.isInteger(amountNum) && amountNum > 0 && amountNum <= 500_000_000;
-  const enough = !!source && amountNum <= sourceAvail;
+  const exceedsBalance = !!source && amountNum > sourceAvail;
+  const wouldGoNegative = exceedsBalance; // sourceAvail - amountNum < 0
   const destOk =
     mode !== 'user_to_user' || (!!dest && dest.id !== source?.id);
   const canSubmit =
-    !!source && destOk && validAmount && enough && reason.trim().length >= 10 && !submitting;
+    !!source && destOk && validAmount && !exceedsBalance && reason.trim().length >= 10 && !submitting;
 
   const reset = () => {
     setSource(null);
