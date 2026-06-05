@@ -15465,6 +15465,57 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_phone_duplicate_alerts: {
+        Row: {
+          created_at: string
+          id: string
+          match_type: string
+          member_count: number
+          member_ids: string[]
+          phone_key: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          sample_names: string[]
+          sample_phones: string[]
+          signature: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_type?: string
+          member_count?: number
+          member_ids?: string[]
+          phone_key: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sample_names?: string[]
+          sample_phones?: string[]
+          signature: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_type?: string
+          member_count?: number
+          member_ids?: string[]
+          phone_key?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sample_names?: string[]
+          sample_phones?: string[]
+          signature?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tenant_ratings: {
         Row: {
           created_at: string
@@ -18553,6 +18604,7 @@ export type Database = {
         }[]
       }
       detect_sms_failure_alerts: { Args: never; Returns: Json }
+      detect_tenant_phone_near_duplicates: { Args: never; Returns: number }
       detect_velocity_abuse: {
         Args: { p_threshold?: number; p_window_minutes?: number }
         Returns: {

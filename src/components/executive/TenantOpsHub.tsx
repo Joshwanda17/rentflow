@@ -5,6 +5,7 @@ import { TenantOpsDashboard } from './TenantOpsDashboard';
 import { TenantOpsDashboardV2 } from './TenantOpsDashboardV2';
 import { AgentInactiveAlertBanner } from '@/components/ops/AgentInactiveAlertBanner';
 import { BehaviorDrawer } from '@/components/ops/BehaviorDrawer';
+import { TenantPhoneDuplicatePanel } from '@/components/ops/TenantPhoneDuplicatePanel';
 import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY = 'tenant-ops-view-mode';
@@ -31,6 +32,8 @@ export function TenantOpsHub() {
   return (
     <div className="space-y-3">
       <AgentInactiveAlertBanner opsUserId={opsUserId} onOpenBehavior={setBehaviorTenantId} />
+
+      <TenantPhoneDuplicatePanel />
 
       <div className="flex items-center justify-end gap-2">
         <Button
