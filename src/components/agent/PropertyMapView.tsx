@@ -121,6 +121,7 @@ export function PropertyMapView({
   const { hasKey: mapsHasKey } = useGoogleMapsLoader(true);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [optimizing, setOptimizing] = useState(false);
+  const [fromCache, setFromCache] = useState(false);
   const [route, setRoute] = useState<{
     order: string[];
     polyline: [number, number][];
