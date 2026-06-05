@@ -631,6 +631,13 @@ export function WelileMissionBoard() {
         onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
       />
 
+      <ROIPayableDialog
+        open={roiPayableOpen}
+        refetchIntervalMs={intervalMs}
+        onClose={() => setRoiPayableOpen(false)}
+        onOpenFunder={(id) => { setRoiPayableOpen(false); setDrawer({ tenantId: id, tab: 'tenant' }); }}
+      />
+
       <LandlordReceivablesDialog
         open={landlordRecvOpen}
         onClose={() => setLandlordRecvOpen(false)}
