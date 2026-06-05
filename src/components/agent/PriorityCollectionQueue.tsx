@@ -110,7 +110,12 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
     completed: { text: '✅ Paid Up', color: 'text-success' },
   };
 
-  const totalOwed = queue.reduce((s, i) => s + i.outstanding, 0);
+  // Inactive ("Not Paying") tenants are excluded from the owed total — their
+  // house has been freed back to Priority 1, so they no longer count.
+  const totalOwed = queue.reduce(
+    (s, i) => s + (i.agent_payment_status === 'not_paying' ? 0 : i.outstanding),
+    0,
+  );
   const notPayingCount = queue.filter(q => q.agent_payment_status === 'not_paying').length;
 
   return (
