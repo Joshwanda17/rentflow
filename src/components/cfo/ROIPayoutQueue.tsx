@@ -6,8 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, Loader2, User, Wallet } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, User, Wallet, Pencil } from 'lucide-react';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { format } from 'date-fns';
 
@@ -30,6 +32,8 @@ export function ROIPayoutQueue() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
+  // CFO-editable payout amounts, keyed by operation id. Empty until the CFO edits.
+  const [editedAmounts, setEditedAmounts] = useState<Record<string, string>>({});
 
   const { data: operations = [], isLoading } = useQuery({
     queryKey: ['cfo-roi-requests', 'coo_approved'],
@@ -71,10 +75,11 @@ export function ROIPayoutQueue() {
   };
 
   const approveMutation = useMutation({
-    mutationFn: async (opId: string) => {
+    mutationFn: async ({ opId, overrideAmount }: { opId: string; overrideAmount?: number }) => {
       const op = operations.find(o => o.id === opId);
+      const finalAmount = overrideAmount ?? op?.amount;
       const { data, error } = await supabase.functions.invoke('approve-wallet-operation', {
-        body: { operation_id: opId, action: 'approve' },
+        body: { operation_id: opId, action: 'approve', ...(overrideAmount !== undefined ? { override_amount: overrideAmount } : {}) },
       });
       if (error) throw error;
       await supabase.from('audit_logs').insert({
@@ -83,7 +88,9 @@ export function ROIPayoutQueue() {
         table_name: 'pending_wallet_operations',
         record_id: opId,
         metadata: {
-          amount: op?.amount,
+          amount: finalAmount,
+          original_amount: op?.amount,
+          amount_edited: overrideAmount !== undefined && overrideAmount !== op?.amount,
           target_user_id: op?.target_wallet_user_id || op?.user_id,
           description: op?.description,
           source: 'send_money_inline',
