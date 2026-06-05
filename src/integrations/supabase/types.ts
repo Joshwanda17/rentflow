@@ -20672,7 +20672,7 @@ export type Database = {
         }[]
       }
       welile_mission_receivables: {
-        Args: never
+        Args: { p_since?: string }
         Returns: {
           empty_houses_count: number
           empty_receivable_total: number
