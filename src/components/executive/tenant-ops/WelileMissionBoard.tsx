@@ -229,10 +229,16 @@ export function WelileMissionBoard() {
                     <span className="text-[11px] text-muted-foreground">{m.label}</span>
                   </div>
                   {p.key === 'list' && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      <CalendarDays className="inline h-3 w-3 mr-0.5 -translate-y-px" />
+                    <button
+                      type="button"
+                      onClick={() => setEmptyOpen(true)}
+                      className="mt-0.5 inline-flex items-center gap-0.5 rounded text-[10px] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground transition"
+                      title="View the exact houses & unlisted landlords matching this date range"
+                    >
+                      <CalendarDays className="h-3 w-3 -translate-y-px" />
                       {windowDateRangeLabel(win, receivables?.earliest_date)}
-                    </p>
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
                   )}
                   {m.extra && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
                   {p.key === 'place' && receivables && (
