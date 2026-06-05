@@ -101,6 +101,7 @@ const InvestmentPortfolio = lazy(() => import('./pages/InvestmentPortfolio'));
 const MyWatchlist = lazy(() => import('./pages/MyWatchlist'));
 const Opportunities = lazy(() => import('./pages/Opportunities'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
+const ReceivablesAudit = lazy(() => import('./pages/ReceivablesAudit'));
 const DepositHistory = lazy(() => import('./pages/DepositHistory'));
 const DepositVerificationDetail = lazy(() => import('./pages/DepositVerificationDetail'));
 const WelileHomes = lazy(() => import('./pages/WelileHomes'));
@@ -362,6 +363,7 @@ function AppRoutes() {
           <Route path="/my-watchlist" element={<MyWatchlist />} />
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="/receivables-audit" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto', 'cfo', 'coo', 'ceo']}><ReceivablesAudit /></RoleGuard>} />
           <Route path="/deposit-history" element={<DepositHistory />} />
           <Route path="/deposit-history/:id" element={<DepositVerificationDetail />} />
           <Route path="/welile-homes" element={<WelileHomes />} />

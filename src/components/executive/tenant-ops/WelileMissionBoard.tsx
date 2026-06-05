@@ -45,6 +45,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
+import { useNavigate } from 'react-router-dom';
 
 const WINDOWS: { id: CounterWindow; label: string }[] = [
   { id: '7d', label: '7 days' },
@@ -109,6 +110,7 @@ function recommend(s: MissionSummary): { key: PriorityKey; text: string; severit
 }
 
 export function WelileMissionBoard() {
+  const navigate = useNavigate();
   const [win, setWin] = useState<CounterWindow>('7d');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showAgents, setShowAgents] = useState(true);
@@ -320,6 +322,16 @@ export function WelileMissionBoard() {
                       onClick={() => setEmptyOpen(true)}
                     >
                       <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
+                    </Button>
+                  )}
+                  {p.key === 'list' && receivables && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-full mt-1.5 text-[11px] gap-1 text-amber-700 hover:text-amber-800"
+                      onClick={() => navigate('/receivables-audit')}
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" /> View validation / audit report
                     </Button>
                   )}
                   {p.key === 'place' && (
