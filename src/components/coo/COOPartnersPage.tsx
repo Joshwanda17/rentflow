@@ -322,8 +322,8 @@ function exportToCSV(rows: PartnerRow[], portfolios: ExportPortfolio[], returnsB
 
     ports.forEach(p => {
       const name = ports.length > 1 ? `${r.name} (${exportPortfolioName(p)})` : r.name;
-      const ledgerReturns = returnsByPortfolio.get(p.id);
-      const returns = ledgerReturns != null && ledgerReturns > 0 ? ledgerReturns : (p.total_roi_earned ?? 0);
+      // Returns = Principal × ROI%
+      const returns = Math.round((p.investment_amount ?? 0) * ((p.roi_percentage ?? 0) / 100));
       csvRows.push([
         name, r.phone, r.email, statusLabel, r.walletBalance,
         p.investment_amount ?? 0,
