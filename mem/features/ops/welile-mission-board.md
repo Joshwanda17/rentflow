@@ -7,6 +7,8 @@ Placement: very top of `WelileOperationsHub` (Tenant Ops → Welile Operations),
 
 Purpose: makes the three ranked priorities explicit and tells ops the single best next move from live data.
 - Priority 1 `list` — agents register landlords with empty houses (`house_listings`, status<>'rejected').
+
+Priority 1 projected receivables (`welile_mission_receivables` RPC, hook `useMissionReceivables`, type `MissionReceivables`): empty-house projection shows TWO honest figures side by side because most unlisted landlords have rent=0 on file. `empty_receivable_total + unlisted_receivable_total` = RECORDED annual (SUM monthly_rent>0 × 12, only the ~72 houses with a rent value). `estimated_full_total` = recorded + (missing_rent_count × avg_known_monthly × 12), filling zero-rent houses with the avg known rent. RPC also returns known_rent_count, missing_rent_count, avg_known_monthly. Never present the recorded figure as the projection for all ~1,523 empty houses — it silently treats ~1,451 zero-rent houses as worth 0.
 - Priority 2 `place` — placed tenants = the REAL agent→tenant→landlord chain in `rent_requests` with `status in ('funded','repaying','completed')` (active tenancies). Counts distinct `tenant_id`. This replaced the old `landlords.tenant_id` source (only 33) — rent_requests gives the full picture (~465 placed tenants, 38 agents, 415 landlords). `welile_mission_placements` joins rent_requests → landlords (landlord_id) + profiles (tenant/agent). Leaderboard `placements_count` = distinct placed tenants per agent from rent_requests.
 - Priority 3 `fund` — onboarded funders = `investor_portfolios` (Partner Ops) + `promissory_notes` combined.
 

@@ -278,8 +278,17 @@ export function WelileMissionBoard() {
                         <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">Projected receivables</p>
                         <ChevronRight className="h-3 w-3 text-amber-700 shrink-0" />
                       </div>
-                      <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatUGX(receivables.empty_receivable_total + receivables.unlisted_receivable_total)}</p>
-                      <p className="text-[10px] text-muted-foreground leading-none">{(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses · monthly × 12 · tap to view list</p>
+                      <div className="mt-0.5 grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight">{formatUGX(receivables.empty_receivable_total + receivables.unlisted_receivable_total)}</p>
+                          <p className="text-[9px] text-muted-foreground leading-tight">Recorded · {receivables.known_rent_count.toLocaleString()} with rent on file</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-amber-600 tabular-nums leading-tight">~{formatUGX(receivables.estimated_full_total)}</p>
+                          <p className="text-[9px] text-muted-foreground leading-tight">Est. full potential · {receivables.missing_rent_count.toLocaleString()} no rent @ ~{formatUGX(receivables.avg_known_monthly)}/mo</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground leading-none mt-1">{(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses · annual (monthly × 12) · tap to view list</p>
                     </button>
                   )}
                   {p.key === 'list' && (
