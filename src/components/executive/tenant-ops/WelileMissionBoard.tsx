@@ -18,6 +18,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import { TenantBalanceEditPanel } from '@/components/executive/tenant-ops/TenantBalanceEditPanel';
 import { ListingPhotoGallery } from '@/components/executive/tenant-ops/ListingPhotoGallery';
+import { LandlordPriorityClassification } from '@/components/executive/tenant-ops/LandlordPriorityClassification';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
@@ -334,6 +335,14 @@ export function WelileMissionBoard() {
           </div>
         </div>
       )}
+
+      {/* Landlords-by-agents priority classification (P1 empty houses vs P2 placed tenants) */}
+      <LandlordPriorityClassification
+        win={win}
+        refetchIntervalMs={intervalMs}
+        onOpenLandlord={(id) => setDrawer({ landlordId: id, tab: 'landlord' })}
+        onOpenAgent={(id) => setDrawer({ agentId: id, tab: 'agent' })}
+      />
 
       {/* Agent leaderboard */}
       <div className="mt-3">
