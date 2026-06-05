@@ -45,6 +45,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
+import { useNavigate } from 'react-router-dom';
 
 const WINDOWS: { id: CounterWindow; label: string }[] = [
   { id: '7d', label: '7 days' },
