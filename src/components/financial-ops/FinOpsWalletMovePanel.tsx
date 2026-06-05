@@ -302,8 +302,9 @@ export function FinOpsWalletMovePanel() {
           Move Money Between Wallets
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Move money from any user to any other user, or pull it back to the platform
-          as an error correction. You can never move more than the chosen balance.
+          Move money from any user to any other user, reclassify a single user's
+          Operations Float into their own Withdrawable, or pull money back to the
+          platform as an error correction. You can never move more than the chosen balance.
         </p>
       </div>
 
