@@ -122,6 +122,7 @@ export function WelileMissionBoard() {
   const navigate = useNavigate();
   const [win, setWin] = useState<CounterWindow>('7d');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(true);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<PriorityKey>('list');
