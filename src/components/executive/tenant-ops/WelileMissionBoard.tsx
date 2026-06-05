@@ -982,6 +982,20 @@ function EmptyHousesDialog({
   };
 
   const searchLower = search.trim().toLowerCase();
+  const monthOptions = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; count: number }>();
+    houses.forEach((h) => {
+      if (!h.created_at) return;
+      const d = new Date(h.created_at);
+      if (Number.isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+      const existing = map.get(key);
+      if (existing) existing.count += 1;
+      else map.set(key, { key, label, count: 1 });
+    });
+    return [...map.values()].sort((a, b) => b.key.localeCompare(a.key));
+  }, [houses]);
   const filtered = useMemo(() => {
     let r = [...houses];
     if (searchLower) {
@@ -993,6 +1007,15 @@ function EmptyHousesDialog({
         (h.landlord_name?.toLowerCase().includes(searchLower) ?? false) ||
         (h.landlord_phone?.toLowerCase().includes(searchLower) ?? false) ||
         (h.agent_name?.toLowerCase().includes(searchLower) ?? false));
+    }
+    if (monthFilter !== 'all') {
+      r = r.filter((h) => {
+        if (!h.created_at) return false;
+        const d = new Date(h.created_at);
+        if (Number.isNaN(d.getTime())) return false;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return key === monthFilter;
+      });
     }
     if (targetFilter === 'targeted') {
       r = r.filter((h) => !!h.landlord_id && !!targets?.[h.landlord_id]);
@@ -1009,7 +1032,7 @@ function EmptyHousesDialog({
       }
     });
     return r;
-  }, [houses, searchLower, sort, targetFilter, targets]);
+  }, [houses, searchLower, sort, targetFilter, monthFilter, targets]);
 
   const selectable = useMemo(() => {
     const ids = new Set<string>();
