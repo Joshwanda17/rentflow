@@ -301,13 +301,59 @@ export function LandlordSearchSelect({
           </div>
           {/* Google-style results meta line */}
           {!loading && !isSystemEmpty && results.length > 0 && (
-            <p className="px-1.5 pt-2 text-[11px] text-muted-foreground">
-              {debounced
-                ? `About ${results.length} landlord${results.length === 1 ? '' : 's'} matching "${debounced}"`
-                : `Showing ${results.length} registered landlord${results.length === 1 ? '' : 's'}`}
-              {typeof totalCount === 'number' && totalCount > 0 && (
-                <span className="opacity-70"> · {totalCount} total</span>
-              )}
+            <div className="flex items-center justify-between gap-2 px-1.5 pt-2">
+              <p className="text-[11px] text-muted-foreground truncate">
+                {debounced
+                  ? `About ${results.length} landlord${results.length === 1 ? '' : 's'} matching "${debounced}"`
+                  : `Showing ${results.length} registered landlord${results.length === 1 ? '' : 's'}`}
+                {typeof totalCount === 'number' && totalCount > 0 && (
+                  <span className="opacity-70"> · {totalCount} total</span>
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowThreshold((s) => !s)}
+                className={cn(
+                  'flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] shrink-0 transition-colors',
+                  showThreshold ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-accent'
+                )}
+                aria-pressed={showThreshold}
+              >
+                <SlidersHorizontal className="h-3 w-3" />
+                Precision {Math.round(threshold * 100)}%
+              </button>
+            </div>
+          )}
+
+          {/* Configurable similarity threshold */}
+          {!loading && !isSystemEmpty && results.length > 0 && showThreshold && (
+            <div className="mt-2 rounded-lg border bg-background/60 p-2.5">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>More results</span>
+                <span className="font-medium text-foreground">
+                  Match precision {Math.round(threshold * 100)}%
+                </span>
+                <span>Stricter</span>
+              </div>
+              <Slider
+                className="mt-2"
+                value={[Math.round(threshold * 100)]}
+                min={5}
+                max={90}
+                step={5}
+                onValueChange={(v) => setThreshold((v[0] ?? 20) / 100)}
+              />
+              <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+                Lower precision tolerates more typos; higher precision shows only close matches.
+              </p>
+            </div>
+          )}
+
+          {/* Typo-tolerance hint when fuzzy matches are present */}
+          {!loading && hasFuzzy && (
+            <p className="mt-2 flex items-center gap-1 px-1.5 text-[11px] text-primary">
+              <Sparkles className="h-3 w-3 shrink-0" />
+              Some results matched despite spelling differences.
             </p>
           )}
         </div>
