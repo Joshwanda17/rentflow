@@ -1140,6 +1140,11 @@ function EmptyHousesDialog({
   const { data, isLoading } = useMissionEmptyHouses(win, open, refetchIntervalMs);
   const houses: MissionEmptyHouseRow[] = data ?? [];
 
+  // Global (window-independent) average known rent — keeps projections alive
+  // for short windows (2/7/30 days) where no in-window house has a recorded rent.
+  const { data: rcvForEstimate } = useMissionReceivables(win, refetchIntervalMs);
+  const globalAvgMonthly = Math.round(Number(rcvForEstimate?.avg_known_monthly) || 0);
+
   // Estimate rent for houses that have no recorded rent amount.
   // We learn from the houses that DO have a known rent in this window:
   //   • avg per room  → scales the estimate by number_of_rooms when known
@@ -1154,7 +1159,9 @@ function EmptyHousesDialog({
       const rooms = Number(h.number_of_rooms) || 0;
       if (rooms > 0) { perRoomSum += rent / rooms; perRoomCount += 1; }
     });
-    const avgOverall = knownCount > 0 ? Math.round(knownSum / knownCount) : 0;
+    // Prefer the in-window average; fall back to the platform-wide average so
+    // narrow windows still project instead of collapsing to UGX 0.
+    const avgOverall = knownCount > 0 ? Math.round(knownSum / knownCount) : globalAvgMonthly;
     const avgPerRoom = perRoomCount > 0 ? Math.round(perRoomSum / perRoomCount) : 0;
     const estimateFor = (h: MissionEmptyHouseRow): number => {
       const rooms = Number(h.number_of_rooms) || 0;
@@ -1162,7 +1169,7 @@ function EmptyHousesDialog({
       return avgOverall;
     };
     return { avgOverall, avgPerRoom, knownCount, estimateFor };
-  }, [houses]);
+  }, [houses, globalAvgMonthly]);
 
   const { data: targets } = useLandlordOnboardingTargets(open);
   const targetLandlord = useTargetLandlordForOnboarding();
