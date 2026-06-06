@@ -309,7 +309,19 @@ export function WelileMissionBoard() {
           return (
             <div
               key={p.key}
-              className={cn('rounded-xl border bg-card p-3 relative', isFocus ? 'border-primary ring-1 ring-primary/40' : 'border-border')}
+              className={cn(
+                'rounded-xl border p-3 relative',
+                p.key === 'list'
+                  ? 'bg-amber-500/10 border-amber-500/40'
+                  : 'bg-card',
+                isFocus
+                  ? p.key === 'list'
+                    ? 'ring-1 ring-amber-500/50'
+                    : 'border-primary ring-1 ring-primary/40'
+                  : p.key === 'list'
+                    ? ''
+                    : 'border-border',
+              )}
             >
               <div className="flex items-center gap-2">
                 <div className={cn('p-1.5 rounded-lg shrink-0', p.tone)}><Icon className="h-4 w-4" /></div>
