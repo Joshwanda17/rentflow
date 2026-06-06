@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronsUpDown, Building2, Loader2, Search } from 'lucide-react';
+import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -31,23 +31,28 @@ interface LandlordSearchSelectProps {
   onChange: (landlord: LandlordOption | null) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Called when the agent taps "Register new landlord" from the empty-state warning. */
+  onAddNew?: () => void;
 }
 
 /**
  * Debounced searchable landlord picker.
  * Queries `landlords` by name OR phone (ILIKE), capped at 20 results.
+ * Shows a prominent fallback warning when no registered landlords are found.
  */
 export function LandlordSearchSelect({
   value,
   onChange,
   placeholder = 'Search landlord by name or phone…',
   disabled,
+  onAddNew,
 }: LandlordSearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [results, setResults] = useState<LandlordOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const reqIdRef = useRef(0);
 
   // Debounce typing
@@ -65,7 +70,7 @@ export function LandlordSearchSelect({
       try {
         let q = supabase
           .from('landlords')
-          .select('id, name, phone, property_address')
+          .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude', { count: 'exact' })
           .order('name', { ascending: true })
           .limit(20);
 
@@ -79,10 +84,11 @@ export function LandlordSearchSelect({
           q = q.or(orParts.join(','));
         }
 
-        const { data, error } = await q;
+        const { data, error, count } = await q;
         if (error) throw error;
         if (myId === reqIdRef.current) {
           setResults((data ?? []) as LandlordOption[]);
+          if (count !== null && count !== undefined) setTotalCount(count);
         }
       } catch (err) {
         if (myId === reqIdRef.current) {
@@ -96,10 +102,28 @@ export function LandlordSearchSelect({
     run();
   }, [debounced, open]);
 
+  // One-time fetch of total landlord count so we can show a system-empty warning
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const { count, error } = await supabase
+        .from('landlords')
+        .select('*', { count: 'exact', head: true });
+      if (!cancelled && !error && count !== null && count !== undefined) {
+        setTotalCount(count);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
   const triggerLabel = useMemo(() => {
     if (!value) return placeholder;
     return `${value.name} • ${value.phone}`;
   }, [value, placeholder]);
+
+  const isSystemEmpty = totalCount === 0;
+  const isSearchEmpty = !loading && results.length === 0 && debounced.length > 0;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -144,13 +168,73 @@ export function LandlordSearchSelect({
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
             </div>
           )}
-          {!loading && results.length === 0 && (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-              {debounced
-                ? 'No landlords match that search.'
-                : 'Start typing to search landlords.'}
+
+          {/* Prominent fallback warning when the system has zero landlords */}
+          {!loading && isSystemEmpty && (
+            <div className="px-3 py-4 space-y-3">
+              <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-warning">No landlords registered yet</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                    You must register a landlord before you can post a rent request.
+                  </p>
+                </div>
+              </div>
+              {onAddNew && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-1.5 text-xs"
+                  onClick={() => {
+                    setOpen(false);
+                    onAddNew();
+                  }}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Register a new landlord
+                </Button>
+              )}
             </div>
           )}
+
+          {/* Prominent fallback warning when search yields no matches */}
+          {!loading && !isSystemEmpty && isSearchEmpty && (
+            <div className="px-3 py-4 space-y-3">
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-destructive">No registered landlord found</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                    Try a different spelling or phone number. Only landlords already registered in the system can be selected.
+                  </p>
+                </div>
+              </div>
+              {onAddNew && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-1.5 text-xs"
+                  onClick={() => {
+                    setOpen(false);
+                    onAddNew();
+                  }}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Register this as a new landlord
+                </Button>
+              )}
+            </div>
+          )}
+
+          {!loading && !isSystemEmpty && !isSearchEmpty && results.length === 0 && debounced.length === 0 && (
+            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+              Start typing to search landlords.
+            </div>
+          )}
+
           {!loading &&
             results.map((l) => {
               const selected = value?.id === l.id;

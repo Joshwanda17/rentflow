@@ -3283,41 +3283,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   /* ── Search existing landlord ── */
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label className="text-sm font-semibold">Landlord name</Label>
-                      <LandlordAutocompleteInput
-                        ref={landlordNameInputRef}
-                        field="name"
-                        value={landlordName}
-                        onChange={setLandlordName}
-                        onSelect={applySelectedLandlord}
-                        placeholder="Type name to search…"
-                        className="h-12 text-base"
+                      <Label className="text-sm font-semibold">Select a registered landlord</Label>
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        Only landlords already registered in the system can be chosen. Search by name or phone.
+                      </p>
+                      <LandlordSearchSelect
+                        key={landlordPickerKey}
+                        value={selectedLandlord}
+                        onChange={(l) => {
+                          if (l) applySelectedLandlord(l);
+                        }}
+                        onAddNew={() => setLandlordMode('register')}
                       />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-semibold">Landlord phone</Label>
-                      <LandlordAutocompleteInput
-                        field="phone"
-                        value={landlordPhone}
-                        onChange={(v) => setLandlordPhone(formatPhoneInput(v))}
-                        onSelect={applySelectedLandlord}
-                        placeholder="0700 123 456"
-                        className={`h-12 text-base ${hasFieldError('landlord phone') ? 'border-destructive border-2' : ''}`}
-                        maxLength={12}
-                      />
-                      <FieldError message={vPhone(landlordPhone)} />
-                      {landlordPhone.replace(/\s/g, '').length >= 10 &&
-                        tenantPhone.replace(/\s/g, '').length >= 10 &&
-                        landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
-                      <p className="text-xs text-destructive">Must be different from the tenant's phone</p>
-                      )}
                     </div>
 
                     {/* One-tap clear with inline confirmation so agents don't lose inputs by accident */}
-                    {(landlordName.trim() || landlordPhone.trim()) && (
+                    {selectedLandlord && (
                       confirmClearLandlord ? (
                         <div className="w-full rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2">
-                          <p className="text-sm font-semibold text-destructive text-center">Clear landlord search?</p>
+                          <p className="text-sm font-semibold text-destructive text-center">Clear landlord selection?</p>
                           <div className="flex gap-2">
                             <button
                               type="button"
@@ -3345,14 +3329,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm font-bold active:scale-[0.98] transition-transform"
                         >
                           <X className="h-4 w-4" />
-                          Clear search
+                          Clear selection
                         </button>
                       )
                     )}
 
                     {/* Gentle nudge so the agent knows tapping a match fills everything */}
                     <p className="text-xs text-muted-foreground leading-snug px-0.5">
-                      💡 If the landlord shows up while typing, tap them — their address fills in automatically.
+                      💡 Picking a landlord from the list fills their address and details automatically.
                     </p>
                   </div>
                 ) : (
