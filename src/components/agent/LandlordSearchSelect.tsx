@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -35,10 +35,42 @@ interface LandlordSearchSelectProps {
   onAddNew?: () => void;
 }
 
+/** Bold the portion(s) of text that match the query, Google-style. */
+function highlightMatch(text: string | null | undefined, query: string): ReactNode {
+  const value = text ?? '';
+  const term = query.trim();
+  if (!value) return value;
+  if (!term) return value;
+  // Build a case-insensitive regex from the raw term and (if present) its digits.
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const digits = term.replace(/\D/g, '');
+  const patterns = [escaped];
+  if (digits.length >= 3 && digits !== term) {
+    patterns.push(digits.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  }
+  let re: RegExp;
+  try {
+    re = new RegExp(`(${patterns.join('|')})`, 'gi');
+  } catch {
+    return value;
+  }
+  const parts = value.split(re);
+  return parts.map((part, i) =>
+    re.test(part) ? (
+      <mark key={i} className="bg-transparent font-semibold text-foreground">
+        {part}
+      </mark>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
+
 /**
- * Debounced searchable landlord picker.
- * Queries `landlords` by name OR phone (ILIKE), capped at 20 results.
- * Shows a prominent fallback warning when no registered landlords are found.
+ * Google-style searchable landlord picker.
+ * Debounced typeahead querying `landlords` by name OR phone (ILIKE), capped at 20 results.
+ * Supports keyboard navigation, query highlighting, a live result count, and a
+ * prominent fallback warning when no registered landlords are found.
  */
 export function LandlordSearchSelect({
   value,
@@ -53,13 +85,20 @@ export function LandlordSearchSelect({
   const [results, setResults] = useState<LandlordOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
   const reqIdRef = useRef(0);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Debounce typing
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 300);
     return () => clearTimeout(t);
   }, [query]);
+
+  // Reset keyboard highlight whenever the result set changes.
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [debounced, results.length]);
 
   // Fetch on debounced change (only when popover is open)
   useEffect(() => {
@@ -125,6 +164,42 @@ export function LandlordSearchSelect({
   const isSystemEmpty = totalCount === 0;
   const isSearchEmpty = !loading && results.length === 0 && debounced.length > 0;
 
+  // Compose a location subtitle from the most specific available fields.
+  const locationLine = (l: LandlordOption) =>
+    [l.property_address, l.village, l.town_council, l.county, l.district]
+      .filter(Boolean)
+      .join(', ');
+
+  const commitSelection = (l: LandlordOption) => {
+    onChange(l);
+    setOpen(false);
+    setQuery('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!results.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const chosen = results[activeIndex];
+      if (chosen) commitSelection(chosen);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
+  };
+
+  // Keep the active row scrolled into view during keyboard navigation.
+  useEffect(() => {
+    if (!listRef.current) return;
+    const el = listRef.current.querySelector<HTMLElement>(`[data-row="${activeIndex}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -147,22 +222,44 @@ export function LandlordSearchSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0"
+        className="w-[--radix-popover-trigger-width] p-0 overflow-hidden rounded-2xl shadow-xl"
         align="start"
       >
-        <div className="p-2 border-b">
+        <div className="p-2.5 border-b bg-muted/30">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
             <Input
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Type name or phone…"
-              className="h-9 pl-8"
+              onKeyDown={handleKeyDown}
+              placeholder="Type a landlord's name or phone…"
+              className="h-10 rounded-full pl-9 pr-9 shadow-sm focus-visible:ring-2"
             />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
+          {/* Google-style results meta line */}
+          {!loading && !isSystemEmpty && results.length > 0 && (
+            <p className="px-1.5 pt-2 text-[11px] text-muted-foreground">
+              {debounced
+                ? `About ${results.length} landlord${results.length === 1 ? '' : 's'} matching "${debounced}"`
+                : `Showing ${results.length} registered landlord${results.length === 1 ? '' : 's'}`}
+              {typeof totalCount === 'number' && totalCount > 0 && (
+                <span className="opacity-70"> · {totalCount} total</span>
+              )}
+            </p>
+          )}
         </div>
-        <div className="max-h-64 overflow-y-auto py-1">
+        <div ref={listRef} className="max-h-72 overflow-y-auto py-1">
           {loading && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
@@ -236,34 +333,45 @@ export function LandlordSearchSelect({
           )}
 
           {!loading &&
-            results.map((l) => {
+            results.map((l, idx) => {
               const selected = value?.id === l.id;
+              const active = idx === activeIndex;
+              const location = locationLine(l);
               return (
                 <button
                   key={l.id}
                   type="button"
-                  onClick={() => {
-                    onChange(l);
-                    setOpen(false);
-                  }}
+                  data-row={idx}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                  onClick={() => commitSelection(l)}
                   className={cn(
-                    'w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-accent transition-colors',
-                    selected && 'bg-accent'
+                    'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors',
+                    active ? 'bg-accent' : 'hover:bg-accent/60'
                   )}
                 >
-                  <Check
-                    className={cn(
-                      'h-4 w-4 mt-0.5 shrink-0',
-                      selected ? 'opacity-100 text-primary' : 'opacity-0'
-                    )}
-                  />
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-primary" />
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{l.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {l.phone}
-                      {l.property_address ? ` • ${l.property_address}` : ''}
+                    <p className="text-sm font-medium truncate">
+                      {highlightMatch(l.name, debounced)}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                      <Phone className="h-3 w-3 shrink-0" />
+                      {highlightMatch(l.phone, debounced)}
+                      {location && (
+                        <>
+                          <MapPin className="h-3 w-3 shrink-0 ml-1" />
+                          <span className="truncate">{location}</span>
+                        </>
+                      )}
                     </p>
                   </div>
+                  {selected ? (
+                    <Check className="h-4 w-4 shrink-0 text-primary" />
+                  ) : active ? (
+                    <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  ) : null}
                 </button>
               );
             })}
