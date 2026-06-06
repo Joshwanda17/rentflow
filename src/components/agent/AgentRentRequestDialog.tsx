@@ -3968,12 +3968,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         open={showRegisterLandlord}
         onOpenChange={setShowRegisterLandlord}
         minimal={incomeType === 'outstanding'}
-        onSuccess={() => {
+        onSuccess={(landlord) => {
           setShowRegisterLandlord(false);
           setLandlordMode('search');
           // Force the search popover to re-fetch fresh results.
           setLandlordPickerKey((k) => k + 1);
-          toast.success('Landlord registered. Search to select them now.');
+          if (landlord) {
+            // Auto-select the just-registered landlord so the agent can proceed
+            // immediately — registration is the priority, selection follows.
+            applySelectedLandlord(landlord as LandlordOption);
+          } else {
+            toast.success('Landlord registered. Search to select them now.');
+          }
         }}
       />
       <ListEmptyHouseDialog
