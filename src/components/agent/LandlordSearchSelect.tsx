@@ -541,7 +541,7 @@ export function LandlordSearchSelect({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-medium truncate">
-                        {highlightMatch(l.name, debounced)}
+                        {highlightName(l.name, debounced, l.match_kind)}
                       </p>
                       {ctx && (
                         <span
@@ -558,7 +558,7 @@ export function LandlordSearchSelect({
                     </div>
                     <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                       <Phone className="h-3 w-3 shrink-0" />
-                      {highlightMatch(l.phone, debounced)}
+                      {highlightPhone(l.phone, debounced)}
                       {location && (
                         <>
                           <MapPin className="h-3 w-3 shrink-0 ml-1" />
