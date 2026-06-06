@@ -444,7 +444,11 @@ export default function LandlordRegistrationForm({
       }
 
       setProgressMsg('Saving the landlord…');
-      const { data: newLandlord, error } = await supabase.from('landlords').insert(insertData as any).select('id').single();
+      const { data: newLandlord, error } = await supabase
+        .from('landlords')
+        .insert(insertData as any)
+        .select('id, name, phone, property_address, latitude, longitude, house_category')
+        .single();
       if (error) throw error;
       setRegisteredLandlordId(newLandlord?.id ?? null);
 
