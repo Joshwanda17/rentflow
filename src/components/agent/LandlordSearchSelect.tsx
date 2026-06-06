@@ -46,10 +46,29 @@ interface LandlordSearchSelectProps {
 
 /** Per-character highlight style for each match flavour. */
 const HL_CLASS = {
-  exact: 'rounded-[2px] bg-primary/20 font-semibold text-foreground',
-  phone: 'rounded-[2px] bg-emerald-500/20 font-semibold text-foreground',
-  typo: 'font-semibold text-primary underline decoration-dotted decoration-primary/70 underline-offset-2',
+  // Google bolds the matched terms in its results.
+  exact: 'bg-transparent font-bold text-foreground',
+  phone: 'bg-transparent font-bold text-[#188038] dark:text-[#81c995]',
+  typo: 'bg-transparent font-bold text-[#1a73e8] dark:text-[#8ab4f8] underline decoration-dotted decoration-current/60 underline-offset-2',
 } as const;
+
+/** Google's four brand colours, used for the little wordmark dots. */
+const GOOGLE_COLORS = ['#4285F4', '#EA4335', '#FBBC05', '#34A853'] as const;
+
+/** A tiny "Welile" wordmark rendered in Google's signature colour sequence. */
+function GoogleWordmark() {
+  const letters = 'Welile'.split('');
+  return (
+    <span className="select-none text-lg font-medium tracking-tight" aria-label="Welile landlord search">
+      {letters.map((ch, i) => (
+        <span key={i} style={{ color: GOOGLE_COLORS[i % GOOGLE_COLORS.length] }}>
+          {ch}
+        </span>
+      ))}
+      <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">Landlords</span>
+    </span>
+  );
+}
 
 type HighlightMode = keyof typeof HL_CLASS;
 
