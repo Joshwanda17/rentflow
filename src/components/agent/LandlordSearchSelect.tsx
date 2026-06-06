@@ -359,8 +359,26 @@ export function LandlordSearchSelect({
   // Keep the active row scrolled into view during keyboard navigation.
   useEffect(() => {
     if (!listRef.current) return;
-    const el = listRef.current.querySelector<HTMLElement>(`[data-row="${activeIndex}"]`);
-    el?.scrollIntoView({ block: 'nearest' });
+    const container = listRef.current;
+    const el = container.querySelector<HTMLElement>(`[data-row="${activeIndex}"]`);
+    if (!el) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const containerTop = container.scrollTop;
+    const pad = 4; // small padding so it's not hugging the edge
+
+    const elTopRelative = elRect.top - containerRect.top + containerTop;
+    const elBottomRelative = elRect.bottom - containerRect.top + containerTop;
+
+    if (elTopRelative < containerTop + pad) {
+      container.scrollTo({ top: elTopRelative - pad, behavior: 'smooth' });
+    } else if (elBottomRelative > containerTop + containerRect.height - pad) {
+      container.scrollTo({
+        top: elBottomRelative - containerRect.height + pad,
+        behavior: 'smooth',
+      });
+    }
   }, [activeIndex]);
 
   return (
