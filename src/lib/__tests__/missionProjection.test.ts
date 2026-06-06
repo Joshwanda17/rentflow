@@ -103,3 +103,89 @@ describe('mission projection — guards', () => {
     expect(threeRoom).toBeGreaterThan(oneRoom);
   });
 });
+
+/**
+ * Edge-case regression: dirty/real-world house rows must not poison the
+ * average or drag any window's projection down to UGX 0.
+ */
+describe('mission projection — dirty data never collapses projections to 0', () => {
+  // Houses with completely absent rent/room fields (undefined props).
+  const MISSING_FIELDS = [
+    {}, // no fields at all
+    { number_of_rooms: 2 }, // rooms but no rent
+    { monthly_rent: undefined, number_of_rooms: undefined },
+  ] as unknown as ProjectableHouse[];
+
+  // Malformed amounts: strings, junk, NaN, Infinity.
+  const MALFORMED = [
+    { monthly_rent: '600000', number_of_rooms: 2 }, // numeric string
+    { monthly_rent: 'not-a-number', number_of_rooms: 1 }, // junk
+    { monthly_rent: NaN, number_of_rooms: 1 },
+    { monthly_rent: Infinity, number_of_rooms: 1 },
+    { monthly_rent: '450,000', number_of_rooms: 1 }, // comma-formatted string
+  ] as unknown as ProjectableHouse[];
+
+  // Mixed UGX directions: negative/zero credits mixed with positive rents.
+  const MIXED_DIRECTIONS = [
+    { monthly_rent: 600_000, number_of_rooms: 2 },
+    { monthly_rent: -600_000, number_of_rooms: 2 }, // reversal/credit
+    { monthly_rent: 0, number_of_rooms: 1 },
+    { monthly_rent: -1, number_of_rooms: 1 },
+    { monthly_rent: 400_000, number_of_rooms: 1 },
+  ] as unknown as ProjectableHouse[];
+
+  it('ignores houses with missing rent fields and falls back to the global avg', () => {
+    const est = buildRentEstimator(MISSING_FIELDS, GLOBAL_AVG);
+    // No usable rents → in-window avg falls back to the platform-wide avg.
+    expect(est.knownCount).toBe(0);
+    expect(est.avgOverall).toBe(GLOBAL_AVG);
+    for (const h of MISSING_FIELDS) {
+      expect(est.estimateFor(h)).toBeGreaterThan(0);
+    }
+  });
+
+  it('coerces well-formed numeric strings but discards junk/NaN/Infinity', () => {
+    const est = buildRentEstimator(MALFORMED, GLOBAL_AVG);
+    // Only the "600000" string is a valid finite positive number.
+    expect(est.knownCount).toBe(1);
+    expect(est.avgOverall).toBe(600_000);
+    expect(est.estimateFor({ monthly_rent: null, number_of_rooms: 1 })).toBeGreaterThan(0);
+  });
+
+  it('never feeds non-finite amounts into the annual projection', () => {
+    expect(projectAnnualReceivable(NaN as unknown as number)).toBe(0);
+    expect(projectAnnualReceivable(Infinity as unknown as number)).toBe(0);
+    expect(projectAnnualReceivable('not-a-number' as unknown as number)).toBe(0);
+  });
+
+  it('drops negative/zero (mixed-direction) rents from the learned average', () => {
+    const est = buildRentEstimator(MIXED_DIRECTIONS, GLOBAL_AVG);
+    // Only the two positive rents (600k, 400k) count → avg 500k.
+    expect(est.knownCount).toBe(2);
+    expect(est.avgOverall).toBe(500_000);
+    expect(est.estimateFor({ monthly_rent: null, number_of_rooms: 2 })).toBeGreaterThan(0);
+  });
+
+  it('projects a positive full potential even when every priced row is dirty', () => {
+    // No clean priced rows in-window → knownTotal 0, but global avg drives it.
+    const total = projectFullPotential({
+      knownTotal: 0,
+      missingCount: 9,
+      avgKnownMonthly: GLOBAL_AVG,
+    });
+    expect(total).toBeGreaterThan(0);
+  });
+
+  it('treats a malformed/negative avg as no-signal (not a negative projection)', () => {
+    expect(
+      projectFullPotential({ knownTotal: 0, missingCount: 9, avgKnownMonthly: -500_000 }),
+    ).toBe(0);
+    expect(
+      projectFullPotential({
+        knownTotal: 0,
+        missingCount: 9,
+        avgKnownMonthly: NaN as unknown as number,
+      }),
+    ).toBe(0);
+  });
+});
