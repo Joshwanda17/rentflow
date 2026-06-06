@@ -1427,20 +1427,38 @@ function EmptyHousesDialog({
                       <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {h.area || 'Unspecified area'}</span>
                       {h.monthly_rent ? (
                         <span className="text-foreground font-semibold">{formatUGX(h.monthly_rent)}/mo</span>
-                      ) : rentEstimate.estimateFor(h) > 0 ? (
-                        <span className="flex items-center gap-1 text-amber-600 font-semibold" title="No rent recorded — projected from the average rent of comparable listed houses">
-                          <TrendingUp className="h-3 w-3" /> ~{formatUGX(rentEstimate.estimateFor(h))}/mo
-                          <span className="font-normal text-muted-foreground">est.</span>
-                        </span>
                       ) : null}
                       {h.number_of_rooms ? <span className="flex items-center gap-1"><BedDouble className="h-3 w-3" /> {h.number_of_rooms} rm</span> : null}
                       <span>Last activity {fmtDate(h.last_activity)}</span>
                     </div>
-                    {!h.monthly_rent && rentEstimate.estimateFor(h) > 0 && (
-                      <p className="mt-1 text-[10px] text-amber-600/90">
-                        Projected ~{formatUGX(rentEstimate.estimateFor(h) * 12)}/yr · estimate only, confirm actual rent during onboarding
+                    {h.monthly_rent ? (
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Annual rent {formatUGX(h.monthly_rent * 12)}/yr <span className="text-muted-foreground/70">(monthly × 12)</span>
                       </p>
-                    )}
+                    ) : rentEstimate.estimateFor(h) > 0 ? (
+                      <div className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1.5">
+                        <div className="flex items-center gap-1 text-amber-700">
+                          <TrendingUp className="h-3 w-3" />
+                          <span className="text-[9px] font-bold uppercase tracking-wide leading-none">Rent not recorded — projected</span>
+                        </div>
+                        <div className="mt-1 grid grid-cols-2 gap-2">
+                          <div>
+                            <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight">~{formatUGX(rentEstimate.estimateFor(h))}/mo</p>
+                            <p className="text-[9px] text-muted-foreground leading-tight">Estimated monthly</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-amber-600 tabular-nums leading-tight">~{formatUGX(rentEstimate.estimateFor(h) * 12)}/yr</p>
+                            <p className="text-[9px] text-muted-foreground leading-tight">Projected annual (× 12)</p>
+                          </div>
+                        </div>
+                        <p className="mt-1 text-[9px] text-muted-foreground leading-tight">
+                          {h.number_of_rooms
+                            ? `Based on ${h.number_of_rooms} room${h.number_of_rooms === 1 ? '' : 's'} × avg ~${formatUGX(rentEstimate.avgPerRoom)}/room. `
+                            : `Based on avg ~${formatUGX(rentEstimate.avgOverall)}/mo of comparable listings. `}
+                          Estimate only — confirm actual rent during onboarding.
+                        </p>
+                      </div>
+                    ) : null}
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       {h.landlord_id ? (
                         <button
