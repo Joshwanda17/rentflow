@@ -1907,6 +1907,35 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         ? (outstandingHouseCategory || null)
         : houseCategory;
 
+      // ===== Final authoritative server-side landlord check (right before insert) =====
+      // Even after the client-side existence read above, re-verify against the
+      // server using a SECURITY DEFINER RPC that bypasses RLS. This is the last
+      // gate before we post the rent request, so the landlord cannot slip
+      // through due to a stale selection or a read masked by row-level security.
+      try {
+        const { data: isRegistered, error: verifyError } = await supabase
+          .rpc('verify_landlord_registered', { p_landlord_id: landlordId });
+        if (verifyError) throw verifyError;
+        if (!isRegistered) {
+          const msg = 'This landlord is not registered in the system. Go back to the Property step and pick a registered landlord (search existing or tap "Add new" to register them) before posting.';
+          setSubmissionError(msg);
+          toast.error('Landlord not registered', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          setDetailStep(2);
+          return;
+        }
+      } catch (verifyErr) {
+        const msg = "Couldn't confirm the landlord is registered. Check your connection and try again.";
+        setSubmissionError(msg);
+        toast.error('Landlord check failed', { description: msg });
+        setLoading(false);
+        setRequestState('idle');
+        submitLockRef.current = false;
+        return;
+      }
+
       const { data: rentReq, error: requestError } = await supabase
         .from('rent_requests')
         .insert({
