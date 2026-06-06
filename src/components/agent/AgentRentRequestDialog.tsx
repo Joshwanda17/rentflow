@@ -837,6 +837,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const linkedBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClearLandlord, setConfirmClearLandlord] = useState(false);
   const [confirmCloseDialog, setConfirmCloseDialog] = useState(false);
+  // Live landlord registration check. Re-runs every time the landlord
+  // selection changes (search pick, house pick, or Register flow) so the agent
+  // gets immediate feedback — and is blocked from submitting — if the chosen
+  // landlord is not (or no longer) registered in the system. A transient
+  // lookup failure falls back to 'idle' so the stricter submit-time check still
+  // runs rather than blocking the agent on a flaky connection.
+  const [landlordCheck, setLandlordCheck] = useState<'idle' | 'checking' | 'registered' | 'missing'>('idle');
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
