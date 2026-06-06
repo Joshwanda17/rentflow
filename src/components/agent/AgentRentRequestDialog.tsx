@@ -905,6 +905,42 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     });
   }, []);
 
+  // ===== Live landlord registration verification =====
+  // Whenever the resolved landlord (search selection or the landlord attached
+  // to a picked house) changes, confirm it really exists in the `landlords`
+  // table before the agent is allowed to submit.
+  useEffect(() => {
+    const landlordId = selectedLandlord?.id ?? selectedHouse?.landlord_id ?? null;
+    if (!landlordId) {
+      setLandlordCheck('idle');
+      return;
+    }
+    let cancelled = false;
+    setLandlordCheck('checking');
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('landlords')
+          .select('id')
+          .eq('id', landlordId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error) {
+          // Transient/lookup failure — don't hard-block here; the submit-time
+          // check will re-verify against a fresh read.
+          setLandlordCheck('idle');
+          return;
+        }
+        setLandlordCheck(data ? 'registered' : 'missing');
+      } catch {
+        if (!cancelled) setLandlordCheck('idle');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
+
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
     if (open) {
