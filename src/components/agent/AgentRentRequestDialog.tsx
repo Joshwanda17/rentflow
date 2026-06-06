@@ -1103,9 +1103,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!preferredLanguage) errors.push('Choose the language the tenant speaks');
     } else if (idx === 2) {
       if (!houseCategory) errors.push('Choose the house type');
-      if (!landlordName.trim()) errors.push("Type the landlord's name");
-      if (!landlordPhone.trim()) errors.push("Type the landlord's phone number");
-      else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone looks wrong — use a number like 0700 123 456');
+      // Landlord MUST already be registered in the system. The agent either
+      // picks an existing landlord from search or registers a new one first —
+      // free-typed names are never auto-created any more.
+      const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
+      if (!landlordRegistered) {
+        errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
+      }
       if (!propertyAddress.trim()) errors.push('Type the property address');
     } else if (idx === 3) {
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
