@@ -431,7 +431,27 @@ export function WelileMissionBoard() {
                       className="mt-2 w-full rounded-lg bg-purple-700/15 px-2 py-1.5 text-left hover:ring-1 hover:ring-purple-600/40 transition"
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <p className="text-[9px] font-bold uppercase tracking-wide text-purple-800 leading-none">ROI payable · next cycle</p>
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="text-[9px] font-bold uppercase tracking-wide text-purple-800 leading-none cursor-help underline decoration-dotted underline-offset-2">
+                                ROI payable · next cycle
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[260px] space-y-1.5">
+                              <p className="text-xs font-semibold">ROI Payable — Next Cycle</p>
+                              <p className="text-[11px] text-muted-foreground leading-snug">
+                                The total <strong className="text-foreground">Returns</strong> (monthly flat-rate payout) due to active Supporters whose next ROI date falls within the next 31 days.
+                              </p>
+                              <p className="text-[11px] text-muted-foreground leading-snug">
+                                <strong className="text-foreground">How it is calculated:</strong> For every active portfolio, we multiply the <em>investment_amount</em> by the <em>roi_percentage</em> to get the monthly Return owed. We then sum only those with a <em>next_roi_date</em> in the upcoming 31-day window.
+                              </p>
+                              <div className="rounded-md bg-purple-500/10 border border-purple-500/20 px-2 py-1">
+                                <p className="text-[10px] font-mono text-purple-700">Formula: investment × roi% = monthly Return</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <ChevronRight className="h-3 w-3 text-purple-800 shrink-0" />
                       </div>
                       <p className="text-sm font-bold text-purple-800 tabular-nums leading-tight mt-0.5">{formatUGX(roiPayable?.total ?? 0)}</p>
