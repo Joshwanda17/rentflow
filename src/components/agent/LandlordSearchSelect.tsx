@@ -6,7 +6,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,10 +45,29 @@ interface LandlordSearchSelectProps {
 
 /** Per-character highlight style for each match flavour. */
 const HL_CLASS = {
-  exact: 'rounded-[2px] bg-primary/20 font-semibold text-foreground',
-  phone: 'rounded-[2px] bg-emerald-500/20 font-semibold text-foreground',
-  typo: 'font-semibold text-primary underline decoration-dotted decoration-primary/70 underline-offset-2',
+  // Google bolds the matched terms in its results.
+  exact: 'bg-transparent font-bold text-foreground',
+  phone: 'bg-transparent font-bold text-[#188038] dark:text-[#81c995]',
+  typo: 'bg-transparent font-bold text-[#1a73e8] dark:text-[#8ab4f8] underline decoration-dotted decoration-current/60 underline-offset-2',
 } as const;
+
+/** Google's four brand colours, used for the little wordmark dots. */
+const GOOGLE_COLORS = ['#4285F4', '#EA4335', '#FBBC05', '#34A853'] as const;
+
+/** A tiny "Welile" wordmark rendered in Google's signature colour sequence. */
+function GoogleWordmark() {
+  const letters = 'Welile'.split('');
+  return (
+    <span className="select-none text-lg font-medium tracking-tight" aria-label="Welile landlord search">
+      {letters.map((ch, i) => (
+        <span key={i} style={{ color: GOOGLE_COLORS[i % GOOGLE_COLORS.length] }}>
+          {ch}
+        </span>
+      ))}
+      <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">Landlords</span>
+    </span>
+  );
+}
 
 type HighlightMode = keyof typeof HL_CLASS;
 
@@ -361,35 +379,39 @@ export function LandlordSearchSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 overflow-hidden rounded-2xl shadow-xl"
+        className="w-[--radix-popover-trigger-width] p-0 overflow-hidden rounded-[28px] border border-border/60 bg-background shadow-[0_1px_6px_rgba(32,33,36,0.28)]"
         align="start"
       >
-        <div className="p-2.5 border-b bg-muted/30">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-            <Input
+        <div className="px-4 pt-3.5 pb-2.5">
+          <div className="mb-2.5 flex justify-center">
+            <GoogleWordmark />
+          </div>
+          {/* Google-style pill search bar */}
+          <div className="relative flex items-center rounded-full border border-border/70 bg-background px-4 h-11 shadow-sm transition-shadow focus-within:shadow-[0_1px_6px_rgba(32,33,36,0.28)] hover:shadow-[0_1px_6px_rgba(32,33,36,0.18)]">
+            <Search className="h-4 w-4 shrink-0 text-[#4285F4]" />
+            <input
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a landlord's name or phone…"
-              className="h-10 rounded-full pl-9 pr-9 shadow-sm focus-visible:ring-2"
+              placeholder="Search a landlord by name or phone"
+              className="flex-1 bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground"
             />
             {query && (
               <button
                 type="button"
                 aria-label="Clear search"
                 onClick={() => setQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                className="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" />
               </button>
             )}
           </div>
           {/* Google-style results meta line */}
           {!loading && !isSystemEmpty && results.length > 0 && (
-            <div className="flex items-center justify-between gap-2 px-1.5 pt-2">
-              <p className="text-[11px] text-muted-foreground truncate">
+            <div className="flex items-center justify-between gap-2 px-1 pt-2">
+              <p className="text-xs text-muted-foreground truncate">
                 {debounced
                   ? `About ${results.length} landlord${results.length === 1 ? '' : 's'} matching "${debounced}"`
                   : `Showing ${results.length} registered landlord${results.length === 1 ? '' : 's'}`}
@@ -402,7 +424,7 @@ export function LandlordSearchSelect({
                 onClick={() => setShowThreshold((s) => !s)}
                 className={cn(
                   'flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] shrink-0 transition-colors',
-                  showThreshold ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-accent'
+                  showThreshold ? 'bg-[#4285F4]/10 text-[#1a73e8] dark:text-[#8ab4f8]' : 'text-muted-foreground hover:bg-accent'
                 )}
                 aria-pressed={showThreshold}
               >
@@ -439,7 +461,7 @@ export function LandlordSearchSelect({
           {/* Typo-tolerance hint when fuzzy matches are present */}
           {!loading && hasFuzzy && (
             <div className="mt-2 px-1.5 space-y-1">
-              <p className="flex items-center gap-1 text-[11px] text-primary">
+              <p className="flex items-center gap-1 text-[11px] text-[#1a73e8] dark:text-[#8ab4f8]">
                 <Sparkles className="h-3 w-3 shrink-0" />
                 Some results matched despite spelling differences.
               </p>
@@ -457,7 +479,7 @@ export function LandlordSearchSelect({
             </div>
           )}
         </div>
-        <div ref={listRef} className="max-h-72 overflow-y-auto py-1">
+        <div ref={listRef} className="max-h-72 overflow-y-auto border-t border-border/50 py-1">
           {loading && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
@@ -544,16 +566,16 @@ export function LandlordSearchSelect({
                   onMouseEnter={() => setActiveIndex(idx)}
                   onClick={() => commitSelection(l)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors',
-                    active ? 'bg-accent' : 'hover:bg-accent/60'
+                    'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                    active ? 'bg-[#f1f3f4] dark:bg-accent' : 'hover:bg-[#f1f3f4]/70 dark:hover:bg-accent/60'
                   )}
                 >
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Building2 className="h-5 w-5 text-primary" />
+                  <div className="h-9 w-9 rounded-full bg-[#4285F4]/10 flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-[#4285F4]" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium truncate text-[#1a0dab] dark:text-[#8ab4f8] group-hover:underline">
                         {highlightName(l.name, debounced, l.match_kind)}
                       </p>
                       {ctx && (
@@ -561,7 +583,7 @@ export function LandlordSearchSelect({
                           className={cn(
                             'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
                             ctx.tone === 'fuzzy'
-                              ? 'bg-primary/15 text-primary'
+                              ? 'bg-[#4285F4]/10 text-[#1a73e8] dark:text-[#8ab4f8]'
                               : 'bg-muted text-muted-foreground'
                           )}
                         >
@@ -569,19 +591,19 @@ export function LandlordSearchSelect({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                    <p className="text-xs truncate flex items-center gap-1 text-[#188038] dark:text-[#81c995]">
                       <Phone className="h-3 w-3 shrink-0" />
                       {highlightPhone(l.phone, debounced)}
                       {location && (
                         <>
-                          <MapPin className="h-3 w-3 shrink-0 ml-1" />
-                          <span className="truncate">{location}</span>
+                          <MapPin className="h-3 w-3 shrink-0 ml-1 text-muted-foreground" />
+                          <span className="truncate text-muted-foreground">{location}</span>
                         </>
                       )}
                     </p>
                   </div>
                   {selected ? (
-                    <Check className="h-4 w-4 shrink-0 text-primary" />
+                    <Check className="h-4 w-4 shrink-0 text-[#34A853]" />
                   ) : active ? (
                     <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   ) : null}
