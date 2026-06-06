@@ -230,15 +230,11 @@ export function LandlordSearchSelect({
     activeIdRef.current = results[activeIndex]?.id ?? null;
   }, [activeIndex, results]);
 
-  // A brand-new query (typed text changed) starts highlight back at the top.
-  useEffect(() => {
-    setActiveIndex(0);
-    activeIdRef.current = null;
-  }, [debounced]);
-
-  // When a fresh result set loads (e.g. a precision change or a late-arriving
-  // fetch) WITHOUT the query text changing, keep the previously highlighted
-  // landlord selected and the scroll position intact instead of jumping to row 0.
+  // When a fresh result set loads — whether from a precision change, a
+  // late-arriving fetch, or the agent refining the query (backspace / edits
+  // mid-navigation) — keep the previously highlighted landlord selected (by id)
+  // and the scroll position intact instead of snapping back to row 0. We only
+  // fall back to clamping the cursor when that landlord is no longer present.
   useEffect(() => {
     const prevScroll = listRef.current?.scrollTop ?? null;
     setActiveIndex((prev) => {
