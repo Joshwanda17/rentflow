@@ -209,9 +209,15 @@ export function LandlordSearchSelect({
   const reqIdRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Debounce typing
+  // Debounce typing — short delay so results feel instant as you type.
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(query.trim()), 300);
+    const next = query.trim();
+    // Empty query updates immediately; otherwise wait a beat for the keystroke burst.
+    if (!next) {
+      setDebounced('');
+      return;
+    }
+    const t = setTimeout(() => setDebounced(next), 160);
     return () => clearTimeout(t);
   }, [query]);
 
@@ -397,12 +403,15 @@ export function LandlordSearchSelect({
               placeholder="Search a landlord by name or phone"
               className="flex-1 bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground"
             />
+            {loading && (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#4285F4]" aria-label="Searching" />
+            )}
             {query && (
               <button
                 type="button"
                 aria-label="Clear search"
                 onClick={() => setQuery('')}
-                className="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                className="ml-1 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -480,7 +489,8 @@ export function LandlordSearchSelect({
           )}
         </div>
         <div ref={listRef} className="max-h-72 overflow-y-auto border-t border-border/50 py-1">
-          {loading && (
+          {/* Only show the big loader on the first fetch; keep prior results visible while re-searching. */}
+          {loading && results.length === 0 && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
             </div>
@@ -552,7 +562,7 @@ export function LandlordSearchSelect({
             </div>
           )}
 
-          {!loading &&
+          {results.length > 0 &&
             results.map((l, idx) => {
               const selected = value?.id === l.id;
               const active = idx === activeIndex;
