@@ -208,6 +208,10 @@ export function LandlordSearchSelect({
   const [showThreshold, setShowThreshold] = useState(false);
   const reqIdRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
+  // Tracks the landlord currently highlighted by the keyboard, so we can keep
+  // the same row highlighted (and the scroll position steady) when a fresh
+  // result set arrives mid-navigation rather than snapping back to the top.
+  const activeIdRef = useRef<string | null>(null);
 
   // Debounce typing — short delay so results feel instant as you type.
   useEffect(() => {
@@ -221,10 +225,39 @@ export function LandlordSearchSelect({
     return () => clearTimeout(t);
   }, [query]);
 
-  // Reset keyboard highlight whenever the result set changes.
+  // Remember which landlord is highlighted (by id) on every change.
+  useEffect(() => {
+    activeIdRef.current = results[activeIndex]?.id ?? null;
+  }, [activeIndex, results]);
+
+  // A brand-new query (typed text changed) starts highlight back at the top.
   useEffect(() => {
     setActiveIndex(0);
-  }, [debounced, results.length]);
+    activeIdRef.current = null;
+  }, [debounced]);
+
+  // When a fresh result set loads (e.g. a precision change or a late-arriving
+  // fetch) WITHOUT the query text changing, keep the previously highlighted
+  // landlord selected and the scroll position intact instead of jumping to row 0.
+  useEffect(() => {
+    const prevScroll = listRef.current?.scrollTop ?? null;
+    setActiveIndex((prev) => {
+      const prevId = activeIdRef.current;
+      if (prevId) {
+        const found = results.findIndex((r) => r.id === prevId);
+        if (found !== -1) return found;
+      }
+      return Math.min(prev, Math.max(results.length - 1, 0));
+    });
+    // Restore the scroll offset the list had before this re-render.
+    if (prevScroll !== null && listRef.current) {
+      const container = listRef.current;
+      requestAnimationFrame(() => {
+        if (container.scrollTop !== prevScroll) container.scrollTop = prevScroll;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results]);
 
   // Fetch on debounced/threshold change (only when popover is open)
   useEffect(() => {
