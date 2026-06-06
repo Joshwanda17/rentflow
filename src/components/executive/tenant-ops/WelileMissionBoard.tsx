@@ -45,6 +45,7 @@ import {
   ChevronsUpDown, X, Image as ImageIcon, CalendarDays, Info, ChevronLeft, ArrowUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { buildRentEstimator } from '@/lib/missionProjection';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useNavigate } from 'react-router-dom';
