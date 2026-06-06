@@ -209,9 +209,15 @@ export function LandlordSearchSelect({
   const reqIdRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Debounce typing
+  // Debounce typing — short delay so results feel instant as you type.
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(query.trim()), 300);
+    const next = query.trim();
+    // Empty query updates immediately; otherwise wait a beat for the keystroke burst.
+    if (!next) {
+      setDebounced('');
+      return;
+    }
+    const t = setTimeout(() => setDebounced(next), 160);
     return () => clearTimeout(t);
   }, [query]);
 
