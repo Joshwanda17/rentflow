@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft } from 'lucide-react';
+import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft, Sparkles, SlidersHorizontal } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -24,6 +25,9 @@ export interface LandlordOption {
   monthly_rent?: number | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** Fuzzy-search ranking metadata (present only on search results). */
+  match_score?: number | null;
+  match_kind?: 'all' | 'name_exact' | 'phone' | 'fuzzy' | string | null;
 }
 
 interface LandlordSearchSelectProps {
@@ -33,6 +37,11 @@ interface LandlordSearchSelectProps {
   disabled?: boolean;
   /** Called when the agent taps "Register new landlord" from the empty-state warning. */
   onAddNew?: () => void;
+  /**
+   * Fuzzy-match similarity threshold (0.05–0.9). Lower = more typo-tolerant
+   * (more results), higher = stricter. Used as the initial slider value.
+   */
+  similarityThreshold?: number;
 }
 
 /** Bold the portion(s) of text that match the query, Google-style. */
@@ -78,6 +87,7 @@ export function LandlordSearchSelect({
   placeholder = 'Search landlord by name or phone…',
   disabled,
   onAddNew,
+  similarityThreshold = 0.2,
 }: LandlordSearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -86,6 +96,11 @@ export function LandlordSearchSelect({
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  // Configurable fuzzy-match precision (clamped to the RPC's valid range).
+  const [threshold, setThreshold] = useState(() =>
+    Math.min(Math.max(similarityThreshold, 0.05), 0.9)
+  );
+  const [showThreshold, setShowThreshold] = useState(false);
   const reqIdRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -100,7 +115,7 @@ export function LandlordSearchSelect({
     setActiveIndex(0);
   }, [debounced, results.length]);
 
-  // Fetch on debounced change (only when popover is open)
+  // Fetch on debounced/threshold change (only when popover is open)
   useEffect(() => {
     if (!open) return;
     const myId = ++reqIdRef.current;
@@ -112,6 +127,7 @@ export function LandlordSearchSelect({
         const { data, error } = await (supabase.rpc as any)('search_landlords_fuzzy', {
           p_query: debounced,
           p_limit: 20,
+          p_threshold: threshold,
         });
         if (error) throw error;
         if (myId === reqIdRef.current) {
@@ -149,7 +165,7 @@ export function LandlordSearchSelect({
       }
     };
     run();
-  }, [debounced, open]);
+  }, [debounced, open, threshold]);
 
   // One-time fetch of total landlord count so we can show a system-empty warning
   useEffect(() => {
@@ -179,6 +195,32 @@ export function LandlordSearchSelect({
     [l.property_address, l.village, l.town_council, l.county, l.district]
       .filter(Boolean)
       .join(', ');
+
+  // Human-readable ranking context for a result, based on how it was matched.
+  const matchContext = (l: LandlordOption) => {
+    if (!debounced) return null;
+    const pct = typeof l.match_score === 'number' ? Math.round(l.match_score * 100) : null;
+    switch (l.match_kind) {
+      case 'name_exact':
+        return { label: 'Exact name', tone: 'exact' as const, pct };
+      case 'phone':
+        return { label: 'Phone match', tone: 'exact' as const, pct };
+      case 'fuzzy':
+        return {
+          label: pct !== null ? `Typo match · ${pct}%` : 'Typo match',
+          tone: 'fuzzy' as const,
+          pct,
+        };
+      default:
+        return null;
+    }
+  };
+
+  // Whether any result was surfaced purely through typo tolerance.
+  const hasFuzzy = useMemo(
+    () => !!debounced && results.some((r) => r.match_kind === 'fuzzy'),
+    [results, debounced]
+  );
 
   const commitSelection = (l: LandlordOption) => {
     onChange(l);
@@ -259,13 +301,59 @@ export function LandlordSearchSelect({
           </div>
           {/* Google-style results meta line */}
           {!loading && !isSystemEmpty && results.length > 0 && (
-            <p className="px-1.5 pt-2 text-[11px] text-muted-foreground">
-              {debounced
-                ? `About ${results.length} landlord${results.length === 1 ? '' : 's'} matching "${debounced}"`
-                : `Showing ${results.length} registered landlord${results.length === 1 ? '' : 's'}`}
-              {typeof totalCount === 'number' && totalCount > 0 && (
-                <span className="opacity-70"> · {totalCount} total</span>
-              )}
+            <div className="flex items-center justify-between gap-2 px-1.5 pt-2">
+              <p className="text-[11px] text-muted-foreground truncate">
+                {debounced
+                  ? `About ${results.length} landlord${results.length === 1 ? '' : 's'} matching "${debounced}"`
+                  : `Showing ${results.length} registered landlord${results.length === 1 ? '' : 's'}`}
+                {typeof totalCount === 'number' && totalCount > 0 && (
+                  <span className="opacity-70"> · {totalCount} total</span>
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowThreshold((s) => !s)}
+                className={cn(
+                  'flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] shrink-0 transition-colors',
+                  showThreshold ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-accent'
+                )}
+                aria-pressed={showThreshold}
+              >
+                <SlidersHorizontal className="h-3 w-3" />
+                Precision {Math.round(threshold * 100)}%
+              </button>
+            </div>
+          )}
+
+          {/* Configurable similarity threshold */}
+          {!loading && !isSystemEmpty && results.length > 0 && showThreshold && (
+            <div className="mt-2 rounded-lg border bg-background/60 p-2.5">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>More results</span>
+                <span className="font-medium text-foreground">
+                  Match precision {Math.round(threshold * 100)}%
+                </span>
+                <span>Stricter</span>
+              </div>
+              <Slider
+                className="mt-2"
+                value={[Math.round(threshold * 100)]}
+                min={5}
+                max={90}
+                step={5}
+                onValueChange={(v) => setThreshold((v[0] ?? 20) / 100)}
+              />
+              <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+                Lower precision tolerates more typos; higher precision shows only close matches.
+              </p>
+            </div>
+          )}
+
+          {/* Typo-tolerance hint when fuzzy matches are present */}
+          {!loading && hasFuzzy && (
+            <p className="mt-2 flex items-center gap-1 px-1.5 text-[11px] text-primary">
+              <Sparkles className="h-3 w-3 shrink-0" />
+              Some results matched despite spelling differences.
             </p>
           )}
         </div>
@@ -347,6 +435,7 @@ export function LandlordSearchSelect({
               const selected = value?.id === l.id;
               const active = idx === activeIndex;
               const location = locationLine(l);
+              const ctx = matchContext(l);
               return (
                 <button
                   key={l.id}
@@ -363,9 +452,23 @@ export function LandlordSearchSelect({
                     <Building2 className="h-5 w-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">
-                      {highlightMatch(l.name, debounced)}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium truncate">
+                        {highlightMatch(l.name, debounced)}
+                      </p>
+                      {ctx && (
+                        <span
+                          className={cn(
+                            'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
+                            ctx.tone === 'fuzzy'
+                              ? 'bg-primary/15 text-primary'
+                              : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {ctx.label}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                       <Phone className="h-3 w-3 shrink-0" />
                       {highlightMatch(l.phone, debounced)}
