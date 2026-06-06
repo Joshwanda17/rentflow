@@ -1449,7 +1449,28 @@ function EmptyHousesDialog({
                             <p className="text-[9px] text-muted-foreground leading-tight">Estimated monthly</p>
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-amber-600 tabular-nums leading-tight">~{formatUGX(rentEstimate.estimateFor(h) * 12)}/yr</p>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <p className="text-sm font-bold text-amber-600 tabular-nums leading-tight cursor-help">~{formatUGX(rentEstimate.estimateFor(h) * 12)}/yr</p>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[260px] space-y-1.5">
+                                  <p className="text-xs font-bold">How monthly rent becomes annual projected receivables</p>
+                                  <p className="text-[11px] text-muted-foreground leading-snug">
+                                    <strong>Step 1:</strong> Estimated monthly rent = ~{formatUGX(rentEstimate.estimateFor(h))}/mo
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground leading-snug">
+                                    <strong>Step 2:</strong> Apply 1.33 multiplier = {formatUGX(rentEstimate.estimateFor(h) * 1.33)}/mo total cash-in (includes 33% Welile fee)
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground leading-snug">
+                                    <strong>Step 3:</strong> Annual projection = {formatUGX(rentEstimate.estimateFor(h) * 1.33)}/mo × 12 months = <strong>{formatUGX(rentEstimate.estimateFor(h) * 1.33 * 12)}</strong>
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground leading-snug">
+                                    The landlord keeps 100% of rent. Welile earns the 33% facilitation fee.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             <p className="text-[9px] text-muted-foreground leading-tight">Projected annual (× 12)</p>
                           </div>
                         </div>
