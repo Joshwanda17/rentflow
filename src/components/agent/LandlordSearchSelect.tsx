@@ -438,10 +438,23 @@ export function LandlordSearchSelect({
 
           {/* Typo-tolerance hint when fuzzy matches are present */}
           {!loading && hasFuzzy && (
-            <p className="mt-2 flex items-center gap-1 px-1.5 text-[11px] text-primary">
-              <Sparkles className="h-3 w-3 shrink-0" />
-              Some results matched despite spelling differences.
-            </p>
+            <div className="mt-2 px-1.5 space-y-1">
+              <p className="flex items-center gap-1 text-[11px] text-primary">
+                <Sparkles className="h-3 w-3 shrink-0" />
+                Some results matched despite spelling differences.
+              </p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <mark className={cn('px-1 bg-transparent', HL_CLASS.exact)}>Aa</mark> exact
+                </span>
+                <span className="flex items-center gap-1">
+                  <mark className={cn('px-1 bg-transparent', HL_CLASS.phone)}>09</mark> phone
+                </span>
+                <span className="flex items-center gap-1">
+                  <mark className={cn('px-1 bg-transparent', HL_CLASS.typo)}>Aa</mark> typo
+                </span>
+              </div>
+            </div>
           )}
         </div>
         <div ref={listRef} className="max-h-72 overflow-y-auto py-1">
