@@ -1714,17 +1714,42 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         return;
       }
 
-      // Determine whether the linked landlord is already verified — drives the
-      // "Landlord verification pending" status shown on the success screen.
+      // ===== Client-side landlord existence/registration check (fresh DB read) =====
+      // Before posting, confirm the resolved landlord actually exists in the
+      // system. The selection could be stale (e.g. the landlord was removed, or
+      // the cached id is no longer valid), so we re-verify against the DB rather
+      // than trusting the in-memory selection. This mirrors the server-side
+      // trigger and gives the agent a clear, immediate error.
       try {
-        const { data: landlordRow } = await supabase
+        const { data: landlordRow, error: landlordLookupError } = await supabase
           .from('landlords')
-          .select('verified')
+          .select('id, verified')
           .eq('id', landlordId)
           .maybeSingle();
-        setLandlordVerifiedAtSubmit(!!landlordRow?.verified);
-      } catch {
-        setLandlordVerifiedAtSubmit(false);
+        if (landlordLookupError) throw landlordLookupError;
+        if (!landlordRow) {
+          const msg = 'This landlord is not registered in the system. Go back to the Property step and pick a registered landlord (search existing or tap "Add new" to register them) before posting.';
+          setSubmissionError(msg);
+          toast.error('Landlord not registered', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          setDetailStep(2);
+          return;
+        }
+        // Determine whether the linked landlord is already verified — drives the
+        // "Landlord verification pending" status shown on the success screen.
+        setLandlordVerifiedAtSubmit(!!landlordRow.verified);
+      } catch (lookupErr) {
+        // A failed lookup (e.g. transient network) shouldn't silently pass the
+        // registration gate. Stop and let the agent retry.
+        const msg = "Couldn't confirm the landlord is registered. Check your connection and try again.";
+        setSubmissionError(msg);
+        toast.error('Landlord check failed', { description: msg });
+        setLoading(false);
+        setRequestState('idle');
+        submitLockRef.current = false;
+        return;
       }
 
       // ===== LC1 upsert (skipped entirely for outstanding — already linked to landlord) =====
