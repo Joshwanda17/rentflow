@@ -489,7 +489,8 @@ export function LandlordSearchSelect({
           )}
         </div>
         <div ref={listRef} className="max-h-72 overflow-y-auto border-t border-border/50 py-1">
-          {loading && (
+          {/* Only show the big loader on the first fetch; keep prior results visible while re-searching. */}
+          {loading && results.length === 0 && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
             </div>
@@ -561,7 +562,7 @@ export function LandlordSearchSelect({
             </div>
           )}
 
-          {!loading &&
+          {results.length > 0 &&
             results.map((l, idx) => {
               const selected = value?.id === l.id;
               const active = idx === activeIndex;
