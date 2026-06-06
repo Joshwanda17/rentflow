@@ -1524,10 +1524,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('Type the outstanding balance');
       }
     } else {
-      if (!landlordName.trim()) errors.push('Type the landlord\'s name');
-      if (!landlordPhone.trim()) errors.push('Type the landlord\'s phone number');
-      else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone looks wrong — use a number like 0700 123 456');
-
+      // A registered landlord is mandatory before a rent request can be posted.
+      const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
+      if (!landlordRegistered) {
+        errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
+      }
       if (!propertyAddress.trim()) errors.push('Type the property address');
       if (!lc1Name.trim()) errors.push('Type the LC1 chairperson\'s name');
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
