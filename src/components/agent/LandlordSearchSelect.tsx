@@ -107,32 +107,42 @@ export function LandlordSearchSelect({
     const run = async () => {
       setLoading(true);
       try {
-        let q = supabase
-          .from('landlords')
-          .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude', { count: 'exact' })
-          .order('name', { ascending: true })
-          .limit(20);
-
-        if (debounced.length > 0) {
-          // Match name or phone (case-insensitive). Phone digits-only too.
-          const digits = debounced.replace(/\D/g, '');
-          const orParts = [`name.ilike.%${debounced}%`, `phone.ilike.%${debounced}%`];
-          if (digits.length >= 3 && digits !== debounced) {
-            orParts.push(`phone.ilike.%${digits}%`);
-          }
-          q = q.or(orParts.join(','));
-        }
-
-        const { data, error, count } = await q;
+        // Typo-tolerant fuzzy search via Postgres trigram RPC.
+        // Falls back to an ILIKE query if the RPC is unavailable.
+        const { data, error } = await (supabase.rpc as any)('search_landlords_fuzzy', {
+          p_query: debounced,
+          p_limit: 20,
+        });
         if (error) throw error;
         if (myId === reqIdRef.current) {
-          setResults((data ?? []) as LandlordOption[]);
-          if (count !== null && count !== undefined) setTotalCount(count);
+          setResults((data ?? []) as unknown as LandlordOption[]);
         }
       } catch (err) {
-        if (myId === reqIdRef.current) {
-          console.warn('[LandlordSearchSelect] fetch failed', err);
-          setResults([]);
+        // Resilient fallback: plain ILIKE search if the fuzzy RPC fails.
+        try {
+          let q = supabase
+            .from('landlords')
+            .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude')
+            .order('name', { ascending: true })
+            .limit(20);
+          if (debounced.length > 0) {
+            const digits = debounced.replace(/\D/g, '');
+            const orParts = [`name.ilike.%${debounced}%`, `phone.ilike.%${debounced}%`];
+            if (digits.length >= 3 && digits !== debounced) {
+              orParts.push(`phone.ilike.%${digits}%`);
+            }
+            q = q.or(orParts.join(','));
+          }
+          const { data, error } = await q;
+          if (error) throw error;
+          if (myId === reqIdRef.current) {
+            setResults((data ?? []) as LandlordOption[]);
+          }
+        } catch (fallbackErr) {
+          if (myId === reqIdRef.current) {
+            console.warn('[LandlordSearchSelect] fetch failed', err, fallbackErr);
+            setResults([]);
+          }
         }
       } finally {
         if (myId === reqIdRef.current) setLoading(false);
