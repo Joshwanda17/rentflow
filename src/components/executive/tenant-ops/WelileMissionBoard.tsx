@@ -454,7 +454,33 @@ export function WelileMissionBoard() {
                         </TooltipProvider>
                         <ChevronRight className="h-3 w-3 text-purple-800 shrink-0" />
                       </div>
-                      <p className="text-sm font-bold text-purple-800 tabular-nums leading-tight mt-0.5">{formatUGX(roiPayable?.total ?? 0)}</p>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="text-sm font-bold text-purple-800 tabular-nums leading-tight mt-0.5 cursor-help underline decoration-dotted underline-offset-2">
+                              {formatUGX(roiPayable?.total ?? 0)}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-[260px] space-y-1.5">
+                            <p className="text-xs font-semibold">Aggregated across all active portfolios</p>
+                            <p className="text-[11px] text-muted-foreground leading-snug">
+                              This total sums the monthly Returns owed by <strong className="text-foreground">every active portfolio</strong> whose next ROI date falls within the next 31-day window.
+                            </p>
+                            <p className="text-[11px] text-muted-foreground leading-snug">
+                              <strong className="text-foreground">Date range:</strong> Today → {(() => {
+                                const end = new Date();
+                                end.setDate(end.getDate() + 31);
+                                return end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                              })()} (31 days)
+                            </p>
+                            <div className="rounded-md bg-purple-500/10 border border-purple-500/20 px-2 py-1">
+                              <p className="text-[10px] font-mono text-purple-700">
+                                {roiPayable?.count ?? 0} portfolio{(roiPayable?.count ?? 0) !== 1 ? 's' : ''} in window
+                              </p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
                         {(roiPayable?.count ?? 0).toLocaleString()} portfolio{(roiPayable?.count ?? 0) !== 1 ? 's' : ''} due
                         {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''} · tap for line items
