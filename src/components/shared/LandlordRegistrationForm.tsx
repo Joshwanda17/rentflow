@@ -30,7 +30,25 @@ const HOUSE_CATEGORIES = [
 
 interface LandlordRegistrationFormProps {
   registeredByRole: 'agent' | 'tenant';
-  onSuccess?: () => void;
+  /**
+   * Called after the landlord is saved. Receives the freshly registered
+   * landlord so callers (e.g. the rent request flow) can immediately select
+   * it — enforcing the rule that a landlord must be registered first.
+   */
+  onSuccess?: (landlord?: {
+    id: string;
+    name: string;
+    phone: string;
+    property_address: string | null;
+    district?: string | null;
+    town_council?: string | null;
+    county?: string | null;
+    village?: string | null;
+    house_category?: string | null;
+    monthly_rent?: number | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }) => void;
   onClose: () => void;
   toastFn: (opts: {
     title: string;
