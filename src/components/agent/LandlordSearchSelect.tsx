@@ -435,6 +435,7 @@ export function LandlordSearchSelect({
               const selected = value?.id === l.id;
               const active = idx === activeIndex;
               const location = locationLine(l);
+              const ctx = matchContext(l);
               return (
                 <button
                   key={l.id}
@@ -451,9 +452,23 @@ export function LandlordSearchSelect({
                     <Building2 className="h-5 w-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">
-                      {highlightMatch(l.name, debounced)}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium truncate">
+                        {highlightMatch(l.name, debounced)}
+                      </p>
+                      {ctx && (
+                        <span
+                          className={cn(
+                            'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
+                            ctx.tone === 'fuzzy'
+                              ? 'bg-primary/15 text-primary'
+                              : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {ctx.label}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                       <Phone className="h-3 w-3 shrink-0" />
                       {highlightMatch(l.phone, debounced)}
