@@ -1149,27 +1149,10 @@ function EmptyHousesDialog({
   // We learn from the houses that DO have a known rent in this window:
   //   • avg per room  → scales the estimate by number_of_rooms when known
   //   • avg overall   → fallback when room count is missing
-  const rentEstimate = useMemo(() => {
-    let perRoomSum = 0, perRoomCount = 0, knownSum = 0, knownCount = 0;
-    houses.forEach((h) => {
-      const rent = Number(h.monthly_rent) || 0;
-      if (rent <= 0) return;
-      knownSum += rent;
-      knownCount += 1;
-      const rooms = Number(h.number_of_rooms) || 0;
-      if (rooms > 0) { perRoomSum += rent / rooms; perRoomCount += 1; }
-    });
-    // Prefer the in-window average; fall back to the platform-wide average so
-    // narrow windows still project instead of collapsing to UGX 0.
-    const avgOverall = knownCount > 0 ? Math.round(knownSum / knownCount) : globalAvgMonthly;
-    const avgPerRoom = perRoomCount > 0 ? Math.round(perRoomSum / perRoomCount) : 0;
-    const estimateFor = (h: MissionEmptyHouseRow): number => {
-      const rooms = Number(h.number_of_rooms) || 0;
-      if (rooms > 0 && avgPerRoom > 0) return Math.round(rooms * avgPerRoom);
-      return avgOverall;
-    };
-    return { avgOverall, avgPerRoom, knownCount, estimateFor };
-  }, [houses, globalAvgMonthly]);
+  const rentEstimate = useMemo(
+    () => buildRentEstimator(houses, globalAvgMonthly),
+    [houses, globalAvgMonthly],
+  );
 
   const { data: targets } = useLandlordOnboardingTargets(open);
   const targetLandlord = useTargetLandlordForOnboarding();
