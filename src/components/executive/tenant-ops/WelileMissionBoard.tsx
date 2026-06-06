@@ -663,37 +663,122 @@ export function WelileMissionBoard() {
       />
 
       <Dialog open={explainOpen} onOpenChange={setExplainOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Projected receivables — explanations</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-amber-600" />
+              Projected receivables — step-by-step
+            </DialogTitle>
           </DialogHeader>
           {receivables && (
-            <div className="space-y-3 text-sm">
-              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+            <div className="space-y-4 text-sm">
+              {/* Hero total */}
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-center">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Total projected receivables</p>
-                <p className="text-2xl font-extrabold text-amber-700 tabular-nums leading-tight mt-0.5">~{formatUGX(receivables.estimated_full_total)}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses · annual (monthly × 12)</p>
-              </div>
-              <div className="space-y-1.5 text-muted-foreground">
-                <p className="leading-snug">
-                  <strong className="text-foreground">Recorded</strong> = sum of known rents for {receivables.known_rent_count.toLocaleString()} houses with a monthly rent on file = {formatUGX(receivables.empty_receivable_total + receivables.unlisted_receivable_total)}.
-                </p>
-                <p className="leading-snug">
-                  <strong className="text-foreground">Estimated (missing)</strong> = {receivables.missing_rent_count.toLocaleString()} houses with no rent × average known rent ({formatUGX(receivables.avg_known_monthly)}/mo) = {formatUGX(Math.max(0, receivables.estimated_full_total - (receivables.empty_receivable_total + receivables.unlisted_receivable_total)))}.
-                </p>
-                <p className="leading-snug">
-                  <strong className="text-foreground">Annual projection</strong> = each monthly rent × 1.33 (Welile fee) × 12 months.
-                </p>
-                <p className="leading-snug">
-                  <strong className="text-foreground">Total</strong> = Recorded + Estimated = {formatUGX(receivables.estimated_full_total)}.
+                <p className="text-3xl font-extrabold text-amber-700 tabular-nums leading-tight mt-1">~{formatUGX(receivables.estimated_full_total)}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses · annual projection
                 </p>
               </div>
+
+              {/* Step-by-step calculation */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">How we calculate it</p>
+
+                {/* Step 1 */}
+                <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shrink-0">1</span>
+                    <p className="text-xs font-semibold">Start with monthly rent per house</p>
+                  </div>
+                  <div className="pl-7 space-y-1.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground">Known rents (recorded)</span>
+                      <span className="text-xs font-semibold tabular-nums">{receivables.known_rent_count.toLocaleString()} houses</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground">Missing rents (estimated)</span>
+                      <span className="text-xs font-semibold tabular-nums">{receivables.missing_rent_count.toLocaleString()} houses</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2 border-t border-border pt-1.5 mt-1">
+                      <span className="text-[11px] text-muted-foreground">Average known monthly rent</span>
+                      <span className="text-xs font-bold tabular-nums text-foreground">{formatUGX(receivables.avg_known_monthly)}/mo</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shrink-0">2</span>
+                    <p className="text-xs font-semibold">Apply the 1.33 Welile fee multiplier</p>
+                  </div>
+                  <div className="pl-7 space-y-1.5">
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Tenants pay <strong className="text-foreground">rent + 33% Welile facilitation fee</strong>. The 1.33 multiplier represents the total cash-in per house.
+                    </p>
+                    <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 space-y-1">
+                      <p className="text-[11px] font-medium text-amber-700">Formula</p>
+                      <p className="text-sm font-bold text-amber-700 font-mono">Monthly Rent × 1.33 = Total Cash-In</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Example: {formatUGX(receivables.avg_known_monthly)} × 1.33 = {formatUGX(Math.round(receivables.avg_known_monthly * 1.33))}
+                      </p>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-snug">
+                      Landlord keeps 100% of rent. Welile earns the 33% as platform revenue.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shrink-0">3</span>
+                    <p className="text-xs font-semibold">Multiply by 12 months for annual projection</p>
+                  </div>
+                  <div className="pl-7 space-y-1.5">
+                    <div className="rounded-md bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+                      <p className="text-[11px] font-medium text-emerald-700">Annual formula</p>
+                      <p className="text-sm font-bold text-emerald-700 font-mono">(Rent × 1.33) × 12 = Annual Projection</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Example: {formatUGX(Math.round(receivables.avg_known_monthly * 1.33))} × 12 = {formatUGX(Math.round(receivables.avg_known_monthly * 1.33 * 12))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 4 */}
+                <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shrink-0">4</span>
+                    <p className="text-xs font-semibold">Sum recorded + estimated missing amounts</p>
+                  </div>
+                  <div className="pl-7 space-y-1.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground">Recorded (known rents)</span>
+                      <span className="text-xs font-semibold tabular-nums">{formatUGX(receivables.empty_receivable_total + receivables.unlisted_receivable_total)}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground">Estimated (missing rents)</span>
+                      <span className="text-xs font-semibold tabular-nums">{formatUGX(Math.max(0, receivables.estimated_full_total - (receivables.empty_receivable_total + receivables.unlisted_receivable_total)))}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2 border-t border-border pt-1.5 mt-1">
+                      <span className="text-[11px] font-semibold text-foreground">Total projected receivables</span>
+                      <span className="text-sm font-bold tabular-nums text-amber-700">{formatUGX(receivables.estimated_full_total)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary callout */}
               <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 space-y-1">
-                <p className="text-xs font-bold text-amber-700 leading-snug">What is the 1.33 multiplier?</p>
+                <p className="text-xs font-bold text-amber-700 leading-snug">What does this mean?</p>
                 <p className="text-[12px] text-muted-foreground leading-snug">
-                  Tenants pay their landlord's rent <strong>plus a 33% Welile facilitation fee</strong>. The 1.33 multiplier represents the <strong>total cash-in per house</strong> — the landlord keeps 100% of rent, and Welile earns 33% as platform revenue.
+                  This is the <strong className="text-foreground">annual cash we expect to collect</strong> if every empty house gets a tenant paying full rent plus the Welile fee. It combines what we already know (recorded rents) with what we estimate for houses missing rent data.
                 </p>
               </div>
+
+              {/* Action buttons */}
               <div className="space-y-2 pt-1">
                 <Button
                   variant="outline"
