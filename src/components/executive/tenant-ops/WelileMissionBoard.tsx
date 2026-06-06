@@ -313,14 +313,20 @@ export function WelileMissionBoard() {
                 'rounded-xl border p-3 relative',
                 p.key === 'list'
                   ? 'bg-amber-500/10 border-amber-500/40'
-                  : 'bg-card',
+                  : p.key === 'fund'
+                    ? 'bg-purple-500/10 border-purple-500/40'
+                    : 'bg-card',
                 isFocus
                   ? p.key === 'list'
                     ? 'ring-1 ring-amber-500/50'
-                    : 'border-primary ring-1 ring-primary/40'
+                    : p.key === 'fund'
+                      ? 'ring-1 ring-purple-500/50'
+                      : 'border-primary ring-1 ring-primary/40'
                   : p.key === 'list'
                     ? ''
-                    : 'border-border',
+                    : p.key === 'fund'
+                      ? ''
+                      : 'border-border',
               )}
             >
               <div className="flex items-center gap-2">
