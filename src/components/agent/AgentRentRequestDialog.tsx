@@ -837,6 +837,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const linkedBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClearLandlord, setConfirmClearLandlord] = useState(false);
   const [confirmCloseDialog, setConfirmCloseDialog] = useState(false);
+  // Live landlord registration check. Re-runs every time the landlord
+  // selection changes (search pick, house pick, or Register flow) so the agent
+  // gets immediate feedback — and is blocked from submitting — if the chosen
+  // landlord is not (or no longer) registered in the system. A transient
+  // lookup failure falls back to 'idle' so the stricter submit-time check still
+  // runs rather than blocking the agent on a flaky connection.
+  const [landlordCheck, setLandlordCheck] = useState<'idle' | 'checking' | 'registered' | 'missing'>('idle');
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
@@ -897,6 +904,42 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       description: 'Saved address and details filled in automatically.',
     });
   }, []);
+
+  // ===== Live landlord registration verification =====
+  // Whenever the resolved landlord (search selection or the landlord attached
+  // to a picked house) changes, confirm it really exists in the `landlords`
+  // table before the agent is allowed to submit.
+  useEffect(() => {
+    const landlordId = selectedLandlord?.id ?? selectedHouse?.landlord_id ?? null;
+    if (!landlordId) {
+      setLandlordCheck('idle');
+      return;
+    }
+    let cancelled = false;
+    setLandlordCheck('checking');
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('landlords')
+          .select('id')
+          .eq('id', landlordId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error) {
+          // Transient/lookup failure — don't hard-block here; the submit-time
+          // check will re-verify against a fresh read.
+          setLandlordCheck('idle');
+          return;
+        }
+        setLandlordCheck(data ? 'registered' : 'missing');
+      } catch {
+        if (!cancelled) setLandlordCheck('idle');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
 
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
@@ -1109,6 +1152,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
       if (!landlordRegistered) {
         errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
+      } else if (landlordCheck === 'missing') {
+        errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
+      } else if (landlordCheck === 'checking') {
+        errors.push('Confirming the landlord is registered — please wait a moment');
       }
       if (!propertyAddress.trim()) errors.push('Type the property address');
     } else if (idx === 3) {
@@ -1512,6 +1559,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     // Other flows still collect landlord + LC1 inline.
     if (isOutstanding) {
       if (!selectedLandlord) errors.push('Pick the landlord from the list');
+      else if (landlordCheck === 'missing') errors.push('The selected landlord is no longer registered in the system — pick a registered landlord');
+      else if (landlordCheck === 'checking') errors.push('Confirming the landlord is registered — please wait a moment');
       if (!outstandingRentAmount || parseInt(outstandingRentAmount.replace(/,/g, '')) <= 0) {
         errors.push('Type the rent amount');
       }
@@ -1528,6 +1577,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
       if (!landlordRegistered) {
         errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
+      } else if (landlordCheck === 'missing') {
+        errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
+      } else if (landlordCheck === 'checking') {
+        errors.push('Confirming the landlord is registered — please wait a moment');
       }
       if (!propertyAddress.trim()) errors.push('Type the property address');
       if (!lc1Name.trim()) errors.push('Type the LC1 chairperson\'s name');
@@ -3199,7 +3252,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           <p className="text-sm text-muted-foreground flex items-center gap-1 truncate">
                             <Phone className="h-3.5 w-3.5 shrink-0" /> {landlordPhone || selectedLandlord.phone}
                           </p>
-                          <p className="text-xs text-success font-medium mt-1">✓ Already in the system — details filled in for you</p>
+                          {landlordCheck === 'checking' ? (
+                            <p className="text-xs text-muted-foreground font-medium mt-1">Confirming registration…</p>
+                          ) : landlordCheck === 'missing' ? (
+                            <p className="text-xs text-destructive font-medium mt-1">✗ This landlord is not registered — pick another or register them again</p>
+                          ) : (
+                            <p className="text-xs text-success font-medium mt-1">✓ Registered in the system — details filled in for you</p>
+                          )}
                         </div>
                       </div>
                       <Button
