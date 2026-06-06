@@ -135,6 +135,7 @@ export function WelileMissionBoard() {
   const [landlordRecvOpen, setLandlordRecvOpen] = useState(false);
   const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
+  const [explainOpen, setExplainOpen] = useState(false);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const queryClient = useQueryClient();
@@ -308,7 +309,19 @@ export function WelileMissionBoard() {
           return (
             <div
               key={p.key}
-              className={cn('rounded-xl border bg-card p-3 relative', isFocus ? 'border-primary ring-1 ring-primary/40' : 'border-border')}
+              className={cn(
+                'rounded-xl border p-3 relative',
+                p.key === 'list'
+                  ? 'bg-amber-500/10 border-amber-500/40'
+                  : 'bg-card',
+                isFocus
+                  ? p.key === 'list'
+                    ? 'ring-1 ring-amber-500/50'
+                    : 'border-primary ring-1 ring-primary/40'
+                  : p.key === 'list'
+                    ? ''
+                    : 'border-border',
+              )}
             >
               <div className="flex items-center gap-2">
                 <div className={cn('p-1.5 rounded-lg shrink-0', p.tone)}><Icon className="h-4 w-4" /></div>
@@ -338,7 +351,7 @@ export function WelileMissionBoard() {
                       <ChevronRight className="h-3 w-3" />
                     </button>
                   )}
-                  {m.extra && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
+                  {m.extra && p.key !== 'list' && <p className="text-[11px] text-muted-foreground mt-1">{m.extra}</p>}
                   {p.key === 'place' && receivables && (
                     <div className="mt-2 rounded-lg bg-emerald-500/10 px-2 py-1.5">
                       <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-700 leading-none">Receivables A/C</p>
@@ -367,77 +380,19 @@ export function WelileMissionBoard() {
                     </div>
                   )}
                   {p.key === 'list' && receivables && (
-                    <button
-                      type="button"
-                      onClick={() => setEmptyOpen(true)}
-                      className="mt-2 w-full rounded-lg bg-amber-500/10 px-2 py-1.5 text-left hover:ring-1 hover:ring-amber-500/40 transition"
-                    >
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-1">
-                          <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">Projected receivables</p>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="inline-flex items-center justify-center rounded-full p-0.5 hover:bg-amber-500/20 transition-colors cursor-help">
-                                  <Info className="h-3 w-3 text-amber-700" />
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[280px] space-y-1.5">
-                                <p className="text-xs font-bold">How projected receivables are calculated</p>
-                                <p className="text-[11px] text-muted-foreground leading-snug">
-                                  <strong>Recorded</strong> = sum of known rents for {receivables.known_rent_count.toLocaleString()} houses with a monthly rent on file.
-                                </p>
-                                <p className="text-[11px] text-muted-foreground leading-snug">
-                                  <strong>Estimated (missing)</strong> = {receivables.missing_rent_count.toLocaleString()} houses with no rent × average known rent ({formatUGX(receivables.avg_known_monthly)}/mo).
-                                </p>
-                                <p className="text-[11px] text-muted-foreground leading-snug">
-                                  <strong>Annual projection</strong> = each monthly rent × 1.33 (Welile fee) × 12 months.
-                                </p>
-                                <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 space-y-1">
-                                  <p className="text-[11px] font-bold text-amber-700 leading-snug">What is the 1.33 multiplier?</p>
-                                  <p className="text-[11px] text-muted-foreground leading-snug">
-                                    Tenants pay their landlord's rent <strong>plus a 33% Welile facilitation fee</strong>. The 1.33 multiplier represents the <strong>total cash-in per house</strong> — the landlord keeps 100% of rent, and Welile earns 33% as platform revenue.
-                                  </p>
-                                </div>
-                                <p className="text-[11px] text-muted-foreground leading-snug">
-                                  <strong>Total</strong> = Recorded + Estimated = {formatUGX(receivables.estimated_full_total)}.
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        <ChevronRight className="h-3 w-3 text-amber-700 shrink-0" />
-                      </div>
-                      <div className="mt-0.5">
-                        <p className="text-xl font-extrabold text-amber-700 tabular-nums leading-tight">~{formatUGX(receivables.estimated_full_total)}</p>
-                        <p className="text-[9px] font-semibold text-amber-700/90 leading-tight">Total projected receivables (recorded + estimated)</p>
-                        <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[9px] text-muted-foreground leading-tight">
-                          <span>Recorded {formatUGX(receivables.empty_receivable_total + receivables.unlisted_receivable_total)} · {receivables.known_rent_count.toLocaleString()} w/ rent</span>
-                          <span aria-hidden>+</span>
-                          <span>Estimated {formatUGX(Math.max(0, receivables.estimated_full_total - (receivables.empty_receivable_total + receivables.unlisted_receivable_total)))} · {receivables.missing_rent_count.toLocaleString()} no rent @ ~{formatUGX(receivables.avg_known_monthly)}/mo</span>
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground leading-none mt-1">{(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses · annual (monthly × 12) · tap to view list</p>
-                    </button>
+                    <div className="mt-2 w-full rounded-lg bg-amber-500/20 px-2 py-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">Projected receivables</p>
+                      <p className="text-xl font-extrabold text-amber-700 tabular-nums leading-tight mt-0.5">~{formatUGX(receivables.estimated_full_total)}</p>
+                    </div>
                   )}
                   {p.key === 'list' && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 w-full mt-2 text-[11px] gap-1"
-                      onClick={() => setEmptyOpen(true)}
+                      className="h-7 w-full mt-2 text-[11px] gap-1 border-amber-500/40 text-amber-700 hover:text-amber-800"
+                      onClick={() => setExplainOpen(true)}
                     >
-                      <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
-                    </Button>
-                  )}
-                  {p.key === 'list' && receivables && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-full mt-1.5 text-[11px] gap-1 text-amber-700 hover:text-amber-800"
-                      onClick={() => navigate('/receivables-audit')}
-                    >
-                      <ShieldCheck className="h-3.5 w-3.5" /> View validation / audit report
+                      <Info className="h-3.5 w-3.5" /> Explanations page
                     </Button>
                   )}
                   {p.key === 'place' && (
@@ -706,6 +661,61 @@ export function WelileMissionBoard() {
         onOpenTenant={(id) => { setDriverOpen(null); setDrawer({ tenantId: id, tab: 'tenant' }); }}
         onOpenLandlord={(id) => { setDriverOpen(null); setDrawer({ landlordId: id, tab: 'landlord' }); }}
       />
+
+      <Dialog open={explainOpen} onOpenChange={setExplainOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Projected receivables — explanations</DialogTitle>
+          </DialogHeader>
+          {receivables && (
+            <div className="space-y-3 text-sm">
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Total projected receivables</p>
+                <p className="text-2xl font-extrabold text-amber-700 tabular-nums leading-tight mt-0.5">~{formatUGX(receivables.estimated_full_total)}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses · annual (monthly × 12)</p>
+              </div>
+              <div className="space-y-1.5 text-muted-foreground">
+                <p className="leading-snug">
+                  <strong className="text-foreground">Recorded</strong> = sum of known rents for {receivables.known_rent_count.toLocaleString()} houses with a monthly rent on file = {formatUGX(receivables.empty_receivable_total + receivables.unlisted_receivable_total)}.
+                </p>
+                <p className="leading-snug">
+                  <strong className="text-foreground">Estimated (missing)</strong> = {receivables.missing_rent_count.toLocaleString()} houses with no rent × average known rent ({formatUGX(receivables.avg_known_monthly)}/mo) = {formatUGX(Math.max(0, receivables.estimated_full_total - (receivables.empty_receivable_total + receivables.unlisted_receivable_total)))}.
+                </p>
+                <p className="leading-snug">
+                  <strong className="text-foreground">Annual projection</strong> = each monthly rent × 1.33 (Welile fee) × 12 months.
+                </p>
+                <p className="leading-snug">
+                  <strong className="text-foreground">Total</strong> = Recorded + Estimated = {formatUGX(receivables.estimated_full_total)}.
+                </p>
+              </div>
+              <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 space-y-1">
+                <p className="text-xs font-bold text-amber-700 leading-snug">What is the 1.33 multiplier?</p>
+                <p className="text-[12px] text-muted-foreground leading-snug">
+                  Tenants pay their landlord's rent <strong>plus a 33% Welile facilitation fee</strong>. The 1.33 multiplier represents the <strong>total cash-in per house</strong> — the landlord keeps 100% of rent, and Welile earns 33% as platform revenue.
+                </p>
+              </div>
+              <div className="space-y-2 pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-full text-[12px] gap-1"
+                  onClick={() => { setExplainOpen(false); setEmptyOpen(true); }}
+                >
+                  <ListChecks className="h-3.5 w-3.5" /> View empty houses to fill
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-full text-[12px] gap-1 text-amber-700 hover:text-amber-800"
+                  onClick={() => { setExplainOpen(false); navigate('/receivables-audit'); }}
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" /> View validation / audit report
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
