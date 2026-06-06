@@ -20,9 +20,16 @@ export interface ProjectableHouse {
   number_of_rooms?: number | null;
 }
 
+/** Coerce a value to a finite, non-negative number — junk/NaN/Infinity → 0. */
+function safePositive(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return n;
+}
+
 /** Annual projected receivable for a single house given its monthly rent. */
 export function projectAnnualReceivable(monthlyRent: number): number {
-  const rent = Number(monthlyRent) || 0;
+  const rent = safePositive(monthlyRent);
   if (rent <= 0) return 0;
   // ((rent + 33%) / 30) * 30 * 12 === rent * 1.33 * 12
   return ((rent * ANNUAL_PROJECTION_MARKUP) / 30) * 30 * 12;
@@ -54,25 +61,25 @@ export function buildRentEstimator(
     knownCount = 0;
 
   for (const h of houses) {
-    const rent = Number(h.monthly_rent) || 0;
+    const rent = safePositive(h.monthly_rent);
     if (rent <= 0) continue;
     knownSum += rent;
     knownCount += 1;
-    const rooms = Number(h.number_of_rooms) || 0;
+    const rooms = safePositive(h.number_of_rooms);
     if (rooms > 0) {
       perRoomSum += rent / rooms;
       perRoomCount += 1;
     }
   }
 
-  const globalAvg = Math.max(0, Math.round(Number(globalAvgMonthly) || 0));
+  const globalAvg = Math.max(0, Math.round(safePositive(globalAvgMonthly)));
   // Prefer the in-window average; fall back to the platform-wide average so
   // narrow windows still project instead of collapsing to UGX 0.
   const avgOverall = knownCount > 0 ? Math.round(knownSum / knownCount) : globalAvg;
   const avgPerRoom = perRoomCount > 0 ? Math.round(perRoomSum / perRoomCount) : 0;
 
   const estimateFor = (house: ProjectableHouse): number => {
-    const rooms = Number(house.number_of_rooms) || 0;
+    const rooms = safePositive(house.number_of_rooms);
     if (rooms > 0 && avgPerRoom > 0) return Math.round(rooms * avgPerRoom);
     return avgOverall;
   };
@@ -98,7 +105,7 @@ export function projectFullPotential({
   missingCount,
   avgKnownMonthly,
 }: FullProjectionInputs): number {
-  const known = Math.max(0, Number(knownTotal) || 0);
-  const missing = Math.max(0, Number(missingCount) || 0);
-  return known + missing * projectAnnualReceivable(Number(avgKnownMonthly) || 0);
+  const known = Math.max(0, safePositive(knownTotal));
+  const missing = Math.max(0, safePositive(missingCount));
+  return known + missing * projectAnnualReceivable(safePositive(avgKnownMonthly));
 }
