@@ -1688,33 +1688,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         // where Landlord Ops verifies the landlord/property during review.
         // We just resolve the landlord (creating one if needed) so the
         // request can be linked.
-        if (isOutstanding && selectedLandlord) {
+        // PRIORITY RULE: the landlord MUST already be registered in the system.
+        // We never silently create a landlord from free-typed text — the agent
+        // either picked an existing landlord from search or registered a new one
+        // through the Register Landlord flow (which inserts the record first).
+        if (selectedLandlord) {
           landlordId = selectedLandlord.id;
         } else {
-          const { data: existingLandlord } = await supabase
-            .from('landlords')
-            .select('id')
-            .eq('phone', cleanLandlordPhone)
-            .limit(1)
-            .maybeSingle();
-
-          if (existingLandlord) {
-            landlordId = existingLandlord.id;
-          } else {
-            const { data: landlord, error: landlordError } = await supabase
-              .from('landlords')
-              .insert({
-                name: landlordName.trim(),
-                phone: cleanLandlordPhone,
-                property_address: propertyAddress.trim(),
-                registered_by: user?.id,
-              })
-              .select('id')
-              .single();
-
-            if (landlordError) throw landlordError;
-            landlordId = landlord.id;
-          }
+          const msg = 'This landlord is not registered yet. Search to select a registered landlord, or tap "Add new" to register them before posting.';
+          setSubmissionError(msg);
+          toast.error('Landlord not registered', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          return;
         }
       }
 
