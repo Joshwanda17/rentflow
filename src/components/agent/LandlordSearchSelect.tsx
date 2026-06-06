@@ -196,6 +196,32 @@ export function LandlordSearchSelect({
       .filter(Boolean)
       .join(', ');
 
+  // Human-readable ranking context for a result, based on how it was matched.
+  const matchContext = (l: LandlordOption) => {
+    if (!debounced) return null;
+    const pct = typeof l.match_score === 'number' ? Math.round(l.match_score * 100) : null;
+    switch (l.match_kind) {
+      case 'name_exact':
+        return { label: 'Exact name', tone: 'exact' as const, pct };
+      case 'phone':
+        return { label: 'Phone match', tone: 'exact' as const, pct };
+      case 'fuzzy':
+        return {
+          label: pct !== null ? `Typo match · ${pct}%` : 'Typo match',
+          tone: 'fuzzy' as const,
+          pct,
+        };
+      default:
+        return null;
+    }
+  };
+
+  // Whether any result was surfaced purely through typo tolerance.
+  const hasFuzzy = useMemo(
+    () => !!debounced && results.some((r) => r.match_kind === 'fuzzy'),
+    [results, debounced]
+  );
+
   const commitSelection = (l: LandlordOption) => {
     onChange(l);
     setOpen(false);
