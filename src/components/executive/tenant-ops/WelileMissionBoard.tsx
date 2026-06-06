@@ -93,7 +93,7 @@ const PRIORITIES: {
 }[] = [
   { key: 'list', rank: 1, label: 'List empty houses', sub: 'Agents register landlords with vacant houses', icon: Home, tone: 'text-[#9234EA] bg-[#9234EA]/10', bar: 'bg-[#9234EA]' },
   { key: 'place', rank: 2, label: 'Place tenants', sub: 'Move tenants into listed empty houses', icon: Users, tone: 'text-emerald-600 bg-emerald-500/10', bar: 'bg-emerald-500' },
-  { key: 'fund', rank: 3, label: 'Onboard funders', sub: 'Sign up funders & promissory notes', icon: Handshake, tone: 'text-amber-600 bg-amber-500/10', bar: 'bg-amber-500' },
+  { key: 'fund', rank: 3, label: 'Onboard funders', sub: 'Sign up funders & promissory notes', icon: Handshake, tone: 'text-purple-700 bg-purple-500/10', bar: 'bg-purple-600' },
 ];
 
 function recommend(s: MissionSummary): { key: PriorityKey; text: string; severity: 'good' | 'watch' | 'act' } {
@@ -313,14 +313,20 @@ export function WelileMissionBoard() {
                 'rounded-xl border p-3 relative',
                 p.key === 'list'
                   ? 'bg-amber-500/10 border-amber-500/40'
-                  : 'bg-card',
+                  : p.key === 'fund'
+                    ? 'bg-purple-500/10 border-purple-500/40'
+                    : 'bg-card',
                 isFocus
                   ? p.key === 'list'
                     ? 'ring-1 ring-amber-500/50'
-                    : 'border-primary ring-1 ring-primary/40'
+                    : p.key === 'fund'
+                      ? 'ring-1 ring-purple-500/50'
+                      : 'border-primary ring-1 ring-primary/40'
                   : p.key === 'list'
                     ? ''
-                    : 'border-border',
+                    : p.key === 'fund'
+                      ? ''
+                      : 'border-border',
               )}
             >
               <div className="flex items-center gap-2">
@@ -422,13 +428,13 @@ export function WelileMissionBoard() {
                     <button
                       type="button"
                       onClick={() => setRoiPayableOpen(true)}
-                      className="mt-2 w-full rounded-lg bg-amber-500/10 px-2 py-1.5 text-left hover:ring-1 hover:ring-amber-500/40 transition"
+                      className="mt-2 w-full rounded-lg bg-purple-700/15 px-2 py-1.5 text-left hover:ring-1 hover:ring-purple-600/40 transition"
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 leading-none">ROI payable · next cycle</p>
-                        <ChevronRight className="h-3 w-3 text-amber-700 shrink-0" />
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-purple-800 leading-none">ROI payable · next cycle</p>
+                        <ChevronRight className="h-3 w-3 text-purple-800 shrink-0" />
                       </div>
-                      <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight mt-0.5">{formatUGX(roiPayable?.total ?? 0)}</p>
+                      <p className="text-sm font-bold text-purple-800 tabular-nums leading-tight mt-0.5">{formatUGX(roiPayable?.total ?? 0)}</p>
                       <p className="text-[10px] text-muted-foreground leading-none mt-0.5">
                         {(roiPayable?.count ?? 0).toLocaleString()} portfolio{(roiPayable?.count ?? 0) !== 1 ? 's' : ''} due
                         {roiPayable?.earliest ? ` · from ${fmtDate(roiPayable.earliest)}` : ''} · tap for line items
