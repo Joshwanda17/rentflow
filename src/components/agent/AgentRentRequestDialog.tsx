@@ -1152,6 +1152,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
       if (!landlordRegistered) {
         errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
+      } else if (landlordCheck === 'missing') {
+        errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
+      } else if (landlordCheck === 'checking') {
+        errors.push('Confirming the landlord is registered — please wait a moment');
       }
       if (!propertyAddress.trim()) errors.push('Type the property address');
     } else if (idx === 3) {
