@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft } from 'lucide-react';
+import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft, Sparkles, SlidersHorizontal } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -24,6 +25,9 @@ export interface LandlordOption {
   monthly_rent?: number | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** Fuzzy-search ranking metadata (present only on search results). */
+  match_score?: number | null;
+  match_kind?: 'all' | 'name_exact' | 'phone' | 'fuzzy' | string | null;
 }
 
 interface LandlordSearchSelectProps {
@@ -33,6 +37,11 @@ interface LandlordSearchSelectProps {
   disabled?: boolean;
   /** Called when the agent taps "Register new landlord" from the empty-state warning. */
   onAddNew?: () => void;
+  /**
+   * Fuzzy-match similarity threshold (0.05–0.9). Lower = more typo-tolerant
+   * (more results), higher = stricter. Used as the initial slider value.
+   */
+  similarityThreshold?: number;
 }
 
 /** Bold the portion(s) of text that match the query, Google-style. */
