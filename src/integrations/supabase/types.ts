@@ -20465,72 +20465,23 @@ export type Database = {
         }[]
       }
       search_landlords_fuzzy: {
-        Args: { p_limit?: number; p_query?: string }
+        Args: { p_limit?: number; p_query?: string; p_threshold?: number }
         Returns: {
-          account_number: string | null
-          bank_name: string | null
-          caretaker_name: string | null
-          caretaker_phone: string | null
-          cell: string | null
-          country: string | null
-          county: string | null
-          created_at: string
-          description: string | null
-          desired_rent_from_welile: number | null
-          district: string | null
-          electricity_meter_number: string | null
-          has_smartphone: boolean | null
-          house_category: string | null
-          house_number: string | null
+          county: string
+          district: string
+          house_category: string
           id: string
-          is_agent_managed: boolean | null
-          is_occupied: boolean
-          latitude: number | null
-          location_captured_at: string | null
-          location_captured_by: string | null
-          longitude: number | null
-          managed_by_agent_id: string | null
-          management_fee_rate: number | null
-          mobile_money_name: string | null
-          mobile_money_number: string | null
-          monthly_rent: number | null
+          latitude: number
+          longitude: number
+          match_kind: string
+          match_score: number
+          monthly_rent: number
           name: string
-          number_of_houses: number | null
-          number_of_rooms: number | null
           phone: string
           property_address: string
-          ready_to_receive: boolean | null
-          receipt_request_channel: string | null
-          receipt_requested_at: string | null
-          receipt_requested_by: string | null
-          receipt_verification_at: string | null
-          receipt_verification_by: string | null
-          receipt_verification_note: string | null
-          receipt_verification_status: string | null
-          region: string | null
-          registered_by: string | null
-          rent_balance_due: number
-          rent_last_paid_amount: number | null
-          rent_last_paid_at: string | null
-          sub_county: string | null
-          tenant_id: string | null
-          tin: string | null
-          town_council: string | null
-          updated_at: string
-          verification_pin_1: string | null
-          verification_pin_2: string | null
-          verified: boolean | null
-          verified_at: string | null
-          verified_by: string | null
-          village: string | null
-          water_meter_number: string | null
+          town_council: string
+          village: string
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "landlords"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       search_locations: {
         Args: { p_limit?: number; p_query: string }
