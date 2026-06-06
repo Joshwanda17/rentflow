@@ -393,6 +393,12 @@ export function WelileMissionBoard() {
                                 <p className="text-[11px] text-muted-foreground leading-snug">
                                   <strong>Annual projection</strong> = each monthly rent × 1.33 (Welile fee) × 12 months.
                                 </p>
+                                <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 space-y-1">
+                                  <p className="text-[11px] font-bold text-amber-700 leading-snug">What is the 1.33 multiplier?</p>
+                                  <p className="text-[11px] text-muted-foreground leading-snug">
+                                    Tenants pay their landlord's rent <strong>plus a 33% Welile facilitation fee</strong>. The 1.33 multiplier represents the <strong>total cash-in per house</strong> — the landlord keeps 100% of rent, and Welile earns 33% as platform revenue.
+                                  </p>
+                                </div>
                                 <p className="text-[11px] text-muted-foreground leading-snug">
                                   <strong>Total</strong> = Recorded + Estimated = {formatUGX(receivables.estimated_full_total)}.
                                 </p>
