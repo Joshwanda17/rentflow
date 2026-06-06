@@ -382,13 +382,19 @@ export function WelileMissionBoard() {
                                   <Info className="h-3 w-3 text-amber-700" />
                                 </span>
                               </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[260px] space-y-1.5">
-                                <p className="text-xs font-bold">Why two numbers?</p>
+                              <TooltipContent side="top" className="max-w-[280px] space-y-1.5">
+                                <p className="text-xs font-bold">How projected receivables are calculated</p>
                                 <p className="text-[11px] text-muted-foreground leading-snug">
-                                  <strong>Recorded</strong> only sums houses with a rent value on file ({receivables.known_rent_count.toLocaleString()} houses). The other {receivables.missing_rent_count.toLocaleString()} listings had no rent recorded, so they previously contributed UGX&nbsp;0.
+                                  <strong>Recorded</strong> = sum of known rents for {receivables.known_rent_count.toLocaleString()} houses with a monthly rent on file.
                                 </p>
                                 <p className="text-[11px] text-muted-foreground leading-snug">
-                                  <strong>Est. full potential</strong> fills missing rents using the average known rent (~{formatUGX(receivables.avg_known_monthly)}/mo), projecting what all {(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses could yield if fully documented.
+                                  <strong>Estimated (missing)</strong> = {receivables.missing_rent_count.toLocaleString()} houses with no rent × average known rent ({formatUGX(receivables.avg_known_monthly)}/mo).
+                                </p>
+                                <p className="text-[11px] text-muted-foreground leading-snug">
+                                  <strong>Annual projection</strong> = each monthly rent × 1.33 (Welile fee) × 12 months.
+                                </p>
+                                <p className="text-[11px] text-muted-foreground leading-snug">
+                                  <strong>Total</strong> = Recorded + Estimated = {formatUGX(receivables.estimated_full_total)}.
                                 </p>
                               </TooltipContent>
                             </Tooltip>
