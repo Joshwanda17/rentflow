@@ -396,14 +396,13 @@ export function WelileMissionBoard() {
                         </div>
                         <ChevronRight className="h-3 w-3 text-amber-700 shrink-0" />
                       </div>
-                      <div className="mt-0.5 grid grid-cols-2 gap-2">
-                        <div>
-                          <p className="text-sm font-bold text-amber-700 tabular-nums leading-tight">{formatUGX(receivables.empty_receivable_total + receivables.unlisted_receivable_total)}</p>
-                          <p className="text-[9px] text-muted-foreground leading-tight">Recorded · {receivables.known_rent_count.toLocaleString()} with rent on file</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-amber-600 tabular-nums leading-tight">~{formatUGX(receivables.estimated_full_total)}</p>
-                          <p className="text-[9px] text-muted-foreground leading-tight">Est. full potential · {receivables.missing_rent_count.toLocaleString()} no rent @ ~{formatUGX(receivables.avg_known_monthly)}/mo</p>
+                      <div className="mt-0.5">
+                        <p className="text-xl font-extrabold text-amber-700 tabular-nums leading-tight">~{formatUGX(receivables.estimated_full_total)}</p>
+                        <p className="text-[9px] font-semibold text-amber-700/90 leading-tight">Total projected receivables (recorded + estimated)</p>
+                        <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[9px] text-muted-foreground leading-tight">
+                          <span>Recorded {formatUGX(receivables.empty_receivable_total + receivables.unlisted_receivable_total)} · {receivables.known_rent_count.toLocaleString()} w/ rent</span>
+                          <span aria-hidden>+</span>
+                          <span>Estimated {formatUGX(Math.max(0, receivables.estimated_full_total - (receivables.empty_receivable_total + receivables.unlisted_receivable_total)))} · {receivables.missing_rent_count.toLocaleString()} no rent @ ~{formatUGX(receivables.avg_known_monthly)}/mo</span>
                         </div>
                       </div>
                       <p className="text-[10px] text-muted-foreground leading-none mt-1">{(receivables.empty_houses_count + receivables.unlisted_landlord_count).toLocaleString()} empty houses · annual (monthly × 12) · tap to view list</p>
