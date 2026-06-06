@@ -462,7 +462,7 @@ export function LandlordSearchSelect({
           {/* Typo-tolerance hint when fuzzy matches are present */}
           {!loading && hasFuzzy && (
             <div className="mt-2 px-1.5 space-y-1">
-              <p className="flex items-center gap-1 text-[11px] text-primary">
+              <p className="flex items-center gap-1 text-[11px] text-[#1a73e8] dark:text-[#8ab4f8]">
                 <Sparkles className="h-3 w-3 shrink-0" />
                 Some results matched despite spelling differences.
               </p>
