@@ -480,7 +480,7 @@ export function LandlordSearchSelect({
             </div>
           )}
         </div>
-        <div ref={listRef} className="max-h-72 overflow-y-auto py-1">
+        <div ref={listRef} className="max-h-72 overflow-y-auto border-t border-border/50 py-1">
           {loading && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
@@ -567,16 +567,16 @@ export function LandlordSearchSelect({
                   onMouseEnter={() => setActiveIndex(idx)}
                   onClick={() => commitSelection(l)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors',
-                    active ? 'bg-accent' : 'hover:bg-accent/60'
+                    'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                    active ? 'bg-[#f1f3f4] dark:bg-accent' : 'hover:bg-[#f1f3f4]/70 dark:hover:bg-accent/60'
                   )}
                 >
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Building2 className="h-5 w-5 text-primary" />
+                  <div className="h-9 w-9 rounded-full bg-[#4285F4]/10 flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-[#4285F4]" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium truncate text-[#1a0dab] dark:text-[#8ab4f8] group-hover:underline">
                         {highlightName(l.name, debounced, l.match_kind)}
                       </p>
                       {ctx && (
@@ -584,7 +584,7 @@ export function LandlordSearchSelect({
                           className={cn(
                             'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
                             ctx.tone === 'fuzzy'
-                              ? 'bg-primary/15 text-primary'
+                              ? 'bg-[#4285F4]/10 text-[#1a73e8] dark:text-[#8ab4f8]'
                               : 'bg-muted text-muted-foreground'
                           )}
                         >
@@ -592,19 +592,19 @@ export function LandlordSearchSelect({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                    <p className="text-xs truncate flex items-center gap-1 text-[#188038] dark:text-[#81c995]">
                       <Phone className="h-3 w-3 shrink-0" />
                       {highlightPhone(l.phone, debounced)}
                       {location && (
                         <>
-                          <MapPin className="h-3 w-3 shrink-0 ml-1" />
-                          <span className="truncate">{location}</span>
+                          <MapPin className="h-3 w-3 shrink-0 ml-1 text-muted-foreground" />
+                          <span className="truncate text-muted-foreground">{location}</span>
                         </>
                       )}
                     </p>
                   </div>
                   {selected ? (
-                    <Check className="h-4 w-4 shrink-0 text-primary" />
+                    <Check className="h-4 w-4 shrink-0 text-[#34A853]" />
                   ) : active ? (
                     <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   ) : null}
