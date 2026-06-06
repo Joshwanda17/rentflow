@@ -2007,6 +2007,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             : msg
       );
       const capacityMsg = humanizeCapacityError(msg);
+      // Server-side guard (DB trigger) rejected the request because the
+      // landlord isn't registered. Surface a clear, actionable inline error
+      // and send the agent back to the landlord step.
+      const isUnregisteredLandlord =
+        /registered landlord|landlord is not registered|not registered in the system|requires a registered landlord/i.test(msg);
       const isNetworkError =
         !navigator.onLine ||
         /failed to fetch|network ?error|networkrequestfailed|load failed|err_internet|err_network|fetch failed/i.test(msg);
@@ -2014,6 +2019,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         const friendly = 'Connection dropped before we could send it. Don\'t worry — your draft is saved. Reconnect and tap Submit again.';
         setSubmissionError(friendly);
         toast.warning('Connection lost', { description: 'Your draft is saved. Try again when you\'re back online.' });
+      } else if (isUnregisteredLandlord) {
+        const friendly = 'This landlord is not registered in the system. Go back to the Property step and pick a registered landlord (search existing or tap "Add new" to register them) before posting.';
+        setSubmissionError(friendly);
+        toast.error('Landlord not registered', { description: friendly });
+        // Jump the wizard back to the Property/landlord step so the fix is obvious.
+        if (incomeType !== 'outstanding') setDetailStep(2);
       } else if (capacityMsg) {
         setSubmissionError(capacityMsg);
         toast.error('Rent capacity reached', { description: capacityMsg });
