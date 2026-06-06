@@ -109,7 +109,7 @@ export function LandlordSearchSelect({
       try {
         // Typo-tolerant fuzzy search via Postgres trigram RPC.
         // Falls back to an ILIKE query if the RPC is unavailable.
-        const { data, error } = await supabase.rpc('search_landlords_fuzzy', {
+        const { data, error } = await (supabase.rpc as any)('search_landlords_fuzzy', {
           p_query: debounced,
           p_limit: 20,
         });
