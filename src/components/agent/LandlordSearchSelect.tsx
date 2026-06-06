@@ -576,16 +576,28 @@ export function LandlordSearchSelect({
                   onMouseEnter={() => setActiveIndex(idx)}
                   onClick={() => commitSelection(l)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
-                    active ? 'bg-[#f1f3f4] dark:bg-accent' : 'hover:bg-[#f1f3f4]/70 dark:hover:bg-accent/60'
+                    'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-75',
+                    active
+                      ? 'bg-[#f1f3f4] dark:bg-accent/80 shadow-sm translate-x-0.5'
+                      : 'hover:bg-[#f1f3f4]/70 dark:hover:bg-accent/60'
                   )}
                 >
+                  {/* Active row left accent bar */}
+                  <div
+                    className={cn(
+                      'absolute left-0 top-2 bottom-2 w-1 rounded-r-full transition-opacity',
+                      active ? 'bg-[#4285F4] opacity-100' : 'bg-[#4285F4] opacity-0'
+                    )}
+                  />
                   <div className="h-9 w-9 rounded-full bg-[#4285F4]/10 flex items-center justify-center shrink-0">
                     <Building2 className="h-5 w-5 text-[#4285F4]" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium truncate text-[#1a0dab] dark:text-[#8ab4f8] group-hover:underline">
+                      <p className={cn(
+                        'text-sm font-medium truncate group-hover:underline',
+                        active ? 'text-foreground' : 'text-[#1a0dab] dark:text-[#8ab4f8]'
+                      )}>
                         {highlightName(l.name, debounced, l.match_kind)}
                       </p>
                       {ctx && (
@@ -615,7 +627,7 @@ export function LandlordSearchSelect({
                   {selected ? (
                     <Check className="h-4 w-4 shrink-0 text-[#34A853]" />
                   ) : active ? (
-                    <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <CornerDownLeft className="h-4 w-4 shrink-0 text-[#4285F4] animate-pulse" />
                   ) : null}
                 </button>
               );
