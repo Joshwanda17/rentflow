@@ -6,7 +6,15 @@ import LandlordRegistrationForm from '@/components/shared/LandlordRegistrationFo
 interface RegisterLandlordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (landlord?: {
+    id: string;
+    name: string;
+    phone: string;
+    property_address: string | null;
+    house_category?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }) => void;
   minimal?: boolean;
 }
 

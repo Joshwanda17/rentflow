@@ -30,7 +30,25 @@ const HOUSE_CATEGORIES = [
 
 interface LandlordRegistrationFormProps {
   registeredByRole: 'agent' | 'tenant';
-  onSuccess?: () => void;
+  /**
+   * Called after the landlord is saved. Receives the freshly registered
+   * landlord so callers (e.g. the rent request flow) can immediately select
+   * it — enforcing the rule that a landlord must be registered first.
+   */
+  onSuccess?: (landlord?: {
+    id: string;
+    name: string;
+    phone: string;
+    property_address: string | null;
+    district?: string | null;
+    town_council?: string | null;
+    county?: string | null;
+    village?: string | null;
+    house_category?: string | null;
+    monthly_rent?: number | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }) => void;
   onClose: () => void;
   toastFn: (opts: {
     title: string;
@@ -426,7 +444,11 @@ export default function LandlordRegistrationForm({
       }
 
       setProgressMsg('Saving the landlord…');
-      const { data: newLandlord, error } = await supabase.from('landlords').insert(insertData as any).select('id').single();
+      const { data: newLandlord, error } = await supabase
+        .from('landlords')
+        .insert(insertData as any)
+        .select('id, name, phone, property_address, latitude, longitude, house_category')
+        .single();
       if (error) throw error;
       setRegisteredLandlordId(newLandlord?.id ?? null);
 
@@ -485,7 +507,15 @@ export default function LandlordRegistrationForm({
 
       setSuccess(true);
       toastFn({ title: 'Landlord Registered!', description: 'Share the activation link.' });
-      onSuccess?.();
+      onSuccess?.(newLandlord ? {
+        id: newLandlord.id,
+        name: newLandlord.name,
+        phone: newLandlord.phone,
+        property_address: (newLandlord as any).property_address ?? null,
+        house_category: (newLandlord as any).house_category ?? null,
+        latitude: (newLandlord as any).latitude ?? null,
+        longitude: (newLandlord as any).longitude ?? null,
+      } : undefined);
     } catch (err: any) {
       const msg = err?.message || 'Something went wrong while saving. Please try again.';
       setSubmitError(msg);
