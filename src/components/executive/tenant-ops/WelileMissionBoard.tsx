@@ -1139,6 +1139,31 @@ function EmptyHousesDialog({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { data, isLoading } = useMissionEmptyHouses(win, open, refetchIntervalMs);
   const houses: MissionEmptyHouseRow[] = data ?? [];
+
+  // Estimate rent for houses that have no recorded rent amount.
+  // We learn from the houses that DO have a known rent in this window:
+  //   • avg per room  → scales the estimate by number_of_rooms when known
+  //   • avg overall   → fallback when room count is missing
+  const rentEstimate = useMemo(() => {
+    let perRoomSum = 0, perRoomCount = 0, knownSum = 0, knownCount = 0;
+    houses.forEach((h) => {
+      const rent = Number(h.monthly_rent) || 0;
+      if (rent <= 0) return;
+      knownSum += rent;
+      knownCount += 1;
+      const rooms = Number(h.number_of_rooms) || 0;
+      if (rooms > 0) { perRoomSum += rent / rooms; perRoomCount += 1; }
+    });
+    const avgOverall = knownCount > 0 ? Math.round(knownSum / knownCount) : 0;
+    const avgPerRoom = perRoomCount > 0 ? Math.round(perRoomSum / perRoomCount) : 0;
+    const estimateFor = (h: MissionEmptyHouseRow): number => {
+      const rooms = Number(h.number_of_rooms) || 0;
+      if (rooms > 0 && avgPerRoom > 0) return Math.round(rooms * avgPerRoom);
+      return avgOverall;
+    };
+    return { avgOverall, avgPerRoom, knownCount, estimateFor };
+  }, [houses]);
+
   const { data: targets } = useLandlordOnboardingTargets(open);
   const targetLandlord = useTargetLandlordForOnboarding();
   const bulkTarget = useBulkTargetLandlordsForOnboarding();
@@ -1210,7 +1235,7 @@ function EmptyHousesDialog({
     }
     r.sort((a, b) => {
       switch (sort) {
-        case 'rent_desc': return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+        case 'rent_desc': return ((b.monthly_rent || rentEstimate.estimateFor(b)) || 0) - ((a.monthly_rent || rentEstimate.estimateFor(a)) || 0);
         case 'recent': return new Date(b.last_activity || 0).getTime() - new Date(a.last_activity || 0).getTime();
         case 'oldest': return new Date(a.last_activity || 0).getTime() - new Date(b.last_activity || 0).getTime();
         case 'area': return (a.area || '~').localeCompare(b.area || '~');
@@ -1218,7 +1243,7 @@ function EmptyHousesDialog({
       }
     });
     return r;
-  }, [houses, searchLower, sort, targetFilter, monthFilter, targets]);
+  }, [houses, searchLower, sort, targetFilter, monthFilter, targets, rentEstimate]);
 
   const selectable = useMemo(() => {
     const ids = new Set<string>();
@@ -1400,10 +1425,22 @@ function EmptyHousesDialog({
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-muted-foreground">
                       <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {h.area || 'Unspecified area'}</span>
-                      {h.monthly_rent ? <span className="text-foreground font-semibold">{formatUGX(h.monthly_rent)}/mo</span> : null}
+                      {h.monthly_rent ? (
+                        <span className="text-foreground font-semibold">{formatUGX(h.monthly_rent)}/mo</span>
+                      ) : rentEstimate.estimateFor(h) > 0 ? (
+                        <span className="flex items-center gap-1 text-amber-600 font-semibold" title="No rent recorded — projected from the average rent of comparable listed houses">
+                          <TrendingUp className="h-3 w-3" /> ~{formatUGX(rentEstimate.estimateFor(h))}/mo
+                          <span className="font-normal text-muted-foreground">est.</span>
+                        </span>
+                      ) : null}
                       {h.number_of_rooms ? <span className="flex items-center gap-1"><BedDouble className="h-3 w-3" /> {h.number_of_rooms} rm</span> : null}
                       <span>Last activity {fmtDate(h.last_activity)}</span>
                     </div>
+                    {!h.monthly_rent && rentEstimate.estimateFor(h) > 0 && (
+                      <p className="mt-1 text-[10px] text-amber-600/90">
+                        Projected ~{formatUGX(rentEstimate.estimateFor(h) * 12)}/yr · estimate only, confirm actual rent during onboarding
+                      </p>
+                    )}
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       {h.landlord_id ? (
                         <button
