@@ -1683,11 +1683,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         // gate required (houses are available the moment they're listed).
         landlordId = selectedHouse.landlord_id;
       } else {
-        // The landlord no longer needs a verified house up-front. The rent
-        // request is allowed through and lands in the verification pipeline,
-        // where Landlord Ops verifies the landlord/property during review.
-        // We just resolve the landlord (creating one if needed) so the
-        // request can be linked.
         // PRIORITY RULE: the landlord MUST already be registered in the system.
         // We never silently create a landlord from free-typed text — the agent
         // either picked an existing landlord from search or registered a new one
