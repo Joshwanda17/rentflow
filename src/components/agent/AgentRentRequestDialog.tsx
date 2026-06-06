@@ -3252,7 +3252,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           <p className="text-sm text-muted-foreground flex items-center gap-1 truncate">
                             <Phone className="h-3.5 w-3.5 shrink-0" /> {landlordPhone || selectedLandlord.phone}
                           </p>
-                          <p className="text-xs text-success font-medium mt-1">✓ Already in the system — details filled in for you</p>
+                          {landlordCheck === 'checking' ? (
+                            <p className="text-xs text-muted-foreground font-medium mt-1">Confirming registration…</p>
+                          ) : landlordCheck === 'missing' ? (
+                            <p className="text-xs text-destructive font-medium mt-1">✗ This landlord is not registered — pick another or register them again</p>
+                          ) : (
+                            <p className="text-xs text-success font-medium mt-1">✓ Registered in the system — details filled in for you</p>
+                          )}
                         </div>
                       </div>
                       <Button
