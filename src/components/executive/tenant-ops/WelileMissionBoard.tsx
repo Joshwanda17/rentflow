@@ -1235,7 +1235,7 @@ function EmptyHousesDialog({
     }
     r.sort((a, b) => {
       switch (sort) {
-        case 'rent_desc': return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+        case 'rent_desc': return ((b.monthly_rent || rentEstimate.estimateFor(b)) || 0) - ((a.monthly_rent || rentEstimate.estimateFor(a)) || 0);
         case 'recent': return new Date(b.last_activity || 0).getTime() - new Date(a.last_activity || 0).getTime();
         case 'oldest': return new Date(a.last_activity || 0).getTime() - new Date(b.last_activity || 0).getTime();
         case 'area': return (a.area || '~').localeCompare(b.area || '~');
@@ -1243,7 +1243,7 @@ function EmptyHousesDialog({
       }
     });
     return r;
-  }, [houses, searchLower, sort, targetFilter, monthFilter, targets]);
+  }, [houses, searchLower, sort, targetFilter, monthFilter, targets, rentEstimate]);
 
   const selectable = useMemo(() => {
     const ids = new Set<string>();
