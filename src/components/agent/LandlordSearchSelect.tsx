@@ -87,6 +87,7 @@ export function LandlordSearchSelect({
   placeholder = 'Search landlord by name or phone…',
   disabled,
   onAddNew,
+  similarityThreshold = 0.2,
 }: LandlordSearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -95,6 +96,11 @@ export function LandlordSearchSelect({
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  // Configurable fuzzy-match precision (clamped to the RPC's valid range).
+  const [threshold, setThreshold] = useState(() =>
+    Math.min(Math.max(similarityThreshold, 0.05), 0.9)
+  );
+  const [showThreshold, setShowThreshold] = useState(false);
   const reqIdRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -109,7 +115,7 @@ export function LandlordSearchSelect({
     setActiveIndex(0);
   }, [debounced, results.length]);
 
-  // Fetch on debounced change (only when popover is open)
+  // Fetch on debounced/threshold change (only when popover is open)
   useEffect(() => {
     if (!open) return;
     const myId = ++reqIdRef.current;
@@ -121,6 +127,7 @@ export function LandlordSearchSelect({
         const { data, error } = await (supabase.rpc as any)('search_landlords_fuzzy', {
           p_query: debounced,
           p_limit: 20,
+          p_threshold: threshold,
         });
         if (error) throw error;
         if (myId === reqIdRef.current) {
@@ -158,7 +165,7 @@ export function LandlordSearchSelect({
       }
     };
     run();
-  }, [debounced, open]);
+  }, [debounced, open, threshold]);
 
   // One-time fetch of total landlord count so we can show a system-empty warning
   useEffect(() => {
