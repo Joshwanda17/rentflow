@@ -245,12 +245,17 @@ export function LandlordSearchSelect({
   useEffect(() => {
     const prevScroll = listRef.current?.scrollTop ?? null;
     setActiveIndex((prev) => {
+      if (!results.length) {
+        // Clear highlight and selection history when nothing matches.
+        activeIdRef.current = null;
+        prevOrderRef.current = { ids: [], index: -1 };
+        return -1;
+      }
       const prevId = activeIdRef.current;
       if (prevId) {
         const found = results.findIndex((r) => r.id === prevId);
         if (found !== -1) return found;
       }
-      if (!results.length) return 0;
       // The highlighted landlord is gone — find the nearest still-present row by
       // scanning outward (closer neighbours first) from its old position.
       const newIndexById = new Map(results.map((r, i) => [r.id, i] as const));
@@ -262,7 +267,7 @@ export function LandlordSearchSelect({
         if (above !== undefined && newIndexById.has(above)) return newIndexById.get(above)!;
       }
       // No prior neighbour survived — clamp the cursor to the new bounds.
-      return Math.min(prev, results.length - 1);
+      return Math.max(0, Math.min(prev, results.length - 1));
     });
     // Restore the scroll offset the list had before this re-render.
     if (prevScroll !== null && listRef.current) {
@@ -388,7 +393,12 @@ export function LandlordSearchSelect({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!results.length) return;
+    if (e.key === 'Escape') {
+      setOpen(false);
+      return;
+    }
+    // Disable arrow-key navigation and selection when there are no results.
+    if (!results.length || activeIndex < 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActiveIndex((i) => Math.min(i + 1, results.length - 1));
@@ -399,14 +409,12 @@ export function LandlordSearchSelect({
       e.preventDefault();
       const chosen = results[activeIndex];
       if (chosen) commitSelection(chosen);
-    } else if (e.key === 'Escape') {
-      setOpen(false);
     }
   };
 
   // Keep the active row scrolled into view during keyboard navigation.
   useEffect(() => {
-    if (!listRef.current) return;
+    if (activeIndex < 0 || !listRef.current) return;
     const container = listRef.current;
     const el = container.querySelector<HTMLElement>(`[data-row="${activeIndex}"]`);
     if (!el) return;
