@@ -1559,6 +1559,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     // Other flows still collect landlord + LC1 inline.
     if (isOutstanding) {
       if (!selectedLandlord) errors.push('Pick the landlord from the list');
+      else if (landlordCheck === 'missing') errors.push('The selected landlord is no longer registered in the system — pick a registered landlord');
+      else if (landlordCheck === 'checking') errors.push('Confirming the landlord is registered — please wait a moment');
       if (!outstandingRentAmount || parseInt(outstandingRentAmount.replace(/,/g, '')) <= 0) {
         errors.push('Type the rent amount');
       }
@@ -1575,6 +1577,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
       if (!landlordRegistered) {
         errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
+      } else if (landlordCheck === 'missing') {
+        errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
+      } else if (landlordCheck === 'checking') {
+        errors.push('Confirming the landlord is registered — please wait a moment');
       }
       if (!propertyAddress.trim()) errors.push('Type the property address');
       if (!lc1Name.trim()) errors.push('Type the LC1 chairperson\'s name');
