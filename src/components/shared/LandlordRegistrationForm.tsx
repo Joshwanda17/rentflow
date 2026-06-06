@@ -507,7 +507,15 @@ export default function LandlordRegistrationForm({
 
       setSuccess(true);
       toastFn({ title: 'Landlord Registered!', description: 'Share the activation link.' });
-      onSuccess?.();
+      onSuccess?.(newLandlord ? {
+        id: newLandlord.id,
+        name: newLandlord.name,
+        phone: newLandlord.phone,
+        property_address: (newLandlord as any).property_address ?? null,
+        house_category: (newLandlord as any).house_category ?? null,
+        latitude: (newLandlord as any).latitude ?? null,
+        longitude: (newLandlord as any).longitude ?? null,
+      } : undefined);
     } catch (err: any) {
       const msg = err?.message || 'Something went wrong while saving. Please try again.';
       setSubmitError(msg);
