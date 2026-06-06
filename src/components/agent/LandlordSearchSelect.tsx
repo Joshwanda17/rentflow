@@ -212,6 +212,11 @@ export function LandlordSearchSelect({
   // the same row highlighted (and the scroll position steady) when a fresh
   // result set arrives mid-navigation rather than snapping back to the top.
   const activeIdRef = useRef<string | null>(null);
+  // Snapshot of the previous result set's ordering (by id) plus the index that
+  // was highlighted within it. When the highlighted landlord disappears after a
+  // query change, we walk outward from that old position to land on the nearest
+  // surviving neighbour instead of jumping to the top.
+  const prevOrderRef = useRef<{ ids: string[]; index: number }>({ ids: [], index: 0 });
 
   // Debounce typing — short delay so results feel instant as you type.
   useEffect(() => {
@@ -225,9 +230,11 @@ export function LandlordSearchSelect({
     return () => clearTimeout(t);
   }, [query]);
 
-  // Remember which landlord is highlighted (by id) on every change.
+  // Remember which landlord is highlighted (by id) plus the full result order on
+  // every change, so the next result set can locate the nearest surviving row.
   useEffect(() => {
     activeIdRef.current = results[activeIndex]?.id ?? null;
+    prevOrderRef.current = { ids: results.map((r) => r.id), index: activeIndex };
   }, [activeIndex, results]);
 
   // When a fresh result set loads — whether from a precision change, a
@@ -243,7 +250,19 @@ export function LandlordSearchSelect({
         const found = results.findIndex((r) => r.id === prevId);
         if (found !== -1) return found;
       }
-      return Math.min(prev, Math.max(results.length - 1, 0));
+      if (!results.length) return 0;
+      // The highlighted landlord is gone — find the nearest still-present row by
+      // scanning outward (closer neighbours first) from its old position.
+      const newIndexById = new Map(results.map((r, i) => [r.id, i] as const));
+      const { ids: prevIds, index: prevIdx } = prevOrderRef.current;
+      for (let dist = 1; dist < prevIds.length; dist++) {
+        const below = prevIds[prevIdx + dist];
+        if (below !== undefined && newIndexById.has(below)) return newIndexById.get(below)!;
+        const above = prevIds[prevIdx - dist];
+        if (above !== undefined && newIndexById.has(above)) return newIndexById.get(above)!;
+      }
+      // No prior neighbour survived — clamp the cursor to the new bounds.
+      return Math.min(prev, results.length - 1);
     });
     // Restore the scroll offset the list had before this re-render.
     if (prevScroll !== null && listRef.current) {
