@@ -1646,9 +1646,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         }
       }
       // ===== Resolve landlord =====
-      // Outstanding flow uses the searchable picker — landlord already exists,
-      // so we use the selected ID directly. Other flows fall back to upsert-by-phone.
-      const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+      // The landlord must already exist in the system. We use the selected
+      // landlord's id (from search or the Register Landlord flow) or the
+      // landlord attached to the selected house — never auto-create one.
       let landlordId: string;
 
       // ===== Final live conflict check (fresh DB read) =====
