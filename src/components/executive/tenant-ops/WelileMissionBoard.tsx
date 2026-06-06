@@ -135,6 +135,7 @@ export function WelileMissionBoard() {
   const [landlordRecvOpen, setLandlordRecvOpen] = useState(false);
   const [driverOpen, setDriverOpen] = useState<{ key: MissionDriverKey; label: string } | null>(null);
   const [landlordBucket, setLandlordBucket] = useState<LandlordPriorityBucket | null>(null);
+  const [explainOpen, setExplainOpen] = useState(false);
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const queryClient = useQueryClient();
