@@ -403,12 +403,15 @@ export function LandlordSearchSelect({
               placeholder="Search a landlord by name or phone"
               className="flex-1 bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground"
             />
+            {loading && (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#4285F4]" aria-label="Searching" />
+            )}
             {query && (
               <button
                 type="button"
                 aria-label="Clear search"
                 onClick={() => setQuery('')}
-                className="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                className="ml-1 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
