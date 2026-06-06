@@ -44,35 +44,122 @@ interface LandlordSearchSelectProps {
   similarityThreshold?: number;
 }
 
-/** Bold the portion(s) of text that match the query, Google-style. */
-function highlightMatch(text: string | null | undefined, query: string): ReactNode {
+/** Per-character highlight style for each match flavour. */
+const HL_CLASS = {
+  exact: 'rounded-[2px] bg-primary/20 font-semibold text-foreground',
+  phone: 'rounded-[2px] bg-emerald-500/20 font-semibold text-foreground',
+  typo: 'font-semibold text-primary underline decoration-dotted decoration-primary/70 underline-offset-2',
+} as const;
+
+type HighlightMode = keyof typeof HL_CLASS;
+
+/** Character indices in `text` covered by any case-insensitive occurrence of a term. */
+function substringMatchedIndices(text: string, terms: string[]): Set<number> {
+  const lower = text.toLowerCase();
+  const set = new Set<number>();
+  for (const raw of terms) {
+    const t = raw.toLowerCase();
+    if (!t) continue;
+    let from = 0;
+    let pos = lower.indexOf(t, from);
+    while (pos !== -1) {
+      for (let k = 0; k < t.length; k++) set.add(pos + k);
+      from = pos + t.length;
+      pos = lower.indexOf(t, from);
+    }
+  }
+  return set;
+}
+
+/**
+ * Character indices in `text` that align to `query` via the longest common
+ * subsequence — used for typo matches where there is no contiguous substring.
+ */
+function lcsMatchedIndices(text: string, query: string): Set<number> {
+  const a = text.toLowerCase();
+  const b = query.toLowerCase().replace(/\s+/g, '');
+  const n = a.length;
+  const m = b.length;
+  const idx = new Set<number>();
+  if (!n || !m) return idx;
+  // DP table of LCS lengths.
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  // Backtrack to mark which characters of `text` participate.
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      idx.add(i);
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  return idx;
+}
+
+/** Render `text` with the matched character indices wrapped in highlight spans. */
+function renderHighlighted(text: string, matched: Set<number>, mode: HighlightMode): ReactNode {
+  if (!matched.size) return text;
+  const out: ReactNode[] = [];
+  let buffer = '';
+  let bufferOn = matched.has(0);
+  const flush = (on: boolean, key: number) => {
+    if (!buffer) return;
+    out.push(
+      on ? (
+        <mark key={key} className={cn('bg-transparent', HL_CLASS[mode])}>
+          {buffer}
+        </mark>
+      ) : (
+        <span key={key}>{buffer}</span>
+      )
+    );
+    buffer = '';
+  };
+  for (let i = 0; i < text.length; i++) {
+    const on = matched.has(i);
+    if (on !== bufferOn) {
+      flush(bufferOn, i);
+      bufferOn = on;
+    }
+    buffer += text[i];
+  }
+  flush(bufferOn, text.length);
+  return out;
+}
+
+/** Highlight a landlord NAME according to how the row was matched. */
+function highlightName(text: string | null | undefined, query: string, kind?: string | null): ReactNode {
   const value = text ?? '';
   const term = query.trim();
-  if (!value) return value;
-  if (!term) return value;
-  // Build a case-insensitive regex from the raw term and (if present) its digits.
-  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (!value || !term) return value;
+  if (kind === 'fuzzy') {
+    // No contiguous substring — align character-by-character.
+    const sub = substringMatchedIndices(value, [term]);
+    const matched = sub.size ? sub : lcsMatchedIndices(value, term);
+    return renderHighlighted(value, matched, sub.size ? 'exact' : 'typo');
+  }
+  return renderHighlighted(value, substringMatchedIndices(value, [term]), 'exact');
+}
+
+/** Highlight a landlord PHONE (digits matched are coloured distinctly). */
+function highlightPhone(text: string | null | undefined, query: string): ReactNode {
+  const value = text ?? '';
+  const term = query.trim();
+  if (!value || !term) return value;
   const digits = term.replace(/\D/g, '');
-  const patterns = [escaped];
-  if (digits.length >= 3 && digits !== term) {
-    patterns.push(digits.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  }
-  let re: RegExp;
-  try {
-    re = new RegExp(`(${patterns.join('|')})`, 'gi');
-  } catch {
-    return value;
-  }
-  const parts = value.split(re);
-  return parts.map((part, i) =>
-    re.test(part) ? (
-      <mark key={i} className="bg-transparent font-semibold text-foreground">
-        {part}
-      </mark>
-    ) : (
-      <span key={i}>{part}</span>
-    )
-  );
+  const terms = [term];
+  if (digits.length >= 3 && digits !== term) terms.push(digits);
+  return renderHighlighted(value, substringMatchedIndices(value, terms), 'phone');
 }
 
 /**
@@ -351,10 +438,23 @@ export function LandlordSearchSelect({
 
           {/* Typo-tolerance hint when fuzzy matches are present */}
           {!loading && hasFuzzy && (
-            <p className="mt-2 flex items-center gap-1 px-1.5 text-[11px] text-primary">
-              <Sparkles className="h-3 w-3 shrink-0" />
-              Some results matched despite spelling differences.
-            </p>
+            <div className="mt-2 px-1.5 space-y-1">
+              <p className="flex items-center gap-1 text-[11px] text-primary">
+                <Sparkles className="h-3 w-3 shrink-0" />
+                Some results matched despite spelling differences.
+              </p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <mark className={cn('px-1 bg-transparent', HL_CLASS.exact)}>Aa</mark> exact
+                </span>
+                <span className="flex items-center gap-1">
+                  <mark className={cn('px-1 bg-transparent', HL_CLASS.phone)}>09</mark> phone
+                </span>
+                <span className="flex items-center gap-1">
+                  <mark className={cn('px-1 bg-transparent', HL_CLASS.typo)}>Aa</mark> typo
+                </span>
+              </div>
+            </div>
           )}
         </div>
         <div ref={listRef} className="max-h-72 overflow-y-auto py-1">
@@ -454,7 +554,7 @@ export function LandlordSearchSelect({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-medium truncate">
-                        {highlightMatch(l.name, debounced)}
+                        {highlightName(l.name, debounced, l.match_kind)}
                       </p>
                       {ctx && (
                         <span
@@ -471,7 +571,7 @@ export function LandlordSearchSelect({
                     </div>
                     <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                       <Phone className="h-3 w-3 shrink-0" />
-                      {highlightMatch(l.phone, debounced)}
+                      {highlightPhone(l.phone, debounced)}
                       {location && (
                         <>
                           <MapPin className="h-3 w-3 shrink-0 ml-1" />
