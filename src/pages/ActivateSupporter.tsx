@@ -10,7 +10,7 @@ import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus, 
 import WelileLogo from '@/components/WelileLogo';
 import { roleToSlug } from '@/lib/roleRoutes';
 
-type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'profile-setup' | 'success' | 'forgot-password' | 'password-reset';
+type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'profile-setup' | 'review' | 'success' | 'forgot-password' | 'password-reset';
 
 const extractActivationToken = (value: string | null): string => {
   if (!value) return '';
