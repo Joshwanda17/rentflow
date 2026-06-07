@@ -361,7 +361,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       }
     }
     if (s === 2) {
-      // Everything here is optional — only validate fields the agent began filling.
+      // Landlord phone is mandatory — every listing must carry a reachable landlord number.
+      if (!form.landlord_phone.trim()) {
+        toast.error('Landlord phone number is required');
+        return false;
+      }
       if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
         toast.error('Enter the caretaker name and phone');
         return false;
@@ -406,6 +410,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
     { label: 'At least one photo', ok: houseImages.length > 0, hint: 'Add at least one photo of the house', step: 1 },
   ];
+  preflightGates.push({ label: 'Landlord phone number', ok: !!form.landlord_phone.trim(), hint: 'Add the landlord phone number', step: 2 });
   if (form.caretaker_type === 'other') {
     preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 2 });
   }
@@ -442,9 +447,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Add at least one photo of the house');
       return;
     }
-    // Landlord is optional. Only validate a manual entry the agent started.
-    if (manualLandlord && (!!form.landlord_name.trim() !== !!form.landlord_phone.trim())) {
-      failWith('Enter both the landlord name and phone, or clear them');
+    // Landlord phone is mandatory for every listing.
+    if (!form.landlord_phone.trim()) {
+      failWith('Landlord phone number is required');
       return;
     }
     if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
@@ -856,11 +861,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <>
           <div className="text-center">
             <p className="text-base font-semibold">Landlord & finishing touches</p>
-            <p className="text-xs text-muted-foreground">All optional — add what you know now, the rest can come later</p>
+            <p className="text-xs text-muted-foreground">The landlord phone number is required — the rest can come later</p>
           </div>
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal">(optional)</span></p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal text-destructive">(phone required)</span></p>
 
             {/* Step 1 — search the system for a verified landlord */}
             {!selectedLandlord && !manualLandlord && (
@@ -980,7 +985,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Landlord Phone</Label>
+                    <Label className="text-xs">Landlord Phone <span className="text-destructive">*</span></Label>
                     <PhoneInput
                       placeholder="0771234567"
                       value={form.landlord_phone}
