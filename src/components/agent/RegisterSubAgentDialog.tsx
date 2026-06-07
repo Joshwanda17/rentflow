@@ -205,27 +205,27 @@ Password: ${createdInvite?.password}`;
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
+          <Label htmlFor="fullName" className="text-base font-semibold">👤 Full Name</Label>
           <Input
             id="fullName"
             placeholder="Enter sub-agent's full name"
             value={formData.fullName}
             onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
             required
-            className="h-12 text-base rounded-xl"
+            className="h-14 text-base rounded-xl"
             autoComplete="off"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
+          <Label htmlFor="phone" className="text-base font-semibold">📱 Phone Number</Label>
           <Input
             id="phone"
             placeholder="0700000000"
             value={formData.phone}
             onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
             required
-            className="h-12 text-base rounded-xl"
+            className="h-14 text-base rounded-xl"
             autoComplete="off"
             inputMode="tel"
           />
@@ -233,13 +233,13 @@ Password: ${createdInvite?.password}`;
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="password" className="text-sm font-medium">Temporary Password</Label>
+            <Label htmlFor="password" className="text-base font-semibold">🔑 Temporary Password</Label>
             <Button 
               type="button" 
               variant="ghost" 
               size="sm" 
               onClick={generatePassword}
-              className="h-8 text-xs gap-1"
+              className="h-9 text-sm gap-1"
             >
               <Sparkles className="h-3 w-3" />
               Generate New
@@ -254,14 +254,14 @@ Password: ${createdInvite?.password}`;
               onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
               required
               minLength={6}
-              className="h-12 text-base pr-12 rounded-xl"
+              className="h-14 text-base pr-12 rounded-xl"
               autoComplete="off"
             />
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-12 w-12"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -269,20 +269,6 @@ Password: ${createdInvite?.password}`;
           </div>
         </div>
       </div>
-
-      <Button type="submit" className="w-full h-14 text-base font-semibold rounded-xl bg-warning text-warning-foreground hover:bg-warning/90" disabled={isLoading}>
-        {isLoading ? (
-          <>
-            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-            Creating Sub-Agent...
-          </>
-        ) : (
-          <>
-            <UserPlus className="h-5 w-5 mr-2" />
-            Register Sub-Agent
-          </>
-        )}
-      </Button>
 
       {/* Error retry section */}
       {lastError && !isLoading && (
@@ -303,6 +289,23 @@ Password: ${createdInvite?.password}`;
           </div>
         </div>
       )}
+
+      {/* Sticky bottom action — always reachable on small screens */}
+      <div className="sticky bottom-0 -mx-1 px-1 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40">
+        <Button type="submit" className="w-full h-14 text-base font-semibold rounded-xl bg-warning text-warning-foreground hover:bg-warning/90" disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              Creating Sub-Agent...
+            </>
+          ) : (
+            <>
+              <UserPlus className="h-5 w-5 mr-2" />
+              Register Sub-Agent
+            </>
+          )}
+        </Button>
+      </div>
     </form>
   );
 
