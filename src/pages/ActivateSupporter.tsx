@@ -632,12 +632,9 @@ export default function ActivateSupporter() {
               </div>
 
               <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40 space-y-2">
-                <Button type="submit" className="w-full h-14 text-base font-semibold" disabled={isLoading || !fullName.trim() || !newPassword.trim()}>
-                  {isLoading ? (
-                    <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Activating...</>
-                  ) : (
-                    <><CheckCircle2 className="h-5 w-5 mr-2" />Activate Account</>
-                  )}
+                <Button type="submit" className="w-full h-14 text-base font-semibold" disabled={!fullName.trim() || !newPassword.trim()}>
+                  <ArrowRight className="h-5 w-5 mr-2" />
+                  Review &amp; Confirm
                 </Button>
 
                 <button
