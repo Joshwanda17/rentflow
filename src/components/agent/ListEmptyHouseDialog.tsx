@@ -264,6 +264,54 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
   };
 
+  // ─── One-tap GPS: capture current location and auto-fill region/district/village ───
+  const matchRegion = (candidates: (string | undefined)[]): string => {
+    for (const c of candidates) {
+      if (!c) continue;
+      const lc = c.toLowerCase().replace(/\s+region$/, '').trim();
+      const hit = REGIONS.find((r) => {
+        const rl = r.toLowerCase();
+        return lc === rl || lc.includes(rl) || rl.includes(lc);
+      });
+      if (hit) return hit;
+    }
+    return '';
+  };
+
+  const autoFillFromGps = async () => {
+    setGpsFilling(true);
+    try {
+      const res = await captureSmartLocation();
+      if (!res.ok) {
+        toast.error(res.message || 'Could not get your location');
+        return;
+      }
+      setGpsCoords({ latitude: res.latitude, longitude: res.longitude });
+      const geocoded = await reverseGeocode(res.latitude, res.longitude);
+      const addr = (geocoded?.raw as any)?.address as Record<string, string> | undefined;
+      if (!addr) {
+        toast.success('GPS captured — type the area manually if needed');
+        return;
+      }
+      const region = matchRegion([addr.city, addr.county, addr.state_district, addr.state]);
+      const rawDistrict = addr.county || addr.state_district || addr.city || '';
+      const district = normalizeDistrict(rawDistrict) || rawDistrict;
+      const village =
+        addr.village || addr.suburb || addr.neighbourhood || addr.hamlet || addr.quarter || '';
+      setForm((f) => ({
+        ...f,
+        region: region || f.region,
+        district: district || f.district,
+        village: village || f.village,
+        lc1_village: village || f.lc1_village,
+      }));
+      setPrefilledFromProfile(false);
+      toast.success('Location filled from GPS 📍');
+    } finally {
+      setGpsFilling(false);
+    }
+  };
+
   const scrollDialogToTop = () => {
     requestAnimationFrame(() => {
       document
