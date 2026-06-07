@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { hapticTap, hapticWarning } from '@/lib/haptics';
+import FormStepHeader from '@/components/shared/FormStepHeader';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
