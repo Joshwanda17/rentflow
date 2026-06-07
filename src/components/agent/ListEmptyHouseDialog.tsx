@@ -1137,19 +1137,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
 
               {form.caretaker_type === 'other' && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <Label className="text-xs">Caretaker Name *</Label>
+                    <Label className="text-sm font-medium">Caretaker Name *</Label>
                     <Input
                       placeholder="Full name"
+                      className="h-12 text-base"
                       value={form.caretaker_name}
                       onChange={e => setForm(f => ({ ...f, caretaker_name: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Caretaker Phone *</Label>
+                    <Label className="text-sm font-medium">Caretaker Phone *</Label>
                     <Input
                       placeholder="0771234567"
+                      type="tel"
+                      inputMode="tel"
+                      className="h-12 text-base"
                       value={form.caretaker_phone}
                       onChange={e => setForm(f => ({ ...f, caretaker_phone: e.target.value }))}
                     />
