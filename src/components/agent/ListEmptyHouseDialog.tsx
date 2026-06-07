@@ -922,8 +922,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </>
           )}
 
-          {/* ── Step 2: House type & rent ── */}
-          {step === 2 && (
+          {/* ── Step 1: House type & rent ── */}
+          {step === 1 && (
           <>
           <div className="text-center">
             <p className="text-base font-semibold">What kind of house?</p>
