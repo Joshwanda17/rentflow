@@ -287,6 +287,7 @@ export function ListingBonusApprovalQueue({ filter = 'pending_cfo', collapsible 
           </div>
         )}
       </CardContent>
+      )}
     </Card>
   );
 }
