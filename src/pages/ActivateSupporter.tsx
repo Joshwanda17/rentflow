@@ -657,7 +657,7 @@ export default function ActivateSupporter() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
-          <CardTitle className="text-2xl">🔓 Activate Your Account</CardTitle>
+          <CardTitle className="text-2xl">Activate Your Account</CardTitle>
           <CardDescription className="text-base">
             {isValidating ? (
               <span className="inline-block h-4 w-48 bg-muted/50 rounded animate-pulse" />
@@ -667,6 +667,17 @@ export default function ActivateSupporter() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Step Progress Indicator */}
+          <div className="flex items-center gap-2 mb-5">
+            <div className="flex-1 flex flex-col items-center gap-1.5">
+              <div className="h-2 w-full rounded-full bg-primary" />
+              <span className="text-xs font-semibold text-primary">1. Activate</span>
+            </div>
+            <div className="flex-1 flex flex-col items-center gap-1.5">
+              <div className="h-2 w-full rounded-full bg-muted" />
+              <span className="text-xs font-medium text-muted-foreground">2. Profile</span>
+            </div>
+          </div>
           <form onSubmit={handleVerifyPassword} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password" className="text-base font-semibold">🔑 Temporary Password</Label>
