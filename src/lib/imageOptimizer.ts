@@ -49,12 +49,35 @@ function supportsWebP(): boolean {
 /**
  * Load an image File into an HTMLImageElement
  */
-function loadImage(file: File): Promise<HTMLImageElement> {
+function loadImage(file: File, timeoutMs = 15000): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
+    const url = URL.createObjectURL(file);
+    let settled = false;
+
+    // Guard against images that never fire onload/onerror (e.g. some HEIC
+    // files on certain browsers), which would otherwise hang the UI forever.
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      reject(new Error('Image load timed out'));
+    }, timeoutMs);
+
+    img.onload = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(img);
+    };
+    img.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      reject(new Error('Image failed to load'));
+    };
+    img.src = url;
   });
 }
 
