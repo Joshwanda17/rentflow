@@ -1243,6 +1243,30 @@ export function LandlordOpsDashboard() {
           </div>
         )}
 
+        {/* Sort (all categories) */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground font-medium">Sort:</span>
+          <div className="flex gap-1.5">
+            {([
+              { value: 'newest' as SortOption, label: 'Newest' },
+              { value: 'oldest' as SortOption, label: 'Oldest' },
+              { value: 'highest_rent' as SortOption, label: 'Highest Rent' },
+            ]).map(s => (
+              <button
+                key={s.value}
+                onClick={() => setLandlordSort(s.value)}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold transition-all border ${
+                  landlordSort === s.value
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Landlord list table */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <table className="w-full text-sm">
