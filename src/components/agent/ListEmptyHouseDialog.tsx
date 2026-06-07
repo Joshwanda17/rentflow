@@ -225,50 +225,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   };
 
   // ─── Guided wizard navigation ───
-  const TOTAL_STEPS = 4;
-  const STEP_LABELS = ['Landlord', 'House', 'Photos & Place', 'Confirm'];
+  const TOTAL_STEPS = 2;
+  const STEP_LABELS = ['House & photos', 'Landlord & list'];
 
   // Validate just the current step before moving forward. Returns true if OK.
   const validateStep = (s: number): boolean => {
     if (s === 1) {
-      if (!selectedLandlord && !manualLandlord) {
-        toast.error('Pick the landlord or add a new one');
-        return false;
-      }
-      if (manualLandlord && (!form.landlord_name.trim() || !form.landlord_phone.trim())) {
-        toast.error('Enter the new landlord name and phone');
-        return false;
-      }
-      if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
-        toast.error('Enter the caretaker name and phone');
-        return false;
-      }
-    }
-    if (s === 2) {
+      // Essentials only: rent, region and at least one photo.
       if (!monthlyRent || monthlyRent < 10000) {
         toast.error('Monthly rent must be at least UGX 10,000');
         return false;
       }
-    }
-    if (s === 3) {
       if (!form.region) {
         toast.error('Please select a region');
         return false;
       }
-      if (!form.address.trim()) {
-        toast.error('Address is required');
-        return false;
-      }
-      if (!form.village.trim()) {
-        toast.error('Village / Zone is required');
+      if (houseImages.length === 0) {
+        toast.error('Add at least one photo of the house');
         return false;
       }
     }
-    if (s === 4) {
-      const lc1Err = validateLc1Selection(lc1Selection);
-      if (lc1Err) {
-        toast.error(lc1Err);
+    if (s === 2) {
+      // Everything here is optional — only validate fields the agent began filling.
+      if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
+        toast.error('Enter the caretaker name and phone');
         return false;
+      }
+      if (lc1Selection) {
+        const lc1Err = validateLc1Selection(lc1Selection);
+        if (lc1Err) {
+          toast.error(lc1Err);
+          return false;
+        }
       }
     }
     return true;
