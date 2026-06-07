@@ -1144,10 +1144,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     <Label className="text-sm font-medium">Caretaker Name *</Label>
                     <Input
                       placeholder="Full name"
-                      className="h-12 text-base"
+                      className={`h-12 text-base ${attempted && !form.caretaker_name.trim() ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                       value={form.caretaker_name}
                       onChange={e => setForm(f => ({ ...f, caretaker_name: e.target.value }))}
                     />
+                    {attempted && !form.caretaker_name.trim() && (
+                      <FieldError message="Enter the caretaker's full name." />
+                    )}
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Caretaker Phone *</Label>
@@ -1155,10 +1158,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                       placeholder="0771234567"
                       type="tel"
                       inputMode="tel"
-                      className="h-12 text-base"
+                      className={`h-12 text-base ${attempted && !form.caretaker_phone.trim() ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                       value={form.caretaker_phone}
                       onChange={e => setForm(f => ({ ...f, caretaker_phone: e.target.value }))}
                     />
+                    {attempted && !form.caretaker_phone.trim() && (
+                      <FieldError message="Enter the caretaker's phone number." />
+                    )}
                   </div>
                 </div>
               )}
