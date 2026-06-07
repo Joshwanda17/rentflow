@@ -313,3 +313,47 @@ export function formatUgandaPhone(raw: string): string {
   if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
   return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
 }
+
+/**
+ * Normalize a Ugandan phone number to the +256 international format.
+ * Converts 0-prefixed local numbers (e.g. 0771234567) to +256771234567.
+ * Leaves already-formatted +256 numbers and non-Ugandan numbers untouched.
+ */
+export function normalizeUgandaPhone(phone: string): string {
+  const trimmed = phone.trim();
+  const cleaned = cleanPhoneNumber(trimmed);
+
+  // Already in +256 format
+  if (trimmed.startsWith('+256') && cleaned.length === 12) {
+    return trimmed;
+  }
+
+  // 0-prefixed local number: 0771234567 → +256771234567
+  if (cleaned.startsWith('0') && cleaned.length === 10) {
+    return `+256${cleaned.slice(1)}`;
+  }
+
+  // Bare 9-digit number without prefix: 771234567 → +256771234567
+  if (!cleaned.startsWith('0') && !cleaned.startsWith('256') && cleaned.length === 9) {
+    return `+256${cleaned}`;
+  }
+
+  // 256-prefixed without +: 256771234567 → +256771234567
+  if (cleaned.startsWith('256') && cleaned.length === 12 && !trimmed.startsWith('+')) {
+    return `+${cleaned}`;
+  }
+
+  return trimmed;
+}
+
+/**
+ * Normalize AND format for display: 0771234567 → "+256 771 234 567".
+ * Returns the original string if it can't be parsed as a Ugandan number.
+ */
+export function displayNormalizeUgandaPhone(phone: string): string {
+  const normalized = normalizeUgandaPhone(phone);
+  if (!normalized.startsWith('+256')) return phone;
+  const national = normalized.slice(4); // drop +256
+  if (national.length !== 9) return normalized;
+  return `+256 ${national.slice(0, 3)} ${national.slice(3, 6)} ${national.slice(6)}`;
+}
