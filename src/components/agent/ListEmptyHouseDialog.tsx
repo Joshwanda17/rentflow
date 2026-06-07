@@ -398,8 +398,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     if (s === 2) {
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
-      if (!form.landlord_phone.trim()) {
-        toast.error('Landlord phone number is required');
+      const phoneErr = validateLandlordPhone(form.landlord_phone);
+      if (phoneErr) {
+        toast.error(phoneErr);
+        setLandlordPhoneError(phoneErr);
         return false;
       }
       if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
