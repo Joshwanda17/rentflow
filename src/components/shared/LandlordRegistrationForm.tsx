@@ -728,14 +728,12 @@ export default function LandlordRegistrationForm({
           <>
           {/* Friendly, low-pressure intro for first-time / casual agents */}
           {!minimal && (
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold flex items-center gap-2">👤 Landlord details</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Just the landlord's <span className="font-semibold text-foreground">name</span> and{' '}
-                <span className="font-semibold text-foreground">phone</span> registers them. Everything else is optional —
-                you can add it later.
-              </p>
-            </div>
+            <FormStepHeader
+              icon={User}
+              stepLabel="Step 1 of 2"
+              title="Landlord details"
+              subtitle="Just a name and phone registers them — everything else is optional and can be added later."
+            />
           )}
 
           {/* Landlord Name */}
