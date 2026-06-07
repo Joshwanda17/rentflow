@@ -943,10 +943,10 @@ export default function LandlordRegistrationForm({
           </div>
 
           {/* Number of Rentals & Category in row */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Hash className="h-3 w-3" /> No. of Rentals
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Hash className="h-4 w-4" /> No. of Rentals
               </Label>
               <Input
                 type="number"
@@ -954,15 +954,15 @@ export default function LandlordRegistrationForm({
                 value={numberOfRentals}
                 onChange={(e) => setNumberOfRentals(e.target.value)}
                 placeholder="e.g. 5"
-                className="h-10"
+                className="h-12 text-base"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Building2 className="h-3 w-3" /> Category
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Building2 className="h-4 w-4" /> Category
               </Label>
               <Select value={houseCategory} onValueChange={setHouseCategory}>
-                <SelectTrigger className="h-10">
+                <SelectTrigger className="h-12 text-base">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -976,8 +976,8 @@ export default function LandlordRegistrationForm({
 
           {/* Property Address */}
           <div data-field="propertyAddress" className="space-y-1">
-            <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <MapPin className="h-3 w-3" /> Property Address
+            <Label className="text-sm font-semibold flex items-center gap-1.5">
+              <MapPin className="h-4 w-4" /> Property Address
               <span className="text-[10px] font-normal text-muted-foreground">(optional)</span>
             </Label>
             <Input
@@ -985,7 +985,7 @@ export default function LandlordRegistrationForm({
               onChange={(e) => { setPropertyAddress(e.target.value); clearError('propertyAddress'); }}
               onBlur={(e) => validateField('propertyAddress', e.target.value)}
               placeholder="e.g., Kabalagala, Block 5, Plot 12"
-              className={`h-10 ${errors.propertyAddress ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              className={`h-12 text-base ${errors.propertyAddress ? 'border-destructive focus-visible:ring-destructive' : ''}`}
             />
             {errors.propertyAddress && (
               <p className="text-[11px] text-destructive flex items-center gap-1">
