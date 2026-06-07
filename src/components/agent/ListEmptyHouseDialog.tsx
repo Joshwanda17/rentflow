@@ -76,6 +76,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [lc1Selection, setLc1Selection] = useState<Lc1Selection | null>(null);
   const [attempted, setAttempted] = useState(false);
   const [showOptional, setShowOptional] = useState(false);
+  // Landlord phone real-time validation error
+  const [landlordPhoneError, setLandlordPhoneError] = useState<string>('');
   const [successListing, setSuccessListing] = useState<null | {
     id: string;
     shortCode: string | null;
