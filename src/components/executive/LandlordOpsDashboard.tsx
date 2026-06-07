@@ -1678,25 +1678,12 @@ export function LandlordOpsDashboard() {
                   {house.lc1_chairperson_village && <p className="text-[10px] text-muted-foreground">{house.lc1_chairperson_village}</p>}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-11 gap-2 font-bold border-destructive/40 text-destructive hover:bg-destructive/10"
-                  onClick={() => setActionDialog({ listing: house, type: 'reject' })}
-                >
-                  <XCircle className="h-4 w-4" />
-                  Reject
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-11 gap-2 font-bold"
-                  onClick={() => handleVerifyListing(house)}
-                >
-                  <ShieldCheck className="h-4 w-4" />
-                  Verify → UGX 5K
-                </Button>
-              </div>
+              <InlineModerationActions
+                approveLabel="Verify → UGX 5K"
+                rejectLabel="Reject"
+                onApprove={(note) => handleVerifyListing(house, note)}
+                onReject={(note) => handleRejectListing(house, note)}
+              />
             </div>
           ))}
           {unverifiedListings.length === 0 && (
