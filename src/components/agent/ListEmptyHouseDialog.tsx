@@ -985,7 +985,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Landlord Phone</Label>
+                    <Label className="text-xs">Landlord Phone <span className="text-destructive">*</span></Label>
                     <PhoneInput
                       placeholder="0771234567"
                       value={form.landlord_phone}
