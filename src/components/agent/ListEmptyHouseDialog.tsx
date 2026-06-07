@@ -720,16 +720,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             })}
           </div>
 
-          {/* ── Step 1: Landlord ── */}
-          {step === 1 && (
+          {/* ── Step 2: Landlord (optional) ── */}
+          {step === 2 && (
           <>
           <div className="text-center">
-            <p className="text-base font-semibold">Who owns the house?</p>
-            <p className="text-xs text-muted-foreground">Find the landlord, or add a new one</p>
+            <p className="text-base font-semibold">Landlord & finishing touches</p>
+            <p className="text-xs text-muted-foreground">All optional — add what you know now, the rest can come later</p>
           </div>
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal">(optional)</span></p>
 
             {/* Step 1 — search the system for a verified landlord */}
             {!selectedLandlord && !manualLandlord && (
