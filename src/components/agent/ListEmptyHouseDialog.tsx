@@ -1076,21 +1076,24 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </>
           )}
 
-          {/* ── Step 4: LC1 & confirm ── */}
-          {step === 4 && (
+          {/* ── Step 2 (cont.): LC1 (optional) & confirm ── */}
+          {step === 2 && (
           <>
           <div className="text-center">
             <p className="text-base font-semibold">Almost done!</p>
-            <p className="text-xs text-muted-foreground">Add the LC1 chairperson, then list the house</p>
+            <p className="text-xs text-muted-foreground">LC1 chairperson is optional — list the house whenever you're ready</p>
           </div>
-          {/* LC1 Chairperson — search-first or register a new one (earns UGX 5,000) */}
+          {/* LC1 Chairperson — optional, but registering one earns UGX 5,000 */}
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-muted-foreground uppercase">LC1 Chairperson <span className="normal-case text-[10px] font-normal">(optional · earns UGX 5,000)</span></p>
+          </div>
           <Lc1ChairpersonPicker
             value={lc1Selection}
             onChange={setLc1Selection}
             defaultRegion={form.region}
             defaultDistrict={form.district}
             defaultVillage={form.village}
-            attempted={attempted}
+            attempted={attempted && !!lc1Selection}
           />
 
           {/* Amenities */}
