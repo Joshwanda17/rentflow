@@ -622,7 +622,7 @@ export default function ActivateSupporter() {
             </div>
 
             <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] mt-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40 space-y-2">
-              <Button onClick={(e) => handleActivate(e as any)} className="w-full h-14 text-base font-semibold" disabled={isLoading}>
+              <Button onClick={(e) => handleActivate(e as any)} className="w-full h-14 text-base font-semibold" disabled={isLoading || !emailConfirmed || !locationConfirmed || !termsAccepted}>
                 {isLoading ? (
                   <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Activating...</>
                 ) : (
