@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera, Trophy, Sparkles } from 'lucide-react';
+import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera, Trophy, Sparkles, User, ImagePlus, CheckCircle2 } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './Ho
 import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
 import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaPhone } from '@/lib/phoneUtils';
+import FormStepHeader from '@/components/shared/FormStepHeader';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -898,10 +899,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {/* ── Step 2: Landlord (optional) ── */}
           {step === 2 && (
           <>
-          <div className="text-center">
-            <p className="text-lg font-bold">👤 Landlord phone</p>
-            <p className="text-sm text-muted-foreground">Just the phone number is a must — the rest can come later</p>
-          </div>
+          <FormStepHeader
+            icon={User}
+            stepLabel="Step 2 of 2"
+            title="Landlord phone"
+            subtitle="Just the phone number is a must — the rest can come later."
+          />
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal text-destructive">(phone required)</span></p>
@@ -981,10 +984,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-12 text-sm font-semibold w-full"
+                  className="h-12 w-full gap-2 text-sm font-semibold"
                   onClick={() => { setManualLandlord(true); setForm(f => ({ ...f, landlord_name: landlordQuery.trim().match(/^[0-9+]/) ? f.landlord_name : landlordQuery.trim() })); }}
                 >
-                  ➕ Can't find them? Add a new landlord
+                  <UserCheck className="h-4 w-4" /> Can't find them? Add a new landlord
                 </Button>
               </div>
             )}
@@ -1129,8 +1132,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </div>
 
               {form.caretaker_type === 'self' && (
-                <p className="text-xs text-success font-medium bg-success/10 rounded-lg p-2 text-center">
-                  ✅ You'll be registered as the caretaker for this rental
+                <p className="flex items-center justify-center gap-1.5 rounded-lg bg-success/10 p-2 text-xs font-medium text-success">
+                  <Check className="h-3.5 w-3.5" /> You'll be registered as the caretaker for this rental
                 </p>
               )}
 
@@ -1166,10 +1169,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {/* ── Step 1: House type & rent ── */}
           {step === 1 && (
           <>
-          <div className="text-center">
-            <p className="text-lg font-bold">🏠 What kind of house?</p>
-            <p className="text-sm text-muted-foreground">Tap the picture that matches</p>
-          </div>
+          <FormStepHeader
+            icon={Home}
+            stepLabel="Step 1 of 2"
+            title="What kind of house?"
+            subtitle="Tap the picture that matches."
+          />
           {/* Property Details */}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -1207,7 +1212,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             </div>
 
             <div>
-              <Label className="text-sm font-medium">💰 Monthly Rent (UGX) *</Label>
+              <Label className="text-sm font-medium">Monthly Rent (UGX) *</Label>
               <Input
                 type="number"
                 inputMode="numeric"
@@ -1236,10 +1241,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {/* ── Step 1 (cont.): Photos & place ── */}
           {step === 1 && (
           <>
-          <div className="text-center">
-            <p className="text-lg font-bold">📷 Photos &amp; where is it?</p>
-            <p className="text-sm text-muted-foreground">Add at least one photo and the area</p>
-          </div>
+          <FormStepHeader
+            icon={ImagePlus}
+            title="Photos & location"
+            subtitle="Add at least one photo and the area where it is."
+          />
           {/* Photos */}
           <Label className="text-xs font-semibold">Photos * <span className="text-muted-foreground font-normal">— at least one</span></Label>
           <HouseImageUploader
@@ -1330,7 +1336,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               {gpsFilling
                 ? 'Getting your location…'
                 : position
-                  ? '📍 Re-capture GPS'
+                  ? 'Re-capture GPS'
                   : 'Use my GPS & map to fill area'}
             </Button>
             {position && (
@@ -1354,10 +1360,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {/* ── Step 2 (cont.): LC1 (optional) & confirm ── */}
           {step === 2 && (
           <>
-          <div className="text-center">
-            <p className="text-lg font-bold">✅ Almost done!</p>
-            <p className="text-sm text-muted-foreground">LC1 chairperson is optional — list the house whenever you're ready</p>
-          </div>
+          <FormStepHeader
+            icon={CheckCircle2}
+            title="Almost done"
+            subtitle="LC1 chairperson is optional — list the house whenever you're ready."
+          />
           {/* LC1 Chairperson — optional, but registering one earns UGX 5,000 */}
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-muted-foreground uppercase">LC1 Chairperson <span className="normal-case text-[10px] font-normal">(optional · earns UGX 5,000)</span></p>
@@ -1428,9 +1435,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </div>
 
           {/* Bonus reminder */}
-          <div className="p-2 rounded-lg bg-chart-4/10 border border-chart-4/20 text-center">
-            <p className="text-xs text-chart-4 font-semibold">
-              💰 You earn UGX 5,000 the moment a tenant is placed in this house
+          <div className="flex items-center gap-2 rounded-xl border border-chart-4/20 bg-chart-4/10 p-3">
+            <Trophy className="h-4 w-4 shrink-0 text-chart-4" />
+            <p className="text-xs font-semibold text-chart-4">
+              You earn UGX 5,000 the moment a tenant is placed in this house.
             </p>
           </div>
 
