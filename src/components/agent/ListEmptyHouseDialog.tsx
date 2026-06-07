@@ -278,19 +278,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     return '';
   };
 
-  const autoFillFromGps = async () => {
+  // Reverse-geocode a confirmed pin position and fill region/district/village.
+  const fillFromCoords = async (coords: { latitude: number; longitude: number }) => {
+    setGpsCoords(coords);
     setGpsFilling(true);
     try {
-      const res = await captureSmartLocation();
-      if (res.ok !== true) {
-        toast.error(res.message || 'Could not get your location');
-        return;
-      }
-      setGpsCoords({ latitude: res.latitude, longitude: res.longitude });
-      const geocoded = await reverseGeocode(res.latitude, res.longitude);
+      const geocoded = await reverseGeocode(coords.latitude, coords.longitude);
       const addr = (geocoded?.raw as any)?.address as Record<string, string> | undefined;
       if (!addr) {
-        toast.success('GPS captured — type the area manually if needed');
+        toast.success('Pin saved — type the area manually if needed');
         return;
       }
       const region = matchRegion([addr.city, addr.county, addr.state_district, addr.state]);
@@ -306,7 +302,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         lc1_village: village || f.lc1_village,
       }));
       setPrefilledFromProfile(false);
-      toast.success('Location filled from GPS 📍');
+      toast.success('Location filled from the pin 📍');
+    } finally {
+      setGpsFilling(false);
+    }
+  };
+
+  // Capture GPS, then open the map so the agent can drag the pin before filling.
+  const autoFillFromGps = async () => {
+    setGpsFilling(true);
+    try {
+      const res = await captureSmartLocation();
+      if (res.ok !== true) {
+        toast.error(res.message || 'Could not get your location');
+        return;
+      }
+      setMapInitial({ latitude: res.latitude, longitude: res.longitude });
+      setMapPickerOpen(true);
     } finally {
       setGpsFilling(false);
     }
