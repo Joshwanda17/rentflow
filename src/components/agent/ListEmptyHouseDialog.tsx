@@ -861,11 +861,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <>
           <div className="text-center">
             <p className="text-base font-semibold">Landlord & finishing touches</p>
-            <p className="text-xs text-muted-foreground">All optional — add what you know now, the rest can come later</p>
+            <p className="text-xs text-muted-foreground">The landlord phone number is required — the rest can come later</p>
           </div>
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal">(optional)</span></p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal text-destructive">(phone required)</span></p>
 
             {/* Step 1 — search the system for a verified landlord */}
             {!selectedLandlord && !manualLandlord && (
