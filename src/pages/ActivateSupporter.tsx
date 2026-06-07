@@ -497,11 +497,6 @@ export default function ActivateSupporter() {
     );
   }
 
-  // Profile Setup (Step 2)
-  if (pageState === 'profile-setup') {
-    // (rendered below)
-  }
-
   // Review & Confirm (Step 3)
   if (pageState === 'review') {
     const locationLabel =
