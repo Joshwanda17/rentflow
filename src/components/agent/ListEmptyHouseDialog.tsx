@@ -1212,7 +1212,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             </div>
 
             <div>
-              <Label className="text-sm font-medium">💰 Monthly Rent (UGX) *</Label>
+              <Label className="text-sm font-medium">Monthly Rent (UGX) *</Label>
               <Input
                 type="number"
                 inputMode="numeric"
