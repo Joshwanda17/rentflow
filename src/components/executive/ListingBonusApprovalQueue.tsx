@@ -80,11 +80,12 @@ function classifyForCfoQueue(row: BonusApproval): { hidden: boolean; reason: str
   return { hidden: false, reason: null };
 }
 
-export function ListingBonusApprovalQueue({ filter = 'pending_cfo' }: Props) {
+export function ListingBonusApprovalQueue({ filter = 'pending_cfo', collapsible = false, defaultOpen = false }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
+  const [open, setOpen] = useState(defaultOpen);
 
   const { data: classified, isLoading } = useQuery<Classified>({
     queryKey: ['listing-bonus-approvals', filter],
