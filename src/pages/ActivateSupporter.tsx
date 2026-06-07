@@ -646,8 +646,8 @@ export default function ActivateSupporter() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
-          <CardTitle className="text-2xl">Activate Your Account</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl">🔓 Activate Your Account</CardTitle>
+          <CardDescription className="text-base">
             {isValidating ? (
               <span className="inline-block h-4 w-48 bg-muted/50 rounded animate-pulse" />
             ) : (
@@ -658,7 +658,7 @@ export default function ActivateSupporter() {
         <CardContent>
           <form onSubmit={handleVerifyPassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password">Temporary Password</Label>
+              <Label htmlFor="password" className="text-base font-semibold">🔑 Temporary Password</Label>
               <div className="relative">
                 <Input
                   ref={passwordInputRef}
@@ -671,7 +671,7 @@ export default function ActivateSupporter() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={1}
-                  className="h-12 text-base"
+                  className="h-14 text-base"
                   style={{ fontSize: '16px' }}
                 />
                 <Button
@@ -684,15 +684,17 @@ export default function ActivateSupporter() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Use the password shared with you by the agent</p>
+              <p className="text-sm text-muted-foreground">Use the password shared with you by the agent</p>
             </div>
 
-            <Button type="submit" className="w-full h-12 text-base" disabled={!password.trim()}>
-              <ArrowRight className="h-4 w-4 mr-2" />
-              Continue
-            </Button>
+            <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40">
+              <Button type="submit" className="w-full h-14 text-base font-semibold" disabled={!password.trim()}>
+                <ArrowRight className="h-5 w-5 mr-2" />
+                Continue
+              </Button>
+            </div>
 
-            <div className="text-center">
+            <div className="text-center pt-1">
               <button type="button" onClick={() => setPageState('forgot-password')} className="text-sm text-primary hover:underline">
                 Lost your password?
               </button>
