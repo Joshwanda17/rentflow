@@ -20,6 +20,7 @@ import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
 import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaPhone } from '@/lib/phoneUtils';
 import FormStepHeader from '@/components/shared/FormStepHeader';
+import FieldError from '@/components/shared/FieldError';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
