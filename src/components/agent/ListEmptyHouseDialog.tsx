@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { captureSmartLocation } from '@/hooks/useSmartLocation';
+import { reverseGeocode } from '@/lib/reverseGeocode';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
 
@@ -52,9 +54,11 @@ import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDis
 
 export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
   const geo = useGeolocation(true);
-  const geoLoading = geo.loading;
-  const position = geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null;
-  const getPosition = geo.requestGPSPermission;
+  // One-tap GPS auto-fill (capture coordinates + reverse-geocode to region/district/village).
+  const [gpsFilling, setGpsFilling] = useState(false);
+  const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const position = gpsCoords
+    ?? (geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null);
   const [submitting, setSubmitting] = useState(false);
   const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
   // Guided wizard step (1-4) so agents who struggle with long forms only see
@@ -258,6 +262,54 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const clearLandlordSelection = () => {
     setSelectedLandlord(null);
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
+  };
+
+  // ─── One-tap GPS: capture current location and auto-fill region/district/village ───
+  const matchRegion = (candidates: (string | undefined)[]): string => {
+    for (const c of candidates) {
+      if (!c) continue;
+      const lc = c.toLowerCase().replace(/\s+region$/, '').trim();
+      const hit = REGIONS.find((r) => {
+        const rl = r.toLowerCase();
+        return lc === rl || lc.includes(rl) || rl.includes(lc);
+      });
+      if (hit) return hit;
+    }
+    return '';
+  };
+
+  const autoFillFromGps = async () => {
+    setGpsFilling(true);
+    try {
+      const res = await captureSmartLocation();
+      if (res.ok !== true) {
+        toast.error(res.message || 'Could not get your location');
+        return;
+      }
+      setGpsCoords({ latitude: res.latitude, longitude: res.longitude });
+      const geocoded = await reverseGeocode(res.latitude, res.longitude);
+      const addr = (geocoded?.raw as any)?.address as Record<string, string> | undefined;
+      if (!addr) {
+        toast.success('GPS captured — type the area manually if needed');
+        return;
+      }
+      const region = matchRegion([addr.city, addr.county, addr.state_district, addr.state]);
+      const rawDistrict = addr.county || addr.state_district || addr.city || '';
+      const district = normalizeDistrict(rawDistrict) || rawDistrict;
+      const village =
+        addr.village || addr.suburb || addr.neighbourhood || addr.hamlet || addr.quarter || '';
+      setForm((f) => ({
+        ...f,
+        region: region || f.region,
+        district: district || f.district,
+        village: village || f.village,
+        lc1_village: village || f.lc1_village,
+      }));
+      setPrefilledFromProfile(false);
+      toast.success('Location filled from GPS 📍');
+    } finally {
+      setGpsFilling(false);
+    }
   };
 
   const scrollDialogToTop = () => {
@@ -1157,13 +1209,24 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               type="button"
               variant="outline"
               size="sm"
-              onClick={getPosition}
-              disabled={geoLoading}
+              onClick={autoFillFromGps}
+              disabled={gpsFilling}
               className="w-full"
             >
-              <MapPin className="h-4 w-4 mr-2" />
-              {geoLoading ? 'Getting location...' : position ? '📍 GPS Captured' : 'Capture GPS Location'}
+              {gpsFilling ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <MapPin className="h-4 w-4 mr-2" />
+              )}
+              {gpsFilling
+                ? 'Getting your location…'
+                : position
+                  ? '📍 Auto-fill again from GPS'
+                  : 'Use my GPS to fill area'}
             </Button>
+            <p className="text-[10px] text-muted-foreground text-center leading-tight">
+              One tap fills region, district & village from where you are now
+            </p>
           </div>
           </>
           )}
