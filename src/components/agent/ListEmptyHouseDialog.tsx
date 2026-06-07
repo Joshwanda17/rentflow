@@ -899,10 +899,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {/* ── Step 2: Landlord (optional) ── */}
           {step === 2 && (
           <>
-          <div className="text-center">
-            <p className="text-lg font-bold">👤 Landlord phone</p>
-            <p className="text-sm text-muted-foreground">Just the phone number is a must — the rest can come later</p>
-          </div>
+          <FormStepHeader
+            icon={User}
+            stepLabel="Step 2 of 2"
+            title="Landlord phone"
+            subtitle="Just the phone number is a must — the rest can come later."
+          />
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal text-destructive">(phone required)</span></p>
