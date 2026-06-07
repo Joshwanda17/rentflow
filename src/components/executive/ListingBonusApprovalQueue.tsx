@@ -170,16 +170,35 @@ export function ListingBonusApprovalQueue({ filter = 'pending_cfo', collapsible 
   return (
     <Card className="border-amber-400/40 bg-amber-50/50 dark:bg-amber-950/20">
       <CardHeader className="pb-2 px-4 pt-4">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Banknote className="h-4 w-4 text-amber-600" />
-          Listing Bonus Approvals
-          {pending.length > 0 && (
-            <Badge className="bg-amber-500/20 text-amber-700 border-0 text-xs animate-pulse">
-              {pending.length} pending
-            </Badge>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Banknote className="h-4 w-4 text-amber-600" />
+            Listing Bonus Approvals
+            {pending.length > 0 && (
+              <Badge className="bg-amber-500/20 text-amber-700 border-0 text-xs animate-pulse">
+                {pending.length} pending
+              </Badge>
+            )}
+          </CardTitle>
+          {collapsible && (
+            <button
+              onClick={() => setOpen(o => !o)}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {open ? (
+                <>
+                  <ChevronUp className="h-3.5 w-3.5" /> Hide
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-3.5 w-3.5" /> Show
+                </>
+              )}
+            </button>
           )}
-        </CardTitle>
+        </div>
       </CardHeader>
+      {(!collapsible || open) && (
       <CardContent className="px-4 pb-4 space-y-2">
         {pending.length === 0 && filter !== 'pending_cfo' && processed.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-4">No listing bonus approvals yet</p>
