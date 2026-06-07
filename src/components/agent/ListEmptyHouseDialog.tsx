@@ -471,6 +471,21 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
       if (error) throw error;
 
+      // Remember this landlord locally so the next listing can reuse them in one tap.
+      try {
+        const remembered: LandlordHit | null = selectedLandlord
+          ? selectedLandlord
+          : (landlordId && form.landlord_name.trim())
+            ? { id: landlordId, name: form.landlord_name.trim(), phone: form.landlord_phone.trim(), verified: false, verifiedHouses: 0 }
+            : null;
+        if (remembered) {
+          localStorage.setItem(`welile_last_landlord_${user.id}`, JSON.stringify(remembered));
+          setLastLandlord(remembered);
+        }
+      } catch {
+        /* non-critical */
+      }
+
       // Instant UGX 1,000 listing reward → agent withdrawable wallet (best-effort,
       // never blocks listing). The remaining UGX 4,000 is auto-paid when Landlord
       // Ops verifies the house.
