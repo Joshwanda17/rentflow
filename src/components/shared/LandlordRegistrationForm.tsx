@@ -1051,52 +1051,52 @@ export default function LandlordRegistrationForm({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">MoMo Name</Label>
+                <Label className="text-xs font-semibold text-muted-foreground">MoMo Name</Label>
                 <Input
                   value={momoName}
                   onChange={(e) => setMomoName(e.target.value)}
                   placeholder="Name on MoMo"
-                  className="h-9 text-xs"
+                  className="h-12 text-base"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">MoMo Number</Label>
+                <Label className="text-xs font-semibold text-muted-foreground">MoMo Number</Label>
                 <Input
                   type="tel"
                   inputMode="tel"
                   value={momoNumber}
                   onChange={(e) => setMomoNumber(formatUgandaPhone(e.target.value))}
                   placeholder="07XX XXX XXX"
-                  className="h-9 text-xs"
+                  className="h-12 text-base"
                 />
               </div>
             </div>
           </div>
 
           {/* Utility Meters */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Droplets className="h-3 w-3 text-blue-500" /> NWSC Meter
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Droplets className="h-4 w-4 text-blue-500" /> NWSC Meter
                 <span className="text-[10px] font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 value={nwscMeter}
                 onChange={(e) => setNwscMeter(e.target.value)}
                 placeholder="In landlord's name"
-                className="h-10 text-xs"
+                className="h-12 text-base"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Zap className="h-3 w-3 text-yellow-500" /> UEDCL Meter
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Zap className="h-4 w-4 text-yellow-500" /> UEDCL Meter
                 <span className="text-[10px] font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 value={uedclMeter}
                 onChange={(e) => setUedclMeter(e.target.value)}
                 placeholder="In landlord's name"
-                className="h-10 text-xs"
+                className="h-12 text-base"
               />
             </div>
           </div>
@@ -1104,7 +1104,7 @@ export default function LandlordRegistrationForm({
           {/* Temporary Password */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold">Temporary Password</Label>
+              <Label className="text-sm font-semibold">Temporary Password</Label>
               <Button type="button" variant="ghost" size="sm" onClick={generateTempPassword}
                 className="gap-1 text-[10px] h-6 px-2 text-primary">
                 <RefreshCw className="h-3 w-3" /> Generate
@@ -1115,7 +1115,7 @@ export default function LandlordRegistrationForm({
                 type={showPassword ? 'text' : 'password'}
                 value={tempPassword}
                 placeholder="Auto-generated"
-                className="h-10 pr-10 text-xs"
+                className="h-12 pr-12 text-base"
                 readOnly
               />
               <Button type="button" variant="ghost" size="icon"
