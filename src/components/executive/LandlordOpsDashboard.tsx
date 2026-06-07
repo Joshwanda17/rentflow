@@ -1194,8 +1194,10 @@ export function LandlordOpsDashboard() {
               ) : (
                 paginated.map(landlord => {
                   const tenantCount = landlord.tenants?.length || 0;
+                  const isExpanded = expandedLandlordId === landlord.id;
                   return (
-                    <tr key={landlord.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    <Fragment key={landlord.id}>
+                    <tr className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="px-3 py-2.5">
                         <span className="font-medium text-foreground">{landlord.name}</span>
                         <span className="sm:hidden block text-[11px] text-muted-foreground">{landlord.phone || '—'}</span>
@@ -1211,16 +1213,45 @@ export function LandlordOpsDashboard() {
                       <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{tenantCount > 0 ? tenantCount : '—'}</td>
                       <td className="px-3 py-2.5 text-muted-foreground truncate max-w-[120px] hidden lg:table-cell">{landlord.agent_name || '—'}</td>
                       <td className="px-3 py-2.5 text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setEditLandlord({ ...landlord })}
-                        >
-                          View
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {!landlord.verified && (
+                            <Button
+                              variant={isExpanded ? 'secondary' : 'default'}
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => setExpandedLandlordId(isExpanded ? null : landlord.id)}
+                            >
+                              {isExpanded ? 'Close' : 'Review'}
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setEditLandlord({ ...landlord })}
+                          >
+                            View
+                          </Button>
+                        </div>
                       </td>
                     </tr>
+                    {isExpanded && !landlord.verified && (
+                      <tr className="border-b border-border last:border-0 bg-muted/20">
+                        <td colSpan={6} className="px-3 py-3">
+                          <p className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                            <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+                            Verify {landlord.name}
+                          </p>
+                          <InlineModerationActions
+                            approveLabel="Approve"
+                            rejectLabel="Reject"
+                            onApprove={(note) => handleApproveLandlord(landlord, note)}
+                            onReject={(note) => handleRejectLandlord(landlord, note)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })
               )}
