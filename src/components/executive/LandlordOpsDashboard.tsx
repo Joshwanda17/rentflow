@@ -1693,28 +1693,148 @@ export function LandlordOpsDashboard() {
       <>
       <div className="space-y-3">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue ({unverifiedListings.length})</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
+          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{unverifiedListings.length} pending</Badge>
+        </div>
         <ListingBonusApprovalQueue filter="all" />
         <VerificationTimelinePanel />
-        <div className="space-y-2">
+        <div className="space-y-3">
           {unverifiedListings.map(house => (
-            <div key={house.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
-              <HouseCardInner house={house} onImages={setPreviewImages} onAssign={handleAssignPerson} />
-              {/* LC1 Info */}
-              {house.lc1_chairperson_name && (
-                <div className="rounded-lg bg-amber-500/10 p-2 space-y-0.5">
-                  <p className="text-[10px] font-semibold text-amber-700">LC1 Chairperson</p>
-                  <p className="text-xs font-medium">{house.lc1_chairperson_name}</p>
-                  {house.lc1_chairperson_phone && <PhoneLinks phone={house.lc1_chairperson_phone} name={house.lc1_chairperson_name} />}
-                  {house.lc1_chairperson_village && <p className="text-[10px] text-muted-foreground">{house.lc1_chairperson_village}</p>}
+            <div key={house.id} className="rounded-xl border border-border bg-card overflow-hidden">
+              {/* ── Card Header ── */}
+              <div className="p-4 pb-3 space-y-3">
+                <div className="flex gap-3">
+                  {/* Thumbnail */}
+                  <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border">
+                    {house.image_urls?.[0] ? (
+                      <button onClick={() => setPreviewImages({ images: house.image_urls!, title: house.title })} className="w-full h-full">
+                        <StorageImage src={house.image_urls[0]} alt={house.title} className="w-full h-full object-cover" />
+                      </button>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Home className="h-6 w-6 text-muted-foreground/30" />
+                      </div>
+                    )}
+                  </div>
+                  {/* House Title & Rent */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="font-bold text-base leading-tight truncate">{house.title}</p>
+                    <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      {house.region}{house.district ? `, ${house.district}` : ''}{house.village ? ` · ${house.village}` : ''}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">{house.house_category}</Badge>
+                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">{house.number_of_rooms} rooms</Badge>
+                      <Badge className="bg-primary/10 text-primary border-0 text-[10px] h-5 px-1.5 font-bold">UGX {house.monthly_rent.toLocaleString()}/mo</Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Divider ── */}
+              <div className="h-px bg-border mx-4" />
+
+              {/* ── Prominent Landlord Section ── */}
+              {house.landlords ? (
+                <div className="p-4 py-3 bg-sky-500/5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Building2 className="h-3 w-3" />
+                    Registered Landlord
+                  </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-sm font-bold text-foreground truncate">{house.landlords.name}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <PhoneLinks phone={house.landlords.phone} name={house.landlords.name} />
+                        {house.landlords.mobile_money_name && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-sky-300 text-sky-700">
+                            MoMo: {house.landlords.mobile_money_name}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      {house.landlords.verified ? (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px] h-5 px-2">
+                          <CheckCircle2 className="h-3 w-3 mr-1" /> Verified
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] h-5 px-2">
+                          <AlertTriangle className="h-3 w-3 mr-1" /> Unverified
+                        </Badge>
+                      )}
+                      {house.landlords.has_smartphone != null && (
+                        house.landlords.has_smartphone ? (
+                          <Badge className="bg-green-100 text-green-700 border-0 text-[9px] h-4 px-1.5">Smartphone</Badge>
+                        ) : (
+                          <Badge className="bg-orange-100 text-orange-700 border-0 text-[9px] h-4 px-1.5">No Smartphone</Badge>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 py-3 bg-orange-500/5">
+                  <div className="flex items-center gap-2">
+                    <UserX className="h-4 w-4 text-orange-600" />
+                    <p className="text-sm font-semibold text-orange-700 dark:text-orange-300">No landlord linked to this listing</p>
+                  </div>
+                  {onAssign && (
+                    <Button size="sm" variant="outline" className="mt-2 h-8 text-xs gap-1 border-orange-300 text-orange-700 hover:bg-orange-100" onClick={() => handleAssignPerson(house.id, house.title, 'landlord')}>
+                      <UserPlus className="h-3 w-3" /> Link Landlord
+                    </Button>
+                  )}
                 </div>
               )}
-              <InlineModerationActions
-                approveLabel="Verify → UGX 5K"
-                rejectLabel="Reject"
-                onApprove={(note) => handleVerifyListing(house, note)}
-                onReject={(note) => handleRejectListing(house, note)}
-              />
+
+              {/* ── Agent & LC1 Details ── */}
+              <div className="px-4 py-3 space-y-2">
+                {/* Agent */}
+                {house.agent_name && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-indigo-500/5 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Listing Agent</p>
+                      <p className="text-xs font-medium truncate">{house.agent_name}</p>
+                    </div>
+                    {house.agent_phone && <PhoneLinks phone={house.agent_phone} name={house.agent_name} />}
+                  </div>
+                )}
+                {/* LC1 */}
+                {house.lc1_chairperson_name && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-amber-500/5 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">LC1 Chairperson</p>
+                      <p className="text-xs font-medium truncate">{house.lc1_chairperson_name}</p>
+                      {house.lc1_chairperson_village && (
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-2.5 w-2.5" />{house.lc1_chairperson_village}
+                        </p>
+                      )}
+                    </div>
+                    {house.lc1_chairperson_phone && (
+                      <PhoneLinks phone={house.lc1_chairperson_phone} name={house.lc1_chairperson_name} />
+                    )}
+                  </div>
+                )}
+                {/* GPS */}
+                {house.latitude && house.longitude && (
+                  <a href={`https://www.google.com/maps?q=${house.latitude},${house.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-primary hover:underline text-[11px] font-medium">
+                    <MapPinned className="h-3.5 w-3.5" /> View exact location on Google Maps
+                  </a>
+                )}
+              </div>
+
+              {/* ── Moderation Actions ── */}
+              <div className="p-4 pt-2 bg-muted/30 border-t border-border">
+                <InlineModerationActions
+                  approveLabel="Verify → UGX 5K"
+                  rejectLabel="Reject"
+                  onApprove={(note) => handleVerifyListing(house, note)}
+                  onReject={(note) => handleRejectListing(house, note)}
+                />
+              </div>
             </div>
           ))}
           {unverifiedListings.length === 0 && (
