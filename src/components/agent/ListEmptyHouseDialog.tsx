@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { captureSmartLocation } from '@/hooks/useSmartLocation';
+import { reverseGeocode } from '@/lib/reverseGeocode';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
 
