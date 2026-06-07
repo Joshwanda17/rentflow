@@ -727,24 +727,27 @@ export default function LandlordRegistrationForm({
           <>
           {/* Friendly, low-pressure intro for first-time / casual agents */}
           {!minimal && (
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Just the landlord's <span className="font-semibold text-foreground">name</span> and{' '}
-              <span className="font-semibold text-foreground">phone</span> registers them. Everything else is optional —
-              you can add it later.
-            </p>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold flex items-center gap-2">👤 Landlord details</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Just the landlord's <span className="font-semibold text-foreground">name</span> and{' '}
+                <span className="font-semibold text-foreground">phone</span> registers them. Everything else is optional —
+                you can add it later.
+              </p>
+            </div>
           )}
 
           {/* Landlord Name */}
           <div data-field="landlordName" className="space-y-1">
-            <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <User className="h-3 w-3" /> Landlord Name *
+            <Label className="text-sm font-semibold flex items-center gap-1.5">
+              <User className="h-4 w-4" /> Landlord Name *
             </Label>
             <Input
               value={landlordName}
               onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); clearSubmitError(); }}
               onBlur={(e) => validateField('landlordName', e.target.value)}
               placeholder="e.g. John Bosco Ssentamu — as on National ID"
-              className={`h-10 ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              className={`h-12 text-base ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
             {errors.landlordName && (
@@ -756,8 +759,8 @@ export default function LandlordRegistrationForm({
 
           {/* Phone Number */}
           <div data-field="landlordPhone" className="space-y-1">
-            <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <Phone className="h-3 w-3" /> Phone Number *
+            <Label className="text-sm font-semibold flex items-center gap-1.5">
+              <Phone className="h-4 w-4" /> Phone Number *
             </Label>
             <Input
               type="tel"
@@ -766,7 +769,7 @@ export default function LandlordRegistrationForm({
               onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); clearSubmitError(); setPhoneVerified(false); }}
               onBlur={(e) => { void checkPhoneAvailable(e.target.value); }}
               placeholder="07XX XXX XXX — 10 digits"
-              className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              className={`h-12 text-base ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
             {checkingPhone && (
@@ -795,15 +798,15 @@ export default function LandlordRegistrationForm({
               </div>
               <div className="space-y-2">
                 <div data-field="lc1Name" className="space-y-1">
-                  <Label className="text-xs font-semibold flex items-center gap-1.5">
-                    <User className="h-3 w-3" /> LC1 Name *
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <User className="h-4 w-4" /> LC1 Name *
                   </Label>
                   <Input
                     value={lc1Name}
                     onChange={(e) => { setLc1Name(e.target.value); clearError('lc1Name'); }}
                     onBlur={(e) => validateField('lc1Name', e.target.value)}
                     placeholder="e.g. Grace Nakato Ssebunya — LC1 Chairperson"
-                    className={`h-10 ${errors.lc1Name ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                    className={`h-12 text-base ${errors.lc1Name ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
                   {errors.lc1Name && (
@@ -813,8 +816,8 @@ export default function LandlordRegistrationForm({
                   )}
                 </div>
                 <div data-field="lc1Phone" className="space-y-1">
-                  <Label className="text-xs font-semibold flex items-center gap-1.5">
-                    <Phone className="h-3 w-3" /> LC1 Phone *
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <Phone className="h-4 w-4" /> LC1 Phone *
                   </Label>
                   <Input
                     type="tel"
@@ -823,7 +826,7 @@ export default function LandlordRegistrationForm({
                     onChange={(e) => { setLc1Phone(formatUgandaPhone(e.target.value)); clearError('lc1Phone'); }}
                     onBlur={(e) => validateField('lc1Phone', cleanPhoneNumber(e.target.value))}
                     placeholder="07XX XXX XXX — 10 digits"
-                    className={`h-10 ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                    className={`h-12 text-base ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
                   {errors.lc1Phone && (
@@ -860,26 +863,27 @@ export default function LandlordRegistrationForm({
           })()}
 
           {/* Next — advance to the confirmation step once essentials are valid */}
-          <Button
-            type="button"
-            onClick={handleNext}
-            className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
-            disabled={loading || checkingPhone}
-          >
-            {checkingPhone ? (
-              <><Loader2 className="h-5 w-5 animate-spin" /> Checking number…</>
-            ) : (
-              <><CheckCircle2 className="h-5 w-5" /> Next</>
+          <div className="sticky bottom-0 -mx-1 px-1 pt-2 pb-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/60 z-10">
+            <Button
+              type="button"
+              onClick={handleNext}
+              className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
+              disabled={loading || checkingPhone}
+            >
+              {checkingPhone ? (
+                <><Loader2 className="h-5 w-5 animate-spin" /> Checking number…</>
+              ) : (
+                <><CheckCircle2 className="h-5 w-5" /> Next</>
+              )}
+            </Button>
+            {/* Step hint shown before the essentials are complete so a first-time
+                agent always understands the single next action. */}
+            {!(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone))) && (
+              <p className="text-xs text-center text-muted-foreground mt-1.5">
+                Step 1: enter the landlord's name &amp; phone, then tap Next.
+              </p>
             )}
-          </Button>
-
-          {/* Step hint shown before the essentials are complete so a first-time
-              agent always understands the single next action. */}
-          {!(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone))) && (
-            <p className="text-[11px] text-center text-muted-foreground">
-              Step 1: enter the landlord's name &amp; phone, then tap Next.
-            </p>
-          )}
+          </div>
 
           {/* Toggle to reveal the optional property / payout details */}
           {!minimal && (
@@ -939,10 +943,10 @@ export default function LandlordRegistrationForm({
           </div>
 
           {/* Number of Rentals & Category in row */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Hash className="h-3 w-3" /> No. of Rentals
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Hash className="h-4 w-4" /> No. of Rentals
               </Label>
               <Input
                 type="number"
@@ -950,15 +954,15 @@ export default function LandlordRegistrationForm({
                 value={numberOfRentals}
                 onChange={(e) => setNumberOfRentals(e.target.value)}
                 placeholder="e.g. 5"
-                className="h-10"
+                className="h-12 text-base"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Building2 className="h-3 w-3" /> Category
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Building2 className="h-4 w-4" /> Category
               </Label>
               <Select value={houseCategory} onValueChange={setHouseCategory}>
-                <SelectTrigger className="h-10">
+                <SelectTrigger className="h-12 text-base">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -972,8 +976,8 @@ export default function LandlordRegistrationForm({
 
           {/* Property Address */}
           <div data-field="propertyAddress" className="space-y-1">
-            <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <MapPin className="h-3 w-3" /> Property Address
+            <Label className="text-sm font-semibold flex items-center gap-1.5">
+              <MapPin className="h-4 w-4" /> Property Address
               <span className="text-[10px] font-normal text-muted-foreground">(optional)</span>
             </Label>
             <Input
@@ -981,7 +985,7 @@ export default function LandlordRegistrationForm({
               onChange={(e) => { setPropertyAddress(e.target.value); clearError('propertyAddress'); }}
               onBlur={(e) => validateField('propertyAddress', e.target.value)}
               placeholder="e.g., Kabalagala, Block 5, Plot 12"
-              className={`h-10 ${errors.propertyAddress ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              className={`h-12 text-base ${errors.propertyAddress ? 'border-destructive focus-visible:ring-destructive' : ''}`}
             />
             {errors.propertyAddress && (
               <p className="text-[11px] text-destructive flex items-center gap-1">
@@ -1047,52 +1051,52 @@ export default function LandlordRegistrationForm({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">MoMo Name</Label>
+                <Label className="text-xs font-semibold text-muted-foreground">MoMo Name</Label>
                 <Input
                   value={momoName}
                   onChange={(e) => setMomoName(e.target.value)}
                   placeholder="Name on MoMo"
-                  className="h-9 text-xs"
+                  className="h-12 text-base"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">MoMo Number</Label>
+                <Label className="text-xs font-semibold text-muted-foreground">MoMo Number</Label>
                 <Input
                   type="tel"
                   inputMode="tel"
                   value={momoNumber}
                   onChange={(e) => setMomoNumber(formatUgandaPhone(e.target.value))}
                   placeholder="07XX XXX XXX"
-                  className="h-9 text-xs"
+                  className="h-12 text-base"
                 />
               </div>
             </div>
           </div>
 
           {/* Utility Meters */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Droplets className="h-3 w-3 text-blue-500" /> NWSC Meter
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Droplets className="h-4 w-4 text-blue-500" /> NWSC Meter
                 <span className="text-[10px] font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 value={nwscMeter}
                 onChange={(e) => setNwscMeter(e.target.value)}
                 placeholder="In landlord's name"
-                className="h-10 text-xs"
+                className="h-12 text-base"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Zap className="h-3 w-3 text-yellow-500" /> UEDCL Meter
+              <Label className="text-sm font-semibold flex items-center gap-1.5">
+                <Zap className="h-4 w-4 text-yellow-500" /> UEDCL Meter
                 <span className="text-[10px] font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 value={uedclMeter}
                 onChange={(e) => setUedclMeter(e.target.value)}
                 placeholder="In landlord's name"
-                className="h-10 text-xs"
+                className="h-12 text-base"
               />
             </div>
           </div>
@@ -1100,7 +1104,7 @@ export default function LandlordRegistrationForm({
           {/* Temporary Password */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold">Temporary Password</Label>
+              <Label className="text-sm font-semibold">Temporary Password</Label>
               <Button type="button" variant="ghost" size="sm" onClick={generateTempPassword}
                 className="gap-1 text-[10px] h-6 px-2 text-primary">
                 <RefreshCw className="h-3 w-3" /> Generate
@@ -1111,7 +1115,7 @@ export default function LandlordRegistrationForm({
                 type={showPassword ? 'text' : 'password'}
                 value={tempPassword}
                 placeholder="Auto-generated"
-                className="h-10 pr-10 text-xs"
+                className="h-12 pr-12 text-base"
                 readOnly
               />
               <Button type="button" variant="ghost" size="icon"
@@ -1129,6 +1133,10 @@ export default function LandlordRegistrationForm({
           {/* ===== Step 2: Confirmation ===== */}
           {step === 2 && !success && (
           <>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold flex items-center gap-2">✅ Confirm &amp; register</h3>
+              <p className="text-sm text-muted-foreground">Check the details below, then tap Register.</p>
+            </div>
             {(() => {
               const nameErr = computeFieldError('landlordName', landlordName);
               const phoneErr = computeFieldError('landlordPhone', landlordPhone);
@@ -1227,38 +1235,41 @@ export default function LandlordRegistrationForm({
               )}
             </div>
 
-            {/* Register — final submit on the confirmation step */}
-            <Button
-              type="submit"
-              onClick={() => hapticTap()}
-              className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
-              disabled={loading}
-            >
-              {loading ? (
-                <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
-              ) : (
-                <><Building2 className="h-5 w-5" /> Register Landlord</>
-              )}
-            </Button>
-
-            {/* Back to edit the entered details */}
-            {!loading && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => { hapticTap(); setStep(1); }}
-                className="w-full h-11 gap-2 text-xs text-muted-foreground touch-manipulation select-none"
-              >
-                <ChevronUp className="h-4 w-4 rotate-90" /> Back to edit
-              </Button>
-            )}
-
             {/* Inline stepped progress so the agent always sees forward motion */}
             {loading && progressMsg && (
               <p className="flex items-center justify-center gap-2 text-sm font-medium text-primary animate-pulse">
                 <Loader2 className="h-4 w-4 animate-spin" /> {progressMsg}
               </p>
             )}
+
+            {/* Sticky bottom action bar — primary action always reachable */}
+            <div className="sticky bottom-0 -mx-1 px-1 pt-2 pb-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/60 z-10 space-y-1.5">
+              {/* Register — final submit on the confirmation step */}
+              <Button
+                type="submit"
+                onClick={() => hapticTap()}
+                className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
+                disabled={loading}
+              >
+                {loading ? (
+                  <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
+                ) : (
+                  <><Building2 className="h-5 w-5" /> Register Landlord</>
+                )}
+              </Button>
+
+              {/* Back to edit the entered details */}
+              {!loading && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => { hapticTap(); setStep(1); }}
+                  className="w-full h-11 gap-2 text-sm text-muted-foreground touch-manipulation select-none"
+                >
+                  <ChevronUp className="h-4 w-4 rotate-90" /> Back to edit
+                </Button>
+              )}
+            </div>
 
             {/* Inline error banner — stays on screen so agents on weak networks always know what happened */}
             <AnimatePresence>
