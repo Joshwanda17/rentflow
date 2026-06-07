@@ -57,6 +57,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // One-tap GPS auto-fill (capture coordinates + reverse-geocode to region/district/village).
   const [gpsFilling, setGpsFilling] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  // Map pin picker so the agent can correct the spot before auto-filling.
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [mapInitial, setMapInitial] = useState<{ latitude: number; longitude: number }>({
+    latitude: 0.3476,
+    longitude: 32.5825,
+  });
   const position = gpsCoords
     ?? (geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null);
   const [submitting, setSubmitting] = useState(false);
