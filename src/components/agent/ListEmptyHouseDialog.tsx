@@ -1163,8 +1163,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {step === 1 && (
           <>
           <div className="text-center">
-            <p className="text-base font-semibold">What kind of house?</p>
-            <p className="text-xs text-muted-foreground">Tap the picture that matches</p>
+            <p className="text-lg font-bold">🏠 What kind of house?</p>
+            <p className="text-sm text-muted-foreground">Tap the picture that matches</p>
           </div>
           {/* Property Details */}
           <div className="space-y-3">
