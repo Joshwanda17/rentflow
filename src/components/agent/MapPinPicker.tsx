@@ -50,16 +50,30 @@ function ClickToMove({ onMove }: { onMove: (pos: LatLng) => void }) {
 export function MapPinPicker({ open, onOpenChange, initial, onConfirm }: MapPinPickerProps) {
   const [pos, setPos] = useState<LatLng>(initial);
   const [locating, setLocating] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [address, setAddress] = useState<string>('');
   const [fetchingAddress, setFetchingAddress] = useState(false);
   const [addressError, setAddressError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset the pin to the latest initial position each time the dialog opens.
+  // Reset states each time the dialog opens.
   useEffect(() => {
-    if (open) setPos(initial);
+    if (open) {
+      setPos(initial);
+      setConfirming(false);
+      setSaved(false);
+    }
   }, [open, initial.latitude, initial.longitude]);
+
+  // Clean up timers on unmount.
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
+  }, []);
 
   // Debounced reverse-geocode preview whenever the pin moves.
   const fetchPreview = async (coords: LatLng) => {
