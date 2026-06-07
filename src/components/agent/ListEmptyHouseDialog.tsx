@@ -1314,10 +1314,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={autoFillFromGps}
               disabled={gpsFilling}
-              className="w-full"
+              className="w-full h-12 text-base"
             >
               {gpsFilling ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
