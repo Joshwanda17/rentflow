@@ -1259,9 +1259,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Region *</Label>
+                <Label className="text-sm font-medium">Region *</Label>
                 <Select value={form.region} onValueChange={v => setForm(f => ({ ...f, region: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className="h-12 text-base"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {REGIONS.map(r => (
                       <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
@@ -1270,9 +1270,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">District</Label>
+                <Label className="text-sm font-medium">District</Label>
                 <Input
                   placeholder="District"
+                  className="h-12 text-base"
                   value={form.district}
                   onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
                   onBlur={e => {
@@ -1290,17 +1291,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </div>
             </div>
             <div>
-              <Label className="text-xs">Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium">Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 placeholder="e.g. Plot 12, Nansana Road"
+                className="h-12 text-base"
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               />
             </div>
             <div>
-              <Label className="text-xs">Village / Zone <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium">Village / Zone <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 placeholder="e.g. Kikaya Zone B"
+                className="h-12 text-base"
                 value={form.village}
                 onChange={e => {
                   const val = e.target.value;
