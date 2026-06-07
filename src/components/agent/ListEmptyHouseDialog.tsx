@@ -267,6 +267,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSelectedLandlord(hit);
     setManualLandlord(false);
     setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: hit.phone }));
+    setLandlordPhoneError('');
   };
 
   const clearLandlordSelection = () => {
