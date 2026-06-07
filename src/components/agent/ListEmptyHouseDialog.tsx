@@ -788,7 +788,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) closeAll(); else onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md max-h-[92vh] overflow-y-auto rounded-2xl p-4 sm:p-6">
         {successListing ? (
           <div className="space-y-5 py-2">
             <div className="text-center space-y-2">
@@ -879,7 +879,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               return (
                 <div key={label} className="flex-1 text-center">
                   <div
-                    className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                    className={`mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-full text-base font-bold ${
                       done
                         ? 'bg-success text-success-foreground'
                         : active
@@ -887,9 +887,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                           : 'bg-muted text-muted-foreground'
                     }`}
                   >
-                    {done ? <Check className="h-4 w-4" /> : n}
+                    {done ? <Check className="h-5 w-5" /> : n}
                   </div>
-                  <span className={`text-[10px] ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{label}</span>
+                  <span className={`text-xs ${active ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{label}</span>
                 </div>
               );
             })}
@@ -899,8 +899,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {step === 2 && (
           <>
           <div className="text-center">
-            <p className="text-base font-semibold">Landlord & finishing touches</p>
-            <p className="text-xs text-muted-foreground">The landlord phone number is required — the rest can come later</p>
+            <p className="text-lg font-bold">👤 Landlord phone</p>
+            <p className="text-sm text-muted-foreground">Just the phone number is a must — the rest can come later</p>
           </div>
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
@@ -928,17 +928,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     <p className="text-xs text-muted-foreground">{lastLandlord.phone}</p>
                   </button>
                 )}
-                <Label className="text-xs">Search the landlord in the system first</Label>
+                <Label className="text-sm font-medium">Search the landlord in the system first</Label>
                 <div className="flex gap-2">
                   <Input
                     placeholder="Landlord name or phone"
+                    className="h-12 text-base"
                     value={landlordQuery}
                     onChange={(e) => setLandlordQuery(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') { e.preventDefault(); searchLandlords(); }
                     }}
                   />
-                  <Button type="button" variant="secondary" onClick={searchLandlords} disabled={searchingLandlord}>
+                  <Button type="button" variant="secondary" className="h-12 px-4" onClick={searchLandlords} disabled={searchingLandlord}>
                     {searchingLandlord ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   </Button>
                 </div>
@@ -979,11 +980,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
                 <Button
                   type="button"
-                  variant="ghost"
-                  className="h-8 text-xs w-full"
+                  variant="outline"
+                  className="h-12 text-sm font-semibold w-full"
                   onClick={() => { setManualLandlord(true); setForm(f => ({ ...f, landlord_name: landlordQuery.trim().match(/^[0-9+]/) ? f.landlord_name : landlordQuery.trim() })); }}
                 >
-                  Can't find them? Add a new landlord
+                  ➕ Can't find them? Add a new landlord
                 </Button>
               </div>
             )}
@@ -1014,17 +1015,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             {/* Manual new landlord entry (after search returned no match) */}
             {manualLandlord && !selectedLandlord && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <Label className="text-xs">Landlord Name</Label>
+                    <Label className="text-sm font-medium">Landlord Name</Label>
                     <Input
                       placeholder="Name"
+                      className="h-12 text-base"
                       value={form.landlord_name}
                       onChange={e => setForm(f => ({ ...f, landlord_name: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Landlord Phone <span className="text-destructive">*</span></Label>
+                    <Label className="text-sm font-medium">Landlord Phone <span className="text-destructive">*</span></Label>
                     <PhoneInput
                       placeholder="0771234567"
                       value={form.landlord_phone}
@@ -1110,19 +1112,17 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  size="sm"
                   variant={form.caretaker_type === 'self' ? 'default' : 'outline'}
                   onClick={() => setForm(f => ({ ...f, caretaker_type: 'self' }))}
-                  className="flex-1"
+                  className="flex-1 h-12 text-sm font-semibold"
                 >
                   I'm the Caretaker
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
                   variant={form.caretaker_type === 'other' ? 'default' : 'outline'}
                   onClick={() => setForm(f => ({ ...f, caretaker_type: 'other' }))}
-                  className="flex-1"
+                  className="flex-1 h-12 text-sm font-semibold"
                 >
                   Someone Else
                 </Button>
@@ -1135,19 +1135,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
 
               {form.caretaker_type === 'other' && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <Label className="text-xs">Caretaker Name *</Label>
+                    <Label className="text-sm font-medium">Caretaker Name *</Label>
                     <Input
                       placeholder="Full name"
+                      className="h-12 text-base"
                       value={form.caretaker_name}
                       onChange={e => setForm(f => ({ ...f, caretaker_name: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Caretaker Phone *</Label>
+                    <Label className="text-sm font-medium">Caretaker Phone *</Label>
                     <Input
                       placeholder="0771234567"
+                      type="tel"
+                      inputMode="tel"
+                      className="h-12 text-base"
                       value={form.caretaker_phone}
                       onChange={e => setForm(f => ({ ...f, caretaker_phone: e.target.value }))}
                     />
@@ -1163,20 +1167,22 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {step === 1 && (
           <>
           <div className="text-center">
-            <p className="text-base font-semibold">What kind of house?</p>
-            <p className="text-xs text-muted-foreground">Tap the picture that matches</p>
+            <p className="text-lg font-bold">🏠 What kind of house?</p>
+            <p className="text-sm text-muted-foreground">Tap the picture that matches</p>
           </div>
           {/* Property Details */}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Rooms</Label>
+                <Label className="text-sm font-medium">Rooms</Label>
                 <Input
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   max={20}
                   value={form.number_of_rooms}
                   onChange={e => setForm(f => ({ ...f, number_of_rooms: parseInt(e.target.value) || 1 }))}
+                  className="h-12 text-base"
                 />
               </div>
             </div>
@@ -1189,25 +1195,26 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     key={c.value}
                     type="button"
                     onClick={() => setForm(f => ({ ...f, house_category: c.value }))}
-                    className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition-colors ${
+                    className={`flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-center transition-colors ${
                       selected ? 'border-primary bg-primary/10 ring-2 ring-primary' : 'border-border bg-muted/30 hover:bg-muted/50'
                     }`}
                   >
-                    <span className="text-2xl leading-none">{c.emoji}</span>
-                    <span className="text-[11px] font-medium leading-tight">{c.label}</span>
+                    <span className="text-3xl leading-none">{c.emoji}</span>
+                    <span className="text-xs font-semibold leading-tight">{c.label}</span>
                   </button>
                 );
               })}
             </div>
 
             <div>
-              <Label className="text-xs">Monthly Rent (UGX) *</Label>
+              <Label className="text-sm font-medium">💰 Monthly Rent (UGX) *</Label>
               <Input
                 type="number"
+                inputMode="numeric"
                 placeholder="e.g. 150000"
                 value={form.monthly_rent}
                 onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))}
-                className={attempted && !monthlyRent ? 'border-destructive' : ''}
+                className={`h-12 text-base ${attempted && !monthlyRent ? 'border-destructive' : ''}`}
               />
               {monthlyRent > 0 && (
                 <div className="mt-2 p-3 rounded-lg bg-success/10 border border-success/20">
@@ -1230,8 +1237,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {step === 1 && (
           <>
           <div className="text-center">
-            <p className="text-base font-semibold">Photos &amp; where is it?</p>
-            <p className="text-xs text-muted-foreground">Add at least one photo and the area</p>
+            <p className="text-lg font-bold">📷 Photos &amp; where is it?</p>
+            <p className="text-sm text-muted-foreground">Add at least one photo and the area</p>
           </div>
           {/* Photos */}
           <Label className="text-xs font-semibold">Photos * <span className="text-muted-foreground font-normal">— at least one</span></Label>
@@ -1256,9 +1263,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Region *</Label>
+                <Label className="text-sm font-medium">Region *</Label>
                 <Select value={form.region} onValueChange={v => setForm(f => ({ ...f, region: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className="h-12 text-base"><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {REGIONS.map(r => (
                       <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
@@ -1267,9 +1274,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">District</Label>
+                <Label className="text-sm font-medium">District</Label>
                 <Input
                   placeholder="District"
+                  className="h-12 text-base"
                   value={form.district}
                   onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
                   onBlur={e => {
@@ -1287,17 +1295,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </div>
             </div>
             <div>
-              <Label className="text-xs">Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium">Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 placeholder="e.g. Plot 12, Nansana Road"
+                className="h-12 text-base"
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               />
             </div>
             <div>
-              <Label className="text-xs">Village / Zone <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium">Village / Zone <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 placeholder="e.g. Kikaya Zone B"
+                className="h-12 text-base"
                 value={form.village}
                 onChange={e => {
                   const val = e.target.value;
@@ -1308,10 +1318,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={autoFillFromGps}
               disabled={gpsFilling}
-              className="w-full"
+              className="w-full h-12 text-base"
             >
               {gpsFilling ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1346,8 +1355,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {step === 2 && (
           <>
           <div className="text-center">
-            <p className="text-base font-semibold">Almost done!</p>
-            <p className="text-xs text-muted-foreground">LC1 chairperson is optional — list the house whenever you're ready</p>
+            <p className="text-lg font-bold">✅ Almost done!</p>
+            <p className="text-sm text-muted-foreground">LC1 chairperson is optional — list the house whenever you're ready</p>
           </div>
           {/* LC1 Chairperson — optional, but registering one earns UGX 5,000 */}
           <div className="flex items-center justify-between">
@@ -1459,21 +1468,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </>
           )}
 
-          {/* Wizard navigation — big Back / Next / List buttons */}
-          <div className="flex gap-2 pt-1">
+          {/* Wizard navigation — big Back / Next / List buttons.
+              Sticky to the bottom of the scrollable dialog so the main action
+              is always reachable on small phones without scrolling. */}
+          <div className="sticky bottom-0 -mx-4 sm:-mx-6 mt-2 flex gap-2 border-t border-border bg-background/95 px-4 sm:px-6 pt-3 pb-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             {step > 1 && (
-              <Button type="button" variant="outline" className="h-12 flex-1 text-base" onClick={goBack}>
+              <Button type="button" variant="outline" className="h-14 flex-1 text-base font-semibold" onClick={goBack}>
                 <ArrowLeft className="h-5 w-5 mr-1" /> Back
               </Button>
             )}
             {step < TOTAL_STEPS ? (
-              <Button type="button" className="h-12 flex-[2] text-base" onClick={goNext}>
+              <Button type="button" className="h-14 flex-[2] text-base font-bold" onClick={goNext}>
                 Next <ArrowRight className="h-5 w-5 ml-1" />
               </Button>
             ) : (
               <Button
                 type="submit"
-                className="h-12 flex-[2] text-base"
+                className="h-14 flex-[2] text-base font-bold"
                 disabled={submitting || !allGatesPass}
                 onClick={(e) => {
                   // Defensive: some mobile browsers swallow form submit when
