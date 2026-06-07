@@ -1346,8 +1346,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {step === 2 && (
           <>
           <div className="text-center">
-            <p className="text-base font-semibold">Almost done!</p>
-            <p className="text-xs text-muted-foreground">LC1 chairperson is optional — list the house whenever you're ready</p>
+            <p className="text-lg font-bold">✅ Almost done!</p>
+            <p className="text-sm text-muted-foreground">LC1 chairperson is optional — list the house whenever you're ready</p>
           </div>
           {/* LC1 Chairperson — optional, but registering one earns UGX 5,000 */}
           <div className="flex items-center justify-between">
