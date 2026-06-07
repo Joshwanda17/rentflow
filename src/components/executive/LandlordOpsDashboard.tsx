@@ -1720,18 +1720,99 @@ export function LandlordOpsDashboard() {
 
   // ─── VERIFICATION VIEW ───
   if (view === 'verify') {
+    const VERIFY_FILTERS: { value: VerifyFilter; label: string }[] = [
+      { value: 'all', label: 'All Pending' },
+      { value: 'has_landlord', label: 'Has Landlord' },
+      { value: 'no_landlord', label: 'No Landlord' },
+      { value: 'has_images', label: 'Has Photos' },
+      { value: 'has_gps', label: 'Has GPS' },
+      { value: 'has_lc1', label: 'Has LC1' },
+    ];
+
+    let filteredHouses = unverifiedListings;
+
+    // Text search across name, phone, location, agent
+    if (verifySearch.trim()) {
+      const q = verifySearch.toLowerCase().trim();
+      filteredHouses = filteredHouses.filter(h =>
+        h.title?.toLowerCase().includes(q) ||
+        h.landlords?.name?.toLowerCase().includes(q) ||
+        h.landlords?.phone?.includes(q) ||
+        h.agent_name?.toLowerCase().includes(q) ||
+        h.agent_phone?.includes(q) ||
+        h.region?.toLowerCase().includes(q) ||
+        h.district?.toLowerCase().includes(q) ||
+        h.village?.toLowerCase().includes(q) ||
+        h.lc1_chairperson_name?.toLowerCase().includes(q) ||
+        h.lc1_chairperson_phone?.includes(q) ||
+        h.address?.toLowerCase().includes(q)
+      );
+    }
+
+    // Quick filter chips
+    if (verifyFilter === 'has_landlord') filteredHouses = filteredHouses.filter(h => !!h.landlords);
+    else if (verifyFilter === 'no_landlord') filteredHouses = filteredHouses.filter(h => !h.landlords);
+    else if (verifyFilter === 'has_images') filteredHouses = filteredHouses.filter(h => h.image_urls && h.image_urls.length > 0);
+    else if (verifyFilter === 'has_gps') filteredHouses = filteredHouses.filter(h => h.latitude && h.longitude);
+    else if (verifyFilter === 'has_lc1') filteredHouses = filteredHouses.filter(h => !!h.lc1_chairperson_name);
+
     return (
       <>
       <div className="space-y-3">
         <BackButton />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{unverifiedListings.length} pending</Badge>
+          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} pending</Badge>
         </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search house, landlord, agent, phone, or location…"
+            value={verifySearch}
+            onChange={e => setVerifySearch(e.target.value)}
+            className="pl-9 pr-9 h-11"
+          />
+          {verifySearch && (
+            <button onClick={() => setVerifySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground" aria-label="Clear">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Quick filter chips */}
+        <div className="flex gap-1.5 flex-wrap">
+          {VERIFY_FILTERS.map(f => {
+            const count =
+              f.value === 'all' ? unverifiedListings.length :
+              f.value === 'has_landlord' ? unverifiedListings.filter(h => !!h.landlords).length :
+              f.value === 'no_landlord' ? unverifiedListings.filter(h => !h.landlords).length :
+              f.value === 'has_images' ? unverifiedListings.filter(h => h.image_urls && h.image_urls.length > 0).length :
+              f.value === 'has_gps' ? unverifiedListings.filter(h => h.latitude && h.longitude).length :
+              unverifiedListings.filter(h => !!h.lc1_chairperson_name).length;
+            const active = verifyFilter === f.value;
+            return (
+              <button
+                key={f.value}
+                onClick={() => setVerifyFilter(f.value)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                  active
+                    ? 'bg-amber-100 text-amber-700 border-amber-300 shadow-sm'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {f.label}
+                <span className="ml-1 opacity-70">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+
         <ListingBonusApprovalQueue filter="all" />
         <VerificationTimelinePanel />
         <div className="space-y-3">
-          {unverifiedListings.map(house => (
+          {filteredHouses.map(house => (
             <div key={house.id} className="rounded-xl border border-border bg-card overflow-hidden">
               {/* ── Card Header ── */}
               <div className="p-4 pb-3 space-y-3">
@@ -1866,6 +1947,16 @@ export function LandlordOpsDashboard() {
               </div>
             </div>
           ))}
+          {filteredHouses.length === 0 && unverifiedListings.length > 0 && (
+            <div className="text-center py-10">
+              <Search className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+              <p className="font-semibold text-muted-foreground">No matches for "{verifySearch}"</p>
+              <p className="text-xs text-muted-foreground mt-1">Try a different search or clear filters</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => { setVerifySearch(''); setVerifyFilter('all'); }}>
+                Clear Filters
+              </Button>
+            </div>
+          )}
           {unverifiedListings.length === 0 && (
             <div className="text-center py-12">
               <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
