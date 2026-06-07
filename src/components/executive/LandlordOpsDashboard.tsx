@@ -894,6 +894,7 @@ export function LandlordOpsDashboard() {
   const lc1Groups = fullLC1Data || [];
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
+  const unverifiedLandlords = landlordsList.filter(l => !l.verified);
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
   const handleVerifyListing = async (listing: ListingWithLandlord) => {
