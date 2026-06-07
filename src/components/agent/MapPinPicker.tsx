@@ -229,21 +229,43 @@ export function MapPinPicker({ open, onOpenChange, initial, onConfirm }: MapPinP
             <Button
               type="button"
               className="flex-1"
-              disabled={fetchingAddress || addressError || !address}
+              disabled={fetchingAddress || addressError || !address || confirming || saved}
               onClick={() => {
+                setConfirming(true);
                 onConfirm(pos);
-                onOpenChange(false);
+                savedTimerRef.current = setTimeout(() => {
+                  setConfirming(false);
+                  setSaved(true);
+                  savedTimerRef.current = setTimeout(() => {
+                    onOpenChange(false);
+                  }, 900);
+                }, 500);
               }}
             >
-              {fetchingAddress ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              {confirming ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Saving…
+                </>
+              ) : saved ? (
+                <>
+                  <MapPin className="h-4 w-4 mr-1.5" />
+                  Location saved
+                </>
               ) : (
-                <MapPin className="h-4 w-4 mr-1.5" />
+                <>
+                  <MapPin className="h-4 w-4 mr-1.5" />
+                  Use this location
+                </>
               )}
-              Use this location
             </Button>
           </div>
-          {(fetchingAddress || addressError || !address) && (
+          {saved && (
+            <p className="text-[11px] text-green-600 text-center font-medium animate-in fade-in slide-in-from-bottom-1">
+              Location saved successfully
+            </p>
+          )}
+          {!saved && !confirming && (fetchingAddress || addressError || !address) && (
             <p className="text-[11px] text-muted-foreground text-center">
               {fetchingAddress
                 ? 'Looking up address…'
