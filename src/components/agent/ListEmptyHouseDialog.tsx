@@ -1435,9 +1435,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </div>
 
           {/* Bonus reminder */}
-          <div className="p-2 rounded-lg bg-chart-4/10 border border-chart-4/20 text-center">
-            <p className="text-xs text-chart-4 font-semibold">
-              💰 You earn UGX 5,000 the moment a tenant is placed in this house
+          <div className="flex items-center gap-2 rounded-xl border border-chart-4/20 bg-chart-4/10 p-3">
+            <Trophy className="h-4 w-4 shrink-0 text-chart-4" />
+            <p className="text-xs font-semibold text-chart-4">
+              You earn UGX 5,000 the moment a tenant is placed in this house.
             </p>
           </div>
 
