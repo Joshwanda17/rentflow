@@ -89,6 +89,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [searchedOnce, setSearchedOnce] = useState(false);
   const [selectedLandlord, setSelectedLandlord] = useState<LandlordHit | null>(null);
   const [manualLandlord, setManualLandlord] = useState(false);
+  // Auto-fill: the agent's most recently used landlord (remembered locally) and
+  // a flag noting that location/area was pre-filled from the agent profile.
+  const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
+  const [prefilledFromProfile, setPrefilledFromProfile] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -139,6 +143,46 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, fromPromoBanner]);
+
+  // ─── Auto-fill from the agent profile (location/area) + remember last landlord ───
+  // Runs once each time the dialog opens so an agent who works in one area can
+  // list a house with almost no typing.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      // 1) Pre-fill the house location + LC1 area from the agent's profile.
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('region, district, village')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (prof && !cancelled) {
+        const filledSomething = !!(prof.region || prof.district || prof.village);
+        setForm((f) => ({
+          ...f,
+          region: f.region || prof.region || '',
+          district: f.district || prof.district || '',
+          village: f.village || prof.village || '',
+          lc1_village: f.lc1_village || prof.village || '',
+        }));
+        if (filledSomething) setPrefilledFromProfile(true);
+      }
+
+      // 2) Remember the agent's most recently used landlord for one-tap reuse.
+      try {
+        const raw = localStorage.getItem(`welile_last_landlord_${user.id}`);
+        if (raw && !cancelled) setLastLandlord(JSON.parse(raw) as LandlordHit);
+      } catch {
+        /* ignore corrupt cache */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
@@ -427,6 +471,21 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
       if (error) throw error;
 
+      // Remember this landlord locally so the next listing can reuse them in one tap.
+      try {
+        const remembered: LandlordHit | null = selectedLandlord
+          ? selectedLandlord
+          : (landlordId && form.landlord_name.trim())
+            ? { id: landlordId, name: form.landlord_name.trim(), phone: form.landlord_phone.trim(), verified: false, verifiedHouses: 0 }
+            : null;
+        if (remembered) {
+          localStorage.setItem(`welile_last_landlord_${user.id}`, JSON.stringify(remembered));
+          setLastLandlord(remembered);
+        }
+      } catch {
+        /* non-critical */
+      }
+
       // Instant UGX 1,000 listing reward → agent withdrawable wallet (best-effort,
       // never blocks listing). The remaining UGX 4,000 is auto-paid when Landlord
       // Ops verifies the house.
@@ -560,6 +619,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSearchedOnce(false);
     setSelectedLandlord(null);
     setManualLandlord(false);
+    setPrefilledFromProfile(false);
     setStep(1);
   };
 
@@ -734,6 +794,25 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             {/* Step 1 — search the system for a verified landlord */}
             {!selectedLandlord && !manualLandlord && (
               <div className="space-y-2">
+                {/* One-tap reuse of the agent's most recently used landlord */}
+                {lastLandlord && (
+                  <button
+                    type="button"
+                    onClick={() => selectLandlord(lastLandlord)}
+                    className="w-full text-left p-2.5 rounded-lg border border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold text-primary uppercase tracking-wide">
+                        <UserCheck className="h-3.5 w-3.5" /> Use last landlord
+                      </span>
+                      {lastLandlord.verified && (
+                        <ShieldCheck className="h-3.5 w-3.5 text-success shrink-0" />
+                      )}
+                    </div>
+                    <p className="font-medium text-sm truncate mt-0.5">{lastLandlord.name}</p>
+                    <p className="text-xs text-muted-foreground">{lastLandlord.phone}</p>
+                  </button>
+                )}
                 <Label className="text-xs">Search the landlord in the system first</Label>
                 <div className="flex gap-2">
                   <Input
@@ -855,7 +934,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 checked={!form.landlord_has_smartphone}
-                onCheckedChange={v => setForm(f => ({ ...f, landlord_has_smartphone: !v, caretaker_type: v ? f.caretaker_type : 'none' }))}
+                onCheckedChange={v => setForm(f => ({
+                  ...f,
+                  landlord_has_smartphone: !v,
+                  // Auto-fill the caretaker as the agent (self) so a smartphone-less
+                  // landlord needs no extra typing. Reset to none if reverted.
+                  caretaker_type: v ? (f.caretaker_type === 'none' ? 'self' : f.caretaker_type) : 'none',
+                }))}
               />
               <span className="text-sm">Landlord doesn't have / can't use a smartphone</span>
             </label>
@@ -1009,7 +1094,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">Location</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Location</p>
+              {prefilledFromProfile && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary">
+                  <Sparkles className="h-3 w-3" /> Filled from your profile
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Region *</Label>
