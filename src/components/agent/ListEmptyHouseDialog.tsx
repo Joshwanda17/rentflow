@@ -16,6 +16,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import { captureSmartLocation } from '@/hooks/useSmartLocation';
 import { reverseGeocode } from '@/lib/reverseGeocode';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
+import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
 
 const APP_URL = 'https://welilereceipts.com';
@@ -57,6 +58,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // One-tap GPS auto-fill (capture coordinates + reverse-geocode to region/district/village).
   const [gpsFilling, setGpsFilling] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  // Map pin picker so the agent can correct the spot before auto-filling.
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [mapInitial, setMapInitial] = useState<{ latitude: number; longitude: number }>({
+    latitude: 0.3476,
+    longitude: 32.5825,
+  });
   const position = gpsCoords
     ?? (geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null);
   const [submitting, setSubmitting] = useState(false);
@@ -278,19 +285,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     return '';
   };
 
-  const autoFillFromGps = async () => {
+  // Reverse-geocode a confirmed pin position and fill region/district/village.
+  const fillFromCoords = async (coords: { latitude: number; longitude: number }) => {
+    setGpsCoords(coords);
     setGpsFilling(true);
     try {
-      const res = await captureSmartLocation();
-      if (res.ok !== true) {
-        toast.error(res.message || 'Could not get your location');
-        return;
-      }
-      setGpsCoords({ latitude: res.latitude, longitude: res.longitude });
-      const geocoded = await reverseGeocode(res.latitude, res.longitude);
+      const geocoded = await reverseGeocode(coords.latitude, coords.longitude);
       const addr = (geocoded?.raw as any)?.address as Record<string, string> | undefined;
       if (!addr) {
-        toast.success('GPS captured — type the area manually if needed');
+        toast.success('Pin saved — type the area manually if needed');
         return;
       }
       const region = matchRegion([addr.city, addr.county, addr.state_district, addr.state]);
@@ -306,7 +309,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         lc1_village: village || f.lc1_village,
       }));
       setPrefilledFromProfile(false);
-      toast.success('Location filled from GPS 📍');
+      toast.success('Location filled from the pin 📍');
+    } finally {
+      setGpsFilling(false);
+    }
+  };
+
+  // Capture GPS, then open the map so the agent can drag the pin before filling.
+  const autoFillFromGps = async () => {
+    setGpsFilling(true);
+    try {
+      const res = await captureSmartLocation();
+      if (res.ok !== true) {
+        toast.error(res.message || 'Could not get your location');
+        return;
+      }
+      setMapInitial({ latitude: res.latitude, longitude: res.longitude });
+      setMapPickerOpen(true);
     } finally {
       setGpsFilling(false);
     }
@@ -1221,11 +1240,22 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               {gpsFilling
                 ? 'Getting your location…'
                 : position
-                  ? '📍 Auto-fill again from GPS'
-                  : 'Use my GPS to fill area'}
+                  ? '📍 Re-capture GPS'
+                  : 'Use my GPS & map to fill area'}
             </Button>
+            {position && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => { setMapInitial(position); setMapPickerOpen(true); }}
+                className="w-full"
+              >
+                <MapPin className="h-4 w-4 mr-2" /> Adjust pin on map
+              </Button>
+            )}
             <p className="text-[10px] text-muted-foreground text-center leading-tight">
-              One tap fills region, district & village from where you are now
+              Drag the pin on the map to the exact house, then it fills region, district & village
             </p>
           </div>
           </>
@@ -1381,6 +1411,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         </>
         )}
       </DialogContent>
+      <MapPinPicker
+        open={mapPickerOpen}
+        onOpenChange={setMapPickerOpen}
+        initial={mapInitial}
+        onConfirm={(pos) => fillFromCoords(pos)}
+      />
     </Dialog>
   );
 }
