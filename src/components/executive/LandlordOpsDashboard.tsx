@@ -273,6 +273,11 @@ export function LandlordOpsDashboard() {
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
   const [pendingFilter, setPendingFilter] = useState<PendingFilter>('all');
 
+  // ─── Sorting ───
+  type SortOption = 'newest' | 'oldest' | 'highest_rent';
+  const [verifySort, setVerifySort] = useState<SortOption>('newest');
+  const [landlordSort, setLandlordSort] = useState<SortOption>('newest');
+
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
   const [allReqDeleteDialog, setAllReqDeleteDialog] = useState<{ open: boolean; requestId: string; tenantName: string }>({ open: false, requestId: '', tenantName: '' });
