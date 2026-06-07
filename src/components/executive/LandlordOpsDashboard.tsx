@@ -264,6 +264,11 @@ export function LandlordOpsDashboard() {
   const [rejectedLandlordIds, setRejectedLandlordIds] = useState<Set<string>>(new Set());
   const [expandedLandlordId, setExpandedLandlordId] = useState<string | null>(null);
 
+  // ─── Verification Queue Search & Filters ───
+  const [verifySearch, setVerifySearch] = useState('');
+  type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1';
+  const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
+
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
   const [allReqDeleteDialog, setAllReqDeleteDialog] = useState<{ open: boolean; requestId: string; tenantName: string }>({ open: false, requestId: '', tenantName: '' });
