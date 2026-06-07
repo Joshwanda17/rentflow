@@ -10,7 +10,7 @@ import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus, 
 import WelileLogo from '@/components/WelileLogo';
 import { roleToSlug } from '@/lib/roleRoutes';
 
-type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'profile-setup' | 'success' | 'forgot-password' | 'password-reset';
+type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'profile-setup' | 'review' | 'success' | 'forgot-password' | 'password-reset';
 
 const extractActivationToken = (value: string | null): string => {
   if (!value) return '';
@@ -181,6 +181,17 @@ export default function ActivateSupporter() {
     // Just move to profile setup - actual verification happens on final submit
     setPageState('profile-setup');
   }, [token, password]);
+
+  // Step 2 -> 3: Validate profile inputs, then move to Review & Confirm
+  const handleReview = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim() || !newPassword.trim()) return;
+    if (newPassword.trim().length < 6) {
+      toast({ title: 'Password too short', description: 'Password must be at least 6 characters', variant: 'destructive' });
+      return;
+    }
+    setPageState('review');
+  }, [fullName, newPassword, toast]);
 
   // Step 2: Complete profile and activate
   const handleActivate = useCallback(async (e: React.FormEvent) => {
@@ -486,6 +497,94 @@ export default function ActivateSupporter() {
     );
   }
 
+  // Review & Confirm (Step 3)
+  if (pageState === 'review') {
+    const locationLabel =
+      locationStatus === 'granted' && locationData
+        ? `${locationData.latitude.toFixed(4)}, ${locationData.longitude.toFixed(4)}`
+        : 'Not shared';
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
+            <CardTitle className="text-2xl">Review &amp; Confirm</CardTitle>
+            <CardDescription className="text-base">Check your details before activating</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Step Progress Indicator */}
+            <div className="flex items-center gap-2 mb-5">
+              <div className="flex-1 flex flex-col items-center gap-1.5">
+                <div className="h-2 w-full rounded-full bg-emerald-500" />
+                <span className="text-xs font-semibold text-emerald-600">1. Activate</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center gap-1.5">
+                <div className="h-2 w-full rounded-full bg-emerald-500" />
+                <span className="text-xs font-semibold text-emerald-600">2. Profile</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center gap-1.5">
+                <div className="h-2 w-full rounded-full bg-primary" />
+                <span className="text-xs font-semibold text-primary">3. Confirm</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">👤 Full Name</p>
+                  <p className="text-base font-semibold truncate">{fullName.trim()}</p>
+                </div>
+                <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">✉️ Email</p>
+                  <p className="text-base font-semibold truncate">{email.trim() || 'Not provided'}</p>
+                </div>
+                <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">🔑 Password</p>
+                  <p className="text-base font-semibold tracking-widest">{'•'.repeat(Math.min(newPassword.length, 10))}</p>
+                </div>
+                <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">📍 Location</p>
+                  <p className="text-base font-semibold truncate">{locationLabel}</p>
+                </div>
+                <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] mt-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40 space-y-2">
+              <Button onClick={(e) => handleActivate(e as any)} className="w-full h-14 text-base font-semibold" disabled={isLoading}>
+                {isLoading ? (
+                  <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Activating...</>
+                ) : (
+                  <><CheckCircle2 className="h-5 w-5 mr-2" />Confirm &amp; Activate</>
+                )}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setPageState('profile-setup')}
+                className="w-full text-sm text-muted-foreground hover:text-foreground text-center py-1"
+                disabled={isLoading}
+              >
+                ← Back
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Profile Setup (Step 2)
   if (pageState === 'profile-setup') {
     return (
@@ -507,8 +606,12 @@ export default function ActivateSupporter() {
                 <div className="h-2 w-full rounded-full bg-primary" />
                 <span className="text-xs font-semibold text-primary">2. Profile</span>
               </div>
+              <div className="flex-1 flex flex-col items-center gap-1.5">
+                <div className="h-2 w-full rounded-full bg-muted" />
+                <span className="text-xs font-medium text-muted-foreground">3. Confirm</span>
+              </div>
             </div>
-            <form onSubmit={handleActivate} className="space-y-4">
+            <form onSubmit={handleReview} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="text-base font-semibold">👤 Full Name (as on your ID) *</Label>
                 <Input
@@ -617,12 +720,9 @@ export default function ActivateSupporter() {
               </div>
 
               <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40 space-y-2">
-                <Button type="submit" className="w-full h-14 text-base font-semibold" disabled={isLoading || !fullName.trim() || !newPassword.trim()}>
-                  {isLoading ? (
-                    <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Activating...</>
-                  ) : (
-                    <><CheckCircle2 className="h-5 w-5 mr-2" />Activate Account</>
-                  )}
+                <Button type="submit" className="w-full h-14 text-base font-semibold" disabled={!fullName.trim() || !newPassword.trim()}>
+                  <ArrowRight className="h-5 w-5 mr-2" />
+                  Review &amp; Confirm
                 </Button>
 
                 <button
