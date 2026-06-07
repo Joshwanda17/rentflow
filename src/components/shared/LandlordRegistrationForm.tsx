@@ -1235,38 +1235,41 @@ export default function LandlordRegistrationForm({
               )}
             </div>
 
-            {/* Register — final submit on the confirmation step */}
-            <Button
-              type="submit"
-              onClick={() => hapticTap()}
-              className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
-              disabled={loading}
-            >
-              {loading ? (
-                <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
-              ) : (
-                <><Building2 className="h-5 w-5" /> Register Landlord</>
-              )}
-            </Button>
-
-            {/* Back to edit the entered details */}
-            {!loading && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => { hapticTap(); setStep(1); }}
-                className="w-full h-11 gap-2 text-xs text-muted-foreground touch-manipulation select-none"
-              >
-                <ChevronUp className="h-4 w-4 rotate-90" /> Back to edit
-              </Button>
-            )}
-
             {/* Inline stepped progress so the agent always sees forward motion */}
             {loading && progressMsg && (
               <p className="flex items-center justify-center gap-2 text-sm font-medium text-primary animate-pulse">
                 <Loader2 className="h-4 w-4 animate-spin" /> {progressMsg}
               </p>
             )}
+
+            {/* Sticky bottom action bar — primary action always reachable */}
+            <div className="sticky bottom-0 -mx-1 px-1 pt-2 pb-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/60 z-10 space-y-1.5">
+              {/* Register — final submit on the confirmation step */}
+              <Button
+                type="submit"
+                onClick={() => hapticTap()}
+                className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
+                disabled={loading}
+              >
+                {loading ? (
+                  <><Loader2 className="h-5 w-5 animate-spin" /> Registering...</>
+                ) : (
+                  <><Building2 className="h-5 w-5" /> Register Landlord</>
+                )}
+              </Button>
+
+              {/* Back to edit the entered details */}
+              {!loading && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => { hapticTap(); setStep(1); }}
+                  className="w-full h-11 gap-2 text-sm text-muted-foreground touch-manipulation select-none"
+                >
+                  <ChevronUp className="h-4 w-4 rotate-90" /> Back to edit
+                </Button>
+              )}
+            </div>
 
             {/* Inline error banner — stays on screen so agents on weak networks always know what happened */}
             <AnimatePresence>
