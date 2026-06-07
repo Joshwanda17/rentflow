@@ -18,6 +18,7 @@ import { reverseGeocode } from '@/lib/reverseGeocode';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
+import { isValidPhoneNumberGlobal } from '@/lib/phoneUtils';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
