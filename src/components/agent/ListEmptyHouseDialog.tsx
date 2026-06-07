@@ -89,6 +89,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [searchedOnce, setSearchedOnce] = useState(false);
   const [selectedLandlord, setSelectedLandlord] = useState<LandlordHit | null>(null);
   const [manualLandlord, setManualLandlord] = useState(false);
+  // Auto-fill: the agent's most recently used landlord (remembered locally) and
+  // a flag noting that location/area was pre-filled from the agent profile.
+  const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
+  const [prefilledFromProfile, setPrefilledFromProfile] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -139,6 +143,46 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, fromPromoBanner]);
+
+  // ─── Auto-fill from the agent profile (location/area) + remember last landlord ───
+  // Runs once each time the dialog opens so an agent who works in one area can
+  // list a house with almost no typing.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      // 1) Pre-fill the house location + LC1 area from the agent's profile.
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('region, district, village')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (prof && !cancelled) {
+        const filledSomething = !!(prof.region || prof.district || prof.village);
+        setForm((f) => ({
+          ...f,
+          region: f.region || prof.region || '',
+          district: f.district || prof.district || '',
+          village: f.village || prof.village || '',
+          lc1_village: f.lc1_village || prof.village || '',
+        }));
+        if (filledSomething) setPrefilledFromProfile(true);
+      }
+
+      // 2) Remember the agent's most recently used landlord for one-tap reuse.
+      try {
+        const raw = localStorage.getItem(`welile_last_landlord_${user.id}`);
+        if (raw && !cancelled) setLastLandlord(JSON.parse(raw) as LandlordHit);
+      } catch {
+        /* ignore corrupt cache */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
