@@ -283,18 +283,20 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // glance exactly what is still missing (and on which step) before they can
   // submit. Each gate carries the wizard step the agent should go back to.
   type PreflightGate = { label: string; ok: boolean; hint: string; step: number };
-  const landlordOk = (!!selectedLandlord) || (manualLandlord && !!form.landlord_name.trim() && !!form.landlord_phone.trim());
   const caretakerOk = form.caretaker_type !== 'other' || (!!form.caretaker_name.trim() && !!form.caretaker_phone.trim());
-  const lc1Err = validateLc1Selection(lc1Selection);
+  // LC1 is optional — only flag it as incomplete once the agent starts filling it in.
+  const lc1PartialErr = lc1Selection ? validateLc1Selection(lc1Selection) : null;
   const preflightGates: PreflightGate[] = [
-    { label: 'Landlord selected or added', ok: landlordOk, hint: 'Search the landlord, then pick them or add a new one', step: 1 },
-    { label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 1 },
-    { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 2 },
-    { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 3 },
-    { label: 'Address entered', ok: !!form.address.trim(), hint: 'Enter the house address', step: 3 },
-    { label: 'Village / Zone entered', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 3 },
-    { label: 'LC1 chairperson', ok: !lc1Err, hint: lc1Err || 'Search or register the LC1 chairperson', step: 4 },
+    { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 1 },
+    { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
+    { label: 'At least one photo', ok: houseImages.length > 0, hint: 'Add at least one photo of the house', step: 1 },
   ];
+  if (form.caretaker_type === 'other') {
+    preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 2 });
+  }
+  if (lc1Selection) {
+    preflightGates.push({ label: 'LC1 chairperson details', ok: !lc1PartialErr, hint: lc1PartialErr || 'Complete the LC1 chairperson details', step: 2 });
+  }
   const missingGates = preflightGates.filter((g) => !g.ok);
   const allGatesPass = missingGates.length === 0;
 
