@@ -207,20 +207,37 @@ export function MapPinPicker({ open, onOpenChange, initial, onConfirm }: MapPinP
           </div>
         </div>
 
-        <div className="p-4 pt-3 flex items-center gap-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            className="flex-1"
-            onClick={() => {
-              onConfirm(pos);
-              onOpenChange(false);
-            }}
-          >
-            Use this location
-          </Button>
+        <div className="p-4 pt-3 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              disabled={fetchingAddress || addressError || !address}
+              onClick={() => {
+                onConfirm(pos);
+                onOpenChange(false);
+              }}
+            >
+              {fetchingAddress ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <MapPin className="h-4 w-4 mr-1.5" />
+              )}
+              Use this location
+            </Button>
+          </div>
+          {(fetchingAddress || addressError || !address) && (
+            <p className="text-[11px] text-muted-foreground text-center">
+              {fetchingAddress
+                ? 'Looking up address…'
+                : addressError
+                ? 'Fix the pin location or retry the address lookup to confirm'
+                : 'Move the pin to a named road or area to enable confirmation'}
+            </p>
+          )}
         </div>
       </DialogContent>
     </Dialog>
