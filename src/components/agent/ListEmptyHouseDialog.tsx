@@ -1241,10 +1241,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {/* ── Step 1 (cont.): Photos & place ── */}
           {step === 1 && (
           <>
-          <div className="text-center">
-            <p className="text-lg font-bold">📷 Photos &amp; where is it?</p>
-            <p className="text-sm text-muted-foreground">Add at least one photo and the area</p>
-          </div>
+          <FormStepHeader
+            icon={ImagePlus}
+            title="Photos & location"
+            subtitle="Add at least one photo and the area where it is."
+          />
           {/* Photos */}
           <Label className="text-xs font-semibold">Photos * <span className="text-muted-foreground font-normal">— at least one</span></Label>
           <HouseImageUploader
