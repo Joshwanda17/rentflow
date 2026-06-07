@@ -1411,6 +1411,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         </>
         )}
       </DialogContent>
+      <MapPinPicker
+        open={mapPickerOpen}
+        onOpenChange={setMapPickerOpen}
+        initial={mapInitial}
+        onConfirm={(pos) => fillFromCoords(pos)}
+      />
     </Dialog>
   );
 }
