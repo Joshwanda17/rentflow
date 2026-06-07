@@ -1107,7 +1107,7 @@ export function LandlordOpsDashboard() {
     const perPage = 20;
     const categoryFilter = (landlordCategory || 'all') as LandlordCategory;
 
-    let filtered = landlordsList;
+    let filtered = landlordsList.filter(l => !rejectedLandlordIds.has(l.id));
 
     // Category filter
     if (categoryFilter === 'verified') filtered = filtered.filter(l => l.verified);
