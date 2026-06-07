@@ -1209,13 +1209,24 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               type="button"
               variant="outline"
               size="sm"
-              onClick={getPosition}
-              disabled={geoLoading}
+              onClick={autoFillFromGps}
+              disabled={gpsFilling}
               className="w-full"
             >
-              <MapPin className="h-4 w-4 mr-2" />
-              {geoLoading ? 'Getting location...' : position ? '📍 GPS Captured' : 'Capture GPS Location'}
+              {gpsFilling ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <MapPin className="h-4 w-4 mr-2" />
+              )}
+              {gpsFilling
+                ? 'Getting your location…'
+                : position
+                  ? '📍 Auto-fill again from GPS'
+                  : 'Use my GPS to fill area'}
             </Button>
+            <p className="text-[10px] text-muted-foreground text-center leading-tight">
+              One tap fills region, district & village from where you are now
+            </p>
           </div>
           </>
           )}
