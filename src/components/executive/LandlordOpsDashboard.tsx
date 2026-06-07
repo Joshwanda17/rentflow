@@ -2270,6 +2270,69 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
 }
 
 // ─── Reusable Nav Card ───
+// ─── Reusable inline approve / reject control (shared by houses & landlords) ───
+function InlineModerationActions({
+  onApprove,
+  onReject,
+  approveLabel = 'Approve',
+  rejectLabel = 'Reject',
+}: {
+  onApprove: (note: string) => Promise<void> | void;
+  onReject: (note: string) => Promise<void> | void;
+  approveLabel?: string;
+  rejectLabel?: string;
+}) {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState<null | 'approve' | 'reject'>(null);
+  const rejectValid = note.trim().length >= 10;
+
+  const run = async (kind: 'approve' | 'reject') => {
+    if (busy) return;
+    setBusy(kind);
+    try {
+      await (kind === 'approve' ? onApprove(note) : onReject(note));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Add a note (required to reject, optional to approve)…"
+        className="min-h-[64px] text-sm"
+      />
+      {note.length > 0 && note.trim().length < 10 && (
+        <p className="text-[10px] text-muted-foreground">{10 - note.trim().length} more characters needed to reject</p>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-11 gap-2 font-bold border-destructive/40 text-destructive hover:bg-destructive/10"
+          disabled={!rejectValid || busy !== null}
+          onClick={() => run('reject')}
+        >
+          <XCircle className="h-4 w-4" />
+          {busy === 'reject' ? 'Rejecting…' : rejectLabel}
+        </Button>
+        <Button
+          size="sm"
+          className="h-11 gap-2 font-bold"
+          disabled={busy !== null}
+          onClick={() => run('approve')}
+        >
+          <ShieldCheck className="h-4 w-4" />
+          {busy === 'approve' ? 'Approving…' : approveLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Reusable Nav Card ───
 function NavCard({ item, onClick, badge }: { item: typeof navItems[number]; onClick: () => void; badge?: string }) {
   return (
     <button
