@@ -6,3 +6,4 @@
 - [Drive document vault backup](mem://features/documents/drive-vault-backup) — Offsite Google Drive mirror (drive-archive edge fn) of tenant IDs/contracts/receipts filed by Year/Month/Type; idempotent `drive_archive_log`; fire-and-forget `archiveToDrive` helper wired into upload flows; manager `DriveVaultCard` in Settings
 
 - [House Walkthrough Video](mem://features/house/walkthrough-video) — Agents paste an external YouTube/Drive link (≤30s) into `house_listings.video_url`; no binaries stored; `parseHouseVideo` helper validates+embeds; played inline on public `/house/:id`
+- [List Empty House Auto-fill](mem://features/agent/list-house-autofill) — Agent listing dialog (2-step; rent+region+photo required) auto-fills location/LC1 area from profile, defaults caretaker to agent self, remembers last landlord in localStorage (`welile_last_landlord_<userId>`) for one-tap reuse
