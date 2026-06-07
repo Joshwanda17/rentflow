@@ -1272,6 +1272,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             district={form.district}
             village={form.village}
           />
+          {attempted && houseImages.length === 0 && (
+            <FieldError message="Add at least one clear photo of the house so tenants can see it." />
+          )}
 
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
