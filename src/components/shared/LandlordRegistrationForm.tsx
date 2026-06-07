@@ -727,24 +727,27 @@ export default function LandlordRegistrationForm({
           <>
           {/* Friendly, low-pressure intro for first-time / casual agents */}
           {!minimal && (
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Just the landlord's <span className="font-semibold text-foreground">name</span> and{' '}
-              <span className="font-semibold text-foreground">phone</span> registers them. Everything else is optional —
-              you can add it later.
-            </p>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold flex items-center gap-2">👤 Landlord details</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Just the landlord's <span className="font-semibold text-foreground">name</span> and{' '}
+                <span className="font-semibold text-foreground">phone</span> registers them. Everything else is optional —
+                you can add it later.
+              </p>
+            </div>
           )}
 
           {/* Landlord Name */}
           <div data-field="landlordName" className="space-y-1">
-            <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <User className="h-3 w-3" /> Landlord Name *
+            <Label className="text-sm font-semibold flex items-center gap-1.5">
+              <User className="h-4 w-4" /> Landlord Name *
             </Label>
             <Input
               value={landlordName}
               onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); clearSubmitError(); }}
               onBlur={(e) => validateField('landlordName', e.target.value)}
               placeholder="e.g. John Bosco Ssentamu — as on National ID"
-              className={`h-10 ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              className={`h-12 text-base ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
             {errors.landlordName && (
@@ -756,8 +759,8 @@ export default function LandlordRegistrationForm({
 
           {/* Phone Number */}
           <div data-field="landlordPhone" className="space-y-1">
-            <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <Phone className="h-3 w-3" /> Phone Number *
+            <Label className="text-sm font-semibold flex items-center gap-1.5">
+              <Phone className="h-4 w-4" /> Phone Number *
             </Label>
             <Input
               type="tel"
@@ -766,7 +769,7 @@ export default function LandlordRegistrationForm({
               onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); clearSubmitError(); setPhoneVerified(false); }}
               onBlur={(e) => { void checkPhoneAvailable(e.target.value); }}
               placeholder="07XX XXX XXX — 10 digits"
-              className={`h-10 ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              className={`h-12 text-base ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
             />
             {checkingPhone && (
