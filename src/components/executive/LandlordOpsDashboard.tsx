@@ -1155,6 +1155,14 @@ export function LandlordOpsDashboard() {
       else if (pendingFilter === 'has_momo') filtered = filtered.filter(l => !!l.mobile_money_number);
     }
 
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      if (landlordSort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (landlordSort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (landlordSort === 'highest_rent') return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+      return 0;
+    });
+
     const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
     const safePage = Math.min(landlordPage, totalPages);
     const paginated = filtered.slice((safePage - 1) * perPage, safePage * perPage);
