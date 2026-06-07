@@ -1811,6 +1811,14 @@ export function LandlordOpsDashboard() {
     else if (verifyFilter === 'has_gps') filteredHouses = filteredHouses.filter(h => h.latitude && h.longitude);
     else if (verifyFilter === 'has_lc1') filteredHouses = filteredHouses.filter(h => !!h.lc1_chairperson_name);
 
+    // Sort
+    filteredHouses = [...filteredHouses].sort((a, b) => {
+      if (verifySort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (verifySort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (verifySort === 'highest_rent') return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+      return 0;
+    });
+
     return (
       <>
       <div className="space-y-3">
