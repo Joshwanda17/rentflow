@@ -448,7 +448,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
     { label: 'At least one photo', ok: houseImages.length > 0, hint: 'Add at least one photo of the house', step: 1 },
   ];
-  preflightGates.push({ label: 'Landlord phone number', ok: !!form.landlord_phone.trim(), hint: 'Add the landlord phone number', step: 2 });
+  preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 2 });
   if (form.caretaker_type === 'other') {
     preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 2 });
   }
