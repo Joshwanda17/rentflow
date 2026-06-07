@@ -18,7 +18,7 @@ import { reverseGeocode } from '@/lib/reverseGeocode';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
-import { isValidPhoneNumberGlobal } from '@/lib/phoneUtils';
+import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaPhone } from '@/lib/phoneUtils';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -266,7 +266,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const selectLandlord = (hit: LandlordHit) => {
     setSelectedLandlord(hit);
     setManualLandlord(false);
-    setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: hit.phone }));
+    setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: normalizeUgandaPhone(hit.phone) }));
     setLandlordPhoneError('');
   };
 
@@ -1041,12 +1041,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                       }}
                       onBlur={() => {
                         if (form.landlord_phone.trim()) {
-                          setLandlordPhoneError(validateLandlordPhone(form.landlord_phone));
+                          const normalized = normalizeUgandaPhone(form.landlord_phone);
+                          if (normalized !== form.landlord_phone) {
+                            setForm(f => ({ ...f, landlord_phone: normalized }));
+                          }
+                          setLandlordPhoneError(validateLandlordPhone(normalized));
                         }
                       }}
                       onContactPicked={({ name, phone }) => {
                         if (name && !form.landlord_name.trim()) setForm(f => ({ ...f, landlord_name: name }));
-                        setLandlordPhoneError(validateLandlordPhone(phone));
+                        const normalized = normalizeUgandaPhone(phone);
+                        setForm(f => ({ ...f, landlord_phone: normalized }));
+                        setLandlordPhoneError(validateLandlordPhone(normalized));
                       }}
                       className={landlordPhoneError ? 'border-destructive focus-visible:ring-destructive' : ''}
                     />
@@ -1054,6 +1060,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                       <p className="text-[11px] text-destructive mt-1 flex items-center gap-1">
                         <span className="inline-block h-3 w-3 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-[9px] font-bold">!</span>
                         {landlordPhoneError}
+                      </p>
+                    )}
+                    {/* Friendly normalized display chip */}
+                    {!landlordPhoneError && form.landlord_phone && validateLandlordPhone(form.landlord_phone) === '' && (
+                      <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
+                        <span className="text-base leading-none">🇺🇬</span>
+                        <span className="font-medium text-foreground">{displayNormalizeUgandaPhone(form.landlord_phone)}</span>
+                        <span className="text-[10px] bg-success/10 text-success px-1.5 py-0.5 rounded-full">Uganda mobile</span>
                       </p>
                     )}
                   </div>
