@@ -54,9 +54,11 @@ import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDis
 
 export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
   const geo = useGeolocation(true);
-  const geoLoading = geo.loading;
-  const position = geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null;
-  const getPosition = geo.requestGPSPermission;
+  // One-tap GPS auto-fill (capture coordinates + reverse-geocode to region/district/village).
+  const [gpsFilling, setGpsFilling] = useState(false);
+  const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const position = gpsCoords
+    ?? (geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null);
   const [submitting, setSubmitting] = useState(false);
   const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
   // Guided wizard step (1-4) so agents who struggle with long forms only see
