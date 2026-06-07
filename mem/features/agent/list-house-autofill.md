@@ -16,4 +16,3 @@ type: feature
 ## Notes
 - GPS is intentionally NOT auto-filled from the agent's residence — house GPS must be captured at the house via the "Capture GPS Location" button.
 - All auto-fill is best-effort and silent on failure; nothing blocks listing.
-++ 
