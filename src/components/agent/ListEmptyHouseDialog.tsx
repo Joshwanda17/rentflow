@@ -282,7 +282,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setGpsFilling(true);
     try {
       const res = await captureSmartLocation();
-      if (!res.ok) {
+      if (res.ok !== true) {
         toast.error(res.message || 'Could not get your location');
         return;
       }
