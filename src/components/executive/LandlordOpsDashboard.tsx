@@ -1199,10 +1199,27 @@ export function LandlordOpsDashboard() {
                     <Fragment key={landlord.id}>
                     <tr className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="px-3 py-2.5">
-                        <span className="font-medium text-foreground">{landlord.name}</span>
-                        <span className="sm:hidden block text-[11px] text-muted-foreground">{landlord.phone || '—'}</span>
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-sm text-foreground block">{landlord.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <PhoneLinks phone={landlord.phone} name={landlord.name} />
+                          </div>
+                          {/* Mobile-only extra info */}
+                          <div className="sm:hidden flex flex-wrap gap-1 mt-1">
+                            {landlord.verified ? (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 border-0">Pending</Badge>
+                            )}
+                            {tenantCount > 0 && (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0">{tenantCount} tenants</Badge>
+                            )}
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell">{landlord.phone || '—'}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell">
+                        <PhoneLinks phone={landlord.phone} name={landlord.name} />
+                      </td>
                       <td className="px-3 py-2.5 hidden md:table-cell">
                         {landlord.verified ? (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
@@ -1238,10 +1255,19 @@ export function LandlordOpsDashboard() {
                     {isExpanded && !landlord.verified && (
                       <tr className="border-b border-border last:border-0 bg-muted/20">
                         <td colSpan={6} className="px-3 py-3">
-                          <p className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                          <p className="text-xs font-bold mb-2 flex items-center gap-1.5">
                             <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
                             Verify {landlord.name}
                           </p>
+                          <div className="rounded-lg bg-sky-500/5 p-2.5 mb-3 border border-sky-200/40">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Contact</p>
+                            <PhoneLinks phone={landlord.phone} name={landlord.name} />
+                            {landlord.property_address && (
+                              <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />{landlord.property_address}
+                              </p>
+                            )}
+                          </div>
                           <InlineModerationActions
                             approveLabel="Approve"
                             rejectLabel="Reject"
