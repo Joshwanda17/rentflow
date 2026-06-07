@@ -499,6 +499,99 @@ export default function ActivateSupporter() {
 
   // Profile Setup (Step 2)
   if (pageState === 'profile-setup') {
+    // (rendered below)
+  }
+
+  // Review & Confirm (Step 3)
+  if (pageState === 'review') {
+    const locationLabel =
+      locationStatus === 'granted' && locationData
+        ? `${locationData.latitude.toFixed(4)}, ${locationData.longitude.toFixed(4)}`
+        : 'Not shared';
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
+            <CardTitle className="text-2xl">Review &amp; Confirm</CardTitle>
+            <CardDescription className="text-base">Check your details before activating</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Step Progress Indicator */}
+            <div className="flex items-center gap-2 mb-5">
+              <div className="flex-1 flex flex-col items-center gap-1.5">
+                <div className="h-2 w-full rounded-full bg-emerald-500" />
+                <span className="text-xs font-semibold text-emerald-600">1. Activate</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center gap-1.5">
+                <div className="h-2 w-full rounded-full bg-emerald-500" />
+                <span className="text-xs font-semibold text-emerald-600">2. Profile</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center gap-1.5">
+                <div className="h-2 w-full rounded-full bg-primary" />
+                <span className="text-xs font-semibold text-primary">3. Confirm</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">👤 Full Name</p>
+                  <p className="text-base font-semibold truncate">{fullName.trim()}</p>
+                </div>
+                <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">✉️ Email</p>
+                  <p className="text-base font-semibold truncate">{email.trim() || 'Not provided'}</p>
+                </div>
+                <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">🔑 Password</p>
+                  <p className="text-base font-semibold tracking-widest">{'•'.repeat(Math.min(newPassword.length, 10))}</p>
+                </div>
+                <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">📍 Location</p>
+                  <p className="text-base font-semibold truncate">{locationLabel}</p>
+                </div>
+                <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] mt-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40 space-y-2">
+              <Button onClick={(e) => handleActivate(e as any)} className="w-full h-14 text-base font-semibold" disabled={isLoading}>
+                {isLoading ? (
+                  <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Activating...</>
+                ) : (
+                  <><CheckCircle2 className="h-5 w-5 mr-2" />Confirm &amp; Activate</>
+                )}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setPageState('profile-setup')}
+                className="w-full text-sm text-muted-foreground hover:text-foreground text-center py-1"
+                disabled={isLoading}
+              >
+                ← Back
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Profile Setup (Step 2)
+  if (pageState === 'profile-setup') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
