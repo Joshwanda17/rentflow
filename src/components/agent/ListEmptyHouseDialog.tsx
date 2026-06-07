@@ -1043,16 +1043,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </div>
             </div>
             <div>
-              <Label className="text-xs">Address *</Label>
+              <Label className="text-xs">Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 placeholder="e.g. Plot 12, Nansana Road"
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                className={attempted && !form.address.trim() ? 'border-destructive' : ''}
               />
             </div>
             <div>
-              <Label className="text-xs">Village / Zone *</Label>
+              <Label className="text-xs">Village / Zone <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 placeholder="e.g. Kikaya Zone B"
                 value={form.village}
@@ -1060,7 +1059,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   const val = e.target.value;
                   setForm(f => ({ ...f, village: val, lc1_village: val }));
                 }}
-                className={attempted && !form.village.trim() ? 'border-destructive' : ''}
               />
             </div>
             <Button
