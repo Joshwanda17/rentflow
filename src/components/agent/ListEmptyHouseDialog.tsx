@@ -272,6 +272,39 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const clearLandlordSelection = () => {
     setSelectedLandlord(null);
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
+    setLandlordPhoneError('');
+  };
+
+  // Strict landlord phone validation with user-friendly messages.
+  const validateLandlordPhone = (phone: string): string => {
+    const trimmed = phone.trim();
+    if (!trimmed) return 'Landlord phone number is required';
+
+    const global = isValidPhoneNumberGlobal(trimmed);
+    if (!global.valid) return global.reason || 'Phone number looks invalid';
+
+    // Uganda-specific checks
+    const cleaned = trimmed.replace(/\D/g, '');
+    const isUgandaFormat =
+      trimmed.startsWith('+256') ||
+      trimmed.startsWith('256') ||
+      trimmed.startsWith('0');
+
+    if (!isUgandaFormat) {
+      return 'Please use a Ugandan number starting with 07, 08, 09 or +256';
+    }
+
+    const national = cleaned.startsWith('256') ? cleaned.slice(3) : cleaned.startsWith('0') ? cleaned.slice(1) : cleaned;
+    if (national.length !== 9) {
+      return `Phone number should have 9 digits after the country code (found ${national.length})`;
+    }
+
+    // Uganda mobile prefixes: 70-79
+    if (!national.startsWith('7') && !national.startsWith('8') && !national.startsWith('9')) {
+      return 'Please use a valid Uganda mobile number (starting with 07, 08 or 09)';
+    }
+
+    return '';
   };
 
   // ─── One-tap GPS: capture current location and auto-fill region/district/village ───
