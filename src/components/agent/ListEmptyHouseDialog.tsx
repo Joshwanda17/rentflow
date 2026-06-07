@@ -1459,21 +1459,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </>
           )}
 
-          {/* Wizard navigation — big Back / Next / List buttons */}
-          <div className="flex gap-2 pt-1">
+          {/* Wizard navigation — big Back / Next / List buttons.
+              Sticky to the bottom of the scrollable dialog so the main action
+              is always reachable on small phones without scrolling. */}
+          <div className="sticky bottom-0 -mx-4 sm:-mx-6 mt-2 flex gap-2 border-t border-border bg-background/95 px-4 sm:px-6 pt-3 pb-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             {step > 1 && (
-              <Button type="button" variant="outline" className="h-12 flex-1 text-base" onClick={goBack}>
+              <Button type="button" variant="outline" className="h-14 flex-1 text-base font-semibold" onClick={goBack}>
                 <ArrowLeft className="h-5 w-5 mr-1" /> Back
               </Button>
             )}
             {step < TOTAL_STEPS ? (
-              <Button type="button" className="h-12 flex-[2] text-base" onClick={goNext}>
+              <Button type="button" className="h-14 flex-[2] text-base font-bold" onClick={goNext}>
                 Next <ArrowRight className="h-5 w-5 ml-1" />
               </Button>
             ) : (
               <Button
                 type="submit"
-                className="h-12 flex-[2] text-base"
+                className="h-14 flex-[2] text-base font-bold"
                 disabled={submitting || !allGatesPass}
                 onClick={(e) => {
                   // Defensive: some mobile browsers swallow form submit when
