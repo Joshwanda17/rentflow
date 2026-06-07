@@ -1135,7 +1135,7 @@ export default function LandlordRegistrationForm({
             <FormStepHeader
               icon={CheckCircle2}
               stepLabel="Step 2 of 2"
-              title="Confirm &amp; register"
+              title="Confirm & register"
               subtitle="Check the details below, then tap Register."
             />
             {(() => {
