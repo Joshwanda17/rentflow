@@ -984,10 +984,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-12 text-sm font-semibold w-full"
+                  className="h-12 w-full gap-2 text-sm font-semibold"
                   onClick={() => { setManualLandlord(true); setForm(f => ({ ...f, landlord_name: landlordQuery.trim().match(/^[0-9+]/) ? f.landlord_name : landlordQuery.trim() })); }}
                 >
-                  ➕ Can't find them? Add a new landlord
+                  <UserCheck className="h-4 w-4" /> Can't find them? Add a new landlord
                 </Button>
               </div>
             )}
