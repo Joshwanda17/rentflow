@@ -980,11 +980,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
                 <Button
                   type="button"
-                  variant="ghost"
-                  className="h-8 text-xs w-full"
+                  variant="outline"
+                  className="h-12 text-sm font-semibold w-full"
                   onClick={() => { setManualLandlord(true); setForm(f => ({ ...f, landlord_name: landlordQuery.trim().match(/^[0-9+]/) ? f.landlord_name : landlordQuery.trim() })); }}
                 >
-                  Can't find them? Add a new landlord
+                  ➕ Can't find them? Add a new landlord
                 </Button>
               </div>
             )}
