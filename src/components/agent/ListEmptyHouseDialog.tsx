@@ -1028,11 +1028,34 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     <PhoneInput
                       placeholder="0771234567"
                       value={form.landlord_phone}
-                      onChange={(v) => setForm(f => ({ ...f, landlord_phone: v }))}
-                      onContactPicked={({ name }) => {
-                        if (name && !form.landlord_name.trim()) setForm(f => ({ ...f, landlord_name: name }));
+                      onChange={(v) => {
+                        setForm(f => ({ ...f, landlord_phone: v }));
+                        // Real-time validation: clear error while typing, re-check on blur or if length seems complete
+                        if (!v.trim()) {
+                          setLandlordPhoneError('');
+                        } else if (v.replace(/\D/g, '').length >= 9) {
+                          setLandlordPhoneError(validateLandlordPhone(v));
+                        } else {
+                          setLandlordPhoneError('');
+                        }
                       }}
+                      onBlur={() => {
+                        if (form.landlord_phone.trim()) {
+                          setLandlordPhoneError(validateLandlordPhone(form.landlord_phone));
+                        }
+                      }}
+                      onContactPicked={({ name, phone }) => {
+                        if (name && !form.landlord_name.trim()) setForm(f => ({ ...f, landlord_name: name }));
+                        setLandlordPhoneError(validateLandlordPhone(phone));
+                      }}
+                      className={landlordPhoneError ? 'border-destructive focus-visible:ring-destructive' : ''}
                     />
+                    {landlordPhoneError && (
+                      <p className="text-[11px] text-destructive mt-1 flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-[9px] font-bold">!</span>
+                        {landlordPhoneError}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Button
