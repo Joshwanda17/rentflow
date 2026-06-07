@@ -1064,7 +1064,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   className="h-8 text-xs"
                   onClick={() => { setManualLandlord(false); setForm(f => ({ ...f, landlord_name: '', landlord_phone: '' })); setLandlordPhoneError(''); }}
                 >
-                >
                   ← Back to search
                 </Button>
               </div>
