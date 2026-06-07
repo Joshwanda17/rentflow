@@ -900,7 +900,7 @@ export function LandlordOpsDashboard() {
   const unverifiedLandlords = landlordsList.filter(l => !l.verified && !rejectedLandlordIds.has(l.id));
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
-  const handleVerifyListing = async (listing: ListingWithLandlord) => {
+  const handleVerifyListing = async (listing: ListingWithLandlord, note?: string) => {
     console.log('[Verify] click', listing.id, listing.title);
     if (!user) return;
     // INSTANT UX: hide the card immediately, show a toast right now, run the
@@ -941,6 +941,16 @@ export function LandlordOpsDashboard() {
         next.delete(listing.id);
         return next;
       });
+      // Persist the operator's inline note (if any) for audit/attribution.
+      if (note && note.trim()) {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'listing_verified',
+          table_name: 'house_listings',
+          record_id: listing.id,
+          metadata: { reason: note.trim(), listing_title: listing.title, verified_by: 'landlord_ops' },
+        });
+      }
       refetch();
     } catch (err: any) {
       // Roll back optimistic removal so the operator can retry.
@@ -950,6 +960,85 @@ export function LandlordOpsDashboard() {
         return next;
       });
       toast({ title: 'Verification Failed', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  // Inline reject for a pending house listing (notes required, min 10 chars).
+  const handleRejectListing = async (listing: ListingWithLandlord, note: string) => {
+    if (!user) return;
+    const reason = note.trim();
+    if (reason.length < 10) {
+      toast({ title: 'Add a note', description: 'Please give at least 10 characters explaining the rejection.', variant: 'destructive' });
+      return;
+    }
+    // Optimistically hide the card from the pending queue.
+    setOptimisticallyVerifiedIds(prev => new Set(prev).add(listing.id));
+    try {
+      const { data, error } = await supabase.rpc('reject_house_listing', {
+        p_listing_id: listing.id,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      if (data && typeof data === 'object' && 'error' in (data as any)) {
+        throw new Error((data as any).error);
+      }
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map(l => l.id === listing.id ? { ...l, status: 'rejected' } : l);
+      });
+      toast({ title: 'Listing rejected', description: `${listing.title} has been rejected.` });
+      refetch();
+    } catch (err: any) {
+      setOptimisticallyVerifiedIds(prev => { const next = new Set(prev); next.delete(listing.id); return next; });
+      toast({ title: 'Reject failed', description: err?.message || 'Could not reject listing', variant: 'destructive' });
+    }
+  };
+
+  // Approve (verify) a pending landlord with an optional inline note.
+  const handleApproveLandlord = async (landlord: any, note?: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('landlords')
+        .update({ verified: true, verified_at: new Date().toISOString(), verified_by: user.id })
+        .eq('id', landlord.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'landlord_verified',
+        table_name: 'landlords',
+        record_id: landlord.id,
+        metadata: { landlord_name: landlord.name, reason: (note?.trim() || 'Approved via Landlord Ops verification queue'), verified_by: 'landlord_ops' },
+      });
+      setExpandedLandlordId(null);
+      toast({ title: '✅ Landlord verified', description: `${landlord.name} is now verified.` });
+      refetchAll();
+    } catch (err: any) {
+      toast({ title: 'Approve failed', description: err?.message || 'Could not verify landlord', variant: 'destructive' });
+    }
+  };
+
+  // Reject a pending landlord (notes required, min 10 chars). Logged + hidden for the session.
+  const handleRejectLandlord = async (landlord: any, note: string) => {
+    if (!user) return;
+    const reason = note.trim();
+    if (reason.length < 10) {
+      toast({ title: 'Add a note', description: 'Please give at least 10 characters explaining the rejection.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'landlord_verification_rejected',
+        table_name: 'landlords',
+        record_id: landlord.id,
+        metadata: { landlord_name: landlord.name, reason, rejected_by: 'landlord_ops' },
+      });
+      setRejectedLandlordIds(prev => new Set(prev).add(landlord.id));
+      setExpandedLandlordId(null);
+      toast({ title: 'Landlord rejected', description: `${landlord.name} was rejected and logged.` });
+    } catch (err: any) {
+      toast({ title: 'Reject failed', description: err?.message || 'Could not reject landlord', variant: 'destructive' });
     }
   };
 
