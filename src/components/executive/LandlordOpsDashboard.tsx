@@ -1084,7 +1084,9 @@ export function LandlordOpsDashboard() {
         setSearch('');
         setVerifySearch('');
         setVerifyFilter('all');
+        setVerifySort('newest');
         setPendingFilter('all');
+        setLandlordSort('newest');
       }}
       className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3 min-h-[44px] touch-manipulation"
     >
