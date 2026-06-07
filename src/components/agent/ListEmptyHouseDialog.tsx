@@ -1290,13 +1290,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <div>
                 <Label className="text-sm font-medium">Region *</Label>
                 <Select value={form.region} onValueChange={v => setForm(f => ({ ...f, region: v }))}>
-                  <SelectTrigger className="h-12 text-base"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={`h-12 text-base ${attempted && !form.region ? 'border-destructive focus:ring-destructive' : ''}`}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {REGIONS.map(r => (
                       <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {attempted && !form.region && (
+                  <FieldError message="Choose the region where the house is." />
+                )}
               </div>
               <div>
                 <Label className="text-sm font-medium">District</Label>
