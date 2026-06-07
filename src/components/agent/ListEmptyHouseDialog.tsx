@@ -1132,8 +1132,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </div>
 
               {form.caretaker_type === 'self' && (
-                <p className="text-xs text-success font-medium bg-success/10 rounded-lg p-2 text-center">
-                  ✅ You'll be registered as the caretaker for this rental
+                <p className="flex items-center justify-center gap-1.5 rounded-lg bg-success/10 p-2 text-xs font-medium text-success">
+                  <Check className="h-3.5 w-3.5" /> You'll be registered as the caretaker for this rental
                 </p>
               )}
 
