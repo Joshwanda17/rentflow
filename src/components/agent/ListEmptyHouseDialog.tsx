@@ -1189,12 +1189,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     key={c.value}
                     type="button"
                     onClick={() => setForm(f => ({ ...f, house_category: c.value }))}
-                    className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition-colors ${
+                    className={`flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-center transition-colors ${
                       selected ? 'border-primary bg-primary/10 ring-2 ring-primary' : 'border-border bg-muted/30 hover:bg-muted/50'
                     }`}
                   >
-                    <span className="text-2xl leading-none">{c.emoji}</span>
-                    <span className="text-[11px] font-medium leading-tight">{c.label}</span>
+                    <span className="text-3xl leading-none">{c.emoji}</span>
+                    <span className="text-xs font-semibold leading-tight">{c.label}</span>
                   </button>
                 );
               })}
