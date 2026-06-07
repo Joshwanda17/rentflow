@@ -225,50 +225,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   };
 
   // ─── Guided wizard navigation ───
-  const TOTAL_STEPS = 4;
-  const STEP_LABELS = ['Landlord', 'House', 'Photos & Place', 'Confirm'];
+  const TOTAL_STEPS = 2;
+  const STEP_LABELS = ['House & photos', 'Landlord & list'];
 
   // Validate just the current step before moving forward. Returns true if OK.
   const validateStep = (s: number): boolean => {
     if (s === 1) {
-      if (!selectedLandlord && !manualLandlord) {
-        toast.error('Pick the landlord or add a new one');
-        return false;
-      }
-      if (manualLandlord && (!form.landlord_name.trim() || !form.landlord_phone.trim())) {
-        toast.error('Enter the new landlord name and phone');
-        return false;
-      }
-      if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
-        toast.error('Enter the caretaker name and phone');
-        return false;
-      }
-    }
-    if (s === 2) {
+      // Essentials only: rent, region and at least one photo.
       if (!monthlyRent || monthlyRent < 10000) {
         toast.error('Monthly rent must be at least UGX 10,000');
         return false;
       }
-    }
-    if (s === 3) {
       if (!form.region) {
         toast.error('Please select a region');
         return false;
       }
-      if (!form.address.trim()) {
-        toast.error('Address is required');
-        return false;
-      }
-      if (!form.village.trim()) {
-        toast.error('Village / Zone is required');
+      if (houseImages.length === 0) {
+        toast.error('Add at least one photo of the house');
         return false;
       }
     }
-    if (s === 4) {
-      const lc1Err = validateLc1Selection(lc1Selection);
-      if (lc1Err) {
-        toast.error(lc1Err);
+    if (s === 2) {
+      // Everything here is optional — only validate fields the agent began filling.
+      if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
+        toast.error('Enter the caretaker name and phone');
         return false;
+      }
+      if (lc1Selection) {
+        const lc1Err = validateLc1Selection(lc1Selection);
+        if (lc1Err) {
+          toast.error(lc1Err);
+          return false;
+        }
       }
     }
     return true;
@@ -295,18 +283,20 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // glance exactly what is still missing (and on which step) before they can
   // submit. Each gate carries the wizard step the agent should go back to.
   type PreflightGate = { label: string; ok: boolean; hint: string; step: number };
-  const landlordOk = (!!selectedLandlord) || (manualLandlord && !!form.landlord_name.trim() && !!form.landlord_phone.trim());
   const caretakerOk = form.caretaker_type !== 'other' || (!!form.caretaker_name.trim() && !!form.caretaker_phone.trim());
-  const lc1Err = validateLc1Selection(lc1Selection);
+  // LC1 is optional — only flag it as incomplete once the agent starts filling it in.
+  const lc1PartialErr = lc1Selection ? validateLc1Selection(lc1Selection) : null;
   const preflightGates: PreflightGate[] = [
-    { label: 'Landlord selected or added', ok: landlordOk, hint: 'Search the landlord, then pick them or add a new one', step: 1 },
-    { label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 1 },
-    { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 2 },
-    { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 3 },
-    { label: 'Address entered', ok: !!form.address.trim(), hint: 'Enter the house address', step: 3 },
-    { label: 'Village / Zone entered', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 3 },
-    { label: 'LC1 chairperson', ok: !lc1Err, hint: lc1Err || 'Search or register the LC1 chairperson', step: 4 },
+    { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 1 },
+    { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
+    { label: 'At least one photo', ok: houseImages.length > 0, hint: 'Add at least one photo of the house', step: 1 },
   ];
+  if (form.caretaker_type === 'other') {
+    preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 2 });
+  }
+  if (lc1Selection) {
+    preflightGates.push({ label: 'LC1 chairperson details', ok: !lc1PartialErr, hint: lc1PartialErr || 'Complete the LC1 chairperson details', step: 2 });
+  }
   const missingGates = preflightGates.filter((g) => !g.ok);
   const allGatesPass = missingGates.length === 0;
 
@@ -325,19 +315,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       scrollDialogToTop();
     };
 
-    // Search-first: the agent must look up the landlord in the system before
-    // listing. They either select an existing (ideally verified) landlord or
-    // explicitly add a new one after searching returns no match.
-    if (!selectedLandlord && !manualLandlord) {
-      failWith('Search for the landlord first, then select them or add a new one');
-      scrollDialogToTop();
-      return;
-    }
-    if (manualLandlord && (!form.landlord_name.trim() || !form.landlord_phone.trim())) {
-      failWith('Enter the new landlord name and phone');
-      return;
-    }
-
     if (!monthlyRent || monthlyRent < 10000) {
       failWith('Monthly rent must be at least UGX 10,000');
       return;
@@ -346,18 +323,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Please select a region');
       return;
     }
-    if (!form.address.trim()) {
-      failWith('Address is required');
+    if (houseImages.length === 0) {
+      failWith('Add at least one photo of the house');
       return;
     }
-    if (!form.village.trim()) {
-      failWith('Village/Zone is required');
+    // Landlord is optional. Only validate a manual entry the agent started.
+    if (manualLandlord && (!!form.landlord_name.trim() !== !!form.landlord_phone.trim())) {
+      failWith('Enter both the landlord name and phone, or clear them');
       return;
     }
-    const lc1Err = validateLc1Selection(lc1Selection);
-    if (lc1Err) {
-      failWith(lc1Err);
+    if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
+      failWith('Enter the caretaker name and phone');
       return;
+    }
+    // LC1 is optional — only validate if the agent began filling it in.
+    if (lc1Selection) {
+      const lc1Err = validateLc1Selection(lc1Selection);
+      if (lc1Err) { failWith(lc1Err); return; }
     }
 
     setSubmitting(true);
@@ -738,16 +720,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             })}
           </div>
 
-          {/* ── Step 1: Landlord ── */}
-          {step === 1 && (
+          {/* ── Step 2: Landlord (optional) ── */}
+          {step === 2 && (
           <>
           <div className="text-center">
-            <p className="text-base font-semibold">Who owns the house?</p>
-            <p className="text-xs text-muted-foreground">Find the landlord, or add a new one</p>
+            <p className="text-base font-semibold">Landlord & finishing touches</p>
+            <p className="text-xs text-muted-foreground">All optional — add what you know now, the rest can come later</p>
           </div>
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal">(optional)</span></p>
 
             {/* Step 1 — search the system for a verified landlord */}
             {!selectedLandlord && !manualLandlord && (
@@ -940,8 +922,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </>
           )}
 
-          {/* ── Step 2: House type & rent ── */}
-          {step === 2 && (
+          {/* ── Step 1: House type & rent ── */}
+          {step === 1 && (
           <>
           <div className="text-center">
             <p className="text-base font-semibold">What kind of house?</p>
@@ -1007,14 +989,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </>
           )}
 
-          {/* ── Step 3: Photos & place ── */}
-          {step === 3 && (
+          {/* ── Step 1 (cont.): Photos & place ── */}
+          {step === 1 && (
           <>
           <div className="text-center">
             <p className="text-base font-semibold">Photos &amp; where is it?</p>
-            <p className="text-xs text-muted-foreground">Take photos and set the location</p>
+            <p className="text-xs text-muted-foreground">Add at least one photo and the area</p>
           </div>
           {/* Photos */}
+          <Label className="text-xs font-semibold">Photos * <span className="text-muted-foreground font-normal">— at least one</span></Label>
           <HouseImageUploader
             images={houseImages}
             onChange={setHouseImages}
@@ -1060,16 +1043,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </div>
             </div>
             <div>
-              <Label className="text-xs">Address *</Label>
+              <Label className="text-xs">Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 placeholder="e.g. Plot 12, Nansana Road"
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                className={attempted && !form.address.trim() ? 'border-destructive' : ''}
               />
             </div>
             <div>
-              <Label className="text-xs">Village / Zone *</Label>
+              <Label className="text-xs">Village / Zone <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 placeholder="e.g. Kikaya Zone B"
                 value={form.village}
@@ -1077,7 +1059,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   const val = e.target.value;
                   setForm(f => ({ ...f, village: val, lc1_village: val }));
                 }}
-                className={attempted && !form.village.trim() ? 'border-destructive' : ''}
               />
             </div>
             <Button
@@ -1095,21 +1076,24 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </>
           )}
 
-          {/* ── Step 4: LC1 & confirm ── */}
-          {step === 4 && (
+          {/* ── Step 2 (cont.): LC1 (optional) & confirm ── */}
+          {step === 2 && (
           <>
           <div className="text-center">
             <p className="text-base font-semibold">Almost done!</p>
-            <p className="text-xs text-muted-foreground">Add the LC1 chairperson, then list the house</p>
+            <p className="text-xs text-muted-foreground">LC1 chairperson is optional — list the house whenever you're ready</p>
           </div>
-          {/* LC1 Chairperson — search-first or register a new one (earns UGX 5,000) */}
+          {/* LC1 Chairperson — optional, but registering one earns UGX 5,000 */}
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-muted-foreground uppercase">LC1 Chairperson <span className="normal-case text-[10px] font-normal">(optional · earns UGX 5,000)</span></p>
+          </div>
           <Lc1ChairpersonPicker
             value={lc1Selection}
             onChange={setLc1Selection}
             defaultRegion={form.region}
             defaultDistrict={form.district}
             defaultVillage={form.village}
-            attempted={attempted}
+            attempted={attempted && !!lc1Selection}
           />
 
           {/* Amenities */}
@@ -1194,7 +1178,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     {!g.ok && (
                       <span className="block text-[11px] text-amber-700 dark:text-amber-400">
                         {g.hint}
-                        {g.step !== 4 && (
+                        {g.step !== 2 && (
                           <button type="button" onClick={() => { setStep(g.step); scrollDialogToTop(); }} className="ml-1 underline font-semibold">
                             Fix on step {g.step}
                           </button>
