@@ -1112,19 +1112,17 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  size="sm"
                   variant={form.caretaker_type === 'self' ? 'default' : 'outline'}
                   onClick={() => setForm(f => ({ ...f, caretaker_type: 'self' }))}
-                  className="flex-1"
+                  className="flex-1 h-12 text-sm font-semibold"
                 >
                   I'm the Caretaker
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
                   variant={form.caretaker_type === 'other' ? 'default' : 'outline'}
                   onClick={() => setForm(f => ({ ...f, caretaker_type: 'other' }))}
-                  className="flex-1"
+                  className="flex-1 h-12 text-sm font-semibold"
                 >
                   Someone Else
                 </Button>
