@@ -18,6 +18,7 @@ import { reverseGeocode } from '@/lib/reverseGeocode';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
+import { isValidPhoneNumberGlobal } from '@/lib/phoneUtils';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -75,6 +76,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [lc1Selection, setLc1Selection] = useState<Lc1Selection | null>(null);
   const [attempted, setAttempted] = useState(false);
   const [showOptional, setShowOptional] = useState(false);
+  // Landlord phone real-time validation error
+  const [landlordPhoneError, setLandlordPhoneError] = useState<string>('');
   const [successListing, setSuccessListing] = useState<null | {
     id: string;
     shortCode: string | null;
@@ -264,11 +267,45 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSelectedLandlord(hit);
     setManualLandlord(false);
     setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: hit.phone }));
+    setLandlordPhoneError('');
   };
 
   const clearLandlordSelection = () => {
     setSelectedLandlord(null);
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
+    setLandlordPhoneError('');
+  };
+
+  // Strict landlord phone validation with user-friendly messages.
+  const validateLandlordPhone = (phone: string): string => {
+    const trimmed = phone.trim();
+    if (!trimmed) return 'Landlord phone number is required';
+
+    const global = isValidPhoneNumberGlobal(trimmed);
+    if (!global.valid) return global.reason || 'Phone number looks invalid';
+
+    // Uganda-specific checks
+    const cleaned = trimmed.replace(/\D/g, '');
+    const isUgandaFormat =
+      trimmed.startsWith('+256') ||
+      trimmed.startsWith('256') ||
+      trimmed.startsWith('0');
+
+    if (!isUgandaFormat) {
+      return 'Please use a Ugandan number starting with 07, 08, 09 or +256';
+    }
+
+    const national = cleaned.startsWith('256') ? cleaned.slice(3) : cleaned.startsWith('0') ? cleaned.slice(1) : cleaned;
+    if (national.length !== 9) {
+      return `Phone number should have 9 digits after the country code (found ${national.length})`;
+    }
+
+    // Uganda mobile prefixes: 70-79
+    if (!national.startsWith('7') && !national.startsWith('8') && !national.startsWith('9')) {
+      return 'Please use a valid Uganda mobile number (starting with 07, 08 or 09)';
+    }
+
+    return '';
   };
 
   // ─── One-tap GPS: capture current location and auto-fill region/district/village ───
@@ -362,8 +399,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     if (s === 2) {
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
-      if (!form.landlord_phone.trim()) {
-        toast.error('Landlord phone number is required');
+      const phoneErr = validateLandlordPhone(form.landlord_phone);
+      if (phoneErr) {
+        toast.error(phoneErr);
+        setLandlordPhoneError(phoneErr);
         return false;
       }
       if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
@@ -410,7 +449,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
     { label: 'At least one photo', ok: houseImages.length > 0, hint: 'Add at least one photo of the house', step: 1 },
   ];
-  preflightGates.push({ label: 'Landlord phone number', ok: !!form.landlord_phone.trim(), hint: 'Add the landlord phone number', step: 2 });
+  preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 2 });
   if (form.caretaker_type === 'other') {
     preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 2 });
   }
@@ -989,18 +1028,41 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     <PhoneInput
                       placeholder="0771234567"
                       value={form.landlord_phone}
-                      onChange={(v) => setForm(f => ({ ...f, landlord_phone: v }))}
-                      onContactPicked={({ name }) => {
-                        if (name && !form.landlord_name.trim()) setForm(f => ({ ...f, landlord_name: name }));
+                      onChange={(v) => {
+                        setForm(f => ({ ...f, landlord_phone: v }));
+                        // Real-time validation: clear error while typing, re-check on blur or if length seems complete
+                        if (!v.trim()) {
+                          setLandlordPhoneError('');
+                        } else if (v.replace(/\D/g, '').length >= 9) {
+                          setLandlordPhoneError(validateLandlordPhone(v));
+                        } else {
+                          setLandlordPhoneError('');
+                        }
                       }}
+                      onBlur={() => {
+                        if (form.landlord_phone.trim()) {
+                          setLandlordPhoneError(validateLandlordPhone(form.landlord_phone));
+                        }
+                      }}
+                      onContactPicked={({ name, phone }) => {
+                        if (name && !form.landlord_name.trim()) setForm(f => ({ ...f, landlord_name: name }));
+                        setLandlordPhoneError(validateLandlordPhone(phone));
+                      }}
+                      className={landlordPhoneError ? 'border-destructive focus-visible:ring-destructive' : ''}
                     />
+                    {landlordPhoneError && (
+                      <p className="text-[11px] text-destructive mt-1 flex items-center gap-1">
+                        <span className="inline-block h-3 w-3 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-[9px] font-bold">!</span>
+                        {landlordPhoneError}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Button
                   type="button"
                   variant="ghost"
                   className="h-8 text-xs"
-                  onClick={() => { setManualLandlord(false); setForm(f => ({ ...f, landlord_name: '', landlord_phone: '' })); }}
+                  onClick={() => { setManualLandlord(false); setForm(f => ({ ...f, landlord_name: '', landlord_phone: '' })); setLandlordPhoneError(''); }}
                 >
                   ← Back to search
                 </Button>
