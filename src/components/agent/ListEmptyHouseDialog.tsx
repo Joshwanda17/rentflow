@@ -1169,10 +1169,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {/* ── Step 1: House type & rent ── */}
           {step === 1 && (
           <>
-          <div className="text-center">
-            <p className="text-lg font-bold">🏠 What kind of house?</p>
-            <p className="text-sm text-muted-foreground">Tap the picture that matches</p>
-          </div>
+          <FormStepHeader
+            icon={Home}
+            stepLabel="Step 1 of 2"
+            title="What kind of house?"
+            subtitle="Tap the picture that matches."
+          />
           {/* Property Details */}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
