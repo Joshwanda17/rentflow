@@ -1102,6 +1102,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               />
               <span className="text-sm">Landlord doesn't have / can't use a smartphone</span>
             </label>
+            {attempted && !!validateLandlordPhone(form.landlord_phone) && (
+              <FieldError
+                message={
+                  selectedLandlord || manualLandlord
+                    ? validateLandlordPhone(form.landlord_phone)
+                    : 'Search and pick the landlord, or add a new one, so we have their phone number.'
+                }
+              />
+            )}
           </div>
 
           {/* Caretaker Section — only if landlord has no smartphone */}
