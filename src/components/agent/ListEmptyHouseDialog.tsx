@@ -794,6 +794,25 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             {/* Step 1 — search the system for a verified landlord */}
             {!selectedLandlord && !manualLandlord && (
               <div className="space-y-2">
+                {/* One-tap reuse of the agent's most recently used landlord */}
+                {lastLandlord && (
+                  <button
+                    type="button"
+                    onClick={() => selectLandlord(lastLandlord)}
+                    className="w-full text-left p-2.5 rounded-lg border border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold text-primary uppercase tracking-wide">
+                        <UserCheck className="h-3.5 w-3.5" /> Use last landlord
+                      </span>
+                      {lastLandlord.verified && (
+                        <ShieldCheck className="h-3.5 w-3.5 text-success shrink-0" />
+                      )}
+                    </div>
+                    <p className="font-medium text-sm truncate mt-0.5">{lastLandlord.name}</p>
+                    <p className="text-xs text-muted-foreground">{lastLandlord.phone}</p>
+                  </button>
+                )}
                 <Label className="text-xs">Search the landlord in the system first</Label>
                 <div className="flex gap-2">
                   <Input
