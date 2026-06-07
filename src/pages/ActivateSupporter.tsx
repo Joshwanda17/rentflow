@@ -536,7 +536,7 @@ export default function ActivateSupporter() {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">👤 Full Name</p>
+                  <p className="text-xs text-muted-foreground">Full Name</p>
                   <p className="text-base font-semibold truncate">{fullName.trim()}</p>
                 </div>
                 <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
@@ -544,7 +544,7 @@ export default function ActivateSupporter() {
 
               <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">✉️ Email</p>
+                  <p className="text-xs text-muted-foreground">Email</p>
                   <p className="text-base font-semibold truncate">{email.trim() || 'Not provided'}</p>
                 </div>
                 <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
@@ -552,7 +552,7 @@ export default function ActivateSupporter() {
 
               <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">🔑 Password</p>
+                  <p className="text-xs text-muted-foreground">Password</p>
                   <p className="text-base font-semibold tracking-widest">{'•'.repeat(Math.min(newPassword.length, 10))}</p>
                 </div>
                 <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
@@ -560,11 +560,65 @@ export default function ActivateSupporter() {
 
               <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border/40">
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">📍 Location</p>
+                  <p className="text-xs text-muted-foreground">Location</p>
                   <p className="text-base font-semibold truncate">{locationLabel}</p>
                 </div>
                 <button type="button" onClick={() => setPageState('profile-setup')} className="text-sm text-primary font-medium shrink-0">Edit</button>
               </div>
+            </div>
+
+            {/* Required Checklist */}
+            <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
+              <p className="text-sm font-semibold text-primary">Confirm before activating</p>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <div className="mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={emailConfirmed}
+                    onChange={(e) => setEmailConfirmed(e.target.checked)}
+                    className="h-5 w-5 accent-primary shrink-0"
+                  />
+                </div>
+                <span className="text-sm leading-5">
+                  My email <span className="font-semibold">{email.trim() || 'and details'}</span> are correct
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <div className="mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={locationConfirmed}
+                    onChange={(e) => setLocationConfirmed(e.target.checked)}
+                    className="h-5 w-5 accent-primary shrink-0"
+                  />
+                </div>
+                <span className="text-sm leading-5">
+                  My location is correct
+                  {locationStatus === 'granted' && locationData ? (
+                    <span className="block text-xs text-muted-foreground mt-0.5">
+                      {locationData.latitude.toFixed(4)}, {locationData.longitude.toFixed(4)}
+                    </span>
+                  ) : (
+                    <span className="block text-xs text-warning mt-0.5">Location not shared</span>
+                  )}
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <div className="mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="h-5 w-5 accent-primary shrink-0"
+                  />
+                </div>
+                <span className="text-sm leading-5">
+                  I agree to work as a <span className="font-semibold">Welile {inviteDetails?.role ? inviteDetails.role.charAt(0).toUpperCase() + inviteDetails.role.slice(1) : 'Agent'}</span>
+                </span>
+              </label>
             </div>
 
             <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] mt-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40 space-y-2">
