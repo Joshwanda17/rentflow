@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
@@ -20,6 +20,7 @@ import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -259,6 +260,9 @@ export function LandlordOpsDashboard() {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [assignPerson, setAssignPerson] = useState<{ listingId: string; title: string; type: 'landlord' | 'agent' } | null>(null);
+  // Landlord verification moderation (frontend session state).
+  const [rejectedLandlordIds, setRejectedLandlordIds] = useState<Set<string>>(new Set());
+  const [expandedLandlordId, setExpandedLandlordId] = useState<string | null>(null);
 
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
@@ -894,10 +898,10 @@ export function LandlordOpsDashboard() {
   const lc1Groups = fullLC1Data || [];
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
-  const unverifiedLandlords = landlordsList.filter(l => !l.verified);
+  const unverifiedLandlords = landlordsList.filter(l => !l.verified && !rejectedLandlordIds.has(l.id));
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
-  const handleVerifyListing = async (listing: ListingWithLandlord) => {
+  const handleVerifyListing = async (listing: ListingWithLandlord, note?: string) => {
     console.log('[Verify] click', listing.id, listing.title);
     if (!user) return;
     // INSTANT UX: hide the card immediately, show a toast right now, run the
@@ -938,6 +942,16 @@ export function LandlordOpsDashboard() {
         next.delete(listing.id);
         return next;
       });
+      // Persist the operator's inline note (if any) for audit/attribution.
+      if (note && note.trim()) {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'listing_verified',
+          table_name: 'house_listings',
+          record_id: listing.id,
+          metadata: { reason: note.trim(), listing_title: listing.title, verified_by: 'landlord_ops' },
+        });
+      }
       refetch();
     } catch (err: any) {
       // Roll back optimistic removal so the operator can retry.
@@ -947,6 +961,85 @@ export function LandlordOpsDashboard() {
         return next;
       });
       toast({ title: 'Verification Failed', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  // Inline reject for a pending house listing (notes required, min 10 chars).
+  const handleRejectListing = async (listing: ListingWithLandlord, note: string) => {
+    if (!user) return;
+    const reason = note.trim();
+    if (reason.length < 10) {
+      toast({ title: 'Add a note', description: 'Please give at least 10 characters explaining the rejection.', variant: 'destructive' });
+      return;
+    }
+    // Optimistically hide the card from the pending queue.
+    setOptimisticallyVerifiedIds(prev => new Set(prev).add(listing.id));
+    try {
+      const { data, error } = await supabase.rpc('reject_house_listing', {
+        p_listing_id: listing.id,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      if (data && typeof data === 'object' && 'error' in (data as any)) {
+        throw new Error((data as any).error);
+      }
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map(l => l.id === listing.id ? { ...l, status: 'rejected' } : l);
+      });
+      toast({ title: 'Listing rejected', description: `${listing.title} has been rejected.` });
+      refetch();
+    } catch (err: any) {
+      setOptimisticallyVerifiedIds(prev => { const next = new Set(prev); next.delete(listing.id); return next; });
+      toast({ title: 'Reject failed', description: err?.message || 'Could not reject listing', variant: 'destructive' });
+    }
+  };
+
+  // Approve (verify) a pending landlord with an optional inline note.
+  const handleApproveLandlord = async (landlord: any, note?: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('landlords')
+        .update({ verified: true, verified_at: new Date().toISOString(), verified_by: user.id })
+        .eq('id', landlord.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'landlord_verified',
+        table_name: 'landlords',
+        record_id: landlord.id,
+        metadata: { landlord_name: landlord.name, reason: (note?.trim() || 'Approved via Landlord Ops verification queue'), verified_by: 'landlord_ops' },
+      });
+      setExpandedLandlordId(null);
+      toast({ title: '✅ Landlord verified', description: `${landlord.name} is now verified.` });
+      refetchAll();
+    } catch (err: any) {
+      toast({ title: 'Approve failed', description: err?.message || 'Could not verify landlord', variant: 'destructive' });
+    }
+  };
+
+  // Reject a pending landlord (notes required, min 10 chars). Logged + hidden for the session.
+  const handleRejectLandlord = async (landlord: any, note: string) => {
+    if (!user) return;
+    const reason = note.trim();
+    if (reason.length < 10) {
+      toast({ title: 'Add a note', description: 'Please give at least 10 characters explaining the rejection.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'landlord_verification_rejected',
+        table_name: 'landlords',
+        record_id: landlord.id,
+        metadata: { landlord_name: landlord.name, reason, rejected_by: 'landlord_ops' },
+      });
+      setRejectedLandlordIds(prev => new Set(prev).add(landlord.id));
+      setExpandedLandlordId(null);
+      toast({ title: 'Landlord rejected', description: `${landlord.name} was rejected and logged.` });
+    } catch (err: any) {
+      toast({ title: 'Reject failed', description: err?.message || 'Could not reject landlord', variant: 'destructive' });
     }
   };
 
@@ -1014,7 +1107,7 @@ export function LandlordOpsDashboard() {
     const perPage = 20;
     const categoryFilter = (landlordCategory || 'all') as LandlordCategory;
 
-    let filtered = landlordsList;
+    let filtered = landlordsList.filter(l => !rejectedLandlordIds.has(l.id));
 
     // Category filter
     if (categoryFilter === 'verified') filtered = filtered.filter(l => l.verified);
@@ -1101,8 +1194,10 @@ export function LandlordOpsDashboard() {
               ) : (
                 paginated.map(landlord => {
                   const tenantCount = landlord.tenants?.length || 0;
+                  const isExpanded = expandedLandlordId === landlord.id;
                   return (
-                    <tr key={landlord.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    <Fragment key={landlord.id}>
+                    <tr className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="px-3 py-2.5">
                         <span className="font-medium text-foreground">{landlord.name}</span>
                         <span className="sm:hidden block text-[11px] text-muted-foreground">{landlord.phone || '—'}</span>
@@ -1118,16 +1213,45 @@ export function LandlordOpsDashboard() {
                       <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{tenantCount > 0 ? tenantCount : '—'}</td>
                       <td className="px-3 py-2.5 text-muted-foreground truncate max-w-[120px] hidden lg:table-cell">{landlord.agent_name || '—'}</td>
                       <td className="px-3 py-2.5 text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setEditLandlord({ ...landlord })}
-                        >
-                          View
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {!landlord.verified && (
+                            <Button
+                              variant={isExpanded ? 'secondary' : 'default'}
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => setExpandedLandlordId(isExpanded ? null : landlord.id)}
+                            >
+                              {isExpanded ? 'Close' : 'Review'}
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setEditLandlord({ ...landlord })}
+                          >
+                            View
+                          </Button>
+                        </div>
                       </td>
                     </tr>
+                    {isExpanded && !landlord.verified && (
+                      <tr className="border-b border-border last:border-0 bg-muted/20">
+                        <td colSpan={6} className="px-3 py-3">
+                          <p className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                            <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+                            Verify {landlord.name}
+                          </p>
+                          <InlineModerationActions
+                            approveLabel="Approve"
+                            rejectLabel="Reject"
+                            onApprove={(note) => handleApproveLandlord(landlord, note)}
+                            onReject={(note) => handleRejectLandlord(landlord, note)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })
               )}
@@ -1585,25 +1709,12 @@ export function LandlordOpsDashboard() {
                   {house.lc1_chairperson_village && <p className="text-[10px] text-muted-foreground">{house.lc1_chairperson_village}</p>}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-11 gap-2 font-bold border-destructive/40 text-destructive hover:bg-destructive/10"
-                  onClick={() => setActionDialog({ listing: house, type: 'reject' })}
-                >
-                  <XCircle className="h-4 w-4" />
-                  Reject
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-11 gap-2 font-bold"
-                  onClick={() => handleVerifyListing(house)}
-                >
-                  <ShieldCheck className="h-4 w-4" />
-                  Verify → UGX 5K
-                </Button>
-              </div>
+              <InlineModerationActions
+                approveLabel="Verify → UGX 5K"
+                rejectLabel="Reject"
+                onApprove={(note) => handleVerifyListing(house, note)}
+                onReject={(note) => handleRejectListing(house, note)}
+              />
             </div>
           ))}
           {unverifiedListings.length === 0 && (
@@ -2173,6 +2284,69 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// ─── Reusable Nav Card ───
+// ─── Reusable inline approve / reject control (shared by houses & landlords) ───
+function InlineModerationActions({
+  onApprove,
+  onReject,
+  approveLabel = 'Approve',
+  rejectLabel = 'Reject',
+}: {
+  onApprove: (note: string) => Promise<void> | void;
+  onReject: (note: string) => Promise<void> | void;
+  approveLabel?: string;
+  rejectLabel?: string;
+}) {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState<null | 'approve' | 'reject'>(null);
+  const rejectValid = note.trim().length >= 10;
+
+  const run = async (kind: 'approve' | 'reject') => {
+    if (busy) return;
+    setBusy(kind);
+    try {
+      await (kind === 'approve' ? onApprove(note) : onReject(note));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Add a note (required to reject, optional to approve)…"
+        className="min-h-[64px] text-sm"
+      />
+      {note.length > 0 && note.trim().length < 10 && (
+        <p className="text-[10px] text-muted-foreground">{10 - note.trim().length} more characters needed to reject</p>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-11 gap-2 font-bold border-destructive/40 text-destructive hover:bg-destructive/10"
+          disabled={!rejectValid || busy !== null}
+          onClick={() => run('reject')}
+        >
+          <XCircle className="h-4 w-4" />
+          {busy === 'reject' ? 'Rejecting…' : rejectLabel}
+        </Button>
+        <Button
+          size="sm"
+          className="h-11 gap-2 font-bold"
+          disabled={busy !== null}
+          onClick={() => run('approve')}
+        >
+          <ShieldCheck className="h-4 w-4" />
+          {busy === 'approve' ? 'Approving…' : approveLabel}
+        </Button>
+      </div>
+    </div>
   );
 }
 
