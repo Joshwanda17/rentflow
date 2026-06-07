@@ -361,7 +361,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       }
     }
     if (s === 2) {
-      // Everything here is optional — only validate fields the agent began filling.
+      // Landlord phone is mandatory — every listing must carry a reachable landlord number.
+      if (!form.landlord_phone.trim()) {
+        toast.error('Landlord phone number is required');
+        return false;
+      }
       if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
         toast.error('Enter the caretaker name and phone');
         return false;
