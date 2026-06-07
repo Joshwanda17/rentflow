@@ -1781,11 +1781,9 @@ export function LandlordOpsDashboard() {
                     <UserX className="h-4 w-4 text-orange-600" />
                     <p className="text-sm font-semibold text-orange-700 dark:text-orange-300">No landlord linked to this listing</p>
                   </div>
-                  {onAssign && (
-                    <Button size="sm" variant="outline" className="mt-2 h-8 text-xs gap-1 border-orange-300 text-orange-700 hover:bg-orange-100" onClick={() => handleAssignPerson(house.id, house.title, 'landlord')}>
-                      <UserPlus className="h-3 w-3" /> Link Landlord
-                    </Button>
-                  )}
+                  <Button size="sm" variant="outline" className="mt-2 h-8 text-xs gap-1 border-orange-300 text-orange-700 hover:bg-orange-100" onClick={() => handleAssignPerson(house.id, house.title, 'landlord')}>
+                    <UserPlus className="h-3 w-3" /> Link Landlord
+                  </Button>
                 </div>
               )}
 
