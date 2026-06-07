@@ -1170,13 +1170,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">Rooms</Label>
+                <Label className="text-sm font-medium">Rooms</Label>
                 <Input
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   max={20}
                   value={form.number_of_rooms}
                   onChange={e => setForm(f => ({ ...f, number_of_rooms: parseInt(e.target.value) || 1 }))}
+                  className="h-12 text-base"
                 />
               </div>
             </div>
@@ -1201,13 +1203,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             </div>
 
             <div>
-              <Label className="text-xs">Monthly Rent (UGX) *</Label>
+              <Label className="text-sm font-medium">💰 Monthly Rent (UGX) *</Label>
               <Input
                 type="number"
+                inputMode="numeric"
                 placeholder="e.g. 150000"
                 value={form.monthly_rent}
                 onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))}
-                className={attempted && !monthlyRent ? 'border-destructive' : ''}
+                className={`h-12 text-base ${attempted && !monthlyRent ? 'border-destructive' : ''}`}
               />
               {monthlyRent > 0 && (
                 <div className="mt-2 p-3 rounded-lg bg-success/10 border border-success/20">
