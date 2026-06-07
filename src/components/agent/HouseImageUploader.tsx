@@ -188,9 +188,45 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
         </div>
       )}
 
+      {/* Failed photos — per-photo error with retry */}
+      {failed.length > 0 && (
+        <div className="space-y-1.5">
+          {failed.map(f => (
+            <div
+              key={f.id}
+              className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20"
+            >
+              <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-destructive truncate">{f.name}</p>
+                <p className="text-[10px] text-destructive/80">{f.reason}. Tap retry or pick another photo.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 shrink-0"
+                onClick={() => retryFailed(f.id)}
+                disabled={compressing}
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Retry
+              </Button>
+              <button
+                type="button"
+                onClick={() => dismissFailed(f.id)}
+                className="shrink-0 text-destructive/70 hover:text-destructive"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Freshness warning */}
       {allFromExisting && (
-
         <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
           <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
           <p className="text-[10px] text-amber-700 dark:text-amber-400">
