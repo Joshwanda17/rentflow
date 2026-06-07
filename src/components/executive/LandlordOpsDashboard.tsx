@@ -259,6 +259,9 @@ export function LandlordOpsDashboard() {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [assignPerson, setAssignPerson] = useState<{ listingId: string; title: string; type: 'landlord' | 'agent' } | null>(null);
+  // Landlord verification moderation (frontend session state).
+  const [rejectedLandlordIds, setRejectedLandlordIds] = useState<Set<string>>(new Set());
+  const [expandedLandlordId, setExpandedLandlordId] = useState<string | null>(null);
 
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
