@@ -915,7 +915,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 checked={!form.landlord_has_smartphone}
-                onCheckedChange={v => setForm(f => ({ ...f, landlord_has_smartphone: !v, caretaker_type: v ? f.caretaker_type : 'none' }))}
+                onCheckedChange={v => setForm(f => ({
+                  ...f,
+                  landlord_has_smartphone: !v,
+                  // Auto-fill the caretaker as the agent (self) so a smartphone-less
+                  // landlord needs no extra typing. Reset to none if reverted.
+                  caretaker_type: v ? (f.caretaker_type === 'none' ? 'self' : f.caretaker_type) : 'none',
+                }))}
               />
               <span className="text-sm">Landlord doesn't have / can't use a smartphone</span>
             </label>
