@@ -40,42 +40,56 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
     setCompressing(true);
     const newImages: HouseImageFile[] = [];
 
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) continue;
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name} exceeds 10MB`);
-        continue;
-      }
-
-      try {
-        const optimized = await optimizeImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
-        const thumb = await generateThumbnail(file, 300);
-
-        const saved = Math.round((1 - optimized.compressedSize / optimized.originalSize) * 100);
-        if (saved > 10) {
-          console.log(`[ImageOptimizer] ${file.name}: ${(optimized.originalSize/1024).toFixed(0)}KB → ${(optimized.compressedSize/1024).toFixed(0)}KB (${saved}% smaller)`);
+    try {
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+          toast.error(`${file.name || 'This file'} is not a supported image`);
+          continue;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name} exceeds 10MB`);
+          continue;
         }
 
-        newImages.push({
-          id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          previewUrl: optimized.previewUrl,
-          file: optimized.file,
-          thumbnailFile: thumb.file,
-          source,
-        });
-      } catch (err) {
-        console.error('Image optimization failed, using original:', err);
-        newImages.push({
-          id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          previewUrl: URL.createObjectURL(file),
-          file,
-          source,
-        });
+        try {
+          const optimized = await optimizeImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+          let thumbnailFile: File | undefined;
+          try {
+            thumbnailFile = (await generateThumbnail(file, 300)).file;
+          } catch (thumbErr) {
+            console.warn('Thumbnail generation failed, continuing without it:', thumbErr);
+          }
+
+          const saved = Math.round((1 - optimized.compressedSize / optimized.originalSize) * 100);
+          if (saved > 10) {
+            console.log(`[ImageOptimizer] ${file.name}: ${(optimized.originalSize/1024).toFixed(0)}KB → ${(optimized.compressedSize/1024).toFixed(0)}KB (${saved}% smaller)`);
+          }
+
+          newImages.push({
+            id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            previewUrl: optimized.previewUrl,
+            file: optimized.file,
+            thumbnailFile,
+            source,
+          });
+        } catch (err) {
+          console.error('Image optimization failed, using original:', err);
+          newImages.push({
+            id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            previewUrl: URL.createObjectURL(file),
+            file,
+            source,
+          });
+        }
       }
+    } catch (err) {
+      console.error('Unexpected error while adding photos:', err);
+      toast.error('Something went wrong adding photos. Please try again.');
+    } finally {
+      setCompressing(false);
     }
 
-    setCompressing(false);
-    onChange([...images, ...newImages]);
+    if (newImages.length) onChange([...images, ...newImages]);
   };
 
   const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
