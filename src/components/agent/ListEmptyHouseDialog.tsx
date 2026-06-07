@@ -1220,8 +1220,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 placeholder="e.g. 150000"
                 value={form.monthly_rent}
                 onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))}
-                className={`h-12 text-base ${attempted && !monthlyRent ? 'border-destructive' : ''}`}
+                className={`h-12 text-base ${attempted && (!monthlyRent || monthlyRent < 10000) ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               />
+              {attempted && (!monthlyRent || monthlyRent < 10000) ? (
+                <FieldError
+                  message={
+                    !monthlyRent
+                      ? 'Enter the monthly rent the landlord charges.'
+                      : 'Monthly rent must be at least UGX 10,000.'
+                  }
+                />
+              ) : (
+                !monthlyRent && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Type the full monthly rent in shillings, e.g. 150000.
+                  </p>
+                )
+              )}
               {monthlyRent > 0 && (
                 <div className="mt-2 p-3 rounded-lg bg-success/10 border border-success/20">
                   <div className="flex justify-between text-xs">
