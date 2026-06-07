@@ -273,6 +273,11 @@ export function LandlordOpsDashboard() {
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
   const [pendingFilter, setPendingFilter] = useState<PendingFilter>('all');
 
+  // ─── Sorting ───
+  type SortOption = 'newest' | 'oldest' | 'highest_rent';
+  const [verifySort, setVerifySort] = useState<SortOption>('newest');
+  const [landlordSort, setLandlordSort] = useState<SortOption>('newest');
+
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
   const [allReqDeleteDialog, setAllReqDeleteDialog] = useState<{ open: boolean; requestId: string; tenantName: string }>({ open: false, requestId: '', tenantName: '' });
@@ -1079,7 +1084,9 @@ export function LandlordOpsDashboard() {
         setSearch('');
         setVerifySearch('');
         setVerifyFilter('all');
+        setVerifySort('newest');
         setPendingFilter('all');
+        setLandlordSort('newest');
       }}
       className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3 min-h-[44px] touch-manipulation"
     >
@@ -1149,6 +1156,14 @@ export function LandlordOpsDashboard() {
       else if (pendingFilter === 'has_bank') filtered = filtered.filter(l => !!l.bank_name && !!l.account_number);
       else if (pendingFilter === 'has_momo') filtered = filtered.filter(l => !!l.mobile_money_number);
     }
+
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      if (landlordSort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (landlordSort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (landlordSort === 'highest_rent') return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+      return 0;
+    });
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
     const safePage = Math.min(landlordPage, totalPages);
@@ -1229,6 +1244,30 @@ export function LandlordOpsDashboard() {
             })}
           </div>
         )}
+
+        {/* Sort (all categories) */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground font-medium">Sort:</span>
+          <div className="flex gap-1.5">
+            {([
+              { value: 'newest' as SortOption, label: 'Newest' },
+              { value: 'oldest' as SortOption, label: 'Oldest' },
+              { value: 'highest_rent' as SortOption, label: 'Highest Rent' },
+            ]).map(s => (
+              <button
+                key={s.value}
+                onClick={() => setLandlordSort(s.value)}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold transition-all border ${
+                  landlordSort === s.value
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Landlord list table */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -1806,6 +1845,14 @@ export function LandlordOpsDashboard() {
     else if (verifyFilter === 'has_gps') filteredHouses = filteredHouses.filter(h => h.latitude && h.longitude);
     else if (verifyFilter === 'has_lc1') filteredHouses = filteredHouses.filter(h => !!h.lc1_chairperson_name);
 
+    // Sort
+    filteredHouses = [...filteredHouses].sort((a, b) => {
+      if (verifySort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (verifySort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (verifySort === 'highest_rent') return (b.monthly_rent || 0) - (a.monthly_rent || 0);
+      return 0;
+    });
+
     return (
       <>
       <div className="space-y-3">
@@ -1857,6 +1904,30 @@ export function LandlordOpsDashboard() {
               </button>
             );
           })}
+        </div>
+
+        {/* Sort */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground font-medium">Sort:</span>
+          <div className="flex gap-1.5">
+            {([
+              { value: 'newest' as SortOption, label: 'Newest' },
+              { value: 'oldest' as SortOption, label: 'Oldest' },
+              { value: 'highest_rent' as SortOption, label: 'Highest Rent' },
+            ]).map(s => (
+              <button
+                key={s.value}
+                onClick={() => setVerifySort(s.value)}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold transition-all border ${
+                  verifySort === s.value
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <ListingBonusApprovalQueue filter="all" />
