@@ -447,9 +447,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Add at least one photo of the house');
       return;
     }
-    // Landlord is optional. Only validate a manual entry the agent started.
-    if (manualLandlord && (!!form.landlord_name.trim() !== !!form.landlord_phone.trim())) {
-      failWith('Enter both the landlord name and phone, or clear them');
+    // Landlord phone is mandatory for every listing.
+    if (!form.landlord_phone.trim()) {
+      failWith('Landlord phone number is required');
       return;
     }
     if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
