@@ -1015,17 +1015,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             {/* Manual new landlord entry (after search returned no match) */}
             {manualLandlord && !selectedLandlord && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <Label className="text-xs">Landlord Name</Label>
+                    <Label className="text-sm font-medium">Landlord Name</Label>
                     <Input
                       placeholder="Name"
+                      className="h-12 text-base"
                       value={form.landlord_name}
                       onChange={e => setForm(f => ({ ...f, landlord_name: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <Label className="text-xs">Landlord Phone <span className="text-destructive">*</span></Label>
+                    <Label className="text-sm font-medium">Landlord Phone <span className="text-destructive">*</span></Label>
                     <PhoneInput
                       placeholder="0771234567"
                       value={form.landlord_phone}
