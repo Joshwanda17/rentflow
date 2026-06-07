@@ -42,6 +42,10 @@ interface BonusApproval {
 interface Props {
   /** 'pending_cfo' for CFO dashboard, 'all' for landlord ops */
   filter?: 'pending_cfo' | 'all';
+  /** When true, the card content is collapsed by default */
+  collapsible?: boolean;
+  /** Initial open state when collapsible */
+  defaultOpen?: boolean;
 }
 
 type Classified = {
