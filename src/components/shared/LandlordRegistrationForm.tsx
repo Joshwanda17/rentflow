@@ -709,7 +709,7 @@ export default function LandlordRegistrationForm({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           onSubmit={handleSubmit}
-          className="space-y-3"
+          className="space-y-4"
         >
           {/* Step-by-step progress indicator */}
           <div className="flex items-center gap-2">
