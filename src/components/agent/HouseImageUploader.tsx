@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Camera, X, Loader2, Image, FolderOpen, AlertTriangle } from 'lucide-react';
+import { Camera, X, Loader2, Image, FolderOpen, AlertTriangle, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { optimizeImage, generateThumbnail } from '@/lib/imageOptimizer';
@@ -13,6 +13,14 @@ export interface HouseImageFile {
   file: File;
   thumbnailFile?: File;
   source?: 'camera' | 'gallery' | 'existing';
+}
+
+interface FailedPhoto {
+  id: string;
+  file: File;
+  name: string;
+  source: 'camera' | 'gallery';
+  reason: string;
 }
 
 interface HouseImageUploaderProps {
@@ -27,6 +35,7 @@ interface HouseImageUploaderProps {
 export function HouseImageUploader({ images, onChange, maxImages = 5, region, district, village }: HouseImageUploaderProps) {
   const [compressing, setCompressing] = useState(false);
   const [showExisting, setShowExisting] = useState(false);
+  const [failed, setFailed] = useState<FailedPhoto[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,15 +48,17 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
 
     setCompressing(true);
     const newImages: HouseImageFile[] = [];
+    const newFailed: FailedPhoto[] = [];
 
     try {
       for (const file of files) {
+        const failId = `fail-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         if (!file.type.startsWith('image/')) {
-          toast.error(`${file.name || 'This file'} is not a supported image`);
+          newFailed.push({ id: failId, file, name: file.name || 'This file', source, reason: 'Not a supported image format' });
           continue;
         }
         if (file.size > 10 * 1024 * 1024) {
-          toast.error(`${file.name} exceeds 10MB`);
+          newFailed.push({ id: failId, file, name: file.name || 'Photo', source, reason: 'Larger than 10MB' });
           continue;
         }
 
@@ -73,12 +84,13 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
             source,
           });
         } catch (err) {
-          console.error('Image optimization failed, using original:', err);
-          newImages.push({
-            id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            previewUrl: URL.createObjectURL(file),
+          console.error('Image optimization failed:', err);
+          newFailed.push({
+            id: failId,
             file,
+            name: file.name || 'Photo',
             source,
+            reason: 'Could not be opened or compressed',
           });
         }
       }
@@ -90,6 +102,18 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
     }
 
     if (newImages.length) onChange([...images, ...newImages]);
+    if (newFailed.length) setFailed(prev => [...prev, ...newFailed]);
+  };
+
+  const retryFailed = async (id: string) => {
+    const item = failed.find(f => f.id === id);
+    if (!item) return;
+    setFailed(prev => prev.filter(f => f.id !== id));
+    await processFiles([item.file], item.source);
+  };
+
+  const dismissFailed = (id: string) => {
+    setFailed(prev => prev.filter(f => f.id !== id));
   };
 
   const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,6 +182,43 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
                 className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
               >
                 <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Failed photos — per-photo error with retry */}
+      {failed.length > 0 && (
+        <div className="space-y-1.5">
+          {failed.map(f => (
+            <div
+              key={f.id}
+              className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20"
+            >
+              <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-destructive truncate">{f.name}</p>
+                <p className="text-[10px] text-destructive/80">{f.reason}. Tap retry or pick another photo.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 shrink-0"
+                onClick={() => retryFailed(f.id)}
+                disabled={compressing}
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Retry
+              </Button>
+              <button
+                type="button"
+                onClick={() => dismissFailed(f.id)}
+                className="shrink-0 text-destructive/70 hover:text-destructive"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
               </button>
             </div>
           ))}
