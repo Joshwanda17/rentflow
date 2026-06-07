@@ -518,8 +518,12 @@ export default function ActivateSupporter() {
                 <div className="h-2 w-full rounded-full bg-primary" />
                 <span className="text-xs font-semibold text-primary">2. Profile</span>
               </div>
+              <div className="flex-1 flex flex-col items-center gap-1.5">
+                <div className="h-2 w-full rounded-full bg-muted" />
+                <span className="text-xs font-medium text-muted-foreground">3. Confirm</span>
+              </div>
             </div>
-            <form onSubmit={handleActivate} className="space-y-4">
+            <form onSubmit={handleReview} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="text-base font-semibold">👤 Full Name (as on your ID) *</Label>
                 <Input
