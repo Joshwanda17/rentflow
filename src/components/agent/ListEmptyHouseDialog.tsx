@@ -315,19 +315,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       scrollDialogToTop();
     };
 
-    // Search-first: the agent must look up the landlord in the system before
-    // listing. They either select an existing (ideally verified) landlord or
-    // explicitly add a new one after searching returns no match.
-    if (!selectedLandlord && !manualLandlord) {
-      failWith('Search for the landlord first, then select them or add a new one');
-      scrollDialogToTop();
-      return;
-    }
-    if (manualLandlord && (!form.landlord_name.trim() || !form.landlord_phone.trim())) {
-      failWith('Enter the new landlord name and phone');
-      return;
-    }
-
     if (!monthlyRent || monthlyRent < 10000) {
       failWith('Monthly rent must be at least UGX 10,000');
       return;
@@ -336,18 +323,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Please select a region');
       return;
     }
-    if (!form.address.trim()) {
-      failWith('Address is required');
+    if (houseImages.length === 0) {
+      failWith('Add at least one photo of the house');
       return;
     }
-    if (!form.village.trim()) {
-      failWith('Village/Zone is required');
+    // Landlord is optional. Only validate a manual entry the agent started.
+    if (manualLandlord && (!!form.landlord_name.trim() !== !!form.landlord_phone.trim())) {
+      failWith('Enter both the landlord name and phone, or clear them');
       return;
     }
-    const lc1Err = validateLc1Selection(lc1Selection);
-    if (lc1Err) {
-      failWith(lc1Err);
+    if (form.caretaker_type === 'other' && (!form.caretaker_name.trim() || !form.caretaker_phone.trim())) {
+      failWith('Enter the caretaker name and phone');
       return;
+    }
+    // LC1 is optional — only validate if the agent began filling it in.
+    if (lc1Selection) {
+      const lc1Err = validateLc1Selection(lc1Selection);
+      if (lc1Err) { failWith(lc1Err); return; }
     }
 
     setSubmitting(true);
