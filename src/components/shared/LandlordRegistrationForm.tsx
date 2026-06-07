@@ -1132,10 +1132,12 @@ export default function LandlordRegistrationForm({
           {/* ===== Step 2: Confirmation ===== */}
           {step === 2 && !success && (
           <>
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold flex items-center gap-2">✅ Confirm &amp; register</h3>
-              <p className="text-sm text-muted-foreground">Check the details below, then tap Register.</p>
-            </div>
+            <FormStepHeader
+              icon={CheckCircle2}
+              stepLabel="Step 2 of 2"
+              title="Confirm &amp; register"
+              subtitle="Check the details below, then tap Register."
+            />
             {(() => {
               const nameErr = computeFieldError('landlordName', landlordName);
               const phoneErr = computeFieldError('landlordPhone', landlordPhone);
