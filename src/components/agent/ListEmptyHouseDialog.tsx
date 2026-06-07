@@ -1094,7 +1094,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">Location</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Location</p>
+              {prefilledFromProfile && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary">
+                  <Sparkles className="h-3 w-3" /> Filled from your profile
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Region *</Label>
