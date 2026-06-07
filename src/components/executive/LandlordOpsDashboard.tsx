@@ -1179,7 +1179,7 @@ export function LandlordOpsDashboard() {
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search name, phone, tenant, agent…" value={search} onChange={e => { setSearch(e.target.value); setLandlordPage(1); }} className="pl-9 h-9" />
+          <Input placeholder="Search name, phone, location, tenant, or agent…" value={search} onChange={e => { setSearch(e.target.value); setLandlordPage(1); }} className="pl-9 h-9" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
 
