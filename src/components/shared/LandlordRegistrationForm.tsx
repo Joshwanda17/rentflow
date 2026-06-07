@@ -863,26 +863,27 @@ export default function LandlordRegistrationForm({
           })()}
 
           {/* Next — advance to the confirmation step once essentials are valid */}
-          <Button
-            type="button"
-            onClick={handleNext}
-            className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
-            disabled={loading || checkingPhone}
-          >
-            {checkingPhone ? (
-              <><Loader2 className="h-5 w-5 animate-spin" /> Checking number…</>
-            ) : (
-              <><CheckCircle2 className="h-5 w-5" /> Next</>
+          <div className="sticky bottom-0 -mx-1 px-1 pt-2 pb-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/60 z-10">
+            <Button
+              type="button"
+              onClick={handleNext}
+              className="w-full h-14 text-base font-semibold gap-2 touch-manipulation select-none transition-transform active:scale-[0.98] disabled:opacity-70"
+              disabled={loading || checkingPhone}
+            >
+              {checkingPhone ? (
+                <><Loader2 className="h-5 w-5 animate-spin" /> Checking number…</>
+              ) : (
+                <><CheckCircle2 className="h-5 w-5" /> Next</>
+              )}
+            </Button>
+            {/* Step hint shown before the essentials are complete so a first-time
+                agent always understands the single next action. */}
+            {!(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone))) && (
+              <p className="text-xs text-center text-muted-foreground mt-1.5">
+                Step 1: enter the landlord's name &amp; phone, then tap Next.
+              </p>
             )}
-          </Button>
-
-          {/* Step hint shown before the essentials are complete so a first-time
-              agent always understands the single next action. */}
-          {!(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone))) && (
-            <p className="text-[11px] text-center text-muted-foreground">
-              Step 1: enter the landlord's name &amp; phone, then tap Next.
-            </p>
-          )}
+          </div>
 
           {/* Toggle to reveal the optional property / payout details */}
           {!minimal && (
