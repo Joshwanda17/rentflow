@@ -16,6 +16,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import { captureSmartLocation } from '@/hooks/useSmartLocation';
 import { reverseGeocode } from '@/lib/reverseGeocode';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
+import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
 
 const APP_URL = 'https://welilereceipts.com';
