@@ -182,6 +182,17 @@ export default function ActivateSupporter() {
     setPageState('profile-setup');
   }, [token, password]);
 
+  // Step 2 -> 3: Validate profile inputs, then move to Review & Confirm
+  const handleReview = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim() || !newPassword.trim()) return;
+    if (newPassword.trim().length < 6) {
+      toast({ title: 'Password too short', description: 'Password must be at least 6 characters', variant: 'destructive' });
+      return;
+    }
+    setPageState('review');
+  }, [fullName, newPassword, toast]);
+
   // Step 2: Complete profile and activate
   const handleActivate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
