@@ -50,16 +50,30 @@ function ClickToMove({ onMove }: { onMove: (pos: LatLng) => void }) {
 export function MapPinPicker({ open, onOpenChange, initial, onConfirm }: MapPinPickerProps) {
   const [pos, setPos] = useState<LatLng>(initial);
   const [locating, setLocating] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [address, setAddress] = useState<string>('');
   const [fetchingAddress, setFetchingAddress] = useState(false);
   const [addressError, setAddressError] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset the pin to the latest initial position each time the dialog opens.
+  // Reset states each time the dialog opens.
   useEffect(() => {
-    if (open) setPos(initial);
+    if (open) {
+      setPos(initial);
+      setConfirming(false);
+      setSaved(false);
+    }
   }, [open, initial.latitude, initial.longitude]);
+
+  // Clean up timers on unmount.
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
+  }, []);
 
   // Debounced reverse-geocode preview whenever the pin moves.
   const fetchPreview = async (coords: LatLng) => {
@@ -215,21 +229,43 @@ export function MapPinPicker({ open, onOpenChange, initial, onConfirm }: MapPinP
             <Button
               type="button"
               className="flex-1"
-              disabled={fetchingAddress || addressError || !address}
+              disabled={fetchingAddress || addressError || !address || confirming || saved}
               onClick={() => {
+                setConfirming(true);
                 onConfirm(pos);
-                onOpenChange(false);
+                savedTimerRef.current = setTimeout(() => {
+                  setConfirming(false);
+                  setSaved(true);
+                  savedTimerRef.current = setTimeout(() => {
+                    onOpenChange(false);
+                  }, 900);
+                }, 500);
               }}
             >
-              {fetchingAddress ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              {confirming ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Saving…
+                </>
+              ) : saved ? (
+                <>
+                  <MapPin className="h-4 w-4 mr-1.5" />
+                  Location saved
+                </>
               ) : (
-                <MapPin className="h-4 w-4 mr-1.5" />
+                <>
+                  <MapPin className="h-4 w-4 mr-1.5" />
+                  Use this location
+                </>
               )}
-              Use this location
             </Button>
           </div>
-          {(fetchingAddress || addressError || !address) && (
+          {saved && (
+            <p className="text-[11px] text-green-600 text-center font-medium animate-in fade-in slide-in-from-bottom-1">
+              Location saved successfully
+            </p>
+          )}
+          {!saved && !confirming && (fetchingAddress || addressError || !address) && (
             <p className="text-[11px] text-muted-foreground text-center">
               {fetchingAddress
                 ? 'Looking up address…'
