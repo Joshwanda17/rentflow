@@ -1120,13 +1120,27 @@ export function LandlordOpsDashboard() {
     else if (categoryFilter === 'has_tenants') filtered = filtered.filter(l => l.tenants && l.tenants.length > 0);
     else if (categoryFilter === 'no_tenants') filtered = filtered.filter(l => !l.tenants || l.tenants.length === 0);
 
-    // Search filter
+    // Search filter (name, phone, tenant, agent, location)
     if (search) {
       const q = search.toLowerCase();
       filtered = filtered.filter(l =>
         l.name?.toLowerCase().includes(q) || l.phone?.includes(q) ||
-        l.tenant_name?.toLowerCase().includes(q) || l.agent_name?.toLowerCase().includes(q)
+        l.tenant_name?.toLowerCase().includes(q) || l.agent_name?.toLowerCase().includes(q) ||
+        l.district?.toLowerCase().includes(q) || l.region?.toLowerCase().includes(q) ||
+        l.village?.toLowerCase().includes(q) || l.property_address?.toLowerCase().includes(q)
       );
+    }
+
+    // Pending-specific quick filters
+    type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
+    const [pendingFilter, setPendingFilter] = useState<PendingFilter>('all');
+    // Only apply pending filters when actually viewing pending category
+    if (categoryFilter === 'pending') {
+      if (pendingFilter === 'has_address') filtered = filtered.filter(l => !!l.property_address);
+      else if (pendingFilter === 'has_phone') filtered = filtered.filter(l => !!l.phone && l.phone.length >= 9);
+      else if (pendingFilter === 'has_smartphone') filtered = filtered.filter(l => l.has_smartphone === true);
+      else if (pendingFilter === 'has_bank') filtered = filtered.filter(l => !!l.bank_name && !!l.account_number);
+      else if (pendingFilter === 'has_momo') filtered = filtered.filter(l => !!l.mobile_money_number);
     }
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
