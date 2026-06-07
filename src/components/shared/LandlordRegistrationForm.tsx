@@ -798,15 +798,15 @@ export default function LandlordRegistrationForm({
               </div>
               <div className="space-y-2">
                 <div data-field="lc1Name" className="space-y-1">
-                  <Label className="text-xs font-semibold flex items-center gap-1.5">
-                    <User className="h-3 w-3" /> LC1 Name *
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <User className="h-4 w-4" /> LC1 Name *
                   </Label>
                   <Input
                     value={lc1Name}
                     onChange={(e) => { setLc1Name(e.target.value); clearError('lc1Name'); }}
                     onBlur={(e) => validateField('lc1Name', e.target.value)}
                     placeholder="e.g. Grace Nakato Ssebunya — LC1 Chairperson"
-                    className={`h-10 ${errors.lc1Name ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                    className={`h-12 text-base ${errors.lc1Name ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
                   {errors.lc1Name && (
@@ -816,8 +816,8 @@ export default function LandlordRegistrationForm({
                   )}
                 </div>
                 <div data-field="lc1Phone" className="space-y-1">
-                  <Label className="text-xs font-semibold flex items-center gap-1.5">
-                    <Phone className="h-3 w-3" /> LC1 Phone *
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <Phone className="h-4 w-4" /> LC1 Phone *
                   </Label>
                   <Input
                     type="tel"
@@ -826,7 +826,7 @@ export default function LandlordRegistrationForm({
                     onChange={(e) => { setLc1Phone(formatUgandaPhone(e.target.value)); clearError('lc1Phone'); }}
                     onBlur={(e) => validateField('lc1Phone', cleanPhoneNumber(e.target.value))}
                     placeholder="07XX XXX XXX — 10 digits"
-                    className={`h-10 ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                    className={`h-12 text-base ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
                   />
                   {errors.lc1Phone && (
