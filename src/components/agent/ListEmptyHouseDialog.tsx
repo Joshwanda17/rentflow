@@ -1336,7 +1336,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               {gpsFilling
                 ? 'Getting your location…'
                 : position
-                  ? '📍 Re-capture GPS'
+                  ? 'Re-capture GPS'
                   : 'Use my GPS & map to fill area'}
             </Button>
             {position && (
