@@ -20,6 +20,7 @@ import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
 import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaPhone } from '@/lib/phoneUtils';
 import FormStepHeader from '@/components/shared/FormStepHeader';
+import FieldError from '@/components/shared/FieldError';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -1101,6 +1102,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               />
               <span className="text-sm">Landlord doesn't have / can't use a smartphone</span>
             </label>
+            {attempted && !!validateLandlordPhone(form.landlord_phone) && (
+              <FieldError
+                message={
+                  selectedLandlord || manualLandlord
+                    ? validateLandlordPhone(form.landlord_phone)
+                    : 'Search and pick the landlord, or add a new one, so we have their phone number.'
+                }
+              />
+            )}
           </div>
 
           {/* Caretaker Section — only if landlord has no smartphone */}
@@ -1143,10 +1153,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     <Label className="text-sm font-medium">Caretaker Name *</Label>
                     <Input
                       placeholder="Full name"
-                      className="h-12 text-base"
+                      className={`h-12 text-base ${attempted && !form.caretaker_name.trim() ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                       value={form.caretaker_name}
                       onChange={e => setForm(f => ({ ...f, caretaker_name: e.target.value }))}
                     />
+                    {attempted && !form.caretaker_name.trim() && (
+                      <FieldError message="Enter the caretaker's full name." />
+                    )}
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Caretaker Phone *</Label>
@@ -1154,10 +1167,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                       placeholder="0771234567"
                       type="tel"
                       inputMode="tel"
-                      className="h-12 text-base"
+                      className={`h-12 text-base ${attempted && !form.caretaker_phone.trim() ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                       value={form.caretaker_phone}
                       onChange={e => setForm(f => ({ ...f, caretaker_phone: e.target.value }))}
                     />
+                    {attempted && !form.caretaker_phone.trim() && (
+                      <FieldError message="Enter the caretaker's phone number." />
+                    )}
                   </div>
                 </div>
               )}
@@ -1219,8 +1235,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 placeholder="e.g. 150000"
                 value={form.monthly_rent}
                 onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))}
-                className={`h-12 text-base ${attempted && !monthlyRent ? 'border-destructive' : ''}`}
+                className={`h-12 text-base ${attempted && (!monthlyRent || monthlyRent < 10000) ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               />
+              {attempted && (!monthlyRent || monthlyRent < 10000) ? (
+                <FieldError
+                  message={
+                    !monthlyRent
+                      ? 'Enter the monthly rent the landlord charges.'
+                      : 'Monthly rent must be at least UGX 10,000.'
+                  }
+                />
+              ) : (
+                !monthlyRent && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Type the full monthly rent in shillings, e.g. 150000.
+                  </p>
+                )
+              )}
               {monthlyRent > 0 && (
                 <div className="mt-2 p-3 rounded-lg bg-success/10 border border-success/20">
                   <div className="flex justify-between text-xs">
@@ -1256,6 +1287,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             district={form.district}
             village={form.village}
           />
+          {attempted && houseImages.length === 0 && (
+            <FieldError message="Add at least one clear photo of the house so tenants can see it." />
+          )}
 
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
@@ -1271,13 +1305,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <div>
                 <Label className="text-sm font-medium">Region *</Label>
                 <Select value={form.region} onValueChange={v => setForm(f => ({ ...f, region: v }))}>
-                  <SelectTrigger className="h-12 text-base"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={`h-12 text-base ${attempted && !form.region ? 'border-destructive focus:ring-destructive' : ''}`}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {REGIONS.map(r => (
                       <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {attempted && !form.region && (
+                  <FieldError message="Choose the region where the house is." />
+                )}
               </div>
               <div>
                 <Label className="text-sm font-medium">District</Label>

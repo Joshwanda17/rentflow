@@ -104,23 +104,23 @@ export default function LandlordRegistrationForm({
     let msg = '';
     if (name === 'landlordName') {
       if (!trimmed) msg = 'Landlord name is required';
-      else if (trimmed.length < 2) msg = 'Name must be at least 2 characters';
+      else if (trimmed.length < 2) msg = 'Enter the landlord\u2019s full name (at least 2 letters).';
     }
     if (name === 'landlordPhone') {
       if (!trimmed) msg = 'Phone number is required';
-      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid phone number';
+      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
     }
     if (name === 'propertyAddress') {
       // Address is optional now — only validate when something was typed.
-      if (trimmed && trimmed.length < 5) msg = 'Address is too short';
+      if (trimmed && trimmed.length < 5) msg = 'Address looks too short — add a bit more detail.';
     }
     if (name === 'lc1Name') {
       if (!trimmed) msg = 'LC1 name is required';
-      else if (trimmed.length < 2) msg = 'Name must be at least 2 characters';
+      else if (trimmed.length < 2) msg = 'Enter the LC1 chairperson\u2019s name (at least 2 letters).';
     }
     if (name === 'lc1Phone') {
       if (!trimmed) msg = 'LC1 phone is required';
-      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid phone number';
+      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
     }
     return msg;
   };
