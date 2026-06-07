@@ -1195,6 +1195,35 @@ export function LandlordOpsDashboard() {
           ))}
         </div>
 
+        {/* Pending landlord quick filters */}
+        {categoryFilter === 'pending' && (
+          <div className="flex gap-1.5 flex-wrap">
+            {([
+              { value: 'all' as PendingFilter, label: 'All Pending' },
+              { value: 'has_address' as PendingFilter, label: 'Has Address' },
+              { value: 'has_phone' as PendingFilter, label: 'Has Phone' },
+              { value: 'has_smartphone' as PendingFilter, label: 'Smartphone' },
+              { value: 'has_bank' as PendingFilter, label: 'Bank' },
+              { value: 'has_momo' as PendingFilter, label: 'MoMo' },
+            ]).map(f => {
+              const active = pendingFilter === f.value;
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => setPendingFilter(f.value)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                    active
+                      ? 'bg-amber-100 text-amber-700 border-amber-300 shadow-sm'
+                      : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Landlord list table */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <table className="w-full text-sm">
