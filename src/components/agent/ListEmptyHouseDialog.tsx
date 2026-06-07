@@ -788,7 +788,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) closeAll(); else onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md max-h-[92vh] overflow-y-auto rounded-2xl p-4 sm:p-6">
         {successListing ? (
           <div className="space-y-5 py-2">
             <div className="text-center space-y-2">
