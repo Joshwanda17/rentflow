@@ -879,7 +879,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               return (
                 <div key={label} className="flex-1 text-center">
                   <div
-                    className={`mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                    className={`mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-full text-base font-bold ${
                       done
                         ? 'bg-success text-success-foreground'
                         : active
@@ -887,9 +887,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                           : 'bg-muted text-muted-foreground'
                     }`}
                   >
-                    {done ? <Check className="h-4 w-4" /> : n}
+                    {done ? <Check className="h-5 w-5" /> : n}
                   </div>
-                  <span className={`text-[10px] ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{label}</span>
+                  <span className={`text-xs ${active ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{label}</span>
                 </div>
               );
             })}
