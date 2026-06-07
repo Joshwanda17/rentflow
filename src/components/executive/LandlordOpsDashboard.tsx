@@ -1930,7 +1930,7 @@ export function LandlordOpsDashboard() {
           </div>
         </div>
 
-        <ListingBonusApprovalQueue filter="all" />
+        <ListingBonusApprovalQueue filter="all" collapsible defaultOpen={false} />
         <VerificationTimelinePanel />
         <div className="space-y-3">
           {filteredHouses.map(house => (
