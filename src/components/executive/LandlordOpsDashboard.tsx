@@ -894,6 +894,7 @@ export function LandlordOpsDashboard() {
   const lc1Groups = fullLC1Data || [];
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
+  const unverifiedLandlords = landlordsList.filter(l => !l.verified);
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
   const handleVerifyListing = async (listing: ListingWithLandlord) => {
@@ -1875,6 +1876,49 @@ export function LandlordOpsDashboard() {
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-4">
+      {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
+      {(unverifiedListings.length > 0 || unverifiedLandlords.length > 0) && (
+        <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3.5 space-y-2.5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-amber-500/15">
+              <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm text-amber-800 dark:text-amber-300 leading-tight">Awaiting your verification</p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug">
+                Review newly listed houses & registered landlords
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setView('verify')}
+              disabled={unverifiedListings.length === 0}
+              className="rounded-lg border border-amber-400/50 bg-card p-2.5 text-left min-h-[60px] touch-manipulation active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
+            >
+              <div className="flex items-center gap-1.5">
+                <Home className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Houses</span>
+              </div>
+              <p className="text-xl font-extrabold text-amber-700 dark:text-amber-300 leading-tight mt-0.5">{unverifiedListings.length}</p>
+              <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 leading-snug">pending · UGX {fmt(unverifiedListings.length * 5000)} bonuses</p>
+            </button>
+            <button
+              onClick={() => { setView('landlords'); setLandlordCategory('pending'); }}
+              disabled={unverifiedLandlords.length === 0}
+              className="rounded-lg border border-amber-400/50 bg-card p-2.5 text-left min-h-[60px] touch-manipulation active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
+            >
+              <div className="flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Landlords</span>
+              </div>
+              <p className="text-xl font-extrabold text-amber-700 dark:text-amber-300 leading-tight mt-0.5">{unverifiedLandlords.length}</p>
+              <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 leading-snug">registered · awaiting review</p>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* HERO: Tenants whose Landlords were Funded — always first */}
       <button
         onClick={() => setView('landlords-paid')}
@@ -1922,21 +1966,6 @@ export function LandlordOpsDashboard() {
         <KPICard title="Cities" value={cityGroups.length} icon={Globe} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle="operating in" />
         <KPICard title="No Landlord" value={noLandlordList.length} icon={UserX} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="need listing" />
       </div>
-
-      {/* Verification alert */}
-      {unverifiedListings.length > 0 && (
-        <button
-          onClick={() => setView('verify')}
-          className="w-full rounded-xl border-2 border-amber-400/60 bg-amber-50 dark:bg-amber-950/30 p-3 flex items-center gap-3 text-left min-h-[56px] touch-manipulation active:scale-[0.98] transition-transform"
-        >
-          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
-          <div className="flex-1">
-            <p className="font-bold text-amber-800 dark:text-amber-300 text-sm">🚨 {unverifiedListings.length} pending verification</p>
-            <p className="text-[10px] text-amber-700 dark:text-amber-400">UGX {fmt(unverifiedListings.length * 5000)} agent bonuses waiting</p>
-          </div>
-          <ChevronRight className="h-4 w-4 text-amber-600 shrink-0" />
-        </button>
-      )}
 
       {/* No landlord alert */}
       {noLandlordList.length > 0 && (
