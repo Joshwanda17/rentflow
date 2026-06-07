@@ -1240,11 +1240,22 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               {gpsFilling
                 ? 'Getting your location…'
                 : position
-                  ? '📍 Auto-fill again from GPS'
-                  : 'Use my GPS to fill area'}
+                  ? '📍 Re-capture GPS'
+                  : 'Use my GPS & map to fill area'}
             </Button>
+            {position && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => { setMapInitial(position); setMapPickerOpen(true); }}
+                className="w-full"
+              >
+                <MapPin className="h-4 w-4 mr-2" /> Adjust pin on map
+              </Button>
+            )}
             <p className="text-[10px] text-muted-foreground text-center leading-tight">
-              One tap fills region, district & village from where you are now
+              Drag the pin on the map to the exact house, then it fills region, district & village
             </p>
           </div>
           </>
