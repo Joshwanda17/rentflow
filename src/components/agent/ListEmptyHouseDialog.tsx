@@ -1230,8 +1230,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           {step === 1 && (
           <>
           <div className="text-center">
-            <p className="text-base font-semibold">Photos &amp; where is it?</p>
-            <p className="text-xs text-muted-foreground">Add at least one photo and the area</p>
+            <p className="text-lg font-bold">📷 Photos &amp; where is it?</p>
+            <p className="text-sm text-muted-foreground">Add at least one photo and the area</p>
           </div>
           {/* Photos */}
           <Label className="text-xs font-semibold">Photos * <span className="text-muted-foreground font-normal">— at least one</span></Label>
