@@ -1131,10 +1131,7 @@ export function LandlordOpsDashboard() {
       );
     }
 
-    // Pending-specific quick filters
-    type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
-    const [pendingFilter, setPendingFilter] = useState<PendingFilter>('all');
-    // Only apply pending filters when actually viewing pending category
+    // Only apply pending-specific quick filters when actually viewing pending category
     if (categoryFilter === 'pending') {
       if (pendingFilter === 'has_address') filtered = filtered.filter(l => !!l.property_address);
       else if (pendingFilter === 'has_phone') filtered = filtered.filter(l => !!l.phone && l.phone.length >= 9);
