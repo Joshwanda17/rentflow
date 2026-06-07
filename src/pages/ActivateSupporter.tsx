@@ -57,6 +57,11 @@ export default function ActivateSupporter() {
   const [locationStatus, setLocationStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
   const [locationData, setLocationData] = useState<{ latitude: number; longitude: number } | null>(null);
 
+  // Review checklist state
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
   // Forgot password state
   const [emailForReset, setEmailForReset] = useState('');
   const [newTempPassword, setNewTempPassword] = useState('');
