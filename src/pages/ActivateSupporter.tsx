@@ -493,34 +493,34 @@ export default function ActivateSupporter() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
-            <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
-            <CardDescription>Enter your details to finish setting up your account</CardDescription>
+            <CardTitle className="text-2xl">✅ Complete Your Profile</CardTitle>
+            <CardDescription className="text-base">Enter your details to finish setting up your account</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleActivate} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name (as on your ID) *</Label>
+                <Label htmlFor="fullName" className="text-base font-semibold">👤 Full Name (as on your ID) *</Label>
                 <Input
                   id="fullName"
                   placeholder="e.g., John Doe"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="h-12 text-base"
+                  className="h-14 text-base"
                   style={{ fontSize: '16px' }}
                   autoComplete="name"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="userEmail">Email (optional)</Label>
+                <Label htmlFor="userEmail" className="text-base font-semibold">✉️ Email (optional)</Label>
                 <Input
                   id="userEmail"
                   type="email"
                   placeholder="your@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-12 text-base"
+                  className="h-14 text-base"
                   style={{ fontSize: '16px' }}
                   autoComplete="email"
                   inputMode="email"
@@ -528,7 +528,7 @@ export default function ActivateSupporter() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="newPassword">Set Your Password *</Label>
+                <Label htmlFor="newPassword" className="text-base font-semibold">🔑 Set Your Password *</Label>
                 <div className="relative">
                   <Input
                     id="newPassword"
@@ -538,7 +538,7 @@ export default function ActivateSupporter() {
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
                     minLength={6}
-                    className="h-12 text-base pr-12"
+                    className="h-14 text-base pr-12"
                     style={{ fontSize: '16px' }}
                     autoComplete="new-password"
                   />
@@ -552,7 +552,7 @@ export default function ActivateSupporter() {
                     {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   This will be your login password
                 </p>
               </div>
@@ -605,21 +605,23 @@ export default function ActivateSupporter() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-12 text-base" disabled={isLoading || !fullName.trim() || !newPassword.trim()}>
-                {isLoading ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Activating...</>
-                ) : (
-                  <><CheckCircle2 className="h-4 w-4 mr-2" />Activate Account</>
-                )}
-              </Button>
+              <div className="sticky bottom-0 -mx-6 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40 space-y-2">
+                <Button type="submit" className="w-full h-14 text-base font-semibold" disabled={isLoading || !fullName.trim() || !newPassword.trim()}>
+                  {isLoading ? (
+                    <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Activating...</>
+                  ) : (
+                    <><CheckCircle2 className="h-5 w-5 mr-2" />Activate Account</>
+                  )}
+                </Button>
 
-              <button
-                type="button"
-                onClick={() => setPageState('ready')}
-                className="w-full text-sm text-muted-foreground hover:text-foreground text-center"
-              >
-                ← Back
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setPageState('ready')}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground text-center py-1"
+                >
+                  ← Back
+                </button>
+              </div>
             </form>
           </CardContent>
         </Card>
