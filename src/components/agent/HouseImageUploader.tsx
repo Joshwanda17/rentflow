@@ -190,6 +190,7 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
 
       {/* Freshness warning */}
       {allFromExisting && (
+
         <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
           <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
           <p className="text-[10px] text-amber-700 dark:text-amber-400">
