@@ -25,6 +25,9 @@ import {
   Navigation,
   TrendingUp,
   Link2,
+  Check,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -50,6 +53,22 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const totalSteps = 4;
   const stepLabels = ['Tenant', 'Landlord', 'Location', 'Confirm'];
+  const stepHeadings: Record<number, { title: string; subtitle: string; Icon: typeof User }> = {
+    1: { title: "Who's the tenant?", subtitle: 'Enter their details exactly as on their National ID.', Icon: User },
+    2: { title: 'Where do they rent?', subtitle: 'Add the landlord and property this tenant pays for.', Icon: Building2 },
+    3: { title: 'Pin the property', subtitle: 'Capture the location so visits and verification are accurate.', Icon: Navigation },
+    4: { title: 'Review & confirm', subtitle: 'Add LC1 details and accept guarantor responsibility.', Icon: Shield },
+  };
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const gotoStep = (n: 1 | 2 | 3 | 4) => {
+    setDirection(n > step ? 1 : -1);
+    setStep(n);
+  };
+  const stepVariants = {
+    enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 24 : -24 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -24 : 24 }),
+  };
   
   // Tenant info
   const [tenantEmail, setTenantEmail] = useState('');
@@ -128,10 +147,10 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const goNext = () => {
     const err = validateStep(step);
     if (err) { toast.error(err); return; }
-    if (step < totalSteps) setStep((step + 1) as 1 | 2 | 3 | 4);
+    if (step < totalSteps) gotoStep((step + 1) as 1 | 2 | 3 | 4);
   };
   const goBack = () => {
-    if (step > 1) setStep((step - 1) as 1 | 2 | 3 | 4);
+    if (step > 1) gotoStep((step - 1) as 1 | 2 | 3 | 4);
   };
 
 
@@ -282,16 +301,22 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[92vh] p-0 overflow-hidden flex flex-col overscroll-contain">
+      <DialogContent className="sm:max-w-lg max-h-[92vh] p-0 overflow-hidden flex flex-col overscroll-contain rounded-3xl border-border/60">
         <div className="px-6 pt-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            Register Tenant Under Landlord
-          </DialogTitle>
-          <DialogDescription>
-            Register a tenant under their landlord and earn 2% on every rent payment
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <DialogTitle className="text-lg font-medium tracking-tight">
+                Add a new tenant
+              </DialogTitle>
+              <DialogDescription className="mt-0.5">
+                Link a tenant to their landlord and earn 2% on every rent payment.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         </div>
 
@@ -384,41 +409,84 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               onSubmit={handleSubmit}
               className="space-y-5"
             >
-              {/* Step indicator */}
-              <div className="flex items-center gap-2">
+              {/* Material-style circular stepper */}
+              <div className="flex items-center">
                 {stepLabels.map((lbl, i) => {
                   const n = (i + 1) as 1 | 2 | 3 | 4;
                   const active = step === n;
                   const done = step > n;
                   return (
-                    <button
-                      key={lbl}
-                      type="button"
-                      onClick={() => {
-                        if (n < step) setStep(n);
-                        else if (n > step) {
-                          for (let k = step; k < n; k++) {
-                            const err = validateStep(k);
-                            if (err) { toast.error(err); return; }
+                    <div key={lbl} className="flex flex-1 items-center last:flex-none">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (n < step) gotoStep(n);
+                          else if (n > step) {
+                            for (let k = step; k < n; k++) {
+                              const err = validateStep(k);
+                              if (err) { toast.error(err); return; }
+                            }
+                            gotoStep(n);
                           }
-                          setStep(n);
-                        }
-                      }}
-                      className="flex-1 flex flex-col items-center gap-1 group"
-                    >
-                      <div className={`h-1.5 w-full rounded-full transition-colors ${
-                        active ? 'bg-primary' : done ? 'bg-emerald-500' : 'bg-muted'
-                      }`} />
-                      <span className={`text-[10px] font-medium ${
-                        active ? 'text-primary' : done ? 'text-emerald-600' : 'text-muted-foreground'
-                      }`}>
-                        {n}. {lbl}
-                      </span>
-                    </button>
+                        }}
+                        className="flex flex-col items-center gap-1.5 outline-none"
+                        aria-current={active ? 'step' : undefined}
+                      >
+                        <motion.span
+                          animate={{ scale: active ? 1.1 : 1 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                            done
+                              ? 'bg-primary text-primary-foreground'
+                              : active
+                                ? 'bg-primary text-primary-foreground ring-4 ring-primary/15'
+                                : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {done ? <Check className="h-4 w-4" /> : n}
+                        </motion.span>
+                        <span className={`text-[10px] font-medium transition-colors ${
+                          active ? 'text-primary' : done ? 'text-foreground' : 'text-muted-foreground'
+                        }`}>
+                          {lbl}
+                        </span>
+                      </button>
+                      {n < totalSteps && (
+                        <div className="mx-1.5 mb-5 h-0.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <motion.div
+                            className="h-full rounded-full bg-primary"
+                            initial={false}
+                            animate={{ width: done ? '100%' : '0%' }}
+                            transition={{ duration: 0.35, ease: 'easeOut' }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
 
+              {/* One-question-at-a-time heading */}
+              <div>
+                <h3 className="text-base font-medium tracking-tight text-foreground">
+                  {stepHeadings[step].title}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {stepHeadings[step].subtitle}
+                </p>
+              </div>
+
+              <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={step}
+                custom={direction}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+                className="space-y-5"
+              >
               {/* Agent Commission Banner (step 1 only) */}
               {step === 1 && (
               <div className="p-3 rounded-xl bg-gradient-to-r from-primary/10 via-emerald-500/10 to-primary/5 border border-primary/20">
@@ -724,6 +792,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
               </>
               )}
+              </motion.div>
+              </AnimatePresence>
             </motion.form>
           )}
         </AnimatePresence>
@@ -740,12 +810,13 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               {step > 1 && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="lg"
-                  className="h-12 px-4 text-base"
+                  className="h-12 gap-1.5 rounded-full px-5 text-base"
                   onClick={goBack}
                   disabled={loading}
                 >
+                  <ArrowLeft className="h-4 w-4" />
                   Back
                 </Button>
               )}
@@ -753,16 +824,17 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 <Button
                   type="button"
                   size="lg"
-                  className="flex-1 h-12 text-base font-semibold shadow-lg"
+                  className="flex-1 h-12 gap-1.5 rounded-full text-base font-medium shadow-sm"
                   onClick={goNext}
                 >
                   Continue
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
                 <Button
                   type="button"
                   size="lg"
-                  className="flex-1 h-12 text-base font-semibold shadow-lg"
+                  className="flex-1 h-12 gap-1.5 rounded-full text-base font-medium shadow-sm"
                   disabled={loading}
                   onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
                 >
