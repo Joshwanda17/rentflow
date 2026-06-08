@@ -156,15 +156,12 @@ export default function LandlordRegistrationForm({
     setPhoneVerified(false);
     try {
       const { data, error } = await supabase
-        .from('landlords')
-        .select('id')
-        .eq('phone', phoneClean)
-        .maybeSingle();
+        .rpc('find_landlord_by_phone', { p_phone: phoneClean });
       if (error) {
         // Network/DB hiccup — don't block; the submit-time check is the backstop.
         return true;
       }
-      if (data) {
+      if (Array.isArray(data) && data.length > 0) {
         setErrors((prev) => ({
           ...prev,
           landlordPhone:
@@ -401,13 +398,10 @@ export default function LandlordRegistrationForm({
 
     try {
       setProgressMsg('Checking the phone number…');
-      const { data: existing } = await supabase
-        .from('landlords')
-        .select('id')
-        .eq('phone', landlordPhoneClean)
-        .maybeSingle();
+      const { data: existingMatches } = await supabase
+        .rpc('find_landlord_by_phone', { p_phone: landlordPhoneClean });
 
-      if (existing) {
+      if (Array.isArray(existingMatches) && existingMatches.length > 0) {
         setErrors((prev) => ({
           ...prev,
           landlordPhone:
