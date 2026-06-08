@@ -322,6 +322,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Please select a region');
         return false;
       }
+      if (!form.address.trim()) {
+        toast.error('Address is required');
+        return false;
+      }
+      if (!form.village.trim()) {
+        toast.error('Village / Zone is required');
+        return false;
+      }
     }
     if (s === 2) {
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
@@ -374,6 +382,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 1 },
     { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
   ];
+  preflightGates.push({ label: 'Address', ok: !!form.address.trim(), hint: 'Enter the property address', step: 1 });
+  preflightGates.push({ label: 'Village / Zone', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 1 });
   preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 2 });
   if (form.caretaker_type === 'other') {
     preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 2 });
@@ -405,6 +415,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     if (!form.region) {
       failWith('Please select a region');
+      return;
+    }
+    if (!form.address.trim()) {
+      failWith('Address is required');
+      return;
+    }
+    if (!form.village.trim()) {
+      failWith('Village / Zone is required');
       return;
     }
     // Landlord phone is mandatory for every listing.
@@ -1244,7 +1262,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </div>
             </div>
             <div>
-              <Label className="text-sm font-medium">Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium">Address <span className="text-destructive">*</span></Label>
               <Input
                 placeholder="e.g. Plot 12, Nansana Road"
                 className="h-12 text-base"
@@ -1253,7 +1271,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               />
             </div>
             <div>
-              <Label className="text-sm font-medium">Village / Zone <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium">Village / Zone <span className="text-destructive">*</span></Label>
               <Input
                 placeholder="e.g. Kikaya Zone B"
                 className="h-12 text-base"
