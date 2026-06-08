@@ -518,6 +518,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     <div className="agent-dashboard-shell h-[100dvh] bg-background flex flex-col overflow-hidden">
       <OfflineBanner />
       <PendingDraftsBanner />
+      <DashboardDataErrorBanner
+        message={loadError}
+        hasCachedData={hasLoadedOnce}
+        onRetry={handleRefresh}
+      />
       
       <DashboardHeader
         currentRole={currentRole}
