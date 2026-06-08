@@ -476,7 +476,7 @@ export function LandlordSearchSelect({
               placeholder="Search a landlord by name or phone"
               className="flex-1 bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground"
             />
-            {loading && (
+            {busy && (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#4285F4]" aria-label="Searching" />
             )}
             {query && (
