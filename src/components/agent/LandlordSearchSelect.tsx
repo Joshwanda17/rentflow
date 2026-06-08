@@ -464,7 +464,7 @@ export function LandlordSearchSelect({
           <div className="relative flex items-center rounded-full border border-border/70 bg-background px-4 h-11 shadow-sm transition-shadow focus-within:shadow-[0_1px_6px_rgba(32,33,36,0.28)] hover:shadow-[0_1px_6px_rgba(32,33,36,0.18)]">
             <Search className="h-4 w-4 shrink-0 text-[#4285F4]" />
             <input
-              autoFocus
+              autoFocus={!inline}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
