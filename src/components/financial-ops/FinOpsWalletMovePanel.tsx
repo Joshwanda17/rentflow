@@ -603,7 +603,11 @@ export function FinOpsWalletMovePanel() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Balance after move: <span className="font-semibold text-foreground">{fmt(Math.max(0, sourceAvail - amountNum))}</span> {sourceBucket}
                   {mode === 'same_user' && (
-                    <> · Withdrawable becomes: <span className="font-semibold text-foreground">{fmt(source.withdrawable_balance + amountNum)}</span></>
+                    sameUserDir === 'float_to_withdrawable' ? (
+                      <> · Withdrawable becomes: <span className="font-semibold text-foreground">{fmt(source.withdrawable_balance + amountNum)}</span></>
+                    ) : (
+                      <> · Float becomes: <span className="font-semibold text-foreground">{fmt(source.float_balance + amountNum)}</span></>
+                    )
                   )}
                 </p>
               )}
