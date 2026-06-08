@@ -843,8 +843,8 @@ export default function LandlordRegistrationForm({
           {(() => {
             const nameOk = landlordName.trim().length >= 2 && !errors.landlordName;
             const phoneOk =
-              /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone)) && !errors.landlordPhone;
-            const lcOk = !minimal || (lc1Name.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(lc1Phone)));
+              /^\d{9,10}$/.test(toUgandaLocalDigits(landlordPhone)) && !errors.landlordPhone;
+            const lcOk = !minimal || (lc1Name.trim().length >= 2 && /^\d{9,10}$/.test(toUgandaLocalDigits(lc1Phone)));
             const ready = nameOk && phoneOk && lcOk && !loading;
             if (!ready) return null;
             return (
