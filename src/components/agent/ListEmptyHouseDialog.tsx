@@ -1223,11 +1223,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   </p>
                 )}
                 {phoneMatch && (
-                  <button
-                    type="button"
-                    onClick={usePhoneMatch}
-                    className="w-full text-left p-3 rounded-xl border-2 border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors"
-                  >
+                  <div className="w-full text-left p-3 rounded-xl border-2 border-primary/40 bg-primary/5">
                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary uppercase tracking-wide">
                       <UserCheck className="h-3.5 w-3.5" /> Already in the system
                     </div>
@@ -1265,16 +1261,39 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                           </div>
                           {doneCount < total && (
                             <p className="text-[10px] text-amber-700 mt-1.5 leading-snug">
-                              Missing: {items.filter((i) => !i.ok).map((i) => i.label.toLowerCase()).join(', ')} — add below.
+                              Missing: {items.filter((i) => !i.ok).map((i) => i.label.toLowerCase()).join(', ')}.
                             </p>
                           )}
                         </div>
                       );
                     })()}
-                    <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
-                      Tap to use & add their house, location and rent →
-                    </span>
-                  </button>
+                    {/* One-tap: link the landlord and jump to the first missing field */}
+                    {(() => {
+                      const { doneCount, total } = landlordChecklist(phoneMatch);
+                      const complete = doneCount === total;
+                      return (
+                        <div className="mt-2.5 space-y-1.5">
+                          {!complete && (
+                            <Button
+                              type="button"
+                              onClick={completeLandlordProfile}
+                              className="w-full h-11 gap-1.5 text-sm font-semibold"
+                            >
+                              <ArrowRight className="h-4 w-4" /> Complete landlord profile
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant={complete ? 'default' : 'outline'}
+                            onClick={usePhoneMatch}
+                            className="w-full h-11 gap-1.5 text-sm font-semibold"
+                          >
+                            <UserCheck className="h-4 w-4" /> {complete ? 'Use this landlord' : 'Just use as-is'}
+                          </Button>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
                 <Button
                   type="button"
