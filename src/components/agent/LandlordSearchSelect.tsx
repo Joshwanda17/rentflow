@@ -218,6 +218,10 @@ export function LandlordSearchSelect({
     Math.min(Math.max(similarityThreshold, 0.05), 0.9)
   );
   const [showThreshold, setShowThreshold] = useState(false);
+  // Briefly flashes "Previous request cancelled" when a slow in-flight search is
+  // aborted because the agent kept typing (or changed precision).
+  const [cancelledFlash, setCancelledFlash] = useState(false);
+  const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqIdRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   // Tracks the landlord currently highlighted by the keyboard, so we can keep
