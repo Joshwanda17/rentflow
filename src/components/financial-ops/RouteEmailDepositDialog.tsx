@@ -1265,7 +1265,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                 partner_user_id: useProxyAgent ? user.id : null,
                 partner_user_name: useProxyAgent ? user.full_name : null,
                 amount: amt,
-                transaction_id: row.transaction_id ?? manualReference.trim() || null,
+                transaction_id: row.transaction_id ?? (manualReference.trim() || null),
                 gmail_transaction_id: row.id,
                 gmail_message_id: row.gmail_message_id ?? null,
                 ledger_reference_id: referenceId,
