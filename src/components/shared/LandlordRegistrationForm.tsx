@@ -398,13 +398,10 @@ export default function LandlordRegistrationForm({
 
     try {
       setProgressMsg('Checking the phone number…');
-      const { data: existing } = await supabase
-        .from('landlords')
-        .select('id')
-        .eq('phone', landlordPhoneClean)
-        .maybeSingle();
+      const { data: existingMatches } = await supabase
+        .rpc('find_landlord_by_phone', { p_phone: landlordPhoneClean });
 
-      if (existing) {
+      if (Array.isArray(existingMatches) && existingMatches.length > 0) {
         setErrors((prev) => ({
           ...prev,
           landlordPhone:
