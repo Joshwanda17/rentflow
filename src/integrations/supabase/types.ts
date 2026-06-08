@@ -18958,6 +18958,14 @@ export type Database = {
           user_ids: string[]
         }[]
       }
+      find_landlord_by_phone: {
+        Args: { p_phone: string }
+        Returns: {
+          id: string
+          name: string
+          phone: string
+        }[]
+      }
       find_nearby_houses: {
         Args: {
           category_filter?: string
