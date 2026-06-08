@@ -8939,6 +8939,10 @@ export type Database = {
           receipt_verification_status: string | null
           region: string | null
           registered_by: string | null
+          registration_bonus_paid: boolean
+          registration_bonus_paid_at: string | null
+          registration_verification_bonus_paid: boolean
+          registration_verification_bonus_paid_at: string | null
           rent_balance_due: number
           rent_last_paid_amount: number | null
           rent_last_paid_at: string | null
@@ -8998,6 +9002,10 @@ export type Database = {
           receipt_verification_status?: string | null
           region?: string | null
           registered_by?: string | null
+          registration_bonus_paid?: boolean
+          registration_bonus_paid_at?: string | null
+          registration_verification_bonus_paid?: boolean
+          registration_verification_bonus_paid_at?: string | null
           rent_balance_due?: number
           rent_last_paid_amount?: number | null
           rent_last_paid_at?: string | null
@@ -9057,6 +9065,10 @@ export type Database = {
           receipt_verification_status?: string | null
           region?: string | null
           registered_by?: string | null
+          registration_bonus_paid?: boolean
+          registration_bonus_paid_at?: string | null
+          registration_verification_bonus_paid?: boolean
+          registration_verification_bonus_paid_at?: string | null
           rent_balance_due?: number
           rent_last_paid_amount?: number | null
           rent_last_paid_at?: string | null
