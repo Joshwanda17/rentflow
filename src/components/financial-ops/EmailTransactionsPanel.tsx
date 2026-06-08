@@ -3384,6 +3384,11 @@ export function EmailTransactionsPanel() {
                 })();
                 const debitIsPartial = /partial/i.test(rawDebitReason);
                 const debitAmountValue = autoDebitEntry?.amount ?? autoImpact?.amount ?? Number(r.amount ?? 0);
+                // The wallet that actually got charged. For a managed-proxy
+                // debit this is the proxy agent's own wallet, so we can surface
+                // their current ledger-derived balance straight on the email.
+                const debitTargetId = autoDebitEntry?.target_user_id ?? null;
+                const debitWalletBalance = debitTargetId ? userBalances[debitTargetId] : undefined;
                 // Already-credited incoming deposit (linked to a non-terminal
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
@@ -3882,6 +3887,21 @@ export function EmailTransactionsPanel() {
                               <span className="text-muted-foreground"> · left {fmtUgx(autoImpact.newAvail)}</span>
                             )}
                           </p>
+                          {/* Linked proxy agent's live wallet balance — so
+                              Financial Ops can see the charged proxy wallet
+                              position right on the email without drilling in. */}
+                          {isProxyDebit && (
+                            <p className="sm:col-span-2">
+                              <span className="text-muted-foreground">
+                                Proxy wallet ({debitedName}):{' '}
+                              </span>
+                              <span className="font-semibold tabular-nums">
+                                {debitWalletBalance === undefined
+                                  ? 'loading…'
+                                  : fmtUgx(debitWalletBalance)}
+                              </span>
+                            </p>
+                          )}
                           {debitReasonText && (
                             <p className="sm:col-span-2">
                               <span className="text-muted-foreground">Reason: </span>
