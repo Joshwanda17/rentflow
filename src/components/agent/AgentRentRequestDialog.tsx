@@ -61,6 +61,7 @@ import {
   MessageCircle,
   Home,
   AlertTriangle,
+  ChevronDown,
   AlertCircle,
   Phone,
   Search,
@@ -3834,6 +3835,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       {overCap ? 'Over your current posting cap' : 'Within your posting cap'}
                     </p>
 
+                    <details className="group">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                        <span>{overCap ? 'See why & how to unlock' : 'See cap details'}</span>
+                        <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                      </summary>
+                      <div className="pt-3 space-y-3">
                     <div className="text-sm font-semibold text-foreground space-y-1.5">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-muted-foreground">Your tier</span>
@@ -4001,6 +4008,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </p>
                       </div>
                     </div>
+                      </div>
+                    </details>
                   </div>
                 );
               })()}
