@@ -813,6 +813,30 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const isLast = stepIndex === totalSteps - 1;
   const progress = ((stepIndex + 1) / totalSteps) * 100;
 
+  // "Unfinished draft" = the tenant has entered something but hasn't posted.
+  const hasUnfinishedDraft = useMemo(() => {
+    if (submittedRef.current) return false;
+    return !!(
+      rentAmount.trim() || tenantNationalId.trim() || tenantFullName.trim() ||
+      tenantWaterMeter.trim() || tenantElectricityMeter.trim() ||
+      landlordName.trim() || landlordPhone.trim() || landlordNationalId.trim() ||
+      landlordTin.trim() || propertyAddress.trim() || waterMeterNumber.trim() ||
+      electricityMeterNumber.trim() || lc1Name.trim() || lc1Phone.trim() ||
+      lc1Village.trim() || propertyGps || housePhotos.length > 0 || stepIndex > 0
+    );
+  }, [
+    rentAmount, tenantNationalId, tenantFullName, tenantWaterMeter, tenantElectricityMeter,
+    landlordName, landlordPhone, landlordNationalId, landlordTin, propertyAddress,
+    waterMeterNumber, electricityMeterNumber, lc1Name, lc1Phone, lc1Village,
+    propertyGps, housePhotos.length, stepIndex,
+  ]);
+
+  // Prompt on hardware/browser back when there's an unfinished draft.
+  useUnsavedChangesGuard(hasUnfinishedDraft);
+
+  const LEAVE_MESSAGE =
+    'You have an unfinished rent request. Leave the wizard? Your answers are saved and you can continue later.';
+
   const goNext = () => {
     if (!current.valid) {
       toast({ title: 'Please complete this step', description: nationalIdError || 'Fill in the required field to continue.', variant: 'destructive' });
@@ -822,7 +846,11 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   };
 
   const goBack = () => {
-    if (isFirst) { onCancel(); return; }
+    if (isFirst) {
+      if (hasUnfinishedDraft && !window.confirm(LEAVE_MESSAGE)) return;
+      onCancel();
+      return;
+    }
     setStepIndex((i) => Math.max(i - 1, 0));
   };
 
