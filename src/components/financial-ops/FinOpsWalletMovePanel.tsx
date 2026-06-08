@@ -517,10 +517,40 @@ export function FinOpsWalletMovePanel() {
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">From</Label>
           <UserCard user={source} role="source" />
           {mode === 'same_user' ? (
-            <p className="text-xs text-muted-foreground">
-              Moving from their <span className="font-semibold text-foreground">Operations Float</span> into their{' '}
-              <span className="font-semibold text-foreground">Withdrawable</span>. Total balance is unchanged.
-            </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs text-muted-foreground">Direction</span>
+                <div className="inline-flex rounded-lg border border-border overflow-hidden">
+                  {([
+                    ['float_to_withdrawable', 'Float → Withdrawable'],
+                    ['withdrawable_to_float', 'Withdrawable → Float'],
+                  ] as [SameUserDir, string][]).map(([dir, label]) => (
+                    <button
+                      key={dir}
+                      type="button"
+                      onClick={() => {
+                        setSameUserDir(dir);
+                        setSourceBucket(dir === 'float_to_withdrawable' ? 'float' : 'withdrawable');
+                      }}
+                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                        sameUserDir === dir ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {sameUserDir === 'float_to_withdrawable' ? (
+                  <>Moving from their <span className="font-semibold text-foreground">Operations Float</span> into their{' '}
+                  <span className="font-semibold text-foreground">Withdrawable</span>. Total balance is unchanged.</>
+                ) : (
+                  <>Moving from their <span className="font-semibold text-foreground">Withdrawable</span> into their{' '}
+                  <span className="font-semibold text-foreground">Operations Float</span>. Total balance is unchanged.</>
+                )}
+              </p>
+            </div>
           ) : (
             <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-xs text-muted-foreground">Take from bucket</span>
