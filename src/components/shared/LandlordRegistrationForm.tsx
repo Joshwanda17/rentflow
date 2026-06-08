@@ -146,12 +146,12 @@ export default function LandlordRegistrationForm({
   // the agent taps Register, surfacing the exact field error inline.
   // Returns true when the number is free to use.
   const checkPhoneAvailable = async (rawValue: string): Promise<boolean> => {
-    const formatError = validateField('landlordPhone', cleanPhoneNumber(rawValue));
+    const formatError = validateField('landlordPhone', toUgandaLocalDigits(rawValue));
     if (formatError) {
       setPhoneVerified(false);
       return false;
     }
-    const phoneClean = cleanPhoneNumber(rawValue);
+    const phoneClean = toUgandaLocalDigits(rawValue);
     setCheckingPhone(true);
     setPhoneVerified(false);
     try {
