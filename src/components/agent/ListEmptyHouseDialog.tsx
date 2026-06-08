@@ -992,6 +992,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                       <p className="text-xs text-muted-foreground mt-1 leading-snug">
                         Try a different spelling or phone number. Only landlords already registered in the system can be selected.
                       </p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[11px] text-muted-foreground">
+                          <span className="font-medium">Name:</span> e.g. <span className="font-mono text-foreground">John Mukasa</span>
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          <span className="font-medium">Phone:</span> <span className="font-mono text-foreground">07xxxxxxxx</span> or <span className="font-mono text-foreground">+2567xxxxxxxx</span>
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
