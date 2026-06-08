@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { Button } from '@/components/ui/button';
-import { formatUgandaPhone, cleanPhoneNumber } from '@/lib/phoneUtils';
+import { formatUgandaPhone, cleanPhoneNumber, toUgandaLocalDigits } from '@/lib/phoneUtils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -108,7 +108,7 @@ export default function LandlordRegistrationForm({
     }
     if (name === 'landlordPhone') {
       if (!trimmed) msg = 'Phone number is required';
-      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
+      else if (!/^\d{9,10}$/.test(toUgandaLocalDigits(trimmed))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
     }
     if (name === 'propertyAddress') {
       // Address is optional now — only validate when something was typed.
@@ -120,7 +120,7 @@ export default function LandlordRegistrationForm({
     }
     if (name === 'lc1Phone') {
       if (!trimmed) msg = 'LC1 phone is required';
-      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
+      else if (!/^\d{9,10}$/.test(toUgandaLocalDigits(trimmed))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
     }
     return msg;
   };
@@ -146,12 +146,12 @@ export default function LandlordRegistrationForm({
   // the agent taps Register, surfacing the exact field error inline.
   // Returns true when the number is free to use.
   const checkPhoneAvailable = async (rawValue: string): Promise<boolean> => {
-    const formatError = validateField('landlordPhone', cleanPhoneNumber(rawValue));
+    const formatError = validateField('landlordPhone', toUgandaLocalDigits(rawValue));
     if (formatError) {
       setPhoneVerified(false);
       return false;
     }
-    const phoneClean = cleanPhoneNumber(rawValue);
+    const phoneClean = toUgandaLocalDigits(rawValue);
     setCheckingPhone(true);
     setPhoneVerified(false);
     try {
@@ -395,8 +395,8 @@ export default function LandlordRegistrationForm({
     setLoading(true);
     setProgressMsg('Saving details…');
 
-    const landlordPhoneClean = cleanPhoneNumber(landlordPhone);
-    const lc1PhoneClean = cleanPhoneNumber(lc1Phone);
+    const landlordPhoneClean = toUgandaLocalDigits(landlordPhone);
+    const lc1PhoneClean = toUgandaLocalDigits(lc1Phone);
     const momoNumberClean = cleanPhoneNumber(momoNumber);
 
     try {
@@ -823,7 +823,7 @@ export default function LandlordRegistrationForm({
                     inputMode="tel"
                     value={lc1Phone}
                     onChange={(e) => { setLc1Phone(formatUgandaPhone(e.target.value)); clearError('lc1Phone'); }}
-                    onBlur={(e) => validateField('lc1Phone', cleanPhoneNumber(e.target.value))}
+                    onBlur={(e) => validateField('lc1Phone', toUgandaLocalDigits(e.target.value))}
                     placeholder="07XX XXX XXX — 10 digits"
                     className={`h-12 text-base ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
@@ -843,8 +843,8 @@ export default function LandlordRegistrationForm({
           {(() => {
             const nameOk = landlordName.trim().length >= 2 && !errors.landlordName;
             const phoneOk =
-              /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone)) && !errors.landlordPhone;
-            const lcOk = !minimal || (lc1Name.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(lc1Phone)));
+              /^\d{9,10}$/.test(toUgandaLocalDigits(landlordPhone)) && !errors.landlordPhone;
+            const lcOk = !minimal || (lc1Name.trim().length >= 2 && /^\d{9,10}$/.test(toUgandaLocalDigits(lc1Phone)));
             const ready = nameOk && phoneOk && lcOk && !loading;
             if (!ready) return null;
             return (
@@ -877,7 +877,7 @@ export default function LandlordRegistrationForm({
             </Button>
             {/* Step hint shown before the essentials are complete so a first-time
                 agent always understands the single next action. */}
-            {!(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone))) && (
+            {!(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(toUgandaLocalDigits(landlordPhone))) && (
               <p className="text-xs text-center text-muted-foreground mt-1.5">
                 Step 1: enter the landlord's name &amp; phone, then tap Next.
               </p>
