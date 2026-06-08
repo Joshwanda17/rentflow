@@ -369,7 +369,12 @@ export function LandlordSearchSelect({
   }, [value, placeholder]);
 
   const isSystemEmpty = totalCount === 0;
-  const isSearchEmpty = !loading && results.length === 0 && debounced.length > 0;
+  // True while a keystroke is still waiting out the debounce window — lets us
+  // show "Searching…" the instant the agent types, before the fetch even fires.
+  const isTyping = panelOpen && query.trim().length > 0 && query.trim() !== debounced;
+  // Unified "working" flag: either debouncing the latest keystroke or fetching.
+  const busy = loading || isTyping;
+  const isSearchEmpty = !busy && results.length === 0 && debounced.length > 0;
 
   // Compose a location subtitle from the most specific available fields.
   const locationLine = (l: LandlordOption) =>
@@ -471,7 +476,7 @@ export function LandlordSearchSelect({
               placeholder="Search a landlord by name or phone"
               className="flex-1 bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground"
             />
-            {loading && (
+            {busy && (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#4285F4]" aria-label="Searching" />
             )}
             {query && (
@@ -557,8 +562,10 @@ export function LandlordSearchSelect({
           )}
         </div>
         <div ref={listRef} className="max-h-72 overflow-y-auto border-t border-border/50 py-1">
-          {/* Only show the big loader on the first fetch; keep prior results visible while re-searching. */}
-          {loading && results.length === 0 && (
+          {/* Instant feedback: show "Searching…" the moment the agent types,
+              through the debounce window and the fetch. Keep prior results
+              visible while re-searching so the list never flickers empty. */}
+          {busy && results.length === 0 && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
             </div>
