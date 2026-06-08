@@ -76,6 +76,7 @@ const LEVEL_CONFIG: { key: LocationLevel; label: string; icon: typeof Globe; dbF
 export function RentalFinderSheet({ open, onOpenChange }: RentalFinderSheetProps) {
   const [landlords, setLandlords] = useState<Landlord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [currentLevel, setCurrentLevel] = useState(0);
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -83,11 +84,19 @@ export function RentalFinderSheet({ open, onOpenChange }: RentalFinderSheetProps
 
   const fetchLandlords = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    setError(null);
+    const { data, error: fetchError } = await supabase
       .from('landlords')
       .select('id, name, phone, property_address, latitude, longitude, monthly_rent, number_of_rooms, number_of_houses, verified, country, region, district, county, sub_county, town_council, village, cell, house_number, electricity_meter_number, water_meter_number, caretaker_name, caretaker_phone')
-      .order('created_at', { ascending: false });
-    setLandlords((data as Landlord[]) || []);
+      .order('created_at', { ascending: false })
+      .limit(2000);
+    if (fetchError) {
+      console.error('[RentalFinderSheet] landlord fetch failed:', fetchError);
+      setError('Could not load landlords. Pull to retry.');
+      setLandlords([]);
+    } else {
+      setLandlords((data as Landlord[]) || []);
+    }
     setLoading(false);
   }, []);
 
@@ -238,6 +247,14 @@ export function RentalFinderSheet({ open, onOpenChange }: RentalFinderSheetProps
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-20 text-muted-foreground px-4">
+              <Home className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">{error}</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => fetchLandlords()}>
+                Try again
+              </Button>
             </div>
           ) : selectedLandlord ? (
             <LandlordDetail landlord={selectedLandlord} onNavigate={handleNavigate} onCall={handleCall} />
