@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FinancialOpsPulseStrip } from './FinancialOpsPulseStrip';
 import { ApprovalQueue } from './ApprovalQueue';
 import { TransactionSearch } from './TransactionSearch';
@@ -84,12 +84,40 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'momo_sms_template', label: 'MoMo Thank-You SMS', desc: 'Edit the thank-you + signup SMS sent to MTN/Airtel senders', icon: Mail },
 ];
 
+import { useAuth } from '@/hooks/useAuth';
+
+const WALLET_BREAKDOWN_KEY = 'finops_wallet_breakdown_open';
+
+function getStoredOpen(userId?: string): boolean {
+  if (typeof window === 'undefined' || !userId) return false;
+  try {
+    const raw = localStorage.getItem(WALLET_BREAKDOWN_KEY);
+    if (!raw) return false;
+    const map = JSON.parse(raw) as Record<string, boolean>;
+    return !!map[userId];
+  } catch {
+    return false;
+  }
+}
+
+function setStoredOpen(userId: string, open: boolean) {
+  if (typeof window === 'undefined' || !userId) return;
+  try {
+    const raw = localStorage.getItem(WALLET_BREAKDOWN_KEY);
+    const map = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    map[userId] = open;
+    localStorage.setItem(WALLET_BREAKDOWN_KEY, JSON.stringify(map));
+  } catch { /* noop */ }
+}
+
 export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
+  const { user } = useAuth();
+  const userId = user?.id;
   const [view, setView] = useState<View>('home');
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [moreSheet, setMoreSheet] = useState(false);
   const [focusBucket, setFocusBucket] = useState<'float' | 'withdrawable' | null>(null);
-  const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(false);
+  const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(() => getStoredOpen(userId));
 
   const openTool = (t: Tool) => {
     setActiveTool(t);
