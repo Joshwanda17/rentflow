@@ -322,10 +322,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Please select a region');
         return false;
       }
-      if (houseImages.length === 0) {
-        toast.error('Add at least one photo of the house');
-        return false;
-      }
     }
     if (s === 2) {
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
@@ -377,7 +373,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const preflightGates: PreflightGate[] = [
     { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 1 },
     { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
-    { label: 'At least one photo', ok: houseImages.length > 0, hint: 'Add at least one photo of the house', step: 1 },
   ];
   preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 2 });
   if (form.caretaker_type === 'other') {
@@ -410,10 +405,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     if (!form.region) {
       failWith('Please select a region');
-      return;
-    }
-    if (houseImages.length === 0) {
-      failWith('Add at least one photo of the house');
       return;
     }
     // Landlord phone is mandatory for every listing.
