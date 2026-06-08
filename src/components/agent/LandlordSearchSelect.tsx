@@ -39,6 +39,12 @@ interface LandlordSearchSelectProps {
   /** Called when the agent taps "Register new landlord" from the empty-state warning. */
   onAddNew?: () => void;
   /**
+   * Render the search bar + results inline (always open, no trigger button or
+   * popover). Used in mobile-first wizards where a single, obvious tap-free
+   * search field is friendlier than a tap-to-open combobox.
+   */
+  inline?: boolean;
+  /**
    * Fuzzy-match similarity threshold (0.05–0.9). Lower = more typo-tolerant
    * (more results), higher = stricter. Used as the initial slider value.
    */
