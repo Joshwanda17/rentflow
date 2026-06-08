@@ -466,6 +466,13 @@ export function LandlordSearchSelect({
     setQuery('');
   };
 
+  // Whole-second elapsed label for the cancellation note, recomputed each tick.
+  const cancelledAgo = useMemo(() => {
+    if (!cancelledInfo) return null;
+    const secs = Math.max(0, Math.round((nowTick - cancelledInfo.at) / 1000));
+    return secs <= 0 ? 'just now' : `${secs}s ago`;
+  }, [cancelledInfo, nowTick]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
       setOpen(false);
