@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { useSmartLocation, captureSmartLocation } from '@/hooks/useSmartLocation';
 import FormStepHeader from '@/components/shared/FormStepHeader';
+import { useUnsavedChangesGuard, confirmDiscardIfDirty } from '@/hooks/useUnsavedChangesGuard';
 
 interface RentRequestFormProps {
   userId: string;
