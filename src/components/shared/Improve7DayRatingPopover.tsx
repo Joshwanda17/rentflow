@@ -1,6 +1,13 @@
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { HelpCircle, CheckCircle2, Calendar, Users, TrendingUp } from 'lucide-react';
-import type { AgentCapacity } from '@/hooks/useAgentCapacityMap';
+import {
+  HelpCircle, CheckCircle2, Calendar, Users, TrendingUp,
+  AlertTriangle, Sparkles, Sunrise, Trophy,
+} from 'lucide-react';
+import {
+  AGENT_TIER_THRESHOLDS,
+  GOOD_DAYS_UNLOCK_THRESHOLD,
+  type AgentCapacity,
+} from '@/hooks/useAgentCapacityMap';
 
 const TIER_RANGE: Record<AgentCapacity['tier'], string> = {
   Positive:   '≥ 70% of tenants paying daily',
@@ -18,11 +25,123 @@ const TIER_TONE: Record<AgentCapacity['tier'], string> = {
   Starter:    'text-violet-700 bg-violet-50 border-violet-200',
 };
 
+type Rec = {
+  icon: typeof Calendar;
+  tone: string;
+  text: React.ReactNode;
+};
+
 /**
- * "How to improve your 7-day rating?" — explains, in plain language, the
- * concrete actions an agent can take to lift their 7-day responsiveness tier.
- * The 7-day tier measures DAILY RESPONSE RATE: how many of your tenants made
- * at least one payment on each of the last 7 days — not the amount collected.
+ * Builds a PERSONALIZED, prioritized list of recommendations from the agent's
+ * own recent activity — silent tenants, the gap to the next tier, today's
+ * progress, weekly consistency — instead of generic advice. The weakest areas
+ * are surfaced first so the agent knows exactly what to fix.
+ */
+function buildRecommendations(cap: AgentCapacity): Rec[] {
+  const recs: Rec[] = [];
+
+  // Starter / new agents — nothing to measure yet.
+  if (cap.tier === 'Starter' || cap.active_tenant_count <= 0) {
+    recs.push({
+      icon: Sunrise,
+      tone: 'text-violet-600',
+      text: <>You have no active tenants yet — post your first rent requests to start building a 7-day rating.</>,
+    });
+    return recs;
+  }
+
+  const activeTenants = cap.active_tenant_count || cap.active_count || 0;
+  const payingTenants = cap.paying_tenants_last_week || 0;
+  const silentTenants = Math.max(0, activeTenants - payingTenants);
+
+  // 1. Weakest area first: tenants who paid NOTHING in the last 7 days.
+  if (silentTenants > 0) {
+    recs.push({
+      icon: AlertTriangle,
+      tone: 'text-destructive',
+      text: (
+        <>
+          <strong>{silentTenants}</strong> of your {activeTenants} tenant{activeTenants === 1 ? '' : 's'}{' '}
+          paid <strong>nothing</strong> in the last 7 days — visit these first to lift your rate fastest.
+        </>
+      ),
+    });
+  }
+
+  // 2. Gap to the next tier, expressed in extra responding tenant-days.
+  const nextTarget =
+    cap.tier === 'Bad'  ? AGENT_TIER_THRESHOLDS.fair :
+    cap.tier === 'Fair' ? AGENT_TIER_THRESHOLDS.positive :
+    cap.tier === 'Very Bad' ? AGENT_TIER_THRESHOLDS.bad :
+    null;
+  const nextTierLabel =
+    cap.tier === 'Bad'  ? 'Fair' :
+    cap.tier === 'Fair' ? 'Positive' :
+    cap.tier === 'Very Bad' ? 'Bad' :
+    null;
+
+  if (nextTarget != null && nextTierLabel) {
+    const needCells = Math.max(
+      1,
+      Math.ceil(nextTarget * (cap.expected_tenant_days || activeTenants * 7)) - (cap.responding_tenant_days || 0),
+    );
+    recs.push({
+      icon: TrendingUp,
+      tone: 'text-amber-600',
+      text: (
+        <>
+          Get <strong>{needCells}</strong> more tenant-payment{needCells === 1 ? '' : 's'} across this week to
+          reach the <strong>{nextTierLabel}</strong> tier.
+        </>
+      ),
+    });
+  } else if (cap.tier === 'Positive') {
+    recs.push({
+      icon: Trophy,
+      tone: 'text-emerald-600',
+      text: <>You're in the top <strong>Positive</strong> tier — keep every tenant paying daily to hold it.</>,
+    });
+  }
+
+  // 3. Today's progress — has the agent started collecting today?
+  if ((cap.today_response_pct || 0) <= 0) {
+    recs.push({
+      icon: Calendar,
+      tone: 'text-orange-600',
+      text: <>You haven't collected from anyone <strong>today</strong> yet — each tenant who pays today counts toward this week.</>,
+    });
+  }
+
+  // 4. Weekly consistency (good days last week).
+  if ((cap.good_days_last_week || 0) < GOOD_DAYS_UNLOCK_THRESHOLD) {
+    const need = GOOD_DAYS_UNLOCK_THRESHOLD - (cap.good_days_last_week || 0);
+    recs.push({
+      icon: Sparkles,
+      tone: 'text-primary',
+      text: (
+        <>
+          Hit your 20% daily target on <strong>{need}</strong> more day{need === 1 ? '' : 's'} this week to unlock
+          unlimited posting.
+        </>
+      ),
+    });
+  }
+
+  // 5. Universal nudge — encourage small, frequent payments.
+  recs.push({
+    icon: Users,
+    tone: 'text-primary',
+    text: <>Encourage <strong>small, frequent</strong> payments — even UGX 1 a day from a tenant counts as a response.</>,
+  });
+
+  return recs;
+}
+
+/**
+ * "How to improve your 7-day rating?" — now PERSONALIZED. The 7-day tier
+ * measures DAILY RESPONSE RATE (how many tenants paid something on each of the
+ * last 7 days). Recommendations are derived from this agent's recent activity
+ * and weak areas, weakest first.
  */
 export function Improve7DayRatingPopover({
   capacity,
@@ -34,6 +153,7 @@ export function Improve7DayRatingPopover({
   const pct = Math.round((capacity.response_rate || 0) * 100);
   const tone = TIER_TONE[capacity.tier];
   const range = TIER_RANGE[capacity.tier];
+  const recs = buildRecommendations(capacity);
 
   return (
     <Popover>
@@ -49,12 +169,12 @@ export function Improve7DayRatingPopover({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-3 space-y-2.5" align="end" sideOffset={4}>
-        <p className="text-xs font-bold text-foreground">Improve your 7-day rating</p>
+        <p className="text-xs font-bold text-foreground">How to improve your 7-day rating</p>
 
         <p className="text-[11px] text-muted-foreground leading-snug">
-          This rating measures how many of your tenants pay
-          <strong className="text-foreground"> something every day</strong> — not the
-          amount. Even a small daily payment counts.
+          This rating tracks how many of your tenants pay
+          <strong className="text-foreground"> something every day</strong> — not the amount.
+          Here's what will help <strong className="text-foreground">you</strong> most right now:
         </p>
 
         <div className={`rounded-md border px-2 py-1.5 flex items-center justify-between text-[11px] ${tone}`}>
@@ -63,27 +183,21 @@ export function Improve7DayRatingPopover({
         </div>
 
         <ul className="space-y-1.5">
-          <li className="flex items-start gap-2 text-[11px] text-foreground">
-            <Calendar className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
-            <span>Visit or call each tenant <strong>daily</strong> so every tenant pays at least once a day.</span>
-          </li>
-          <li className="flex items-start gap-2 text-[11px] text-foreground">
-            <Users className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
-            <span>Follow up first with tenants who <strong>missed yesterday</strong> — one missed day lowers your rate.</span>
-          </li>
-          <li className="flex items-start gap-2 text-[11px] text-foreground">
-            <TrendingUp className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
-            <span>Encourage <strong>small, frequent payments</strong> instead of waiting for one big payment.</span>
-          </li>
-          <li className="flex items-start gap-2 text-[11px] text-foreground">
-            <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
-            <span>Keep it up for <strong>7 days straight</strong> — the rating uses your last 7 days.</span>
-          </li>
+          {recs.map((r, i) => {
+            const Icon = r.icon;
+            return (
+              <li key={i} className="flex items-start gap-2 text-[11px] text-foreground">
+                <Icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${r.tone}`} />
+                <span>{r.text}</span>
+              </li>
+            );
+          })}
         </ul>
 
-        <p className="text-[10px] text-muted-foreground leading-snug">
-          Reach <strong className="text-foreground">70%</strong> daily response to hit
-          the top <strong className="text-foreground">Positive</strong> tier and unlock the highest rent limits.
+        <p className="text-[10px] text-muted-foreground leading-snug flex items-center gap-1">
+          <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-600" />
+          Reach <strong className="text-foreground">70%</strong> daily response for the top
+          <strong className="text-foreground"> Positive</strong> tier &amp; highest rent limits.
         </p>
       </PopoverContent>
     </Popover>
