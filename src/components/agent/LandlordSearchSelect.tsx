@@ -201,9 +201,12 @@ export function LandlordSearchSelect({
   disabled,
   autoOpenSignal,
   onAddNew,
+  inline = false,
   similarityThreshold = 0.2,
 }: LandlordSearchSelectProps) {
   const [open, setOpen] = useState(false);
+  // In inline mode the panel is permanently open (no trigger / popover).
+  const panelOpen = inline || open;
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [results, setResults] = useState<LandlordOption[]>([]);
