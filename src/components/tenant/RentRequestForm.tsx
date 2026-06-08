@@ -12,7 +12,7 @@ import {
   Camera, Users, CheckCircle2, Percent, CalendarDays, ListChecks,
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
-import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES, calculateInstalment } from '@/lib/rentCalculations';
+import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES } from '@/lib/rentCalculations';
 import { generateRepaymentSchedule, insertRepaymentSchedule } from '@/lib/scheduleUtils';
 import { useToast } from '@/hooks/use-toast';
 import { optimizeImage } from '@/lib/imageOptimizer';
