@@ -409,39 +409,71 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               onSubmit={handleSubmit}
               className="space-y-5"
             >
-              {/* Step indicator */}
-              <div className="flex items-center gap-2">
+              {/* Material-style circular stepper */}
+              <div className="flex items-center">
                 {stepLabels.map((lbl, i) => {
                   const n = (i + 1) as 1 | 2 | 3 | 4;
                   const active = step === n;
                   const done = step > n;
                   return (
-                    <button
-                      key={lbl}
-                      type="button"
-                      onClick={() => {
-                        if (n < step) setStep(n);
-                        else if (n > step) {
-                          for (let k = step; k < n; k++) {
-                            const err = validateStep(k);
-                            if (err) { toast.error(err); return; }
+                    <div key={lbl} className="flex flex-1 items-center last:flex-none">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (n < step) gotoStep(n);
+                          else if (n > step) {
+                            for (let k = step; k < n; k++) {
+                              const err = validateStep(k);
+                              if (err) { toast.error(err); return; }
+                            }
+                            gotoStep(n);
                           }
-                          setStep(n);
-                        }
-                      }}
-                      className="flex-1 flex flex-col items-center gap-1 group"
-                    >
-                      <div className={`h-1.5 w-full rounded-full transition-colors ${
-                        active ? 'bg-primary' : done ? 'bg-emerald-500' : 'bg-muted'
-                      }`} />
-                      <span className={`text-[10px] font-medium ${
-                        active ? 'text-primary' : done ? 'text-emerald-600' : 'text-muted-foreground'
-                      }`}>
-                        {n}. {lbl}
-                      </span>
-                    </button>
+                        }}
+                        className="flex flex-col items-center gap-1.5 outline-none"
+                        aria-current={active ? 'step' : undefined}
+                      >
+                        <motion.span
+                          animate={{ scale: active ? 1.1 : 1 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                            done
+                              ? 'bg-primary text-primary-foreground'
+                              : active
+                                ? 'bg-primary text-primary-foreground ring-4 ring-primary/15'
+                                : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {done ? <Check className="h-4 w-4" /> : n}
+                        </motion.span>
+                        <span className={`text-[10px] font-medium transition-colors ${
+                          active ? 'text-primary' : done ? 'text-foreground' : 'text-muted-foreground'
+                        }`}>
+                          {lbl}
+                        </span>
+                      </button>
+                      {n < totalSteps && (
+                        <div className="mx-1.5 mb-5 h-0.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <motion.div
+                            className="h-full rounded-full bg-primary"
+                            initial={false}
+                            animate={{ width: done ? '100%' : '0%' }}
+                            transition={{ duration: 0.35, ease: 'easeOut' }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
+              </div>
+
+              {/* One-question-at-a-time heading */}
+              <div>
+                <h3 className="text-base font-medium tracking-tight text-foreground">
+                  {stepHeadings[step].title}
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {stepHeadings[step].subtitle}
+                </p>
               </div>
 
               {/* Agent Commission Banner (step 1 only) */}
