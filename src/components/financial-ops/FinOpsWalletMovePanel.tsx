@@ -21,6 +21,7 @@ import { useIsFetching } from '@tanstack/react-query';
 type Bucket = 'withdrawable' | 'float';
 type Mode = 'user_to_user' | 'error_correction' | 'same_user';
 type MoveStep = 'idle' | 'posting' | 'refreshing' | 'done';
+type SameUserDir = 'float_to_withdrawable' | 'withdrawable_to_float';
 
 /** Matches every wallet/balance/ledger-backed panel query. */
 const isWalletQuery = (key: readonly unknown[]) =>
@@ -68,6 +69,7 @@ export function FinOpsWalletMovePanel() {
   const [dest, setDest] = useState<UserHit | null>(null);
   const [destBucket, setDestBucket] = useState<Bucket>('withdrawable');
   const [picking, setPicking] = useState<'source' | 'dest'>('source');
+  const [sameUserDir, setSameUserDir] = useState<SameUserDir>('float_to_withdrawable');
 
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -217,14 +219,19 @@ export function FinOpsWalletMovePanel() {
       return;
     }
 
-    // Same-user Float → Withdrawable reclassification uses the dedicated,
-    // balanced edge function (never overdraws, leaves total balance unchanged).
+    // Same-user reclassification between the user's own buckets uses the
+    // dedicated, balanced edge functions (never overdraws, leaves total balance
+    // unchanged). Direction selects which way the money moves.
     if (mode === 'same_user') {
+      const fnName =
+        sameUserDir === 'float_to_withdrawable'
+          ? 'admin-float-to-withdrawable'
+          : 'admin-withdrawable-to-float';
       const { data, error } = await invokeEdgeFunction<{
         message: string;
         float_after: number;
         withdrawable_after: number;
-      }>('admin-float-to-withdrawable', {
+      }>(fnName, {
         body: {
           target_user_id: source.id,
           amount: amountNum,
@@ -433,13 +440,13 @@ export function FinOpsWalletMovePanel() {
         </button>
         <button
           type="button"
-          onClick={() => { setMode('same_user'); reset(); setResult(null); setSourceBucket('float'); }}
+          onClick={() => { setMode('same_user'); reset(); setResult(null); setSameUserDir('float_to_withdrawable'); setSourceBucket('float'); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'same_user' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
         >
-          <span className="flex items-center gap-2 font-medium text-sm"><ArrowRightLeft className="h-4 w-4" /> Float → Withdrawable</span>
-          <span className="block text-xs text-muted-foreground mt-1">Same user: move their Operations Float into their Withdrawable.</span>
+          <span className="flex items-center gap-2 font-medium text-sm"><ArrowRightLeft className="h-4 w-4" /> Float ⇄ Withdrawable</span>
+          <span className="block text-xs text-muted-foreground mt-1">Same user: move money between their Operations Float and Withdrawable.</span>
         </button>
         <button
           type="button"
@@ -510,10 +517,40 @@ export function FinOpsWalletMovePanel() {
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">From</Label>
           <UserCard user={source} role="source" />
           {mode === 'same_user' ? (
-            <p className="text-xs text-muted-foreground">
-              Moving from their <span className="font-semibold text-foreground">Operations Float</span> into their{' '}
-              <span className="font-semibold text-foreground">Withdrawable</span>. Total balance is unchanged.
-            </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs text-muted-foreground">Direction</span>
+                <div className="inline-flex rounded-lg border border-border overflow-hidden">
+                  {([
+                    ['float_to_withdrawable', 'Float → Withdrawable'],
+                    ['withdrawable_to_float', 'Withdrawable → Float'],
+                  ] as [SameUserDir, string][]).map(([dir, label]) => (
+                    <button
+                      key={dir}
+                      type="button"
+                      onClick={() => {
+                        setSameUserDir(dir);
+                        setSourceBucket(dir === 'float_to_withdrawable' ? 'float' : 'withdrawable');
+                      }}
+                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                        sameUserDir === dir ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {sameUserDir === 'float_to_withdrawable' ? (
+                  <>Moving from their <span className="font-semibold text-foreground">Operations Float</span> into their{' '}
+                  <span className="font-semibold text-foreground">Withdrawable</span>. Total balance is unchanged.</>
+                ) : (
+                  <>Moving from their <span className="font-semibold text-foreground">Withdrawable</span> into their{' '}
+                  <span className="font-semibold text-foreground">Operations Float</span>. Total balance is unchanged.</>
+                )}
+              </p>
+            </div>
           ) : (
             <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-xs text-muted-foreground">Take from bucket</span>
@@ -566,7 +603,11 @@ export function FinOpsWalletMovePanel() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Balance after move: <span className="font-semibold text-foreground">{fmt(Math.max(0, sourceAvail - amountNum))}</span> {sourceBucket}
                   {mode === 'same_user' && (
-                    <> · Withdrawable becomes: <span className="font-semibold text-foreground">{fmt(source.withdrawable_balance + amountNum)}</span></>
+                    sameUserDir === 'float_to_withdrawable' ? (
+                      <> · Withdrawable becomes: <span className="font-semibold text-foreground">{fmt(source.withdrawable_balance + amountNum)}</span></>
+                    ) : (
+                      <> · Float becomes: <span className="font-semibold text-foreground">{fmt(source.float_balance + amountNum)}</span></>
+                    )
                   )}
                 </p>
               )}
@@ -587,7 +628,7 @@ export function FinOpsWalletMovePanel() {
               {mode === 'user_to_user'
                 ? 'Move money'
                 : mode === 'same_user'
-                  ? 'Move to Withdrawable'
+                  ? (sameUserDir === 'float_to_withdrawable' ? 'Move to Withdrawable' : 'Move to Float')
                   : 'Recover to platform'}
             </Button>
           </CardContent>
@@ -607,7 +648,9 @@ export function FinOpsWalletMovePanel() {
                   {mode === 'user_to_user'
                     ? <>to <span className="font-semibold">{dest?.full_name || 'recipient'}</span>'s {destBucket} balance.</>
                     : mode === 'same_user'
-                      ? <>into their own <span className="font-semibold">Withdrawable</span> balance. Total balance is unchanged.</>
+                      ? (sameUserDir === 'float_to_withdrawable'
+                          ? <>into their own <span className="font-semibold">Withdrawable</span> balance. Total balance is unchanged.</>
+                          : <>into their own <span className="font-semibold">Operations Float</span> balance. Total balance is unchanged.</>)
                       : 'back to the platform as an error correction.'}
                 </p>
                 <p className="text-muted-foreground">{reason}</p>
