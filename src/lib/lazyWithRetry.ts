@@ -113,6 +113,9 @@ export function lazyWithRetry<T extends ComponentType<any>>(
         await new Promise((r) => setTimeout(r, 400 * (i + 1)));
       }
     }
+    // All retries exhausted — likely a stale chunk after a deploy. Try a
+    // one-time reload to fetch fresh assets instead of crashing to a blank screen.
+    reloadOnceForStaleChunk();
     throw lastErr;
   });
 }
