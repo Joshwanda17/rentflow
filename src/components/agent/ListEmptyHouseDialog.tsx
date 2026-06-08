@@ -91,6 +91,24 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // a flag noting that location/area was pre-filled from the agent profile.
   const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
   const [prefilledFromProfile, setPrefilledFromProfile] = useState(false);
+  // Phone-based auto-detection: when the agent types a landlord phone that is
+  // already registered anywhere in the system (even one created from just an
+  // estimation, with no photos/houses yet), surface it so they reuse it and
+  // complete the real house, location and rent instead of creating a duplicate.
+  type PhoneMatch = {
+    id: string;
+    name: string;
+    phone: string | null;
+    monthly_rent: number | null;
+    property_address: string | null;
+    village: string | null;
+    district: string | null;
+    region: string | null;
+    house_category: string | null;
+    number_of_rooms: number | null;
+  };
+  const [phoneMatch, setPhoneMatch] = useState<PhoneMatch | null>(null);
+  const [checkingPhone, setCheckingPhone] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -182,6 +200,48 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // ─── Auto-detect an existing landlord from the typed phone number ───
+  // While the agent is keying a new landlord's phone, quietly check the system.
+  // If that number already belongs to a registered landlord (even one with only
+  // estimated details), surface a "reuse" card so no duplicate is created.
+  useEffect(() => {
+    if (!manualLandlord || selectedLandlord) {
+      setPhoneMatch(null);
+      return;
+    }
+    const phone = form.landlord_phone;
+    // Only look up once the number is structurally valid.
+    if (validateLandlordPhone(phone)) {
+      setPhoneMatch(null);
+      return;
+    }
+    let cancelled = false;
+    setCheckingPhone(true);
+    const t = setTimeout(async () => {
+      try {
+        const canonical = toUgandaLocalDigits(phone);
+        const { data: matches } = await supabase.rpc('find_landlord_by_phone', { p_phone: canonical });
+        const m = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
+        if (!m?.id) {
+          if (!cancelled) setPhoneMatch(null);
+          return;
+        }
+        const { data: full } = await supabase
+          .from('landlords')
+          .select('id, name, phone, monthly_rent, property_address, village, district, region, house_category, number_of_rooms')
+          .eq('id', m.id)
+          .maybeSingle();
+        if (!cancelled) setPhoneMatch((full as PhoneMatch) ?? null);
+      } catch {
+        if (!cancelled) setPhoneMatch(null);
+      } finally {
+        if (!cancelled) setCheckingPhone(false);
+      }
+    }, 500);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.landlord_phone, manualLandlord, selectedLandlord]);
+
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
 
@@ -258,12 +318,64 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setManualLandlord(false);
     setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: normalizeUgandaPhone(hit.phone) }));
     setLandlordPhoneError('');
+    // Pull any recorded estimations onto the (editable) house fields so the
+    // agent only edits what's wrong rather than re-typing everything.
+    applyLandlordEstimations(hit.id);
   };
 
   const clearLandlordSelection = () => {
     setSelectedLandlord(null);
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
     setLandlordPhoneError('');
+  };
+
+  // Pre-fill any EMPTY house fields from an existing landlord's stored
+  // estimations (rent / location). Never overwrites what the agent already
+  // typed — everything stays fully editable.
+  const applyLandlordEstimations = async (landlordId: string) => {
+    try {
+      const { data: l } = await supabase
+        .from('landlords')
+        .select('monthly_rent, property_address, village, district, region, house_category, number_of_rooms')
+        .eq('id', landlordId)
+        .maybeSingle();
+      if (!l) return;
+      setForm((f) => ({
+        ...f,
+        region: f.region || (l.region ?? ''),
+        district: f.district || (l.district ?? ''),
+        address: f.address || (l.property_address ?? ''),
+        village: f.village || (l.village ?? ''),
+        monthly_rent: f.monthly_rent || (l.monthly_rent ? String(l.monthly_rent) : ''),
+        house_category: f.house_category && f.house_category !== 'single_room'
+          ? f.house_category
+          : (l.house_category ?? f.house_category),
+        number_of_rooms: f.number_of_rooms && f.number_of_rooms !== 1
+          ? f.number_of_rooms
+          : (l.number_of_rooms ?? f.number_of_rooms),
+      }));
+    } catch {
+      /* best effort — never blocks listing */
+    }
+  };
+
+  // Reuse a landlord that was auto-detected from the typed phone number.
+  const usePhoneMatch = () => {
+    if (!phoneMatch) return;
+    const normalized = normalizeUgandaPhone(phoneMatch.phone || form.landlord_phone);
+    setSelectedLandlord({
+      id: phoneMatch.id,
+      name: phoneMatch.name,
+      phone: normalized,
+      verified: false,
+      verifiedHouses: 0,
+    });
+    setManualLandlord(false);
+    setForm((f) => ({ ...f, landlord_name: phoneMatch.name, landlord_phone: normalized }));
+    applyLandlordEstimations(phoneMatch.id);
+    setPhoneMatch(null);
+    setLandlordPhoneError('');
+    toast.success('Landlord found in the system — add their house, location & rent below');
   };
 
   // Strict landlord phone validation with user-friendly messages.
@@ -656,6 +768,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSelectedLandlord(null);
     setManualLandlord(false);
     setPrefilledFromProfile(false);
+    setPhoneMatch(null);
+    setCheckingPhone(false);
     setStep(1);
   };
 
@@ -1016,6 +1130,34 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     </div>
                   </div>
                 </div>
+                {/* Auto-detected: this phone already belongs to a registered landlord */}
+                {checkingPhone && !phoneMatch && (
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Checking the system for this number…
+                  </p>
+                )}
+                {phoneMatch && (
+                  <button
+                    type="button"
+                    onClick={usePhoneMatch}
+                    className="w-full text-left p-3 rounded-xl border-2 border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary uppercase tracking-wide">
+                      <UserCheck className="h-3.5 w-3.5" /> Already in the system
+                    </div>
+                    <p className="font-semibold text-sm truncate mt-1">{phoneMatch.name}</p>
+                    <p className="text-xs text-muted-foreground">{normalizeUgandaPhone(phoneMatch.phone || form.landlord_phone)}</p>
+                    {(phoneMatch.monthly_rent || phoneMatch.region || phoneMatch.village || phoneMatch.property_address) && (
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                        {phoneMatch.monthly_rent ? `Est. rent ${formatUGX(phoneMatch.monthly_rent)}` : 'No rent recorded yet'}
+                        {(phoneMatch.village || phoneMatch.region) ? ` · ${[phoneMatch.village, phoneMatch.region].filter(Boolean).join(', ')}` : ''}
+                      </p>
+                    )}
+                    <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+                      Tap to use & add their house, location and rent →
+                    </span>
+                  </button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
