@@ -3075,6 +3075,42 @@ export type Database = {
           },
         ]
       }
+      agent_recommendation_audit: {
+        Row: {
+          context: Json
+          generated_at: string
+          generated_by: string | null
+          generated_for: string
+          id: string
+          reason_codes: string[]
+          reasons: Json
+          response_rate: number | null
+          tier: string | null
+        }
+        Insert: {
+          context?: Json
+          generated_at?: string
+          generated_by?: string | null
+          generated_for: string
+          id?: string
+          reason_codes?: string[]
+          reasons?: Json
+          response_rate?: number | null
+          tier?: string | null
+        }
+        Update: {
+          context?: Json
+          generated_at?: string
+          generated_by?: string | null
+          generated_for?: string
+          id?: string
+          reason_codes?: string[]
+          reasons?: Json
+          response_rate?: number | null
+          tier?: string | null
+        }
+        Relationships: []
+      }
       agent_subagents: {
         Row: {
           created_at: string
