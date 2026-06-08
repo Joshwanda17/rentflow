@@ -2583,6 +2583,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               if (transferFromUser && !sourceUser) missing.push('pick source user');
               if (!amount || Number(amount) <= 0) missing.push('enter amount');
               if (reason.trim().length < 10) missing.push(`reason (${reason.trim().length}/10)`);
+              if (mode === 'debit' && debitRoute === 'proxy_agent_wallet' && !effectiveProxyAgent) {
+                missing.push('pick proxy agent');
+              }
               if (mode === 'credit' && !row?.transaction_id) {
                 const refCheck = validateTransactionReference(manualReference);
                 if (!refCheck.valid) {
