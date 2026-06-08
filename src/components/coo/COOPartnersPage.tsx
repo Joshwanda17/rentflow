@@ -2145,10 +2145,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             sub="Across all partner wallets" accent="amber" />
           <NearingPayoutsCard portfolios={allPortfoliosForPayout} onClick={() => setNearingPayoutsOpen(true)} />
           <ExpiringPortfoliosCard portfolios={allPortfoliosForPayout} onClick={() => setExpiringPortfoliosOpen(true)} />
-          <a href="/reinvestment-history" className="block">
-            <SummaryCard icon={<RefreshCw className="h-4 w-4" />} label="Reinvestment History" value="View"
-              sub="Compounding growth timeline" accent="primary" />
-           </a>
+          <PortfolioTopUpsCard />
         </div>
       )}
 
