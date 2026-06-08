@@ -214,7 +214,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     stats, 
     isLoading: loading, 
     refreshData: refreshOfflineData, 
-    hasLoadedOnce 
+    hasLoadedOnce,
+    loadError,
   } = useOfflineAgentDashboard();
   
   const { tenantsCount, referralCount, subAgentCount } = stats;
