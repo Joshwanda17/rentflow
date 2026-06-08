@@ -2443,7 +2443,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             fromBucket={transferFromBucket}
             toUser={user}
             toBucket={recipientBucket}
-            proxyInfo={proxy.data ? { agentName: proxy.data.agentName } : null}
+            proxyInfo={effectiveProxyAgent ? { agentName: effectiveProxyAgent.agentName } : null}
             debitRoute={debitRoute}
             lowData={lowData}
             sourceBuckets={sourceBuckets.data}
