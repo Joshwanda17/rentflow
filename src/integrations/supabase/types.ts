@@ -12785,6 +12785,75 @@ export type Database = {
           },
         ]
       }
+      proxy_debit_audit_log: {
+        Row: {
+          amount: number
+          created_at: string
+          debit_route: string
+          debited_user_id: string
+          debited_user_name: string | null
+          debited_user_phone: string | null
+          gmail_message_id: string | null
+          gmail_transaction_id: string | null
+          id: string
+          is_proxy_debit: boolean
+          ledger_reference_id: string | null
+          partner_user_id: string | null
+          partner_user_name: string | null
+          performed_by: string
+          performed_by_name: string | null
+          proxy_managed: boolean
+          proxy_manual_pick: boolean
+          reason: string
+          transaction_id: string | null
+          transaction_references: Json
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          debit_route: string
+          debited_user_id: string
+          debited_user_name?: string | null
+          debited_user_phone?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          is_proxy_debit?: boolean
+          ledger_reference_id?: string | null
+          partner_user_id?: string | null
+          partner_user_name?: string | null
+          performed_by: string
+          performed_by_name?: string | null
+          proxy_managed?: boolean
+          proxy_manual_pick?: boolean
+          reason: string
+          transaction_id?: string | null
+          transaction_references?: Json
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          debit_route?: string
+          debited_user_id?: string
+          debited_user_name?: string | null
+          debited_user_phone?: string | null
+          gmail_message_id?: string | null
+          gmail_transaction_id?: string | null
+          id?: string
+          is_proxy_debit?: boolean
+          ledger_reference_id?: string | null
+          partner_user_id?: string | null
+          partner_user_name?: string | null
+          performed_by?: string
+          performed_by_name?: string | null
+          proxy_managed?: boolean
+          proxy_manual_pick?: boolean
+          reason?: string
+          transaction_id?: string | null
+          transaction_references?: Json
+        }
+        Relationships: []
+      }
       proxy_payout_settlements: {
         Row: {
           agent_id: string | null
