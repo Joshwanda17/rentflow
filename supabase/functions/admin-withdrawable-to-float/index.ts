@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
     // ── Mandatory audit trail (audit governance) ──────────────────────────
     await adminClient.from("audit_logs").insert({
       user_id: authedUser.id,
-      action_type: "admin_float_to_withdrawable",
+      action_type: "admin_withdrawable_to_float",
       table_name: "general_ledger",
       record_id: groupId,
       metadata: {
@@ -192,8 +192,8 @@ Deno.serve(async (req) => {
     // ── Event-based architecture: emit a system event ─────────────────────
     try {
       await adminClient.from("system_events").insert({
-        event_type: "wallet.float_to_withdrawable",
-        description: `Reclassified UGX ${amount.toLocaleString()} from Float to Withdrawable for ${targetName}`,
+        event_type: "wallet.withdrawable_to_float",
+        description: `Reclassified UGX ${amount.toLocaleString()} from Withdrawable to Float for ${targetName}`,
         metadata: {
           target_user_id: targetUserId,
           amount,
@@ -213,8 +213,8 @@ Deno.serve(async (req) => {
       .eq("user_id", targetUserId)
       .maybeSingle();
 
-    const floatAfter = Number(after?.float_balance ?? floatBefore - amount);
-    const withdrawableAfter = Number(after?.withdrawable_balance ?? withdrawableBefore + amount);
+    const floatAfter = Number(after?.float_balance ?? floatBefore + amount);
+    const withdrawableAfter = Number(after?.withdrawable_balance ?? withdrawableBefore - amount);
 
     // Belt-and-suspenders: if a race condition caused a negative bucket, flag it.
     if (floatAfter < 0 || withdrawableAfter < 0) {
@@ -227,7 +227,7 @@ Deno.serve(async (req) => {
           float_after: floatAfter,
           withdrawable_before: withdrawableBefore,
           withdrawable_after: withdrawableAfter,
-          trigger_op: "admin_float_to_withdrawable_negative_post",
+          trigger_op: "admin_withdrawable_to_float_negative_post",
         });
       } catch (_) {
         // Best-effort anomaly log.
@@ -251,10 +251,10 @@ Deno.serve(async (req) => {
       withdrawable_before: withdrawableBefore,
       float_after: floatAfter,
       withdrawable_after: withdrawableAfter,
-      message: `Moved UGX ${amount.toLocaleString()} from Float to Withdrawable for ${targetName}.`,
+      message: `Moved UGX ${amount.toLocaleString()} from Withdrawable to Float for ${targetName}.`,
     });
   } catch (err) {
-    console.error("[admin-float-to-withdrawable] error:", (err as Error).message);
+    console.error("[admin-withdrawable-to-float] error:", (err as Error).message);
     return json({ error: (err as Error).message || "Unexpected error" }, 500);
   }
 });
