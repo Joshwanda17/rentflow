@@ -549,19 +549,24 @@ export function LandlordSearchSelect({
               </button>
             )}
           </div>
-          {/* Live request status: "Searching…" while a request runs, and a brief
-              "Previous request cancelled" note when an in-flight search is aborted
-              because the agent kept typing. */}
-          {(busy || cancelledFlash) && (
+          {/* Live request status: "Searching…" while a request runs, plus a
+              persistent "Cancelled 'xyz' · 3s ago" note when an in-flight search
+              is aborted because the agent kept typing. */}
+          {(busy || cancelledInfo) && (
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 px-1.5 pt-2 text-[11px]" aria-live="polite">
               {busy && (
                 <span className="flex items-center gap-1 font-medium text-[#1a73e8] dark:text-[#8ab4f8]">
                   <Loader2 className="h-3 w-3 animate-spin" /> Searching…
                 </span>
               )}
-              {cancelledFlash && (
+              {cancelledInfo && (
                 <span className="flex items-center gap-1 text-muted-foreground">
-                  <Ban className="h-3 w-3" /> Previous request cancelled
+                  <Ban className="h-3 w-3 shrink-0" />
+                  <span>
+                    Cancelled{' '}
+                    <span className="font-semibold text-foreground">“{cancelledInfo.query}”</span>
+                    {cancelledAgo && <span className="opacity-70"> · {cancelledAgo}</span>}
+                  </span>
                 </span>
               )}
             </div>
