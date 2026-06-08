@@ -3322,6 +3322,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         key={landlordPickerKey}
                         value={selectedLandlord}
                         autoOpenSignal={landlordSearchOpenSignal}
+                        inline
                         onChange={(l) => {
                           if (l) applySelectedLandlord(l);
                         }}
