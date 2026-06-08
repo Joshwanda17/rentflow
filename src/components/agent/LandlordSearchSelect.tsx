@@ -218,10 +218,15 @@ export function LandlordSearchSelect({
     Math.min(Math.max(similarityThreshold, 0.05), 0.9)
   );
   const [showThreshold, setShowThreshold] = useState(false);
-  // Briefly flashes "Previous request cancelled" when a slow in-flight search is
-  // aborted because the agent kept typing (or changed precision).
-  const [cancelledFlash, setCancelledFlash] = useState(false);
-  const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Persistent note describing the most recent in-flight search that was aborted
+  // because the agent kept typing (or changed precision): which query was
+  // dropped and when, so the UI can show "Cancelled 'xyz' · 3s ago" until the
+  // next search resolves.
+  const [cancelledInfo, setCancelledInfo] = useState<{ query: string; at: number } | null>(null);
+  // Ticks once a second while a cancellation note is showing so the elapsed
+  // "…s ago" counter stays live.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const cancelTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reqIdRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   // Tracks the landlord currently highlighted by the keyboard, so we can keep
@@ -312,9 +317,6 @@ export function LandlordSearchSelect({
     // finished (no flash) or was still in flight when superseded (flash).
     const reqState = { settled: false };
     const isAborted = () => signal.aborted || myId !== reqIdRef.current;
-    // A fresh search supersedes any earlier "cancelled" flash.
-    setCancelledFlash(false);
-    if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
     const run = async () => {
       setLoading(true);
       try {
@@ -328,6 +330,8 @@ export function LandlordSearchSelect({
         if (error) throw error;
         if (!isAborted()) {
           setResults((data ?? []) as unknown as LandlordOption[]);
+          // This search finished — clear any lingering cancellation note.
+          setCancelledInfo(null);
         }
       } catch (err) {
         if (isAborted()) return;
@@ -350,6 +354,7 @@ export function LandlordSearchSelect({
           if (error) throw error;
           if (!isAborted()) {
             setResults((data ?? []) as LandlordOption[]);
+            setCancelledInfo(null);
           }
         } catch (fallbackErr) {
           if (!isAborted()) {
@@ -365,20 +370,34 @@ export function LandlordSearchSelect({
     run();
     return () => {
       controller.abort();
-      // If this request was still loading when it got superseded, briefly tell
-      // the agent the previous request was cancelled so the abort is visible.
-      if (!reqState.settled) {
-        setCancelledFlash(true);
-        if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-        cancelTimerRef.current = setTimeout(() => setCancelledFlash(false), 1500);
+      // If this request was still loading when it got superseded, record the
+      // query that was dropped so a persistent note can show which search was
+      // cancelled and how long ago.
+      if (!reqState.settled && debounced) {
+        setCancelledInfo({ query: debounced, at: Date.now() });
       }
     };
   }, [debounced, panelOpen, threshold]);
 
-  // Clear the cancelled-flash timer on unmount so it can't fire after teardown.
-  useEffect(() => () => {
-    if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-  }, []);
+  // Keep the elapsed "…s ago" counter live while a cancellation note is shown.
+  useEffect(() => {
+    if (!cancelledInfo) {
+      if (cancelTimerRef.current) clearInterval(cancelTimerRef.current);
+      cancelTimerRef.current = null;
+      return;
+    }
+    setNowTick(Date.now());
+    cancelTimerRef.current = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => {
+      if (cancelTimerRef.current) clearInterval(cancelTimerRef.current);
+      cancelTimerRef.current = null;
+    };
+  }, [cancelledInfo]);
+
+  // Drop the cancellation note when the search box is emptied.
+  useEffect(() => {
+    if (!query.trim()) setCancelledInfo(null);
+  }, [query]);
 
 
   // One-time fetch of total landlord count so we can show a system-empty warning
@@ -446,6 +465,13 @@ export function LandlordSearchSelect({
     setOpen(false);
     setQuery('');
   };
+
+  // Whole-second elapsed label for the cancellation note, recomputed each tick.
+  const cancelledAgo = useMemo(() => {
+    if (!cancelledInfo) return null;
+    const secs = Math.max(0, Math.round((nowTick - cancelledInfo.at) / 1000));
+    return secs <= 0 ? 'just now' : `${secs}s ago`;
+  }, [cancelledInfo, nowTick]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
@@ -523,19 +549,24 @@ export function LandlordSearchSelect({
               </button>
             )}
           </div>
-          {/* Live request status: "Searching…" while a request runs, and a brief
-              "Previous request cancelled" note when an in-flight search is aborted
-              because the agent kept typing. */}
-          {(busy || cancelledFlash) && (
+          {/* Live request status: "Searching…" while a request runs, plus a
+              persistent "Cancelled 'xyz' · 3s ago" note when an in-flight search
+              is aborted because the agent kept typing. */}
+          {(busy || cancelledInfo) && (
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 px-1.5 pt-2 text-[11px]" aria-live="polite">
               {busy && (
                 <span className="flex items-center gap-1 font-medium text-[#1a73e8] dark:text-[#8ab4f8]">
                   <Loader2 className="h-3 w-3 animate-spin" /> Searching…
                 </span>
               )}
-              {cancelledFlash && (
+              {cancelledInfo && (
                 <span className="flex items-center gap-1 text-muted-foreground">
-                  <Ban className="h-3 w-3" /> Previous request cancelled
+                  <Ban className="h-3 w-3 shrink-0" />
+                  <span>
+                    Cancelled{' '}
+                    <span className="font-semibold text-foreground">“{cancelledInfo.query}”</span>
+                    {cancelledAgo && <span className="opacity-70"> · {cancelledAgo}</span>}
+                  </span>
                 </span>
               )}
             </div>
