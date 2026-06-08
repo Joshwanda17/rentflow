@@ -823,7 +823,7 @@ export default function LandlordRegistrationForm({
                     inputMode="tel"
                     value={lc1Phone}
                     onChange={(e) => { setLc1Phone(formatUgandaPhone(e.target.value)); clearError('lc1Phone'); }}
-                    onBlur={(e) => validateField('lc1Phone', cleanPhoneNumber(e.target.value))}
+                    onBlur={(e) => validateField('lc1Phone', toUgandaLocalDigits(e.target.value))}
                     placeholder="07XX XXX XXX — 10 digits"
                     className={`h-12 text-base ${errors.lc1Phone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     required
