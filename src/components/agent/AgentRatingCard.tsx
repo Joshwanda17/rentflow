@@ -1,4 +1,5 @@
 import { useAgentCapacityMap, classifyAgent, classifyDailyRating, type AgentCapacity } from '@/hooks/useAgentCapacityMap';
+import { Improve7DayRatingPopover } from '@/components/shared/Improve7DayRatingPopover';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Gauge, TrendingUp, AlertCircle } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
