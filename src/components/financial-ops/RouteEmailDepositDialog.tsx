@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -696,6 +696,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // to move money from one user's wallet to another's.
   const [sourceUser, setSourceUser] = useState<PrefilledUser | null>(null);
   const [transferFromUser, setTransferFromUser] = useState(false);
+  // Manually-chosen proxy agent (debit mode). Lets Financial Ops charge ANY
+  // proxy agent's wallet — not just the one auto-assigned to the picked
+  // partner. When set, it overrides the auto-detected assignment as the
+  // wallet that gets debited under the "Proxy agent wallet" route.
+  const [manualProxyAgent, setManualProxyAgent] = useState<PrefilledUser | null>(null);
   // Manual transaction reference supplied by the operator when the inbound
   // email carried no MoMo / bank reference of its own. The backend refuses
   // to credit a reference-less email (REFERENCE_MISSING) because it cannot
@@ -881,6 +886,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
+      setManualProxyAgent(null);
       // Auto-extract a reference from the email body when the email itself
       // carries no parsed transaction_id, so operators don't have to type it.
       if (!row.transaction_id) {
@@ -949,6 +955,36 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       };
     },
   });
+
+  // ── Effective proxy agent to charge (debit mode) ────────────────────
+  // Priority:
+  //   1. Operator's manual pick — ANY proxy agent's wallet can be charged,
+  //      regardless of which partner the email was matched to. A manual
+  //      pick is always an explicit, non-managed choice.
+  //   2. The auto-detected proxy assignment for the picked partner.
+  // This is the single source of truth for whose wallet the proxy route
+  // debits, and which balances/history previews are shown.
+  const effectiveProxyAgent = useMemo(() => {
+    if (manualProxyAgent) {
+      return {
+        agentId: manualProxyAgent.id,
+        agentName: manualProxyAgent.full_name,
+        agentPhone: manualProxyAgent.phone,
+        isManaged: false,
+        manual: true,
+      };
+    }
+    if (proxy.data) {
+      return {
+        agentId: proxy.data.agentId,
+        agentName: proxy.data.agentName,
+        agentPhone: proxy.data.agentPhone,
+        isManaged: proxy.data.isManaged,
+        manual: false,
+      };
+    }
+    return null;
+  }, [manualProxyAgent, proxy.data]);
 
   // ── Detect any prior auto-credit linked to this email ──────────────
   // gmail-poll-transactions stamps `auto_match_audit.gmail_message_id`
@@ -1072,17 +1108,19 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
       // ─── DEBIT MODE (money-out) ────────────────────────────────
       if (mode === 'debit') {
-        const proxyInfo = proxy.data;
+        // `proxyInfo` is the effective proxy agent — either the operator's
+        // manual pick (ANY agent) or the auto-detected assignment.
+        const proxyInfo = effectiveProxyAgent;
         // Routing rules:
         // 1. Managed-proxy partner → ALWAYS debits proxy agent wallet
         //    (mirrors managed-proxy payout routing; partner wallet untouched).
-        // 2. Operator explicitly picked "Proxy agent wallet" → debit proxy
-        //    agent's withdrawable (requires a proxy assignment to exist).
+        // 2. Operator explicitly picked "Proxy agent wallet" → debit the
+        //    chosen proxy agent's withdrawable (manual pick OR assignment).
         // 3. Otherwise → debit the picked user as normal.
         const useProxyAgent =
           (proxyInfo?.isManaged === true) || (debitRoute === 'proxy_agent_wallet' && !!proxyInfo);
         if (debitRoute === 'proxy_agent_wallet' && !proxyInfo) {
-          throw new Error('No active proxy agent found for this user');
+          throw new Error('Pick a proxy agent to charge');
         }
         const debitTargetId = useProxyAgent ? proxyInfo!.agentId : user.id;
         const debitTargetName = useProxyAgent ? proxyInfo!.agentName : user.full_name;
@@ -2090,9 +2128,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               </div>
               {!lowData && (
                 <DebitHistoryPreview
-                  userId={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentId : user.id}
+                  userId={debitRoute === 'proxy_agent_wallet' && effectiveProxyAgent ? effectiveProxyAgent.agentId : user.id}
                   bucket={debitRoute === 'landlord_float' ? 'float' : 'withdrawable'}
-                  userName={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name}
+                  userName={debitRoute === 'proxy_agent_wallet' && effectiveProxyAgent ? effectiveProxyAgent.agentName : user.full_name}
                 />
               )}
             </div>
@@ -2344,17 +2382,54 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   {!lowData && <p className="text-[11px] text-muted-foreground">Reduces the agent's float balance. Use when a landlord was paid out of the agent's collected rent float.</p>}
                 </div>
               </label>
-              {proxy.data && (
-                <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
-                  <RadioGroupItem value="proxy_agent_wallet" id="debit-proxy-agent" className="mt-0.5" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5 text-sm font-medium">
-                      <UserCog className="h-3.5 w-3.5 text-primary" /> Proxy agent wallet
-                      <span className="ml-1 text-[10px] text-muted-foreground font-normal">({proxy.data.agentName})</span>
-                    </div>
-                    {!lowData && <p className="text-[11px] text-muted-foreground">Reduces the proxy agent's withdrawable balance instead of the partner's. Use when the payout was funded out of the proxy agent's wallet on behalf of this partner.</p>}
+              {/* Proxy agent wallet — always available so Financial Ops can
+                  charge ANY proxy agent's wallet, not just the one auto-assigned
+                  to the picked partner. */}
+              <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
+                <RadioGroupItem value="proxy_agent_wallet" id="debit-proxy-agent" className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 text-sm font-medium">
+                    <UserCog className="h-3.5 w-3.5 text-primary" /> Proxy agent wallet
+                    {effectiveProxyAgent && (
+                      <span className="ml-1 text-[10px] text-muted-foreground font-normal">
+                        ({effectiveProxyAgent.agentName}{effectiveProxyAgent.manual ? ' · chosen' : ''})
+                      </span>
+                    )}
                   </div>
-                </label>
+                  {!lowData && <p className="text-[11px] text-muted-foreground">Reduces a proxy agent's withdrawable balance instead of the partner's. Pick any proxy agent below.</p>}
+                </div>
+              </label>
+              {/* Manual proxy-agent picker — lets the operator search and charge
+                  any proxy agent's wallet for this debit. Defaults to the
+                  auto-detected assignment when one exists. */}
+              {debitRoute === 'proxy_agent_wallet' && (
+                <div className="ml-1 space-y-1.5">
+                  <UserSearchPicker
+                    label="Proxy agent to charge"
+                    placeholder="Search any proxy agent by name or phone…"
+                    selectedUser={manualProxyAgent}
+                    onSelect={setManualProxyAgent}
+                  />
+                  {!manualProxyAgent && proxy.data && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Using auto-detected proxy <span className="font-medium text-foreground">{proxy.data.agentName}</span>. Search above to charge a different agent.
+                    </p>
+                  )}
+                  {manualProxyAgent && (
+                    <button
+                      type="button"
+                      onClick={() => setManualProxyAgent(null)}
+                      className="text-[11px] font-medium text-primary hover:underline"
+                    >
+                      {proxy.data ? `Reset to auto-detected (${proxy.data.agentName})` : 'Clear selection'}
+                    </button>
+                  )}
+                  {!manualProxyAgent && !proxy.data && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                      No proxy agent auto-detected for this user — search and pick one to charge.
+                    </p>
+                  )}
+                </div>
               )}
             </RadioGroup>
           </div>
@@ -2368,7 +2443,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
             fromBucket={transferFromBucket}
             toUser={user}
             toBucket={recipientBucket}
-            proxyInfo={proxy.data ? { agentName: proxy.data.agentName } : null}
+            proxyInfo={effectiveProxyAgent ? { agentName: effectiveProxyAgent.agentName } : null}
             debitRoute={debitRoute}
             lowData={lowData}
             sourceBuckets={sourceBuckets.data}
@@ -2508,6 +2583,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               if (transferFromUser && !sourceUser) missing.push('pick source user');
               if (!amount || Number(amount) <= 0) missing.push('enter amount');
               if (reason.trim().length < 10) missing.push(`reason (${reason.trim().length}/10)`);
+              if (mode === 'debit' && debitRoute === 'proxy_agent_wallet' && !effectiveProxyAgent) {
+                missing.push('pick proxy agent');
+              }
               if (mode === 'credit' && !row?.transaction_id) {
                 const refCheck = validateTransactionReference(manualReference);
                 if (!refCheck.valid) {
