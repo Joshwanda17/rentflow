@@ -520,12 +520,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         // Agent picked an existing landlord from the system search — link directly.
         landlordId = selectedLandlord.id;
       } else if (form.landlord_phone) {
-        const normalizedPhone = form.landlord_phone.trim();
-        const { data: landlord } = await supabase
-          .from('landlords')
-          .select('id')
-          .eq('phone', normalizedPhone)
-          .maybeSingle();
+        // Canonical, format-agnostic lookup (same normalizer as the search RPC).
+        const canonicalPhone = toUgandaLocalDigits(form.landlord_phone);
+        const { data: matches } = await supabase
+          .rpc('find_landlord_by_phone', { p_phone: canonicalPhone });
+        const landlord = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
 
         if (landlord?.id) {
           landlordId = landlord.id;
@@ -535,7 +534,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             .from('landlords')
             .insert({
               name: form.landlord_name.trim(),
-              phone: normalizedPhone,
+              phone: canonicalPhone,
               has_smartphone: form.landlord_has_smartphone,
               property_address: form.address || null,
               village: form.village || null,
