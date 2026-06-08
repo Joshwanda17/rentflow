@@ -696,6 +696,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // to move money from one user's wallet to another's.
   const [sourceUser, setSourceUser] = useState<PrefilledUser | null>(null);
   const [transferFromUser, setTransferFromUser] = useState(false);
+  // Manually-chosen proxy agent (debit mode). Lets Financial Ops charge ANY
+  // proxy agent's wallet — not just the one auto-assigned to the picked
+  // partner. When set, it overrides the auto-detected assignment as the
+  // wallet that gets debited under the "Proxy agent wallet" route.
+  const [manualProxyAgent, setManualProxyAgent] = useState<PrefilledUser | null>(null);
   // Manual transaction reference supplied by the operator when the inbound
   // email carried no MoMo / bank reference of its own. The backend refuses
   // to credit a reference-less email (REFERENCE_MISSING) because it cannot
