@@ -21,6 +21,7 @@ import { useIsFetching } from '@tanstack/react-query';
 type Bucket = 'withdrawable' | 'float';
 type Mode = 'user_to_user' | 'error_correction' | 'same_user';
 type MoveStep = 'idle' | 'posting' | 'refreshing' | 'done';
+type SameUserDir = 'float_to_withdrawable' | 'withdrawable_to_float';
 
 /** Matches every wallet/balance/ledger-backed panel query. */
 const isWalletQuery = (key: readonly unknown[]) =>
