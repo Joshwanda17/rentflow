@@ -28,6 +28,7 @@ import {
   Check,
   ArrowLeft,
   ArrowRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -127,6 +128,27 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setFieldErrors({});
     setStep(1);
   };
+  // Friendly labels for the validation summary so the agent knows which field to fix.
+  const fieldLabels: Record<string, string> = {
+    tenantFullName: 'Full Name (as on ID)',
+    tenantNationalId: 'National ID Number',
+    tenantEmail: 'Email',
+    tenantPhone: 'Phone',
+    landlordName: "Landlord's Name",
+    landlordPhone: "Landlord's Phone",
+    propertyAddress: 'Property Address',
+    monthlyRent: 'Monthly Rent',
+  };
+
+  // Jump the agent straight to a field that needs attention.
+  const focusField = (field: string) => {
+    const el = document.getElementById(field) as HTMLElement | null;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus({ preventScroll: true });
+    }
+  };
+
   // Per-field validation so the agent sees clear inline errors before continuing.
   const getStepErrors = (s: number): Record<string, string> => {
     const e: Record<string, string> = {};
@@ -515,6 +537,43 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                   {stepHeadings[step].subtitle}
                 </p>
               </div>
+
+              {/* Validation summary: lists every field with an error + jump-to links */}
+              <AnimatePresence>
+                {Object.keys(fieldErrors).length > 0 && (
+                  <motion.div
+                    key="validation-summary"
+                    initial={{ opacity: 0, y: -6, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, y: -6, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    role="alert"
+                    className="overflow-hidden rounded-xl border border-destructive/40 bg-destructive/10 p-3"
+                  >
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      Please fix {Object.keys(fieldErrors).length} field
+                      {Object.keys(fieldErrors).length > 1 ? 's' : ''} before continuing
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {Object.entries(fieldErrors).map(([field, message]) => (
+                        <li key={field}>
+                          <button
+                            type="button"
+                            onClick={() => focusField(field)}
+                            className="group flex w-full items-start gap-1.5 rounded-md text-left text-[11px] text-destructive outline-none hover:underline focus-visible:underline"
+                          >
+                            <span className="font-semibold">{fieldLabels[field] ?? field}:</span>
+                            <span className="text-destructive/90">{message}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+
 
               <AnimatePresence mode="wait" custom={direction}>
               <motion.div
