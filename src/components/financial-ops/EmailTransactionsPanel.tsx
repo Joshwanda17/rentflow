@@ -4016,6 +4016,98 @@ export function EmailTransactionsPanel() {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-1">{r.snippet}</p>
+                    {/* ── Click-to-expand drilldown ──────────────────────────
+                        Surfaces the three things Financial Ops most often needs
+                        when auditing an auto-debited email: the linked proxy
+                        agent's wallet change, the exact debit reason, and every
+                        transaction reference tied to the row. */}
+                    {expandedRows.has(r.id) && (
+                      <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 space-y-3 text-[11px]">
+                        {/* 1) Linked proxy / matched wallet change */}
+                        {isAutoDebited ? (
+                          <div className="space-y-1">
+                            <p className="uppercase tracking-wide font-semibold text-[9px] text-muted-foreground inline-flex items-center gap-1">
+                              <Wallet className="h-3 w-3" />
+                              {isProxyDebit ? 'Linked proxy agent wallet change' : 'Matched user wallet change'}
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5">
+                              <p>
+                                <span className="text-muted-foreground">Wallet owner: </span>
+                                <span className="font-semibold">{debitedName}</span>
+                                {isProxyDebit && (
+                                  <span className="text-muted-foreground">
+                                    {' '}(proxy{debitProxyPartner ? ` for ${debitProxyPartner}` : ''})
+                                  </span>
+                                )}
+                              </p>
+                              <p>
+                                <span className="text-muted-foreground">Amount debited: </span>
+                                <span className="font-semibold tabular-nums text-rose-700">−{fmtUgx(debitAmountValue)}</span>
+                                {debitIsPartial && <span className="text-muted-foreground"> · partial</span>}
+                              </p>
+                              {autoImpact && autoImpact.newAvail !== null ? (
+                                <p>
+                                  <span className="text-muted-foreground">Balance before → after: </span>
+                                  <span className="font-mono tabular-nums">{fmtUgx(autoImpact.newAvail + debitAmountValue)}</span>
+                                  <ArrowRight className="inline h-3 w-3 mx-1 align-middle" />
+                                  <span className="font-mono tabular-nums font-semibold">{fmtUgx(autoImpact.newAvail)}</span>
+                                </p>
+                              ) : null}
+                              <p>
+                                <span className="text-muted-foreground">Wallet now: </span>
+                                <span className="font-semibold tabular-nums">
+                                  {debitWalletBalance === undefined ? 'loading…' : fmtUgx(debitWalletBalance)}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-muted-foreground">No wallet was auto-debited for this email.</p>
+                        )}
+                        {/* 2) Debit reason */}
+                        {isAutoDebited && (
+                          <div className="space-y-0.5 border-t border-border/60 pt-2">
+                            <p className="uppercase tracking-wide font-semibold text-[9px] text-muted-foreground inline-flex items-center gap-1">
+                              <Info className="h-3 w-3" />
+                              Debit reason
+                            </p>
+                            <p>{debitReasonText || '—'}</p>
+                            {rawDebitReason && rawDebitReason !== debitReasonText && (
+                              <p className="font-mono text-[10px] text-muted-foreground/80 break-words">{rawDebitReason}</p>
+                            )}
+                          </div>
+                        )}
+                        {/* 3) Transaction references */}
+                        <div className="space-y-1 border-t border-border/60 pt-2">
+                          <p className="uppercase tracking-wide font-semibold text-[9px] text-muted-foreground inline-flex items-center gap-1">
+                            <LinkIcon className="h-3 w-3" />
+                            Transaction references
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 font-mono text-[10px]">
+                            {r.transaction_id && (
+                              <span className="rounded border border-border bg-background px-1.5 py-0.5">TID: {r.transaction_id}</span>
+                            )}
+                            {hasMomoTid && (
+                              <span className="rounded border border-border bg-background px-1.5 py-0.5">MoMo: {normTidForRow}</span>
+                            )}
+                            {hasReceiptCode && (
+                              <span className="rounded border border-border bg-background px-1.5 py-0.5">Receipt: {receiptCodeForRow}</span>
+                            )}
+                            <span className="rounded border border-border bg-background px-1.5 py-0.5">Msg: {r.gmail_message_id}</span>
+                          </div>
+                          {history.length > 0 && (
+                            <div className="space-y-0.5 pt-1">
+                              <p className="text-[9px] uppercase tracking-wide text-muted-foreground/80">Routing ledger entries</p>
+                              {history.map((h) => (
+                                <p key={h.id} className="font-mono text-[10px] text-muted-foreground/90 break-words">
+                                  {format(new Date(h.created_at), 'MMM d HH:mm')} · {h.route} · {fmtUgx(h.amount)} · ref {h.id}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {userMatches[r.id]?.length ? (
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold inline-flex items-center gap-1">
