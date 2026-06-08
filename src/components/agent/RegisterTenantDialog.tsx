@@ -50,6 +50,22 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const totalSteps = 4;
   const stepLabels = ['Tenant', 'Landlord', 'Location', 'Confirm'];
+  const stepHeadings: Record<number, { title: string; subtitle: string; Icon: typeof User }> = {
+    1: { title: "Who's the tenant?", subtitle: 'Enter their details exactly as on their National ID.', Icon: User },
+    2: { title: 'Where do they rent?', subtitle: 'Add the landlord and property this tenant pays for.', Icon: Building2 },
+    3: { title: 'Pin the property', subtitle: 'Capture the location so visits and verification are accurate.', Icon: Navigation },
+    4: { title: 'Review & confirm', subtitle: 'Add LC1 details and accept guarantor responsibility.', Icon: Shield },
+  };
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const gotoStep = (n: 1 | 2 | 3 | 4) => {
+    setDirection(n > step ? 1 : -1);
+    setStep(n);
+  };
+  const stepVariants = {
+    enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 24 : -24 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -24 : 24 }),
+  };
   
   // Tenant info
   const [tenantEmail, setTenantEmail] = useState('');
