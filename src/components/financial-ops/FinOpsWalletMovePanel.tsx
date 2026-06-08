@@ -445,7 +445,7 @@ export function FinOpsWalletMovePanel() {
               size="sm"
               disabled={step === 'refreshing'}
               onClick={() => { setResult(null); setStep('idle'); }}
-              // also clear the before snapshot when starting fresh
+              onClickCapture={() => setBefore(null)}
               className="gap-2"
             >
               {step === 'refreshing' && <Loader2 className="h-4 w-4 animate-spin" />}
