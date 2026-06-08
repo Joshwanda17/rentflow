@@ -985,7 +985,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 )}
 
                 {searchedOnce && !searchingLandlord && landlordResults.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No landlord found in the system for that search.</p>
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 flex items-start gap-2.5">
+                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-destructive">No registered landlord found</p>
+                      <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                        Try a different spelling or phone number. Only landlords already registered in the system can be selected.
+                      </p>
+                    </div>
+                  </div>
                 )}
 
                 <Button
