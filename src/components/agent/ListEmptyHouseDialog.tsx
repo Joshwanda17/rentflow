@@ -223,7 +223,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       const ids = (landlords || []).map((l) => l.id);
       // Count verified houses per landlord so the agent can confirm the match.
       const counts: Record<string, number> = {};
+      const verifiedById: Record<string, boolean> = {};
       if (ids.length) {
+        const { data: landlordFlags } = await supabase
+          .from('landlords')
+          .select('id, verified')
+          .in('id', ids);
+        for (const l of landlordFlags || []) {
+          verifiedById[l.id] = !!l.verified;
+        }
+
         const { data: houses } = await supabase
           .from('house_listings')
           .select('landlord_id')
@@ -244,7 +253,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           id: l.id,
           name: l.name,
           phone: l.phone || '',
-          verified: !!l.verified || verifiedHouses > 0,
+          verified: !!verifiedById[l.id] || verifiedHouses > 0,
           verifiedHouses,
         };
       });
