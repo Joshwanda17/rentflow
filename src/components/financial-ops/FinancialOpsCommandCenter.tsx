@@ -124,6 +124,11 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     setMoreSheet(false);
   };
 
+  // Persist expand/collapse per user across sessions
+  useEffect(() => {
+    if (userId) setStoredOpen(userId, walletBreakdownOpen);
+  }, [walletBreakdownOpen, userId]);
+
   const openMoreAction = (a: MoreAction) => {
     if (a.kind === 'tool') {
       openTool(a.id);
@@ -265,7 +270,11 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <button
           type="button"
-          onClick={() => setWalletBreakdownOpen((o) => !o)}
+          onClick={() => {
+            const next = !walletBreakdownOpen;
+            setWalletBreakdownOpen(next);
+            if (userId) setStoredOpen(userId, next);
+          }}
           className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <div>
