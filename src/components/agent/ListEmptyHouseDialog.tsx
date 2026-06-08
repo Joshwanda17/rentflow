@@ -406,6 +406,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     toast.success('Landlord found in the system — add their house, location & rent below');
   };
 
+  // Build a completeness checklist for a matched landlord so the agent can see
+  // at a glance what still needs to be added (location, rent, house, photos).
+  const landlordChecklist = (m: PhoneMatch) => {
+    const items = [
+      { label: 'Location', ok: !!(m.region || m.village || m.property_address) },
+      { label: 'Rent amount', ok: !!(m.monthly_rent && m.monthly_rent > 0) },
+      { label: 'House details', ok: !!(m.house_category && m.number_of_rooms) && m.house_count > 0 },
+      { label: 'Photos', ok: m.photo_count > 0 },
+    ];
+    const doneCount = items.filter((i) => i.ok).length;
+    return { items, doneCount, total: items.length };
+  };
+
   // Strict landlord phone validation with user-friendly messages.
   const validateLandlordPhone = (phone: string): string => {
     const trimmed = phone.trim();
