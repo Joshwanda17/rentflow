@@ -1476,7 +1476,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             subtitle="Tell us where the house is."
           />
           {/* Location */}
-          <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
+          <div id="lh-field-location" className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase">Location</p>
               {prefilledFromProfile && (
