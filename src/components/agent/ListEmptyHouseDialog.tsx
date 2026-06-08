@@ -1078,6 +1078,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   </Button>
                 </div>
 
+                {searchedOnce && !searchingLandlord && landlordResults.length > 0 && (
+                  <p className="text-xs font-semibold text-success flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    {landlordResults.length} landlord{landlordResults.length > 1 ? 's' : ''} found
+                  </p>
+                )}
+
                 {landlordResults.length > 0 && (
                   <div className="space-y-1.5 max-h-56 overflow-y-auto">
                     {landlordResults.map((hit) => (
