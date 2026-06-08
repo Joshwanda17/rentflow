@@ -3384,6 +3384,11 @@ export function EmailTransactionsPanel() {
                 })();
                 const debitIsPartial = /partial/i.test(rawDebitReason);
                 const debitAmountValue = autoDebitEntry?.amount ?? autoImpact?.amount ?? Number(r.amount ?? 0);
+                // The wallet that actually got charged. For a managed-proxy
+                // debit this is the proxy agent's own wallet, so we can surface
+                // their current ledger-derived balance straight on the email.
+                const debitTargetId = autoDebitEntry?.target_user_id ?? null;
+                const debitWalletBalance = debitTargetId ? userBalances[debitTargetId] : undefined;
                 // Already-credited incoming deposit (linked to a non-terminal
                 // deposit_request by the poller). Distinct emerald treatment
                 // tells reviewers this email's money already landed in the
