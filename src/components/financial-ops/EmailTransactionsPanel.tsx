@@ -3846,6 +3846,20 @@ export function EmailTransactionsPanel() {
                           <Zap className="h-3 w-3" /> Send to wallet
                         </Button>
                       )}
+                      {/* Click-to-expand drilldown toggle. Opens a panel with the
+                          linked proxy agent wallet change, the debit reason, and
+                          the transaction references for this email. */}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+                        aria-expanded={expandedRows.has(r.id)}
+                        title="Show wallet change, debit reason and transaction references for this email"
+                        onClick={() => toggleRowExpanded(r.id)}
+                      >
+                        {expandedRows.has(r.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        Details
+                      </Button>
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
                     {/* Debit breakdown: when this email auto-charged a wallet,
