@@ -219,14 +219,19 @@ export function FinOpsWalletMovePanel() {
       return;
     }
 
-    // Same-user Float → Withdrawable reclassification uses the dedicated,
-    // balanced edge function (never overdraws, leaves total balance unchanged).
+    // Same-user reclassification between the user's own buckets uses the
+    // dedicated, balanced edge functions (never overdraws, leaves total balance
+    // unchanged). Direction selects which way the money moves.
     if (mode === 'same_user') {
+      const fnName =
+        sameUserDir === 'float_to_withdrawable'
+          ? 'admin-float-to-withdrawable'
+          : 'admin-withdrawable-to-float';
       const { data, error } = await invokeEdgeFunction<{
         message: string;
         float_after: number;
         withdrawable_after: number;
-      }>('admin-float-to-withdrawable', {
+      }>(fnName, {
         body: {
           target_user_id: source.id,
           amount: amountNum,
