@@ -369,7 +369,12 @@ export function LandlordSearchSelect({
   }, [value, placeholder]);
 
   const isSystemEmpty = totalCount === 0;
-  const isSearchEmpty = !loading && results.length === 0 && debounced.length > 0;
+  // True while a keystroke is still waiting out the debounce window — lets us
+  // show "Searching…" the instant the agent types, before the fetch even fires.
+  const isTyping = panelOpen && query.trim().length > 0 && query.trim() !== debounced;
+  // Unified "working" flag: either debouncing the latest keystroke or fetching.
+  const busy = loading || isTyping;
+  const isSearchEmpty = !busy && results.length === 0 && debounced.length > 0;
 
   // Compose a location subtitle from the most specific available fields.
   const locationLine = (l: LandlordOption) =>
