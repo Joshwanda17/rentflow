@@ -161,7 +161,7 @@ export default function LandlordRegistrationForm({
         // Network/DB hiccup — don't block; the submit-time check is the backstop.
         return true;
       }
-      if (data) {
+      if (Array.isArray(data) && data.length > 0) {
         setErrors((prev) => ({
           ...prev,
           landlordPhone:
