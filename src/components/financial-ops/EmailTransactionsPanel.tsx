@@ -4551,6 +4551,20 @@ export function EmailTransactionsPanel() {
                 );
               });
             })()}
+            {/* Infinite-scroll sentinel: when this scrolls into view the list
+                grows by one more page. Only rendered in infinite mode while
+                there are still more rows to reveal. */}
+            {paginationMode === 'infinite'
+              && infiniteCount < visibleRows.length
+              && (
+              <div
+                ref={infiniteSentinelRef}
+                className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground"
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading more…
+              </div>
+            )}
           </div>
         )}
         {/* Pagination controls — only shown when there's more than one page. */}
