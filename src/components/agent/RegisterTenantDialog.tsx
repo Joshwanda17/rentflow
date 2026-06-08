@@ -50,6 +50,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [createdRentRequestId, setCreatedRentRequestId] = useState<string | null>(null);
   const { capture: captureSmart, loading: capturingLocation } = useSmartLocation();
   const [nationalIdError, setNationalIdError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const totalSteps = 4;
   const stepLabels = ['Tenant', 'Landlord', 'Location', 'Confirm'];
@@ -123,30 +124,69 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setSuccess(false);
     setCreatedRentRequestId(null);
     setNationalIdError('');
+    setFieldErrors({});
     setStep(1);
   };
-  const validateStep = (s: number): string | null => {
+  // Per-field validation so the agent sees clear inline errors before continuing.
+  const getStepErrors = (s: number): Record<string, string> => {
+    const e: Record<string, string> = {};
     if (s === 1) {
-      if (!tenantFullName.trim()) return 'Enter tenant full name';
-      if (!tenantNationalId.trim()) return 'Enter tenant National ID';
-      if (nationalIdError) return 'National ID is already registered';
-      if (!tenantEmail.trim() && !tenantPhone.trim()) return 'Provide tenant email or phone';
+      if (!tenantFullName.trim()) e.tenantFullName = "Enter the tenant's full name";
+      if (!tenantNationalId.trim()) e.tenantNationalId = "Enter the tenant's National ID";
+      else if (nationalIdError) e.tenantNationalId = nationalIdError;
+      if (!tenantEmail.trim() && !tenantPhone.trim()) {
+        e.tenantEmail = 'Add an email or phone number';
+        e.tenantPhone = 'Add an email or phone number';
+      } else if (tenantEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail.trim())) {
+        e.tenantEmail = 'Enter a valid email address';
+      }
     }
     if (s === 2) {
-      if (!landlordName.trim()) return 'Enter landlord name';
-      if (!landlordPhone.trim()) return 'Enter landlord phone';
-      if (!propertyAddress.trim()) return 'Enter property address';
-      if (!monthlyRent.trim() || parseInt(monthlyRent) <= 0) return 'Enter monthly rent';
-      const tp = tenantPhone.replace(/\s/g, '');
-      const lp = landlordPhone.replace(/\s/g, '');
-      if (tp && lp && tp === lp) return 'Tenant and landlord phone cannot match';
+      if (!landlordName.trim()) e.landlordName = "Enter the landlord's name";
+      if (!landlordPhone.trim()) {
+        e.landlordPhone = "Enter the landlord's phone";
+      } else {
+        const tp = tenantPhone.replace(/\s/g, '');
+        const lp = landlordPhone.replace(/\s/g, '');
+        if (tp && lp && tp === lp) e.landlordPhone = 'Cannot match the tenant phone';
+      }
+      if (!propertyAddress.trim()) e.propertyAddress = 'Enter the property address';
+      if (!monthlyRent.trim() || parseInt(monthlyRent) <= 0) e.monthlyRent = 'Enter a valid monthly rent';
     }
-    return null;
+    return e;
+  };
+
+  const validateStep = (s: number): string | null => {
+    const e = getStepErrors(s);
+    const keys = Object.keys(e);
+    return keys.length ? e[keys[0]] : null;
+  };
+
+  const clearFieldError = (field: string) =>
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+  const validateFieldOnBlur = (field: string) => {
+    const errs = getStepErrors(step);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (errs[field]) next[field] = errs[field];
+      else delete next[field];
+      return next;
+    });
   };
 
   const goNext = () => {
-    const err = validateStep(step);
-    if (err) { toast.error(err); return; }
+    const errs = getStepErrors(step);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length) {
+      toast.error('Please fix the highlighted fields');
+      return;
+    }
     if (step < totalSteps) gotoStep((step + 1) as 1 | 2 | 3 | 4);
   };
   const goBack = () => {
