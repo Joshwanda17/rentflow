@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 import { Button } from '@/components/ui/button';
-import { formatUgandaPhone, cleanPhoneNumber } from '@/lib/phoneUtils';
+import { formatUgandaPhone, cleanPhoneNumber, toUgandaLocalDigits } from '@/lib/phoneUtils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -108,7 +108,7 @@ export default function LandlordRegistrationForm({
     }
     if (name === 'landlordPhone') {
       if (!trimmed) msg = 'Phone number is required';
-      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
+      else if (!/^\d{9,10}$/.test(toUgandaLocalDigits(trimmed))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
     }
     if (name === 'propertyAddress') {
       // Address is optional now — only validate when something was typed.
@@ -120,7 +120,7 @@ export default function LandlordRegistrationForm({
     }
     if (name === 'lc1Phone') {
       if (!trimmed) msg = 'LC1 phone is required';
-      else if (!/^\d{9,10}$/.test(trimmed.replace(/\D/g, ''))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
+      else if (!/^\d{9,10}$/.test(toUgandaLocalDigits(trimmed))) msg = 'Enter a valid Ugandan number, e.g. 0771 234 567.';
     }
     return msg;
   };
@@ -395,8 +395,8 @@ export default function LandlordRegistrationForm({
     setLoading(true);
     setProgressMsg('Saving details…');
 
-    const landlordPhoneClean = cleanPhoneNumber(landlordPhone);
-    const lc1PhoneClean = cleanPhoneNumber(lc1Phone);
+    const landlordPhoneClean = toUgandaLocalDigits(landlordPhone);
+    const lc1PhoneClean = toUgandaLocalDigits(lc1Phone);
     const momoNumberClean = cleanPhoneNumber(momoNumber);
 
     try {
