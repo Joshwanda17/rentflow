@@ -834,13 +834,41 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         </CardTitle>
         <div className="space-y-1.5">
           <Progress value={progress} className="h-1.5" />
-          <p className="text-[11px] font-medium text-muted-foreground">
-            Question {stepIndex + 1} of {totalSteps}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Question {stepIndex + 1} of {totalSteps}
+            </p>
+            {draftSaved && (
+              <span className="text-[11px] font-medium text-success flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Draft saved
+              </span>
+            )}
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="pt-5">
+        {draftRestored && (
+          <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 flex items-start justify-between gap-3">
+            <div className="text-xs">
+              <p className="font-semibold text-primary">We saved your progress</p>
+              <p className="text-muted-foreground">
+                Continue where you left off, or start a fresh request. Photos aren't saved and need re-adding.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={discardDraft}
+              disabled={loading}
+              className="shrink-0"
+            >
+              Start over
+            </Button>
+          </div>
+        )}
         <form
           onSubmit={handleSubmit}
           onKeyDown={(e) => {
