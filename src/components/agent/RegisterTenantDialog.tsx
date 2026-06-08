@@ -127,6 +127,27 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setFieldErrors({});
     setStep(1);
   };
+  // Friendly labels for the validation summary so the agent knows which field to fix.
+  const fieldLabels: Record<string, string> = {
+    tenantFullName: 'Full Name (as on ID)',
+    tenantNationalId: 'National ID Number',
+    tenantEmail: 'Email',
+    tenantPhone: 'Phone',
+    landlordName: "Landlord's Name",
+    landlordPhone: "Landlord's Phone",
+    propertyAddress: 'Property Address',
+    monthlyRent: 'Monthly Rent',
+  };
+
+  // Jump the agent straight to a field that needs attention.
+  const focusField = (field: string) => {
+    const el = document.getElementById(field) as HTMLElement | null;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus({ preventScroll: true });
+    }
+  };
+
   // Per-field validation so the agent sees clear inline errors before continuing.
   const getStepErrors = (s: number): Record<string, string> => {
     const e: Record<string, string> = {};
