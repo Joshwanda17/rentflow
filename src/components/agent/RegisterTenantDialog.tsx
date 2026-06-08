@@ -792,6 +792,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
               </>
               )}
+              </motion.div>
+              </AnimatePresence>
             </motion.form>
           )}
         </AnimatePresence>
