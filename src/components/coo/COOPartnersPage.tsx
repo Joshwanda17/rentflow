@@ -4112,6 +4112,15 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       list = list.filter(p => p.daysUntil < 0);
     } else if (rangeFilter === 'today') {
       list = list.filter(p => p.daysUntil === 0);
+    } else if (rangeFilter === '5') {
+      list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 5);
+    } else if (rangeFilter === 'weekend') {
+      list = list.filter(p => {
+        if (!p.nextPayoutDate) return false;
+        const d = new Date(p.nextPayoutDate);
+        const day = d.getDay();
+        return day === 0 || day === 6;
+      });
     } else if (rangeFilter === '7') {
       list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 7);
     } else if (rangeFilter === '14') {
@@ -4140,6 +4149,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     switch (rangeFilter) {
       case 'overdue': return 'Overdue only';
       case 'today':   return 'Due today';
+      case '5':       return 'Next 5 days (incl. overdue ≤ 30d)';
+      case 'weekend': return 'Payout falls on a weekend';
       case '7':       return 'Next 7 days (incl. overdue ≤ 30d)';
       case '14':      return 'Next 14 days (incl. overdue ≤ 30d)';
       case '30':      return 'Next 30 days (incl. overdue ≤ 30d)';
@@ -4889,11 +4900,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="overdue">Overdue</SelectItem>
                     <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="5">5 days</SelectItem>
+                    <SelectItem value="weekend">Weekend</SelectItem>
                     <SelectItem value="7">7 days</SelectItem>
-                    <SelectItem value="14">14 days</SelectItem>
                     <SelectItem value="30">30 days</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
                     <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
