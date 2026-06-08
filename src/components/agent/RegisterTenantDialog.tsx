@@ -50,6 +50,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [createdRentRequestId, setCreatedRentRequestId] = useState<string | null>(null);
   const { capture: captureSmart, loading: capturingLocation } = useSmartLocation();
   const [nationalIdError, setNationalIdError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const totalSteps = 4;
   const stepLabels = ['Tenant', 'Landlord', 'Location', 'Confirm'];
@@ -123,30 +124,69 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setSuccess(false);
     setCreatedRentRequestId(null);
     setNationalIdError('');
+    setFieldErrors({});
     setStep(1);
   };
-  const validateStep = (s: number): string | null => {
+  // Per-field validation so the agent sees clear inline errors before continuing.
+  const getStepErrors = (s: number): Record<string, string> => {
+    const e: Record<string, string> = {};
     if (s === 1) {
-      if (!tenantFullName.trim()) return 'Enter tenant full name';
-      if (!tenantNationalId.trim()) return 'Enter tenant National ID';
-      if (nationalIdError) return 'National ID is already registered';
-      if (!tenantEmail.trim() && !tenantPhone.trim()) return 'Provide tenant email or phone';
+      if (!tenantFullName.trim()) e.tenantFullName = "Enter the tenant's full name";
+      if (!tenantNationalId.trim()) e.tenantNationalId = "Enter the tenant's National ID";
+      else if (nationalIdError) e.tenantNationalId = nationalIdError;
+      if (!tenantEmail.trim() && !tenantPhone.trim()) {
+        e.tenantEmail = 'Add an email or phone number';
+        e.tenantPhone = 'Add an email or phone number';
+      } else if (tenantEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail.trim())) {
+        e.tenantEmail = 'Enter a valid email address';
+      }
     }
     if (s === 2) {
-      if (!landlordName.trim()) return 'Enter landlord name';
-      if (!landlordPhone.trim()) return 'Enter landlord phone';
-      if (!propertyAddress.trim()) return 'Enter property address';
-      if (!monthlyRent.trim() || parseInt(monthlyRent) <= 0) return 'Enter monthly rent';
-      const tp = tenantPhone.replace(/\s/g, '');
-      const lp = landlordPhone.replace(/\s/g, '');
-      if (tp && lp && tp === lp) return 'Tenant and landlord phone cannot match';
+      if (!landlordName.trim()) e.landlordName = "Enter the landlord's name";
+      if (!landlordPhone.trim()) {
+        e.landlordPhone = "Enter the landlord's phone";
+      } else {
+        const tp = tenantPhone.replace(/\s/g, '');
+        const lp = landlordPhone.replace(/\s/g, '');
+        if (tp && lp && tp === lp) e.landlordPhone = 'Cannot match the tenant phone';
+      }
+      if (!propertyAddress.trim()) e.propertyAddress = 'Enter the property address';
+      if (!monthlyRent.trim() || parseInt(monthlyRent) <= 0) e.monthlyRent = 'Enter a valid monthly rent';
     }
-    return null;
+    return e;
+  };
+
+  const validateStep = (s: number): string | null => {
+    const e = getStepErrors(s);
+    const keys = Object.keys(e);
+    return keys.length ? e[keys[0]] : null;
+  };
+
+  const clearFieldError = (field: string) =>
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+  const validateFieldOnBlur = (field: string) => {
+    const errs = getStepErrors(step);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (errs[field]) next[field] = errs[field];
+      else delete next[field];
+      return next;
+    });
   };
 
   const goNext = () => {
-    const err = validateStep(step);
-    if (err) { toast.error(err); return; }
+    const errs = getStepErrors(step);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length) {
+      toast.error('Please fix the highlighted fields');
+      return;
+    }
     if (step < totalSteps) gotoStep((step + 1) as 1 | 2 | 3 | 4);
   };
   const goBack = () => {
@@ -517,30 +557,36 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     <Input
                       id="tenantFullName"
                       value={tenantFullName}
-                      onChange={(e) => setTenantFullName(e.target.value)}
+                      onChange={(e) => { setTenantFullName(e.target.value); clearFieldError('tenantFullName'); }}
+                      onBlur={() => validateFieldOnBlur('tenantFullName')}
                       placeholder="Names on National ID"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.tenantFullName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.tenantFullName}
                       autoComplete="name"
                       autoCapitalize="words"
                       required
                     />
+                    {fieldErrors.tenantFullName && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.tenantFullName}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantNationalId" className="text-xs">National ID Number *</Label>
                     <Input
                       id="tenantNationalId"
                       value={tenantNationalId}
-                      onChange={(e) => { setTenantNationalId(e.target.value.toUpperCase()); setNationalIdError(''); }}
-                      onBlur={() => checkDuplicateNationalId(tenantNationalId)}
+                      onChange={(e) => { setTenantNationalId(e.target.value.toUpperCase()); setNationalIdError(''); clearFieldError('tenantNationalId'); }}
+                      onBlur={() => { checkDuplicateNationalId(tenantNationalId); validateFieldOnBlur('tenantNationalId'); }}
                       placeholder="CM12345678ABCD"
-                      className={`h-11 text-base uppercase ${nationalIdError ? 'border-destructive' : ''}`}
+                      className={`h-11 text-base uppercase ${nationalIdError || fieldErrors.tenantNationalId ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!(nationalIdError || fieldErrors.tenantNationalId)}
                       autoCapitalize="characters"
                       autoCorrect="off"
                       spellCheck={false}
                       required
                     />
-                    {nationalIdError && (
-                      <p className="text-[11px] text-destructive font-medium">{nationalIdError}</p>
+                    {(nationalIdError || fieldErrors.tenantNationalId) && (
+                      <p className="text-[11px] text-destructive font-medium">{nationalIdError || fieldErrors.tenantNationalId}</p>
                     )}
                   </div>
                 </div>
@@ -551,13 +597,18 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       id="tenantEmail"
                       type="email"
                       value={tenantEmail}
-                      onChange={(e) => setTenantEmail(e.target.value)}
+                      onChange={(e) => { setTenantEmail(e.target.value); clearFieldError('tenantEmail'); clearFieldError('tenantPhone'); }}
+                      onBlur={() => validateFieldOnBlur('tenantEmail')}
                       placeholder="tenant@email.com"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.tenantEmail ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.tenantEmail}
                       autoComplete="email"
                       inputMode="email"
                       autoCapitalize="none"
                     />
+                    {fieldErrors.tenantEmail && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.tenantEmail}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" className="text-xs">Phone</Label>
@@ -567,10 +618,15 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       inputMode="tel"
                       autoComplete="tel"
                       value={tenantPhone}
-                      onChange={(e) => setTenantPhone(e.target.value)}
+                      onChange={(e) => { setTenantPhone(e.target.value); clearFieldError('tenantPhone'); clearFieldError('tenantEmail'); }}
+                      onBlur={() => validateFieldOnBlur('tenantPhone')}
                       placeholder="0783..."
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.tenantPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.tenantPhone}
                     />
+                    {fieldErrors.tenantPhone && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.tenantPhone}</p>
+                    )}
                   </div>
                 </div>
                 <ExistingTenantPhoneNotice
@@ -595,12 +651,17 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     <Input
                       id="landlordName"
                       value={landlordName}
-                      onChange={(e) => setLandlordName(e.target.value)}
+                      onChange={(e) => { setLandlordName(e.target.value); clearFieldError('landlordName'); }}
+                      onBlur={() => validateFieldOnBlur('landlordName')}
                       placeholder="Landlord name"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.landlordName}
                       autoCapitalize="words"
                       required
                     />
+                    {fieldErrors.landlordName && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.landlordName}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="landlordPhone" className="text-xs">Phone *</Label>
@@ -610,16 +671,20 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       inputMode="tel"
                       autoComplete="tel"
                       value={landlordPhone}
-                      onChange={(e) => setLandlordPhone(e.target.value)}
+                      onChange={(e) => { setLandlordPhone(e.target.value); clearFieldError('landlordPhone'); }}
+                      onBlur={() => validateFieldOnBlur('landlordPhone')}
                       placeholder="Phone number"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.landlordPhone}
                       required
                     />
-                    {landlordPhone.replace(/\s/g, '').length >= 9 &&
+                    {fieldErrors.landlordPhone ? (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.landlordPhone}</p>
+                    ) : landlordPhone.replace(/\s/g, '').length >= 9 &&
                       tenantPhone.replace(/\s/g, '').length >= 9 &&
-                      landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                      landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') ? (
                         <p className="text-[11px] text-destructive font-medium">Cannot be the same as Tenant phone</p>
-                      )}
+                      ) : null}
                   </div>
                 </div>
 
@@ -630,12 +695,17 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                   <Input
                     id="propertyAddress"
                     value={propertyAddress}
-                    onChange={(e) => setPropertyAddress(e.target.value)}
+                    onChange={(e) => { setPropertyAddress(e.target.value); clearFieldError('propertyAddress'); }}
+                    onBlur={() => validateFieldOnBlur('propertyAddress')}
                     placeholder="Full property address"
-                    className="h-11 text-base"
+                    className={`h-11 text-base ${fieldErrors.propertyAddress ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                    aria-invalid={!!fieldErrors.propertyAddress}
                     autoCapitalize="words"
                     required
                   />
+                  {fieldErrors.propertyAddress && (
+                    <p className="text-[11px] text-destructive font-medium">{fieldErrors.propertyAddress}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -648,11 +718,16 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       type="number"
                       inputMode="numeric"
                       value={monthlyRent}
-                      onChange={(e) => setMonthlyRent(e.target.value)}
+                      onChange={(e) => { setMonthlyRent(e.target.value); clearFieldError('monthlyRent'); }}
+                      onBlur={() => validateFieldOnBlur('monthlyRent')}
                       placeholder="500000"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.monthlyRent ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.monthlyRent}
                       required
                     />
+                    {fieldErrors.monthlyRent && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.monthlyRent}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="mobileMoneyNumber" className="text-xs flex items-center gap-1">
