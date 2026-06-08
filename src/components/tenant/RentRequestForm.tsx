@@ -12,6 +12,10 @@ import {
   Camera, Users, CheckCircle2, Percent, CalendarDays, ListChecks,
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES } from '@/lib/rentCalculations';
 import { generateRepaymentSchedule, insertRepaymentSchedule } from '@/lib/scheduleUtils';
 import { useToast } from '@/hooks/use-toast';
@@ -78,49 +82,62 @@ const quickOptions = [
 ];
 
 export default function RentRequestForm({ userId, onSuccess, onCancel }: RentRequestFormProps) {
-  // Restore any previously saved draft for this tenant (once).
+  // Saved draft (if any) for this tenant — NOT auto-applied. We prompt first.
   const restored = useMemo(() => loadRentDraft(userId), [userId]);
-  const [draftRestored, setDraftRestored] = useState(() =>
-    !!restored && Object.keys(restored).length > 0,
-  );
+  const draftHasContent = (d: Partial<RentDraft> | null): boolean =>
+    !!d && !!(
+      d.rentAmount?.trim() || d.tenantNationalId?.trim() || d.tenantFullName?.trim() ||
+      d.tenantWaterMeter?.trim() || d.tenantElectricityMeter?.trim() ||
+      d.landlordName?.trim() || d.landlordPhone?.trim() || d.landlordNationalId?.trim() ||
+      d.landlordTin?.trim() || d.propertyAddress?.trim() || d.waterMeterNumber?.trim() ||
+      d.electricityMeterNumber?.trim() || d.lc1Name?.trim() || d.lc1Phone?.trim() ||
+      d.lc1Village?.trim() || (typeof d.stepIndex === 'number' && d.stepIndex > 0)
+    );
 
-  const [rentAmount, setRentAmount] = useState(restored?.rentAmount ?? '');
-  const [duration, setDuration] = useState(restored?.duration ?? 30);
-  const [numberOfPayments, setNumberOfPayments] = useState(restored?.numberOfPayments ?? 4);
-  const [accessFeeRate, setAccessFeeRate] = useState(restored?.accessFeeRate ?? 0.33);
+  // Show the restore prompt on open when a meaningful draft exists.
+  const [showRestorePrompt, setShowRestorePrompt] = useState(() => draftHasContent(restored));
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  const [rentAmount, setRentAmount] = useState('');
+  const [duration, setDuration] = useState(30);
+  const [numberOfPayments, setNumberOfPayments] = useState(4);
+  const [accessFeeRate, setAccessFeeRate] = useState(0.33);
   // Tenant details
-  const [tenantNationalId, setTenantNationalId] = useState(restored?.tenantNationalId ?? '');
-  const [tenantFullName, setTenantFullName] = useState(restored?.tenantFullName ?? '');
+  const [tenantNationalId, setTenantNationalId] = useState('');
+  const [tenantFullName, setTenantFullName] = useState('');
   const [nationalIdError, setNationalIdError] = useState('');
   
   // Tenant utility meters
-  const [tenantWaterMeter, setTenantWaterMeter] = useState(restored?.tenantWaterMeter ?? '');
-  const [tenantElectricityMeter, setTenantElectricityMeter] = useState(restored?.tenantElectricityMeter ?? '');
+  const [tenantWaterMeter, setTenantWaterMeter] = useState('');
+  const [tenantElectricityMeter, setTenantElectricityMeter] = useState('');
   
   // Landlord details
-  const [landlordName, setLandlordName] = useState(restored?.landlordName ?? '');
-  const [landlordPhone, setLandlordPhone] = useState(restored?.landlordPhone ?? '');
-  const [landlordNationalId, setLandlordNationalId] = useState(restored?.landlordNationalId ?? '');
-  const [landlordTin, setLandlordTin] = useState(restored?.landlordTin ?? '');
-  const [propertyAddress, setPropertyAddress] = useState(restored?.propertyAddress ?? '');
-  const [waterMeterNumber, setWaterMeterNumber] = useState(restored?.waterMeterNumber ?? '');
-  const [electricityMeterNumber, setElectricityMeterNumber] = useState(restored?.electricityMeterNumber ?? '');
+  const [landlordName, setLandlordName] = useState('');
+  const [landlordPhone, setLandlordPhone] = useState('');
+  const [landlordNationalId, setLandlordNationalId] = useState('');
+  const [landlordTin, setLandlordTin] = useState('');
+  const [propertyAddress, setPropertyAddress] = useState('');
+  const [waterMeterNumber, setWaterMeterNumber] = useState('');
+  const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
   
   // LC1 details
-  const [lc1Name, setLc1Name] = useState(restored?.lc1Name ?? '');
-  const [lc1Phone, setLc1Phone] = useState(restored?.lc1Phone ?? '');
-  const [lc1Village, setLc1Village] = useState(restored?.lc1Village ?? '');
+  const [lc1Name, setLc1Name] = useState('');
+  const [lc1Phone, setLc1Phone] = useState('');
+  const [lc1Village, setLc1Village] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   // Wizard step index — one question at a time
-  const [stepIndex, setStepIndex] = useState(restored?.stepIndex ?? 0);
+  const [stepIndex, setStepIndex] = useState(0);
   const [draftSaved, setDraftSaved] = useState(false);
 
   // ── Persist the draft (debounced) whenever an answer changes ──
   const submittedRef = useRef(false);
   useEffect(() => {
     if (submittedRef.current) return;
+    // While the restore prompt is open, don't overwrite the saved draft
+    // with the current (empty) form — the user hasn't decided yet.
+    if (showRestorePrompt) return;
     const draft: RentDraft = {
       rentAmount, duration, numberOfPayments, accessFeeRate,
       tenantNationalId, tenantFullName, tenantWaterMeter, tenantElectricityMeter,
@@ -138,7 +155,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     }, 600);
     return () => clearTimeout(id);
   }, [
-    userId, rentAmount, duration, numberOfPayments, accessFeeRate,
+    userId, showRestorePrompt, rentAmount, duration, numberOfPayments, accessFeeRate,
     tenantNationalId, tenantFullName, tenantWaterMeter, tenantElectricityMeter,
     landlordName, landlordPhone, landlordNationalId, landlordTin,
     propertyAddress, waterMeterNumber, electricityMeterNumber,
@@ -149,9 +166,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     try { localStorage.removeItem(draftKey(userId)); } catch { /* ignore */ }
   }, [userId]);
 
-  const discardDraft = useCallback(() => {
-    submittedRef.current = true;
-    clearDraft();
+  const resetFields = useCallback(() => {
     setRentAmount(''); setDuration(30); setNumberOfPayments(4); setAccessFeeRate(0.33);
     setTenantNationalId(''); setTenantFullName(''); setNationalIdError('');
     setTenantWaterMeter(''); setTenantElectricityMeter('');
@@ -159,10 +174,53 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     setPropertyAddress(''); setWaterMeterNumber(''); setElectricityMeterNumber('');
     setLc1Name(''); setLc1Phone(''); setLc1Village('');
     setStepIndex(0);
+  }, []);
+
+  // User chose to restore: load saved answers into the form.
+  const applyDraft = useCallback(() => {
+    if (restored) {
+      setRentAmount(restored.rentAmount ?? '');
+      setDuration(restored.duration ?? 30);
+      setNumberOfPayments(restored.numberOfPayments ?? 4);
+      setAccessFeeRate(restored.accessFeeRate ?? 0.33);
+      setTenantNationalId(restored.tenantNationalId ?? '');
+      setTenantFullName(restored.tenantFullName ?? '');
+      setTenantWaterMeter(restored.tenantWaterMeter ?? '');
+      setTenantElectricityMeter(restored.tenantElectricityMeter ?? '');
+      setLandlordName(restored.landlordName ?? '');
+      setLandlordPhone(restored.landlordPhone ?? '');
+      setLandlordNationalId(restored.landlordNationalId ?? '');
+      setLandlordTin(restored.landlordTin ?? '');
+      setPropertyAddress(restored.propertyAddress ?? '');
+      setWaterMeterNumber(restored.waterMeterNumber ?? '');
+      setElectricityMeterNumber(restored.electricityMeterNumber ?? '');
+      setLc1Name(restored.lc1Name ?? '');
+      setLc1Phone(restored.lc1Phone ?? '');
+      setLc1Village(restored.lc1Village ?? '');
+      setStepIndex(restored.stepIndex ?? 0);
+    }
+    setDraftRestored(true);
+    setShowRestorePrompt(false);
+  }, [restored]);
+
+  // User chose to start fresh: discard the saved draft.
+  const startFresh = useCallback(() => {
+    clearDraft();
+    resetFields();
+    setDraftRestored(false);
+    setDraftSaved(false);
+    setShowRestorePrompt(false);
+  }, [clearDraft, resetFields]);
+
+  const discardDraft = useCallback(() => {
+    submittedRef.current = true;
+    clearDraft();
+    resetFields();
     setDraftRestored(false);
     setDraftSaved(false);
     submittedRef.current = false;
-  }, [clearDraft]);
+  }, [clearDraft, resetFields]);
+
 
   // GPS & Photos
   const [propertyGps, setPropertyGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
@@ -856,6 +914,24 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
 
   return (
     <Card className="glass-card">
+      <AlertDialog open={showRestorePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Continue your rent request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              We found an unfinished rent request you saved earlier. Restore your
+              answers and pick up where you left off, or start fresh.
+              {restored?.stepIndex ? ` You were on question ${(restored.stepIndex ?? 0) + 1}.` : ''}
+              {' '}Photos aren't saved and will need re-adding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={startFresh}>Start fresh</AlertDialogCancel>
+            <AlertDialogAction onClick={applyDraft}>Restore draft</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <CardHeader className="bg-primary/10 border-b-2 border-primary/30 space-y-3">
         <CardTitle className="flex items-center gap-2 text-primary">
           <FileText className="h-5 w-5" />
