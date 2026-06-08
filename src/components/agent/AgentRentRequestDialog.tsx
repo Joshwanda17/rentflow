@@ -3852,7 +3852,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       {overCap ? 'Over your current posting cap' : 'Within your posting cap'}
                     </p>
 
-                    <details className="group">
+                    <details className="group" open={postingCapOpen} onToggle={handlePostingCapToggle}>
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
                         <span>{overCap ? 'See why & how to unlock' : 'See cap details'}</span>
                         <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
