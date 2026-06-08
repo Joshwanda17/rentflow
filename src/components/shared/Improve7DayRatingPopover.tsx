@@ -172,18 +172,59 @@ const loggedRecommendationKeys = new Set<string>();
  */
 export function Improve7DayRatingPopover({
   capacity,
+  agentId,
   className,
 }: {
   capacity: AgentCapacity;
+  /** The agent these recommendations are generated for (recorded in the audit log). */
+  agentId: string;
   className?: string;
 }) {
+  const { user } = useAuth();
   const pct = Math.round((capacity.response_rate || 0) * 100);
   const tone = TIER_TONE[capacity.tier];
   const range = TIER_RANGE[capacity.tier];
   const recs = buildRecommendations(capacity);
 
+  // Record WHEN and WHY recommendations were generated for this agent.
+  const logGeneration = useCallback(() => {
+    if (!agentId) return;
+    const reasonCodes = recs.map((r) => r.code);
+    const dedupeKey = `${agentId}|${reasonCodes.join(',')}`;
+    if (loggedRecommendationKeys.has(dedupeKey)) return;
+    loggedRecommendationKeys.add(dedupeKey);
+
+    supabase
+      .from('agent_recommendation_audit')
+      .insert({
+        generated_for: agentId,
+        generated_by: user?.id ?? null,
+        tier: capacity.tier,
+        response_rate: capacity.response_rate ?? null,
+        reason_codes: reasonCodes,
+        reasons: recs.map((r) => ({ code: r.code, summary: r.summary })),
+        context: {
+          active_tenant_count: capacity.active_tenant_count,
+          active_count: capacity.active_count,
+          paying_tenants_last_week: capacity.paying_tenants_last_week,
+          responding_tenant_days: capacity.responding_tenant_days,
+          expected_tenant_days: capacity.expected_tenant_days,
+          today_response_pct: capacity.today_response_pct,
+          yesterday_response_pct: capacity.yesterday_response_pct,
+          good_days_last_week: capacity.good_days_last_week,
+          daily_status: capacity.daily_status,
+        },
+      })
+      .then(({ error }) => {
+        if (error) {
+          // Non-critical: roll back the dedupe guard so a later open can retry.
+          loggedRecommendationKeys.delete(dedupeKey);
+        }
+      });
+  }, [agentId, user?.id, capacity, recs]);
+
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => { if (open) logGeneration(); }}>
       <PopoverTrigger asChild>
         <button
           type="button"
