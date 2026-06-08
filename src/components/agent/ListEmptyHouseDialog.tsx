@@ -1057,12 +1057,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                       placeholder="0771234567"
                       value={form.landlord_phone}
                       onChange={(v) => {
-                        setForm(f => ({ ...f, landlord_phone: v }));
+                        const masked = formatUgandaPhone(v);
+                        setForm(f => ({ ...f, landlord_phone: masked }));
                         // Real-time validation: clear error while typing, re-check on blur or if length seems complete
-                        if (!v.trim()) {
+                        if (!masked.trim()) {
                           setLandlordPhoneError('');
-                        } else if (v.replace(/\D/g, '').length >= 9) {
-                          setLandlordPhoneError(validateLandlordPhone(v));
+                        } else if (masked.replace(/\D/g, '').length >= 9) {
+                          setLandlordPhoneError(validateLandlordPhone(masked));
                         } else {
                           setLandlordPhoneError('');
                         }
