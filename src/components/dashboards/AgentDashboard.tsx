@@ -13,6 +13,7 @@ import { EarningsSummaryCard } from '@/components/agent/EarningsSummaryCard';
 import { AgentWalletDetailsCard } from '@/components/agent/AgentWalletDetailsCard';
 
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   UserPlus,
   Menu,
@@ -63,7 +64,8 @@ import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvance
 import { useAgentUnblockToast } from '@/hooks/useAgentUnblockToast';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { WalletHeroSkeleton } from '@/components/skeletons/SectionSkeletons';
+import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
+
 
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
@@ -187,16 +189,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     }
   }
   const navigate = useNavigate();
-  const { profile } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
   // Celebratory toast the moment the agent crosses today's 20% eligibility
   // threshold (fires once per Kampala day, on mount or via realtime).
   useAgentUnblockToast(user?.id);
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
-  const { wallet, refreshWallet } = useWallet();
-  const { commissionBalance, withdrawableBalance, otherBalance, refetch: refreshBalances } = useAgentBalances();
+  const { wallet, refreshWallet, loading: walletLoading } = useWallet();
+  const { commissionBalance, withdrawableBalance, otherBalance, refetch: refreshBalances, isLoading: balancesLoading } = useAgentBalances();
   const { floatBalance: walletFloatBalance } = useAgentBalances();
   // Kept for the lower AgentLandlordFloatCard / sheets (CFO escrow, NOT the wallet float)
-  const { floatBalance: landlordPayoutFloat } = useAgentLandlordFloat();
+  const { floatBalance: landlordPayoutFloat, isLoading: floatLoading } = useAgentLandlordFloat();
   const { isOnline } = useOffline();
 
   // Instant mobile dashboard refresh: one debounced channel listens for any
@@ -492,6 +494,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     return <AgentDashboardSkeleton />;
   }
   const dataLoading = loading && !hasLoadedOnce;
+  const moneyTabLoading = walletLoading || balancesLoading || floatLoading;
 
   const handleRefresh = async () => {
     await Promise.all([refreshOfflineData(), refreshEarnings(), refreshWallet(), refreshBalances()]);
@@ -552,30 +555,42 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <AgentPendingReceiptPanel />
 
         {/* Profile + Name + AI ID */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => { hapticTap(); navigate('/settings'); }}
-            aria-label="Open profile and settings"
-            title="Profile & settings"
-            className="shrink-0 rounded-full touch-manipulation active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
-            <span className="sr-only">{profile?.full_name ? `${profile.full_name} — profile and settings` : 'Profile and settings'}</span>
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="font-bold text-xl leading-tight flex items-center gap-1.5 flex-wrap">
-              <span className="break-words">{profile?.full_name || 'Agent'}</span>
-              {profile?.verified && (
-                <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
-              )}
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
+        {profileLoading && !profile ? (
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-11 w-11 rounded-full shrink-0" />
+            <div className="flex-1 min-w-0 space-y-2">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+            <Skeleton className="h-8 w-8 rounded-lg" />
+            <Skeleton className="h-8 w-8 rounded-lg" />
           </div>
-          <AiIdButton variant="compact" />
-          <AgentNotificationBell userId={user.id} />
-        </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => { hapticTap(); navigate('/settings'); }}
+              aria-label="Open profile and settings"
+              title="Profile & settings"
+              className="shrink-0 rounded-full touch-manipulation active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+              <span className="sr-only">{profile?.full_name ? `${profile.full_name} — profile and settings` : 'Profile and settings'}</span>
+            </button>
+            <div className="flex-1 min-w-0">
+              <h1 className="font-bold text-xl leading-tight flex items-center gap-1.5 flex-wrap">
+                <span className="break-words">{profile?.full_name || 'Agent'}</span>
+                {profile?.verified && (
+                  <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                )}
+              </h1>
+              <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
+            </div>
+            <AiIdButton variant="compact" />
+            <AgentNotificationBell userId={user.id} />
+          </div>
+        )}
 
         {/* Active devices / multi-session indicator */}
         <div className="flex justify-end -mt-2">
@@ -836,86 +851,90 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {activeTab === 'money' && (
           <div className={cn("space-y-5", tabAnimClass)}>
             {/* Quick-access money cards: 4 clear destinations */}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                {
-                  key: 'withdrawable',
-                  label: 'Withdrawable Wallet',
-                  sub: 'Your money you can cash out',
-                  amount: withdrawableBalance,
-                  icon: Wallet,
-                  tone: 'text-emerald-600',
-                  ring: 'ring-emerald-500/30',
-                  bg: 'bg-emerald-500/10',
-                  onClick: () => { hapticTap(); setShowWallet(true); },
-                },
-                {
-                  key: 'operational',
-                  label: 'Operational Float',
-                  sub: 'Company money for rent & ops',
-                  amount: walletFloatBalance,
-                  icon: Banknote,
-                  tone: 'text-primary',
-                  ring: 'ring-primary/30',
-                  bg: 'bg-primary/10',
-                  onClick: () => { hapticTap(); setShowWallet(true); },
-                },
-                {
-                  key: 'landlord',
-                  label: 'Landlord Float',
-                  sub: 'CFO funds for landlord payouts',
-                  amount: landlordPayoutFloat,
-                  icon: Landmark,
-                  tone: 'text-[#9234EA]',
-                  ring: 'ring-[#9234EA]/30',
-                  bg: 'bg-[#9234EA]/10',
-                  onClick: () => { hapticTap(); setFloatAllocationsOpen(true); },
-                },
-                {
-                  key: 'advance',
-                  label: 'Agent Advance',
-                  sub: 'Welile lends you up to UGX 30M · pay back over 12 months',
-                  amount: null,
-                  icon: Briefcase,
-                  tone: 'text-primary',
-                  ring: 'ring-primary/30',
-                  bg: 'bg-primary/10',
-                  onClick: () => { hapticTap(); setAdvanceRequestOpen(true); },
-                },
-              ].map((c) => {
-                const Icon = c.icon;
-                return (
-                  <button
-                    key={c.key}
-                    onClick={c.onClick}
-                    className={cn(
-                      'flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 ring-1',
-                      c.ring,
-                      'active:scale-[0.97] transition-all touch-manipulation text-left min-h-[112px]',
-                    )}
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    <div className="flex w-full items-center justify-between">
-                      <div className={cn('p-2 rounded-xl', c.bg)}>
-                        <Icon className={cn('h-5 w-5', c.tone)} strokeWidth={2.2} />
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="w-full">
-                      <p className="text-[13px] font-bold text-foreground leading-tight">{c.label}</p>
-                      {c.amount !== null ? (
-                        <p className={cn('text-base font-extrabold mt-0.5 truncate', c.tone)}>
-                          {formatUGX(c.amount)}
-                        </p>
-                      ) : (
-                        <p className="text-base font-extrabold mt-0.5 text-foreground">Open →</p>
+            {moneyTabLoading ? (
+              <MetricRowSkeleton count={4} />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  {
+                    key: 'withdrawable',
+                    label: 'Withdrawable Wallet',
+                    sub: 'Your money you can cash out',
+                    amount: withdrawableBalance,
+                    icon: Wallet,
+                    tone: 'text-emerald-600',
+                    ring: 'ring-emerald-500/30',
+                    bg: 'bg-emerald-500/10',
+                    onClick: () => { hapticTap(); setShowWallet(true); },
+                  },
+                  {
+                    key: 'operational',
+                    label: 'Operational Float',
+                    sub: 'Company money for rent & ops',
+                    amount: walletFloatBalance,
+                    icon: Banknote,
+                    tone: 'text-primary',
+                    ring: 'ring-primary/30',
+                    bg: 'bg-primary/10',
+                    onClick: () => { hapticTap(); setShowWallet(true); },
+                  },
+                  {
+                    key: 'landlord',
+                    label: 'Landlord Float',
+                    sub: 'CFO funds for landlord payouts',
+                    amount: landlordPayoutFloat,
+                    icon: Landmark,
+                    tone: 'text-[#9234EA]',
+                    ring: 'ring-[#9234EA]/30',
+                    bg: 'bg-[#9234EA]/10',
+                    onClick: () => { hapticTap(); setFloatAllocationsOpen(true); },
+                  },
+                  {
+                    key: 'advance',
+                    label: 'Agent Advance',
+                    sub: 'Welile lends you up to UGX 30M · pay back over 12 months',
+                    amount: null,
+                    icon: Briefcase,
+                    tone: 'text-primary',
+                    ring: 'ring-primary/30',
+                    bg: 'bg-primary/10',
+                    onClick: () => { hapticTap(); setAdvanceRequestOpen(true); },
+                  },
+                ].map((c) => {
+                  const Icon = c.icon;
+                  return (
+                    <button
+                      key={c.key}
+                      onClick={c.onClick}
+                      className={cn(
+                        'flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 ring-1',
+                        c.ring,
+                        'active:scale-[0.97] transition-all touch-manipulation text-left min-h-[112px]',
                       )}
-                      <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{c.sub}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <div className="flex w-full items-center justify-between">
+                        <div className={cn('p-2 rounded-xl', c.bg)}>
+                          <Icon className={cn('h-5 w-5', c.tone)} strokeWidth={2.2} />
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="w-full">
+                        <p className="text-[13px] font-bold text-foreground leading-tight">{c.label}</p>
+                        {c.amount !== null ? (
+                          <p className={cn('text-base font-extrabold mt-0.5 truncate', c.tone)}>
+                            {formatUGX(c.amount)}
+                          </p>
+                        ) : (
+                          <p className="text-base font-extrabold mt-0.5 text-foreground">Open →</p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{c.sub}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <AgentWalletDetailsCard
               agentId={user.id}
