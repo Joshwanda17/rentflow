@@ -409,6 +409,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Please select a region');
       return;
     }
+    if (!form.address.trim()) {
+      failWith('Address is required');
+      return;
+    }
+    if (!form.village.trim()) {
+      failWith('Village / Zone is required');
+      return;
+    }
     // Landlord phone is mandatory for every listing.
     if (!form.landlord_phone.trim()) {
       failWith('Landlord phone number is required');
