@@ -317,9 +317,6 @@ export function LandlordSearchSelect({
     // finished (no flash) or was still in flight when superseded (flash).
     const reqState = { settled: false };
     const isAborted = () => signal.aborted || myId !== reqIdRef.current;
-    // A fresh search supersedes any earlier "cancelled" flash.
-    setCancelledFlash(false);
-    if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
     const run = async () => {
       setLoading(true);
       try {
@@ -333,6 +330,8 @@ export function LandlordSearchSelect({
         if (error) throw error;
         if (!isAborted()) {
           setResults((data ?? []) as unknown as LandlordOption[]);
+          // This search finished — clear any lingering cancellation note.
+          setCancelledInfo(null);
         }
       } catch (err) {
         if (isAborted()) return;
@@ -355,6 +354,7 @@ export function LandlordSearchSelect({
           if (error) throw error;
           if (!isAborted()) {
             setResults((data ?? []) as LandlordOption[]);
+            setCancelledInfo(null);
           }
         } catch (fallbackErr) {
           if (!isAborted()) {
@@ -370,20 +370,34 @@ export function LandlordSearchSelect({
     run();
     return () => {
       controller.abort();
-      // If this request was still loading when it got superseded, briefly tell
-      // the agent the previous request was cancelled so the abort is visible.
-      if (!reqState.settled) {
-        setCancelledFlash(true);
-        if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-        cancelTimerRef.current = setTimeout(() => setCancelledFlash(false), 1500);
+      // If this request was still loading when it got superseded, record the
+      // query that was dropped so a persistent note can show which search was
+      // cancelled and how long ago.
+      if (!reqState.settled && debounced) {
+        setCancelledInfo({ query: debounced, at: Date.now() });
       }
     };
   }, [debounced, panelOpen, threshold]);
 
-  // Clear the cancelled-flash timer on unmount so it can't fire after teardown.
-  useEffect(() => () => {
-    if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-  }, []);
+  // Keep the elapsed "…s ago" counter live while a cancellation note is shown.
+  useEffect(() => {
+    if (!cancelledInfo) {
+      if (cancelTimerRef.current) clearInterval(cancelTimerRef.current);
+      cancelTimerRef.current = null;
+      return;
+    }
+    setNowTick(Date.now());
+    cancelTimerRef.current = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => {
+      if (cancelTimerRef.current) clearInterval(cancelTimerRef.current);
+      cancelTimerRef.current = null;
+    };
+  }, [cancelledInfo]);
+
+  // Drop the cancellation note when the search box is emptied.
+  useEffect(() => {
+    if (!query.trim()) setCancelledInfo(null);
+  }, [query]);
 
 
   // One-time fetch of total landlord count so we can show a system-empty warning
