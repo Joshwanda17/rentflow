@@ -34,7 +34,7 @@ import { UserWalletStatementsPanel } from './UserWalletStatementsPanel';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
-  ShieldCheck, Banknote, ArrowLeft, ChevronDown,
+  ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
@@ -89,6 +89,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [moreSheet, setMoreSheet] = useState(false);
   const [focusBucket, setFocusBucket] = useState<'float' | 'withdrawable' | null>(null);
+  const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(false);
 
   const openTool = (t: Tool) => {
     setActiveTool(t);
@@ -233,10 +234,33 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       />
 
       {/* Drilldown table: every user's Operations Float and Withdrawable */}
-      <WalletBreakdownReadOnly
-        focusBucket={focusBucket}
-        onClearFocus={() => setFocusBucket(null)}
-      />
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setWalletBreakdownOpen((o) => !o)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <div>
+            <h2 className="text-base sm:text-lg font-bold">Wallet Breakdown</h2>
+            <p className="text-xs text-muted-foreground">
+              {walletBreakdownOpen ? 'Tap to collapse' : 'Tap to expand — every user\'s Float and Withdrawable'}
+            </p>
+          </div>
+          {walletBreakdownOpen ? (
+            <ChevronUp className="h-5 w-5 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
+          )}
+        </button>
+        {walletBreakdownOpen && (
+          <div className="px-4 pb-4">
+            <WalletBreakdownReadOnly
+              focusBucket={focusBucket}
+              onClearFocus={() => setFocusBucket(null)}
+            />
+          </div>
+        )}
+      </div>
       <FinancialOpsPulseStrip
         onSelect={(key) => {
           switch (key) {
