@@ -628,7 +628,7 @@ export function FinOpsWalletMovePanel() {
               {mode === 'user_to_user'
                 ? 'Move money'
                 : mode === 'same_user'
-                  ? 'Move to Withdrawable'
+                  ? (sameUserDir === 'float_to_withdrawable' ? 'Move to Withdrawable' : 'Move to Float')
                   : 'Recover to platform'}
             </Button>
           </CardContent>
