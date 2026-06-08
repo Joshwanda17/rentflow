@@ -18,7 +18,7 @@ import { reverseGeocode } from '@/lib/reverseGeocode';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
-import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaPhone, formatUgandaPhone } from '@/lib/phoneUtils';
+import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaPhone, formatUgandaPhone, toUgandaLocalDigits } from '@/lib/phoneUtils';
 import FormStepHeader from '@/components/shared/FormStepHeader';
 import FieldError from '@/components/shared/FieldError';
 
