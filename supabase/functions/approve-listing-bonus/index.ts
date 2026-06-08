@@ -86,6 +86,8 @@ Deno.serve(async (req) => {
     }
 
     // APPROVE: Credit agent wallet via RPC as balanced entry
+    // Idempotency: keyed on the approval id so a retry between the ledger post
+    // and the status update can never credit the agent twice.
     const { data: txGroupId, error: ledgerErr } = await serviceClient.rpc('create_ledger_transaction', {
       entries: [
         {
@@ -112,6 +114,7 @@ Deno.serve(async (req) => {
           transaction_date: now,
         },
       ],
+      idempotency_key: `listing_bonus_approval:${approval_id}`,
     })
 
     if (ledgerErr) throw new Error(`Ledger credit failed: ${ledgerErr.message}`)
@@ -145,17 +148,6 @@ Deno.serve(async (req) => {
       source_user_id: user.id,
       description: `House listing bonus (CFO approved)`,
       currency: 'UGX',
-    })
-
-    // Credit event bonus to commission accrual ledger
-    await serviceClient.rpc('credit_agent_event_bonus', {
-      p_agent_id: approval.agent_id,
-      p_tenant_id: null,
-      p_event_type: 'house_listed',
-      p_source_id: approval.id,
-    }).then(({ error: bonusErr }) => {
-      if (bonusErr) console.error('[approve-listing-bonus] Event bonus ledger error:', bonusErr.message);
-      else console.log('[approve-listing-bonus] house_listed bonus credited to ledger');
     })
 
     // Notify agent
