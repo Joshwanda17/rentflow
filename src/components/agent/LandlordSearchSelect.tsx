@@ -308,7 +308,13 @@ export function LandlordSearchSelect({
     const myId = ++reqIdRef.current;
     const controller = new AbortController();
     const { signal } = controller;
+    // Per-request state so the cleanup can tell whether this fetch had already
+    // finished (no flash) or was still in flight when superseded (flash).
+    const reqState = { settled: false };
     const isAborted = () => signal.aborted || myId !== reqIdRef.current;
+    // A fresh search supersedes any earlier "cancelled" flash.
+    setCancelledFlash(false);
+    if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
     const run = async () => {
       setLoading(true);
       try {
@@ -352,12 +358,23 @@ export function LandlordSearchSelect({
           }
         }
       } finally {
+        reqState.settled = true;
         if (!isAborted()) setLoading(false);
       }
     };
     run();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      // If this request was still loading when it got superseded, briefly tell
+      // the agent the previous request was cancelled so the abort is visible.
+      if (!reqState.settled) {
+        setCancelledFlash(true);
+        if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
+        cancelTimerRef.current = setTimeout(() => setCancelledFlash(false), 1500);
+      }
+    };
   }, [debounced, panelOpen, threshold]);
+
 
   // One-time fetch of total landlord count so we can show a system-empty warning
   useEffect(() => {
