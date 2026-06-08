@@ -4163,8 +4163,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     switch (rangeFilter) {
       case 'overdue': return 'Overdue only';
       case 'today':   return 'Due today';
-      case '5':       return 'Next 5 days (incl. overdue ≤ 30d)';
-      case 'weekend': return 'Payout falls on a weekend';
+      case '5':       return 'This week (Mon–Fri)';
+      case 'weekend': return 'This weekend (Sat & Sun)';
       case '7':       return 'Next 7 days (incl. overdue ≤ 30d)';
       case '14':      return 'Next 14 days (incl. overdue ≤ 30d)';
       case '30':      return 'Next 30 days (incl. overdue ≤ 30d)';
