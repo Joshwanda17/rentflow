@@ -200,6 +200,48 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // ─── Auto-detect an existing landlord from the typed phone number ───
+  // While the agent is keying a new landlord's phone, quietly check the system.
+  // If that number already belongs to a registered landlord (even one with only
+  // estimated details), surface a "reuse" card so no duplicate is created.
+  useEffect(() => {
+    if (!manualLandlord || selectedLandlord) {
+      setPhoneMatch(null);
+      return;
+    }
+    const phone = form.landlord_phone;
+    // Only look up once the number is structurally valid.
+    if (validateLandlordPhone(phone)) {
+      setPhoneMatch(null);
+      return;
+    }
+    let cancelled = false;
+    setCheckingPhone(true);
+    const t = setTimeout(async () => {
+      try {
+        const canonical = toUgandaLocalDigits(phone);
+        const { data: matches } = await supabase.rpc('find_landlord_by_phone', { p_phone: canonical });
+        const m = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
+        if (!m?.id) {
+          if (!cancelled) setPhoneMatch(null);
+          return;
+        }
+        const { data: full } = await supabase
+          .from('landlords')
+          .select('id, name, phone, monthly_rent, property_address, village, district, region, house_category, number_of_rooms')
+          .eq('id', m.id)
+          .maybeSingle();
+        if (!cancelled) setPhoneMatch((full as PhoneMatch) ?? null);
+      } catch {
+        if (!cancelled) setPhoneMatch(null);
+      } finally {
+        if (!cancelled) setCheckingPhone(false);
+      }
+    }, 500);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.landlord_phone, manualLandlord, selectedLandlord]);
+
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
 
