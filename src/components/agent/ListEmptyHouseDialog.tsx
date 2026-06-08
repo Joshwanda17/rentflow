@@ -1390,7 +1390,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             subtitle="Tap the picture that matches."
           />
           {/* Property Details */}
-          <div className="space-y-3">
+          <div id="lh-field-house" className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm font-medium">Rooms</Label>
@@ -1425,7 +1425,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               })}
             </div>
 
-            <div>
+            <div id="lh-field-rent">
               <Label className="text-sm font-medium">Monthly Rent (UGX) *</Label>
               <Input
                 type="number"
