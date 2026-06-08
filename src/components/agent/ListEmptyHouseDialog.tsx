@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera, Trophy, Sparkles, User, ImagePlus, CheckCircle2 } from 'lucide-react';
+import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera, Trophy, Sparkles, User, ImagePlus, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -985,7 +985,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 )}
 
                 {searchedOnce && !searchingLandlord && landlordResults.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No landlord found in the system for that search.</p>
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 flex items-start gap-2.5">
+                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-destructive">No registered landlord found</p>
+                      <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                        Try a different spelling or phone number. Only landlords already registered in the system can be selected.
+                      </p>
+                    </div>
+                  </div>
                 )}
 
                 <Button
