@@ -76,6 +76,10 @@ export function FinOpsWalletMovePanel() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<MoveResult | null>(null);
+  const [before, setBefore] = useState<{
+    source: { withdrawable: number; float: number };
+    dest?: { withdrawable: number; float: number };
+  } | null>(null);
   const [step, setStep] = useState<MoveStep>('idle');
 
   // Live count of in-flight wallet/balance refetches kicked off by the move.
@@ -202,6 +206,14 @@ export function FinOpsWalletMovePanel() {
           ? { ...prev, withdrawable_balance: freshW, float_balance: freshF, balance: freshT }
           : prev,
       );
+      // Snapshot the BEFORE balances so the result card can show before → after.
+      setBefore({
+        source: { withdrawable: freshW, float: freshF },
+        dest:
+          mode === 'user_to_user' && dest
+            ? { withdrawable: dest.withdrawable_balance, float: dest.float_balance }
+            : undefined,
+      });
       if (amountNum > freshAvail) {
         setSubmitting(false);
         setConfirmOpen(false);
@@ -367,26 +379,42 @@ export function FinOpsWalletMovePanel() {
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-lg border border-border bg-background p-3">
-                <p className="text-xs text-muted-foreground">{result.source.name} (after)</p>
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  <Badge variant="outline" className="gap-1 text-[10px]">
-                    <Wallet className="h-3 w-3" /> Withdrawable {fmt(result.source.withdrawable_after)}
-                  </Badge>
-                  <Badge variant="secondary" className="gap-1 text-[10px]">
-                    <Building2 className="h-3 w-3" /> Float {fmt(result.source.float_after)}
-                  </Badge>
+                <p className="text-xs font-medium">{result.source.name} <span className="text-muted-foreground">(from)</span></p>
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="flex items-center gap-1 text-muted-foreground"><Wallet className="h-3 w-3" /> Withdrawable</span>
+                    <span className="font-mono">
+                      {before && <span className="text-muted-foreground">{fmt(before.source.withdrawable)} → </span>}
+                      <span className="font-semibold">{fmt(result.source.withdrawable_after)}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="flex items-center gap-1 text-muted-foreground"><Building2 className="h-3 w-3" /> Float</span>
+                    <span className="font-mono">
+                      {before && <span className="text-muted-foreground">{fmt(before.source.float)} → </span>}
+                      <span className="font-semibold">{fmt(result.source.float_after)}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
               {result.mode === 'user_to_user' && (
                 <div className="rounded-lg border border-border bg-background p-3">
-                  <p className="text-xs text-muted-foreground">{result.dest.name} (after)</p>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    <Badge variant="outline" className="gap-1 text-[10px]">
-                      <Wallet className="h-3 w-3" /> Withdrawable {fmt(result.dest.withdrawable_after ?? 0)}
-                    </Badge>
-                    <Badge variant="secondary" className="gap-1 text-[10px]">
-                      <Building2 className="h-3 w-3" /> Float {fmt(result.dest.float_after ?? 0)}
-                    </Badge>
+                  <p className="text-xs font-medium">{result.dest.name} <span className="text-muted-foreground">(to)</span></p>
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="flex items-center gap-1 text-muted-foreground"><Wallet className="h-3 w-3" /> Withdrawable</span>
+                      <span className="font-mono">
+                        {before?.dest && <span className="text-muted-foreground">{fmt(before.dest.withdrawable)} → </span>}
+                        <span className="font-semibold">{fmt(result.dest.withdrawable_after ?? 0)}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="flex items-center gap-1 text-muted-foreground"><Building2 className="h-3 w-3" /> Float</span>
+                      <span className="font-mono">
+                        {before?.dest && <span className="text-muted-foreground">{fmt(before.dest.float)} → </span>}
+                        <span className="font-semibold">{fmt(result.dest.float_after ?? 0)}</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -416,7 +444,7 @@ export function FinOpsWalletMovePanel() {
               variant="outline"
               size="sm"
               disabled={step === 'refreshing'}
-              onClick={() => { setResult(null); setStep('idle'); }}
+              onClick={() => { setResult(null); setBefore(null); setStep('idle'); }}
               className="gap-2"
             >
               {step === 'refreshing' && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -430,7 +458,7 @@ export function FinOpsWalletMovePanel() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <button
           type="button"
-          onClick={() => { setMode('user_to_user'); reset(); setResult(null); }}
+          onClick={() => { setMode('user_to_user'); reset(); setResult(null); setBefore(null); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'user_to_user' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
@@ -440,7 +468,7 @@ export function FinOpsWalletMovePanel() {
         </button>
         <button
           type="button"
-          onClick={() => { setMode('same_user'); reset(); setResult(null); setSameUserDir('float_to_withdrawable'); setSourceBucket('float'); }}
+          onClick={() => { setMode('same_user'); reset(); setResult(null); setBefore(null); setSameUserDir('float_to_withdrawable'); setSourceBucket('float'); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'same_user' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
@@ -450,7 +478,7 @@ export function FinOpsWalletMovePanel() {
         </button>
         <button
           type="button"
-          onClick={() => { setMode('error_correction'); reset(); setResult(null); }}
+          onClick={() => { setMode('error_correction'); reset(); setResult(null); setBefore(null); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'error_correction' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
