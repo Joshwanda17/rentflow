@@ -72,6 +72,7 @@ import { VerificationChecklist } from '@/components/shared/VerificationChecklist
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PendingDraftsBanner } from '@/components/agent/PendingDraftsBanner';
+import { DashboardDataErrorBanner } from '@/components/dashboards/DashboardDataErrorBanner';
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
