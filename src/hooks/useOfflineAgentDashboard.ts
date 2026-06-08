@@ -26,6 +26,8 @@ interface UseOfflineAgentDashboardReturn {
   refreshData: () => Promise<void>;
   lastUpdated: Date | null;
   hasLoadedOnce: boolean;
+  /** Set when the latest fresh-data fetch failed (null when healthy). */
+  loadError: string | null;
 }
 
 const defaultStats: AgentDashboardStats = {
@@ -45,6 +47,7 @@ export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
   const [isOfflineData, setIsOfflineData] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const fetchInProgress = useRef(false);
 
   // Load cached data immediately for instant display
@@ -92,6 +95,9 @@ export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
         .select('id', { count: 'exact', head: true })
         .eq('agent_id', user.id);
 
+      // Surface a real backend failure instead of silently showing zeros.
+      if (requestsRes.error) throw requestsRes.error;
+
       // Wallet balance is read from cache or useWallet — no duplicate query
       const cachedWalletBalance = await (async () => {
         try {
@@ -115,6 +121,7 @@ export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
       setIsOfflineData(false);
       setLastUpdated(new Date());
       setHasLoadedOnce(true);
+      setLoadError(null);
 
       // Cache for offline use - both IndexedDB and localStorage as fallback
       await cacheDashboardData(user.id, 'agent', newStats);
@@ -122,6 +129,11 @@ export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
       
     } catch (error) {
       console.error('[useOfflineAgentDashboard] Failed to fetch data:', error);
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : 'We could not load your latest dashboard data.',
+      );
     } finally {
       fetchInProgress.current = false;
     }
@@ -176,5 +188,6 @@ export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
     refreshData,
     lastUpdated,
     hasLoadedOnce,
+    loadError,
   };
 }
