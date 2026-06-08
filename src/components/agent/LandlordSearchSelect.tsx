@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -560,14 +561,26 @@ export function LandlordSearchSelect({
                 </span>
               )}
               {cancelledInfo && (
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Ban className="h-3 w-3 shrink-0" />
-                  <span>
-                    Cancelled{' '}
-                    <span className="font-semibold text-foreground">“{cancelledInfo.query}”</span>
-                    {cancelledAgo && <span className="opacity-70"> · {cancelledAgo}</span>}
-                  </span>
-                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      tabIndex={0}
+                      className="flex items-center gap-1 text-muted-foreground underline decoration-dotted decoration-current/50 underline-offset-2 cursor-help"
+                    >
+                      <Ban className="h-3 w-3 shrink-0" />
+                      <span>
+                        Cancelled{' '}
+                        <span className="font-semibold text-foreground">“{cancelledInfo.query}”</span>
+                        {cancelledAgo && <span className="opacity-70"> · {cancelledAgo}</span>}
+                      </span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[240px] text-xs leading-relaxed">
+                    You typed again before this search for “{cancelledInfo.query}” finished, so it was
+                    stopped to avoid showing stale results. The timer counts the seconds since it was
+                    cancelled and clears once your next search loads.
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           )}
