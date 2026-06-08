@@ -476,6 +476,17 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 </p>
               </div>
 
+              <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={step}
+                custom={direction}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+                className="space-y-5"
+              >
               {/* Agent Commission Banner (step 1 only) */}
               {step === 1 && (
               <div className="p-3 rounded-xl bg-gradient-to-r from-primary/10 via-emerald-500/10 to-primary/5 border border-primary/20">
