@@ -380,7 +380,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     requestAnimationFrame(() => {
       document
         .querySelector('[role="dialog"]')
-        ?.scrollTo({ top: 0, behavior: 'smooth' });
+        ?.scrollTo({ top: 0, behavior: 'auto' });
     });
   };
 
