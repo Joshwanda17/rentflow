@@ -156,10 +156,7 @@ export default function LandlordRegistrationForm({
     setPhoneVerified(false);
     try {
       const { data, error } = await supabase
-        .from('landlords')
-        .select('id')
-        .eq('phone', phoneClean)
-        .maybeSingle();
+        .rpc('find_landlord_by_phone', { p_phone: phoneClean });
       if (error) {
         // Network/DB hiccup — don't block; the submit-time check is the backstop.
         return true;
