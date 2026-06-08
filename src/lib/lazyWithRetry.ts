@@ -34,6 +34,25 @@ let active = 0;
 const queue: Array<() => void> = [];
 const EmptyComponent = (() => null) as ComponentType<any>;
 
+/**
+ * One-time hard reload to recover from stale/rotated chunks after a deploy.
+ * Guarded by sessionStorage so we never trap the user in a reload loop.
+ */
+function reloadOnceForStaleChunk(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const KEY = "welile:lazy-reload-at";
+    const last = Number(sessionStorage.getItem(KEY) || 0);
+    // Only reload if we haven't already done so in the last 30s.
+    if (Date.now() - last > 30_000) {
+      sessionStorage.setItem(KEY, String(Date.now()));
+      window.location.reload();
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
 function hasValidDefault<T extends ComponentType<any>>(
   mod: { default?: T | null } | null | undefined,
 ): mod is { default: T } {
@@ -94,6 +113,9 @@ export function lazyWithRetry<T extends ComponentType<any>>(
         await new Promise((r) => setTimeout(r, 400 * (i + 1)));
       }
     }
+    // All retries exhausted — likely a stale chunk after a deploy. Try a
+    // one-time reload to fetch fresh assets instead of crashing to a blank screen.
+    reloadOnceForStaleChunk();
     throw lastErr;
   });
 }
