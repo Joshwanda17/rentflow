@@ -3887,6 +3887,21 @@ export function EmailTransactionsPanel() {
                               <span className="text-muted-foreground"> · left {fmtUgx(autoImpact.newAvail)}</span>
                             )}
                           </p>
+                          {/* Linked proxy agent's live wallet balance — so
+                              Financial Ops can see the charged proxy wallet
+                              position right on the email without drilling in. */}
+                          {isProxyDebit && (
+                            <p className="sm:col-span-2">
+                              <span className="text-muted-foreground">
+                                Proxy wallet ({debitedName}):{' '}
+                              </span>
+                              <span className="font-semibold tabular-nums">
+                                {debitWalletBalance === undefined
+                                  ? 'loading…'
+                                  : fmtUgx(debitWalletBalance)}
+                              </span>
+                            </p>
+                          )}
                           {debitReasonText && (
                             <p className="sm:col-span-2">
                               <span className="text-muted-foreground">Reason: </span>
