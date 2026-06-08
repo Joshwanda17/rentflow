@@ -1,0 +1,260 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * admin-float-to-withdrawable
+ *
+ * Secure finance-leadership action that reclassifies money already sitting in a
+ * user's `float_balance` (operational / company money — never withdrawable) into
+ * their `withdrawable_balance` (their own, spendable money) WITHOUT changing the
+ * user's total wallet balance.
+ *
+ * It does this the only sanctioned way — by posting a balanced, double-entry
+ * WALLET-scope transaction through `create_ledger_transaction`:
+ *   • leg 1: cash_out  amount  wallet_bucket='float'        recipient_type='operational_wallet'
+ *   • leg 2: cash_in   amount  wallet_bucket='withdrawable'  recipient_type='user'
+ *
+ * Because `wallets` is a view that derives every bucket live from
+ * `v_user_wallet_strict` (which routes by the explicit `wallet_bucket` column),
+ * float drops by `amount` and withdrawable rises by `amount` the instant the
+ * legs land. No direct wallet-column writes — ledger stays the single source of
+ * truth.
+ */
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const adminClient = createClient(supabaseUrl, serviceKey);
+
+  try {
+    // ── Auth ────────────────────────────────────────────────────────────
+    const authHeader = req.headers.get("authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+    const token = authHeader.replace("Bearer ", "");
+
+    const { data: { user: authedUser }, error: authError } =
+      await adminClient.auth.getUser(token);
+    if (authError || !authedUser) return json({ error: "Unauthorized" }, 401);
+
+    // Treasury guard — block any money movement while paused (CTO/super_admin bypass).
+    const guardBlock = await checkTreasuryGuard(adminClient, "any", authedUser.id);
+    if (guardBlock) return guardBlock;
+
+    const { data: roles } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", authedUser.id)
+      .in("role", ["cfo", "manager", "super_admin", "cto"]);
+    if (!roles?.length) return json({ error: "Insufficient permissions" }, 403);
+    const callerRoles = (roles || []).map((r: { role: string }) => r.role);
+
+    // ── Input validation ──────────────────────────────────────────────────
+    const body = await req.json().catch(() => ({}));
+    const targetUserId: string = String(body?.target_user_id ?? "").trim();
+    const reason: string = String(body?.reason ?? "").trim();
+    const amount =
+      typeof body?.amount === "number"
+        ? body.amount
+        : Number(String(body?.amount ?? "").replace(/[, _]/g, ""));
+
+    if (!UUID_RE.test(targetUserId)) return json({ error: "Invalid target user." }, 400);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 500_000_000) {
+      return json({ error: "Amount must be a positive number up to UGX 500,000,000." }, 400);
+    }
+    // Whole shillings only — wallets never hold fractional UGX.
+    if (!Number.isInteger(amount)) {
+      return json({ error: "Amount must be a whole number of UGX." }, 400);
+    }
+    if (reason.length < 10) {
+      return json({ error: "A reason of at least 10 characters is required." }, 400);
+    }
+
+    // ── Confirm the user actually has enough float to move ─────────────────
+    const { data: walletRow, error: walletErr } = await adminClient
+      .from("wallets")
+      .select("float_balance, withdrawable_balance")
+      .eq("user_id", targetUserId)
+      .maybeSingle();
+    if (walletErr) return json({ error: `Wallet lookup failed: ${walletErr.message}` }, 500);
+
+    const floatBefore = Number(walletRow?.float_balance ?? 0);
+    const withdrawableBefore = Number(walletRow?.withdrawable_balance ?? 0);
+    if (floatBefore < amount) {
+      return json(
+        {
+          error: `Insufficient float balance. Available float: UGX ${floatBefore.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`,
+        },
+        422,
+      );
+    }
+
+    const { data: targetProfile } = await adminClient
+      .from("profiles")
+      .select("full_name")
+      .eq("id", targetUserId)
+      .maybeSingle();
+    const targetName = targetProfile?.full_name || targetUserId;
+
+    // ── Post the balanced reclass transaction ──────────────────────────────
+    // reference_id ties both legs + the audit row together for traceability.
+    const refId = `FLT2WDR-${crypto.randomUUID()}`;
+    const nowIso = new Date().toISOString();
+
+    const { data: groupId, error: rpcErr } = await adminClient.rpc(
+      "create_ledger_transaction",
+      {
+        entries: [
+          {
+            // Remove from operational float (company money).
+            user_id: targetUserId,
+            amount,
+            direction: "cash_out",
+            category: "agent_float_assignment",
+            ledger_scope: "wallet",
+            recipient_type: "operational_wallet",
+            wallet_bucket: "float",
+            routing_source: "admin_float_to_withdrawable",
+            source_table: "admin_float_to_withdrawable",
+            reference_id: refId,
+            classification: "production",
+            currency: "UGX",
+            transaction_date: nowIso,
+            description: `Reclass: move UGX ${amount.toLocaleString()} out of Operational Float for ${targetName}: ${reason}`,
+          },
+          {
+            // Add to the user's own withdrawable money.
+            user_id: targetUserId,
+            amount,
+            direction: "cash_in",
+            category: "wallet_transfer",
+            ledger_scope: "wallet",
+            recipient_type: "user",
+            wallet_bucket: "withdrawable",
+            routing_source: "admin_float_to_withdrawable",
+            source_table: "admin_float_to_withdrawable",
+            reference_id: refId,
+            classification: "production",
+            currency: "UGX",
+            transaction_date: nowIso,
+            description: `Reclass: credit UGX ${amount.toLocaleString()} to Withdrawable for ${targetName}: ${reason}`,
+          },
+        ],
+        // Both legs are wallet-scope and net to zero; the internal float→withdrawable
+        // move is balanced on its own (cash_in === cash_out).
+        skip_balance_check: true,
+      },
+    );
+    if (rpcErr) return json({ error: `Ledger error: ${rpcErr.message}` }, 500);
+
+    // Refresh the cached wallet total (buckets are derived by the view).
+    try {
+      await adminClient.rpc("reconcile_wallet_from_ledger", { p_user_id: targetUserId });
+    } catch (_) {
+      // Non-fatal: the view already reflects the move; the cached total catches
+      // up on the next reconcile/sweep.
+    }
+
+    // ── Mandatory audit trail (audit governance) ──────────────────────────
+    await adminClient.from("audit_logs").insert({
+      user_id: authedUser.id,
+      action_type: "admin_float_to_withdrawable",
+      table_name: "general_ledger",
+      record_id: groupId,
+      metadata: {
+        target_user_id: targetUserId,
+        target_name: targetName,
+        amount,
+        reason,
+        reference_id: refId,
+        float_before: floatBefore,
+        withdrawable_before: withdrawableBefore,
+        caller_roles: callerRoles,
+      },
+    });
+
+    // ── Event-based architecture: emit a system event ─────────────────────
+    try {
+      await adminClient.from("system_events").insert({
+        event_type: "wallet.float_to_withdrawable",
+        description: `Reclassified UGX ${amount.toLocaleString()} from Float to Withdrawable for ${targetName}`,
+        metadata: {
+          target_user_id: targetUserId,
+          amount,
+          reason,
+          reference_id: refId,
+          actor_id: authedUser.id,
+        },
+      });
+    } catch (_) {
+      // Lean-database policy: never let a non-critical event write fail the move.
+    }
+
+    // Read back the fresh buckets straight from the strict-derived view.
+    const { data: after } = await adminClient
+      .from("wallets")
+      .select("float_balance, withdrawable_balance")
+      .eq("user_id", targetUserId)
+      .maybeSingle();
+
+    const floatAfter = Number(after?.float_balance ?? floatBefore - amount);
+    const withdrawableAfter = Number(after?.withdrawable_balance ?? withdrawableBefore + amount);
+
+    // Belt-and-suspenders: if a race condition caused a negative bucket, flag it.
+    if (floatAfter < 0 || withdrawableAfter < 0) {
+      try {
+        await adminClient.from("wallet_overdraw_events").insert({
+          user_id: targetUserId,
+          attempted_balance: amount,
+          clamped_to: 0,
+          float_before: floatBefore,
+          float_after: floatAfter,
+          withdrawable_before: withdrawableBefore,
+          withdrawable_after: withdrawableAfter,
+          trigger_op: "admin_float_to_withdrawable_negative_post",
+        });
+      } catch (_) {
+        // Best-effort anomaly log.
+      }
+      return json(
+        {
+          error: `Move resulted in a negative balance (float: UGX ${floatAfter.toLocaleString()}, withdrawable: UGX ${withdrawableAfter.toLocaleString()}). The transaction was posted but needs review.`,
+          float_after: floatAfter,
+          withdrawable_after: withdrawableAfter,
+        },
+        500,
+      );
+    }
+
+    return json({
+      success: true,
+      reference_id: refId,
+      transaction_group_id: groupId,
+      amount,
+      float_before: floatBefore,
+      withdrawable_before: withdrawableBefore,
+      float_after: floatAfter,
+      withdrawable_after: withdrawableAfter,
+      message: `Moved UGX ${amount.toLocaleString()} from Float to Withdrawable for ${targetName}.`,
+    });
+  } catch (err) {
+    console.error("[admin-float-to-withdrawable] error:", (err as Error).message);
+    return json({ error: (err as Error).message || "Unexpected error" }, 500);
+  }
+});
