@@ -144,10 +144,10 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const goNext = () => {
     const err = validateStep(step);
     if (err) { toast.error(err); return; }
-    if (step < totalSteps) setStep((step + 1) as 1 | 2 | 3 | 4);
+    if (step < totalSteps) gotoStep((step + 1) as 1 | 2 | 3 | 4);
   };
   const goBack = () => {
-    if (step > 1) setStep((step - 1) as 1 | 2 | 3 | 4);
+    if (step > 1) gotoStep((step - 1) as 1 | 2 | 3 | 4);
   };
 
 
