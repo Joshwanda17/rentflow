@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,44 @@ interface RentRequestFormProps {
 const MIN_DAYS = 7;
 const MAX_DAYS = 120;
 
+// ── Autosave draft (localStorage) ────────────────────────────────
+// Lets a tenant leave the wizard and continue later without losing
+// answers. Photos (File objects) can't be serialized, so only text /
+// numeric / step state is persisted. Cleared on successful submit.
+const DRAFT_VERSION = 1;
+const draftKey = (uid: string) => `welile_rent_request_draft_v${DRAFT_VERSION}:${uid}`;
+
+type RentDraft = {
+  rentAmount: string;
+  duration: number;
+  numberOfPayments: number;
+  accessFeeRate: number;
+  tenantNationalId: string;
+  tenantFullName: string;
+  tenantWaterMeter: string;
+  tenantElectricityMeter: string;
+  landlordName: string;
+  landlordPhone: string;
+  landlordNationalId: string;
+  landlordTin: string;
+  propertyAddress: string;
+  waterMeterNumber: string;
+  electricityMeterNumber: string;
+  lc1Name: string;
+  lc1Phone: string;
+  lc1Village: string;
+  stepIndex: number;
+};
+
+function loadRentDraft(uid: string): Partial<RentDraft> | null {
+  try {
+    const raw = localStorage.getItem(draftKey(uid));
+    return raw ? (JSON.parse(raw) as Partial<RentDraft>) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Quick select options
 const quickOptions = [
   { days: 7, label: '1 Week' },
@@ -39,37 +77,91 @@ const quickOptions = [
 ];
 
 export default function RentRequestForm({ userId, onSuccess, onCancel }: RentRequestFormProps) {
-  const [rentAmount, setRentAmount] = useState('');
-  const [duration, setDuration] = useState(30);
-  const [numberOfPayments, setNumberOfPayments] = useState(4);
-  const [accessFeeRate, setAccessFeeRate] = useState(0.33);
+  // Restore any previously saved draft for this tenant (once).
+  const restored = useMemo(() => loadRentDraft(userId), [userId]);
+  const [draftRestored, setDraftRestored] = useState(() =>
+    !!restored && Object.keys(restored).length > 0,
+  );
+
+  const [rentAmount, setRentAmount] = useState(restored?.rentAmount ?? '');
+  const [duration, setDuration] = useState(restored?.duration ?? 30);
+  const [numberOfPayments, setNumberOfPayments] = useState(restored?.numberOfPayments ?? 4);
+  const [accessFeeRate, setAccessFeeRate] = useState(restored?.accessFeeRate ?? 0.33);
   // Tenant details
-  const [tenantNationalId, setTenantNationalId] = useState('');
-  const [tenantFullName, setTenantFullName] = useState('');
+  const [tenantNationalId, setTenantNationalId] = useState(restored?.tenantNationalId ?? '');
+  const [tenantFullName, setTenantFullName] = useState(restored?.tenantFullName ?? '');
   const [nationalIdError, setNationalIdError] = useState('');
   
   // Tenant utility meters
-  const [tenantWaterMeter, setTenantWaterMeter] = useState('');
-  const [tenantElectricityMeter, setTenantElectricityMeter] = useState('');
+  const [tenantWaterMeter, setTenantWaterMeter] = useState(restored?.tenantWaterMeter ?? '');
+  const [tenantElectricityMeter, setTenantElectricityMeter] = useState(restored?.tenantElectricityMeter ?? '');
   
   // Landlord details
-  const [landlordName, setLandlordName] = useState('');
-  const [landlordPhone, setLandlordPhone] = useState('');
-  const [landlordNationalId, setLandlordNationalId] = useState('');
-  const [landlordTin, setLandlordTin] = useState('');
-  const [propertyAddress, setPropertyAddress] = useState('');
-  const [waterMeterNumber, setWaterMeterNumber] = useState('');
-  const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
+  const [landlordName, setLandlordName] = useState(restored?.landlordName ?? '');
+  const [landlordPhone, setLandlordPhone] = useState(restored?.landlordPhone ?? '');
+  const [landlordNationalId, setLandlordNationalId] = useState(restored?.landlordNationalId ?? '');
+  const [landlordTin, setLandlordTin] = useState(restored?.landlordTin ?? '');
+  const [propertyAddress, setPropertyAddress] = useState(restored?.propertyAddress ?? '');
+  const [waterMeterNumber, setWaterMeterNumber] = useState(restored?.waterMeterNumber ?? '');
+  const [electricityMeterNumber, setElectricityMeterNumber] = useState(restored?.electricityMeterNumber ?? '');
   
   // LC1 details
-  const [lc1Name, setLc1Name] = useState('');
-  const [lc1Phone, setLc1Phone] = useState('');
-  const [lc1Village, setLc1Village] = useState('');
+  const [lc1Name, setLc1Name] = useState(restored?.lc1Name ?? '');
+  const [lc1Phone, setLc1Phone] = useState(restored?.lc1Phone ?? '');
+  const [lc1Village, setLc1Village] = useState(restored?.lc1Village ?? '');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   // Wizard step index — one question at a time
-  const [stepIndex, setStepIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(restored?.stepIndex ?? 0);
+  const [draftSaved, setDraftSaved] = useState(false);
+
+  // ── Persist the draft (debounced) whenever an answer changes ──
+  const submittedRef = useRef(false);
+  useEffect(() => {
+    if (submittedRef.current) return;
+    const draft: RentDraft = {
+      rentAmount, duration, numberOfPayments, accessFeeRate,
+      tenantNationalId, tenantFullName, tenantWaterMeter, tenantElectricityMeter,
+      landlordName, landlordPhone, landlordNationalId, landlordTin,
+      propertyAddress, waterMeterNumber, electricityMeterNumber,
+      lc1Name, lc1Phone, lc1Village, stepIndex,
+    };
+    const id = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey(userId), JSON.stringify(draft));
+        setDraftSaved(true);
+      } catch {
+        /* quota / private mode — ignore */
+      }
+    }, 600);
+    return () => clearTimeout(id);
+  }, [
+    userId, rentAmount, duration, numberOfPayments, accessFeeRate,
+    tenantNationalId, tenantFullName, tenantWaterMeter, tenantElectricityMeter,
+    landlordName, landlordPhone, landlordNationalId, landlordTin,
+    propertyAddress, waterMeterNumber, electricityMeterNumber,
+    lc1Name, lc1Phone, lc1Village, stepIndex,
+  ]);
+
+  const clearDraft = useCallback(() => {
+    try { localStorage.removeItem(draftKey(userId)); } catch { /* ignore */ }
+  }, [userId]);
+
+  const discardDraft = useCallback(() => {
+    submittedRef.current = true;
+    clearDraft();
+    setRentAmount(''); setDuration(30); setNumberOfPayments(4); setAccessFeeRate(0.33);
+    setTenantNationalId(''); setTenantFullName(''); setNationalIdError('');
+    setTenantWaterMeter(''); setTenantElectricityMeter('');
+    setLandlordName(''); setLandlordPhone(''); setLandlordNationalId(''); setLandlordTin('');
+    setPropertyAddress(''); setWaterMeterNumber(''); setElectricityMeterNumber('');
+    setLc1Name(''); setLc1Phone(''); setLc1Village('');
+    setStepIndex(0);
+    setDraftRestored(false);
+    setDraftSaved(false);
+    submittedRef.current = false;
+  }, [clearDraft]);
 
   // GPS & Photos
   const [propertyGps, setPropertyGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
@@ -299,6 +391,9 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
       toast({ title: 'Warning', description: 'Request created but schedule generation failed.', variant: 'destructive' });
     }
 
+    // Request posted — clear the saved draft so it won't be restored later.
+    submittedRef.current = true;
+    clearDraft();
     onSuccess();
     setLoading(false);
   };
@@ -739,13 +834,41 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         </CardTitle>
         <div className="space-y-1.5">
           <Progress value={progress} className="h-1.5" />
-          <p className="text-[11px] font-medium text-muted-foreground">
-            Question {stepIndex + 1} of {totalSteps}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Question {stepIndex + 1} of {totalSteps}
+            </p>
+            {draftSaved && (
+              <span className="text-[11px] font-medium text-success flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Draft saved
+              </span>
+            )}
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="pt-5">
+        {draftRestored && (
+          <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 flex items-start justify-between gap-3">
+            <div className="text-xs">
+              <p className="font-semibold text-primary">We saved your progress</p>
+              <p className="text-muted-foreground">
+                Continue where you left off, or start a fresh request. Photos aren't saved and need re-adding.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={discardDraft}
+              disabled={loading}
+              className="shrink-0"
+            >
+              Start over
+            </Button>
+          </div>
+        )}
         <form
           onSubmit={handleSubmit}
           onKeyDown={(e) => {
