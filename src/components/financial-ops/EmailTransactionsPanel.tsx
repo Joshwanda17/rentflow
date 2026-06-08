@@ -511,6 +511,23 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_page_size', String(pageSize)); } catch {} }, [pageSize]);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  // Rendering mode for the Recent emails list. 'paged' keeps the classic
+  // first/prev/next/last controls; 'infinite' grows the visible window as the
+  // operator scrolls (sentinel + IntersectionObserver). Persisted so the
+  // preference survives reload. The expanded drilldown state is keyed by row
+  // id (see `expandedRows`), so it is preserved across page changes AND while
+  // more rows stream in during infinite scroll.
+  type PaginationMode = 'paged' | 'infinite';
+  const [paginationMode, setPaginationMode] = useState<PaginationMode>(() => {
+    if (typeof window === 'undefined') return 'paged';
+    const v = localStorage.getItem('gmail_pagination_mode');
+    return v === 'infinite' ? 'infinite' : 'paged';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_pagination_mode', paginationMode); } catch {} }, [paginationMode]);
+  // How many rows are currently rendered in infinite-scroll mode. Starts at one
+  // page worth and grows by `pageSize` each time the sentinel scrolls into view.
+  const [infiniteCount, setInfiniteCount] = useState<number>(pageSize);
+  const infiniteSentinelRef = useRef<HTMLDivElement | null>(null);
   // Match-type filter for the Recent emails list. Persisted so it survives reload.
   //   all       → no match filter
   //   confident → at least one reference OR from-phone match
@@ -569,7 +586,15 @@ export function EmailTransactionsPanel() {
   useEffect(() => { try { localStorage.setItem('gmail_sort_debit', debitSort); } catch {} }, [debitSort]);
 
   // Reset pagination whenever any filter that affects the visible list changes.
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort]);
+  useEffect(() => {
+    setCurrentPage(1);
+    setInfiniteCount(pageSize);
+  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort]);
+  // Reset the infinite window back to one page whenever the operator switches
+  // into infinite mode, so it never starts mid-list.
+  useEffect(() => {
+    if (paginationMode === 'infinite') setInfiniteCount(pageSize);
+  }, [paginationMode, pageSize]);
 
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
@@ -2201,6 +2226,28 @@ export function EmailTransactionsPanel() {
   const canPrevNav = navIndex > 0;
   const canNextNav = navIndex >= 0 && navIndex < visibleRows.length - 1;
 
+  // Infinite scroll: when in 'infinite' mode, observe a sentinel at the bottom
+  // of the list and grow the rendered window by one page each time it scrolls
+  // into view, until every filtered row is shown. Expanded drilldowns persist
+  // because `expandedRows` is keyed by row id, not by render position.
+  const totalVisible = visibleRows.length;
+  useEffect(() => {
+    if (paginationMode !== 'infinite') return;
+    const node = infiniteSentinelRef.current;
+    if (!node) return;
+    if (infiniteCount >= totalVisible) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInfiniteCount((c) => Math.min(c + pageSize, totalVisible));
+        }
+      },
+      { rootMargin: '400px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [paginationMode, infiniteCount, totalVisible, pageSize]);
+
   /** Compute the best suggested user for a given row and routing mode. */
   const computeSuggestedFor = (r: GmailTx, mode: 'credit' | 'debit') => {
     const matches = userMatches[r.id] ?? [];
@@ -3351,9 +3398,17 @@ export function EmailTransactionsPanel() {
             {(() => {
               const totalPages = Math.max(1, Math.ceil(visibleRows.length / pageSize));
               const safePage = Math.min(currentPage, totalPages);
-              const startIdx = (safePage - 1) * pageSize;
-              const pageRows = visibleRows.slice(startIdx, startIdx + pageSize);
-              (window as any).__emailPaginationMeta = { totalPages, safePage, total: visibleRows.length };
+              const isInfinite = paginationMode === 'infinite';
+              const shownCount = isInfinite
+                ? Math.min(infiniteCount, visibleRows.length)
+                : Math.min(safePage * pageSize, visibleRows.length);
+              const startIdx = isInfinite ? 0 : (safePage - 1) * pageSize;
+              const pageRows = isInfinite
+                ? visibleRows.slice(0, shownCount)
+                : visibleRows.slice(startIdx, startIdx + pageSize);
+              (window as any).__emailPaginationMeta = {
+                totalPages, safePage, total: visibleRows.length, mode: paginationMode, shownCount,
+              };
               return pageRows.map((r) => {
                 const matches = userMatches[r.id] ?? [];
                 const hasRef = matches.some((u) => u.matched_on.startsWith('reference '));
@@ -4496,17 +4551,33 @@ export function EmailTransactionsPanel() {
                 );
               });
             })()}
+            {/* Infinite-scroll sentinel: when this scrolls into view the list
+                grows by one more page. Only rendered in infinite mode while
+                there are still more rows to reveal. */}
+            {paginationMode === 'infinite'
+              && infiniteCount < visibleRows.length
+              && (
+              <div
+                ref={infiniteSentinelRef}
+                className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground"
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading more…
+              </div>
+            )}
           </div>
         )}
         {/* Pagination controls — only shown when there's more than one page. */}
         {!loading && rows.length > 0 && (() => {
           const meta = (typeof window !== 'undefined' ? (window as any).__emailPaginationMeta : null) as
-            | { totalPages: number; safePage: number; total: number }
+            | { totalPages: number; safePage: number; total: number; mode?: PaginationMode; shownCount?: number }
             | null;
           if (!meta) return null;
           const { totalPages, safePage, total } = meta;
-          const from = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
-          const to = Math.min(safePage * pageSize, total);
+          const isInfinite = paginationMode === 'infinite';
+          const shownCount = isInfinite ? Math.min(infiniteCount, total) : 0;
+          const from = total === 0 ? 0 : isInfinite ? 1 : (safePage - 1) * pageSize + 1;
+          const to = isInfinite ? shownCount : Math.min(safePage * pageSize, total);
           return (
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20 text-xs">
               <div className="text-muted-foreground tabular-nums">
@@ -4514,6 +4585,15 @@ export function EmailTransactionsPanel() {
                 <span className="font-medium text-foreground">{total.toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 gap-1"
+                  title={isInfinite ? 'Switch to paged navigation' : 'Switch to infinite scroll'}
+                  onClick={() => setPaginationMode((m) => (m === 'infinite' ? 'paged' : 'infinite'))}
+                >
+                  {isInfinite ? 'Use pages' : 'Infinite scroll'}
+                </Button>
                 <label className="text-muted-foreground">Rows:</label>
                 <select
                   value={pageSize}
@@ -4522,15 +4602,28 @@ export function EmailTransactionsPanel() {
                 >
                   {[25, 50, 100, 200, 500].map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
-                <Button size="sm" variant="outline" className="h-7 px-2"
-                  onClick={() => setCurrentPage(1)} disabled={safePage <= 1}>« First</Button>
-                <Button size="sm" variant="outline" className="h-7 px-2"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>‹ Prev</Button>
-                <span className="tabular-nums text-muted-foreground px-1">Page {safePage} / {totalPages}</span>
-                <Button size="sm" variant="outline" className="h-7 px-2"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>Next ›</Button>
-                <Button size="sm" variant="outline" className="h-7 px-2"
-                  onClick={() => setCurrentPage(totalPages)} disabled={safePage >= totalPages}>Last »</Button>
+                {isInfinite ? (
+                  to < total ? (
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setInfiniteCount((c) => Math.min(c + pageSize, total))}>
+                      Load more
+                    </Button>
+                  ) : (
+                    <span className="text-muted-foreground px-1">All loaded</span>
+                  )
+                ) : (
+                  <>
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setCurrentPage(1)} disabled={safePage <= 1}>« First</Button>
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>‹ Prev</Button>
+                    <span className="tabular-nums text-muted-foreground px-1">Page {safePage} / {totalPages}</span>
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>Next ›</Button>
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setCurrentPage(totalPages)} disabled={safePage >= totalPages}>Last »</Button>
+                  </>
+                )}
               </div>
             </div>
           );
