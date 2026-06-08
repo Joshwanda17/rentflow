@@ -13,6 +13,7 @@ import { EarningsSummaryCard } from '@/components/agent/EarningsSummaryCard';
 import { AgentWalletDetailsCard } from '@/components/agent/AgentWalletDetailsCard';
 
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   UserPlus,
   Menu,
