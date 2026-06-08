@@ -39,6 +39,12 @@ interface LandlordSearchSelectProps {
   /** Called when the agent taps "Register new landlord" from the empty-state warning. */
   onAddNew?: () => void;
   /**
+   * Render the search bar + results inline (always open, no trigger button or
+   * popover). Used in mobile-first wizards where a single, obvious tap-free
+   * search field is friendlier than a tap-to-open combobox.
+   */
+  inline?: boolean;
+  /**
    * Fuzzy-match similarity threshold (0.05–0.9). Lower = more typo-tolerant
    * (more results), higher = stricter. Used as the initial slider value.
    */
@@ -195,9 +201,12 @@ export function LandlordSearchSelect({
   disabled,
   autoOpenSignal,
   onAddNew,
+  inline = false,
   similarityThreshold = 0.2,
 }: LandlordSearchSelectProps) {
   const [open, setOpen] = useState(false);
+  // In inline mode the panel is permanently open (no trigger / popover).
+  const panelOpen = inline || open;
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [results, setResults] = useState<LandlordOption[]>([]);
@@ -222,9 +231,9 @@ export function LandlordSearchSelect({
   const prevOrderRef = useRef<{ ids: string[]; index: number }>({ ids: [], index: 0 });
 
   useEffect(() => {
-    if (autoOpenSignal === undefined || disabled) return;
+    if (inline || autoOpenSignal === undefined || disabled) return;
     setOpen(true);
-  }, [autoOpenSignal, disabled]);
+  }, [autoOpenSignal, disabled, inline]);
 
   // Debounce typing — short delay so results feel instant as you type.
   useEffect(() => {
@@ -289,7 +298,7 @@ export function LandlordSearchSelect({
 
   // Fetch on debounced/threshold change (only when popover is open)
   useEffect(() => {
-    if (!open) return;
+    if (!panelOpen) return;
     const myId = ++reqIdRef.current;
     const run = async () => {
       setLoading(true);
@@ -337,11 +346,11 @@ export function LandlordSearchSelect({
       }
     };
     run();
-  }, [debounced, open, threshold]);
+  }, [debounced, panelOpen, threshold]);
 
   // One-time fetch of total landlord count so we can show a system-empty warning
   useEffect(() => {
-    if (!open) return;
+    if (!panelOpen) return;
     let cancelled = false;
     (async () => {
       const { count, error } = await supabase
@@ -352,7 +361,7 @@ export function LandlordSearchSelect({
       }
     })();
     return () => { cancelled = true; };
-  }, [open]);
+  }, [panelOpen]);
 
   const triggerLabel = useMemo(() => {
     if (!value) return placeholder;
@@ -445,31 +454,8 @@ export function LandlordSearchSelect({
     }
   }, [activeIndex]);
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className={cn(
-            'w-full justify-between h-11 font-normal',
-            !value && 'text-muted-foreground'
-          )}
-        >
-          <span className="flex items-center gap-2 truncate">
-            <Building2 className="h-4 w-4 shrink-0 text-primary" />
-            <span className="truncate">{triggerLabel}</span>
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 overflow-hidden rounded-[28px] border border-border/60 bg-background shadow-[0_1px_6px_rgba(32,33,36,0.28)]"
-        align="start"
-      >
+  const panel = (
+    <>
         <div className="px-4 pt-3.5 pb-2.5">
           <div className="mb-2.5 flex justify-center">
             <GoogleWordmark />
@@ -478,7 +464,7 @@ export function LandlordSearchSelect({
           <div className="relative flex items-center rounded-full border border-border/70 bg-background px-4 h-11 shadow-sm transition-shadow focus-within:shadow-[0_1px_6px_rgba(32,33,36,0.28)] hover:shadow-[0_1px_6px_rgba(32,33,36,0.18)]">
             <Search className="h-4 w-4 shrink-0 text-[#4285F4]" />
             <input
-              autoFocus
+              autoFocus={!inline}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -723,6 +709,43 @@ export function LandlordSearchSelect({
               );
             })}
         </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div className="overflow-hidden rounded-[28px] border border-border/60 bg-background shadow-[0_1px_6px_rgba(32,33,36,0.18)]">
+        {panel}
+      </div>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className={cn(
+            'w-full justify-between h-11 font-normal',
+            !value && 'text-muted-foreground'
+          )}
+        >
+          <span className="flex items-center gap-2 truncate">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
+            <span className="truncate">{triggerLabel}</span>
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0 overflow-hidden rounded-[28px] border border-border/60 bg-background shadow-[0_1px_6px_rgba(32,33,36,0.28)]"
+        align="start"
+      >
+        {panel}
       </PopoverContent>
     </Popover>
   );
