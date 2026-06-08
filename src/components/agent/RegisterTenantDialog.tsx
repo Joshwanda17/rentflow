@@ -557,23 +557,29 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     <Input
                       id="tenantFullName"
                       value={tenantFullName}
-                      onChange={(e) => setTenantFullName(e.target.value)}
+                      onChange={(e) => { setTenantFullName(e.target.value); clearFieldError('tenantFullName'); }}
+                      onBlur={() => validateFieldOnBlur('tenantFullName')}
                       placeholder="Names on National ID"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.tenantFullName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.tenantFullName}
                       autoComplete="name"
                       autoCapitalize="words"
                       required
                     />
+                    {fieldErrors.tenantFullName && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.tenantFullName}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantNationalId" className="text-xs">National ID Number *</Label>
                     <Input
                       id="tenantNationalId"
                       value={tenantNationalId}
-                      onChange={(e) => { setTenantNationalId(e.target.value.toUpperCase()); setNationalIdError(''); }}
-                      onBlur={() => checkDuplicateNationalId(tenantNationalId)}
+                      onChange={(e) => { setTenantNationalId(e.target.value.toUpperCase()); setNationalIdError(''); clearFieldError('tenantNationalId'); }}
+                      onBlur={() => { checkDuplicateNationalId(tenantNationalId); validateFieldOnBlur('tenantNationalId'); }}
                       placeholder="CM12345678ABCD"
-                      className={`h-11 text-base uppercase ${nationalIdError ? 'border-destructive' : ''}`}
+                      className={`h-11 text-base uppercase ${nationalIdError || fieldErrors.tenantNationalId ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!(nationalIdError || fieldErrors.tenantNationalId)}
                       autoCapitalize="characters"
                       autoCorrect="off"
                       spellCheck={false}
