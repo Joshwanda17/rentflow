@@ -651,12 +651,17 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     <Input
                       id="landlordName"
                       value={landlordName}
-                      onChange={(e) => setLandlordName(e.target.value)}
+                      onChange={(e) => { setLandlordName(e.target.value); clearFieldError('landlordName'); }}
+                      onBlur={() => validateFieldOnBlur('landlordName')}
                       placeholder="Landlord name"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.landlordName}
                       autoCapitalize="words"
                       required
                     />
+                    {fieldErrors.landlordName && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.landlordName}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="landlordPhone" className="text-xs">Phone *</Label>
@@ -666,16 +671,20 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       inputMode="tel"
                       autoComplete="tel"
                       value={landlordPhone}
-                      onChange={(e) => setLandlordPhone(e.target.value)}
+                      onChange={(e) => { setLandlordPhone(e.target.value); clearFieldError('landlordPhone'); }}
+                      onBlur={() => validateFieldOnBlur('landlordPhone')}
                       placeholder="Phone number"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.landlordPhone}
                       required
                     />
-                    {landlordPhone.replace(/\s/g, '').length >= 9 &&
+                    {fieldErrors.landlordPhone ? (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.landlordPhone}</p>
+                    ) : landlordPhone.replace(/\s/g, '').length >= 9 &&
                       tenantPhone.replace(/\s/g, '').length >= 9 &&
-                      landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                      landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') ? (
                         <p className="text-[11px] text-destructive font-medium">Cannot be the same as Tenant phone</p>
-                      )}
+                      ) : null}
                   </div>
                 </div>
 
@@ -686,12 +695,17 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                   <Input
                     id="propertyAddress"
                     value={propertyAddress}
-                    onChange={(e) => setPropertyAddress(e.target.value)}
+                    onChange={(e) => { setPropertyAddress(e.target.value); clearFieldError('propertyAddress'); }}
+                    onBlur={() => validateFieldOnBlur('propertyAddress')}
                     placeholder="Full property address"
-                    className="h-11 text-base"
+                    className={`h-11 text-base ${fieldErrors.propertyAddress ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                    aria-invalid={!!fieldErrors.propertyAddress}
                     autoCapitalize="words"
                     required
                   />
+                  {fieldErrors.propertyAddress && (
+                    <p className="text-[11px] text-destructive font-medium">{fieldErrors.propertyAddress}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -704,11 +718,16 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       type="number"
                       inputMode="numeric"
                       value={monthlyRent}
-                      onChange={(e) => setMonthlyRent(e.target.value)}
+                      onChange={(e) => { setMonthlyRent(e.target.value); clearFieldError('monthlyRent'); }}
+                      onBlur={() => validateFieldOnBlur('monthlyRent')}
                       placeholder="500000"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.monthlyRent ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.monthlyRent}
                       required
                     />
+                    {fieldErrors.monthlyRent && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.monthlyRent}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="mobileMoneyNumber" className="text-xs flex items-center gap-1">
