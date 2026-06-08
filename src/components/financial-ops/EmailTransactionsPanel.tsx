@@ -4570,12 +4570,14 @@ export function EmailTransactionsPanel() {
         {/* Pagination controls — only shown when there's more than one page. */}
         {!loading && rows.length > 0 && (() => {
           const meta = (typeof window !== 'undefined' ? (window as any).__emailPaginationMeta : null) as
-            | { totalPages: number; safePage: number; total: number }
+            | { totalPages: number; safePage: number; total: number; mode?: PaginationMode; shownCount?: number }
             | null;
           if (!meta) return null;
           const { totalPages, safePage, total } = meta;
-          const from = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
-          const to = Math.min(safePage * pageSize, total);
+          const isInfinite = paginationMode === 'infinite';
+          const shownCount = isInfinite ? Math.min(infiniteCount, total) : 0;
+          const from = total === 0 ? 0 : isInfinite ? 1 : (safePage - 1) * pageSize + 1;
+          const to = isInfinite ? shownCount : Math.min(safePage * pageSize, total);
           return (
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20 text-xs">
               <div className="text-muted-foreground tabular-nums">
@@ -4583,6 +4585,15 @@ export function EmailTransactionsPanel() {
                 <span className="font-medium text-foreground">{total.toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 gap-1"
+                  title={isInfinite ? 'Switch to paged navigation' : 'Switch to infinite scroll'}
+                  onClick={() => setPaginationMode((m) => (m === 'infinite' ? 'paged' : 'infinite'))}
+                >
+                  {isInfinite ? 'Use pages' : 'Infinite scroll'}
+                </Button>
                 <label className="text-muted-foreground">Rows:</label>
                 <select
                   value={pageSize}
@@ -4591,15 +4602,28 @@ export function EmailTransactionsPanel() {
                 >
                   {[25, 50, 100, 200, 500].map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
-                <Button size="sm" variant="outline" className="h-7 px-2"
-                  onClick={() => setCurrentPage(1)} disabled={safePage <= 1}>« First</Button>
-                <Button size="sm" variant="outline" className="h-7 px-2"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>‹ Prev</Button>
-                <span className="tabular-nums text-muted-foreground px-1">Page {safePage} / {totalPages}</span>
-                <Button size="sm" variant="outline" className="h-7 px-2"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>Next ›</Button>
-                <Button size="sm" variant="outline" className="h-7 px-2"
-                  onClick={() => setCurrentPage(totalPages)} disabled={safePage >= totalPages}>Last »</Button>
+                {isInfinite ? (
+                  to < total ? (
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setInfiniteCount((c) => Math.min(c + pageSize, total))}>
+                      Load more
+                    </Button>
+                  ) : (
+                    <span className="text-muted-foreground px-1">All loaded</span>
+                  )
+                ) : (
+                  <>
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setCurrentPage(1)} disabled={safePage <= 1}>« First</Button>
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>‹ Prev</Button>
+                    <span className="tabular-nums text-muted-foreground px-1">Page {safePage} / {totalPages}</span>
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>Next ›</Button>
+                    <Button size="sm" variant="outline" className="h-7 px-2"
+                      onClick={() => setCurrentPage(totalPages)} disabled={safePage >= totalPages}>Last »</Button>
+                  </>
+                )}
               </div>
             </div>
           );
