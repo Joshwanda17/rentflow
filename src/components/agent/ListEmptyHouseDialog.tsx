@@ -1128,6 +1128,34 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     </div>
                   </div>
                 </div>
+                {/* Auto-detected: this phone already belongs to a registered landlord */}
+                {checkingPhone && !phoneMatch && (
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Checking the system for this number…
+                  </p>
+                )}
+                {phoneMatch && (
+                  <button
+                    type="button"
+                    onClick={usePhoneMatch}
+                    className="w-full text-left p-3 rounded-xl border-2 border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary uppercase tracking-wide">
+                      <UserCheck className="h-3.5 w-3.5" /> Already in the system
+                    </div>
+                    <p className="font-semibold text-sm truncate mt-1">{phoneMatch.name}</p>
+                    <p className="text-xs text-muted-foreground">{normalizeUgandaPhone(phoneMatch.phone || form.landlord_phone)}</p>
+                    {(phoneMatch.monthly_rent || phoneMatch.region || phoneMatch.village || phoneMatch.property_address) && (
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                        {phoneMatch.monthly_rent ? `Est. rent ${formatUGX(phoneMatch.monthly_rent)}` : 'No rent recorded yet'}
+                        {(phoneMatch.village || phoneMatch.region) ? ` · ${[phoneMatch.village, phoneMatch.region].filter(Boolean).join(', ')}` : ''}
+                      </p>
+                    )}
+                    <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+                      Tap to use & add their house, location and rent →
+                    </span>
+                  </button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
