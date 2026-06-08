@@ -810,12 +810,13 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               {step > 1 && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="lg"
-                  className="h-12 px-4 text-base"
+                  className="h-12 gap-1.5 rounded-full px-5 text-base"
                   onClick={goBack}
                   disabled={loading}
                 >
+                  <ArrowLeft className="h-4 w-4" />
                   Back
                 </Button>
               )}
@@ -823,16 +824,17 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 <Button
                   type="button"
                   size="lg"
-                  className="flex-1 h-12 text-base font-semibold shadow-lg"
+                  className="flex-1 h-12 gap-1.5 rounded-full text-base font-medium shadow-sm"
                   onClick={goNext}
                 >
                   Continue
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
                 <Button
                   type="button"
                   size="lg"
-                  className="flex-1 h-12 text-base font-semibold shadow-lg"
+                  className="flex-1 h-12 gap-1.5 rounded-full text-base font-medium shadow-sm"
                   disabled={loading}
                   onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
                 >
