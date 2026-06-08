@@ -5,13 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { FileText, CalendarClock, Banknote, Navigation, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import {
+  FileText, CalendarClock, Banknote, Navigation, Loader2,
+  ArrowLeft, ArrowRight, User, IdCard, Gauge, Building2, MapPin,
+  Camera, Users, CheckCircle2, Percent, CalendarDays, ListChecks,
+} from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES, calculateInstalment } from '@/lib/rentCalculations';
 import { generateRepaymentSchedule, insertRepaymentSchedule } from '@/lib/scheduleUtils';
 import { useToast } from '@/hooks/use-toast';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { useSmartLocation, captureSmartLocation } from '@/hooks/useSmartLocation';
+import FormStepHeader from '@/components/shared/FormStepHeader';
 
 interface RentRequestFormProps {
   userId: string;
