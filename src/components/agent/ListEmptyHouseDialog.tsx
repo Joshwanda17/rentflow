@@ -91,6 +91,24 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // a flag noting that location/area was pre-filled from the agent profile.
   const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
   const [prefilledFromProfile, setPrefilledFromProfile] = useState(false);
+  // Phone-based auto-detection: when the agent types a landlord phone that is
+  // already registered anywhere in the system (even one created from just an
+  // estimation, with no photos/houses yet), surface it so they reuse it and
+  // complete the real house, location and rent instead of creating a duplicate.
+  type PhoneMatch = {
+    id: string;
+    name: string;
+    phone: string | null;
+    monthly_rent: number | null;
+    property_address: string | null;
+    village: string | null;
+    district: string | null;
+    region: string | null;
+    house_category: string | null;
+    number_of_rooms: number | null;
+  };
+  const [phoneMatch, setPhoneMatch] = useState<PhoneMatch | null>(null);
+  const [checkingPhone, setCheckingPhone] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
