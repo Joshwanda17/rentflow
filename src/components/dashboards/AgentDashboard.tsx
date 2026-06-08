@@ -63,7 +63,8 @@ import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvance
 import { useAgentUnblockToast } from '@/hooks/useAgentUnblockToast';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { WalletHeroSkeleton } from '@/components/skeletons/SectionSkeletons';
+import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
+
 
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
