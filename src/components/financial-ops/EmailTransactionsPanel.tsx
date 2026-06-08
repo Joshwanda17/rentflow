@@ -586,7 +586,15 @@ export function EmailTransactionsPanel() {
   useEffect(() => { try { localStorage.setItem('gmail_sort_debit', debitSort); } catch {} }, [debitSort]);
 
   // Reset pagination whenever any filter that affects the visible list changes.
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort]);
+  useEffect(() => {
+    setCurrentPage(1);
+    setInfiniteCount(pageSize);
+  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort]);
+  // Reset the infinite window back to one page whenever the operator switches
+  // into infinite mode, so it never starts mid-list.
+  useEffect(() => {
+    if (paginationMode === 'infinite') setInfiniteCount(pageSize);
+  }, [paginationMode, pageSize]);
 
   // Persisted cache of derived channel classifications keyed by transaction id
   // / receipt number (with gmail_message_id as fallback). Loaded once on mount
