@@ -248,6 +248,14 @@ export function RentalFinderSheet({ open, onOpenChange }: RentalFinderSheetProps
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
+          ) : error ? (
+            <div className="text-center py-20 text-muted-foreground px-4">
+              <Home className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">{error}</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => fetchLandlords()}>
+                Try again
+              </Button>
+            </div>
           ) : selectedLandlord ? (
             <LandlordDetail landlord={selectedLandlord} onNavigate={handleNavigate} onCall={handleCall} />
           ) : showProperties ? (
