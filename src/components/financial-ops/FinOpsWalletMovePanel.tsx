@@ -444,8 +444,7 @@ export function FinOpsWalletMovePanel() {
               variant="outline"
               size="sm"
               disabled={step === 'refreshing'}
-              onClick={() => { setResult(null); setStep('idle'); }}
-              onClickCapture={() => setBefore(null)}
+              onClick={() => { setResult(null); setBefore(null); setStep('idle'); }}
               className="gap-2"
             >
               {step === 'refreshing' && <Loader2 className="h-4 w-4 animate-spin" />}
