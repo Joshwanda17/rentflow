@@ -106,6 +106,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     region: string | null;
     house_category: string | null;
     number_of_rooms: number | null;
+    /** How many houses this landlord has listed (0 = estimation only). */
+    house_count: number;
+    /** How many photos exist across all of this landlord's houses. */
+    photo_count: number;
   };
   const [phoneMatch, setPhoneMatch] = useState<PhoneMatch | null>(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
