@@ -914,6 +914,24 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
 
   return (
     <Card className="glass-card">
+      <AlertDialog open={showRestorePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Continue your rent request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              We found an unfinished rent request you saved earlier. Restore your
+              answers and pick up where you left off, or start fresh.
+              {restored?.stepIndex ? ` You were on question ${(restored.stepIndex ?? 0) + 1}.` : ''}
+              {' '}Photos aren't saved and will need re-adding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={startFresh}>Start fresh</AlertDialogCancel>
+            <AlertDialogAction onClick={applyDraft}>Restore draft</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <CardHeader className="bg-primary/10 border-b-2 border-primary/30 space-y-3">
         <CardTitle className="flex items-center gap-2 text-primary">
           <FileText className="h-5 w-5" />
