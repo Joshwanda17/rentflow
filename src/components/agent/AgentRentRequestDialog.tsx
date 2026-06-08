@@ -633,11 +633,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       // Also match by landlord name / phone (separate lookup, merged + de-duped).
       if (q.length >= 2) {
-        const { data: lls } = await supabase
-          .from('landlords')
-          .select('id')
-          .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
-          .limit(20);
+        const { data: lls } = await supabase.rpc('search_landlords_fuzzy', {
+          p_query: q,
+          p_limit: 30,
+          p_threshold: 0.15,
+        });
         const llIds = (lls || []).map((l: any) => l.id);
         if (llIds.length) {
           const { data: byLl } = await supabase
