@@ -585,8 +585,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       spellCheck={false}
                       required
                     />
-                    {nationalIdError && (
-                      <p className="text-[11px] text-destructive font-medium">{nationalIdError}</p>
+                    {(nationalIdError || fieldErrors.tenantNationalId) && (
+                      <p className="text-[11px] text-destructive font-medium">{nationalIdError || fieldErrors.tenantNationalId}</p>
                     )}
                   </div>
                 </div>
@@ -597,13 +597,18 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       id="tenantEmail"
                       type="email"
                       value={tenantEmail}
-                      onChange={(e) => setTenantEmail(e.target.value)}
+                      onChange={(e) => { setTenantEmail(e.target.value); clearFieldError('tenantEmail'); clearFieldError('tenantPhone'); }}
+                      onBlur={() => validateFieldOnBlur('tenantEmail')}
                       placeholder="tenant@email.com"
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.tenantEmail ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.tenantEmail}
                       autoComplete="email"
                       inputMode="email"
                       autoCapitalize="none"
                     />
+                    {fieldErrors.tenantEmail && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.tenantEmail}</p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" className="text-xs">Phone</Label>
@@ -613,10 +618,15 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       inputMode="tel"
                       autoComplete="tel"
                       value={tenantPhone}
-                      onChange={(e) => setTenantPhone(e.target.value)}
+                      onChange={(e) => { setTenantPhone(e.target.value); clearFieldError('tenantPhone'); clearFieldError('tenantEmail'); }}
+                      onBlur={() => validateFieldOnBlur('tenantPhone')}
                       placeholder="0783..."
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${fieldErrors.tenantPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      aria-invalid={!!fieldErrors.tenantPhone}
                     />
+                    {fieldErrors.tenantPhone && (
+                      <p className="text-[11px] text-destructive font-medium">{fieldErrors.tenantPhone}</p>
+                    )}
                   </div>
                 </div>
                 <ExistingTenantPhoneNotice
