@@ -511,6 +511,23 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_page_size', String(pageSize)); } catch {} }, [pageSize]);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  // Rendering mode for the Recent emails list. 'paged' keeps the classic
+  // first/prev/next/last controls; 'infinite' grows the visible window as the
+  // operator scrolls (sentinel + IntersectionObserver). Persisted so the
+  // preference survives reload. The expanded drilldown state is keyed by row
+  // id (see `expandedRows`), so it is preserved across page changes AND while
+  // more rows stream in during infinite scroll.
+  type PaginationMode = 'paged' | 'infinite';
+  const [paginationMode, setPaginationMode] = useState<PaginationMode>(() => {
+    if (typeof window === 'undefined') return 'paged';
+    const v = localStorage.getItem('gmail_pagination_mode');
+    return v === 'infinite' ? 'infinite' : 'paged';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_pagination_mode', paginationMode); } catch {} }, [paginationMode]);
+  // How many rows are currently rendered in infinite-scroll mode. Starts at one
+  // page worth and grows by `pageSize` each time the sentinel scrolls into view.
+  const [infiniteCount, setInfiniteCount] = useState<number>(pageSize);
+  const infiniteSentinelRef = useRef<HTMLDivElement | null>(null);
   // Match-type filter for the Recent emails list. Persisted so it survives reload.
   //   all       → no match filter
   //   confident → at least one reference OR from-phone match
