@@ -483,8 +483,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           region: form.region,
           district: form.district || null,
           address: form.address,
-          latitude: position?.latitude || null,
-          longitude: position?.longitude || null,
+          latitude: null,
+          longitude: null,
           has_water: form.has_water,
           has_electricity: form.has_electricity,
           has_security: form.has_security,
@@ -590,21 +590,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         }
       }
 
-      // Upload images if any
-      if (houseImages.length > 0 && listing) {
-        const urls = await uploadHouseImages(
-          user.id,
-          listing.id,
-          houseImages.map(i => i.file)
-        );
-        if (urls.length > 0) {
-          await supabase
-            .from('house_listings')
-            .update({ image_urls: urls } as any)
-            .eq('id', listing.id);
-        }
-      }
-
       toast.success('House listed successfully!', {
         description: `UGX 1,000 sent to your wallet now · earn UGX 4,000 more when Landlord Ops verifies this house (UGX 5,000 total)`,
       });
@@ -624,8 +609,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         region: form.region,
         dailyRate: pricing.dailyRate,
       });
-      houseImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
-      setHouseImages([]);
       setAttempted(false);
     } catch (err: any) {
       console.error('[ListEmptyHouseDialog] submit failed:', err);
