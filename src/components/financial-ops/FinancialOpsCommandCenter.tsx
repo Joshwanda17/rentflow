@@ -34,7 +34,7 @@ import { UserWalletStatementsPanel } from './UserWalletStatementsPanel';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
-  ShieldCheck, Banknote, ArrowLeft, ChevronDown,
+  ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
