@@ -298,7 +298,7 @@ export function LandlordSearchSelect({
 
   // Fetch on debounced/threshold change (only when popover is open)
   useEffect(() => {
-    if (!open) return;
+    if (!panelOpen) return;
     const myId = ++reqIdRef.current;
     const run = async () => {
       setLoading(true);
@@ -346,11 +346,11 @@ export function LandlordSearchSelect({
       }
     };
     run();
-  }, [debounced, open, threshold]);
+  }, [debounced, panelOpen, threshold]);
 
   // One-time fetch of total landlord count so we can show a system-empty warning
   useEffect(() => {
-    if (!open) return;
+    if (!panelOpen) return;
     let cancelled = false;
     (async () => {
       const { count, error } = await supabase
@@ -361,7 +361,7 @@ export function LandlordSearchSelect({
       }
     })();
     return () => { cancelled = true; };
-  }, [open]);
+  }, [panelOpen]);
 
   const triggerLabel = useMemo(() => {
     if (!value) return placeholder;
