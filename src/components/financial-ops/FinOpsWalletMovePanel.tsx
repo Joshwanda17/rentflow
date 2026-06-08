@@ -379,26 +379,42 @@ export function FinOpsWalletMovePanel() {
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-lg border border-border bg-background p-3">
-                <p className="text-xs text-muted-foreground">{result.source.name} (after)</p>
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  <Badge variant="outline" className="gap-1 text-[10px]">
-                    <Wallet className="h-3 w-3" /> Withdrawable {fmt(result.source.withdrawable_after)}
-                  </Badge>
-                  <Badge variant="secondary" className="gap-1 text-[10px]">
-                    <Building2 className="h-3 w-3" /> Float {fmt(result.source.float_after)}
-                  </Badge>
+                <p className="text-xs font-medium">{result.source.name} <span className="text-muted-foreground">(from)</span></p>
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="flex items-center gap-1 text-muted-foreground"><Wallet className="h-3 w-3" /> Withdrawable</span>
+                    <span className="font-mono">
+                      {before && <span className="text-muted-foreground">{fmt(before.source.withdrawable)} → </span>}
+                      <span className="font-semibold">{fmt(result.source.withdrawable_after)}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="flex items-center gap-1 text-muted-foreground"><Building2 className="h-3 w-3" /> Float</span>
+                    <span className="font-mono">
+                      {before && <span className="text-muted-foreground">{fmt(before.source.float)} → </span>}
+                      <span className="font-semibold">{fmt(result.source.float_after)}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
               {result.mode === 'user_to_user' && (
                 <div className="rounded-lg border border-border bg-background p-3">
-                  <p className="text-xs text-muted-foreground">{result.dest.name} (after)</p>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    <Badge variant="outline" className="gap-1 text-[10px]">
-                      <Wallet className="h-3 w-3" /> Withdrawable {fmt(result.dest.withdrawable_after ?? 0)}
-                    </Badge>
-                    <Badge variant="secondary" className="gap-1 text-[10px]">
-                      <Building2 className="h-3 w-3" /> Float {fmt(result.dest.float_after ?? 0)}
-                    </Badge>
+                  <p className="text-xs font-medium">{result.dest.name} <span className="text-muted-foreground">(to)</span></p>
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="flex items-center gap-1 text-muted-foreground"><Wallet className="h-3 w-3" /> Withdrawable</span>
+                      <span className="font-mono">
+                        {before?.dest && <span className="text-muted-foreground">{fmt(before.dest.withdrawable)} → </span>}
+                        <span className="font-semibold">{fmt(result.dest.withdrawable_after ?? 0)}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="flex items-center gap-1 text-muted-foreground"><Building2 className="h-3 w-3" /> Float</span>
+                      <span className="font-mono">
+                        {before?.dest && <span className="text-muted-foreground">{fmt(before.dest.float)} → </span>}
+                        <span className="font-semibold">{fmt(result.dest.float_after ?? 0)}</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
