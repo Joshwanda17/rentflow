@@ -322,6 +322,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Please select a region');
         return false;
       }
+      if (!form.address.trim()) {
+        toast.error('Address is required');
+        return false;
+      }
+      if (!form.village.trim()) {
+        toast.error('Village / Zone is required');
+        return false;
+      }
     }
     if (s === 2) {
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
