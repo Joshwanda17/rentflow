@@ -28,6 +28,7 @@ import {
   Check,
   ArrowLeft,
   ArrowRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
