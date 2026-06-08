@@ -440,13 +440,13 @@ export function FinOpsWalletMovePanel() {
         </button>
         <button
           type="button"
-          onClick={() => { setMode('same_user'); reset(); setResult(null); setSourceBucket('float'); }}
+          onClick={() => { setMode('same_user'); reset(); setResult(null); setSameUserDir('float_to_withdrawable'); setSourceBucket('float'); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'same_user' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
         >
-          <span className="flex items-center gap-2 font-medium text-sm"><ArrowRightLeft className="h-4 w-4" /> Float → Withdrawable</span>
-          <span className="block text-xs text-muted-foreground mt-1">Same user: move their Operations Float into their Withdrawable.</span>
+          <span className="flex items-center gap-2 font-medium text-sm"><ArrowRightLeft className="h-4 w-4" /> Float ⇄ Withdrawable</span>
+          <span className="block text-xs text-muted-foreground mt-1">Same user: move money between their Operations Float and Withdrawable.</span>
         </button>
         <button
           type="button"
