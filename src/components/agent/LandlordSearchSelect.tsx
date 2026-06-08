@@ -34,6 +34,8 @@ interface LandlordSearchSelectProps {
   onChange: (landlord: LandlordOption | null) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Increment/change this to programmatically open the search popover. */
+  autoOpenSignal?: number | string;
   /** Called when the agent taps "Register new landlord" from the empty-state warning. */
   onAddNew?: () => void;
   /**
@@ -191,6 +193,7 @@ export function LandlordSearchSelect({
   onChange,
   placeholder = 'Search landlord by name or phone…',
   disabled,
+  autoOpenSignal,
   onAddNew,
   similarityThreshold = 0.2,
 }: LandlordSearchSelectProps) {
@@ -217,6 +220,11 @@ export function LandlordSearchSelect({
   // query change, we walk outward from that old position to land on the nearest
   // surviving neighbour instead of jumping to the top.
   const prevOrderRef = useRef<{ ids: string[]; index: number }>({ ids: [], index: 0 });
+
+  useEffect(() => {
+    if (autoOpenSignal === undefined || disabled) return;
+    setOpen(true);
+  }, [autoOpenSignal, disabled]);
 
   // Debounce typing — short delay so results feel instant as you type.
   useEffect(() => {

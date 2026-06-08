@@ -213,20 +213,26 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSearchingLandlord(true);
     setSearchedOnce(true);
     try {
-      const isPhone = /^[0-9+]/.test(q);
-      let query = supabase
-        .from('landlords')
-        .select('id, name, phone, verified')
-        .order('verified', { ascending: false })
-        .limit(10);
-      query = isPhone ? query.ilike('phone', `%${q}%`) : query.ilike('name', `%${q}%`);
-      const { data: landlords, error } = await query;
+      const { data: landlords, error } = await supabase.rpc('search_landlords_fuzzy', {
+        p_query: q,
+        p_limit: 20,
+        p_threshold: 0.15,
+      });
       if (error) throw error;
 
       const ids = (landlords || []).map((l) => l.id);
       // Count verified houses per landlord so the agent can confirm the match.
       const counts: Record<string, number> = {};
+      const verifiedById: Record<string, boolean> = {};
       if (ids.length) {
+        const { data: landlordFlags } = await supabase
+          .from('landlords')
+          .select('id, verified')
+          .in('id', ids);
+        for (const l of landlordFlags || []) {
+          verifiedById[l.id] = !!l.verified;
+        }
+
         const { data: houses } = await supabase
           .from('house_listings')
           .select('landlord_id')
@@ -246,8 +252,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         return {
           id: l.id,
           name: l.name,
-          phone: l.phone,
-          verified: !!l.verified || verifiedHouses > 0,
+          phone: l.phone || '',
+          verified: !!verifiedById[l.id] || verifiedHouses > 0,
           verifiedHouses,
         };
       });

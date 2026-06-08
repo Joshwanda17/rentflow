@@ -633,11 +633,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       // Also match by landlord name / phone (separate lookup, merged + de-duped).
       if (q.length >= 2) {
-        const { data: lls } = await supabase
-          .from('landlords')
-          .select('id')
-          .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
-          .limit(20);
+        const { data: lls } = await supabase.rpc('search_landlords_fuzzy', {
+          p_query: q,
+          p_limit: 30,
+          p_threshold: 0.15,
+        });
         const llIds = (lls || []).map((l: any) => l.id);
         if (llIds.length) {
           const { data: byLl } = await supabase
@@ -833,6 +833,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [outstandingDaysRemaining, setOutstandingDaysRemaining] = useState('');
   const [showRegisterLandlord, setShowRegisterLandlord] = useState(false);
   const [landlordPickerKey, setLandlordPickerKey] = useState(0);
+  const [landlordSearchOpenSignal, setLandlordSearchOpenSignal] = useState(0);
   const [showLinkedBanner, setShowLinkedBanner] = useState(false);
   const linkedBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClearLandlord, setConfirmClearLandlord] = useState(false);
@@ -854,6 +855,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const setLandlordMode = useCallback((mode: 'search' | 'register') => {
     setLandlordModeState(mode);
     try { sessionStorage.setItem(LL_MODE_KEY, mode); } catch { /* ignore */ }
+    if (mode === 'search') setLandlordSearchOpenSignal((n) => n + 1);
     // Focus the first input/button so the agent can start typing immediately.
     requestAnimationFrame(() => {
       if (mode === 'search') {
@@ -3319,6 +3321,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <LandlordSearchSelect
                         key={landlordPickerKey}
                         value={selectedLandlord}
+                        autoOpenSignal={landlordSearchOpenSignal}
                         onChange={(l) => {
                           if (l) applySelectedLandlord(l);
                         }}
