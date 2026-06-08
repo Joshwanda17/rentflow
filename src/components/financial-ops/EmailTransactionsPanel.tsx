@@ -660,7 +660,23 @@ export function EmailTransactionsPanel() {
   // Click-to-expand drilldown per email row. When a row id is present in this
   // set its drilldown panel is open, surfacing the linked proxy agent wallet
   // change, the debit reason, and the transaction references in one place.
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  // Persisted to localStorage so the drilldown state survives refreshes.
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const raw = localStorage.getItem(EXPANDED_ROWS_KEY);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return new Set(parsed as string[]);
+    } catch {}
+    return new Set();
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(EXPANDED_ROWS_KEY, JSON.stringify(Array.from(expandedRows)));
+    } catch {}
+  }, [expandedRows]);
   const toggleRowExpanded = useCallback((id: string) => {
     setExpandedRows((prev) => {
       const next = new Set(prev);
