@@ -12,11 +12,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calculateDailyRentalRate } from '@/hooks/useHouseListings';
-import { useGeolocation } from '@/hooks/useGeolocation';
-import { captureSmartLocation } from '@/hooks/useSmartLocation';
-import { reverseGeocode } from '@/lib/reverseGeocode';
-import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
-import { MapPinPicker } from './MapPinPicker';
 import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from './Lc1ChairpersonPicker';
 import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaPhone, formatUgandaPhone, toUgandaLocalDigits } from '@/lib/phoneUtils';
 import FormStepHeader from '@/components/shared/FormStepHeader';
@@ -57,20 +52,7 @@ const REGIONS = [
 import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
 
 export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
-  const geo = useGeolocation(true);
-  // One-tap GPS auto-fill (capture coordinates + reverse-geocode to region/district/village).
-  const [gpsFilling, setGpsFilling] = useState(false);
-  const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  // Map pin picker so the agent can correct the spot before auto-filling.
-  const [mapPickerOpen, setMapPickerOpen] = useState(false);
-  const [mapInitial, setMapInitial] = useState<{ latitude: number; longitude: number }>({
-    latitude: 0.3476,
-    longitude: 32.5825,
-  });
-  const position = gpsCoords
-    ?? (geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null);
   const [submitting, setSubmitting] = useState(false);
-  const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
   // Guided wizard step (1-4) so agents who struggle with long forms only see
   // one simple question at a time.
   const [step, setStep] = useState(1);
@@ -316,66 +298,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     return '';
   };
 
-  // ─── One-tap GPS: capture current location and auto-fill region/district/village ───
-  const matchRegion = (candidates: (string | undefined)[]): string => {
-    for (const c of candidates) {
-      if (!c) continue;
-      const lc = c.toLowerCase().replace(/\s+region$/, '').trim();
-      const hit = REGIONS.find((r) => {
-        const rl = r.toLowerCase();
-        return lc === rl || lc.includes(rl) || rl.includes(lc);
-      });
-      if (hit) return hit;
-    }
-    return '';
-  };
-
-  // Reverse-geocode a confirmed pin position and fill region/district/village.
-  const fillFromCoords = async (coords: { latitude: number; longitude: number }) => {
-    setGpsCoords(coords);
-    setGpsFilling(true);
-    try {
-      const geocoded = await reverseGeocode(coords.latitude, coords.longitude);
-      const addr = (geocoded?.raw as any)?.address as Record<string, string> | undefined;
-      if (!addr) {
-        toast.success('Pin saved — type the area manually if needed');
-        return;
-      }
-      const region = matchRegion([addr.city, addr.county, addr.state_district, addr.state]);
-      const rawDistrict = addr.county || addr.state_district || addr.city || '';
-      const district = normalizeDistrict(rawDistrict) || rawDistrict;
-      const village =
-        addr.village || addr.suburb || addr.neighbourhood || addr.hamlet || addr.quarter || '';
-      setForm((f) => ({
-        ...f,
-        region: region || f.region,
-        district: district || f.district,
-        village: village || f.village,
-        lc1_village: village || f.lc1_village,
-      }));
-      setPrefilledFromProfile(false);
-      toast.success('Location filled from the pin 📍');
-    } finally {
-      setGpsFilling(false);
-    }
-  };
-
-  // Capture GPS, then open the map so the agent can drag the pin before filling.
-  const autoFillFromGps = async () => {
-    setGpsFilling(true);
-    try {
-      const res = await captureSmartLocation();
-      if (res.ok !== true) {
-        toast.error(res.message || 'Could not get your location');
-        return;
-      }
-      setMapInitial({ latitude: res.latitude, longitude: res.longitude });
-      setMapPickerOpen(true);
-    } finally {
-      setGpsFilling(false);
-    }
-  };
-
   const scrollDialogToTop = () => {
     requestAnimationFrame(() => {
       document
@@ -398,10 +320,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       }
       if (!form.region) {
         toast.error('Please select a region');
-        return false;
-      }
-      if (houseImages.length === 0) {
-        toast.error('Add at least one photo of the house');
         return false;
       }
     }
@@ -455,7 +373,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const preflightGates: PreflightGate[] = [
     { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 1 },
     { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
-    { label: 'At least one photo', ok: houseImages.length > 0, hint: 'Add at least one photo of the house', step: 1 },
   ];
   preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 2 });
   if (form.caretaker_type === 'other') {
@@ -488,10 +405,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     if (!form.region) {
       failWith('Please select a region');
-      return;
-    }
-    if (houseImages.length === 0) {
-      failWith('Add at least one photo of the house');
       return;
     }
     // Landlord phone is mandatory for every listing.
@@ -570,8 +483,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           region: form.region,
           district: form.district || null,
           address: form.address,
-          latitude: position?.latitude || null,
-          longitude: position?.longitude || null,
+          latitude: null,
+          longitude: null,
           has_water: form.has_water,
           has_electricity: form.has_electricity,
           has_security: form.has_security,
@@ -677,21 +590,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         }
       }
 
-      // Upload images if any
-      if (houseImages.length > 0 && listing) {
-        const urls = await uploadHouseImages(
-          user.id,
-          listing.id,
-          houseImages.map(i => i.file)
-        );
-        if (urls.length > 0) {
-          await supabase
-            .from('house_listings')
-            .update({ image_urls: urls } as any)
-            .eq('id', listing.id);
-        }
-      }
-
       toast.success('House listed successfully!', {
         description: `UGX 1,000 sent to your wallet now · earn UGX 4,000 more when Landlord Ops verifies this house (UGX 5,000 total)`,
       });
@@ -711,8 +609,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         region: form.region,
         dailyRate: pricing.dailyRate,
       });
-      houseImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
-      setHouseImages([]);
       setAttempted(false);
     } catch (err: any) {
       console.error('[ListEmptyHouseDialog] submit failed:', err);
@@ -1298,23 +1194,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <>
           <FormStepHeader
             icon={ImagePlus}
-            title="Photos & location"
-            subtitle="Add at least one photo and the area where it is."
+            title="Location"
+            subtitle="Tell us where the house is."
           />
-          {/* Photos */}
-          <Label className="text-xs font-semibold">Photos * <span className="text-muted-foreground font-normal">— at least one</span></Label>
-          <HouseImageUploader
-            images={houseImages}
-            onChange={setHouseImages}
-            maxImages={5}
-            region={form.region}
-            district={form.district}
-            village={form.village}
-          />
-          {attempted && houseImages.length === 0 && (
-            <FieldError message="Add at least one clear photo of the house so tenants can see it." />
-          )}
-
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <div className="flex items-center justify-between gap-2">
@@ -1382,38 +1264,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 }}
               />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={autoFillFromGps}
-              disabled={gpsFilling}
-              className="w-full h-12 text-base"
-            >
-              {gpsFilling ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <MapPin className="h-4 w-4 mr-2" />
-              )}
-              {gpsFilling
-                ? 'Getting your location…'
-                : position
-                  ? 'Re-capture GPS'
-                  : 'Use my GPS & map to fill area'}
-            </Button>
-            {position && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => { setMapInitial(position); setMapPickerOpen(true); }}
-                className="w-full"
-              >
-                <MapPin className="h-4 w-4 mr-2" /> Adjust pin on map
-              </Button>
-            )}
-            <p className="text-[10px] text-muted-foreground text-center leading-tight">
-              Drag the pin on the map to the exact house, then it fills region, district & village
-            </p>
           </div>
           </>
           )}
@@ -1572,12 +1422,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         </>
         )}
       </DialogContent>
-      <MapPinPicker
-        open={mapPickerOpen}
-        onOpenChange={setMapPickerOpen}
-        initial={mapInitial}
-        onConfirm={(pos) => fillFromCoords(pos)}
-      />
     </Dialog>
   );
 }
