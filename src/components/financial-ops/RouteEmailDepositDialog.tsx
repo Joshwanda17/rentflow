@@ -886,6 +886,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setSourceUser(null);
       setTransferFromUser(false);
       setTransferFromBucket('withdrawable');
+      setManualProxyAgent(null);
       // Auto-extract a reference from the email body when the email itself
       // carries no parsed transaction_id, so operators don't have to type it.
       if (!row.transaction_id) {
