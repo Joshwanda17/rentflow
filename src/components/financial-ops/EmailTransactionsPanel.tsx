@@ -3398,9 +3398,17 @@ export function EmailTransactionsPanel() {
             {(() => {
               const totalPages = Math.max(1, Math.ceil(visibleRows.length / pageSize));
               const safePage = Math.min(currentPage, totalPages);
-              const startIdx = (safePage - 1) * pageSize;
-              const pageRows = visibleRows.slice(startIdx, startIdx + pageSize);
-              (window as any).__emailPaginationMeta = { totalPages, safePage, total: visibleRows.length };
+              const isInfinite = paginationMode === 'infinite';
+              const shownCount = isInfinite
+                ? Math.min(infiniteCount, visibleRows.length)
+                : Math.min(safePage * pageSize, visibleRows.length);
+              const startIdx = isInfinite ? 0 : (safePage - 1) * pageSize;
+              const pageRows = isInfinite
+                ? visibleRows.slice(0, shownCount)
+                : visibleRows.slice(startIdx, startIdx + pageSize);
+              (window as any).__emailPaginationMeta = {
+                totalPages, safePage, total: visibleRows.length, mode: paginationMode, shownCount,
+              };
               return pageRows.map((r) => {
                 const matches = userMatches[r.id] ?? [];
                 const hasRef = matches.some((u) => u.matched_on.startsWith('reference '));
