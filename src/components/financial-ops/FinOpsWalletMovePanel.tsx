@@ -69,6 +69,7 @@ export function FinOpsWalletMovePanel() {
   const [dest, setDest] = useState<UserHit | null>(null);
   const [destBucket, setDestBucket] = useState<Bucket>('withdrawable');
   const [picking, setPicking] = useState<'source' | 'dest'>('source');
+  const [sameUserDir, setSameUserDir] = useState<SameUserDir>('float_to_withdrawable');
 
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
