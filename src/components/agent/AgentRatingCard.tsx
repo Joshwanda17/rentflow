@@ -71,7 +71,7 @@ export function AgentRatingCard({ agentId }: Props) {
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${tierTone[cap.tier]}`}>
             7d: {cap.tier}
           </span>
-          <Improve7DayRatingPopover capacity={cap} />
+          <Improve7DayRatingPopover capacity={cap} agentId={agentId} />
         </div>
       </div>
 
