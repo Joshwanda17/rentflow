@@ -375,6 +375,11 @@ export function LandlordSearchSelect({
     };
   }, [debounced, panelOpen, threshold]);
 
+  // Clear the cancelled-flash timer on unmount so it can't fire after teardown.
+  useEffect(() => () => {
+    if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
+  }, []);
+
 
   // One-time fetch of total landlord count so we can show a system-empty warning
   useEffect(() => {
