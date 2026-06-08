@@ -25,6 +25,9 @@ import {
   Navigation,
   TrendingUp,
   Link2,
+  Check,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
