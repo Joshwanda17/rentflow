@@ -1194,6 +1194,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                         {(phoneMatch.village || phoneMatch.region) ? ` · ${[phoneMatch.village, phoneMatch.region].filter(Boolean).join(', ')}` : ''}
                       </p>
                     )}
+                    {/* Completeness indicator — what still needs to be added */}
+                    {(() => {
+                      const { items, doneCount, total } = landlordChecklist(phoneMatch);
+                      return (
+                        <div className="mt-2 rounded-lg bg-background/60 border border-border p-2">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Profile completeness</span>
+                            <span className={`text-[10px] font-bold ${doneCount === total ? 'text-success' : 'text-amber-600'}`}>{doneCount}/{total}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {items.map((it) => (
+                              <span
+                                key={it.label}
+                                className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
+                                  it.ok
+                                    ? 'bg-success/10 text-success border-success/20'
+                                    : 'bg-amber-500/10 text-amber-700 border-amber-400/30'
+                                }`}
+                              >
+                                {it.ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                                {it.label}
+                              </span>
+                            ))}
+                          </div>
+                          {doneCount < total && (
+                            <p className="text-[10px] text-amber-700 mt-1.5 leading-snug">
+                              Missing: {items.filter((i) => !i.ok).map((i) => i.label.toLowerCase()).join(', ')} — add below.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
                       Tap to use & add their house, location and rent →
                     </span>
