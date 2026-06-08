@@ -458,7 +458,7 @@ export function FinOpsWalletMovePanel() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <button
           type="button"
-          onClick={() => { setMode('user_to_user'); reset(); setResult(null); }}
+          onClick={() => { setMode('user_to_user'); reset(); setResult(null); setBefore(null); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'user_to_user' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
@@ -468,7 +468,7 @@ export function FinOpsWalletMovePanel() {
         </button>
         <button
           type="button"
-          onClick={() => { setMode('same_user'); reset(); setResult(null); setSameUserDir('float_to_withdrawable'); setSourceBucket('float'); }}
+          onClick={() => { setMode('same_user'); reset(); setResult(null); setBefore(null); setSameUserDir('float_to_withdrawable'); setSourceBucket('float'); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'same_user' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
@@ -478,7 +478,7 @@ export function FinOpsWalletMovePanel() {
         </button>
         <button
           type="button"
-          onClick={() => { setMode('error_correction'); reset(); setResult(null); }}
+          onClick={() => { setMode('error_correction'); reset(); setResult(null); setBefore(null); }}
           className={`rounded-lg border p-3 text-left transition-colors ${
             mode === 'error_correction' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
           }`}
