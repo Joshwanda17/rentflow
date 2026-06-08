@@ -851,86 +851,90 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {activeTab === 'money' && (
           <div className={cn("space-y-5", tabAnimClass)}>
             {/* Quick-access money cards: 4 clear destinations */}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                {
-                  key: 'withdrawable',
-                  label: 'Withdrawable Wallet',
-                  sub: 'Your money you can cash out',
-                  amount: withdrawableBalance,
-                  icon: Wallet,
-                  tone: 'text-emerald-600',
-                  ring: 'ring-emerald-500/30',
-                  bg: 'bg-emerald-500/10',
-                  onClick: () => { hapticTap(); setShowWallet(true); },
-                },
-                {
-                  key: 'operational',
-                  label: 'Operational Float',
-                  sub: 'Company money for rent & ops',
-                  amount: walletFloatBalance,
-                  icon: Banknote,
-                  tone: 'text-primary',
-                  ring: 'ring-primary/30',
-                  bg: 'bg-primary/10',
-                  onClick: () => { hapticTap(); setShowWallet(true); },
-                },
-                {
-                  key: 'landlord',
-                  label: 'Landlord Float',
-                  sub: 'CFO funds for landlord payouts',
-                  amount: landlordPayoutFloat,
-                  icon: Landmark,
-                  tone: 'text-[#9234EA]',
-                  ring: 'ring-[#9234EA]/30',
-                  bg: 'bg-[#9234EA]/10',
-                  onClick: () => { hapticTap(); setFloatAllocationsOpen(true); },
-                },
-                {
-                  key: 'advance',
-                  label: 'Agent Advance',
-                  sub: 'Welile lends you up to UGX 30M · pay back over 12 months',
-                  amount: null,
-                  icon: Briefcase,
-                  tone: 'text-primary',
-                  ring: 'ring-primary/30',
-                  bg: 'bg-primary/10',
-                  onClick: () => { hapticTap(); setAdvanceRequestOpen(true); },
-                },
-              ].map((c) => {
-                const Icon = c.icon;
-                return (
-                  <button
-                    key={c.key}
-                    onClick={c.onClick}
-                    className={cn(
-                      'flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 ring-1',
-                      c.ring,
-                      'active:scale-[0.97] transition-all touch-manipulation text-left min-h-[112px]',
-                    )}
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    <div className="flex w-full items-center justify-between">
-                      <div className={cn('p-2 rounded-xl', c.bg)}>
-                        <Icon className={cn('h-5 w-5', c.tone)} strokeWidth={2.2} />
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="w-full">
-                      <p className="text-[13px] font-bold text-foreground leading-tight">{c.label}</p>
-                      {c.amount !== null ? (
-                        <p className={cn('text-base font-extrabold mt-0.5 truncate', c.tone)}>
-                          {formatUGX(c.amount)}
-                        </p>
-                      ) : (
-                        <p className="text-base font-extrabold mt-0.5 text-foreground">Open →</p>
+            {moneyTabLoading ? (
+              <MetricRowSkeleton count={4} />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  {
+                    key: 'withdrawable',
+                    label: 'Withdrawable Wallet',
+                    sub: 'Your money you can cash out',
+                    amount: withdrawableBalance,
+                    icon: Wallet,
+                    tone: 'text-emerald-600',
+                    ring: 'ring-emerald-500/30',
+                    bg: 'bg-emerald-500/10',
+                    onClick: () => { hapticTap(); setShowWallet(true); },
+                  },
+                  {
+                    key: 'operational',
+                    label: 'Operational Float',
+                    sub: 'Company money for rent & ops',
+                    amount: walletFloatBalance,
+                    icon: Banknote,
+                    tone: 'text-primary',
+                    ring: 'ring-primary/30',
+                    bg: 'bg-primary/10',
+                    onClick: () => { hapticTap(); setShowWallet(true); },
+                  },
+                  {
+                    key: 'landlord',
+                    label: 'Landlord Float',
+                    sub: 'CFO funds for landlord payouts',
+                    amount: landlordPayoutFloat,
+                    icon: Landmark,
+                    tone: 'text-[#9234EA]',
+                    ring: 'ring-[#9234EA]/30',
+                    bg: 'bg-[#9234EA]/10',
+                    onClick: () => { hapticTap(); setFloatAllocationsOpen(true); },
+                  },
+                  {
+                    key: 'advance',
+                    label: 'Agent Advance',
+                    sub: 'Welile lends you up to UGX 30M · pay back over 12 months',
+                    amount: null,
+                    icon: Briefcase,
+                    tone: 'text-primary',
+                    ring: 'ring-primary/30',
+                    bg: 'bg-primary/10',
+                    onClick: () => { hapticTap(); setAdvanceRequestOpen(true); },
+                  },
+                ].map((c) => {
+                  const Icon = c.icon;
+                  return (
+                    <button
+                      key={c.key}
+                      onClick={c.onClick}
+                      className={cn(
+                        'flex flex-col items-start gap-2 p-4 rounded-2xl bg-card border border-border/60 ring-1',
+                        c.ring,
+                        'active:scale-[0.97] transition-all touch-manipulation text-left min-h-[112px]',
                       )}
-                      <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{c.sub}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <div className="flex w-full items-center justify-between">
+                        <div className={cn('p-2 rounded-xl', c.bg)}>
+                          <Icon className={cn('h-5 w-5', c.tone)} strokeWidth={2.2} />
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="w-full">
+                        <p className="text-[13px] font-bold text-foreground leading-tight">{c.label}</p>
+                        {c.amount !== null ? (
+                          <p className={cn('text-base font-extrabold mt-0.5 truncate', c.tone)}>
+                            {formatUGX(c.amount)}
+                          </p>
+                        ) : (
+                          <p className="text-base font-extrabold mt-0.5 text-foreground">Open →</p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{c.sub}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <AgentWalletDetailsCard
               agentId={user.id}
