@@ -1,4 +1,5 @@
 import { useAgentCapacityMap, classifyAgent, classifyDailyRating, type AgentCapacity } from '@/hooks/useAgentCapacityMap';
+import { Improve7DayRatingPopover } from '@/components/shared/Improve7DayRatingPopover';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Gauge, TrendingUp, AlertCircle } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
@@ -70,6 +71,7 @@ export function AgentRatingCard({ agentId }: Props) {
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${tierTone[cap.tier]}`}>
             7d: {cap.tier}
           </span>
+          <Improve7DayRatingPopover capacity={cap} />
         </div>
       </div>
 
