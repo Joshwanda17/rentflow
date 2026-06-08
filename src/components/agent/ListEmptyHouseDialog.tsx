@@ -1084,20 +1084,22 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                       }}
                       className={landlordPhoneError ? 'border-destructive focus-visible:ring-destructive' : ''}
                     />
-                    {landlordPhoneError && (
-                      <p className="text-[11px] text-destructive mt-1 flex items-center gap-1">
-                        <span className="inline-block h-3 w-3 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-[9px] font-bold">!</span>
-                        {landlordPhoneError}
-                      </p>
-                    )}
-                    {/* Friendly normalized display chip */}
-                    {!landlordPhoneError && form.landlord_phone && validateLandlordPhone(form.landlord_phone) === '' && (
-                      <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
-                        <span className="text-base leading-none">🇺🇬</span>
-                        <span className="font-medium text-foreground">{displayNormalizeUgandaPhone(form.landlord_phone)}</span>
-                        <span className="text-[10px] bg-success/10 text-success px-1.5 py-0.5 rounded-full">Uganda mobile</span>
-                      </p>
-                    )}
+                    {/* Reserve a fixed-height row so toggling between the error and
+                        the success chip never shifts the layout (mobile stability). */}
+                    <div className="mt-1 min-h-[18px]">
+                      {landlordPhoneError ? (
+                        <p className="text-[11px] text-destructive flex items-center gap-1">
+                          <span className="inline-block h-3 w-3 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-[9px] font-bold">!</span>
+                          {landlordPhoneError}
+                        </p>
+                      ) : form.landlord_phone && validateLandlordPhone(form.landlord_phone) === '' ? (
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                          <span className="text-base leading-none">🇺🇬</span>
+                          <span className="font-medium text-foreground">{displayNormalizeUgandaPhone(form.landlord_phone)}</span>
+                          <span className="text-[10px] bg-success/10 text-success px-1.5 py-0.5 rounded-full">Uganda mobile</span>
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
                 <Button
