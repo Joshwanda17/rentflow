@@ -89,6 +89,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [moreSheet, setMoreSheet] = useState(false);
   const [focusBucket, setFocusBucket] = useState<'float' | 'withdrawable' | null>(null);
+  const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(false);
 
   const openTool = (t: Tool) => {
     setActiveTool(t);
