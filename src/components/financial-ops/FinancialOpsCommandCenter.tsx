@@ -277,8 +277,23 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           }}
           className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <div>
-            <h2 className="text-base sm:text-lg font-bold">Wallet Breakdown</h2>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold">Wallet Breakdown</h2>
+              {walletBreakdownOpen && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setWalletBreakdownOpen(false);
+                    if (userId) setStoredOpen(userId, false);
+                  }}
+                  className="text-[10px] font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded px-1"
+                >
+                  Reset to collapsed
+                </button>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               {walletBreakdownOpen ? 'Tap to collapse' : 'Tap to expand — every user\'s Float and Withdrawable'}
             </p>
