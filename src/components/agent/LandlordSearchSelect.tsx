@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft, Sparkles, SlidersHorizontal, Ban } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -218,6 +218,10 @@ export function LandlordSearchSelect({
     Math.min(Math.max(similarityThreshold, 0.05), 0.9)
   );
   const [showThreshold, setShowThreshold] = useState(false);
+  // Briefly flashes "Previous request cancelled" when a slow in-flight search is
+  // aborted because the agent kept typing (or changed precision).
+  const [cancelledFlash, setCancelledFlash] = useState(false);
+  const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqIdRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   // Tracks the landlord currently highlighted by the keyboard, so we can keep
@@ -304,7 +308,13 @@ export function LandlordSearchSelect({
     const myId = ++reqIdRef.current;
     const controller = new AbortController();
     const { signal } = controller;
+    // Per-request state so the cleanup can tell whether this fetch had already
+    // finished (no flash) or was still in flight when superseded (flash).
+    const reqState = { settled: false };
     const isAborted = () => signal.aborted || myId !== reqIdRef.current;
+    // A fresh search supersedes any earlier "cancelled" flash.
+    setCancelledFlash(false);
+    if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
     const run = async () => {
       setLoading(true);
       try {
@@ -348,12 +358,28 @@ export function LandlordSearchSelect({
           }
         }
       } finally {
+        reqState.settled = true;
         if (!isAborted()) setLoading(false);
       }
     };
     run();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      // If this request was still loading when it got superseded, briefly tell
+      // the agent the previous request was cancelled so the abort is visible.
+      if (!reqState.settled) {
+        setCancelledFlash(true);
+        if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
+        cancelTimerRef.current = setTimeout(() => setCancelledFlash(false), 1500);
+      }
+    };
   }, [debounced, panelOpen, threshold]);
+
+  // Clear the cancelled-flash timer on unmount so it can't fire after teardown.
+  useEffect(() => () => {
+    if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
+  }, []);
+
 
   // One-time fetch of total landlord count so we can show a system-empty warning
   useEffect(() => {
@@ -497,6 +523,23 @@ export function LandlordSearchSelect({
               </button>
             )}
           </div>
+          {/* Live request status: "Searching…" while a request runs, and a brief
+              "Previous request cancelled" note when an in-flight search is aborted
+              because the agent kept typing. */}
+          {(busy || cancelledFlash) && (
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 px-1.5 pt-2 text-[11px]" aria-live="polite">
+              {busy && (
+                <span className="flex items-center gap-1 font-medium text-[#1a73e8] dark:text-[#8ab4f8]">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Searching…
+                </span>
+              )}
+              {cancelledFlash && (
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Ban className="h-3 w-3" /> Previous request cancelled
+                </span>
+              )}
+            </div>
+          )}
           {/* Google-style results meta line */}
           {!loading && !isSystemEmpty && results.length > 0 && (
             <div className="flex items-center justify-between gap-2 px-1 pt-2">
