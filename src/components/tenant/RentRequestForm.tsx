@@ -391,6 +391,9 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
       toast({ title: 'Warning', description: 'Request created but schedule generation failed.', variant: 'destructive' });
     }
 
+    // Request posted — clear the saved draft so it won't be restored later.
+    submittedRef.current = true;
+    clearDraft();
     onSuccess();
     setLoading(false);
   };
