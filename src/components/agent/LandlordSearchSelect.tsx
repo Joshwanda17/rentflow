@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft, Sparkles, SlidersHorizontal, Ban } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
