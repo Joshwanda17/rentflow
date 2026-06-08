@@ -1241,6 +1241,53 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               sms_sent: smsSent,
               sms_error: smsError,
             });
+
+            // ── Dedicated DEBIT audit log ─────────────────────────────
+            // Immutable record of who performed the debit, the exact wallet
+            // charged (including the selected proxy agent), the amount, and
+            // every linked transaction reference — for compliance/audit.
+            try {
+              const debitRouteName = isFloat
+                ? 'landlord_float'
+                : isProxyAgentRoute
+                  ? 'proxy_agent_wallet'
+                  : 'withdrawable';
+              await (supabase.from('proxy_debit_audit_log') as any).insert({
+                performed_by: me.user.id,
+                performed_by_name: routedByName,
+                debited_user_id: debitTargetId,
+                debited_user_name: debitTargetName,
+                debited_user_phone: debitTargetPhone,
+                debit_route: debitRouteName,
+                is_proxy_debit: useProxyAgent,
+                proxy_manual_pick: useProxyAgent && !!proxyInfo?.manual,
+                proxy_managed: !!proxyInfo?.isManaged,
+                partner_user_id: useProxyAgent ? user.id : null,
+                partner_user_name: useProxyAgent ? user.full_name : null,
+                amount: amt,
+                transaction_id: row.transaction_id ?? manualReference.trim() || null,
+                gmail_transaction_id: row.id,
+                gmail_message_id: row.gmail_message_id ?? null,
+                ledger_reference_id: referenceId,
+                transaction_references: {
+                  transaction_id: row.transaction_id ?? null,
+                  manual_reference: manualReference.trim() || null,
+                  gmail_transaction_id: row.id,
+                  gmail_message_id: row.gmail_message_id ?? null,
+                  ledger_reference_id: referenceId,
+                  sub_category: row.transaction_id ?? null,
+                  from_email: row.from_email ?? null,
+                  from_name: row.from_name ?? null,
+                  subject: row.subject ?? null,
+                  counterparty: row.counterparty ?? null,
+                },
+                reason: useProxyAgent
+                  ? `DEBIT (proxy${proxyInfo?.isManaged ? ' redirect' : proxyInfo?.manual ? ' manual pick' : ' route'} from partner ${user.full_name}): ${reason.trim()}`
+                  : `DEBIT: ${reason.trim()}`,
+              });
+            } catch (e) {
+              console.warn('[RouteEmailDeposit] debit audit log insert failed', e);
+            }
           }
         } catch (e) { console.warn('[RouteEmailDeposit] debit history insert failed', e); }
 
