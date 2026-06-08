@@ -518,6 +518,23 @@ export function LandlordSearchSelect({
               </button>
             )}
           </div>
+          {/* Live request status: "Searching…" while a request runs, and a brief
+              "Previous request cancelled" note when an in-flight search is aborted
+              because the agent kept typing. */}
+          {(busy || cancelledFlash) && (
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 px-1.5 pt-2 text-[11px]" aria-live="polite">
+              {busy && (
+                <span className="flex items-center gap-1 font-medium text-[#1a73e8] dark:text-[#8ab4f8]">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Searching…
+                </span>
+              )}
+              {cancelledFlash && (
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Ban className="h-3 w-3" /> Previous request cancelled
+                </span>
+              )}
+            </div>
+          )}
           {/* Google-style results meta line */}
           {!loading && !isSystemEmpty && results.length > 0 && (
             <div className="flex items-center justify-between gap-2 px-1 pt-2">
