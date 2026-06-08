@@ -387,22 +387,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
   };
 
-  // Reuse a landlord that was auto-detected from the typed phone number.
-  const usePhoneMatch = () => {
-    if (!phoneMatch) return;
-    const normalized = normalizeUgandaPhone(phoneMatch.phone || form.landlord_phone);
+  // Link a phone-matched landlord to the form (no toast / navigation).
+  const linkPhoneMatch = (m: PhoneMatch) => {
+    const normalized = normalizeUgandaPhone(m.phone || form.landlord_phone);
     setSelectedLandlord({
-      id: phoneMatch.id,
-      name: phoneMatch.name,
+      id: m.id,
+      name: m.name,
       phone: normalized,
       verified: false,
       verifiedHouses: 0,
     });
     setManualLandlord(false);
-    setForm((f) => ({ ...f, landlord_name: phoneMatch.name, landlord_phone: normalized }));
-    applyLandlordEstimations(phoneMatch.id);
+    setForm((f) => ({ ...f, landlord_name: m.name, landlord_phone: normalized }));
+    applyLandlordEstimations(m.id);
     setPhoneMatch(null);
     setLandlordPhoneError('');
+  };
+
+  // Reuse a landlord that was auto-detected from the typed phone number.
+  const usePhoneMatch = () => {
+    if (!phoneMatch) return;
+    linkPhoneMatch(phoneMatch);
     toast.success('Landlord found in the system — add their house, location & rent below');
   };
 
@@ -417,6 +422,46 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     ];
     const doneCount = items.filter((i) => i.ok).length;
     return { items, doneCount, total: items.length };
+  };
+
+  // Maps each checklist item to the wizard step + DOM anchor of its field so the
+  // "Complete landlord profile" button can jump straight to what's missing.
+  const FIELD_ANCHORS: Record<string, { step: number; id: string }> = {
+    'Location': { step: 1, id: 'lh-field-location' },
+    'Rent amount': { step: 1, id: 'lh-field-rent' },
+    'House details': { step: 1, id: 'lh-field-house' },
+    'Photos': { step: 1, id: 'lh-field-house' },
+  };
+
+  // Smooth-scroll to a field anchor, briefly highlight it and focus its first input.
+  const scrollToAnchor = (id: string) => {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-xl');
+      const focusable = el.querySelector<HTMLElement>('input, select, textarea, [role="combobox"], button');
+      focusable?.focus({ preventScroll: true });
+      setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'rounded-xl'), 2200);
+    });
+  };
+
+  // One-tap: link the matched landlord and jump straight to the first field that
+  // still needs completing.
+  const completeLandlordProfile = () => {
+    if (!phoneMatch) return;
+    const { items } = landlordChecklist(phoneMatch);
+    const firstMissing = items.find((i) => !i.ok);
+    const name = phoneMatch.name;
+    linkPhoneMatch(phoneMatch);
+    const target = (firstMissing ? FIELD_ANCHORS[firstMissing.label] : FIELD_ANCHORS['Location']) ?? FIELD_ANCHORS['Location'];
+    setStep(target.step);
+    toast.success(
+      firstMissing
+        ? `Complete the ${firstMissing.label.toLowerCase()} for ${name}`
+        : `${name} is already complete — review and list`,
+    );
+    setTimeout(() => scrollToAnchor(target.id), 320);
   };
 
   // Strict landlord phone validation with user-friendly messages.
@@ -1178,11 +1223,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   </p>
                 )}
                 {phoneMatch && (
-                  <button
-                    type="button"
-                    onClick={usePhoneMatch}
-                    className="w-full text-left p-3 rounded-xl border-2 border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors"
-                  >
+                  <div className="w-full text-left p-3 rounded-xl border-2 border-primary/40 bg-primary/5">
                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary uppercase tracking-wide">
                       <UserCheck className="h-3.5 w-3.5" /> Already in the system
                     </div>
@@ -1220,16 +1261,39 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                           </div>
                           {doneCount < total && (
                             <p className="text-[10px] text-amber-700 mt-1.5 leading-snug">
-                              Missing: {items.filter((i) => !i.ok).map((i) => i.label.toLowerCase()).join(', ')} — add below.
+                              Missing: {items.filter((i) => !i.ok).map((i) => i.label.toLowerCase()).join(', ')}.
                             </p>
                           )}
                         </div>
                       );
                     })()}
-                    <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
-                      Tap to use & add their house, location and rent →
-                    </span>
-                  </button>
+                    {/* One-tap: link the landlord and jump to the first missing field */}
+                    {(() => {
+                      const { doneCount, total } = landlordChecklist(phoneMatch);
+                      const complete = doneCount === total;
+                      return (
+                        <div className="mt-2.5 space-y-1.5">
+                          {!complete && (
+                            <Button
+                              type="button"
+                              onClick={completeLandlordProfile}
+                              className="w-full h-11 gap-1.5 text-sm font-semibold"
+                            >
+                              <ArrowRight className="h-4 w-4" /> Complete landlord profile
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant={complete ? 'default' : 'outline'}
+                            onClick={usePhoneMatch}
+                            className="w-full h-11 gap-1.5 text-sm font-semibold"
+                          >
+                            <UserCheck className="h-4 w-4" /> {complete ? 'Use this landlord' : 'Just use as-is'}
+                          </Button>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
                 <Button
                   type="button"
@@ -1345,7 +1409,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             subtitle="Tap the picture that matches."
           />
           {/* Property Details */}
-          <div className="space-y-3">
+          <div id="lh-field-house" className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm font-medium">Rooms</Label>
@@ -1380,7 +1444,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               })}
             </div>
 
-            <div>
+            <div id="lh-field-rent">
               <Label className="text-sm font-medium">Monthly Rent (UGX) *</Label>
               <Input
                 type="number"
@@ -1431,7 +1495,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             subtitle="Tell us where the house is."
           />
           {/* Location */}
-          <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
+          <div id="lh-field-location" className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase">Location</p>
               {prefilledFromProfile && (
