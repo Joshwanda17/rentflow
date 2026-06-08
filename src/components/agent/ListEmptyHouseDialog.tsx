@@ -235,7 +235,31 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           .select('id, name, phone, monthly_rent, property_address, village, district, region, house_category, number_of_rooms')
           .eq('id', m.id)
           .maybeSingle();
-        if (!cancelled) setPhoneMatch((full as PhoneMatch) ?? null);
+        if (!full) {
+          if (!cancelled) setPhoneMatch(null);
+          return;
+        }
+        // Gauge completeness: how many houses + photos this landlord already has.
+        const { data: houses } = await supabase
+          .from('house_listings')
+          .select('id')
+          .eq('landlord_id', m.id);
+        const houseIds = (houses ?? []).map((h) => h.id);
+        let photoCount = 0;
+        if (houseIds.length) {
+          const { count } = await supabase
+            .from('listing_photos')
+            .select('*', { count: 'exact', head: true })
+            .in('listing_id', houseIds);
+          photoCount = count ?? 0;
+        }
+        if (!cancelled) {
+          setPhoneMatch({
+            ...(full as Omit<PhoneMatch, 'house_count' | 'photo_count'>),
+            house_count: houseIds.length,
+            photo_count: photoCount,
+          });
+        }
       } catch {
         if (!cancelled) setPhoneMatch(null);
       } finally {
