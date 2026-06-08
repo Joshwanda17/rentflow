@@ -508,6 +508,23 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Current sub-step inside the standard flow's guided wizard (0-based).
   const [detailStep, setDetailStep] = useState(0);
 
+  // Persisted open/closed state for the "posting cap" details section so it
+  // stays collapsed (or expanded) across page refreshes.
+  const POSTING_CAP_DETAILS_KEY = 'welile-posting-cap-details-open';
+  const [postingCapOpen, setPostingCapOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(POSTING_CAP_DETAILS_KEY) === '1';
+  });
+  const handlePostingCapToggle = useCallback((e: React.SyntheticEvent<HTMLDetailsElement>) => {
+    const isOpen = e.currentTarget.open;
+    setPostingCapOpen(isOpen);
+    try {
+      window.localStorage.setItem(POSTING_CAP_DETAILS_KEY, isOpen ? '1' : '0');
+    } catch {
+      /* ignore storage errors */
+    }
+  }, []);
+
   // Income type
   const [incomeType, setIncomeType] = useState<IncomeType | null>(null);
   
