@@ -213,14 +213,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSearchingLandlord(true);
     setSearchedOnce(true);
     try {
-      const isPhone = /^[0-9+]/.test(q);
-      let query = supabase
-        .from('landlords')
-        .select('id, name, phone, verified')
-        .order('verified', { ascending: false })
-        .limit(10);
-      query = isPhone ? query.ilike('phone', `%${q}%`) : query.ilike('name', `%${q}%`);
-      const { data: landlords, error } = await query;
+      const { data: landlords, error } = await supabase.rpc('search_landlords_fuzzy', {
+        p_query: q,
+        p_limit: 20,
+        p_threshold: 0.15,
+      });
       if (error) throw error;
 
       const ids = (landlords || []).map((l) => l.id);
@@ -246,7 +243,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         return {
           id: l.id,
           name: l.name,
-          phone: l.phone,
+          phone: l.phone || '',
           verified: !!l.verified || verifiedHouses > 0,
           verifiedHouses,
         };
