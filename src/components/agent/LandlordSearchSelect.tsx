@@ -562,8 +562,10 @@ export function LandlordSearchSelect({
           )}
         </div>
         <div ref={listRef} className="max-h-72 overflow-y-auto border-t border-border/50 py-1">
-          {/* Only show the big loader on the first fetch; keep prior results visible while re-searching. */}
-          {loading && results.length === 0 && (
+          {/* Instant feedback: show "Searching…" the moment the agent types,
+              through the debounce window and the fetch. Keep prior results
+              visible while re-searching so the list never flickers empty. */}
+          {busy && results.length === 0 && (
             <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
             </div>
