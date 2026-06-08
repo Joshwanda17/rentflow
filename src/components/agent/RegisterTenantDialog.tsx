@@ -301,16 +301,22 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[92vh] p-0 overflow-hidden flex flex-col overscroll-contain">
+      <DialogContent className="sm:max-w-lg max-h-[92vh] p-0 overflow-hidden flex flex-col overscroll-contain rounded-3xl border-border/60">
         <div className="px-6 pt-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            Register Tenant Under Landlord
-          </DialogTitle>
-          <DialogDescription>
-            Register a tenant under their landlord and earn 2% on every rent payment
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <DialogTitle className="text-lg font-medium tracking-tight">
+                Add a new tenant
+              </DialogTitle>
+              <DialogDescription className="mt-0.5">
+                Link a tenant to their landlord and earn 2% on every rent payment.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         </div>
 
