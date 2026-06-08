@@ -72,6 +72,7 @@ import { VerificationChecklist } from '@/components/shared/VerificationChecklist
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PendingDraftsBanner } from '@/components/agent/PendingDraftsBanner';
+import { DashboardDataErrorBanner } from '@/components/dashboards/DashboardDataErrorBanner';
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
@@ -214,7 +215,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     stats, 
     isLoading: loading, 
     refreshData: refreshOfflineData, 
-    hasLoadedOnce 
+    hasLoadedOnce,
+    loadError,
   } = useOfflineAgentDashboard();
   
   const { tenantsCount, referralCount, subAgentCount } = stats;
@@ -516,6 +518,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     <div className="agent-dashboard-shell h-[100dvh] bg-background flex flex-col overflow-hidden">
       <OfflineBanner />
       <PendingDraftsBanner />
+      <DashboardDataErrorBanner
+        message={loadError}
+        hasCachedData={hasLoadedOnce}
+        onRetry={handleRefresh}
+      />
       
       <DashboardHeader
         currentRole={currentRole}
