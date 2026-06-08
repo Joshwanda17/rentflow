@@ -2128,9 +2128,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               </div>
               {!lowData && (
                 <DebitHistoryPreview
-                  userId={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentId : user.id}
+                  userId={debitRoute === 'proxy_agent_wallet' && effectiveProxyAgent ? effectiveProxyAgent.agentId : user.id}
                   bucket={debitRoute === 'landlord_float' ? 'float' : 'withdrawable'}
-                  userName={debitRoute === 'proxy_agent_wallet' && proxy.data ? proxy.data.agentName : user.full_name}
+                  userName={debitRoute === 'proxy_agent_wallet' && effectiveProxyAgent ? effectiveProxyAgent.agentName : user.full_name}
                 />
               )}
             </div>
