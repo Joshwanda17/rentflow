@@ -2382,17 +2382,54 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
                   {!lowData && <p className="text-[11px] text-muted-foreground">Reduces the agent's float balance. Use when a landlord was paid out of the agent's collected rent float.</p>}
                 </div>
               </label>
-              {proxy.data && (
-                <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
-                  <RadioGroupItem value="proxy_agent_wallet" id="debit-proxy-agent" className="mt-0.5" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5 text-sm font-medium">
-                      <UserCog className="h-3.5 w-3.5 text-primary" /> Proxy agent wallet
-                      <span className="ml-1 text-[10px] text-muted-foreground font-normal">({proxy.data.agentName})</span>
-                    </div>
-                    {!lowData && <p className="text-[11px] text-muted-foreground">Reduces the proxy agent's withdrawable balance instead of the partner's. Use when the payout was funded out of the proxy agent's wallet on behalf of this partner.</p>}
+              {/* Proxy agent wallet — always available so Financial Ops can
+                  charge ANY proxy agent's wallet, not just the one auto-assigned
+                  to the picked partner. */}
+              <label className={`flex items-start gap-2 rounded-lg border cursor-pointer hover:bg-muted/40 ${radioCardCls}`}>
+                <RadioGroupItem value="proxy_agent_wallet" id="debit-proxy-agent" className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 text-sm font-medium">
+                    <UserCog className="h-3.5 w-3.5 text-primary" /> Proxy agent wallet
+                    {effectiveProxyAgent && (
+                      <span className="ml-1 text-[10px] text-muted-foreground font-normal">
+                        ({effectiveProxyAgent.agentName}{effectiveProxyAgent.manual ? ' · chosen' : ''})
+                      </span>
+                    )}
                   </div>
-                </label>
+                  {!lowData && <p className="text-[11px] text-muted-foreground">Reduces a proxy agent's withdrawable balance instead of the partner's. Pick any proxy agent below.</p>}
+                </div>
+              </label>
+              {/* Manual proxy-agent picker — lets the operator search and charge
+                  any proxy agent's wallet for this debit. Defaults to the
+                  auto-detected assignment when one exists. */}
+              {debitRoute === 'proxy_agent_wallet' && (
+                <div className="ml-1 space-y-1.5">
+                  <UserSearchPicker
+                    label="Proxy agent to charge"
+                    placeholder="Search any proxy agent by name or phone…"
+                    selectedUser={manualProxyAgent}
+                    onSelect={setManualProxyAgent}
+                  />
+                  {!manualProxyAgent && proxy.data && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Using auto-detected proxy <span className="font-medium text-foreground">{proxy.data.agentName}</span>. Search above to charge a different agent.
+                    </p>
+                  )}
+                  {manualProxyAgent && (
+                    <button
+                      type="button"
+                      onClick={() => setManualProxyAgent(null)}
+                      className="text-[11px] font-medium text-primary hover:underline"
+                    >
+                      {proxy.data ? `Reset to auto-detected (${proxy.data.agentName})` : 'Clear selection'}
+                    </button>
+                  )}
+                  {!manualProxyAgent && !proxy.data && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                      No proxy agent auto-detected for this user — search and pick one to charge.
+                    </p>
+                  )}
+                </div>
               )}
             </RadioGroup>
           </div>
