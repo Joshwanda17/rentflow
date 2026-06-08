@@ -218,10 +218,15 @@ export function LandlordSearchSelect({
     Math.min(Math.max(similarityThreshold, 0.05), 0.9)
   );
   const [showThreshold, setShowThreshold] = useState(false);
-  // Briefly flashes "Previous request cancelled" when a slow in-flight search is
-  // aborted because the agent kept typing (or changed precision).
-  const [cancelledFlash, setCancelledFlash] = useState(false);
-  const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Persistent note describing the most recent in-flight search that was aborted
+  // because the agent kept typing (or changed precision): which query was
+  // dropped and when, so the UI can show "Cancelled 'xyz' · 3s ago" until the
+  // next search resolves.
+  const [cancelledInfo, setCancelledInfo] = useState<{ query: string; at: number } | null>(null);
+  // Ticks once a second while a cancellation note is showing so the elapsed
+  // "…s ago" counter stays live.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const cancelTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reqIdRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   // Tracks the landlord currently highlighted by the keyboard, so we can keep
