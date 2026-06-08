@@ -1108,17 +1108,19 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
 
       // ─── DEBIT MODE (money-out) ────────────────────────────────
       if (mode === 'debit') {
-        const proxyInfo = proxy.data;
+        // `proxyInfo` is the effective proxy agent — either the operator's
+        // manual pick (ANY agent) or the auto-detected assignment.
+        const proxyInfo = effectiveProxyAgent;
         // Routing rules:
         // 1. Managed-proxy partner → ALWAYS debits proxy agent wallet
         //    (mirrors managed-proxy payout routing; partner wallet untouched).
-        // 2. Operator explicitly picked "Proxy agent wallet" → debit proxy
-        //    agent's withdrawable (requires a proxy assignment to exist).
+        // 2. Operator explicitly picked "Proxy agent wallet" → debit the
+        //    chosen proxy agent's withdrawable (manual pick OR assignment).
         // 3. Otherwise → debit the picked user as normal.
         const useProxyAgent =
           (proxyInfo?.isManaged === true) || (debitRoute === 'proxy_agent_wallet' && !!proxyInfo);
         if (debitRoute === 'proxy_agent_wallet' && !proxyInfo) {
-          throw new Error('No active proxy agent found for this user');
+          throw new Error('Pick a proxy agent to charge');
         }
         const debitTargetId = useProxyAgent ? proxyInfo!.agentId : user.id;
         const debitTargetName = useProxyAgent ? proxyInfo!.agentName : user.full_name;
