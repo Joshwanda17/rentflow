@@ -454,31 +454,8 @@ export function LandlordSearchSelect({
     }
   }, [activeIndex]);
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className={cn(
-            'w-full justify-between h-11 font-normal',
-            !value && 'text-muted-foreground'
-          )}
-        >
-          <span className="flex items-center gap-2 truncate">
-            <Building2 className="h-4 w-4 shrink-0 text-primary" />
-            <span className="truncate">{triggerLabel}</span>
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 overflow-hidden rounded-[28px] border border-border/60 bg-background shadow-[0_1px_6px_rgba(32,33,36,0.28)]"
-        align="start"
-      >
+  const panel = (
+    <>
         <div className="px-4 pt-3.5 pb-2.5">
           <div className="mb-2.5 flex justify-center">
             <GoogleWordmark />
