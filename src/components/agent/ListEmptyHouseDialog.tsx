@@ -1052,18 +1052,29 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   </button>
                 )}
                 <Label className="text-sm font-medium">Search the landlord in the system first</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     placeholder="Landlord name or phone"
-                    className="h-12 text-base"
+                    className="h-12 text-base flex-1 min-w-0"
                     value={landlordQuery}
                     onChange={(e) => setLandlordQuery(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') { e.preventDefault(); searchLandlords(); }
                     }}
                   />
-                  <Button type="button" variant="secondary" className="h-12 px-4" onClick={searchLandlords} disabled={searchingLandlord}>
-                    {searchingLandlord ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-12 w-full sm:w-auto px-4 sm:px-5 shrink-0"
+                    onClick={searchLandlords}
+                    disabled={searchingLandlord}
+                  >
+                    {searchingLandlord ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                    <span>{searchingLandlord ? 'Searching…' : 'Search'}</span>
                   </Button>
                 </div>
 
