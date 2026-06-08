@@ -648,7 +648,9 @@ export function FinOpsWalletMovePanel() {
                   {mode === 'user_to_user'
                     ? <>to <span className="font-semibold">{dest?.full_name || 'recipient'}</span>'s {destBucket} balance.</>
                     : mode === 'same_user'
-                      ? <>into their own <span className="font-semibold">Withdrawable</span> balance. Total balance is unchanged.</>
+                      ? (sameUserDir === 'float_to_withdrawable'
+                          ? <>into their own <span className="font-semibold">Withdrawable</span> balance. Total balance is unchanged.</>
+                          : <>into their own <span className="font-semibold">Operations Float</span> balance. Total balance is unchanged.</>)
                       : 'back to the platform as an error correction.'}
                 </p>
                 <p className="text-muted-foreground">{reason}</p>
