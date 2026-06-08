@@ -956,6 +956,36 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
     },
   });
 
+  // ── Effective proxy agent to charge (debit mode) ────────────────────
+  // Priority:
+  //   1. Operator's manual pick — ANY proxy agent's wallet can be charged,
+  //      regardless of which partner the email was matched to. A manual
+  //      pick is always an explicit, non-managed choice.
+  //   2. The auto-detected proxy assignment for the picked partner.
+  // This is the single source of truth for whose wallet the proxy route
+  // debits, and which balances/history previews are shown.
+  const effectiveProxyAgent = useMemo(() => {
+    if (manualProxyAgent) {
+      return {
+        agentId: manualProxyAgent.id,
+        agentName: manualProxyAgent.full_name,
+        agentPhone: manualProxyAgent.phone,
+        isManaged: false,
+        manual: true,
+      };
+    }
+    if (proxy.data) {
+      return {
+        agentId: proxy.data.agentId,
+        agentName: proxy.data.agentName,
+        agentPhone: proxy.data.agentPhone,
+        isManaged: proxy.data.isManaged,
+        manual: false,
+      };
+    }
+    return null;
+  }, [manualProxyAgent, proxy.data]);
+
   // ── Detect any prior auto-credit linked to this email ──────────────
   // gmail-poll-transactions stamps `auto_match_audit.gmail_message_id`
   // and `gmail_transactions.linked_deposit_request_id` when it auto-
