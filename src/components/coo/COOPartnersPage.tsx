@@ -4107,20 +4107,34 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
   const filtered = useMemo(() => {
     let list = localPortfolios;
+    // Compute the current week boundaries (Mon–Sun) so the "5 days" (weekdays)
+    // and "Weekend" (Sat & Sun) filters scope to the given week, not a rolling window.
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dow = startOfToday.getDay(); // 0=Sun … 6=Sat
+    const mondayOffset = dow === 0 ? -6 : 1 - dow; // shift back to Monday
+    const weekMonday = new Date(startOfToday);
+    weekMonday.setDate(startOfToday.getDate() + mondayOffset);
+    const weekFriday = new Date(weekMonday); weekFriday.setDate(weekMonday.getDate() + 4); // Mon..Fri
+    const weekSaturday = new Date(weekMonday); weekSaturday.setDate(weekMonday.getDate() + 5);
+    const weekSunday = new Date(weekMonday); weekSunday.setDate(weekMonday.getDate() + 6);
+    const inRange = (dateStr: string, from: Date, to: Date) => {
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
+      const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      return day >= from && day <= to;
+    };
     // Apply range filter
     if (rangeFilter === 'overdue') {
       list = list.filter(p => p.daysUntil < 0);
     } else if (rangeFilter === 'today') {
       list = list.filter(p => p.daysUntil === 0);
     } else if (rangeFilter === '5') {
-      list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 5);
+      // Weekdays (Mon–Fri) of the current week
+      list = list.filter(p => inRange(p.nextPayoutDate, weekMonday, weekFriday));
     } else if (rangeFilter === 'weekend') {
-      list = list.filter(p => {
-        if (!p.nextPayoutDate) return false;
-        const d = new Date(p.nextPayoutDate);
-        const day = d.getDay();
-        return day === 0 || day === 6;
-      });
+      // Saturday & Sunday of the current week
+      list = list.filter(p => inRange(p.nextPayoutDate, weekSaturday, weekSunday));
     } else if (rangeFilter === '7') {
       list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 7);
     } else if (rangeFilter === '14') {
@@ -4149,8 +4163,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     switch (rangeFilter) {
       case 'overdue': return 'Overdue only';
       case 'today':   return 'Due today';
-      case '5':       return 'Next 5 days (incl. overdue ≤ 30d)';
-      case 'weekend': return 'Payout falls on a weekend';
+      case '5':       return 'This week (Mon–Fri)';
+      case 'weekend': return 'This weekend (Sat & Sun)';
       case '7':       return 'Next 7 days (incl. overdue ≤ 30d)';
       case '14':      return 'Next 14 days (incl. overdue ≤ 30d)';
       case '30':      return 'Next 30 days (incl. overdue ≤ 30d)';
