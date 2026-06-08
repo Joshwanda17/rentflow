@@ -631,6 +631,17 @@ export function EmailTransactionsPanel() {
   // Per-history-entry busy flag for the Reverse action so the button can
   // show a spinner without blocking other entries.
   const [reverseBusy, setReverseBusy] = useState<Record<string, boolean>>({});
+  // Click-to-expand drilldown per email row. When a row id is present in this
+  // set its drilldown panel is open, surfacing the linked proxy agent wallet
+  // change, the debit reason, and the transaction references in one place.
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const toggleRowExpanded = useCallback((id: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   /**
    * Already-credited deposits for the currently visible *incoming* emails.
