@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FinancialOpsPulseStrip } from './FinancialOpsPulseStrip';
 import { ApprovalQueue } from './ApprovalQueue';
 import { TransactionSearch } from './TransactionSearch';
@@ -84,17 +84,50 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'momo_sms_template', label: 'MoMo Thank-You SMS', desc: 'Edit the thank-you + signup SMS sent to MTN/Airtel senders', icon: Mail },
 ];
 
+import { useAuth } from '@/hooks/useAuth';
+
+const WALLET_BREAKDOWN_KEY = 'finops_wallet_breakdown_open';
+
+function getStoredOpen(userId?: string): boolean {
+  if (typeof window === 'undefined' || !userId) return false;
+  try {
+    const raw = localStorage.getItem(WALLET_BREAKDOWN_KEY);
+    if (!raw) return false;
+    const map = JSON.parse(raw) as Record<string, boolean>;
+    return !!map[userId];
+  } catch {
+    return false;
+  }
+}
+
+function setStoredOpen(userId: string, open: boolean) {
+  if (typeof window === 'undefined' || !userId) return;
+  try {
+    const raw = localStorage.getItem(WALLET_BREAKDOWN_KEY);
+    const map = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    map[userId] = open;
+    localStorage.setItem(WALLET_BREAKDOWN_KEY, JSON.stringify(map));
+  } catch { /* noop */ }
+}
+
 export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
+  const { user } = useAuth();
+  const userId = user?.id;
   const [view, setView] = useState<View>('home');
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [moreSheet, setMoreSheet] = useState(false);
   const [focusBucket, setFocusBucket] = useState<'float' | 'withdrawable' | null>(null);
-  const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(false);
+  const [walletBreakdownOpen, setWalletBreakdownOpen] = useState(() => getStoredOpen(userId));
 
   const openTool = (t: Tool) => {
     setActiveTool(t);
     setMoreSheet(false);
   };
+
+  // Persist expand/collapse per user across sessions
+  useEffect(() => {
+    if (userId) setStoredOpen(userId, walletBreakdownOpen);
+  }, [walletBreakdownOpen, userId]);
 
   const openMoreAction = (a: MoreAction) => {
     if (a.kind === 'tool') {
@@ -237,7 +270,11 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <button
           type="button"
-          onClick={() => setWalletBreakdownOpen((o) => !o)}
+          onClick={() => {
+            const next = !walletBreakdownOpen;
+            setWalletBreakdownOpen(next);
+            if (userId) setStoredOpen(userId, next);
+          }}
           className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <div>
