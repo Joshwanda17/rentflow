@@ -68,6 +68,9 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // Wizard step index — one question at a time
+  const [stepIndex, setStepIndex] = useState(0);
+
   // GPS & Photos
   const [propertyGps, setPropertyGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const { capture: captureGps, loading: gpsLoading } = useSmartLocation();
