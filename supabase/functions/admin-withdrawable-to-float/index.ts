@@ -96,10 +96,10 @@ Deno.serve(async (req) => {
 
     const floatBefore = Number(walletRow?.float_balance ?? 0);
     const withdrawableBefore = Number(walletRow?.withdrawable_balance ?? 0);
-    if (floatBefore < amount) {
+    if (withdrawableBefore < amount) {
       return json(
         {
-          error: `Insufficient float balance. Available float: UGX ${floatBefore.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`,
+          error: `Insufficient withdrawable balance. Available withdrawable: UGX ${withdrawableBefore.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`,
         },
         422,
       );
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
 
     // ── Post the balanced reclass transaction ──────────────────────────────
     // reference_id ties both legs + the audit row together for traceability.
-    const refId = `FLT2WDR-${crypto.randomUUID()}`;
+    const refId = `WDR2FLT-${crypto.randomUUID()}`;
     const nowIso = new Date().toISOString();
 
     const { data: groupId, error: rpcErr } = await adminClient.rpc(
@@ -122,41 +122,41 @@ Deno.serve(async (req) => {
       {
         entries: [
           {
-            // Remove from operational float (company money).
+            // Remove from the user's own withdrawable money.
             user_id: targetUserId,
             amount,
             direction: "cash_out",
-            category: "agent_float_assignment",
-            ledger_scope: "wallet",
-            recipient_type: "operational_wallet",
-            wallet_bucket: "float",
-            routing_source: "admin_float_to_withdrawable",
-            source_table: "admin_float_to_withdrawable",
-            reference_id: refId,
-            classification: "production",
-            currency: "UGX",
-            transaction_date: nowIso,
-            description: `Reclass: move UGX ${amount.toLocaleString()} out of Operational Float for ${targetName}: ${reason}`,
-          },
-          {
-            // Add to the user's own withdrawable money.
-            user_id: targetUserId,
-            amount,
-            direction: "cash_in",
             category: "wallet_transfer",
             ledger_scope: "wallet",
             recipient_type: "user",
             wallet_bucket: "withdrawable",
-            routing_source: "admin_float_to_withdrawable",
-            source_table: "admin_float_to_withdrawable",
+            routing_source: "admin_withdrawable_to_float",
+            source_table: "admin_withdrawable_to_float",
             reference_id: refId,
             classification: "production",
             currency: "UGX",
             transaction_date: nowIso,
-            description: `Reclass: credit UGX ${amount.toLocaleString()} to Withdrawable for ${targetName}: ${reason}`,
+            description: `Reclass: move UGX ${amount.toLocaleString()} out of Withdrawable for ${targetName}: ${reason}`,
+          },
+          {
+            // Add to operational float (company money).
+            user_id: targetUserId,
+            amount,
+            direction: "cash_in",
+            category: "agent_float_assignment",
+            ledger_scope: "wallet",
+            recipient_type: "operational_wallet",
+            wallet_bucket: "float",
+            routing_source: "admin_withdrawable_to_float",
+            source_table: "admin_withdrawable_to_float",
+            reference_id: refId,
+            classification: "production",
+            currency: "UGX",
+            transaction_date: nowIso,
+            description: `Reclass: credit UGX ${amount.toLocaleString()} to Operational Float for ${targetName}: ${reason}`,
           },
         ],
-        // Both legs are wallet-scope and net to zero; the internal float→withdrawable
+        // Both legs are wallet-scope and net to zero; the internal withdrawable→float
         // move is balanced on its own (cash_in === cash_out).
         skip_balance_check: true,
       },
