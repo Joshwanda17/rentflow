@@ -1244,7 +1244,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </div>
             </div>
             <div>
-              <Label className="text-sm font-medium">Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium">Address <span className="text-destructive">*</span></Label>
               <Input
                 placeholder="e.g. Plot 12, Nansana Road"
                 className="h-12 text-base"
@@ -1253,7 +1253,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               />
             </div>
             <div>
-              <Label className="text-sm font-medium">Village / Zone <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label className="text-sm font-medium">Village / Zone <span className="text-destructive">*</span></Label>
               <Input
                 placeholder="e.g. Kikaya Zone B"
                 className="h-12 text-base"
