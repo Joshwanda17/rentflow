@@ -5,13 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { FileText, CalendarClock, Banknote, Navigation, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import {
+  FileText, CalendarClock, Banknote, Navigation, Loader2,
+  ArrowLeft, ArrowRight, User, IdCard, Gauge, Building2, MapPin,
+  Camera, Users, CheckCircle2, Percent, CalendarDays, ListChecks,
+} from 'lucide-react';
 import { format, addDays } from 'date-fns';
-import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES, calculateInstalment } from '@/lib/rentCalculations';
+import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES } from '@/lib/rentCalculations';
 import { generateRepaymentSchedule, insertRepaymentSchedule } from '@/lib/scheduleUtils';
 import { useToast } from '@/hooks/use-toast';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { useSmartLocation, captureSmartLocation } from '@/hooks/useSmartLocation';
+import FormStepHeader from '@/components/shared/FormStepHeader';
 
 interface RentRequestFormProps {
   userId: string;
@@ -61,6 +67,9 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const [lc1Village, setLc1Village] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Wizard step index — one question at a time
+  const [stepIndex, setStepIndex] = useState(0);
 
   // GPS & Photos
   const [propertyGps, setPropertyGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
@@ -294,342 +303,484 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     setLoading(false);
   };
 
-  return (
-    <Card className="glass-card">
-      <CardHeader className="bg-primary/10 border-b-2 border-primary/30">
-        <CardTitle className="flex items-center gap-2 text-primary">
-          <FileText className="h-5 w-5" />
-          Rent Request Form
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ═══ RENT DETAILS — FIRST & PROMINENT ═══ */}
-          <div className="space-y-4 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40 shadow-lg shadow-primary/10">
-            <h3 className="font-extrabold text-base text-primary flex items-center gap-2">
-              <Banknote className="h-5 w-5" />
-              💰 Rent Details
-            </h3>
+  // ─────────────────────────────────────────────────────────────
+  // One-question-at-a-time wizard definition
+  // ─────────────────────────────────────────────────────────────
+  const repaymentStartLabel = format(addDays(new Date(), 1), 'EEEE, MMMM d, yyyy');
 
-            {/* Rent Amount */}
-            <div className="space-y-2">
-              <Label className="font-bold text-sm">Rent Amount (UGX)</Label>
-              <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
-              <Input 
-                value={rentAmount} 
-                onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))} 
-                placeholder="e.g., 500000"
-                required
-                className="h-12 text-lg font-bold border-primary/30 focus:border-primary"
-              />
+  const steps: {
+    key: string;
+    icon: typeof Banknote;
+    stepLabel: string;
+    title: string;
+    subtitle?: string;
+    valid: boolean;
+    node: JSX.Element;
+  }[] = [
+    // 0 — Rent amount
+    {
+      key: 'amount',
+      icon: Banknote,
+      stepLabel: 'Rent details',
+      title: 'How much is the rent?',
+      subtitle: 'Enter the amount you want Welile to pay today.',
+      valid: !!calc,
+      node: (
+        <div className="space-y-2">
+          <Label className="font-bold text-sm">Rent Amount (UGX)</Label>
+          <Input
+            value={rentAmount}
+            onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="e.g., 500000"
+            inputMode="numeric"
+            autoFocus
+            className="h-14 text-2xl font-bold border-primary/30 focus:border-primary"
+          />
+          {calc && (
+            <p className="text-sm text-muted-foreground">
+              That's <span className="font-semibold text-primary">{formatUGX(calc.rentAmount)}</span>.
+            </p>
+          )}
+        </div>
+      ),
+    },
+    // 1 — Access fee rate
+    {
+      key: 'rate',
+      icon: Percent,
+      stepLabel: 'Rent details',
+      title: 'Pick your access fee rate',
+      subtitle: 'This is the monthly rate applied to your rent assistance.',
+      valid: true,
+      node: (
+        <div className="flex flex-col gap-2">
+          {ACCESS_FEE_RATES.map((opt) => (
+            <Button
+              key={opt.rate}
+              type="button"
+              variant={accessFeeRate === opt.rate ? 'default' : 'outline'}
+              onClick={() => setAccessFeeRate(opt.rate)}
+              className="h-12 justify-between text-sm"
+            >
+              <span>{opt.label} / month</span>
+              {accessFeeRate === opt.rate && <CheckCircle2 className="h-4 w-4" />}
+            </Button>
+          ))}
+        </div>
+      ),
+    },
+    // 2 — Payback period + number of payments
+    {
+      key: 'duration',
+      icon: CalendarDays,
+      stepLabel: 'Rent details',
+      title: 'When will you pay it back?',
+      subtitle: 'Choose how long you need and how many payments to split it into.',
+      valid: true,
+      node: (
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label className="font-bold text-sm">Payback period</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {quickOptions.map((option) => (
+                <Button
+                  key={option.days}
+                  type="button"
+                  variant={duration === option.days ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleDurationChange(option.days)}
+                  className="text-xs"
+                >
+                  {option.label}
+                </Button>
+              ))}
             </div>
+          </div>
 
-            {/* Access Fee Rate */}
-            <div className="space-y-2">
-              <Label className="font-bold text-sm">Access Fee Rate</Label>
-              <div className="flex flex-wrap gap-2">
-                {ACCESS_FEE_RATES.map((opt) => (
-                  <Button
-                    key={opt.rate}
-                    type="button"
-                    variant={accessFeeRate === opt.rate ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setAccessFeeRate(opt.rate)}
-                    className="text-xs"
-                  >
-                    {opt.label}/month
-                  </Button>
-                ))}
-              </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <Label className="font-bold text-sm">Custom days</Label>
+              <span className="text-sm font-bold text-primary">{duration} days</span>
             </div>
-
-            {/* Payback Period */}
-            <div className="space-y-2">
-              <Label className="font-bold text-sm">Payback Period</Label>
-              <div className="flex flex-wrap gap-2">
-                {quickOptions.map((option) => (
-                  <Button
-                    key={option.days}
-                    type="button"
-                    variant={duration === option.days ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleDurationChange(option.days)}
-                    className="text-xs"
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
+            <Slider
+              value={[duration]}
+              onValueChange={(value) => handleDurationChange(value[0])}
+              min={MIN_DAYS}
+              max={MAX_DAYS}
+              step={1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{MIN_DAYS} days</span>
+              <span>{MAX_DAYS} days</span>
             </div>
+          </div>
 
-            {/* Custom Days Slider */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <Label className="font-bold text-sm">Custom Days</Label>
-                <span className="text-sm font-bold text-primary">{duration} days</span>
-              </div>
-              <Slider
-                value={[duration]}
-                onValueChange={(value) => handleDurationChange(value[0])}
-                min={MIN_DAYS}
-                max={MAX_DAYS}
-                step={1}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{MIN_DAYS} days</span>
-                <span>{MAX_DAYS} days</span>
-              </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <Label className="font-bold text-sm">Number of payments</Label>
+              <span className="text-sm font-bold text-primary">
+                {numberOfPayments} payment{numberOfPayments > 1 ? 's' : ''}
+              </span>
             </div>
+            <div className="flex flex-wrap gap-2">
+              {[1, 2, 3, 4, 5, 6].filter((n) => n <= maxPayments).map((num) => (
+                <Button
+                  key={num}
+                  type="button"
+                  variant={numberOfPayments === num ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setNumberOfPayments(num)}
+                  className="text-xs min-w-[44px]"
+                >
+                  {num}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Max {maxPayments} payments for {duration} days</p>
+          </div>
+        </div>
+      ),
+    },
+    // 3 — Repayment plan review
+    {
+      key: 'plan',
+      icon: ListChecks,
+      stepLabel: 'Rent details',
+      title: 'Here is your repayment plan',
+      subtitle: 'Confirm the numbers look right before continuing.',
+      valid: !!calc,
+      node: calc ? (
+        <div className="space-y-3">
+          <div className="p-4 rounded-2xl bg-primary/15 border-2 border-primary/40 text-center">
+            <p className="text-xs font-semibold text-primary/80 mb-1 uppercase tracking-wide">And you pay</p>
+            <p className="text-3xl font-black text-primary font-mono">{formatUGX(calc.dailyRepayment)}</p>
+            <p className="text-xs text-primary/70 mt-1">per day for {calc.durationDays} days</p>
+          </div>
 
-            {/* Number of Payments */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <Label className="font-bold text-sm">Number of Payments</Label>
-                <span className="text-sm font-bold text-primary">{numberOfPayments} payment{numberOfPayments > 1 ? 's' : ''}</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {[1, 2, 3, 4, 5, 6].filter(n => n <= maxPayments).map((num) => (
-                  <Button
-                    key={num}
-                    type="button"
-                    variant={numberOfPayments === num ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setNumberOfPayments(num)}
-                    className="text-xs min-w-[40px]"
-                  >
-                    {num}
-                  </Button>
-                ))}
-              </div>
+          <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-3">
+            <CalendarClock className="h-5 w-5 text-primary shrink-0" />
+            <div>
+              <p className="text-xs text-muted-foreground">Repayment starts</p>
+              <p className="font-bold text-sm text-primary">{repaymentStartLabel}</p>
+              <p className="text-[10px] text-muted-foreground">Tomorrow — the day after posting</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 p-3 rounded-xl bg-background/80 border">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Rent Amount:</span>
+              <span className="font-mono font-medium">{formatUGX(calc.rentAmount)}</span>
+            </div>
+            <div className="p-2 rounded-lg bg-accent/20 border border-accent/30 text-center">
               <p className="text-xs text-muted-foreground">
-                Max {maxPayments} payments for {duration} days
+                {numberOfPayments} payment{numberOfPayments > 1 ? 's' : ''} of
+              </p>
+              <p className="text-lg font-bold font-mono">
+                {formatUGX(Math.ceil(calc.totalRepayment / numberOfPayments))}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                every {Math.floor(calc.durationDays / numberOfPayments)} days
               </p>
             </div>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Go back and enter a rent amount first.</p>
+      ),
+    },
+    // 4 — Tenant full name
+    {
+      key: 'tenantName',
+      icon: User,
+      stepLabel: 'Your identity',
+      title: 'What is your full name?',
+      subtitle: 'Type your names exactly as they appear on your National ID.',
+      valid: !!tenantFullName.trim(),
+      node: (
+        <Input
+          placeholder="Names as on National ID"
+          value={tenantFullName}
+          onChange={(e) => setTenantFullName(e.target.value)}
+          autoFocus
+          className="h-12"
+        />
+      ),
+    },
+    // 5 — Tenant National ID
+    {
+      key: 'tenantId',
+      icon: IdCard,
+      stepLabel: 'Your identity',
+      title: 'What is your National ID number?',
+      subtitle: 'We use this to verify your identity securely.',
+      valid: !!tenantNationalId.trim() && !nationalIdError,
+      node: (
+        <div className="space-y-2">
+          <Input
+            placeholder="e.g., CM12345678ABCD"
+            value={tenantNationalId}
+            onChange={(e) => { setTenantNationalId(e.target.value.toUpperCase()); setNationalIdError(''); }}
+            onBlur={() => checkDuplicateNationalId(tenantNationalId)}
+            autoFocus
+            className={`h-12 ${nationalIdError ? 'border-destructive' : ''}`}
+          />
+          {nationalIdError && <p className="text-[11px] text-destructive font-medium">{nationalIdError}</p>}
+        </div>
+      ),
+    },
+    // 6 — Tenant utility meters (optional)
+    {
+      key: 'tenantMeters',
+      icon: Gauge,
+      stepLabel: 'Your identity',
+      title: 'Your utility meter numbers',
+      subtitle: 'Optional — you can skip this and continue.',
+      valid: true,
+      node: (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Your NWSC Water Meter</Label>
+            <Input placeholder="Your water meter number" value={tenantWaterMeter} onChange={(e) => setTenantWaterMeter(e.target.value)} className="h-12" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Your UEDCL/UMEME Electricity Meter</Label>
+            <Input placeholder="Your electricity meter number" value={tenantElectricityMeter} onChange={(e) => setTenantElectricityMeter(e.target.value)} className="h-12" />
+          </div>
+        </div>
+      ),
+    },
+    // 7 — Landlord name
+    {
+      key: 'landlordName',
+      icon: Building2,
+      stepLabel: 'Landlord details',
+      title: "What is your landlord's name?",
+      subtitle: 'As it appears on their National ID.',
+      valid: !!landlordName.trim(),
+      node: (
+        <Input placeholder="Landlord name" value={landlordName} onChange={(e) => setLandlordName(e.target.value)} autoFocus className="h-12" />
+      ),
+    },
+    // 8 — Landlord phone
+    {
+      key: 'landlordPhone',
+      icon: Building2,
+      stepLabel: 'Landlord details',
+      title: "What is your landlord's phone number?",
+      valid: !!landlordPhone.trim(),
+      node: (
+        <Input placeholder="Landlord phone" inputMode="tel" value={landlordPhone} onChange={(e) => setLandlordPhone(e.target.value)} autoFocus className="h-12" />
+      ),
+    },
+    // 9 — Property address
+    {
+      key: 'propertyAddress',
+      icon: MapPin,
+      stepLabel: 'Landlord details',
+      title: 'Where is the property?',
+      subtitle: 'Enter the full property address.',
+      valid: !!propertyAddress.trim(),
+      node: (
+        <Input placeholder="Property address" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} autoFocus className="h-12" />
+      ),
+    },
+    // 10 — Landlord extras (optional)
+    {
+      key: 'landlordExtra',
+      icon: Gauge,
+      stepLabel: 'Landlord details',
+      title: 'Landlord TIN & property meters',
+      subtitle: 'Optional — add what you know and continue.',
+      valid: true,
+      node: (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Landlord TIN (Tax Identification Number)</Label>
+            <Input placeholder="Landlord's TIN" value={landlordTin} onChange={(e) => setLandlordTin(e.target.value)} className="h-12" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">NWSC Water Meter Number</Label>
+            <Input placeholder="National Water & Sewerage Corp" value={waterMeterNumber} onChange={(e) => setWaterMeterNumber(e.target.value)} className="h-12" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">UEDCL/UMEME Electricity Meter</Label>
+            <Input placeholder="Uganda Electricity Distribution" value={electricityMeterNumber} onChange={(e) => setElectricityMeterNumber(e.target.value)} className="h-12" />
+          </div>
+        </div>
+      ),
+    },
+    // 11 — Property GPS (optional)
+    {
+      key: 'gps',
+      icon: Navigation,
+      stepLabel: 'Property location',
+      title: 'Capture the property GPS',
+      subtitle: 'Optional but helps verify the home faster.',
+      valid: true,
+      node: propertyGps ? (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-success/10 border border-success/30">
+          <Navigation className="h-4 w-4 text-success flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-success">📍 GPS Captured</p>
+            <p className="text-[10px] text-muted-foreground truncate">
+              {propertyGps.lat.toFixed(5)}, {propertyGps.lng.toFixed(5)} (±{Math.round(propertyGps.accuracy)}m)
+            </p>
+          </div>
+          <Button type="button" size="sm" variant="ghost" className="text-xs h-8 px-2" onClick={capturePropertyGPS}>Retake</Button>
+        </div>
+      ) : (
+        <Button type="button" variant="outline" className="w-full h-12 gap-2 border-dashed" onClick={capturePropertyGPS} disabled={gpsLoading}>
+          {gpsLoading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Getting GPS...</>) : (<><Navigation className="h-4 w-4" /> Capture Property GPS</>)}
+        </Button>
+      ),
+    },
+    // 12 — House photos (optional)
+    {
+      key: 'photos',
+      icon: Camera,
+      stepLabel: 'Property photos',
+      title: 'Add photos of the house',
+      subtitle: 'Optional — up to 3 photos.',
+      valid: true,
+      node: (
+        <div className="grid grid-cols-3 gap-2">
+          {housePhotos.map((photo, idx) => (
+            <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border">
+              <img src={photo.preview} alt={`House ${idx + 1}`} className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removePhoto(idx)}
+                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+              >✕</button>
+            </div>
+          ))}
+          {housePhotos.length < 3 && (
+            <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+              <span className="text-xl text-muted-foreground/50">📷</span>
+              <span className="text-[10px] text-muted-foreground/50 mt-1">Add Photo</span>
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoAdd} />
+            </label>
+          )}
+        </div>
+      ),
+    },
+    // 13 — LC1 chairperson
+    {
+      key: 'lc1',
+      icon: Users,
+      stepLabel: 'LC1 chairperson',
+      title: 'Who is your LC1 chairperson?',
+      subtitle: 'Provide their name, phone and village.',
+      valid: !!lc1Name.trim() && !!lc1Phone.trim() && !!lc1Village.trim(),
+      node: (
+        <div className="space-y-3">
+          <Input placeholder="LC1 name" value={lc1Name} onChange={(e) => setLc1Name(e.target.value)} autoFocus className="h-12" />
+          <Input placeholder="LC1 phone" inputMode="tel" value={lc1Phone} onChange={(e) => setLc1Phone(e.target.value)} className="h-12" />
+          <Input placeholder="Village" value={lc1Village} onChange={(e) => setLc1Village(e.target.value)} className="h-12" />
+        </div>
+      ),
+    },
+    // 14 — Review & submit
+    {
+      key: 'review',
+      icon: CheckCircle2,
+      stepLabel: 'Review',
+      title: 'Review and submit',
+      subtitle: 'Check the details below, then post your request.',
+      valid: !!calc,
+      node: (
+        <div className="space-y-2 text-sm">
+          {calc && (
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 space-y-1.5">
+              <div className="flex justify-between"><span className="text-muted-foreground">Rent</span><span className="font-mono font-semibold">{formatUGX(calc.rentAmount)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Pay per day</span><span className="font-mono font-semibold">{formatUGX(calc.dailyRepayment)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">For</span><span className="font-semibold">{calc.durationDays} days · {numberOfPayments} payment{numberOfPayments > 1 ? 's' : ''}</span></div>
+            </div>
+          )}
+          <div className="p-3 rounded-xl bg-muted/40 border space-y-1.5">
+            <div className="flex justify-between"><span className="text-muted-foreground">You</span><span className="font-medium text-right">{tenantFullName || '—'}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Landlord</span><span className="font-medium text-right">{landlordName || '—'}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Property</span><span className="font-medium text-right truncate max-w-[60%]">{propertyAddress || '—'}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">LC1</span><span className="font-medium text-right">{lc1Name || '—'}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">GPS</span><span className="font-medium">{propertyGps ? '✓ captured' : 'not set'}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Photos</span><span className="font-medium">{housePhotos.length}/3</span></div>
+          </div>
+        </div>
+      ),
+    },
+  ];
 
-            {/* ═══ DAILY REPAYMENT HERO + START DATE ═══ */}
-            {calc && (
-              <div className="space-y-3">
-                {/* Daily Amount — BIG & BOLD */}
-                <div className="p-4 rounded-2xl bg-primary/20 border-2 border-primary/40 text-center">
-                  <p className="text-xs font-semibold text-primary/80 mb-1 uppercase tracking-wide">And You Pay</p>
-                  <p className="text-3xl font-black text-primary font-mono">{formatUGX(calc.dailyRepayment)}</p>
-                  <p className="text-xs text-primary/70 mt-1">per day for {calc.durationDays} days</p>
-                </div>
+  const totalSteps = steps.length;
+  const current = steps[stepIndex];
+  const isFirst = stepIndex === 0;
+  const isLast = stepIndex === totalSteps - 1;
+  const progress = ((stepIndex + 1) / totalSteps) * 100;
 
-                {/* Repayment Start Date — next day */}
-                <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-3">
-                  <CalendarClock className="h-5 w-5 text-primary shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Repayment starts</p>
-                    <p className="font-bold text-sm text-primary">
-                      {format(addDays(new Date(), 1), 'EEEE, MMMM d, yyyy')}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Tomorrow — the day after posting</p>
-                  </div>
-                </div>
+  const goNext = () => {
+    if (!current.valid) {
+      toast({ title: 'Please complete this step', description: nationalIdError || 'Fill in the required field to continue.', variant: 'destructive' });
+      return;
+    }
+    setStepIndex((i) => Math.min(i + 1, totalSteps - 1));
+  };
 
-                {/* Summary breakdown */}
-                <div className="space-y-2 p-3 rounded-xl bg-background/80 border">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Rent Amount:</span>
-                    <span className="font-mono font-medium">{formatUGX(calc.rentAmount)}</span>
-                  </div>
-                  {/* Per Payment */}
-                  <div className="p-2 rounded-lg bg-accent/20 border border-accent/30 text-center">
-                    <p className="text-xs text-muted-foreground">
-                      {numberOfPayments} payment{numberOfPayments > 1 ? 's' : ''} of
-                    </p>
-                    <p className="text-lg font-bold font-mono">
-                      {formatUGX(Math.ceil(calc.totalRepayment / numberOfPayments))}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      every {Math.floor(calc.durationDays / numberOfPayments)} days
-                    </p>
-                  </div>
-                  {/* Instalment Breakdown */}
-                  <div className="space-y-2 p-3 rounded-lg bg-muted/50 border">
-                    <p className="text-xs font-medium text-muted-foreground">Instalment Breakdown</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { label: 'Daily', days: 1 },
-                        { label: 'Weekly', days: 7 },
-                        { label: 'Bi-Weekly', days: 14 },
-                        { label: 'Monthly', days: 30 },
-                      ].filter(p => p.days <= calc.durationDays).map((period) => {
-                        const inst = calculateInstalment(calc.totalRepayment, calc.durationDays, period.days);
-                        return (
-                          <div key={period.label} className="p-2 rounded bg-background border text-center">
-                            <p className="text-[10px] text-muted-foreground">{period.label}</p>
-                            <p className="text-sm font-bold font-mono">{formatUGX(inst.amount)}</p>
-                            <p className="text-[10px] text-muted-foreground">× {inst.count} payments</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+  const goBack = () => {
+    if (isFirst) { onCancel(); return; }
+    setStepIndex((i) => Math.max(i - 1, 0));
+  };
+
+  return (
+    <Card className="glass-card">
+      <CardHeader className="bg-primary/10 border-b-2 border-primary/30 space-y-3">
+        <CardTitle className="flex items-center gap-2 text-primary">
+          <FileText className="h-5 w-5" />
+          Rent Request
+        </CardTitle>
+        <div className="space-y-1.5">
+          <Progress value={progress} className="h-1.5" />
+          <p className="text-[11px] font-medium text-muted-foreground">
+            Question {stepIndex + 1} of {totalSteps}
+          </p>
+        </div>
+      </CardHeader>
+
+      <CardContent className="pt-5">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !isLast) {
+              e.preventDefault();
+              goNext();
+            }
+          }}
+          className="space-y-6"
+        >
+          <div key={current.key} className="animate-fade-in space-y-5">
+            <FormStepHeader
+              icon={current.icon}
+              title={current.title}
+              subtitle={current.subtitle}
+              stepLabel={current.stepLabel}
+            />
+            {current.node}
           </div>
 
-          {/* ═══ TENANT IDENTITY ═══ */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm text-muted-foreground">Your Identity (as on National ID)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Full Name (as on ID)</Label>
-                <Input 
-                  placeholder="Names as on National ID"
-                  value={tenantFullName}
-                  onChange={(e) => setTenantFullName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>National ID Number</Label>
-                <Input 
-                  placeholder="e.g., CM12345678ABCD"
-                  value={tenantNationalId}
-                  onChange={(e) => { setTenantNationalId(e.target.value.toUpperCase()); setNationalIdError(''); }}
-                  onBlur={() => checkDuplicateNationalId(tenantNationalId)}
-                  className={nationalIdError ? 'border-destructive' : ''}
-                  required
-                />
-                {nationalIdError && (
-                  <p className="text-[11px] text-destructive font-medium">{nationalIdError}</p>
-                )}
-              </div>
-            </div>
-            {/* Tenant Utility Meters */}
-            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
-              <p className="text-xs text-muted-foreground font-medium">Your Utility Meter Numbers</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Your NWSC Water Meter</Label>
-                  <Input 
-                    placeholder="Your water meter number" 
-                    value={tenantWaterMeter} 
-                    onChange={(e) => setTenantWaterMeter(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Your UEDCL/UMEME Electricity Meter</Label>
-                  <Input 
-                    placeholder="Your electricity meter number" 
-                    value={tenantElectricityMeter} 
-                    onChange={(e) => setTenantElectricityMeter(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-medium">Landlord Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input placeholder="Landlord Name (as on National ID)" value={landlordName} onChange={(e) => setLandlordName(e.target.value)} required />
-              <Input placeholder="Landlord Phone" value={landlordPhone} onChange={(e) => setLandlordPhone(e.target.value)} required />
-            </div>
-            <Input placeholder="Property Address" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} required />
-            <div className="space-y-1">
-              <Label className="text-xs">Landlord TIN (Tax Identification Number)</Label>
-              <Input placeholder="Landlord's TIN" value={landlordTin} onChange={(e) => setLandlordTin(e.target.value)} />
-            </div>
-            
-            {/* Uganda Utility Meters */}
-            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
-              <p className="text-xs text-muted-foreground font-medium">Uganda Utility Meters (Optional)</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">NWSC Water Meter Number</Label>
-                  <Input 
-                    placeholder="National Water & Sewerage Corp" 
-                    value={waterMeterNumber} 
-                    onChange={(e) => setWaterMeterNumber(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">UEDCL/UMEME Electricity Meter</Label>
-                  <Input 
-                    placeholder="Uganda Electricity Distribution" 
-                    value={electricityMeterNumber} 
-                    onChange={(e) => setElectricityMeterNumber(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Property GPS */}
-            <div className="space-y-2">
-              <Label className="text-xs flex items-center gap-1">
-                <Navigation className="h-3 w-3" /> Property GPS Location
-              </Label>
-              {propertyGps ? (
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-success/10 border border-success/30">
-                  <Navigation className="h-4 w-4 text-success flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-success">📍 GPS Captured</p>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      {propertyGps.lat.toFixed(5)}, {propertyGps.lng.toFixed(5)} (±{Math.round(propertyGps.accuracy)}m)
-                    </p>
-                  </div>
-                  <Button type="button" size="sm" variant="ghost" className="text-xs h-7 px-2" onClick={capturePropertyGPS}>
-                    Retake
-                  </Button>
-                </div>
-              ) : (
-                <Button type="button" variant="outline" className="w-full h-10 gap-2 border-dashed" onClick={capturePropertyGPS} disabled={gpsLoading}>
-                  {gpsLoading ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Getting GPS...</>
-                  ) : (
-                    <><Navigation className="h-4 w-4" /> Capture Property GPS</>
-                  )}
-                </Button>
-              )}
-            </div>
-
-            {/* House Photos (max 3) */}
-            <div className="space-y-2">
-              <Label className="text-xs">📸 House Photos (up to 3)</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {housePhotos.map((photo, idx) => (
-                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border">
-                    <img src={photo.preview} alt={`House ${idx + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(idx)}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-                {housePhotos.length < 3 && (
-                  <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
-                    <span className="text-xl text-muted-foreground/50">📷</span>
-                    <span className="text-[10px] text-muted-foreground/50 mt-1">Add Photo</span>
-                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoAdd} />
-                  </label>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-medium">LC1 Chairperson Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input placeholder="LC1 Name" value={lc1Name} onChange={(e) => setLc1Name(e.target.value)} required />
-              <Input placeholder="LC1 Phone" value={lc1Phone} onChange={(e) => setLc1Phone(e.target.value)} required />
-              <Input placeholder="Village" value={lc1Village} onChange={(e) => setLc1Village(e.target.value)} required />
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-            <Button type="submit" disabled={loading || !calc} className="flex-1">
-              {loading ? 'Submitting...' : 'Submit Request'}
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={goBack} disabled={loading} className="gap-1">
+              <ArrowLeft className="h-4 w-4" />
+              {isFirst ? 'Cancel' : 'Back'}
             </Button>
+            {isLast ? (
+              <Button type="submit" disabled={loading || !calc} className="flex-1 gap-1">
+                {loading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>) : 'Submit Request'}
+              </Button>
+            ) : (
+              <Button type="button" onClick={goNext} disabled={loading} className="flex-1 gap-1">
+                Continue
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </form>
       </CardContent>
