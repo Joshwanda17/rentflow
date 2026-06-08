@@ -4007,6 +4007,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </p>
                       </div>
                     </div>
+                      </div>
+                    </details>
                   </div>
                 );
               })()}
