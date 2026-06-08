@@ -768,6 +768,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSelectedLandlord(null);
     setManualLandlord(false);
     setPrefilledFromProfile(false);
+    setPhoneMatch(null);
+    setCheckingPhone(false);
     setStep(1);
   };
 
