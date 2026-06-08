@@ -877,7 +877,7 @@ export default function LandlordRegistrationForm({
             </Button>
             {/* Step hint shown before the essentials are complete so a first-time
                 agent always understands the single next action. */}
-            {!(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(cleanPhoneNumber(landlordPhone))) && (
+            {!(landlordName.trim().length >= 2 && /^\d{9,10}$/.test(toUgandaLocalDigits(landlordPhone))) && (
               <p className="text-xs text-center text-muted-foreground mt-1.5">
                 Step 1: enter the landlord's name &amp; phone, then tap Next.
               </p>
