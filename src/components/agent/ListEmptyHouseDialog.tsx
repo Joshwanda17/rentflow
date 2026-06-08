@@ -52,20 +52,7 @@ const REGIONS = [
 import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
 
 export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
-  const geo = useGeolocation(true);
-  // One-tap GPS auto-fill (capture coordinates + reverse-geocode to region/district/village).
-  const [gpsFilling, setGpsFilling] = useState(false);
-  const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  // Map pin picker so the agent can correct the spot before auto-filling.
-  const [mapPickerOpen, setMapPickerOpen] = useState(false);
-  const [mapInitial, setMapInitial] = useState<{ latitude: number; longitude: number }>({
-    latitude: 0.3476,
-    longitude: 32.5825,
-  });
-  const position = gpsCoords
-    ?? (geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null);
   const [submitting, setSubmitting] = useState(false);
-  const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
   // Guided wizard step (1-4) so agents who struggle with long forms only see
   // one simple question at a time.
   const [step, setStep] = useState(1);
