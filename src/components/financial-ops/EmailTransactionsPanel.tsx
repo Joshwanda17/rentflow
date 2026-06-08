@@ -194,6 +194,7 @@ function extractCashReceiptCode(r: GmailTx): string | null {
  * the heuristic, and lets a manual fix (if we ever expose one) stick.
  */
 const CHANNEL_CACHE_KEY = 'gmail_channel_cache_v2';
+const EXPANDED_ROWS_KEY = 'email_expanded_rows_v1';
 
 /**
  * Confidence levels for an inferred channel:
