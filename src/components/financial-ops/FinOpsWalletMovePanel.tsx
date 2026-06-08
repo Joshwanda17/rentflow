@@ -206,6 +206,14 @@ export function FinOpsWalletMovePanel() {
           ? { ...prev, withdrawable_balance: freshW, float_balance: freshF, balance: freshT }
           : prev,
       );
+      // Snapshot the BEFORE balances so the result card can show before → after.
+      setBefore({
+        source: { withdrawable: freshW, float: freshF },
+        dest:
+          mode === 'user_to_user' && dest
+            ? { withdrawable: dest.withdrawable_balance, float: dest.float_balance }
+            : undefined,
+      });
       if (amountNum > freshAvail) {
         setSubmitting(false);
         setConfirmOpen(false);
