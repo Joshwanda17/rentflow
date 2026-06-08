@@ -276,12 +276,64 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setManualLandlord(false);
     setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: normalizeUgandaPhone(hit.phone) }));
     setLandlordPhoneError('');
+    // Pull any recorded estimations onto the (editable) house fields so the
+    // agent only edits what's wrong rather than re-typing everything.
+    applyLandlordEstimations(hit.id);
   };
 
   const clearLandlordSelection = () => {
     setSelectedLandlord(null);
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
     setLandlordPhoneError('');
+  };
+
+  // Pre-fill any EMPTY house fields from an existing landlord's stored
+  // estimations (rent / location). Never overwrites what the agent already
+  // typed — everything stays fully editable.
+  const applyLandlordEstimations = async (landlordId: string) => {
+    try {
+      const { data: l } = await supabase
+        .from('landlords')
+        .select('monthly_rent, property_address, village, district, region, house_category, number_of_rooms')
+        .eq('id', landlordId)
+        .maybeSingle();
+      if (!l) return;
+      setForm((f) => ({
+        ...f,
+        region: f.region || (l.region ?? ''),
+        district: f.district || (l.district ?? ''),
+        address: f.address || (l.property_address ?? ''),
+        village: f.village || (l.village ?? ''),
+        monthly_rent: f.monthly_rent || (l.monthly_rent ? String(l.monthly_rent) : ''),
+        house_category: f.house_category && f.house_category !== 'single_room'
+          ? f.house_category
+          : (l.house_category ?? f.house_category),
+        number_of_rooms: f.number_of_rooms && f.number_of_rooms !== 1
+          ? f.number_of_rooms
+          : (l.number_of_rooms ?? f.number_of_rooms),
+      }));
+    } catch {
+      /* best effort — never blocks listing */
+    }
+  };
+
+  // Reuse a landlord that was auto-detected from the typed phone number.
+  const usePhoneMatch = () => {
+    if (!phoneMatch) return;
+    const normalized = normalizeUgandaPhone(phoneMatch.phone || form.landlord_phone);
+    setSelectedLandlord({
+      id: phoneMatch.id,
+      name: phoneMatch.name,
+      phone: normalized,
+      verified: false,
+      verifiedHouses: 0,
+    });
+    setManualLandlord(false);
+    setForm((f) => ({ ...f, landlord_name: phoneMatch.name, landlord_phone: normalized }));
+    applyLandlordEstimations(phoneMatch.id);
+    setPhoneMatch(null);
+    setLandlordPhoneError('');
+    toast.success('Landlord found in the system — add their house, location & rent below');
   };
 
   // Strict landlord phone validation with user-friendly messages.
