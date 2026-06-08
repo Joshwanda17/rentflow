@@ -493,6 +493,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     return <AgentDashboardSkeleton />;
   }
   const dataLoading = loading && !hasLoadedOnce;
+  const moneyTabLoading = walletLoading || balancesLoading || floatLoading;
 
   const handleRefresh = async () => {
     await Promise.all([refreshOfflineData(), refreshEarnings(), refreshWallet(), refreshBalances()]);
