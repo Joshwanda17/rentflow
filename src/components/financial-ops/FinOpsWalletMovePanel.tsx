@@ -76,6 +76,10 @@ export function FinOpsWalletMovePanel() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<MoveResult | null>(null);
+  const [before, setBefore] = useState<{
+    source: { withdrawable: number; float: number };
+    dest?: { withdrawable: number; float: number };
+  } | null>(null);
   const [step, setStep] = useState<MoveStep>('idle');
 
   // Live count of in-flight wallet/balance refetches kicked off by the move.
