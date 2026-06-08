@@ -2226,6 +2226,28 @@ export function EmailTransactionsPanel() {
   const canPrevNav = navIndex > 0;
   const canNextNav = navIndex >= 0 && navIndex < visibleRows.length - 1;
 
+  // Infinite scroll: when in 'infinite' mode, observe a sentinel at the bottom
+  // of the list and grow the rendered window by one page each time it scrolls
+  // into view, until every filtered row is shown. Expanded drilldowns persist
+  // because `expandedRows` is keyed by row id, not by render position.
+  const totalVisible = visibleRows.length;
+  useEffect(() => {
+    if (paginationMode !== 'infinite') return;
+    const node = infiniteSentinelRef.current;
+    if (!node) return;
+    if (infiniteCount >= totalVisible) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInfiniteCount((c) => Math.min(c + pageSize, totalVisible));
+        }
+      },
+      { rootMargin: '400px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [paginationMode, infiniteCount, totalVisible, pageSize]);
+
   /** Compute the best suggested user for a given row and routing mode. */
   const computeSuggestedFor = (r: GmailTx, mode: 'credit' | 'debit') => {
     const matches = userMatches[r.id] ?? [];
