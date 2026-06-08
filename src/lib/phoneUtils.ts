@@ -302,16 +302,44 @@ export function isValidUgandanPhoneNumber(phone: string): {
 }
 
 /**
- * Format raw digits into the Uganda 10-digit display mask: 07XX XXX XXX.
- * Strips non-digits, caps at 10 digits, then inserts spaces after 4th and 7th digits.
- * Returns empty string for empty input.
+ * Auto-format a Ugandan phone number AS the user types, supporting both masks:
+ *   • Local:         07XX XXX XXX   (when the input starts with 0)
+ *   • International:  +256 XXX XXX XXX (when the input starts with + or 256)
+ * Strips non-digits, caps the national part at 9 digits, and inserts spaces
+ * for readability. Returns empty string for empty input.
  */
 export function formatUgandaPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 10);
+  const trimmed = raw.trimStart();
+  const allDigits = trimmed.replace(/\D/g, '');
+
+  // International format: user typed a leading "+" or a "256" country code.
+  if (trimmed.startsWith('+') || allDigits.startsWith('256')) {
+    const national = (allDigits.startsWith('256') ? allDigits.slice(3) : allDigits).slice(0, 9);
+    if (national.length === 0) return '+256';
+    if (national.length <= 3) return `+256 ${national}`;
+    if (national.length <= 6) return `+256 ${national.slice(0, 3)} ${national.slice(3)}`;
+    return `+256 ${national.slice(0, 3)} ${national.slice(3, 6)} ${national.slice(6)}`;
+  }
+
+  // Local format: 07XX XXX XXX
+  const digits = allDigits.slice(0, 10);
   if (digits.length === 0) return '';
   if (digits.length <= 4) return digits;
   if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
   return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+}
+
+/**
+ * Reduce any Ugandan phone input (local, +256, 256, or bare 9-digit) to its
+ * canonical local digit string: 0XXXXXXXXX. Useful for validation + storage so
+ * both "07…" and "+256…" inputs resolve to the same value. Incomplete input is
+ * returned as plain digits so live validation can fail gracefully.
+ */
+export function toUgandaLocalDigits(phone: string): string {
+  let d = phone.replace(/\D/g, '');
+  if (d.startsWith('256') && d.length === 12) d = `0${d.slice(3)}`;
+  else if (!d.startsWith('0') && d.length === 9) d = `0${d}`;
+  return d;
 }
 
 /**
