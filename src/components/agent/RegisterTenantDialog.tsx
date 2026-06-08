@@ -205,8 +205,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const goNext = () => {
     const errs = getStepErrors(step);
     setFieldErrors(errs);
-    if (Object.keys(errs).length) {
+    const errorFields = Object.keys(errs);
+    if (errorFields.length) {
       toast.error('Please fix the highlighted fields');
+      // Scroll to and focus the first invalid field so the agent can fix it fast.
+      setTimeout(() => focusField(errorFields[0]), 50);
       return;
     }
     if (step < totalSteps) gotoStep((step + 1) as 1 | 2 | 3 | 4);
