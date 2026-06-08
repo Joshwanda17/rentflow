@@ -296,10 +296,15 @@ export function LandlordSearchSelect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results]);
 
-  // Fetch on debounced/threshold change (only when popover is open)
+  // Fetch on debounced/threshold change (only when popover is open).
+  // Each run aborts the previous in-flight request so a slow earlier
+  // response can never land after a newer one (no out-of-order results).
   useEffect(() => {
     if (!panelOpen) return;
     const myId = ++reqIdRef.current;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const isAborted = () => signal.aborted || myId !== reqIdRef.current;
     const run = async () => {
       setLoading(true);
       try {
@@ -309,12 +314,13 @@ export function LandlordSearchSelect({
           p_query: debounced,
           p_limit: 20,
           p_threshold: threshold,
-        });
+        }).abortSignal(signal);
         if (error) throw error;
-        if (myId === reqIdRef.current) {
+        if (!isAborted()) {
           setResults((data ?? []) as unknown as LandlordOption[]);
         }
       } catch (err) {
+        if (isAborted()) return;
         // Resilient fallback: plain ILIKE search if the fuzzy RPC fails.
         try {
           let q = supabase
@@ -330,22 +336,23 @@ export function LandlordSearchSelect({
             }
             q = q.or(orParts.join(','));
           }
-          const { data, error } = await q;
+          const { data, error } = await q.abortSignal(signal);
           if (error) throw error;
-          if (myId === reqIdRef.current) {
+          if (!isAborted()) {
             setResults((data ?? []) as LandlordOption[]);
           }
         } catch (fallbackErr) {
-          if (myId === reqIdRef.current) {
+          if (!isAborted()) {
             console.warn('[LandlordSearchSelect] fetch failed', err, fallbackErr);
             setResults([]);
           }
         }
       } finally {
-        if (myId === reqIdRef.current) setLoading(false);
+        if (!isAborted()) setLoading(false);
       }
     };
     run();
+    return () => controller.abort();
   }, [debounced, panelOpen, threshold]);
 
   // One-time fetch of total landlord count so we can show a system-empty warning
