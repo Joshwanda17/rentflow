@@ -231,9 +231,9 @@ export function LandlordSearchSelect({
   const prevOrderRef = useRef<{ ids: string[]; index: number }>({ ids: [], index: 0 });
 
   useEffect(() => {
-    if (autoOpenSignal === undefined || disabled) return;
+    if (inline || autoOpenSignal === undefined || disabled) return;
     setOpen(true);
-  }, [autoOpenSignal, disabled]);
+  }, [autoOpenSignal, disabled, inline]);
 
   // Debounce typing — short delay so results feel instant as you type.
   useEffect(() => {
