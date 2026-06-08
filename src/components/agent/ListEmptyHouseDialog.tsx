@@ -106,6 +106,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     region: string | null;
     house_category: string | null;
     number_of_rooms: number | null;
+    /** How many houses this landlord has listed (0 = estimation only). */
+    house_count: number;
+    /** How many photos exist across all of this landlord's houses. */
+    photo_count: number;
   };
   const [phoneMatch, setPhoneMatch] = useState<PhoneMatch | null>(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
@@ -231,7 +235,31 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           .select('id, name, phone, monthly_rent, property_address, village, district, region, house_category, number_of_rooms')
           .eq('id', m.id)
           .maybeSingle();
-        if (!cancelled) setPhoneMatch((full as PhoneMatch) ?? null);
+        if (!full) {
+          if (!cancelled) setPhoneMatch(null);
+          return;
+        }
+        // Gauge completeness: how many houses + photos this landlord already has.
+        const { data: houses } = await supabase
+          .from('house_listings')
+          .select('id')
+          .eq('landlord_id', m.id);
+        const houseIds = (houses ?? []).map((h) => h.id);
+        let photoCount = 0;
+        if (houseIds.length) {
+          const { count } = await supabase
+            .from('listing_photos')
+            .select('*', { count: 'exact', head: true })
+            .in('listing_id', houseIds);
+          photoCount = count ?? 0;
+        }
+        if (!cancelled) {
+          setPhoneMatch({
+            ...(full as Omit<PhoneMatch, 'house_count' | 'photo_count'>),
+            house_count: houseIds.length,
+            photo_count: photoCount,
+          });
+        }
       } catch {
         if (!cancelled) setPhoneMatch(null);
       } finally {
@@ -376,6 +404,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setPhoneMatch(null);
     setLandlordPhoneError('');
     toast.success('Landlord found in the system — add their house, location & rent below');
+  };
+
+  // Build a completeness checklist for a matched landlord so the agent can see
+  // at a glance what still needs to be added (location, rent, house, photos).
+  const landlordChecklist = (m: PhoneMatch) => {
+    const items = [
+      { label: 'Location', ok: !!(m.region || m.village || m.property_address) },
+      { label: 'Rent amount', ok: !!(m.monthly_rent && m.monthly_rent > 0) },
+      { label: 'House details', ok: !!(m.house_category && m.number_of_rooms) && m.house_count > 0 },
+      { label: 'Photos', ok: m.photo_count > 0 },
+    ];
+    const doneCount = items.filter((i) => i.ok).length;
+    return { items, doneCount, total: items.length };
   };
 
   // Strict landlord phone validation with user-friendly messages.
@@ -1153,6 +1194,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                         {(phoneMatch.village || phoneMatch.region) ? ` · ${[phoneMatch.village, phoneMatch.region].filter(Boolean).join(', ')}` : ''}
                       </p>
                     )}
+                    {/* Completeness indicator — what still needs to be added */}
+                    {(() => {
+                      const { items, doneCount, total } = landlordChecklist(phoneMatch);
+                      return (
+                        <div className="mt-2 rounded-lg bg-background/60 border border-border p-2">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Profile completeness</span>
+                            <span className={`text-[10px] font-bold ${doneCount === total ? 'text-success' : 'text-amber-600'}`}>{doneCount}/{total}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {items.map((it) => (
+                              <span
+                                key={it.label}
+                                className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
+                                  it.ok
+                                    ? 'bg-success/10 text-success border-success/20'
+                                    : 'bg-amber-500/10 text-amber-700 border-amber-400/30'
+                                }`}
+                              >
+                                {it.ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                                {it.label}
+                              </span>
+                            ))}
+                          </div>
+                          {doneCount < total && (
+                            <p className="text-[10px] text-amber-700 mt-1.5 leading-snug">
+                              Missing: {items.filter((i) => !i.ok).map((i) => i.label.toLowerCase()).join(', ')} — add below.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
                       Tap to use & add their house, location and rent →
                     </span>
