@@ -278,6 +278,10 @@ export function LandlordOpsDashboard() {
   // ─── Verification Queue bulk selection ───
   const [verifySelectedIds, setVerifySelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<null | 'hide' | 'unhide' | 'verify' | 'reject'>(null);
+  const [bulkResult, setBulkResult] = useState<null | {
+    action: string;
+    results: { id: string; title: string; ok: boolean; error?: string }[];
+  }>(null);
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
