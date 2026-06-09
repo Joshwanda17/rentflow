@@ -3650,7 +3650,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* Tenant passport photo (optional — submitted last with the other photos) */}
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1">
-                    🪪 Tenant Passport Photo (optional)
+                    🪪 Tenant Passport Photo *
                   </Label>
                   <div className="flex items-start gap-3">
                     {tenantPhoto ? (
@@ -3678,7 +3678,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </label>
                     )}
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Optional now — you can attach it later. Take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
+                      Required — take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
                     </p>
                   </div>
                 </div>
