@@ -139,6 +139,14 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, vacantOnly]);
 
+  // Capture the element that has focus right before the sheet opens so we can
+  // restore focus to it when the sheet dismisses (Escape, back-button, or tap-out).
+  useEffect(() => {
+    if (open) {
+      previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    }
+  }, [open]);
+
   // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
   const [enrichment, setEnrichment] = useState<{
     landlords: Record<string, { name: string; phone: string | null }>;
