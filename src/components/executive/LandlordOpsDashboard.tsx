@@ -2721,7 +2721,7 @@ export function LandlordOpsDashboard() {
 
   // ─── HOME: Mobile-first card navigation ───
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Sticky header with quick section switcher */}
       <div className="flex items-center justify-between gap-2 sticky top-0 z-30 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-b border-border/50">
         <h2 className="text-[15px] font-semibold tracking-tight flex items-center gap-2 min-w-0">
@@ -2773,37 +2773,40 @@ export function LandlordOpsDashboard() {
         </div>
       )}
 
-      {/* HERO: Tenants whose Landlords were Funded — always first */}
-      <button
-        onClick={() => setView('landlords-paid')}
-        className="w-full rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform hover:bg-muted/40"
-      >
-        <div className="p-2 rounded-xl bg-muted">
-          <Banknote className="h-[18px] w-[18px] text-emerald-600 shrink-0" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-foreground leading-tight">Tenants whose Landlords were Funded</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-            {paidLandlordsCount !== undefined ? `${paidLandlordsCount} landlords paid · ` : ''}View disbursements from tenant rent
-          </p>
-        </div>
-        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-      </button>
+      {/* Quick access — funded tenants & location browse */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* HERO: Tenants whose Landlords were Funded */}
+        <button
+          onClick={() => setView('landlords-paid')}
+          className="w-full rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform hover:bg-muted/40"
+        >
+          <div className="p-2 rounded-xl bg-muted">
+            <Banknote className="h-[18px] w-[18px] text-emerald-600 shrink-0" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-foreground leading-tight">Tenants whose Landlords were Funded</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+              {paidLandlordsCount !== undefined ? `${paidLandlordsCount} landlords paid · ` : ''}View disbursements from tenant rent
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+        </button>
 
-      {/* Browse by Location — quick access */}
-      <button
-        onClick={() => setView('houses-by-landlord')}
-        className="w-full rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-left min-h-[56px] touch-manipulation active:scale-[0.98] transition-transform hover:bg-muted/40"
-      >
-        <div className="p-2 rounded-xl bg-muted">
-          <MapPin className="h-[18px] w-[18px] text-muted-foreground shrink-0" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm leading-tight">Browse Houses by Location</p>
-          <p className="text-[10px] text-muted-foreground leading-snug">Explore properties across regions, districts &amp; wards</p>
-        </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-      </button>
+        {/* Browse by Location */}
+        <button
+          onClick={() => setView('houses-by-landlord')}
+          className="w-full rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform hover:bg-muted/40"
+        >
+          <div className="p-2 rounded-xl bg-muted">
+            <MapPin className="h-[18px] w-[18px] text-muted-foreground shrink-0" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm leading-tight">Browse Houses by Location</p>
+            <p className="text-xs text-muted-foreground leading-snug">Explore properties across regions, districts &amp; wards</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+        </button>
+      </div>
 
       {/* Priority actions */}
       <RentPipelineQueue stage="tenant_ops_approved" />
@@ -2813,8 +2816,8 @@ export function LandlordOpsDashboard() {
       {/* Agent Rent-Request Capacity (fleet-wide) */}
       <AgentRentCapacityPanel />
 
-      {/* KPIs - compact grid */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* KPIs — responsive card grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KPICard title="Total Properties" value={landlordsList.length} icon={Home} loading={isLoading} />
         <KPICard title="Occupied" value={occupiedLandlords.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} />
         <KPICard title="Empty" value={emptyLandlords.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} />
@@ -2841,7 +2844,7 @@ export function LandlordOpsDashboard() {
       )}
 
       {/* Navigation Cards */}
-      <div className="space-y-2">
+      <div className="space-y-4">
         {/* Print Landlord Payouts Report */}
         <div className="flex flex-wrap justify-end items-center gap-2 pb-1">
           <Popover>
@@ -2877,32 +2880,36 @@ export function LandlordOpsDashboard() {
           </Button>
         </div>
         {/* Priority items first */}
-        {navItems.filter(n => n.priority).map(item => (
-          <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-            item.id === 'landlords' ? `${landlordsList.length}` :
-            item.id === 'landlords-paid' ? (paidLandlordsCount !== undefined ? `${paidLandlordsCount}` : undefined) :
-            item.id === 'locations' ? `${locationGroups.length}` :
-            item.id === 'lc1' ? `${lc1Groups.length}` :
-            item.id === 'cities' ? `${cityGroups.length}` :
-            item.id === 'no-landlord' ? `${noLandlordList.length}` : undefined
-          } />
-        ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {navItems.filter(n => n.priority).map(item => (
+            <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
+              item.id === 'landlords' ? `${landlordsList.length}` :
+              item.id === 'landlords-paid' ? (paidLandlordsCount !== undefined ? `${paidLandlordsCount}` : undefined) :
+              item.id === 'locations' ? `${locationGroups.length}` :
+              item.id === 'lc1' ? `${lc1Groups.length}` :
+              item.id === 'cities' ? `${cityGroups.length}` :
+              item.id === 'no-landlord' ? `${noLandlordList.length}` : undefined
+            } />
+          ))}
+        </div>
 
         {/* Divider */}
-        <div className="flex items-center gap-2 pt-2 pb-1">
+        <div className="flex items-center gap-2 pt-1">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-[10px] text-muted-foreground font-medium">MANAGEMENT</span>
+          <span className="text-[10px] text-muted-foreground font-medium tracking-wider">MANAGEMENT</span>
           <div className="h-px flex-1 bg-border" />
         </div>
 
-        {navItems.filter(n => !n.priority).map(item => (
-          <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-            item.id === 'empty' ? `${emptyLandlords.length}` :
-            item.id === 'occupied' ? `${occupiedLandlords.length}` :
-            item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
-            item.id === 'agents' ? `${agentSummary.length}` : undefined
-          } />
-        ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {navItems.filter(n => !n.priority).map(item => (
+            <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
+              item.id === 'empty' ? `${emptyLandlords.length}` :
+              item.id === 'occupied' ? `${occupiedLandlords.length}` :
+              item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
+              item.id === 'agents' ? `${agentSummary.length}` : undefined
+            } />
+          ))}
+        </div>
       </div>
 
       <LandlordDialogs
