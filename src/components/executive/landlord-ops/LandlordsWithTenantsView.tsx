@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { downloadXlsx } from '@/lib/xlsxExport';
 import { toast } from 'sonner';
 import { LandlordHousesGallery } from './LandlordHousesGallery';
+import { ImageZoomLightbox } from './ImageZoomLightbox';
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'empty';
 
@@ -65,6 +66,12 @@ export function LandlordsWithTenantsView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [exporting, setExporting] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<{
+    open: boolean;
+    photos: string[];
+    name: string;
+    startIndex: number;
+  }>({ open: false, photos: [], name: '', startIndex: 0 });
 
   const { data, isLoading } = useQuery({
     queryKey: ['landlord-ops-landlords-tenants'],
@@ -168,18 +175,16 @@ export function LandlordsWithTenantsView() {
       hiddenMap.set(l.id, liveHouses.length > 0 && liveHouses.every(h => h.is_hidden));
     }
 
-    // Pre-compute photos per landlord
+    // Pre-compute photos per landlord (all URLs for lightbox; thumbnails slice to 4)
     const photoMap = new Map<string, string[]>();
     for (const l of allLandlords) {
       const urls: string[] = [];
       for (const h of safeHouseVis) {
         if (h.landlord_id === l.id && Array.isArray(h.image_urls)) {
           for (const u of h.image_urls) {
-            if (u && urls.length < 4) urls.push(u);
-            if (urls.length >= 4) break;
+            if (u) urls.push(u);
           }
         }
-        if (urls.length >= 4) break;
       }
       photoMap.set(l.id, urls);
     }
@@ -719,17 +724,43 @@ export function LandlordsWithTenantsView() {
                       {/* Collapsed-row photo thumbnails */}
                       {g.photoCount > 0 && (
                         <div className="flex items-center justify-end gap-1 mt-2">
-                          {g.photos.map((url, i) => (
-                            <img
+                          {g.photos.slice(0, 4).map((url, i) => (
+                            <button
                               key={`${url}-${i}`}
-                              src={url}
-                              alt={`House ${i + 1}`}
-                              className="h-10 w-10 rounded-md object-cover border"
-                              loading="lazy"
-                            />
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPhotoPreview({
+                                  open: true,
+                                  photos: g.photos,
+                                  name: g.name,
+                                  startIndex: i,
+                                });
+                              }}
+                              className="h-10 w-10 rounded-md overflow-hidden border focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            >
+                              <img
+                                src={url}
+                                alt={`House ${i + 1}`}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            </button>
                           ))}
-                          {g.photoCount >= 4 && (
-                            <span className="text-[10px] text-muted-foreground ml-0.5">+</span>
+                          {g.photoCount > 4 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPhotoPreview({
+                                  open: true,
+                                  photos: g.photos,
+                                  name: g.name,
+                                  startIndex: 0,
+                                });
+                              }}
+                              className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground border hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            >
+                              +{g.photoCount - 4}
+                            </button>
                           )}
                         </div>
                       )}
@@ -801,6 +832,13 @@ export function LandlordsWithTenantsView() {
           })}
         </div>
       )}
+      <ImageZoomLightbox
+        images={photoPreview.photos}
+        startIndex={photoPreview.startIndex}
+        open={photoPreview.open}
+        onClose={() => setPhotoPreview(s => ({ ...s, open: false }))}
+        altPrefix={photoPreview.name}
+      />
     </div>
   );
 }
