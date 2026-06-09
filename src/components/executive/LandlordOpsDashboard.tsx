@@ -250,6 +250,7 @@ export function LandlordOpsDashboard() {
   const { toast } = useToast();
   const [view, setView] = useState<View>('home');
   const [search, setSearch] = useState('');
+  const [navSheetOpen, setNavSheetOpen] = useState(false);
   const [landlordPage, setLandlordPage] = useState(1);
   const [landlordCategory, setLandlordCategory] = useState('all');
   const [verifying, setVerifying] = useState<string | null>(null);
