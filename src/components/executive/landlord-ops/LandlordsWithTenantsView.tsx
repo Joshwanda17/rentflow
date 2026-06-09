@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { downloadXlsx } from '@/lib/xlsxExport';
 import { toast } from 'sonner';
 import { LandlordHousesGallery } from './LandlordHousesGallery';
+import { ImageZoomLightbox } from './ImageZoomLightbox';
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'empty';
 
@@ -168,18 +169,16 @@ export function LandlordsWithTenantsView() {
       hiddenMap.set(l.id, liveHouses.length > 0 && liveHouses.every(h => h.is_hidden));
     }
 
-    // Pre-compute photos per landlord
+    // Pre-compute photos per landlord (all URLs for lightbox; thumbnails slice to 4)
     const photoMap = new Map<string, string[]>();
     for (const l of allLandlords) {
       const urls: string[] = [];
       for (const h of safeHouseVis) {
         if (h.landlord_id === l.id && Array.isArray(h.image_urls)) {
           for (const u of h.image_urls) {
-            if (u && urls.length < 4) urls.push(u);
-            if (urls.length >= 4) break;
+            if (u) urls.push(u);
           }
         }
-        if (urls.length >= 4) break;
       }
       photoMap.set(l.id, urls);
     }
