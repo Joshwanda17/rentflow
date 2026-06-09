@@ -251,6 +251,29 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
     if (phone && phone !== '—') window.location.href = `tel:${phone}`;
   };
 
+  const handleResendInvite = async (subAgentId: string, name: string) => {
+    setResendingId(subAgentId);
+    const { data, error } = await invokeEdgeFunction<{ ok: boolean; smsSent: boolean; emailSent: boolean }>(
+      'resend-subagent-invite',
+      {
+        body: { subAgentId, origin: window.location.origin },
+        errorTitle: 'Resend failed',
+        fallbackMessage: 'Could not resend the invitation.',
+      },
+    );
+    setResendingId(null);
+    if (error || !data?.ok) return;
+
+    const parts: string[] = [];
+    if (data.smsSent) parts.push('SMS');
+    if (data.emailSent) parts.push('email');
+    const via = parts.length > 0 ? ` via ${parts.join(' and ')}` : '';
+
+    toast.success(`Invite re-sent to ${name}`, {
+      description: `A new acceptance link was sent${via}.`,
+    });
+  };
+
   if (loading) {
     return (
       <Card>
