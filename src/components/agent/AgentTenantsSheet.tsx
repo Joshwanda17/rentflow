@@ -667,10 +667,21 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
         .select('tenant_id')
         .eq('agent_id', user.id);
 
+      // Sub-agents are NOT tenants. A person registered/referred by this agent
+      // who was later promoted to a sub-agent keeps their referrer_id/referrals
+      // row, which would otherwise bleed them into the tenant list. Exclude them.
+      const { data: subAgentRows } = await supabase
+        .from('agent_subagents')
+        .select('sub_agent_id')
+        .eq('parent_agent_id', user.id);
+      const subAgentIds = new Set(
+        (subAgentRows || []).map(r => r.sub_agent_id).filter(Boolean) as string[],
+      );
+
       const extraTenantIds = [
         ...(referralRows || []).map(r => r.referred_id),
         ...(agentRequests || []).map(r => r.tenant_id),
-      ].filter(id => id && !referredIds.has(id));
+      ].filter(id => id && !referredIds.has(id) && !subAgentIds.has(id));
 
       let extraTenants: Tenant[] = [];
       if (extraTenantIds.length > 0) {
@@ -686,12 +697,13 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
       // referrer_id, referrals table, or rent_requests.agent_id. Admin RLS
       // policies (manager/cfo/super_admin) would otherwise bleed every
       // platform profile into this view for staff who also hold those roles.
+      const allowedReferred = referredTenants.filter(t => !subAgentIds.has(t.id));
       const allowedIds = new Set<string>([
-        ...referredTenants.map(t => t.id),
+        ...allowedReferred.map(t => t.id),
         ...extraTenantIds,
       ]);
       const mergedById = new Map<string, Tenant>();
-      for (const t of [...referredTenants, ...extraTenants]) {
+      for (const t of [...allowedReferred, ...extraTenants]) {
         if (allowedIds.has(t.id)) mergedById.set(t.id, t);
       }
       const tenantList = Array.from(mergedById.values());
