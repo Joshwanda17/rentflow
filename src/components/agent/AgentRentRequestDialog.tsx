@@ -1680,6 +1680,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       errors.push('Landlord and LC1 phones must be different numbers');
     }
 
+    // House photos and tenant passport photo are mandatory.
+    const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+    if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
+    if (!tenantPhoto) errors.push("Take the tenant's passport photo");
+
     return errors;
   };
 
