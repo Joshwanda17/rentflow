@@ -296,6 +296,7 @@ Deno.serve(async (req) => {
         : (sent.ok ? "OTP sent via SMS" : `OTP created (SMS NOT delivered: ${sent.reason ?? "unknown"})`),
       failure_reason: sent.ok ? null : (sent.reason ?? "sms_not_delivered"),
       metadata: {
+        attempt_number: 1,
         sms_sent: sent.ok,
         sms_status: sent.status ?? null,
         sms_status_code: sent.statusCode ?? null,
@@ -311,6 +312,7 @@ Deno.serve(async (req) => {
       success: true,
       challenge_id: challenge.id,
       expires_at: otp_expires_at,
+      attempt_number: 1,
       sms_sent: sent.ok,
       sms_reason: sent.reason ?? null,
     });
