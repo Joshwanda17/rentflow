@@ -83,7 +83,10 @@ Deno.serve(async (req) => {
       property_latitude,
       property_longitude,
       challenge_id, // optional: resend OTP for existing challenge
+      trigger_source, // optional: 'auto' (auto-sent on withdraw float tap) | 'manual'
     } = body ?? {};
+
+    const normalizedTrigger = trigger_source === "auto" ? "auto" : "manual";
 
     // Resend path
     if (challenge_id) {
