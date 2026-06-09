@@ -1,10 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
   Send, RefreshCw, ShieldCheck, XCircle, AlertTriangle, Clock, Loader2, User2, Zap, CheckCircle2,
@@ -63,8 +66,47 @@ function failureReasonLabel(reason: string): string {
       .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// A challenge can be re-issued when its latest attempt failed and it has not
+// been verified or terminally closed. Failure signals: an explicit `failed`
+// event, a delivery report marked failed, or a send/resend the gateway rejected.
+function isResendable(group: OtpEvent[]): boolean {
+  const hasVerified = group.some((e) => e.event_type === 'verified');
+  if (hasVerified) return false;
+  return group.some((e) =>
+    e.event_type === 'failed' ||
+    (e.event_type === 'delivery_report' && e.metadata?.delivery_status === 'failed') ||
+    ((e.event_type === 'sent' || e.event_type === 'resent') && e.metadata?.sms_sent === false),
+  );
+}
+
 export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const resend = useMutation({
+    mutationFn: async (challengeId: string) => {
+      const { data, error } = await supabase.functions.invoke('issue-landlord-payout-otp', {
+        body: { challenge_id: challengeId, trigger_source: 'manual' },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      return data as { sms_sent?: boolean; sms_reason?: string | null };
+    },
+    onMutate: (challengeId: string) => setResendingId(challengeId),
+    onSuccess: (data) => {
+      if (data?.sms_sent) {
+        toast.success('New OTP sent to the landlord');
+      } else {
+        toast.warning(`OTP regenerated, but SMS not delivered: ${data?.sms_reason ?? 'unknown reason'}`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['landlord-otp-audit'] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Could not resend OTP');
+    },
+    onSettled: () => setResendingId(null),
+  });
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['landlord-otp-audit', user?.id],
@@ -116,6 +158,8 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
             ) : (
               grouped.map((group) => {
                 const head = group[0];
+                const resendable = isResendable(group);
+                const isResending = resendingId === head.challenge_id;
                 return (
                   <div key={head.challenge_id} className="rounded-lg border bg-card overflow-hidden">
                     <div className="px-3 py-2 bg-muted/40 border-b flex items-center justify-between gap-2">
@@ -128,9 +172,25 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                           challenge {head.challenge_id}
                         </p>
                       </div>
-                      {head.amount != null && (
-                        <Badge variant="secondary" className="shrink-0">{formatUGX(Number(head.amount))}</Badge>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {head.amount != null && (
+                          <Badge variant="secondary">{formatUGX(Number(head.amount))}</Badge>
+                        )}
+                        {resendable && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1.5"
+                            disabled={isResending}
+                            onClick={() => resend.mutate(head.challenge_id)}
+                          >
+                            {isResending
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <RefreshCw className="h-3 w-3" />}
+                            Resend OTP
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     <ol className="relative ml-4 my-2 border-l border-border">
