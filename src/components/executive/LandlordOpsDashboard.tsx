@@ -9,6 +9,7 @@ import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerifi
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { KPICard } from './KPICard';
+import { DrilldownTable, type DrilldownColumn } from './DrilldownTable';
 import {
   Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
@@ -1834,6 +1835,16 @@ export function LandlordOpsDashboard() {
           <Input placeholder="Search city…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
+        <DrilldownTable
+          data={filtered}
+          rowKey={(c, i) => `${c.city}-${i}`}
+          emptyMessage="No cities found"
+          columns={[
+            { key: 'city', label: 'City', render: (c) => <span className="font-semibold">{c.city}</span> },
+            { key: 'listingCount', label: 'Houses', align: 'right' },
+            { key: 'tenantCount', label: 'Tenants', align: 'right' },
+          ] as DrilldownColumn<typeof filtered[number]>[]}
+        />
         <div className="space-y-2">
           {filtered.map((city, i) => (
             <div key={i} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-3">
@@ -1895,6 +1906,18 @@ export function LandlordOpsDashboard() {
           <Input placeholder="Search tenant, agent, or city…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
+        <DrilldownTable
+          data={filtered}
+          rowKey={(t) => t.id}
+          emptyMessage="All tenants have landlords listed"
+          columns={[
+            { key: 'tenant_name', label: 'Tenant', render: (t) => <span className="font-semibold">{t.tenant_name}</span> },
+            { key: 'request_city', label: 'City', render: (t) => t.request_city || '—' },
+            { key: 'rent_amount', label: 'Rent', align: 'right', render: (t) => `UGX ${t.rent_amount.toLocaleString()}` },
+            { key: 'status', label: 'Status' },
+            { key: 'agent_name', label: 'Agent', render: (t) => t.agent_name || '—' },
+          ] as DrilldownColumn<typeof filtered[number]>[]}
+        />
         <div className="space-y-2">
           {filtered.map(t => (
             <div key={t.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
@@ -1987,6 +2010,17 @@ export function LandlordOpsDashboard() {
             <p className="text-sm font-semibold text-destructive">{emptyLandlords.length} empty — UGX {fmt(lostMonthlyRevenue)}/mo lost revenue</p>
           </div>
         )}
+        <DrilldownTable
+          data={emptyLandlords}
+          rowKey={(l) => l.id}
+          emptyMessage="No empty houses"
+          columns={[
+            { key: 'name', label: 'Landlord', render: (l) => <span className="font-semibold">{l.name}</span> },
+            { key: 'phone', label: 'Phone', render: (l) => l.phone || '—' },
+            { key: 'houses', label: 'Houses', align: 'right', sortValue: (l) => landlordHouseCounts.get(l.id) || l.number_of_houses || 0, render: (l) => landlordHouseCounts.get(l.id) || l.number_of_houses || 0 },
+            { key: 'monthly_rent', label: 'Rent', align: 'right', render: (l) => `UGX ${fmt(l.monthly_rent || 0)}` },
+          ] as DrilldownColumn<typeof emptyLandlords[number]>[]}
+        />
         <div className="space-y-2">
           {emptyLandlords.map(landlord => {
             const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
@@ -2028,6 +2062,18 @@ export function LandlordOpsDashboard() {
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedLandlords.length})</h2>
+        <DrilldownTable
+          data={occupiedLandlords}
+          rowKey={(l) => l.id}
+          emptyMessage="No occupied houses"
+          columns={[
+            { key: 'name', label: 'Landlord', render: (l) => <span className="font-semibold">{l.name}</span> },
+            { key: 'phone', label: 'Phone', render: (l) => l.phone || '—' },
+            { key: 'tenants', label: 'Tenants', align: 'right', sortValue: (l) => l.tenants?.length || 0, render: (l) => l.tenants?.length || 0 },
+            { key: 'houses', label: 'Houses', align: 'right', sortValue: (l) => landlordHouseCounts.get(l.id) || l.number_of_houses || 0, render: (l) => landlordHouseCounts.get(l.id) || l.number_of_houses || 0 },
+            { key: 'monthly_rent', label: 'Rent', align: 'right', render: (l) => `UGX ${fmt(l.monthly_rent || 0)}` },
+          ] as DrilldownColumn<typeof occupiedLandlords[number]>[]}
+        />
         <div className="space-y-2">
           {occupiedLandlords.map(landlord => {
             const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
