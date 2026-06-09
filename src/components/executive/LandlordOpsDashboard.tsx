@@ -1301,9 +1301,7 @@ export function LandlordOpsDashboard() {
     setSearch('');
     setVerifySearch('');
     setVerifyFilter('all');
-    setVerifySort('newest');
     setPendingFilter('all');
-    setLandlordSort('newest');
     setNavSheetOpen(false);
   };
 
