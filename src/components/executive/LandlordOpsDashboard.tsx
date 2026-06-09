@@ -1835,6 +1835,16 @@ export function LandlordOpsDashboard() {
           <Input placeholder="Search city…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
+        <DrilldownTable
+          data={filtered}
+          rowKey={(c, i) => `${c.city}-${i}`}
+          emptyMessage="No cities found"
+          columns={[
+            { key: 'city', label: 'City', render: (c) => <span className="font-semibold">{c.city}</span> },
+            { key: 'listingCount', label: 'Houses', align: 'right' },
+            { key: 'tenantCount', label: 'Tenants', align: 'right' },
+          ] as DrilldownColumn<typeof filtered[number]>[]}
+        />
         <div className="space-y-2">
           {filtered.map((city, i) => (
             <div key={i} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-3">
