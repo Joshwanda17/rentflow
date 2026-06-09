@@ -538,6 +538,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // intent and fire the real submit the instant everything settles.
   const [submitQueued, setSubmitQueued] = useState(false);
   const [queueStatus, setQueueStatus] = useState<'idle' | 'queued' | 'cancelling' | 'ready'>('idle');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
@@ -2253,6 +2254,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       description: 'Your draft is still saved. Tap Submit when you are ready.',
     });
     window.setTimeout(() => setQueueStatus('idle'), 900);
+  }, []);
+
+  /** Opens the confirmation dialog before actually cancelling a queued submit. */
+  const promptCancelQueued = useCallback(() => {
+    setShowCancelConfirm(true);
   }, []);
 
   // Flush a queued submit the moment capacity + auto-save settle. A safety
