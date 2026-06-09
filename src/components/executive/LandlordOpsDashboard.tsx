@@ -17,6 +17,7 @@ import {
   Table2, Printer, CalendarIcon, Loader2, Upload,
 } from 'lucide-react';
 import { Eye, EyeOff } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -274,6 +275,9 @@ export function LandlordOpsDashboard() {
   type VerifyScope = 'pending' | 'all';
   const [verifyScope, setVerifyScope] = useState<VerifyScope>('pending');
   const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
+  // ─── Verification Queue bulk selection ───
+  const [verifySelectedIds, setVerifySelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState<null | 'hide' | 'unhide' | 'verify' | 'reject'>(null);
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
@@ -1061,6 +1065,121 @@ export function LandlordOpsDashboard() {
     } finally {
       setTogglingHide(s => ({ ...s, [listing.id]: false }));
     }
+  };
+
+  // ─── Verification Queue bulk actions ───
+  const toggleVerifySelect = (id: string) => {
+    setVerifySelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const clearVerifySelection = () => setVerifySelectedIds(new Set());
+
+  // Hide or unhide every selected house from the tenant dashboard.
+  const handleBulkHide = async (selected: ListingWithLandlord[], nextHidden: boolean) => {
+    if (!user || selected.length === 0) return;
+    const action = nextHidden ? 'hide' : 'unhide';
+    const reason = window.prompt(
+      `Reason to ${action} ${selected.length} house${selected.length === 1 ? '' : 's'} (min 10 characters) — visible only to landlord ops & audit logs:`,
+      nextHidden ? 'Hidden from tenant browse' : 'Restored to tenant browse'
+    );
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 10) {
+      toast({ title: 'Reason too short', description: 'Please enter at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setBulkBusy(nextHidden ? 'hide' : 'unhide');
+    let ok = 0; let failed = 0;
+    for (const h of selected) {
+      try {
+        const { error } = await supabase.from('house_listings').update({ is_hidden: nextHidden }).eq('id', h.id);
+        if (error) throw error;
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: nextHidden ? 'listing_hidden' : 'listing_unhidden',
+          table_name: 'house_listings',
+          record_id: h.id,
+          metadata: { reason: trimmed, listing_title: h.title, hidden_by: 'landlord_ops', bulk: true },
+        });
+        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, is_hidden: nextHidden } : l) : old);
+        ok++;
+      } catch { failed++; }
+    }
+    setBulkBusy(null);
+    clearVerifySelection();
+    toast({
+      title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} ${nextHidden ? 'hidden' : 'shown'}` : `${ok} done, ${failed} failed`,
+      description: nextHidden ? 'Selected houses are off the tenant dashboard.' : 'Selected houses are back on the tenant dashboard.',
+      variant: failed === 0 ? undefined : 'destructive',
+    });
+    refetch();
+  };
+
+  // Verify (credit bonus where unpaid) every selected unverified house.
+  const handleBulkVerify = async (selected: ListingWithLandlord[]) => {
+    if (!user || selected.length === 0) return;
+    const targets = selected.filter(h => !h.verified);
+    if (targets.length === 0) {
+      toast({ title: 'Nothing to verify', description: 'All selected houses are already verified.' });
+      return;
+    }
+    if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 5,000.`)) return;
+    setBulkBusy('verify');
+    let ok = 0; let failed = 0;
+    for (const h of targets) {
+      try {
+        const { data, error } = await supabase.functions.invoke('credit-listing-bonus', { body: { listing_id: h.id } });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, verified: true, listing_bonus_paid: true } : l) : old);
+        ok++;
+      } catch { failed++; }
+    }
+    setBulkBusy(null);
+    clearVerifySelection();
+    toast({
+      title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} verified` : `${ok} verified, ${failed} failed`,
+      description: failed === 0 ? 'Agents credited for newly verified listings.' : 'Some listings could not be verified.',
+      variant: failed === 0 ? undefined : 'destructive',
+    });
+    refetch();
+  };
+
+  // Reject every selected house (single shared reason, min 10 chars).
+  const handleBulkReject = async (selected: ListingWithLandlord[]) => {
+    if (!user || selected.length === 0) return;
+    const reason = window.prompt(`Reason to reject ${selected.length} house${selected.length === 1 ? '' : 's'} (min 10 characters):`, '');
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 10) {
+      toast({ title: 'Reason too short', description: 'Please enter at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setBulkBusy('reject');
+    let ok = 0; let failed = 0;
+    for (const h of selected) {
+      try {
+        const { data, error } = await supabase.rpc('reject_house_listing', { p_listing_id: h.id, p_reason: trimmed });
+        if (error) throw error;
+        if (data && typeof data === 'object' && 'error' in (data as any)) throw new Error((data as any).error);
+        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, status: 'rejected' } : l) : old);
+        ok++;
+      } catch { failed++; }
+    }
+    setBulkBusy(null);
+    clearVerifySelection();
+    toast({
+      title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} rejected` : `${ok} rejected, ${failed} failed`,
+      variant: failed === 0 ? undefined : 'destructive',
+    });
+    refetch();
   };
 
   // Approve (verify) a pending landlord with an optional inline note.
@@ -2014,12 +2133,57 @@ export function LandlordOpsDashboard() {
 
         <ListingBonusApprovalQueue filter="all" collapsible defaultOpen={false} />
         <VerificationTimelinePanel />
+
+        {/* ── Bulk selection bar ── */}
+        {filteredHouses.length > 0 && (() => {
+          const selectedHouses = filteredHouses.filter(h => verifySelectedIds.has(h.id));
+          const allSelected = selectedHouses.length === filteredHouses.length;
+          const anySelected = selectedHouses.length > 0;
+          return (
+            <div className="sticky top-0 z-10 rounded-xl border border-border bg-card/95 backdrop-blur p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={() => allSelected ? clearVerifySelection() : setVerifySelectedIds(new Set(filteredHouses.map(h => h.id)))}
+                  className="flex items-center gap-2 text-sm font-semibold"
+                >
+                  <Checkbox checked={allSelected} className="pointer-events-none" />
+                  {allSelected ? 'Clear all' : 'Select all'}
+                </button>
+                <Badge variant="outline" className="text-xs font-bold">{selectedHouses.length} selected</Badge>
+              </div>
+              {anySelected && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <Button size="sm" variant="outline" className="h-10 gap-1.5 font-semibold" disabled={bulkBusy !== null} onClick={() => handleBulkHide(selectedHouses, true)}>
+                    <EyeOff className="h-4 w-4" />{bulkBusy === 'hide' ? '…' : 'Hide'}
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-10 gap-1.5 font-semibold" disabled={bulkBusy !== null} onClick={() => handleBulkHide(selectedHouses, false)}>
+                    <Eye className="h-4 w-4" />{bulkBusy === 'unhide' ? '…' : 'Unhide'}
+                  </Button>
+                  <Button size="sm" className="h-10 gap-1.5 font-semibold" disabled={bulkBusy !== null} onClick={() => handleBulkVerify(selectedHouses)}>
+                    <ShieldCheck className="h-4 w-4" />{bulkBusy === 'verify' ? '…' : 'Verify'}
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-10 gap-1.5 font-semibold border-destructive/40 text-destructive hover:bg-destructive/10" disabled={bulkBusy !== null} onClick={() => handleBulkReject(selectedHouses)}>
+                    <XCircle className="h-4 w-4" />{bulkBusy === 'reject' ? '…' : 'Reject'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         <div className="space-y-3">
           {filteredHouses.map(house => (
-            <div key={house.id} className="rounded-xl border border-border bg-card overflow-hidden">
+            <div key={house.id} className={`rounded-xl border bg-card overflow-hidden ${verifySelectedIds.has(house.id) ? 'border-primary ring-1 ring-primary/40' : 'border-border'}`}>
               {/* ── Card Header ── */}
               <div className="p-4 pb-3 space-y-3">
                 <div className="flex gap-3">
+                  {/* Bulk select checkbox */}
+                  <div className="shrink-0 pt-1">
+                    <Checkbox
+                      checked={verifySelectedIds.has(house.id)}
+                      onCheckedChange={() => toggleVerifySelect(house.id)}
+                    />
+                  </div>
                   {/* Thumbnail */}
                   <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border">
                     {house.image_urls?.[0] ? (
