@@ -676,6 +676,11 @@ export function LandlordsWithTenantsView() {
                     <div className="text-right shrink-0">
                       <p className="font-bold font-mono text-sm">{formatUGX(g.totalAmount)}</p>
                       <div className="flex items-center justify-end gap-1 mt-0.5">
+                        {g.allHidden && (
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] px-1.5 py-0 h-4 gap-0.5">
+                            <EyeOff className="h-2.5 w-2.5" /> Hidden
+                          </Badge>
+                        )}
                         {g.paidCount > 0 && (
                           <Badge className="bg-success/10 text-success border-success/30 text-[10px] px-1.5 py-0 h-4">
                             <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{g.paidCount}
