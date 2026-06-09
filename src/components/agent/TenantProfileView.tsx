@@ -655,11 +655,13 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           rentAmount: r.rent_amount,
           totalRepayment: r.total_repayment,
           amountRepaid: r.amount_repaid,
+          dailyRepayment: r.daily_repayment,
           initialOutstanding: r.initial_outstanding_balance,
           landlordName: r.landlord?.name ?? null,
           propertyAddress: r.landlord?.property_address ?? null,
         })),
         transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
+        allocations: floatAllocations,
       };
       await shareOrDownloadRepaymentSheet(sheet);
       setSheetRangeOpen(false);
