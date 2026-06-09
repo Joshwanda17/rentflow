@@ -169,6 +169,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
+  const [floatAllocations, setFloatAllocations] = useState<{ date: string; amount: number }[]>([]);
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
