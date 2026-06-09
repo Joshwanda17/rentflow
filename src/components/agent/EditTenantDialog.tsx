@@ -146,6 +146,10 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
           // disabled. Fall through with null data so the form stays usable;
           // the save diff still works for the always-loaded identity fields.
           console.warn('[EditTenantDialog] failed to load extended profile fields', e);
+          toast.error('Failed to load tenant details', {
+            description: 'Some fields may be unavailable until the connection improves. You can still save changes to name, phone, email, and ID.',
+            duration: 6000,
+          });
         }
         setCity(data?.city || '');
         setDistrict(data?.district || '');
