@@ -3149,17 +3149,17 @@ function NavCard({ item, onClick, badge }: { item: typeof navItems[number]; onCl
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 p-4 rounded-xl border ${item.color} transition-all text-left min-h-[64px] touch-manipulation active:scale-[0.98]`}
+      className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border bg-card hover:bg-muted/40 transition-colors text-left min-h-[64px] touch-manipulation active:scale-[0.98]"
     >
-      <div className={`h-10 w-10 rounded-xl ${item.color.split(' ')[0]} flex items-center justify-center shrink-0`}>
-        <item.icon className="h-5 w-5" />
+      <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+        <item.icon className="h-[18px] w-[18px] text-muted-foreground" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-sm">{item.label}</p>
+        <p className="font-semibold text-sm leading-tight">{item.label}</p>
         <p className="text-[10px] text-muted-foreground truncate">{item.description}</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {badge && <Badge variant="outline" className="text-[10px] font-bold">{badge}</Badge>}
+        {badge && <Badge variant="secondary" className="text-[10px] font-medium">{badge}</Badge>}
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </div>
     </button>
