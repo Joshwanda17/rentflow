@@ -14,7 +14,7 @@ import {
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
-  Table2, Printer, CalendarIcon, Loader2, Upload,
+  Table2, Printer, CalendarIcon, Loader2, Upload, RotateCcw,
 } from 'lucide-react';
 import { Eye, EyeOff } from 'lucide-react';
 import { LayoutGrid } from 'lucide-react';
@@ -276,9 +276,9 @@ export function LandlordOpsDashboard() {
   const [verifySearch, setVerifySearch] = useState('');
   type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1';
   const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
-  // Scope: pending = unverified only; all = every house (so ops can verify, reject or hide ANY house).
-  type VerifyScope = 'pending' | 'all';
-  const [verifyScope, setVerifyScope] = useState<VerifyScope>('pending');
+  // Scope: pending | verified | hidden | all — thumb-friendly status chips
+  type HouseStatusFilter = 'pending' | 'verified' | 'hidden' | 'all';
+  const [houseStatusFilter, setHouseStatusFilter] = useState<HouseStatusFilter>('pending');
   const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
   // ─── Verification Queue bulk selection ───
   const [verifySelectedIds, setVerifySelectedIds] = useState<Set<string>>(new Set());
@@ -765,7 +765,7 @@ export function LandlordOpsDashboard() {
     && !optimisticallyVerifiedIds.has(l.id)
   );
   const verifiedListings = rows.filter(l => l.verified);
-  const withImages = rows.filter(l => l.image_urls && l.image_urls.length > 0);
+  const hiddenListings = rows.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted');
   const withGPS = rows.filter(l => l.latitude && l.longitude);
   const emptyHouses = rows.filter(l => l.status === 'available' && !l.tenant_id);
   const occupiedHouses = rows.filter(l => l.tenant_id);
