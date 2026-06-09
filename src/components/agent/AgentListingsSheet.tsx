@@ -632,7 +632,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
               <div className="space-y-2.5">
                 {onListHouse && (
                   <Button
-                    autoFocus
+                    ref={emptyPrimaryRef}
                     aria-describedby="empty-state-desc"
                     onClick={() => { onOpenChange(false); onListHouse(); }}
                     className="w-full gap-2 h-12 text-base font-semibold"
@@ -643,6 +643,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                 )}
                 <Button
                   variant="outline"
+                  ref={emptySecondaryRef}
                   aria-describedby="empty-state-desc"
                   onClick={() => { onOpenChange(false); navigate('/find-a-house'); }}
                   className="w-full gap-2 h-12 text-base"
