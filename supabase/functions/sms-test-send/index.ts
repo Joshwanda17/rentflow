@@ -19,7 +19,7 @@ async function sendSMS(phone: string, message: string) {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
-    return { ok: false, reason: "Missing Africa's Talking credentials" };
+    return { ok: false, reason: "Missing Africa's Talking credentials", provider: "africastalking" };
   }
 
   const isSandbox = username.toLowerCase() === "sandbox";
@@ -65,6 +65,74 @@ async function sendSMS(phone: string, message: string) {
     sandbox: isSandbox,
     recipients,
     raw: parsed ?? rawText,
+    provider: "africastalking",
+    reason: success ? undefined : (parsed?.SMSMessageData?.Message || recipients?.[0]?.status || `AT HTTP ${res.status}`),
+  };
+}
+
+// Twilio fallback — routed through the Lovable connector gateway (same path as
+// the production landlord-payout OTP function), so we only POST /Messages.json.
+const TWILIO_GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
+const TWILIO_SENDER = "WELILE";
+async function sendTwilioSMS(phone: string, message: string) {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const twilioKey = Deno.env.get("TWILIO_API_KEY");
+  if (!lovableKey || !twilioKey) {
+    return { ok: false, reason: "Twilio fallback not configured", provider: "twilio" };
+  }
+  const formattedPhone = formatPhoneInternational(phone);
+  try {
+    const res = await fetch(`${TWILIO_GATEWAY_URL}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": twilioKey,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ To: formattedPhone, From: TWILIO_SENDER, Body: message }).toString(),
+    });
+    const rawText = await res.text();
+    let parsed: any = null;
+    try { parsed = JSON.parse(rawText); } catch { /* keep raw */ }
+    if (!res.ok) {
+      return {
+        ok: false,
+        httpStatus: res.status,
+        formattedPhone,
+        reason: parsed?.error_message || parsed?.message || `Twilio HTTP ${res.status}`,
+        raw: parsed ?? rawText,
+        provider: "twilio",
+      };
+    }
+    const status = (parsed?.status ?? "").toString().toLowerCase();
+    const accepted = ["queued", "accepted", "sending", "sent", "delivered"].includes(status);
+    return {
+      ok: accepted,
+      httpStatus: res.status,
+      formattedPhone,
+      status: parsed?.status ?? null,
+      messageId: parsed?.sid ?? null,
+      reason: accepted ? undefined : (parsed?.error_message || `Twilio status ${parsed?.status ?? "unknown"}`),
+      raw: parsed ?? rawText,
+      provider: "twilio",
+    };
+  } catch (e) {
+    return { ok: false, formattedPhone, reason: e instanceof Error ? e.message : "Twilio network error", provider: "twilio" };
+  }
+}
+
+// Africa's Talking first, then automatic Twilio fallback — identical strategy to
+// the production landlord payout OTP path, so this is a true end-to-end check.
+async function sendWithFallback(phone: string, message: string) {
+  const primary = await sendSMS(phone, message);
+  if (primary.ok) return { ...primary, fallbackUsed: false };
+  const fallback = await sendTwilioSMS(phone, message);
+  return {
+    ...fallback,
+    fallbackUsed: true,
+    primaryProvider: "africastalking",
+    primaryReason: (primary as any).reason ?? "AT send not accepted",
+    primaryRaw: (primary as any).raw ?? null,
   };
 }
 
@@ -75,15 +143,22 @@ Deno.serve(async (req) => {
     let phone = "0777607640";
     let message =
       "[Welile Test] Background SMS API test successful. If you received this, the SMS pipeline is healthy. — Welile Ops";
+    let provider = "auto"; // 'auto' = AT then Twilio fallback | 'twilio' = force Twilio | 'africastalking' = force AT
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       if (body?.phone) phone = String(body.phone);
       if (body?.message) message = String(body.message);
+      if (body?.provider) provider = String(body.provider);
     }
 
     const startedAt = new Date().toISOString();
-    const result = await sendSMS(phone, message);
+    const result =
+      provider === "twilio"
+        ? { ...(await sendTwilioSMS(phone, message)), fallbackUsed: false, forced: "twilio" }
+        : provider === "africastalking"
+        ? { ...(await sendSMS(phone, message)), fallbackUsed: false, forced: "africastalking" }
+        : await sendWithFallback(phone, message);
     const finishedAt = new Date().toISOString();
 
     // Audit log so we have a trail
