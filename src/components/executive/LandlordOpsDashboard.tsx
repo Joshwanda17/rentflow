@@ -882,6 +882,28 @@ export function LandlordOpsDashboard() {
     return [...map.values()].sort((a, b) => (b.listingCount + b.tenantCount) - (a.listingCount + a.tenantCount));
   }, [rows, noLandlordList]);
 
+  // Restore an entity detail sheet from a shared deep link (?entity=…&eid=…).
+  const entityParam = searchParams.get('entity') as 'city' | 'no-landlord' | 'landlord' | null;
+  const eidParam = searchParams.get('eid');
+  useEffect(() => {
+    if (!entityParam || !eidParam) return;
+    if (entityDetail) return; // already open
+    if (entityParam === 'city') {
+      const c = cityGroups.find(g => g.city === eidParam);
+      if (c) { setView('cities'); setEntityDetail({ type: 'city', data: c }); }
+    } else if (entityParam === 'no-landlord') {
+      const t = noLandlordList.find(r => r.id === eidParam);
+      if (t) { setView('no-landlord'); setEntityDetail({ type: 'no-landlord', data: t }); }
+    } else if (entityParam === 'landlord') {
+      const l = landlordsList.find(x => x.id === eidParam);
+      if (l) {
+        setView(l.tenants && l.tenants.length > 0 ? 'occupied' : 'empty');
+        setEntityDetail({ type: 'landlord', data: l });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entityParam, eidParam, cityGroups, noLandlordList, landlordsList]);
+
   // LC1 grouping from house_listings (kept for backward compat)
   const lc1GroupsFromListings = useMemo(() => {
     const map = new Map<string, { name: string; phone: string | null; village: string | null; houseCount: number; listingIds: string[] }>();
