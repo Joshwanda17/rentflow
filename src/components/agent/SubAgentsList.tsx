@@ -134,11 +134,20 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
 
       // All sub-agent override commission the parent earned. source_user_id is
       // the tenant id, so route each commission to its sub-agent via tenantToSub.
-      const { data: earnings } = await supabase
+      let earningsQuery = supabase
         .from('agent_earnings')
-        .select('amount, source_user_id')
+        .select('amount, source_user_id, created_at')
         .eq('agent_id', user.id)
         .eq('earning_type', 'subagent_commission');
+
+      if (dateFrom) {
+        earningsQuery = earningsQuery.gte('created_at', `${dateFrom}T00:00:00Z`);
+      }
+      if (dateTo) {
+        earningsQuery = earningsQuery.lte('created_at', `${dateTo}T23:59:59Z`);
+      }
+
+      const { data: earnings } = await earningsQuery;
 
       const earningsBySub: Record<string, number> = {};
       let total = 0;
@@ -186,7 +195,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, onSummary]);
+  }, [user, onSummary, dateFrom, dateTo]);
 
   useEffect(() => {
     if (!user) return;
