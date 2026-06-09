@@ -53,6 +53,7 @@ interface LandlordGroup {
   allHidden: boolean;
   photos: string[]; // first few house photo URLs for collapsed-row preview
   photoCount: number;
+  captions: string[]; // parallel to photos: address/date metadata per photo
 }
 
 function classify(status: string): 'paid' | 'pending' | null {
