@@ -234,6 +234,13 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                         .map((ev) => {
                           const m = metaFor(ev);
                           const Icon = m.icon;
+                          const isSend = ev.event_type === 'sent' || ev.event_type === 'resent';
+                          const attemptNo = isSend
+                            ? ev.metadata?.attempt_number
+                            : (ev.metadata?.sms_message_id ? attempts[ev.metadata.sms_message_id] : undefined);
+                          const messageId = ev.metadata?.sms_message_id ?? null;
+                          const statusCode = ev.metadata?.sms_status_code ?? null;
+                          const statusText = ev.metadata?.sms_status ?? null;
                           return (
                             <li key={ev.id} className="ml-4 py-2 pr-3">
                               <span className="absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full bg-background border">
@@ -242,6 +249,11 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5">
                                   <Badge variant="outline" className={m.className}>{m.label}</Badge>
+                                  {attemptNo != null && (
+                                    <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
+                                      Attempt {attemptNo}
+                                    </Badge>
+                                  )}
                                   {ev.event_type === 'sent' && ev.metadata?.trigger_source === 'auto' && (
                                     <Badge
                                       variant="outline"
@@ -255,6 +267,23 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                                   {format(new Date(ev.created_at), 'd MMM yyyy, HH:mm:ss')}
                                 </time>
                               </div>
+                              {(messageId || statusCode != null || statusText) && (
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                  {messageId && (
+                                    <span
+                                      className="text-[10px] font-mono text-muted-foreground"
+                                      title={`AT message ID: ${messageId}`}
+                                    >
+                                      ID {shortMessageId(messageId)}
+                                    </span>
+                                  )}
+                                  {(statusText || statusCode != null) && (
+                                    <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border">
+                                      {statusText ?? 'status'}{statusCode != null ? ` (${statusCode})` : ''}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
                               {ev.failure_reason && (
                                 <Badge
                                   variant="outline"
