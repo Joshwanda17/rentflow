@@ -2878,7 +2878,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       Back
                     </Button>
                     <Button 
-                      onClick={submitQueued ? cancelQueuedSubmit : requestSubmit} 
+                      onClick={submitQueued ? promptCancelQueued : requestSubmit}
                       className="flex-1"
                       variant={submitQueued ? 'secondary' : 'default'}
                       disabled={loading || (incomeType !== 'outstanding' && amount <= 0)}
@@ -3876,7 +3876,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </p>
                   <Button
                     type="button"
-                    onClick={submitQueued ? cancelQueuedSubmit : requestSubmit}
+                    onClick={submitQueued ? promptCancelQueued : requestSubmit}
                     disabled={loading}
                     variant={submitQueued ? 'secondary' : 'destructive'}
                     className="w-full"
@@ -4184,7 +4184,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Button>
                 ) : (
                   <Button
-                    onClick={submitQueued ? cancelQueuedSubmit : requestSubmit}
+                    onClick={submitQueued ? promptCancelQueued : requestSubmit}
                     className="flex-1"
                     variant={submitQueued ? 'secondary' : 'default'}
                     disabled={loading || !amount || amount < 50000}
