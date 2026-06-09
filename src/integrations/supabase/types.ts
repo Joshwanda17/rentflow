@@ -8778,6 +8778,56 @@ export type Database = {
           },
         ]
       }
+      landlord_payout_otp_events: {
+        Row: {
+          agent_id: string | null
+          amount: number | null
+          challenge_id: string
+          created_at: string
+          detail: string | null
+          event_type: string
+          id: string
+          landlord_id: string | null
+          landlord_phone: string | null
+          metadata: Json
+          otp_expires_at: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          amount?: number | null
+          challenge_id: string
+          created_at?: string
+          detail?: string | null
+          event_type: string
+          id?: string
+          landlord_id?: string | null
+          landlord_phone?: string | null
+          metadata?: Json
+          otp_expires_at?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          amount?: number | null
+          challenge_id?: string
+          created_at?: string
+          detail?: string | null
+          event_type?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_phone?: string | null
+          metadata?: Json
+          otp_expires_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_payout_otp_events_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "landlord_payout_otp_challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landlord_payouts: {
         Row: {
           agent_id: string
