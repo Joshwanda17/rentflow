@@ -65,6 +65,71 @@ const SMS_BACKOFF_BASE_MS = 300;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * Format a phone number for Yoola SMS: digits only, with the country code but
+ * WITHOUT a leading "+" (e.g. "256704487563"). Defaults bare local numbers to
+ * Uganda (+256).
+ */
+function formatPhoneYoola(rawPhone: string): string {
+  return formatPhoneInternational(rawPhone).replace(/^\+/, "");
+}
+
+/**
+ * Single Yoola SMS send attempt with a hard timeout. Yoola's REST API accepts
+ * a JSON body { phone, message, api_key } at https://yoolasms.com/api/v1/send
+ * and returns { status: "success", ... } on acceptance.
+ */
+async function sendYoolaAttempt(
+  apiKey: string,
+  phone: string,
+  message: string,
+): Promise<SmsResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SMS_ATTEMPT_TIMEOUT_MS);
+  try {
+    const response = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        // Bearer header per Yoola docs; api_key in body is the primary auth.
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        phone: formatPhoneYoola(phone),
+        message,
+        api_key: apiKey,
+      }),
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    console.log(`[sms-otp] Yoola response (${response.status}):`, text);
+
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON body */ }
+
+    const status = String(data?.status ?? "").toLowerCase();
+    if (response.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued")) {
+      return { accepted: true };
+    }
+    // HTTP-level success but ambiguous body — treat 2xx as accepted.
+    if (response.ok && !data?.error && status === "") {
+      return { accepted: true };
+    }
+    if (!response.ok && (response.status >= 500 || response.status === 429)) {
+      return { accepted: false, reason: "network_error" };
+    }
+    return { accepted: false, reason: `yoola_${response.status}_${status || "rejected"}` };
+  } catch (error) {
+    const aborted = (error as Error)?.name === "AbortError";
+    console.error(`[sms-otp] Yoola attempt ${aborted ? "timed out" : "failed"}:`, error);
+    return { accepted: false, reason: aborted ? "timeout" : "network_error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Single gateway attempt with a hard timeout via AbortController so a slow or
  * stuck provider call can never block indefinitely.
  */
@@ -112,12 +177,35 @@ async function sendSMSAttempt(
 // rejections (e.g. status_xxx, no_recipients) are not retried.
 const RETRYABLE_REASONS = new Set(["timeout", "network_error"]);
 
-async function sendSMS(phone: string, message: string): Promise<SmsResult> {
+/**
+ * Send via Yoola SMS (primary provider while Africa's Talking comes online),
+ * with retries on transient failures.
+ */
+async function sendViaYoola(phone: string, message: string): Promise<SmsResult> {
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY");
+  if (!apiKey) return { accepted: false, reason: "yoola_not_configured" };
+
+  let last: SmsResult = { accepted: false, reason: "network_error" };
+  for (let attempt = 1; attempt <= SMS_MAX_ATTEMPTS; attempt++) {
+    last = await sendYoolaAttempt(apiKey, phone, message);
+    if (last.accepted || !RETRYABLE_REASONS.has(last.reason ?? "")) return last;
+    if (attempt < SMS_MAX_ATTEMPTS) {
+      const backoff = SMS_BACKOFF_BASE_MS * 2 ** (attempt - 1);
+      console.warn(
+        `[sms-otp] Yoola retry ${attempt}/${SMS_MAX_ATTEMPTS - 1} after ${last.reason} (backoff ${backoff}ms)`,
+      );
+      await sleep(backoff);
+    }
+  }
+  return last;
+}
+
+async function sendViaAfricasTalking(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
 
   if (!apiKey || !username) {
-    console.error("[sms-otp] Missing Africa's Talking credentials");
+    console.warn("[sms-otp] Missing Africa's Talking credentials");
     return { accepted: false, reason: "missing_credentials" };
   }
 
@@ -153,6 +241,25 @@ async function sendSMS(phone: string, message: string): Promise<SmsResult> {
     }
   }
   return last;
+}
+
+/**
+ * Send the OTP SMS. Yoola SMS is the primary provider while Africa's Talking
+ * comes back online; if Yoola is unconfigured or fails, we fall back to AT so
+ * delivery is never blocked on a single provider.
+ */
+async function sendSMS(phone: string, message: string): Promise<SmsResult> {
+  const yoola = await sendViaYoola(phone, message);
+  if (yoola.accepted) return yoola;
+
+  // Yoola failed or is not configured — try Africa's Talking as a fallback.
+  console.warn(`[sms-otp] Yoola send not accepted (${yoola.reason}); trying Africa's Talking`);
+  const at = await sendViaAfricasTalking(phone, message);
+  if (at.accepted) return at;
+
+  // Both failed — surface Yoola's reason (the primary) unless it was simply
+  // unconfigured, in which case AT's reason is more informative.
+  return yoola.reason === "yoola_not_configured" ? at : yoola;
 }
 
 Deno.serve(async (req) => {
