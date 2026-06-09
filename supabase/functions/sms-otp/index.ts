@@ -330,28 +330,28 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 }
 
 /**
- * Send the OTP SMS. Provider chain: LANA (primary) → Yoola → Africa's Talking.
+ * Send the OTP SMS. Provider chain: Yoola (primary) → Africa's Talking → LANA.
  * Each provider is tried only if the previous one is unconfigured or fails, so
  * delivery is never blocked on a single provider.
  */
 async function sendSMS(phone: string, message: string): Promise<SmsResult> {
-  const lana = await sendViaLana(phone, message);
-  if (lana.accepted) return lana;
-
-  // LANA failed or is not configured — try Yoola.
-  console.warn(`[sms-otp] LANA send not accepted (${lana.reason}); trying Yoola`);
   const yoola = await sendViaYoola(phone, message);
   if (yoola.accepted) return yoola;
 
-  // Yoola failed or is not configured — try Africa's Talking as a final fallback.
+  // Yoola failed or is not configured — try Africa's Talking.
   console.warn(`[sms-otp] Yoola send not accepted (${yoola.reason}); trying Africa's Talking`);
   const at = await sendViaAfricasTalking(phone, message);
   if (at.accepted) return at;
 
+  // AT failed or is not configured — try LANA as a final fallback.
+  console.warn(`[sms-otp] Africa's Talking not accepted (${at.reason}); trying LANA`);
+  const lana = await sendViaLana(phone, message);
+  if (lana.accepted) return lana;
+
   // All failed — surface the most informative reason (skip "not_configured").
-  if (lana.reason && lana.reason !== "lana_not_configured") return lana;
   if (yoola.reason && yoola.reason !== "yoola_not_configured") return yoola;
-  return at;
+  if (at.reason && at.reason !== "missing_credentials") return at;
+  return lana;
 }
 
 Deno.serve(async (req) => {
