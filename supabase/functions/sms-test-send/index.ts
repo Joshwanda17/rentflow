@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
     }
 
     const startedAt = new Date().toISOString();
-    const result = await sendSMS(phone, message);
+    const result = await sendWithFallback(phone, message);
     const finishedAt = new Date().toISOString();
 
     // Audit log so we have a trail
