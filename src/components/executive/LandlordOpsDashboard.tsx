@@ -16,6 +16,7 @@ import {
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
   Table2, Printer, CalendarIcon, Loader2, Upload,
 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +82,7 @@ interface ListingWithLandlord {
   listing_bonus_paid: boolean | null;
   created_at: string;
   status: string;
+  is_hidden: boolean | null;
   landlords?: {
     id: string;
     name: string;
@@ -268,6 +270,10 @@ export function LandlordOpsDashboard() {
   const [verifySearch, setVerifySearch] = useState('');
   type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1';
   const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
+  // Scope: pending = unverified only; all = every house (so ops can verify, reject or hide ANY house).
+  type VerifyScope = 'pending' | 'all';
+  const [verifyScope, setVerifyScope] = useState<VerifyScope>('pending');
+  const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
@@ -535,7 +541,7 @@ export function LandlordOpsDashboard() {
         .select(`
           id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
           latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
-          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status,
+          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status, is_hidden,
           landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
         `)
         .order('created_at', { ascending: false })
@@ -1006,6 +1012,54 @@ export function LandlordOpsDashboard() {
     } catch (err: any) {
       setOptimisticallyVerifiedIds(prev => { const next = new Set(prev); next.delete(listing.id); return next; });
       toast({ title: 'Reject failed', description: err?.message || 'Could not reject listing', variant: 'destructive' });
+    }
+  };
+
+  // Hide / unhide a house from the tenant-facing dashboard & marketplace.
+  // Uses the `is_hidden` flag that all tenant/public listing queries respect.
+  const handleToggleHidden = async (listing: ListingWithLandlord) => {
+    if (!user) return;
+    const nextHidden = !listing.is_hidden;
+    const action = nextHidden ? 'hide' : 'unhide';
+    const reason = window.prompt(
+      `Reason to ${action} "${listing.title}" (min 10 characters) — visible only to landlord ops & audit logs:`,
+      nextHidden ? 'Hidden from tenant browse' : 'Restored to tenant browse'
+    );
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 10) {
+      toast({ title: 'Reason too short', description: 'Please enter at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setTogglingHide(s => ({ ...s, [listing.id]: true }));
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ is_hidden: nextHidden })
+        .eq('id', listing.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: nextHidden ? 'listing_hidden' : 'listing_unhidden',
+        table_name: 'house_listings',
+        record_id: listing.id,
+        metadata: { reason: trimmed, listing_title: listing.title, hidden_by: 'landlord_ops' },
+      });
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map(l => l.id === listing.id ? { ...l, is_hidden: nextHidden } : l);
+      });
+      toast({
+        title: nextHidden ? 'House hidden' : 'House visible',
+        description: nextHidden
+          ? `${listing.title} is hidden from the tenant dashboard.`
+          : `${listing.title} is back on the tenant dashboard.`,
+      });
+      refetch();
+    } catch (err: any) {
+      toast({ title: `Failed to ${action} house`, description: err?.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setTogglingHide(s => ({ ...s, [listing.id]: false }));
     }
   };
 
@@ -1818,7 +1872,15 @@ export function LandlordOpsDashboard() {
       { value: 'has_lc1', label: 'Has LC1' },
     ];
 
-    let filteredHouses = unverifiedListings;
+    // Scope source: "pending" = unverified only; "all" = every live house
+    // (verified + unverified) so ops can verify, reject or hide ANY house.
+    const scopeListings = verifyScope === 'all'
+      ? rows.filter(l =>
+          l.status !== 'rejected'
+          && l.status !== 'delisted'
+          && !optimisticallyVerifiedIds.has(l.id))
+      : unverifiedListings;
+    let filteredHouses = scopeListings;
 
     // Text search across name, phone, location, agent
     if (verifySearch.trim()) {
@@ -1859,7 +1921,27 @@ export function LandlordOpsDashboard() {
         <BackButton />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} pending</Badge>
+          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {verifyScope === 'all' ? 'houses' : 'pending'}</Badge>
+        </div>
+
+        {/* Scope toggle: act on pending only, or ANY house (verify / reject / hide) */}
+        <div className="flex gap-1.5">
+          {([
+            { value: 'pending' as VerifyScope, label: `Pending (${unverifiedListings.length})` },
+            { value: 'all' as VerifyScope, label: 'All houses' },
+          ]).map(s => (
+            <button
+              key={s.value}
+              onClick={() => setVerifyScope(s.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                verifyScope === s.value
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
         </div>
 
         {/* Search */}
@@ -1882,12 +1964,12 @@ export function LandlordOpsDashboard() {
         <div className="flex gap-1.5 flex-wrap">
           {VERIFY_FILTERS.map(f => {
             const count =
-              f.value === 'all' ? unverifiedListings.length :
-              f.value === 'has_landlord' ? unverifiedListings.filter(h => !!h.landlords).length :
-              f.value === 'no_landlord' ? unverifiedListings.filter(h => !h.landlords).length :
-              f.value === 'has_images' ? unverifiedListings.filter(h => h.image_urls && h.image_urls.length > 0).length :
-              f.value === 'has_gps' ? unverifiedListings.filter(h => h.latitude && h.longitude).length :
-              unverifiedListings.filter(h => !!h.lc1_chairperson_name).length;
+              f.value === 'all' ? scopeListings.length :
+              f.value === 'has_landlord' ? scopeListings.filter(h => !!h.landlords).length :
+              f.value === 'no_landlord' ? scopeListings.filter(h => !h.landlords).length :
+              f.value === 'has_images' ? scopeListings.filter(h => h.image_urls && h.image_urls.length > 0).length :
+              f.value === 'has_gps' ? scopeListings.filter(h => h.latitude && h.longitude).length :
+              scopeListings.filter(h => !!h.lc1_chairperson_name).length;
             const active = verifyFilter === f.value;
             return (
               <button
@@ -1961,6 +2043,12 @@ export function LandlordOpsDashboard() {
                       <Badge variant="outline" className="text-[10px] h-5 px-1.5">{house.house_category}</Badge>
                       <Badge variant="outline" className="text-[10px] h-5 px-1.5">{house.number_of_rooms} rooms</Badge>
                       <Badge className="bg-primary/10 text-primary border-0 text-[10px] h-5 px-1.5 font-bold">UGX {house.monthly_rent.toLocaleString()}/mo</Badge>
+                      {house.verified && (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px] h-5 px-1.5 font-bold"><CheckCircle2 className="h-3 w-3 mr-0.5" />Verified</Badge>
+                      )}
+                      {house.is_hidden && (
+                        <Badge className="bg-slate-200 text-slate-700 border-0 text-[10px] h-5 px-1.5 font-bold"><EyeOff className="h-3 w-3 mr-0.5" />Hidden</Badge>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2059,7 +2147,25 @@ export function LandlordOpsDashboard() {
 
               {/* ── Moderation Actions ── */}
               <div className="p-4 pt-2 bg-muted/30 border-t border-border">
+                {/* Hide / unhide from the tenant dashboard — works on ANY house */}
+                <div className="mb-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full h-10 gap-2 font-semibold"
+                    disabled={!!togglingHide[house.id]}
+                    onClick={() => handleToggleHidden(house)}
+                  >
+                    {house.is_hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    {togglingHide[house.id]
+                      ? 'Saving…'
+                      : house.is_hidden
+                        ? 'Show on tenant dashboard'
+                        : 'Hide from tenant dashboard'}
+                  </Button>
+                </div>
                 <InlineModerationActions
+                  approveHidden={!!house.verified}
                   approveLabel="Verify → UGX 5K"
                   rejectLabel="Reject"
                   onApprove={(note) => handleVerifyListing(house, note)}
@@ -2068,7 +2174,7 @@ export function LandlordOpsDashboard() {
               </div>
             </div>
           ))}
-          {filteredHouses.length === 0 && unverifiedListings.length > 0 && (
+          {filteredHouses.length === 0 && scopeListings.length > 0 && (
             <div className="text-center py-10">
               <Search className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
               <p className="font-semibold text-muted-foreground">No matches for "{verifySearch}"</p>
@@ -2078,10 +2184,10 @@ export function LandlordOpsDashboard() {
               </Button>
             </div>
           )}
-          {unverifiedListings.length === 0 && (
+          {scopeListings.length === 0 && (
             <div className="text-center py-12">
               <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
-              <p className="font-semibold">All listings verified! ✅</p>
+              <p className="font-semibold">{verifyScope === 'all' ? 'No houses found.' : 'All listings verified! ✅'}</p>
             </div>
           )}
         </div>
@@ -2655,11 +2761,13 @@ function InlineModerationActions({
   onReject,
   approveLabel = 'Approve',
   rejectLabel = 'Reject',
+  approveHidden = false,
 }: {
   onApprove: (note: string) => Promise<void> | void;
   onReject: (note: string) => Promise<void> | void;
   approveLabel?: string;
   rejectLabel?: string;
+  approveHidden?: boolean;
 }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<null | 'approve' | 'reject'>(null);
@@ -2686,7 +2794,7 @@ function InlineModerationActions({
       {note.length > 0 && note.trim().length < 10 && (
         <p className="text-[10px] text-muted-foreground">{10 - note.trim().length} more characters needed to reject</p>
       )}
-      <div className="grid grid-cols-2 gap-2">
+      <div className={approveHidden ? 'grid grid-cols-1 gap-2' : 'grid grid-cols-2 gap-2'}>
         <Button
           size="sm"
           variant="outline"
@@ -2697,6 +2805,7 @@ function InlineModerationActions({
           <XCircle className="h-4 w-4" />
           {busy === 'reject' ? 'Rejecting…' : rejectLabel}
         </Button>
+        {!approveHidden && (
         <Button
           size="sm"
           className="h-11 gap-2 font-bold"
@@ -2706,6 +2815,7 @@ function InlineModerationActions({
           <ShieldCheck className="h-4 w-4" />
           {busy === 'approve' ? 'Approving…' : approveLabel}
         </Button>
+        )}
       </div>
     </div>
   );
