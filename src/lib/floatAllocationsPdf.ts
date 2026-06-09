@@ -253,3 +253,40 @@ export async function shareOrDownloadFloatAllocations(data: FloatAllocationsPdfD
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Share the float-allocations PDF straight to WhatsApp.
+ *
+ * On mobile (where WhatsApp is installed) the native share sheet accepts the
+ * PDF file directly, so the agent just taps "WhatsApp" and picks a contact.
+ * Where file sharing is unsupported (most desktops), we download the PDF and
+ * open WhatsApp with a ready-made caption so the agent only has to attach the
+ * file they just saved.
+ */
+export async function shareFloatAllocationsWhatsApp(data: FloatAllocationsPdfData): Promise<void> {
+  const blob = await generateFloatAllocationsPdf(data);
+  const filename = `Float_Allocations_${data.tenantName.replace(/\s+/g, '_')}.pdf`;
+  const file = new File([blob], filename, { type: 'application/pdf' });
+  const caption = `Welile float allocations for ${data.tenantName}`;
+
+  // Best path: native share sheet with the file attached (lets the agent pick WhatsApp).
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ title: `Float Allocations — ${data.tenantName}`, text: caption, files: [file] });
+      return;
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+    }
+  }
+
+  // Fallback: download the PDF, then open WhatsApp with a prefilled caption.
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, '_blank');
+}
