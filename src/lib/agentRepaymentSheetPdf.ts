@@ -193,7 +193,7 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
     totRepaid += repaid;
     totOutstanding += outstanding;
 
-    ensureSpace(58);
+    ensureSpace(64);
 
     // Card header
     pdf.setFillColor(241, 245, 249);
@@ -240,9 +240,11 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
       variance >= 0 ? [34, 197, 94] : [239, 68, 68],
     );
     y += 5;
-    labelVal('Outstanding balance', formatUGX(outstanding), colL, outstanding > 0 ? [239, 68, 68] : [34, 197, 94]);
+    labelVal('Daily repayment', formatUGX(Number(p.dailyRepayment || 0)), colL);
+    labelVal('Outstanding balance', formatUGX(outstanding), colR, outstanding > 0 ? [239, 68, 68] : [34, 197, 94]);
+    y += 5;
     const pct = totalDue > 0 ? Math.min(100, Math.round((repaid / totalDue) * 100)) : 0;
-    labelVal('Progress', `${pct}%`, colR);
+    labelVal('Progress', `${pct}%`, colL);
     y += 7;
 
     pdf.setDrawColor(226, 232, 240);
