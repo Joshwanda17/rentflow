@@ -179,12 +179,15 @@ Deno.serve(async (req) => {
         : 1;
     const breadNoun = breadQty === 1 ? 'Welile bread' : `Welile breads`;
     const breadPrefix = isWelileBread && breadQty > 1 ? `${breadQty} ` : '';
-    const senderDescription = isWelileBread
-      ? `You have sent ${breadPrefix}${breadNoun} of ${formattedAmount}`
-      : `Transfer to user: ${safeDescription}`;
-    const recipientDescription = isWelileBread
-      ? `You have received ${breadPrefix}${breadNoun} of ${formattedAmount}`
-      : `Transfer from user: ${safeDescription}`;
+    // Was a real reason supplied, or just the default placeholder? Used to
+    // decide whether to append " — <reason>" to the statement descriptions.
+    const trimmedReason = (safeDescription || '').trim();
+    const hasReason =
+      trimmedReason.length > 0 &&
+      trimmedReason.toLowerCase() !== 'wallet transfer';
+    // NOTE: senderDescription / recipientDescription are built AFTER the
+    // counterparty profiles are resolved (further down) so the receiver sees
+    // the SENDER'S NAME + reason and the sender sees the RECIPIENT'S name.
 
     // === Stable, human-readable transfer reference ===
     // Persisted on BOTH ledger legs (reference_id) and returned to the
