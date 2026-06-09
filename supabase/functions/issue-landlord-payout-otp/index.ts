@@ -38,6 +38,10 @@ interface SmsResult {
   messageId?: string;
   cost?: string;
   raw?: unknown;
+  provider?: string;
+  fallbackUsed?: boolean;
+  primaryProvider?: string;
+  primaryReason?: string;
 }
 
 // Africa's Talking returns HTTP 201 even when a recipient is REJECTED (invalid
@@ -49,7 +53,7 @@ async function sendSms(phone: string, message: string): Promise<SmsResult> {
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
     console.warn("[issue-landlord-payout-otp] Missing Africa's Talking creds — skipping SMS");
-    return { ok: false, reason: "Missing Africa's Talking credentials" };
+    return { ok: false, reason: "Missing Africa's Talking credentials", provider: "africastalking" };
   }
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
@@ -66,7 +70,7 @@ async function sendSms(phone: string, message: string): Promise<SmsResult> {
     let data: any = null;
     try { data = JSON.parse(text); } catch { /* keep raw text */ }
     if (!res.ok) {
-      return { ok: false, reason: `AT HTTP ${res.status}: ${text.slice(0, 200)}`, raw: data ?? text };
+      return { ok: false, reason: `AT HTTP ${res.status}: ${text.slice(0, 200)}`, raw: data ?? text, provider: "africastalking" };
     }
     const recipient = data?.SMSMessageData?.Recipients?.[0];
     if (!recipient) {
@@ -75,6 +79,7 @@ async function sendSms(phone: string, message: string): Promise<SmsResult> {
         ok: false,
         reason: data?.SMSMessageData?.Message || "No recipient accepted by Africa's Talking",
         raw: data ?? text,
+        provider: "africastalking",
       };
     }
     const ok = recipient.statusCode === 100 || recipient.statusCode === 101;
@@ -86,11 +91,76 @@ async function sendSms(phone: string, message: string): Promise<SmsResult> {
       messageId: recipient.messageId ?? undefined,
       cost: recipient.cost ?? undefined,
       raw: data ?? text,
+      provider: "africastalking",
     };
   } catch (e) {
     console.error("[issue-landlord-payout-otp] SMS error:", e);
-    return { ok: false, reason: e instanceof Error ? e.message : "SMS network error" };
+    return { ok: false, reason: e instanceof Error ? e.message : "SMS network error", provider: "africastalking" };
   }
+}
+
+// Twilio fallback sender. Routed through the Lovable connector gateway, which
+// injects Twilio auth + the Account SID prefix, so we only POST /Messages.json.
+// Twilio returns a JSON body with sid (our message id) and status; queued/
+// accepted/sending/sent are accepted-by-gateway states. error_code/error_message
+// describe rejections (invalid number, unsupported sender id, etc.).
+const TWILIO_GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
+const TWILIO_SENDER = "WELILE";
+async function sendTwilioSms(phone: string, message: string): Promise<SmsResult> {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const twilioKey = Deno.env.get("TWILIO_API_KEY");
+  if (!lovableKey || !twilioKey) {
+    return { ok: false, reason: "Twilio fallback not configured", provider: "twilio" };
+  }
+  try {
+    const res = await fetch(`${TWILIO_GATEWAY_URL}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": twilioKey,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ To: phone, From: TWILIO_SENDER, Body: message }).toString(),
+    });
+    const text = await res.text();
+    let data: any = null;
+    try { data = JSON.parse(text); } catch { /* keep raw text */ }
+    if (!res.ok) {
+      const reason = data?.error_message || data?.message || `Twilio HTTP ${res.status}: ${text.slice(0, 200)}`;
+      return { ok: false, reason, raw: data ?? text, provider: "twilio" };
+    }
+    const status = (data?.status ?? "").toString().toLowerCase();
+    const accepted = ["queued", "accepted", "sending", "sent", "delivered"].includes(status);
+    return {
+      ok: accepted,
+      status: data?.status ?? undefined,
+      reason: accepted ? undefined : (data?.error_message || `Twilio status ${data?.status ?? "unknown"}`),
+      messageId: data?.sid ?? undefined,
+      raw: data ?? text,
+      provider: "twilio",
+    };
+  } catch (e) {
+    console.error("[issue-landlord-payout-otp] Twilio error:", e);
+    return { ok: false, reason: e instanceof Error ? e.message : "Twilio network error", provider: "twilio" };
+  }
+}
+
+// Send via Africa's Talking first; if it is not accepted, automatically reissue
+// the same OTP through Twilio. The returned result reflects whichever provider
+// ultimately delivered, with fallback metadata preserved for the audit trail.
+async function sendOtpWithFallback(phone: string, message: string): Promise<SmsResult> {
+  const primary = await sendSms(phone, message);
+  if (primary.ok) return primary;
+  console.warn(
+    `[issue-landlord-payout-otp] AT send failed (${primary.reason ?? "unknown"}) — falling back to Twilio`,
+  );
+  const fallback = await sendTwilioSms(phone, message);
+  return {
+    ...fallback,
+    fallbackUsed: true,
+    primaryProvider: primary.provider ?? "africastalking",
+    primaryReason: primary.reason ?? "AT send not accepted",
+  };
 }
 
 async function logSms(
@@ -109,7 +179,7 @@ async function logSms(
       // "sent" = accepted by the gateway (awaiting delivery report). The DLR
       // callback later upgrades this to "delivered" or downgrades to "failed".
       status: result.ok ? "sent" : "failed",
-      provider: "africastalking",
+      provider: result.provider ?? "africastalking",
       provider_message_id: result.messageId ?? null,
       cost: result.cost ?? null,
       reference_id: referenceId ?? null,
