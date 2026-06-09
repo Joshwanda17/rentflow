@@ -20,6 +20,7 @@ export interface FloatAllocationsPdfData {
   periodFrom?: string | null;
   periodTo?: string | null;
   statusFilter: 'all' | AllocationStatus;
+  caption?: string | null;          // optional WhatsApp note / message from the agent
 }
 
 async function loadLogoAsBase64(): Promise<string | null> {
