@@ -293,10 +293,12 @@ export function LandlordsWithTenantsView() {
           allHidden: false,
           photos: [],
           photoCount: 0,
+          captions: [],
         });
       } else {
         const ll = landlordMap.get(lkey);
         const photos = photoMap.get(lkey) || [];
+        const captions = captionMap.get(lkey) || [];
         out.push({
           landlord_id: lkey,
           name: ll?.name || 'Unknown Landlord',
@@ -305,6 +307,7 @@ export function LandlordsWithTenantsView() {
           allHidden: !!hiddenMap.get(lkey),
           photos,
           photoCount: photos.length,
+          captions,
         });
       }
     }
