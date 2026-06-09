@@ -177,17 +177,31 @@ export function LandlordsWithTenantsView() {
     }
 
     // Pre-compute photos per landlord (all URLs for lightbox; thumbnails slice to 4)
+    // captionMap holds an address/date caption per photo, parallel to photoMap URLs.
     const photoMap = new Map<string, string[]>();
+    const captionMap = new Map<string, string[]>();
+    const fmtDate = (d: string | null) => {
+      if (!d) return '';
+      const dt = new Date(d);
+      return isNaN(dt.getTime())
+        ? ''
+        : dt.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    };
     for (const l of allLandlords) {
       const urls: string[] = [];
+      const caps: string[] = [];
       for (const h of safeHouseVis) {
         if (h.landlord_id === l.id && Array.isArray(h.image_urls)) {
+          const place = (h.address || h.title || '').trim();
+          const listed = fmtDate(h.created_at);
+          const caption = [place, listed ? `Listed ${listed}` : ''].filter(Boolean).join(' · ');
           for (const u of h.image_urls) {
-            if (u) urls.push(u);
+            if (u) { urls.push(u); caps.push(caption); }
           }
         }
       }
       photoMap.set(l.id, urls);
+      captionMap.set(l.id, caps);
     }
 
     // Initialize bucket for EVERY landlord (so all 325+ appear, even without tenants)
