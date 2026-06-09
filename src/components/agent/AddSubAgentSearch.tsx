@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Search, Loader2, UserPlus, UsersRound, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -58,15 +59,17 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
     setSubmitting(true);
     try {
       const response = await supabase.functions.invoke('add-existing-subagent', {
-        body: { subAgentId: selected.id },
+        body: { subAgentId: selected.id, origin: getPublicOrigin() },
       });
       if (response.error || response.data?.error) {
         const msg = await extractEdgeFunctionError(response, 'Could not add sub-agent.');
         throw new Error(msg);
       }
       toast({
-        title: response.data?.alreadyLinked ? 'Already your sub-agent' : 'Sub-agent added!',
-        description: `${selected.full_name || 'User'} is now your sub-agent.`,
+        title: response.data?.alreadyLinked ? 'Already your sub-agent' : 'Invitation sent!',
+        description: response.data?.alreadyLinked
+          ? `${selected.full_name || 'User'} is already your sub-agent.`
+          : `${selected.full_name || 'User'} has been sent an email and SMS with a link to accept.`,
       });
       setSelected(null);
       setQuery('');
