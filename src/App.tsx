@@ -93,6 +93,7 @@ const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
 const SubAgentAnalytics = lazy(() => import('./pages/SubAgentAnalytics'));
 const Join = lazy(() => import('./pages/Join'));
+const SubAgentInvite = lazy(() => import('./pages/SubAgentInvite'));
 const RecordRent = lazy(() => import('./pages/RecordRent'));
 const Calculator = lazy(() => import('./pages/Calculator'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
