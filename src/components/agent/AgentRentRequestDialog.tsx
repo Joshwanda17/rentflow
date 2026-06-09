@@ -628,6 +628,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [tenantPhoto, setTenantPhoto] = useState<{ file: File; preview: string } | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLabel, setPreviewLabel] = useState<string>('');
 
   // ===== House-search-first (standard flow) =====
   // The agent first searches for an available empty house (by landlord name,
@@ -3642,15 +3644,30 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       return (
                         <div key={slot.key} className="space-y-1">
                           {photo ? (
-                            <div className="relative aspect-square rounded-lg overflow-hidden border border-border">
-                              <img src={photo.preview} alt={slot.label} className="w-full h-full object-cover" />
+                            <div className="relative aspect-square rounded-lg overflow-hidden border border-border group">
+                              <img
+                                src={photo.preview}
+                                alt={slot.label}
+                                className="w-full h-full object-cover cursor-pointer"
+                                onClick={() => { setPreviewUrl(photo.preview); setPreviewLabel(slot.label); }}
+                              />
                               <button
                                 type="button"
-                                onClick={() => removePhoto(idx)}
+                                onClick={(e) => { e.stopPropagation(); removePhoto(idx); }}
                                 className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
                               >
                                 ✕
                               </button>
+                              <label className="absolute bottom-1 left-1 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shadow-sm">
+                                <RefreshCw className="w-3 h-3" />
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="hidden"
+                                  onChange={(e) => handlePhotoAddAt(idx, e)}
+                                />
+                              </label>
                             </div>
                           ) : (
                             <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors text-center px-1">
@@ -3680,15 +3697,30 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Label>
                   <div className="flex items-start gap-3">
                     {tenantPhoto ? (
-                      <div className="relative h-24 w-20 rounded-lg overflow-hidden border border-border shrink-0">
-                        <img src={tenantPhoto.preview} alt="Tenant" className="w-full h-full object-cover" />
+                      <div className="relative h-24 w-20 rounded-lg overflow-hidden border border-border shrink-0 group">
+                        <img
+                          src={tenantPhoto.preview}
+                          alt="Tenant"
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => { setPreviewUrl(tenantPhoto.preview); setPreviewLabel("Tenant Passport Photo"); }}
+                        />
                         <button
                           type="button"
-                          onClick={removeTenantPhoto}
+                          onClick={(e) => { e.stopPropagation(); removeTenantPhoto(); }}
                           className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
                         >
                           ✕
                         </button>
+                        <label className="absolute bottom-1 left-1 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shadow-sm">
+                          <RefreshCw className="w-3 h-3" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="user"
+                            className="hidden"
+                            onChange={handleTenantPhoto}
+                          />
+                        </label>
                       </div>
                     ) : (
                       <label className="h-24 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors shrink-0">
@@ -4260,6 +4292,31 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           ) : null}
         </AnimatePresence>
       </DialogContent>
+      {/* Photo preview lightbox */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <div className="relative max-w-2xl w-full">
+            <button
+              type="button"
+              onClick={() => setPreviewUrl(null)}
+              className="absolute -top-10 right-0 w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={previewUrl}
+              alt={previewLabel}
+              className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+            />
+            {previewLabel && (
+              <p className="text-white text-sm text-center mt-3 font-medium">{previewLabel}</p>
+            )}
+          </div>
+        </div>
+      )}
       <RegisterLandlordDialog
         open={showRegisterLandlord}
         onOpenChange={setShowRegisterLandlord}
