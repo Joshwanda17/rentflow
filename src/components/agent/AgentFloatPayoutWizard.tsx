@@ -48,6 +48,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
   const [phoneOverride, setPhoneOverride] = useState<string>('');
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
+  const autoSendRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -129,6 +130,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     setResendCooldown(0);
     setAmountInput('');
     setPhoneOverride('');
+    autoSendRef.current = null;
     landlordOtp.resetOtp();
   };
 
@@ -196,6 +198,21 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
       toast.success('OTP sent to landlord\'s phone');
     }
   };
+
+  // Auto-send the landlord OTP the moment the agent taps a request to
+  // withdraw float — the landlord receives the code immediately, without the
+  // agent needing to tap "Send OTP" first. Fires once per selected request;
+  // the manual button remains as a fallback if validation initially fails.
+  useEffect(() => {
+    if (step !== 'otp' || !selectedRequest) return;
+    if (autoSendRef.current === selectedRequest.id) return;
+    if (landlordOtp.otpSent || landlordOtp.otpLoading) return;
+    if (landlordOtp.cooldownSeconds > 0) return;
+    if (!phoneValid || !amountValid) return;
+    autoSendRef.current = selectedRequest.id;
+    void handleSendOtp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, selectedRequest, phoneValid, amountValid, landlordOtp.otpSent, landlordOtp.otpLoading, landlordOtp.cooldownSeconds]);
 
   const [activePayoutId, setActivePayoutId] = useState<string | null>(null);
   const [disburseError, setDisburseError] = useState<string | null>(null);
