@@ -39,6 +39,7 @@ interface AgentListingsSheetProps {
 }
 
 export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly = false }: AgentListingsSheetProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const { listings, loading, refresh } = useHouseListings({
