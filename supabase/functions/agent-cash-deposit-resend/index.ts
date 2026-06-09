@@ -28,11 +28,32 @@ function normalizePhone(raw: string): string {
   return "+" + d;
 }
 
-async function sendSms(phone: string, message: string): Promise<boolean> {
+// Yoola is the PRIMARY SMS sender; Africa's Talking is the fallback.
+async function sendViaYoola(phone: string, message: string): Promise<boolean> {
+  const apiKey = (Deno.env.get("YOOLA_SMS_API_KEY") || "").trim();
+  if (!apiKey) return false;
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: String(phone || "").replace(/\D/g, ""), message, api_key: apiKey }),
+    });
+    const text = await res.text();
+    let data: any = null;
+    try { data = JSON.parse(text); } catch { /* keep raw text */ }
+    const status = String(data?.status ?? "").toLowerCase();
+    return res.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued");
+  } catch (e) {
+    console.error("[agent-cash-resend] Yoola error:", e);
+    return false;
+  }
+}
+
+async function sendViaAfricasTalking(phone: string, message: string): Promise<boolean> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
-    console.warn("[agent-cash-resend] Missing Africa's Talking creds — skipping SMS");
+    console.warn("[agent-cash-resend] Missing Africa's Talking creds — skipping AT");
     return false;
   }
   const isSandbox = username.toLowerCase() === "sandbox";
@@ -48,9 +69,15 @@ async function sendSms(phone: string, message: string): Promise<boolean> {
     });
     return res.ok;
   } catch (e) {
-    console.error("[agent-cash-resend] SMS error:", e);
+    console.error("[agent-cash-resend] AT SMS error:", e);
     return false;
   }
+}
+
+async function sendSms(phone: string, message: string): Promise<boolean> {
+  if (await sendViaYoola(phone, message)) return true;
+  console.warn("[agent-cash-resend] Yoola not accepted — falling back to Africa's Talking");
+  return await sendViaAfricasTalking(phone, message);
 }
 
 Deno.serve(async (req) => {
