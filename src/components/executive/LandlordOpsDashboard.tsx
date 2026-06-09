@@ -2755,11 +2755,13 @@ function InlineModerationActions({
   onReject,
   approveLabel = 'Approve',
   rejectLabel = 'Reject',
+  approveHidden = false,
 }: {
   onApprove: (note: string) => Promise<void> | void;
   onReject: (note: string) => Promise<void> | void;
   approveLabel?: string;
   rejectLabel?: string;
+  approveHidden?: boolean;
 }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<null | 'approve' | 'reject'>(null);
@@ -2786,7 +2788,7 @@ function InlineModerationActions({
       {note.length > 0 && note.trim().length < 10 && (
         <p className="text-[10px] text-muted-foreground">{10 - note.trim().length} more characters needed to reject</p>
       )}
-      <div className="grid grid-cols-2 gap-2">
+      <div className={approveHidden ? 'grid grid-cols-1 gap-2' : 'grid grid-cols-2 gap-2'}>
         <Button
           size="sm"
           variant="outline"
@@ -2797,6 +2799,7 @@ function InlineModerationActions({
           <XCircle className="h-4 w-4" />
           {busy === 'reject' ? 'Rejecting…' : rejectLabel}
         </Button>
+        {!approveHidden && (
         <Button
           size="sm"
           className="h-11 gap-2 font-bold"
@@ -2806,6 +2809,7 @@ function InlineModerationActions({
           <ShieldCheck className="h-4 w-4" />
           {busy === 'approve' ? 'Approving…' : approveLabel}
         </Button>
+        )}
       </div>
     </div>
   );
