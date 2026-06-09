@@ -2177,6 +2177,13 @@ export function LandlordOpsDashboard() {
               {/* ── Card Header ── */}
               <div className="p-4 pb-3 space-y-3">
                 <div className="flex gap-3">
+                  {/* Bulk select checkbox */}
+                  <div className="shrink-0 pt-1">
+                    <Checkbox
+                      checked={verifySelectedIds.has(house.id)}
+                      onCheckedChange={() => toggleVerifySelect(house.id)}
+                    />
+                  </div>
                   {/* Thumbnail */}
                   <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-muted border border-border">
                     {house.image_urls?.[0] ? (
