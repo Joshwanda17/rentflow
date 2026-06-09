@@ -2140,7 +2140,25 @@ export function LandlordOpsDashboard() {
 
               {/* ── Moderation Actions ── */}
               <div className="p-4 pt-2 bg-muted/30 border-t border-border">
+                {/* Hide / unhide from the tenant dashboard — works on ANY house */}
+                <div className="mb-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full h-10 gap-2 font-semibold"
+                    disabled={!!togglingHide[house.id]}
+                    onClick={() => handleToggleHidden(house)}
+                  >
+                    {house.is_hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    {togglingHide[house.id]
+                      ? 'Saving…'
+                      : house.is_hidden
+                        ? 'Show on tenant dashboard'
+                        : 'Hide from tenant dashboard'}
+                  </Button>
+                </div>
                 <InlineModerationActions
+                  approveHidden={!!house.verified}
                   approveLabel="Verify → UGX 5K"
                   rejectLabel="Reject"
                   onApprove={(note) => handleVerifyListing(house, note)}
