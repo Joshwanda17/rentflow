@@ -7,9 +7,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   altPrefix?: string;
+  captions?: string[];
 }
 
-export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix = 'Photo' }: Props) {
+export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix = 'Photo', captions }: Props) {
   const [current, setCurrent] = useState(startIndex ?? 0);
   const [scale, setScale] = useState(1);
   const [tx, setTx] = useState(0);
