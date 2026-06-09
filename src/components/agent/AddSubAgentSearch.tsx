@@ -95,7 +95,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
           <div>
             <h3 className="font-bold text-sm">Add an existing user as your sub-agent</h3>
             <p className="text-[11px] text-muted-foreground">
-              Search any registered user by name, phone, or email.
+              Search any registered user, then send them an invite to accept.
             </p>
           </div>
         </div>
@@ -156,7 +156,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
               className="w-full h-11 gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              Make them my sub-agent
+              Send sub-agent invite
             </Button>
           </div>
         )}
