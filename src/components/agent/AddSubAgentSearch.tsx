@@ -1,0 +1,165 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { Search, Loader2, UserPlus, UsersRound, CheckCircle2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface UserResult {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+interface AddSubAgentSearchProps {
+  onAdded?: () => void;
+}
+
+export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<UserResult | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const term = query.trim();
+
+  const { data: results, isFetching } = useQuery({
+    queryKey: ['add-subagent-search', term],
+    enabled: term.length >= 2,
+    staleTime: 10_000,
+    queryFn: async (): Promise<UserResult[]> => {
+      const cleaned = term.replace(/\D/g, '');
+      const isPhone = cleaned.length >= 3;
+      let q = supabase
+        .from('profiles')
+        .select('id, full_name, phone, email')
+        .limit(15);
+      if (isPhone) {
+        q = q.ilike('phone', `%${cleaned.slice(-9)}%`);
+      } else {
+        q = q.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data || []).filter((p) => p.id !== user?.id);
+    },
+  });
+
+  const handleAdd = async () => {
+    if (!selected) return;
+    setSubmitting(true);
+    try {
+      const response = await supabase.functions.invoke('add-existing-subagent', {
+        body: { subAgentId: selected.id },
+      });
+      if (response.error || response.data?.error) {
+        const msg = await extractEdgeFunctionError(response, 'Could not add sub-agent.');
+        throw new Error(msg);
+      }
+      toast({
+        title: response.data?.alreadyLinked ? 'Already your sub-agent' : 'Sub-agent added!',
+        description: `${selected.full_name || 'User'} is now your sub-agent.`,
+      });
+      setSelected(null);
+      setQuery('');
+      onAdded?.();
+    } catch (err: any) {
+      toast({
+        title: 'Failed to add sub-agent',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className="border-2 border-orange-500/30 bg-gradient-to-br from-orange-500/5 to-amber-500/5">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-lg bg-orange-500/15 text-orange-600">
+            <UsersRound className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm">Add an existing user as your sub-agent</h3>
+            <p className="text-[11px] text-muted-foreground">
+              Search any registered user by name, phone, or email.
+            </p>
+          </div>
+        </div>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelected(null);
+            }}
+            placeholder="Search by name, phone, or email"
+            className="pl-9 h-12"
+          />
+          {isFetching && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+        </div>
+
+        {term.length >= 2 && !selected && (
+          <div className="border border-border rounded-lg max-h-56 overflow-y-auto bg-card">
+            {!isFetching && (results?.length || 0) === 0 && (
+              <div className="p-3 text-sm text-muted-foreground">No matching users.</div>
+            )}
+            {(results || []).map((u) => (
+              <button
+                key={u.id}
+                onClick={() => setSelected(u)}
+                className="w-full flex items-center gap-2 p-3 text-left text-sm border-b border-border last:border-b-0 hover:bg-accent transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium truncate">{u.full_name || 'Unnamed'}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {u.phone || u.email || u.id.slice(0, 8)}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {selected && (
+          <div className="space-y-3">
+            <div className={cn('flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm')}>
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-medium truncate">{selected.full_name || 'Unnamed'}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {selected.phone || selected.email}
+                </div>
+              </div>
+              <Badge variant="outline" className="bg-background shrink-0">Selected</Badge>
+            </div>
+            <Button
+              onClick={handleAdd}
+              disabled={submitting}
+              className="w-full h-11 gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              Make them my sub-agent
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default AddSubAgentSearch;

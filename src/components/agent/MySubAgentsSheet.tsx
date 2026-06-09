@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { SubAgentsList } from './SubAgentsList';
 import { SubAgentInvitesList } from './SubAgentInvitesList';
 import { ShareSubAgentLink } from './ShareSubAgentLink';
+import { AddSubAgentSearch } from './AddSubAgentSearch';
 import { UsersRound } from 'lucide-react';
 
 interface MySubAgentsSheetProps {
@@ -10,6 +12,7 @@ interface MySubAgentsSheetProps {
 }
 
 export function MySubAgentsSheet({ open, onOpenChange }: MySubAgentsSheetProps) {
+  const [refreshKey, setRefreshKey] = useState(0);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl overflow-y-auto pb-8">
@@ -21,9 +24,10 @@ export function MySubAgentsSheet({ open, onOpenChange }: MySubAgentsSheetProps) 
         </SheetHeader>
 
         <div className="space-y-4">
+          <AddSubAgentSearch onAdded={() => setRefreshKey((k) => k + 1)} />
           <ShareSubAgentLink />
           <SubAgentInvitesList />
-          <SubAgentsList />
+          <SubAgentsList key={refreshKey} />
         </div>
       </SheetContent>
     </Sheet>
