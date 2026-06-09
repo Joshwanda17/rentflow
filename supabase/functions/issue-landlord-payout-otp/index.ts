@@ -174,6 +174,14 @@ Deno.serve(async (req) => {
         .update({ otp_hash, otp_expires_at, attempts: 0 })
         .eq("id", challenge_id);
 
+      // Attempt number = how many times this challenge has been sent/resent + 1.
+      const { count: priorSends } = await admin
+        .from("landlord_payout_otp_events")
+        .select("id", { count: "exact", head: true })
+        .eq("challenge_id", challenge_id)
+        .in("event_type", ["sent", "resent"]);
+      const attemptNumber = (priorSends ?? 0) + 1;
+
       const phone = normalizePhone(existing.landlord_phone);
       const resent = await sendSms(
         phone,
@@ -191,6 +199,7 @@ Deno.serve(async (req) => {
         detail: resent.ok ? "OTP resent via SMS" : `OTP regenerated (SMS NOT delivered: ${resent.reason ?? "unknown"})`,
         failure_reason: resent.ok ? null : (resent.reason ?? "sms_not_delivered"),
         metadata: {
+          attempt_number: attemptNumber,
           sms_sent: resent.ok,
           sms_status: resent.status ?? null,
           sms_status_code: resent.statusCode ?? null,
@@ -199,7 +208,7 @@ Deno.serve(async (req) => {
           delivery_status: resent.ok ? "submitted" : "failed",
         },
       });
-      return json({ success: true, challenge_id, expires_at: otp_expires_at, sms_sent: resent.ok, sms_reason: resent.reason ?? null });
+      return json({ success: true, challenge_id, expires_at: otp_expires_at, attempt_number: attemptNumber, sms_sent: resent.ok, sms_reason: resent.reason ?? null });
     }
 
     // Validation
@@ -287,6 +296,7 @@ Deno.serve(async (req) => {
         : (sent.ok ? "OTP sent via SMS" : `OTP created (SMS NOT delivered: ${sent.reason ?? "unknown"})`),
       failure_reason: sent.ok ? null : (sent.reason ?? "sms_not_delivered"),
       metadata: {
+        attempt_number: 1,
         sms_sent: sent.ok,
         sms_status: sent.status ?? null,
         sms_status_code: sent.statusCode ?? null,
@@ -302,6 +312,7 @@ Deno.serve(async (req) => {
       success: true,
       challenge_id: challenge.id,
       expires_at: otp_expires_at,
+      attempt_number: 1,
       sms_sent: sent.ok,
       sms_reason: sent.reason ?? null,
     });
