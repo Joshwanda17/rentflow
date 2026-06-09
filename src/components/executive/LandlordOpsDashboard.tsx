@@ -2043,6 +2043,12 @@ export function LandlordOpsDashboard() {
                       <Badge variant="outline" className="text-[10px] h-5 px-1.5">{house.house_category}</Badge>
                       <Badge variant="outline" className="text-[10px] h-5 px-1.5">{house.number_of_rooms} rooms</Badge>
                       <Badge className="bg-primary/10 text-primary border-0 text-[10px] h-5 px-1.5 font-bold">UGX {house.monthly_rent.toLocaleString()}/mo</Badge>
+                      {house.verified && (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px] h-5 px-1.5 font-bold"><CheckCircle2 className="h-3 w-3 mr-0.5" />Verified</Badge>
+                      )}
+                      {house.is_hidden && (
+                        <Badge className="bg-slate-200 text-slate-700 border-0 text-[10px] h-5 px-1.5 font-bold"><EyeOff className="h-3 w-3 mr-0.5" />Hidden</Badge>
+                      )}
                     </div>
                   </div>
                 </div>
