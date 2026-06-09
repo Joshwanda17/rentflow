@@ -13,6 +13,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { downloadXlsx } from '@/lib/xlsxExport';
 import { toast } from 'sonner';
+import { LandlordHousesGallery } from './LandlordHousesGallery';
 
 type StatusFilter = 'all' | 'paid' | 'pending' | 'empty';
 
