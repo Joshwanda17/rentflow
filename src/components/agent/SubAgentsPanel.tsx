@@ -7,6 +7,7 @@ import { UserPlus, UsersRound, Crown } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { SubAgentsList } from './SubAgentsList';
 import { SubAgentInvitesList } from './SubAgentInvitesList';
+import { AddSubAgentSearch } from './AddSubAgentSearch';
 import { useUserSnapshot } from '@/hooks/useUserSnapshot';
 
 interface SubAgentsPanelProps {
@@ -22,6 +23,7 @@ export function SubAgentsPanel({ agentId, onInviteSubAgent }: SubAgentsPanelProp
     totalTenants: 0,
     totalEarnings: 0,
   });
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const pendingCount = snapshot.pendingSubAgentInvites?.length || 0;
   const isEmpty = summary.count === 0 && pendingCount === 0;
@@ -63,8 +65,11 @@ export function SubAgentsPanel({ agentId, onInviteSubAgent }: SubAgentsPanelProp
       {/* Pending invites */}
       {pendingCount > 0 && <SubAgentInvitesList />}
 
+      {/* Search any user and add as sub-agent */}
+      <AddSubAgentSearch onAdded={() => setRefreshKey((k) => k + 1)} />
+
       {/* Active list */}
-      <SubAgentsList onSummary={setSummary} parentAgentName={parentName} />
+      <SubAgentsList key={refreshKey} onSummary={setSummary} parentAgentName={parentName} />
 
       {/* Empty state */}
       {isEmpty && (
