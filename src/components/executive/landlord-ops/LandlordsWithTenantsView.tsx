@@ -675,6 +675,12 @@ export function LandlordsWithTenantsView() {
 
                 {isOpen && (
                   <div className="border-t bg-muted/20 p-3 space-y-2">
+                    {!isNoLandlord && g.landlord_id && (
+                      <LandlordHousesGallery
+                        landlordId={g.landlord_id}
+                        landlordName={g.name}
+                      />
+                    )}
                     {isNoLandlord && (
                       <div className="flex items-start gap-2 p-2 rounded bg-amber-100/60 dark:bg-amber-950/40 border border-amber-300/60">
                         <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
