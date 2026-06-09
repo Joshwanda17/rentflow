@@ -1355,6 +1355,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const handleTenantPhoto = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const error = validateImageFile(file);
+    if (error) {
+      toast.error(error);
+      if (e.target) e.target.value = '';
+      return;
+    }
     setTenantPhoto(prev => {
       if (prev) URL.revokeObjectURL(prev.preview);
       return { file, preview: URL.createObjectURL(file) };
