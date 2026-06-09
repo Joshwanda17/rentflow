@@ -169,6 +169,7 @@ Deno.serve(async (req) => {
         phone,
         `Welile: You are receiving UGX ${Number(existing.amount).toLocaleString()} as rent. OTP: ${otp}. Valid 1 hour. Share with the agent ONLY if you want to receive this money.`,
       );
+      await logSms(admin, phone, "Landlord payout OTP (resend)", resent, existing.landlord_name ?? null);
       await admin.from("landlord_payout_otp_events").insert({
         challenge_id,
         agent_id: agentId,
@@ -177,10 +178,16 @@ Deno.serve(async (req) => {
         landlord_phone: existing.landlord_phone,
         amount: existing.amount,
         otp_expires_at,
-        detail: resent ? "OTP resent via SMS" : "OTP regenerated (SMS not confirmed)",
-        metadata: { sms_sent: resent },
+        detail: resent.ok ? "OTP resent via SMS" : `OTP regenerated (SMS NOT delivered: ${resent.reason ?? "unknown"})`,
+        failure_reason: resent.ok ? null : (resent.reason ?? "sms_not_delivered"),
+        metadata: {
+          sms_sent: resent.ok,
+          sms_status: resent.status ?? null,
+          sms_status_code: resent.statusCode ?? null,
+          sms_reason: resent.reason ?? null,
+        },
       });
-      return json({ success: true, challenge_id, expires_at: otp_expires_at });
+      return json({ success: true, challenge_id, expires_at: otp_expires_at, sms_sent: resent.ok, sms_reason: resent.reason ?? null });
     }
 
     // Validation
@@ -253,6 +260,7 @@ Deno.serve(async (req) => {
       phone,
       `Welile: You are receiving UGX ${amt.toLocaleString()} as rent${tenant_name ? ` from ${tenant_name}` : ""}. OTP: ${otp}. Valid 1 hour. Share with the agent ONLY if you want to receive this money.`,
     );
+    await logSms(admin, phone, "Landlord payout OTP", sent, landlord_name ?? null);
 
     await admin.from("landlord_payout_otp_events").insert({
       challenge_id: challenge.id,
@@ -263,16 +271,25 @@ Deno.serve(async (req) => {
       amount: amt,
       otp_expires_at,
       detail: normalizedTrigger === "auto"
-        ? (sent ? "OTP auto-sent via SMS on withdraw float tap" : "OTP auto-created on withdraw float tap (SMS not confirmed)")
-        : (sent ? "OTP sent via SMS" : "OTP created (SMS not confirmed)"),
-      metadata: { sms_sent: sent, tenant_name: tenant_name ?? null, trigger_source: normalizedTrigger },
+        ? (sent.ok ? "OTP auto-sent via SMS on withdraw float tap" : `OTP auto-created on withdraw float tap (SMS NOT delivered: ${sent.reason ?? "unknown"})`)
+        : (sent.ok ? "OTP sent via SMS" : `OTP created (SMS NOT delivered: ${sent.reason ?? "unknown"})`),
+      failure_reason: sent.ok ? null : (sent.reason ?? "sms_not_delivered"),
+      metadata: {
+        sms_sent: sent.ok,
+        sms_status: sent.status ?? null,
+        sms_status_code: sent.statusCode ?? null,
+        sms_reason: sent.reason ?? null,
+        tenant_name: tenant_name ?? null,
+        trigger_source: normalizedTrigger,
+      },
     });
 
     return json({
       success: true,
       challenge_id: challenge.id,
       expires_at: otp_expires_at,
-      sms_sent: sent,
+      sms_sent: sent.ok,
+      sms_reason: sent.reason ?? null,
     });
   } catch (e) {
     console.error("[issue-landlord-payout-otp] error", e);
