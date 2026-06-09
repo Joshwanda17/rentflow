@@ -30,12 +30,24 @@ function normalizePhone(raw: string): string {
   return "+" + d;
 }
 
-async function sendSms(phone: string, message: string): Promise<boolean> {
+interface SmsResult {
+  ok: boolean;
+  statusCode?: number;
+  status?: string;
+  reason?: string;
+  raw?: unknown;
+}
+
+// Africa's Talking returns HTTP 201 even when a recipient is REJECTED (invalid
+// number, blacklisted/DND, no credit, unsupported sender id). The real outcome
+// lives in SMSMessageData.Recipients[].statusCode (100/101 = accepted). Checking
+// only res.ok produced false "sms_sent: true" while the landlord got nothing.
+async function sendSms(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
     console.warn("[issue-landlord-payout-otp] Missing Africa's Talking creds — skipping SMS");
-    return false;
+    return { ok: false, reason: "Missing Africa's Talking credentials" };
   }
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
@@ -48,10 +60,55 @@ async function sendSms(phone: string, message: string): Promise<boolean> {
       headers: { apiKey, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
       body: params.toString(),
     });
-    return res.ok;
+    const text = await res.text();
+    let data: any = null;
+    try { data = JSON.parse(text); } catch { /* keep raw text */ }
+    if (!res.ok) {
+      return { ok: false, reason: `AT HTTP ${res.status}: ${text.slice(0, 200)}`, raw: data ?? text };
+    }
+    const recipient = data?.SMSMessageData?.Recipients?.[0];
+    if (!recipient) {
+      // No recipient accepted at all — AT explains why in the Message field.
+      return {
+        ok: false,
+        reason: data?.SMSMessageData?.Message || "No recipient accepted by Africa's Talking",
+        raw: data ?? text,
+      };
+    }
+    const ok = recipient.statusCode === 100 || recipient.statusCode === 101;
+    return {
+      ok,
+      statusCode: recipient.statusCode,
+      status: recipient.status,
+      reason: ok ? undefined : `${recipient.status ?? "Rejected"} (code ${recipient.statusCode})`,
+      raw: data ?? text,
+    };
   } catch (e) {
     console.error("[issue-landlord-payout-otp] SMS error:", e);
-    return false;
+    return { ok: false, reason: e instanceof Error ? e.message : "SMS network error" };
+  }
+}
+
+async function logSms(
+  admin: ReturnType<typeof createClient>,
+  phone: string,
+  message: string,
+  result: SmsResult,
+  recipientName?: string | null,
+) {
+  try {
+    await admin.from("sms_delivery_log").insert({
+      recipient_phone: phone,
+      recipient_name: recipientName ?? null,
+      message,
+      status: result.ok ? "sent" : "failed",
+      provider: "africastalking",
+      provider_response: result.raw ?? null,
+      error: result.ok ? null : (result.reason ?? null),
+      source: "issue-landlord-payout-otp",
+    });
+  } catch (e) {
+    console.warn("[issue-landlord-payout-otp] sms_delivery_log insert failed (non-critical):", e);
   }
 }
 
