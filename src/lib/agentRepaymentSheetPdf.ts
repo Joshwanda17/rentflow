@@ -10,6 +10,7 @@ export interface RepaymentSheetPlan {
   rentAmount: number;      // rent paid to landlord
   totalRepayment: number;  // canonical total due
   amountRepaid: number;
+  dailyRepayment?: number; // daily repayment amount tenant owes
   initialOutstanding?: number | null;
   landlordName?: string | null;
   propertyAddress?: string | null;
@@ -20,6 +21,12 @@ export interface RepaymentSheetTxn {
   amount: number;
 }
 
+/** A float allocation the agent personally made toward this tenant. */
+export interface RepaymentSheetAllocation {
+  date: string;   // exact date & time of allocation
+  amount: number; // amount allocated by the agent
+}
+
 export interface RepaymentSheetData {
   aiId: string;
   tenantName: string;
@@ -28,6 +35,8 @@ export interface RepaymentSheetData {
   generatedAt?: Date;
   plans: RepaymentSheetPlan[];
   transactions: RepaymentSheetTxn[];
+  /** Float allocations made by the agent toward this tenant. */
+  allocations?: RepaymentSheetAllocation[];
   /** Optional reporting window. When set, transactions are filtered to it. */
   periodFrom?: string | null;
   periodTo?: string | null;
