@@ -1366,19 +1366,118 @@ export function LandlordOpsDashboard() {
   // those buttons set state but no dialog is mounted and "nothing happens"
   // until the user navigates back to a view that does mount LandlordDialogs.
   const renderDialogs = () => (
-    <LandlordDialogs
-      editLandlord={editLandlord} setEditLandlord={setEditLandlord}
-      editLC1={editLC1} setEditLC1={setEditLC1}
-      assignPerson={assignPerson} setAssignPerson={setAssignPerson}
-      deleteLandlord={deleteLandlord} setDeleteLandlord={setDeleteLandlord}
-      deleteReason={deleteReason} setDeleteReason={setDeleteReason}
-      deleting={deleting} setDeleting={setDeleting}
-      previewImages={previewImages} setPreviewImages={setPreviewImages}
-      adjustListing={adjustListing} setAdjustListing={setAdjustListing}
-      actionDialog={actionDialog} setActionDialog={setActionDialog}
-      user={user} refetchAll={refetchAll} queryClient={queryClient}
-    />
+    <>
+      <LandlordDialogs
+        editLandlord={editLandlord} setEditLandlord={setEditLandlord}
+        editLC1={editLC1} setEditLC1={setEditLC1}
+        assignPerson={assignPerson} setAssignPerson={setAssignPerson}
+        deleteLandlord={deleteLandlord} setDeleteLandlord={setDeleteLandlord}
+        deleteReason={deleteReason} setDeleteReason={setDeleteReason}
+        deleting={deleting} setDeleting={setDeleting}
+        previewImages={previewImages} setPreviewImages={setPreviewImages}
+        adjustListing={adjustListing} setAdjustListing={setAdjustListing}
+        actionDialog={actionDialog} setActionDialog={setActionDialog}
+        user={user} refetchAll={refetchAll} queryClient={queryClient}
+      />
+      {renderEntityDetail()}
+    </>
   );
+
+  // Detail sheet opened when a drilldown table row is clicked.
+  const renderEntityDetail = () => {
+    if (!entityDetail) return null;
+    const close = () => setEntityDetail(null);
+
+    if (entityDetail.type === 'city') {
+      const c = entityDetail.data;
+      return (
+        <EntityDetailSheet
+          open
+          onClose={close}
+          title={c.city}
+          subtitle="City overview"
+          icon={<Globe className="h-5 w-5 text-teal-600" />}
+          fields={[
+            { label: 'Houses listed', value: c.listingCount ?? 0 },
+            { label: 'Tenants', value: c.tenantCount ?? 0 },
+          ]}
+        />
+      );
+    }
+
+    if (entityDetail.type === 'no-landlord') {
+      const t = entityDetail.data;
+      return (
+        <EntityDetailSheet
+          open
+          onClose={close}
+          title={t.tenant_name}
+          subtitle="Tenant with no landlord listed"
+          icon={<UserX className="h-5 w-5 text-orange-600" />}
+          fields={[
+            { label: 'Rent', value: `UGX ${Number(t.rent_amount || 0).toLocaleString()}` },
+            { label: 'City', value: t.request_city || '—' },
+            { label: 'Category', value: t.house_category || '—' },
+            { label: 'Status', value: t.status || '—' },
+            { label: 'Agent', value: t.agent_name || '—' },
+          ]}
+        >
+          {t.tenant_phone && (
+            <div className="rounded-lg bg-muted/50 p-2.5 space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Contact Tenant</p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium truncate">{t.tenant_name}</span>
+                <ListPropertyCTA phone={t.tenant_phone} name={t.tenant_name} role="tenant" />
+              </div>
+            </div>
+          )}
+          {t.agent_id && t.agent_phone && (
+            <div className="rounded-lg bg-indigo-500/10 p-2.5 space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Contact Agent</p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium truncate">{t.agent_name || 'Agent'}</span>
+                <ListPropertyCTA phone={t.agent_phone} name={t.agent_name || undefined} role="agent" />
+              </div>
+            </div>
+          )}
+        </EntityDetailSheet>
+      );
+    }
+
+    // landlord (empty / occupied views)
+    const l = entityDetail.data;
+    const houseCount = landlordHouseCounts.get(l.id) || l.number_of_houses || 0;
+    const tenants = (l.tenants || []) as { name: string; phone: string | null }[];
+    return (
+      <EntityDetailSheet
+        open
+        onClose={close}
+        title={l.name}
+        subtitle={tenants.length > 0 ? 'Occupied landlord' : 'Empty landlord'}
+        icon={<Building2 className="h-5 w-5 text-sky-600" />}
+        fields={[
+          { label: 'Phone', value: l.phone || '—' },
+          { label: 'Houses', value: houseCount },
+          { label: 'Tenants', value: tenants.length },
+          { label: 'Monthly rent', value: `UGX ${fmt(l.monthly_rent || 0)}` },
+          { label: 'Verified', value: l.verified ? 'Yes' : 'No' },
+          { label: 'Address', value: l.property_address || '—' },
+        ]}
+      >
+        {tenants.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tenants</p>
+            {tenants.map((tn, idx) => (
+              <div key={idx} className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
+                <span className="text-xs font-medium truncate">{tn.name}</span>
+                {tn.phone && <span className="text-[10px] text-muted-foreground">{tn.phone}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </EntityDetailSheet>
+    );
+  };
 
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
