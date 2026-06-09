@@ -759,6 +759,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         periodFrom: allocFrom || null,
         periodTo: allocTo || null,
         statusFilter: allocStatus,
+        caption: allocCaption.trim() || null,
       });
       toast({ title: '📄 Float allocations PDF ready' });
     } catch (err: any) {
