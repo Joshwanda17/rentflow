@@ -139,21 +139,21 @@ export function LandlordHousesGallery({ landlordId, landlordName }: Props) {
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         </div>
       ) : photos.length > 0 ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {photos.map((p, i) => (
             <button
               key={`${p.url}-${i}`}
               onClick={() => setZoomIndex(i)}
-              className="relative group overflow-hidden rounded-md border"
+              className="relative group overflow-hidden rounded-lg border"
             >
               <img
                 src={p.url}
                 alt={`${p.title} photo ${i + 1}`}
                 loading="lazy"
-                className="h-20 w-full object-cover transition group-hover:scale-105"
+                className="h-32 w-full object-cover transition group-hover:scale-105"
               />
               <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition">
-                <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100" />
+                <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" />
               </div>
             </button>
           ))}
