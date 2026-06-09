@@ -2933,6 +2933,49 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Bulk action result summary ─── */}
+      <Dialog open={!!bulkResult} onOpenChange={(o: boolean) => { if (!o) setBulkResult(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{bulkResult?.action} — results</DialogTitle>
+          </DialogHeader>
+          {bulkResult && (() => {
+            const ok = bulkResult.results.filter(r => r.ok).length;
+            const failed = bulkResult.results.length - ok;
+            return (
+              <div className="space-y-3">
+                <div className="flex gap-2 text-sm font-semibold">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 text-emerald-700 px-2 py-1">
+                    <CheckCircle2 className="h-4 w-4" />{ok} succeeded
+                  </span>
+                  {failed > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-destructive/10 text-destructive px-2 py-1">
+                      <XCircle className="h-4 w-4" />{failed} failed
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-[50vh] overflow-y-auto divide-y divide-border rounded-lg border border-border">
+                  {bulkResult.results.map((r) => (
+                    <div key={r.id} className="flex items-start gap-2 p-2.5 text-sm">
+                      {r.ok
+                        ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+                        : <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />}
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{r.title || 'Untitled house'}</p>
+                        {!r.ok && <p className="text-xs text-destructive break-words">{r.error}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={() => setBulkResult(null)}>Close</Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
