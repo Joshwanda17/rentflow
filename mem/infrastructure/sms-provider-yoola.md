@@ -33,6 +33,15 @@ blocked on one provider.
 ## Notes
 - Trim all provider keys (`.trim()`) — pasted secrets can carry a trailing
   newline that causes auth failures (Yoola `invalidkey`).
-- Implemented in edge functions `sms-otp` and `password-reset-sms`. Other SMS
-  functions still use Africa's Talking directly.
+- **Yoola is the PRIMARY OTP sender for EVERY OTP service — no exceptions.**
+  The others are fallbacks only, tried in order when Yoola is unconfigured or
+  rejects. OTP senders now Yoola-first:
+  - `sms-otp` (login + phone verification) → Yoola → AT → LANA
+  - `password-reset-sms` → Yoola → AT → LANA
+  - `issue-landlord-payout-otp` → Yoola → AT → Twilio
+  - `agent-cash-deposit-create` / `agent-cash-deposit-resend` → Yoola → AT
+  - `self-update-phone` reuses `sms-otp` to send (no separate sender).
+- Sender ID is `WELILE` on every SMS path (AT `from`, Twilio `From`). Yoola uses
+  the account-registered sender (WELILE).
+- Non-OTP notification SMS may still use Africa's Talking directly.
 - All providers charge per message — monitor balances/credits.
