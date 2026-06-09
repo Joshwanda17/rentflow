@@ -10,6 +10,7 @@ export interface RepaymentSheetPlan {
   rentAmount: number;      // rent paid to landlord
   totalRepayment: number;  // canonical total due
   amountRepaid: number;
+  dailyRepayment?: number; // daily repayment amount tenant owes
   initialOutstanding?: number | null;
   landlordName?: string | null;
   propertyAddress?: string | null;
@@ -20,6 +21,12 @@ export interface RepaymentSheetTxn {
   amount: number;
 }
 
+/** A float allocation the agent personally made toward this tenant. */
+export interface RepaymentSheetAllocation {
+  date: string;   // exact date & time of allocation
+  amount: number; // amount allocated by the agent
+}
+
 export interface RepaymentSheetData {
   aiId: string;
   tenantName: string;
@@ -28,6 +35,8 @@ export interface RepaymentSheetData {
   generatedAt?: Date;
   plans: RepaymentSheetPlan[];
   transactions: RepaymentSheetTxn[];
+  /** Float allocations made by the agent toward this tenant. */
+  allocations?: RepaymentSheetAllocation[];
   /** Optional reporting window. When set, transactions are filtered to it. */
   periodFrom?: string | null;
   periodTo?: string | null;
@@ -184,7 +193,7 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
     totRepaid += repaid;
     totOutstanding += outstanding;
 
-    ensureSpace(58);
+    ensureSpace(64);
 
     // Card header
     pdf.setFillColor(241, 245, 249);
@@ -231,9 +240,11 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
       variance >= 0 ? [34, 197, 94] : [239, 68, 68],
     );
     y += 5;
-    labelVal('Outstanding balance', formatUGX(outstanding), colL, outstanding > 0 ? [239, 68, 68] : [34, 197, 94]);
+    labelVal('Daily repayment', formatUGX(Number(p.dailyRepayment || 0)), colL);
+    labelVal('Outstanding balance', formatUGX(outstanding), colR, outstanding > 0 ? [239, 68, 68] : [34, 197, 94]);
+    y += 5;
     const pct = totalDue > 0 ? Math.min(100, Math.round((repaid / totalDue) * 100)) : 0;
-    labelVal('Progress', `${pct}%`, colR);
+    labelVal('Progress', `${pct}%`, colL);
     y += 7;
 
     pdf.setDrawColor(226, 232, 240);
@@ -350,6 +361,83 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
     pdf.setTextColor(100, 116, 139);
     pdf.text('No repayments recorded in the selected period.', margin + 3, y);
     y += 6;
+  }
+
+  // ─── Float allocations made by the agent ───
+  const allAllocations = data.allocations ?? [];
+  const allocs = allAllocations.filter((a) => {
+    const ms = new Date(a.date).getTime();
+    if (fromMs !== null && ms < fromMs) return false;
+    if (toMs !== null && ms > toMs) return false;
+    return true;
+  });
+  const allocTotal = allocs.reduce((s, a) => s + Number(a.amount || 0), 0);
+  if (allAllocations.length > 0) {
+    ensureSpace(24);
+    pdf.setFillColor(238, 242, 255);
+    pdf.roundedRect(margin, y - 4, cw, 8, 2, 2, 'F');
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(67, 56, 202);
+    pdf.text(
+      data.periodFrom || data.periodTo
+        ? 'FLOAT ALLOCATIONS BY AGENT (IN PERIOD)'
+        : 'FLOAT ALLOCATIONS BY AGENT',
+      margin + 3,
+      y + 1,
+    );
+    y += 9;
+
+    if (allocs.length === 0) {
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text('No float allocations recorded in the selected period.', margin + 3, y);
+      y += 6;
+    } else {
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text('#', margin + 3, y);
+      pdf.text('Date & time of allocation', margin + 14, y);
+      pdf.text('Amount allocated', pw - margin - 3, y, { align: 'right' });
+      y += 2;
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.3);
+      pdf.line(margin, y, pw - margin, y);
+      y += 4;
+
+      allocs.forEach((a, i) => {
+        ensureSpace(14);
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(30, 41, 59);
+        pdf.text(String(i + 1), margin + 3, y);
+        pdf.text(new Date(a.date).toLocaleString('en-UG'), margin + 14, y);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(67, 56, 202);
+        pdf.text(formatUGX(a.amount), pw - margin - 3, y, { align: 'right' });
+        y += 5;
+      });
+
+      ensureSpace(12);
+      y += 1;
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.3);
+      pdf.line(margin, y, pw - margin, y);
+      y += 5;
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(
+        `Total allocated by agent (${allocs.length} allocation${allocs.length === 1 ? '' : 's'})`,
+        margin + 3,
+        y,
+      );
+      pdf.setTextColor(67, 56, 202);
+      pdf.text(formatUGX(allocTotal), pw - margin - 3, y, { align: 'right' });
+      y += 6;
+    }
   }
 
   // ─── Footer on every page ───

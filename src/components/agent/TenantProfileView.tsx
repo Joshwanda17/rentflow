@@ -169,6 +169,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
+  const [floatAllocations, setFloatAllocations] = useState<{ date: string; amount: number }[]>([]);
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -280,6 +281,23 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .select('role, enabled')
           .eq('user_id', tenantId),
       ]);
+
+      // Agent's own float allocations toward this tenant (exact date & time).
+      if (user?.id) {
+        const { data: allocData } = await supabase
+          .from('agent_collections')
+          .select('amount, created_at, notes')
+          .eq('agent_id', user.id)
+          .eq('tenant_id', tenantId)
+          .ilike('notes', '%float allocation%')
+          .order('created_at', { ascending: true })
+          .limit(400);
+        setFloatAllocations(
+          (allocData || [])
+            .filter((r: any) => !(r.notes || '').toLowerCase().includes('[reversed'))
+            .map((r: any) => ({ date: r.created_at, amount: Number(r.amount) || 0 })),
+        );
+      }
 
       if (profileRes.data) {
         setProfile(profileRes.data as unknown as TenantProfile);
@@ -637,11 +655,13 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           rentAmount: r.rent_amount,
           totalRepayment: r.total_repayment,
           amountRepaid: r.amount_repaid,
+          dailyRepayment: r.daily_repayment,
           initialOutstanding: r.initial_outstanding_balance,
           landlordName: r.landlord?.name ?? null,
           propertyAddress: r.landlord?.property_address ?? null,
         })),
         transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
+        allocations: floatAllocations,
       };
       await shareOrDownloadRepaymentSheet(sheet);
       setSheetRangeOpen(false);
