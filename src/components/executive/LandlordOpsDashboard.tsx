@@ -1963,12 +1963,12 @@ export function LandlordOpsDashboard() {
         <div className="flex gap-1.5 flex-wrap">
           {VERIFY_FILTERS.map(f => {
             const count =
-              f.value === 'all' ? unverifiedListings.length :
-              f.value === 'has_landlord' ? unverifiedListings.filter(h => !!h.landlords).length :
-              f.value === 'no_landlord' ? unverifiedListings.filter(h => !h.landlords).length :
-              f.value === 'has_images' ? unverifiedListings.filter(h => h.image_urls && h.image_urls.length > 0).length :
-              f.value === 'has_gps' ? unverifiedListings.filter(h => h.latitude && h.longitude).length :
-              unverifiedListings.filter(h => !!h.lc1_chairperson_name).length;
+              f.value === 'all' ? scopeListings.length :
+              f.value === 'has_landlord' ? scopeListings.filter(h => !!h.landlords).length :
+              f.value === 'no_landlord' ? scopeListings.filter(h => !h.landlords).length :
+              f.value === 'has_images' ? scopeListings.filter(h => h.image_urls && h.image_urls.length > 0).length :
+              f.value === 'has_gps' ? scopeListings.filter(h => h.latitude && h.longitude).length :
+              scopeListings.filter(h => !!h.lc1_chairperson_name).length;
             const active = verifyFilter === f.value;
             return (
               <button
