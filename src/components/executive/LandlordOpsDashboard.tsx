@@ -1097,7 +1097,7 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy(nextHidden ? 'hide' : 'unhide');
-    let ok = 0; let failed = 0;
+    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
     for (const h of selected) {
       try {
         const { error } = await supabase.from('house_listings').update({ is_hidden: nextHidden }).eq('id', h.id);
@@ -1111,11 +1111,16 @@ export function LandlordOpsDashboard() {
         });
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, is_hidden: nextHidden } : l) : old);
-        ok++;
-      } catch { failed++; }
+        results.push({ id: h.id, title: h.title, ok: true });
+      } catch (err: any) {
+        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+      }
     }
+    const ok = results.filter(r => r.ok).length;
+    const failed = results.length - ok;
     setBulkBusy(null);
     clearVerifySelection();
+    setBulkResult({ action: nextHidden ? 'Hide houses' : 'Unhide houses', results });
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} ${nextHidden ? 'hidden' : 'shown'}` : `${ok} done, ${failed} failed`,
       description: nextHidden ? 'Selected houses are off the tenant dashboard.' : 'Selected houses are back on the tenant dashboard.',
@@ -1134,7 +1139,7 @@ export function LandlordOpsDashboard() {
     }
     if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 5,000.`)) return;
     setBulkBusy('verify');
-    let ok = 0; let failed = 0;
+    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
     for (const h of targets) {
       try {
         const { data, error } = await supabase.functions.invoke('credit-listing-bonus', { body: { listing_id: h.id } });
@@ -1142,11 +1147,16 @@ export function LandlordOpsDashboard() {
         if (data?.error) throw new Error(data.error);
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, verified: true, listing_bonus_paid: true } : l) : old);
-        ok++;
-      } catch { failed++; }
+        results.push({ id: h.id, title: h.title, ok: true });
+      } catch (err: any) {
+        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+      }
     }
+    const ok = results.filter(r => r.ok).length;
+    const failed = results.length - ok;
     setBulkBusy(null);
     clearVerifySelection();
+    setBulkResult({ action: 'Verify houses', results });
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} verified` : `${ok} verified, ${failed} failed`,
       description: failed === 0 ? 'Agents credited for newly verified listings.' : 'Some listings could not be verified.',
@@ -1166,7 +1176,7 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy('reject');
-    let ok = 0; let failed = 0;
+    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
     for (const h of selected) {
       try {
         const { data, error } = await supabase.rpc('reject_house_listing', { p_listing_id: h.id, p_reason: trimmed });
@@ -1174,11 +1184,16 @@ export function LandlordOpsDashboard() {
         if (data && typeof data === 'object' && 'error' in (data as any)) throw new Error((data as any).error);
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, status: 'rejected' } : l) : old);
-        ok++;
-      } catch { failed++; }
+        results.push({ id: h.id, title: h.title, ok: true });
+      } catch (err: any) {
+        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+      }
     }
+    const ok = results.filter(r => r.ok).length;
+    const failed = results.length - ok;
     setBulkBusy(null);
     clearVerifySelection();
+    setBulkResult({ action: 'Reject houses', results });
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} rejected` : `${ok} rejected, ${failed} failed`,
       variant: failed === 0 ? undefined : 'destructive',
