@@ -1273,22 +1273,61 @@ export function LandlordOpsDashboard() {
   const totalMonthlyRevenue = occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
   const lostMonthlyRevenue = emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
 
-  // ─── Back Button ───
+  // ─── Navigate to any section (resets transient search/filter state) ───
+  const goToView = (id: View) => {
+    setView(id);
+    setSearch('');
+    setVerifySearch('');
+    setVerifyFilter('all');
+    setVerifySort('newest');
+    setPendingFilter('all');
+    setLandlordSort('newest');
+    setNavSheetOpen(false);
+  };
+
+  // ─── Section switcher (mobile-friendly jump menu, available in every view) ───
+  const SectionSwitcher = ({ className = '' }: { className?: string }) => (
+    <Sheet open={navSheetOpen} onOpenChange={setNavSheetOpen}>
+      <SheetTrigger asChild>
+        <button
+          className={`flex items-center gap-1.5 text-sm font-semibold rounded-full border border-border bg-card px-3 min-h-[44px] touch-manipulation active:scale-[0.98] ${className}`}
+        >
+          <LayoutGrid className="h-4 w-4" /> Sections
+        </button>
+      </SheetTrigger>
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+        <SheetHeader className="text-left">
+          <SheetTitle>Jump to section</SheetTitle>
+        </SheetHeader>
+        <div className="mt-3 grid grid-cols-2 gap-2 pb-4">
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => goToView(item.id)}
+              className={`flex items-center gap-2 p-3 rounded-xl border text-left min-h-[56px] touch-manipulation active:scale-[0.98] ${item.color} ${view === item.id ? 'ring-2 ring-primary' : ''}`}
+            >
+              <div className={`h-8 w-8 rounded-lg ${item.color.split(' ')[0]} flex items-center justify-center shrink-0`}>
+                <item.icon className="h-4 w-4" />
+              </div>
+              <span className="font-bold text-xs leading-tight">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
+  // ─── Back Button (sticky nav row: back to overview + section switcher) ───
   const BackButton = () => (
-    <button
-      onClick={() => {
-        setView('home');
-        setSearch('');
-        setVerifySearch('');
-        setVerifyFilter('all');
-        setVerifySort('newest');
-        setPendingFilter('all');
-        setLandlordSort('newest');
-      }}
-      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3 min-h-[44px] touch-manipulation"
-    >
-      <ArrowLeft className="h-4 w-4" /> Back to Overview
-    </button>
+    <div className="flex items-center justify-between gap-2 mb-3 sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/60">
+      <button
+        onClick={() => goToView('home')}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px] touch-manipulation"
+      >
+        <ArrowLeft className="h-4 w-4" /> Overview
+      </button>
+      <SectionSwitcher />
+    </div>
   );
 
   const refetchAll = () => { refetch(); refetchLandlords(); refetchLC1(); };
