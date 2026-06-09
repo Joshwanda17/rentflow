@@ -3644,15 +3644,30 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       return (
                         <div key={slot.key} className="space-y-1">
                           {photo ? (
-                            <div className="relative aspect-square rounded-lg overflow-hidden border border-border">
-                              <img src={photo.preview} alt={slot.label} className="w-full h-full object-cover" />
+                            <div className="relative aspect-square rounded-lg overflow-hidden border border-border group">
+                              <img
+                                src={photo.preview}
+                                alt={slot.label}
+                                className="w-full h-full object-cover cursor-pointer"
+                                onClick={() => { setPreviewUrl(photo.preview); setPreviewLabel(slot.label); }}
+                              />
                               <button
                                 type="button"
-                                onClick={() => removePhoto(idx)}
+                                onClick={(e) => { e.stopPropagation(); removePhoto(idx); }}
                                 className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
                               >
                                 ✕
                               </button>
+                              <label className="absolute bottom-1 left-1 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shadow-sm">
+                                <RefreshCw className="w-3 h-3" />
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="hidden"
+                                  onChange={(e) => handlePhotoAddAt(idx, e)}
+                                />
+                              </label>
                             </div>
                           ) : (
                             <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors text-center px-1">
