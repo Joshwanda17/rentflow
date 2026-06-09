@@ -29,7 +29,16 @@ interface OtpEvent {
   otp_expires_at: string | null;
   detail: string | null;
   failure_reason: string | null;
-  metadata: { trigger_source?: string; sms_sent?: boolean; delivery_status?: string; [key: string]: unknown } | null;
+  metadata: {
+    trigger_source?: string;
+    sms_sent?: boolean;
+    delivery_status?: string;
+    attempt_number?: number;
+    sms_message_id?: string | null;
+    sms_status?: string | null;
+    sms_status_code?: number | null;
+    [key: string]: unknown;
+  } | null;
   created_at: string;
 }
 
