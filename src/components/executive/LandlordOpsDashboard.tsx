@@ -273,6 +273,13 @@ export function LandlordOpsDashboard() {
   // Landlord verification moderation (frontend session state).
   const [rejectedLandlordIds, setRejectedLandlordIds] = useState<Set<string>>(new Set());
   const [expandedLandlordId, setExpandedLandlordId] = useState<string | null>(null);
+  // Drilldown row → entity detail sheet (cities / no-landlord tenants / landlords)
+  const [entityDetail, setEntityDetail] = useState<
+    | { type: 'city'; data: any }
+    | { type: 'no-landlord'; data: any }
+    | { type: 'landlord'; data: any }
+    | null
+  >(null);
 
   // ─── Verification Queue Search & Filters ───
   const [verifySearch, setVerifySearch] = useState('');
