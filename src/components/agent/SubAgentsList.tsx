@@ -104,40 +104,45 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
         .select('id, full_name, phone, avatar_url')
         .in('id', finalIds);
 
-      // All earnings the parent earned from these sub-agents (single query)
-      const { data: earnings } = await supabase
-        .from('agent_earnings')
-        .select('amount, source_user_id')
-        .eq('agent_id', user.id)
-        .eq('earning_type', 'subagent_commission')
-        .in('source_user_id', finalIds);
-
-      const earningsBySub: Record<string, number> = {};
-      let total = 0;
-      (earnings || []).forEach(e => {
-        const v = Number(e.amount) || 0;
-        earningsBySub[e.source_user_id] =
-          (earningsBySub[e.source_user_id] || 0) + v;
-        total += v;
-      });
-
-      // Tenant counts (single query, group client-side)
+      // Tenant counts + map each tenant back to the sub-agent who manages them.
+      // (subagent_commission earnings store the TENANT id in source_user_id,
+      // so we need this map to attribute commission to the right sub-agent.)
       const { data: rentReqRows } = await supabase
         .from('rent_requests')
-        .select('agent_id, created_at')
+        .select('agent_id, tenant_id, created_at')
         .in('agent_id', finalIds);
 
       const tenantsBySub: Record<string, number> = {};
       const lastActiveBySub: Record<string, string> = {};
+      const tenantToSub: Record<string, string> = {};
       const todayStr = new Date().toISOString().slice(0, 10);
       (rentReqRows || []).forEach(r => {
         tenantsBySub[r.agent_id] = (tenantsBySub[r.agent_id] || 0) + 1;
+        if (r.tenant_id) tenantToSub[r.tenant_id] = r.agent_id;
         if (
           !lastActiveBySub[r.agent_id] ||
           r.created_at > lastActiveBySub[r.agent_id]
         ) {
           lastActiveBySub[r.agent_id] = r.created_at;
         }
+      });
+
+      // All sub-agent override commission the parent earned. source_user_id is
+      // the tenant id, so route each commission to its sub-agent via tenantToSub.
+      const { data: earnings } = await supabase
+        .from('agent_earnings')
+        .select('amount, source_user_id')
+        .eq('agent_id', user.id)
+        .eq('earning_type', 'subagent_commission');
+
+      const earningsBySub: Record<string, number> = {};
+      let total = 0;
+      (earnings || []).forEach(e => {
+        const subId = e.source_user_id ? tenantToSub[e.source_user_id] : undefined;
+        if (!subId) return;
+        const v = Number(e.amount) || 0;
+        earningsBySub[subId] = (earningsBySub[subId] || 0) + v;
+        total += v;
       });
 
       const enriched: SubAgent[] = finalIds.map(id => {
