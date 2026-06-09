@@ -100,6 +100,16 @@ export async function generateFloatAllocationsPdf(data: FloatAllocationsPdfData)
   pdf.text(`Date range: ${periodText}    •    Status: ${statusLabel(data.statusFilter)}`, margin, y);
   y += 7;
 
+  // ─── Optional agent caption ───
+  if (data.caption) {
+    const captionLines = pdf.splitTextToSize(data.caption, cw - 6);
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'italic');
+    pdf.setTextColor(67, 56, 202);
+    pdf.text(captionLines, margin + 3, y);
+    y += captionLines.length * 3.8 + 3;
+  }
+
   // ─── Tenant / agent identity ───
   const idRow = (label: string, value: string, x: number) => {
     pdf.setFontSize(8);
