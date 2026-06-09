@@ -390,7 +390,22 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
   return (
     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl p-0 flex flex-col">
+      <SheetContent
+        side="bottom"
+        className="h-[90vh] rounded-t-3xl p-0 flex flex-col"
+        // Keep focus inside the sheet on open. When the empty state is showing,
+        // land focus on its primary CTA (falling back to the secondary CTA) so
+        // keyboard + screen-reader users start *inside* the trapped sheet.
+        onOpenAutoFocus={(e) => {
+          if (!loading && listings.length === 0) {
+            const target = emptyPrimaryRef.current ?? emptySecondaryRef.current;
+            if (target) {
+              e.preventDefault();
+              target.focus();
+            }
+          }
+        }}
+      >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border">
           <SheetTitle className="flex items-center gap-2">
             <Home className="h-5 w-5 text-primary" />
