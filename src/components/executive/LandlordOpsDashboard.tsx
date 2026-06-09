@@ -768,7 +768,6 @@ export function LandlordOpsDashboard() {
   const hiddenListings = rows.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted');
   const withImages = rows.filter(l => l.image_urls && l.image_urls.length > 0);
   const withGPS = rows.filter(l => l.latitude && l.longitude);
-  const withGPS = rows.filter(l => l.latitude && l.longitude);
   const emptyHouses = rows.filter(l => l.status === 'available' && !l.tenant_id);
   const occupiedHouses = rows.filter(l => l.tenant_id);
 
