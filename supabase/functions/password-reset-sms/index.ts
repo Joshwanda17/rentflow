@@ -60,7 +60,9 @@ async function sendSMS(phone: string, message: string): Promise<{ ok: boolean; r
 }
 
 async function sendViaYoola(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
-  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY");
+  // Trim to defend against stray whitespace/newlines pasted into the secret —
+  // Yoola returns 403 "invalidkey" if the key has any surrounding whitespace.
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) return { ok: false, reason: "yoola_not_configured" };
   try {
     const phoneYoola = formatPhoneInternational(phone).replace(/^\+/, "");

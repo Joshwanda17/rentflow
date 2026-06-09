@@ -180,7 +180,9 @@ const RETRYABLE_REASONS = new Set(["timeout", "network_error"]);
  * with retries on transient failures.
  */
 async function sendViaYoola(phone: string, message: string): Promise<SmsResult> {
-  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY");
+  // Trim to defend against stray whitespace/newlines pasted into the secret —
+  // Yoola returns 403 "invalidkey" if the key has any surrounding whitespace.
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) return { accepted: false, reason: "yoola_not_configured" };
 
   let last: SmsResult = { accepted: false, reason: "network_error" };
