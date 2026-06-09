@@ -412,6 +412,17 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
             }
           }
         }}
+        onCloseAutoFocus={(e) => {
+          // Return focus to whatever element triggered the sheet so keyboard
+          // users continue from where they left off. If the saved element is
+          // no longer in the DOM (e.g. unmounted), fall back to document body.
+          const target = previouslyFocusedRef.current;
+          if (target && document.contains(target)) {
+            e.preventDefault();
+            target.focus();
+          }
+          previouslyFocusedRef.current = null;
+        }}
       >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border">
           <SheetTitle className="flex items-center gap-2">
