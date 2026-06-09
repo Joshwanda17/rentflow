@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
@@ -280,6 +281,27 @@ export function LandlordOpsDashboard() {
     | { type: 'landlord'; data: any }
     | null
   >(null);
+  // Deep-link params for shareable entity detail links (?entity=…&eid=…)
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const entityId = (type: 'city' | 'no-landlord' | 'landlord', data: any): string =>
+    type === 'city' ? data.city : data.id;
+
+  const openEntity = (type: 'city' | 'no-landlord' | 'landlord', data: any) => {
+    setEntityDetail({ type, data });
+    const next = new URLSearchParams(searchParams);
+    next.set('entity', type);
+    next.set('eid', entityId(type, data));
+    setSearchParams(next, { replace: false });
+  };
+
+  const closeEntity = () => {
+    setEntityDetail(null);
+    const next = new URLSearchParams(searchParams);
+    next.delete('entity');
+    next.delete('eid');
+    setSearchParams(next, { replace: true });
+  };
 
   // ─── Verification Queue Search & Filters ───
   const [verifySearch, setVerifySearch] = useState('');
@@ -860,6 +882,28 @@ export function LandlordOpsDashboard() {
     return [...map.values()].sort((a, b) => (b.listingCount + b.tenantCount) - (a.listingCount + a.tenantCount));
   }, [rows, noLandlordList]);
 
+  // Restore an entity detail sheet from a shared deep link (?entity=…&eid=…).
+  const entityParam = searchParams.get('entity') as 'city' | 'no-landlord' | 'landlord' | null;
+  const eidParam = searchParams.get('eid');
+  useEffect(() => {
+    if (!entityParam || !eidParam) return;
+    if (entityDetail) return; // already open
+    if (entityParam === 'city') {
+      const c = cityGroups.find(g => g.city === eidParam);
+      if (c) { setView('cities'); setEntityDetail({ type: 'city', data: c }); }
+    } else if (entityParam === 'no-landlord') {
+      const t = noLandlordList.find(r => r.id === eidParam);
+      if (t) { setView('no-landlord'); setEntityDetail({ type: 'no-landlord', data: t }); }
+    } else if (entityParam === 'landlord') {
+      const l = landlordsList.find(x => x.id === eidParam);
+      if (l) {
+        setView(l.tenants && l.tenants.length > 0 ? 'occupied' : 'empty');
+        setEntityDetail({ type: 'landlord', data: l });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entityParam, eidParam, cityGroups, noLandlordList, landlordsList]);
+
   // LC1 grouping from house_listings (kept for backward compat)
   const lc1GroupsFromListings = useMemo(() => {
     const map = new Map<string, { name: string; phone: string | null; village: string | null; houseCount: number; listingIds: string[] }>();
@@ -1386,7 +1430,13 @@ export function LandlordOpsDashboard() {
   // Detail sheet opened when a drilldown table row is clicked.
   const renderEntityDetail = () => {
     if (!entityDetail) return null;
-    const close = () => setEntityDetail(null);
+    const close = closeEntity;
+    const buildShareUrl = (type: string, id: string) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('entity', type);
+      url.searchParams.set('eid', id);
+      return url.toString();
+    };
 
     if (entityDetail.type === 'city') {
       const c = entityDetail.data;
@@ -1394,6 +1444,7 @@ export function LandlordOpsDashboard() {
         <EntityDetailSheet
           open
           onClose={close}
+          shareUrl={buildShareUrl('city', c.city)}
           title={c.city}
           subtitle="City overview"
           icon={<Globe className="h-5 w-5 text-teal-600" />}
@@ -1411,6 +1462,7 @@ export function LandlordOpsDashboard() {
         <EntityDetailSheet
           open
           onClose={close}
+          shareUrl={buildShareUrl('no-landlord', t.id)}
           title={t.tenant_name}
           subtitle="Tenant with no landlord listed"
           icon={<UserX className="h-5 w-5 text-orange-600" />}
@@ -1452,6 +1504,7 @@ export function LandlordOpsDashboard() {
       <EntityDetailSheet
         open
         onClose={close}
+        shareUrl={buildShareUrl('landlord', l.id)}
         title={l.name}
         subtitle={tenants.length > 0 ? 'Occupied landlord' : 'Empty landlord'}
         icon={<Building2 className="h-5 w-5 text-sky-600" />}
@@ -1946,7 +1999,7 @@ export function LandlordOpsDashboard() {
           data={filtered}
           rowKey={(c, i) => `${c.city}-${i}`}
           emptyMessage="No cities found"
-          onRowClick={(c) => setEntityDetail({ type: 'city', data: c })}
+          onRowClick={(c) => openEntity('city', c)}
           columns={[
             { key: 'city', label: 'City', render: (c) => <span className="font-semibold">{c.city}</span> },
             { key: 'listingCount', label: 'Houses', align: 'right' },
@@ -2018,7 +2071,7 @@ export function LandlordOpsDashboard() {
           data={filtered}
           rowKey={(t) => t.id}
           emptyMessage="All tenants have landlords listed"
-          onRowClick={(t) => setEntityDetail({ type: 'no-landlord', data: t })}
+          onRowClick={(t) => openEntity('no-landlord', t)}
           columns={[
             { key: 'tenant_name', label: 'Tenant', render: (t) => <span className="font-semibold">{t.tenant_name}</span> },
             { key: 'request_city', label: 'City', render: (t) => t.request_city || '—' },
@@ -2123,7 +2176,7 @@ export function LandlordOpsDashboard() {
           data={emptyLandlords}
           rowKey={(l) => l.id}
           emptyMessage="No empty houses"
-          onRowClick={(l) => setEntityDetail({ type: 'landlord', data: l })}
+          onRowClick={(l) => openEntity('landlord', l)}
           columns={[
             { key: 'name', label: 'Landlord', render: (l) => <span className="font-semibold">{l.name}</span> },
             { key: 'phone', label: 'Phone', render: (l) => l.phone || '—' },
@@ -2176,7 +2229,7 @@ export function LandlordOpsDashboard() {
           data={occupiedLandlords}
           rowKey={(l) => l.id}
           emptyMessage="No occupied houses"
-          onRowClick={(l) => setEntityDetail({ type: 'landlord', data: l })}
+          onRowClick={(l) => openEntity('landlord', l)}
           columns={[
             { key: 'name', label: 'Landlord', render: (l) => <span className="font-semibold">{l.name}</span> },
             { key: 'phone', label: 'Phone', render: (l) => l.phone || '—' },
