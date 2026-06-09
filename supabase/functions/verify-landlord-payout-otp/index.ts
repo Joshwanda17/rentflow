@@ -15,6 +15,32 @@ async function sha256(s: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Structured audit-log writer. failure_reason is one of:
+// invalid_code | expired | already_verified | too_many_attempts | timeout | disburse_failed | challenge_<status>
+async function logEvent(
+  admin: ReturnType<typeof createClient>,
+  ch: { landlord_id?: string | null; landlord_phone?: string | null; amount?: number | null },
+  challenge_id: string,
+  agentId: string,
+  opts: { event_type: string; failure_reason?: string | null; detail?: string | null; metadata?: Record<string, unknown> },
+) {
+  try {
+    await admin.from("landlord_payout_otp_events").insert({
+      challenge_id,
+      agent_id: agentId,
+      landlord_id: ch?.landlord_id ?? null,
+      event_type: opts.event_type,
+      failure_reason: opts.failure_reason ?? null,
+      landlord_phone: ch?.landlord_phone ?? null,
+      amount: ch?.amount ?? null,
+      detail: opts.detail ?? null,
+      metadata: opts.metadata ?? {},
+    });
+  } catch (e) {
+    console.error("[verify-landlord-payout-otp] logEvent failed", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
