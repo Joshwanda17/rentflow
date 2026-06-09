@@ -145,6 +145,14 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                                   {format(new Date(ev.created_at), 'd MMM yyyy, HH:mm:ss')}
                                 </time>
                               </div>
+                              {ev.failure_reason && (
+                                <Badge
+                                  variant="outline"
+                                  className="mt-1 bg-destructive/10 text-destructive border-destructive/20 text-[10px]"
+                                >
+                                  {failureReasonLabel(ev.failure_reason)}
+                                </Badge>
+                              )}
                               {ev.detail && (
                                 <p className="text-xs text-muted-foreground mt-1">{ev.detail}</p>
                               )}
