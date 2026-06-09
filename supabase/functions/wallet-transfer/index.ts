@@ -234,6 +234,20 @@ Deno.serve(async (req) => {
     const recipientLabel =
       recipientProfile?.full_name?.trim() || recipientProfile?.phone || 'Welile user';
 
+    // === Statement descriptions (now that we know both names) ===
+    // Receiver's wallet statement shows WHO sent it + WHY. Sender's shows
+    // WHO received it + WHY. Reason is only appended when meaningfully set.
+    const senderDescription = isWelileBread
+      ? `You have sent ${breadPrefix}${breadNoun} of ${formattedAmount} to ${recipientLabel}`
+      : hasReason
+        ? `Transfer to ${recipientLabel}: ${trimmedReason}`
+        : `Transfer to ${recipientLabel}`;
+    const recipientDescription = isWelileBread
+      ? `You have received ${breadPrefix}${breadNoun} of ${formattedAmount} from ${senderLabel}`
+      : hasReason
+        ? `Transfer from ${senderLabel}: ${trimmedReason}`
+        : `Transfer from ${senderLabel}`;
+
     // Pre-check sender balance — STRICT withdrawable only.
     // Wallet transfers move money out of the withdrawable bucket
     // (recipient_type: 'user'). Operational float is company money and is
