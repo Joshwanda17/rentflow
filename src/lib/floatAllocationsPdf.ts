@@ -278,7 +278,7 @@ export async function shareFloatAllocationsWhatsApp(data: FloatAllocationsPdfDat
   const blob = await generateFloatAllocationsPdf(data);
   const filename = `Float_Allocations_${data.tenantName.replace(/\s+/g, '_')}.pdf`;
   const file = new File([blob], filename, { type: 'application/pdf' });
-  const caption = `Welile float allocations for ${data.tenantName}`;
+  const caption = (data.caption?.trim() || `Welile float allocations for ${data.tenantName}`);
 
   // Best path: native share sheet with the file attached (lets the agent pick WhatsApp).
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
