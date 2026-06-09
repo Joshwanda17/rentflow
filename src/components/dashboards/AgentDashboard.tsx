@@ -951,6 +951,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
               onOpenHistory={() => { hapticTap(); setFloatHistoryOpen(true); }}
               onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
+              onOpenOtpAudit={() => { hapticTap(); setOtpAuditOpen(true); }}
             />
             <button
               onClick={() => { hapticTap(); setBusinessAdvanceOpen(true); }}
