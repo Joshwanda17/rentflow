@@ -74,6 +74,70 @@ function formatPhoneYoola(rawPhone: string): string {
 }
 
 /**
+ * Format a phone number for LANA SMS: digits only, with the country code but
+ * WITHOUT a leading "+" (e.g. "256704487563"). Same shape as Yoola.
+ */
+function formatPhoneLana(rawPhone: string): string {
+  return formatPhoneInternational(rawPhone).replace(/^\+/, "");
+}
+
+/**
+ * Single LANA SMS send attempt with a hard timeout. LANA's REST API accepts a
+ * JSON body { phone, message } at https://api.lanasms.com/v1/send with a
+ * Bearer token and returns { status: true|"success", message_id, ... } on
+ * acceptance ({ status: false, message } on rejection — still HTTP 200).
+ */
+async function sendLanaAttempt(
+  apiKey: string,
+  phone: string,
+  message: string,
+): Promise<SmsResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SMS_ATTEMPT_TIMEOUT_MS);
+  try {
+    const response = await fetch("https://api.lanasms.com/v1/send", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        phone: formatPhoneLana(phone),
+        message,
+      }),
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    console.log(`[sms-otp] LANA response (${response.status}):`, text);
+
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON body */ }
+
+    const rawStatus = data?.status;
+    const statusStr = String(rawStatus ?? "").toLowerCase();
+    const accepted = rawStatus === true ||
+      statusStr === "success" || statusStr === "true" ||
+      statusStr === "ok" || statusStr === "sent" || statusStr === "queued";
+    if (response.ok && accepted) return { accepted: true };
+
+    if (!response.ok && (response.status >= 500 || response.status === 429)) {
+      return { accepted: false, reason: "network_error" };
+    }
+    const detail = String(data?.message ?? statusStr ?? "rejected")
+      .toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40);
+    return { accepted: false, reason: `lana_${response.status}_${detail || "rejected"}` };
+  } catch (error) {
+    const aborted = (error as Error)?.name === "AbortError";
+    console.error(`[sms-otp] LANA attempt ${aborted ? "timed out" : "failed"}:`, error);
+    return { accepted: false, reason: aborted ? "timeout" : "network_error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Single Yoola SMS send attempt with a hard timeout. Yoola's REST API accepts
  * a JSON body { phone, message, api_key } at https://yoolasms.com/api/v1/send
  * and returns { status: "success", ... } on acceptance.
@@ -176,6 +240,28 @@ async function sendSMSAttempt(
 const RETRYABLE_REASONS = new Set(["timeout", "network_error"]);
 
 /**
+ * Send via LANA SMS (primary provider), with retries on transient failures.
+ */
+async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
+  const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
+  if (!apiKey) return { accepted: false, reason: "lana_not_configured" };
+
+  let last: SmsResult = { accepted: false, reason: "network_error" };
+  for (let attempt = 1; attempt <= SMS_MAX_ATTEMPTS; attempt++) {
+    last = await sendLanaAttempt(apiKey, phone, message);
+    if (last.accepted || !RETRYABLE_REASONS.has(last.reason ?? "")) return last;
+    if (attempt < SMS_MAX_ATTEMPTS) {
+      const backoff = SMS_BACKOFF_BASE_MS * 2 ** (attempt - 1);
+      console.warn(
+        `[sms-otp] LANA retry ${attempt}/${SMS_MAX_ATTEMPTS - 1} after ${last.reason} (backoff ${backoff}ms)`,
+      );
+      await sleep(backoff);
+    }
+  }
+  return last;
+}
+
+/**
  * Send via Yoola SMS (primary provider while Africa's Talking comes online),
  * with retries on transient failures.
  */
@@ -244,22 +330,28 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 }
 
 /**
- * Send the OTP SMS. Yoola SMS is the primary provider while Africa's Talking
- * comes back online; if Yoola is unconfigured or fails, we fall back to AT so
+ * Send the OTP SMS. Provider chain: LANA (primary) → Yoola → Africa's Talking.
+ * Each provider is tried only if the previous one is unconfigured or fails, so
  * delivery is never blocked on a single provider.
  */
 async function sendSMS(phone: string, message: string): Promise<SmsResult> {
+  const lana = await sendViaLana(phone, message);
+  if (lana.accepted) return lana;
+
+  // LANA failed or is not configured — try Yoola.
+  console.warn(`[sms-otp] LANA send not accepted (${lana.reason}); trying Yoola`);
   const yoola = await sendViaYoola(phone, message);
   if (yoola.accepted) return yoola;
 
-  // Yoola failed or is not configured — try Africa's Talking as a fallback.
+  // Yoola failed or is not configured — try Africa's Talking as a final fallback.
   console.warn(`[sms-otp] Yoola send not accepted (${yoola.reason}); trying Africa's Talking`);
   const at = await sendViaAfricasTalking(phone, message);
   if (at.accepted) return at;
 
-  // Both failed — surface Yoola's reason (the primary) unless it was simply
-  // unconfigured, in which case AT's reason is more informative.
-  return yoola.reason === "yoola_not_configured" ? at : yoola;
+  // All failed — surface the most informative reason (skip "not_configured").
+  if (lana.reason && lana.reason !== "lana_not_configured") return lana;
+  if (yoola.reason && yoola.reason !== "yoola_not_configured") return yoola;
+  return at;
 }
 
 Deno.serve(async (req) => {
