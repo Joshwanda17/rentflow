@@ -2055,14 +2055,15 @@ export function LandlordOpsDashboard() {
       { value: 'has_lc1', label: 'Has LC1' },
     ];
 
-    // Scope source: "pending" = unverified only; "all" = every live house
-    // (verified + unverified) so ops can verify, reject or hide ANY house.
-    const scopeListings = verifyScope === 'all'
-      ? rows.filter(l =>
-          l.status !== 'rejected'
-          && l.status !== 'delisted'
-          && !optimisticallyVerifiedIds.has(l.id))
-      : unverifiedListings;
+    // Status scope: pending | verified | hidden | all
+    const scopeListings =
+      houseStatusFilter === 'all'
+        ? rows.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id))
+        : houseStatusFilter === 'verified'
+        ? rows.filter(l => l.verified && l.status !== 'rejected' && l.status !== 'delisted')
+        : houseStatusFilter === 'hidden'
+        ? rows.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted')
+        : unverifiedListings;
     let filteredHouses = scopeListings;
 
     // Text search across name, phone, location, agent
