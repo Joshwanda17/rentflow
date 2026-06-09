@@ -4280,6 +4280,28 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel queued submit?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your request is waiting to submit. If you cancel, you'll need to tap Submit again when you're ready.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowCancelConfirm(false)}>Keep queued</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowCancelConfirm(false);
+                cancelQueuedSubmit();
+              }}
+            >
+              Yes, cancel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
