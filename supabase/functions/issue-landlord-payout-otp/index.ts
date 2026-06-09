@@ -194,6 +194,18 @@ Deno.serve(async (req) => {
       `Welile: You are receiving UGX ${amt.toLocaleString()} as rent${tenant_name ? ` from ${tenant_name}` : ""}. OTP: ${otp}. Valid 1 hour. Share with the agent ONLY if you want to receive this money.`,
     );
 
+    await admin.from("landlord_payout_otp_events").insert({
+      challenge_id: challenge.id,
+      agent_id: agentId,
+      landlord_id,
+      event_type: "sent",
+      landlord_phone,
+      amount: amt,
+      otp_expires_at,
+      detail: sent ? "OTP sent via SMS" : "OTP created (SMS not confirmed)",
+      metadata: { sms_sent: sent, tenant_name: tenant_name ?? null },
+    });
+
     return json({
       success: true,
       challenge_id: challenge.id,
