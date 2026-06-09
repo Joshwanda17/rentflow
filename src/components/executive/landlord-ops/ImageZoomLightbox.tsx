@@ -139,6 +139,15 @@ export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix
         {current + 1} / {images.length}
       </div>
 
+      {captions?.[current] && (
+        <div
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 max-w-[90vw] rounded-lg bg-black/60 px-3 py-1.5 text-center text-xs text-white shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {captions[current]}
+        </div>
+      )}
+
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => setScale(s => Math.max(1, s - 0.5))}
