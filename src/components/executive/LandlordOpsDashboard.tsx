@@ -281,6 +281,27 @@ export function LandlordOpsDashboard() {
     | { type: 'landlord'; data: any }
     | null
   >(null);
+  // Deep-link params for shareable entity detail links (?entity=…&eid=…)
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const entityId = (type: 'city' | 'no-landlord' | 'landlord', data: any): string =>
+    type === 'city' ? data.city : data.id;
+
+  const openEntity = (type: 'city' | 'no-landlord' | 'landlord', data: any) => {
+    setEntityDetail({ type, data });
+    const next = new URLSearchParams(searchParams);
+    next.set('entity', type);
+    next.set('eid', entityId(type, data));
+    setSearchParams(next, { replace: false });
+  };
+
+  const closeEntity = () => {
+    setEntityDetail(null);
+    const next = new URLSearchParams(searchParams);
+    next.delete('entity');
+    next.delete('eid');
+    setSearchParams(next, { replace: true });
+  };
 
   // ─── Verification Queue Search & Filters ───
   const [verifySearch, setVerifySearch] = useState('');
