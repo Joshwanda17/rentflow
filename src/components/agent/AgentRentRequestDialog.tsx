@@ -2837,7 +2837,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </p>
                       <Button
                         type="button"
-                        onClick={submitQueued ? cancelQueuedSubmit : requestSubmit}
+                        onClick={submitQueued ? promptCancelQueued : requestSubmit}
                         disabled={loading}
                         variant={submitQueued ? 'secondary' : 'destructive'}
                         className="w-full"
