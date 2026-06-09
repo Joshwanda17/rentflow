@@ -1324,12 +1324,12 @@ export function LandlordOpsDashboard() {
             <button
               key={item.id}
               onClick={() => goToView(item.id)}
-              className={`flex items-center gap-2 p-3 rounded-xl border text-left min-h-[56px] touch-manipulation active:scale-[0.98] ${item.color} ${view === item.id ? 'ring-2 ring-primary' : ''}`}
+              className={`flex items-center gap-2 p-3 rounded-xl border border-border bg-card text-left min-h-[56px] touch-manipulation active:scale-[0.98] transition-colors hover:bg-muted/40 ${view === item.id ? 'ring-2 ring-primary border-primary/40' : ''}`}
             >
-              <div className={`h-8 w-8 rounded-lg ${item.color.split(' ')[0]} flex items-center justify-center shrink-0`}>
-                <item.icon className="h-4 w-4" />
+              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <item.icon className="h-4 w-4 text-muted-foreground" />
               </div>
-              <span className="font-bold text-xs leading-tight">{item.label}</span>
+              <span className="font-medium text-xs leading-tight">{item.label}</span>
             </button>
           ))}
         </div>
