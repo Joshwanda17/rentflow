@@ -269,6 +269,10 @@ export function LandlordOpsDashboard() {
   const [verifySearch, setVerifySearch] = useState('');
   type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1';
   const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
+  // Scope: pending = unverified only; all = every house (so ops can verify, reject or hide ANY house).
+  type VerifyScope = 'pending' | 'all';
+  const [verifyScope, setVerifyScope] = useState<VerifyScope>('pending');
+  const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
