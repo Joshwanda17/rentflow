@@ -25,7 +25,7 @@ import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { Undo2 } from 'lucide-react';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
 import { shareOrDownloadRepaymentSheet, type RepaymentSheetData } from '@/lib/agentRepaymentSheetPdf';
-import { shareOrDownloadFloatAllocations } from '@/lib/floatAllocationsPdf';
+import { shareOrDownloadFloatAllocations, shareFloatAllocationsWhatsApp } from '@/lib/floatAllocationsPdf';
 import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
 import { EditTenantDialog } from './EditTenantDialog';
@@ -178,6 +178,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [allocTo, setAllocTo] = useState<string>('');
   const [allocStatus, setAllocStatus] = useState<'all' | 'active' | 'reversed'>('all');
   const [downloadingAllocPdf, setDownloadingAllocPdf] = useState(false);
+  const [sharingAllocWa, setSharingAllocWa] = useState(false);
   const [showAllAllocations, setShowAllAllocations] = useState(false);
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
@@ -765,6 +766,35 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       }
     } finally {
       setDownloadingAllocPdf(false);
+    }
+  };
+
+  const handleShareAllocationsWhatsApp = async () => {
+    if (!profile) return;
+    setSharingAllocWa(true);
+    try {
+      await shareFloatAllocationsWhatsApp({
+        aiId,
+        tenantName: profile.full_name,
+        phone: profile.phone,
+        agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
+        rows: filteredAllocations.map((a) => ({
+          date: a.date,
+          amount: a.amount,
+          status: a.status,
+          reason: a.reason,
+        })),
+        periodFrom: allocFrom || null,
+        periodTo: allocTo || null,
+        statusFilter: allocStatus,
+      });
+      toast({ title: '📲 Ready to send on WhatsApp' });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast({ title: 'Failed to share PDF', description: err?.message, variant: 'destructive' });
+      }
+    } finally {
+      setSharingAllocWa(false);
     }
   };
 
@@ -1931,17 +1961,29 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
               </div>
             )}
 
-            <Button
-              variant="default"
-              size="lg"
-              disabled={downloadingAllocPdf || filteredAllocations.length === 0}
-              onClick={handleDownloadAllocationsPdf}
-              className="w-full h-11 rounded-xl gap-2 font-semibold"
-              aria-label="Download filtered float allocations PDF"
-            >
-              {downloadingAllocPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
-              {downloadingAllocPdf ? 'Generating…' : 'Download Allocations PDF'}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                size="lg"
+                disabled={sharingAllocWa || filteredAllocations.length === 0}
+                onClick={handleShareAllocationsWhatsApp}
+                className="w-full h-11 rounded-xl gap-2 font-semibold bg-success text-success-foreground hover:bg-success/90"
+                aria-label="Share filtered float allocations PDF on WhatsApp"
+              >
+                {sharingAllocWa ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}
+                {sharingAllocWa ? 'Preparing…' : 'Share on WhatsApp'}
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={downloadingAllocPdf || filteredAllocations.length === 0}
+                onClick={handleDownloadAllocationsPdf}
+                className="w-full h-11 rounded-xl gap-2 font-semibold"
+                aria-label="Download filtered float allocations PDF"
+              >
+                {downloadingAllocPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+                {downloadingAllocPdf ? 'Generating…' : 'Download PDF'}
+              </Button>
+            </div>
           </SectionCard>
         )}
 
