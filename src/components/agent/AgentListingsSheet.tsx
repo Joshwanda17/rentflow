@@ -68,12 +68,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     landlord_id: string | null; landlord_name: string | null; landlord_phone: string | null;
   } | null>(null);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
-  // Empty-state focus targets so we can reliably land focus *inside* the sheet
-  // on open (autoFocus is flaky on some Android/iOS browsers). Radix already
-  // traps focus + handles Escape; the back-gesture stack handles the hardware
-  // back button. This just guarantees the initial focus stays in the sheet.
   const emptyPrimaryRef = useRef<HTMLButtonElement>(null);
   const emptySecondaryRef = useRef<HTMLButtonElement>(null);
+  // Remember the element that had focus before the sheet opened so we can
+  // return focus to it when the sheet closes — keeps keyboard flow seamless.
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
