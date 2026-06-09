@@ -278,6 +278,10 @@ export function LandlordOpsDashboard() {
   // ─── Verification Queue bulk selection ───
   const [verifySelectedIds, setVerifySelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<null | 'hide' | 'unhide' | 'verify' | 'reject'>(null);
+  const [bulkResult, setBulkResult] = useState<null | {
+    action: string;
+    results: { id: string; title: string; ok: boolean; error?: string }[];
+  }>(null);
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
@@ -1093,7 +1097,7 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy(nextHidden ? 'hide' : 'unhide');
-    let ok = 0; let failed = 0;
+    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
     for (const h of selected) {
       try {
         const { error } = await supabase.from('house_listings').update({ is_hidden: nextHidden }).eq('id', h.id);
@@ -1107,11 +1111,16 @@ export function LandlordOpsDashboard() {
         });
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, is_hidden: nextHidden } : l) : old);
-        ok++;
-      } catch { failed++; }
+        results.push({ id: h.id, title: h.title, ok: true });
+      } catch (err: any) {
+        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+      }
     }
+    const ok = results.filter(r => r.ok).length;
+    const failed = results.length - ok;
     setBulkBusy(null);
     clearVerifySelection();
+    setBulkResult({ action: nextHidden ? 'Hide houses' : 'Unhide houses', results });
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} ${nextHidden ? 'hidden' : 'shown'}` : `${ok} done, ${failed} failed`,
       description: nextHidden ? 'Selected houses are off the tenant dashboard.' : 'Selected houses are back on the tenant dashboard.',
@@ -1130,7 +1139,7 @@ export function LandlordOpsDashboard() {
     }
     if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 5,000.`)) return;
     setBulkBusy('verify');
-    let ok = 0; let failed = 0;
+    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
     for (const h of targets) {
       try {
         const { data, error } = await supabase.functions.invoke('credit-listing-bonus', { body: { listing_id: h.id } });
@@ -1138,11 +1147,16 @@ export function LandlordOpsDashboard() {
         if (data?.error) throw new Error(data.error);
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, verified: true, listing_bonus_paid: true } : l) : old);
-        ok++;
-      } catch { failed++; }
+        results.push({ id: h.id, title: h.title, ok: true });
+      } catch (err: any) {
+        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+      }
     }
+    const ok = results.filter(r => r.ok).length;
+    const failed = results.length - ok;
     setBulkBusy(null);
     clearVerifySelection();
+    setBulkResult({ action: 'Verify houses', results });
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} verified` : `${ok} verified, ${failed} failed`,
       description: failed === 0 ? 'Agents credited for newly verified listings.' : 'Some listings could not be verified.',
@@ -1162,7 +1176,7 @@ export function LandlordOpsDashboard() {
       return;
     }
     setBulkBusy('reject');
-    let ok = 0; let failed = 0;
+    const results: { id: string; title: string; ok: boolean; error?: string }[] = [];
     for (const h of selected) {
       try {
         const { data, error } = await supabase.rpc('reject_house_listing', { p_listing_id: h.id, p_reason: trimmed });
@@ -1170,11 +1184,16 @@ export function LandlordOpsDashboard() {
         if (data && typeof data === 'object' && 'error' in (data as any)) throw new Error((data as any).error);
         queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
           Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, status: 'rejected' } : l) : old);
-        ok++;
-      } catch { failed++; }
+        results.push({ id: h.id, title: h.title, ok: true });
+      } catch (err: any) {
+        results.push({ id: h.id, title: h.title, ok: false, error: err?.message || 'Unknown error' });
+      }
     }
+    const ok = results.filter(r => r.ok).length;
+    const failed = results.length - ok;
     setBulkBusy(null);
     clearVerifySelection();
+    setBulkResult({ action: 'Reject houses', results });
     toast({
       title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} rejected` : `${ok} rejected, ${failed} failed`,
       variant: failed === 0 ? undefined : 'destructive',
@@ -2801,6 +2820,49 @@ export function LandlordOpsDashboard() {
         actionDialog={actionDialog} setActionDialog={setActionDialog}
         user={user} refetchAll={refetchAll} queryClient={queryClient}
       />
+
+      {/* ─── Bulk action result summary ─── */}
+      <Dialog open={!!bulkResult} onOpenChange={(o: boolean) => { if (!o) setBulkResult(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{bulkResult?.action} — results</DialogTitle>
+          </DialogHeader>
+          {bulkResult && (() => {
+            const ok = bulkResult.results.filter(r => r.ok).length;
+            const failed = bulkResult.results.length - ok;
+            return (
+              <div className="space-y-3">
+                <div className="flex gap-2 text-sm font-semibold">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 text-emerald-700 px-2 py-1">
+                    <CheckCircle2 className="h-4 w-4" />{ok} succeeded
+                  </span>
+                  {failed > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-destructive/10 text-destructive px-2 py-1">
+                      <XCircle className="h-4 w-4" />{failed} failed
+                    </span>
+                  )}
+                </div>
+                <div className="max-h-[50vh] overflow-y-auto divide-y divide-border rounded-lg border border-border">
+                  {bulkResult.results.map((r) => (
+                    <div key={r.id} className="flex items-start gap-2 p-2.5 text-sm">
+                      {r.ok
+                        ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+                        : <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />}
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{r.title || 'Untitled house'}</p>
+                        {!r.ok && <p className="text-xs text-destructive break-words">{r.error}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={() => setBulkResult(null)}>Close</Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
