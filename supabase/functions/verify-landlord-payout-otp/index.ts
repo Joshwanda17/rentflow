@@ -143,30 +143,54 @@ Deno.serve(async (req) => {
     });
 
     // Trigger disbursement (passes agent's own JWT so the existing function attributes correctly)
-    const disburseRes = await fetch(`${SUPABASE_URL}/functions/v1/landlord-payout-disburse`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: auth,
-      },
-      body: JSON.stringify({
-        rent_request_id: ch.rent_request_id ?? challenge_id, // fallback for ad-hoc payouts
-        landlord_id: ch.landlord_id,
-        tenant_id: ch.tenant_id,
-        amount: ch.amount,
-        landlord_phone: ch.landlord_phone,
-        landlord_name: ch.landlord_name,
-        mobile_money_provider: ch.mobile_money_provider,
-        otp_verified_at: verified_at,
-        agent_latitude: ch.agent_latitude,
-        agent_longitude: ch.agent_longitude,
-        property_latitude: ch.property_latitude,
-        property_longitude: ch.property_longitude,
-      }),
-    });
+    let disburseRes: Response;
+    const timeoutCtrl = new AbortController();
+    const timeoutId = setTimeout(() => timeoutCtrl.abort(), 25000);
+    try {
+      disburseRes = await fetch(`${SUPABASE_URL}/functions/v1/landlord-payout-disburse`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: auth,
+        },
+        signal: timeoutCtrl.signal,
+        body: JSON.stringify({
+          rent_request_id: ch.rent_request_id ?? challenge_id, // fallback for ad-hoc payouts
+          landlord_id: ch.landlord_id,
+          tenant_id: ch.tenant_id,
+          amount: ch.amount,
+          landlord_phone: ch.landlord_phone,
+          landlord_name: ch.landlord_name,
+          mobile_money_provider: ch.mobile_money_provider,
+          otp_verified_at: verified_at,
+          agent_latitude: ch.agent_latitude,
+          agent_longitude: ch.agent_longitude,
+          property_latitude: ch.property_latitude,
+          property_longitude: ch.property_longitude,
+        }),
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      const isTimeout = e instanceof DOMException && e.name === "AbortError";
+      await logEvent(admin, ch, challenge_id, agentId, {
+        event_type: "failed",
+        failure_reason: isTimeout ? "timeout" : "disburse_failed",
+        detail: isTimeout ? "Disbursement request timed out" : "Disbursement request error",
+      });
+      return json(
+        { error: isTimeout ? "Disbursement timed out. Please retry." : "Disbursement failed to start", challenge_id },
+        504,
+      );
+    }
+    clearTimeout(timeoutId);
 
     const disburseBody = await disburseRes.json().catch(() => ({}));
     if (!disburseRes.ok) {
+      await logEvent(admin, ch, challenge_id, agentId, {
+        event_type: "failed",
+        failure_reason: "disburse_failed",
+        detail: disburseBody?.error ?? "Disbursement failed to start",
+      });
       return json(
         { error: disburseBody?.error ?? "Disbursement failed to start", challenge_id },
         disburseRes.status,
