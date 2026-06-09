@@ -18,8 +18,11 @@ import {
   Phone,
   RefreshCw,
   Search,
+  Calendar,
+  X,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { format } from 'date-fns';
 
 interface SubAgent {
   sub_agent_id: string;
