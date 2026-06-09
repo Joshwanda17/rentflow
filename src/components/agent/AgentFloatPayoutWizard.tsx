@@ -513,7 +513,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
               {!landlordOtp.otpSent ? (
                 <Button
                   type="button"
-                  onClick={handleSendOtp}
+                  onClick={() => handleSendOtp('manual')}
                   disabled={landlordOtp.otpLoading || !phoneValid || !amountValid}
                   className="w-full gap-2 h-12 rounded-xl"
                 >
