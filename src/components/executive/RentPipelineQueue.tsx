@@ -518,6 +518,34 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
     );
   };
 
+  // Record an approval audit entry for the Landlord Ops status change. Captures
+  // the operator, the exact time the status changed, the status transition, and
+  // whether the agent bonus credit was successfully queued. Best-effort: failures
+  // never block the approval flow.
+  const recordLandlordApprovalAudit = async (
+    req: any,
+    statusChangedAt: string,
+    bonusQueued: boolean,
+    bonusNote: string | null,
+  ) => {
+    if (!user) return;
+    try {
+      await supabase.from('landlord_approval_audit').insert({
+        rent_request_id: req.id,
+        tenant_id: req.tenant_id ?? null,
+        landlord_id: req.landlord_id ?? null,
+        operator_id: user.id,
+        previous_status: req.status ?? null,
+        new_status: config.nextStatus,
+        status_changed_at: statusChangedAt,
+        bonus_credit_queued: bonusQueued,
+        bonus_credit_note: bonusNote,
+      });
+    } catch (auditErr) {
+      console.warn('[RentPipelineQueue] landlord approval audit failed:', auditErr);
+    }
+  };
+
   // Quick approve directly from list — no dialog needed
   const handleQuickApprove = async (req: any, e: React.MouseEvent) => {
     e.stopPropagation();
