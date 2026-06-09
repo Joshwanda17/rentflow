@@ -3113,6 +3113,8 @@ export type Database = {
       }
       agent_subagents: {
         Row: {
+          acceptance_token: string | null
+          accepted_at: string | null
           created_at: string
           id: string
           parent_agent_id: string
@@ -3124,6 +3126,8 @@ export type Database = {
           verified_by: string | null
         }
         Insert: {
+          acceptance_token?: string | null
+          accepted_at?: string | null
           created_at?: string
           id?: string
           parent_agent_id: string
@@ -3135,6 +3139,8 @@ export type Database = {
           verified_by?: string | null
         }
         Update: {
+          acceptance_token?: string | null
+          accepted_at?: string | null
           created_at?: string
           id?: string
           parent_agent_id?: string
