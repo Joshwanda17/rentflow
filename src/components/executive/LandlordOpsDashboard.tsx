@@ -10,6 +10,7 @@ import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutRevie
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { KPICard } from './KPICard';
 import { DrilldownTable, type DrilldownColumn } from './DrilldownTable';
+import { EntityDetailSheet } from './EntityDetailSheet';
 import {
   Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
