@@ -53,6 +53,7 @@ interface LandlordGroup {
   allHidden: boolean;
   photos: string[]; // first few house photo URLs for collapsed-row preview
   photoCount: number;
+  captions: string[]; // parallel to photos: address/date metadata per photo
 }
 
 function classify(status: string): 'paid' | 'pending' | null {
@@ -71,7 +72,8 @@ export function LandlordsWithTenantsView() {
     photos: string[];
     name: string;
     startIndex: number;
-  }>({ open: false, photos: [], name: '', startIndex: 0 });
+    captions: string[];
+  }>({ open: false, photos: [], name: '', startIndex: 0, captions: [] });
 
   const { data, isLoading } = useQuery({
     queryKey: ['landlord-ops-landlords-tenants'],
@@ -132,12 +134,12 @@ export function LandlordsWithTenantsView() {
         if (hl) houseLinks.push(...(hl as any));
       }
 
-      // 4. House-listing visibility + photos (is_hidden + status + image_urls) — for collapsed-row badge & thumbnails
-      const houseVis: { landlord_id: string; is_hidden: boolean | null; status: string | null; image_urls: string[] | null }[] = [];
+      // 4. House-listing visibility + photos (is_hidden + status + image_urls + address/date) — for collapsed-row badge, thumbnails & captions
+      const houseVis: { landlord_id: string; is_hidden: boolean | null; status: string | null; image_urls: string[] | null; title: string | null; address: string | null; created_at: string | null }[] = [];
       for (let i = 0; i < landlordIds.length; i += 200) {
         const { data: hv } = await supabase
           .from('house_listings')
-          .select('landlord_id, is_hidden, status, image_urls')
+          .select('landlord_id, is_hidden, status, image_urls, title, address, created_at')
           .in('landlord_id', landlordIds.slice(i, i + 200));
         if (hv) houseVis.push(...(hv as any));
       }
@@ -176,17 +178,31 @@ export function LandlordsWithTenantsView() {
     }
 
     // Pre-compute photos per landlord (all URLs for lightbox; thumbnails slice to 4)
+    // captionMap holds an address/date caption per photo, parallel to photoMap URLs.
     const photoMap = new Map<string, string[]>();
+    const captionMap = new Map<string, string[]>();
+    const fmtDate = (d: string | null) => {
+      if (!d) return '';
+      const dt = new Date(d);
+      return isNaN(dt.getTime())
+        ? ''
+        : dt.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    };
     for (const l of allLandlords) {
       const urls: string[] = [];
+      const caps: string[] = [];
       for (const h of safeHouseVis) {
         if (h.landlord_id === l.id && Array.isArray(h.image_urls)) {
+          const place = (h.address || h.title || '').trim();
+          const listed = fmtDate(h.created_at);
+          const caption = [place, listed ? `Listed ${listed}` : ''].filter(Boolean).join(' · ');
           for (const u of h.image_urls) {
-            if (u) urls.push(u);
+            if (u) { urls.push(u); caps.push(caption); }
           }
         }
       }
       photoMap.set(l.id, urls);
+      captionMap.set(l.id, caps);
     }
 
     // Initialize bucket for EVERY landlord (so all 325+ appear, even without tenants)
@@ -278,10 +294,12 @@ export function LandlordsWithTenantsView() {
           allHidden: false,
           photos: [],
           photoCount: 0,
+          captions: [],
         });
       } else {
         const ll = landlordMap.get(lkey);
         const photos = photoMap.get(lkey) || [];
+        const captions = captionMap.get(lkey) || [];
         out.push({
           landlord_id: lkey,
           name: ll?.name || 'Unknown Landlord',
@@ -290,6 +308,7 @@ export function LandlordsWithTenantsView() {
           allHidden: !!hiddenMap.get(lkey),
           photos,
           photoCount: photos.length,
+          captions,
         });
       }
     }
@@ -734,6 +753,7 @@ export function LandlordsWithTenantsView() {
                                   photos: g.photos,
                                   name: g.name,
                                   startIndex: i,
+                                  captions: g.captions,
                                 });
                               }}
                               className="h-10 w-10 rounded-md overflow-hidden border focus:outline-none focus:ring-2 focus:ring-sky-500"
@@ -755,6 +775,7 @@ export function LandlordsWithTenantsView() {
                                   photos: g.photos,
                                   name: g.name,
                                   startIndex: 0,
+                                  captions: g.captions,
                                 });
                               }}
                               className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground border hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-sky-500"
@@ -838,6 +859,7 @@ export function LandlordsWithTenantsView() {
         open={photoPreview.open}
         onClose={() => setPhotoPreview(s => ({ ...s, open: false }))}
         altPrefix={photoPreview.name}
+        captions={photoPreview.captions}
       />
     </div>
   );

@@ -7,9 +7,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   altPrefix?: string;
+  captions?: string[];
 }
 
-export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix = 'Photo' }: Props) {
+export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix = 'Photo', captions }: Props) {
   const [current, setCurrent] = useState(startIndex ?? 0);
   const [scale, setScale] = useState(1);
   const [tx, setTx] = useState(0);
@@ -137,6 +138,15 @@ export function ImageZoomLightbox({ images, startIndex, open, onClose, altPrefix
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 rounded-full bg-white/10 px-3 py-1 text-xs text-white">
         {current + 1} / {images.length}
       </div>
+
+      {captions?.[current] && (
+        <div
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 max-w-[90vw] rounded-lg bg-black/60 px-3 py-1.5 text-center text-xs text-white shadow-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {captions[current]}
+        </div>
+      )}
 
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
         <button
