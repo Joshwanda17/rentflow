@@ -50,6 +50,8 @@ interface LandlordGroup {
   pendingCount: number;
   totalAmount: number;
   allHidden: boolean;
+  photos: string[]; // first few house photo URLs for collapsed-row preview
+  photoCount: number;
 }
 
 function classify(status: string): 'paid' | 'pending' | null {
