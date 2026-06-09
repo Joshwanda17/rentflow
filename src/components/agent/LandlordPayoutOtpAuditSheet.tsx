@@ -138,7 +138,7 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                         .slice()
                         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                         .map((ev) => {
-                          const m = metaFor(ev.event_type);
+                          const m = metaFor(ev);
                           const Icon = m.icon;
                           return (
                             <li key={ev.id} className="ml-4 py-2 pr-3">
