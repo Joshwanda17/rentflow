@@ -471,6 +471,47 @@ function RequestStateBanner({ state }: { state: 'idle' | 'submitting' | 'success
   );
 }
 
+function QueuedSubmitBanner({ status }: { status: 'idle' | 'queued' | 'cancelling' | 'ready' }) {
+  if (status === 'idle') return null;
+
+  const configs = {
+    queued: {
+      icon: <Loader2 className="h-5 w-5 animate-spin" />,
+      label: 'Submit Queued',
+      body: 'Finishing auto-save before firing. Tap the button again to cancel.',
+      classes: 'bg-amber-500/10 border-amber-500/30 text-amber-700',
+      iconBg: 'bg-amber-500/20',
+    },
+    cancelling: {
+      icon: <X className="h-5 w-5" />,
+      label: 'Cancelling',
+      body: 'Aborting queued submit…',
+      classes: 'bg-muted border-border text-muted-foreground',
+      iconBg: 'bg-muted-foreground/20',
+    },
+    ready: {
+      icon: <Loader2 className="h-5 w-5 animate-spin" />,
+      label: 'Firing Submit',
+      body: 'All clear — submitting your request now.',
+      classes: 'bg-primary/10 border-primary/30 text-primary',
+      iconBg: 'bg-primary/20',
+    },
+  };
+
+  const cfg = configs[status];
+  return (
+    <div className={`rounded-xl border p-3 flex items-center gap-3 ${cfg.classes}`} role="status" aria-live="polite">
+      <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${cfg.iconBg}`}>
+        {cfg.icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold">{cfg.label}</p>
+        <p className="text-xs opacity-90 leading-snug">{cfg.body}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId, preselectHouse }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
@@ -496,6 +537,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // or a draft auto-save is mid-flight, we don't block them — we remember the
   // intent and fire the real submit the instant everything settles.
   const [submitQueued, setSubmitQueued] = useState(false);
+  const [queueStatus, setQueueStatus] = useState<'idle' | 'queued' | 'cancelling' | 'ready'>('idle');
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
@@ -2193,6 +2235,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (loading) return; // a real submission is already running
     if (submitWaiting) {
       setSubmitQueued(true);
+      setQueueStatus('queued');
       toast.info('Finishing save…', {
         description: 'Your request will submit automatically in a moment. Tap again to cancel.',
       });
@@ -2205,9 +2248,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
    *  while auto-save or capacity is still finishing. */
   const cancelQueuedSubmit = useCallback(() => {
     setSubmitQueued(false);
+    setQueueStatus('cancelling');
     toast('Submit cancelled', {
       description: 'Your draft is still saved. Tap Submit when you are ready.',
     });
+    window.setTimeout(() => setQueueStatus('idle'), 900);
   }, []);
 
   // Flush a queued submit the moment capacity + auto-save settle. A safety
@@ -2217,11 +2262,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (!submitQueued || loading) return;
     if (!submitWaiting) {
       setSubmitQueued(false);
+      setQueueStatus('ready');
       handleSubmitRef.current();
       return;
     }
     const t = setTimeout(() => {
       setSubmitQueued(false);
+      setQueueStatus('ready');
       handleSubmitRef.current();
     }, 8000);
     return () => clearTimeout(t);
@@ -2256,6 +2303,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         </DialogHeader>
 
         <RequestStateBanner state={requestState} />
+
+        <QueuedSubmitBanner status={queueStatus} />
 
         {!isOnline && !success && (
           <div className="flex items-start gap-2 rounded-xl border-2 border-warning/50 bg-warning/10 p-3 text-warning-foreground">
