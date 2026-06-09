@@ -1225,6 +1225,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('Confirming the landlord is registered — please wait a moment');
       }
       if (!propertyAddress.trim()) errors.push('Type the property address');
+      const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+      if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
+      if (!tenantPhoto) errors.push("Take the tenant's passport photo");
     } else if (idx === 3) {
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
@@ -1676,6 +1679,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (landlordPhoneValid && lc1PhoneValid && cleanLandlordPhone === cleanLc1Phone) {
       errors.push('Landlord and LC1 phones must be different numbers');
     }
+
+    // House photos and tenant passport photo are mandatory.
+    const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+    if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
+    if (!tenantPhoto) errors.push("Take the tenant's passport photo");
 
     return errors;
   };
@@ -3597,10 +3605,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* House Photos — 4 outside views */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    📸 House Photos (optional) — capture all 4 outside views
+                    📸 House Photos * — capture all 4 outside views
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Optional now — you can attach these later. Take one photo of each outside part of the house: front, back, left side and right side.
+                    Required — take one photo of each outside part of the house: front, back, left side and right side.
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {HOUSE_PHOTO_SLOTS.map((slot, idx) => {
@@ -3642,7 +3650,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* Tenant passport photo (optional — submitted last with the other photos) */}
                 <div className="space-y-1">
                   <Label className="flex items-center gap-1">
-                    🪪 Tenant Passport Photo (optional)
+                    🪪 Tenant Passport Photo *
                   </Label>
                   <div className="flex items-start gap-3">
                     {tenantPhoto ? (
@@ -3670,7 +3678,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </label>
                     )}
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Optional now — you can attach it later. Take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
+                      Required — take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
                     </p>
                   </div>
                 </div>
