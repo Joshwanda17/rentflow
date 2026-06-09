@@ -591,13 +591,18 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
               <Skeleton key={i} className="h-28 w-full rounded-2xl" />
             ))
           ) : listings.length === 0 ? (
-            <div className="text-center py-10 px-5 space-y-5 max-w-sm mx-auto">
-              <div className="mx-auto h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center">
+            <div
+              className="text-center py-10 px-5 space-y-5 max-w-sm mx-auto"
+              role="status"
+              aria-live="polite"
+              aria-label="No houses listed"
+            >
+              <div className="mx-auto h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center" aria-hidden="true">
                 <Home className="h-10 w-10 text-primary" />
               </div>
               <div className="space-y-2">
-                <p className="font-bold text-lg">No houses listed yet</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="font-bold text-lg" id="empty-state-title">No houses listed yet</p>
+                <p className="text-sm text-muted-foreground leading-relaxed" id="empty-state-desc">
                   Start building your portfolio by listing an empty house.
                   Earn <span className="font-semibold text-foreground">UGX 5,000</span> every time a tenant moves in.
                 </p>
@@ -606,36 +611,39 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
               <div className="space-y-2.5">
                 {onListHouse && (
                   <Button
+                    autoFocus
+                    aria-describedby="empty-state-desc"
                     onClick={() => { onOpenChange(false); onListHouse(); }}
                     className="w-full gap-2 h-12 text-base font-semibold"
                   >
-                    <Plus className="h-5 w-5" />
+                    <Plus className="h-5 w-5" aria-hidden="true" />
                     List your first house
                   </Button>
                 )}
                 <Button
                   variant="outline"
+                  aria-describedby="empty-state-desc"
                   onClick={() => { onOpenChange(false); navigate('/find-a-house'); }}
                   className="w-full gap-2 h-12 text-base"
                 >
-                  <Search className="h-5 w-5" />
+                  <Search className="h-5 w-5" aria-hidden="true" />
                   Browse houses to rent
                 </Button>
               </div>
 
               <div className="rounded-xl bg-muted/60 px-4 py-3 text-left space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Why list a house?</p>
-                <ul className="text-sm text-muted-foreground space-y-1">
+                <ul className="text-sm text-muted-foreground space-y-1" aria-label="Benefits of listing a house">
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" aria-hidden="true" />
                     <span>Get paid when tenants move in</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" aria-hidden="true" />
                     <span>Earn 10% commission on rent collected</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" aria-hidden="true" />
                     <span>Fill empty houses faster with daily rent</span>
                   </li>
                 </ul>
