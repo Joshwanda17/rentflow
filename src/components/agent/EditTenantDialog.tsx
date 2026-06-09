@@ -133,11 +133,20 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
       // didn't fetch when the agent saves.
       setExtendedLoading(true);
       (async () => {
-        const { data } = await supabase
-          .from('profiles')
-          .select('city, district, village, town, occupation, monthly_rent, region, sub_county, parish, landmark, country, mobile_money_number, mobile_money_provider, has_smartphone, ops_note, avatar_url, residence_lat, residence_lng')
-          .eq('id', tenant.id)
-          .maybeSingle();
+        let data: Record<string, any> | null = null;
+        try {
+          const res = await supabase
+            .from('profiles')
+            .select('city, district, village, town, occupation, monthly_rent, region, sub_county, parish, landmark, country, mobile_money_number, mobile_money_provider, has_smartphone, ops_note, avatar_url, residence_lat, residence_lng')
+            .eq('id', tenant.id)
+            .maybeSingle();
+          data = res.data ?? null;
+        } catch (e) {
+          // Network/transient failure — don't leave the Save button stuck
+          // disabled. Fall through with null data so the form stays usable;
+          // the save diff still works for the always-loaded identity fields.
+          console.warn('[EditTenantDialog] failed to load extended profile fields', e);
+        }
         setCity(data?.city || '');
         setDistrict(data?.district || '');
         setVillage(data?.village || '');
@@ -181,7 +190,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
           residence_lng: data?.residence_lng ?? null,
         });
         setExtendedLoading(false);
-      })();
+      })().catch(() => setExtendedLoading(false));
     }
   }, [open, tenant, resetSave]);
 
