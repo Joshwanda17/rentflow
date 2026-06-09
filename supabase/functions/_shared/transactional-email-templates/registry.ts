@@ -21,6 +21,7 @@ import { template as agentTenantPaymentReceiptTemplate } from './agent-tenant-pa
 import { template as cashWithdrawalCodeTemplate } from './cash-withdrawal-code.tsx'
 import { template as smsFailureAlertTemplate } from './sms-failure-alert.tsx'
 import { template as dailyAgentCardTemplate } from './daily-agent-card.tsx'
+import { template as subAgentInviteTemplate } from './sub-agent-invite.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -47,4 +48,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'cash-withdrawal-code': cashWithdrawalCodeTemplate,
   'sms-failure-alert': smsFailureAlertTemplate,
   'daily-agent-card': dailyAgentCardTemplate,
+  'sub-agent-invite': subAgentInviteTemplate,
 }
