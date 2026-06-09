@@ -4119,14 +4119,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Button>
                 ) : (
                   <Button
-                    onClick={handleSubmit}
+                    onClick={requestSubmit}
                     className="flex-1"
-                    disabled={loading || !amount || amount < 50000}
+                    disabled={loading || submitQueued || !amount || amount < 50000}
                   >
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Submitting...
+                      </>
+                    ) : submitQueued ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Finishing save…
                       </>
                     ) : (
                       'Submit Request'
