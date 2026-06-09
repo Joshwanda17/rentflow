@@ -143,15 +143,22 @@ Deno.serve(async (req) => {
     let phone = "0777607640";
     let message =
       "[Welile Test] Background SMS API test successful. If you received this, the SMS pipeline is healthy. — Welile Ops";
+    let provider = "auto"; // 'auto' = AT then Twilio fallback | 'twilio' = force Twilio | 'africastalking' = force AT
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       if (body?.phone) phone = String(body.phone);
       if (body?.message) message = String(body.message);
+      if (body?.provider) provider = String(body.provider);
     }
 
     const startedAt = new Date().toISOString();
-    const result = await sendWithFallback(phone, message);
+    const result =
+      provider === "twilio"
+        ? { ...(await sendTwilioSMS(phone, message)), fallbackUsed: false, forced: "twilio" }
+        : provider === "africastalking"
+        ? { ...(await sendSMS(phone, message)), fallbackUsed: false, forced: "africastalking" }
+        : await sendWithFallback(phone, message);
     const finishedAt = new Date().toISOString();
 
     // Audit log so we have a trail
