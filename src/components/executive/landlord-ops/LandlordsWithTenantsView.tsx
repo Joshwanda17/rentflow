@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, Users, Search, CheckCircle2, Clock, ChevronDown, ChevronRight,
-  Phone, Building2, AlertTriangle, UserX, Download,
+  Phone, Building2, AlertTriangle, UserX, Download, EyeOff,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
