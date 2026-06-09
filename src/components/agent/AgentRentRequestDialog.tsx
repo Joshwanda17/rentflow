@@ -2194,12 +2194,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (submitWaiting) {
       setSubmitQueued(true);
       toast.info('Finishing save…', {
-        description: 'Your request will submit automatically in a moment.',
+        description: 'Your request will submit automatically in a moment. Tap again to cancel.',
       });
       return;
     }
     handleSubmitRef.current();
   }, [loading, submitWaiting]);
+
+  /** Cancels a queued submit so the agent can stop an unintended submission
+   *  while auto-save or capacity is still finishing. */
+  const cancelQueuedSubmit = useCallback(() => {
+    setSubmitQueued(false);
+    toast('Submit cancelled', {
+      description: 'Your draft is still saved. Tap Submit when you are ready.',
+    });
+  }, []);
 
   // Flush a queued submit the moment capacity + auto-save settle. A safety
   // timeout fires the submit anyway after 8s so a stuck refetch never strands
@@ -2773,15 +2782,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </p>
                       <Button
                         type="button"
-                        onClick={requestSubmit}
-                        disabled={loading || submitQueued}
-                        variant="destructive"
+                        onClick={submitQueued ? cancelQueuedSubmit : requestSubmit}
+                        disabled={loading}
+                        variant={submitQueued ? 'secondary' : 'destructive'}
                         className="w-full"
                       >
                         {loading ? (
                           <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Trying again…</>
                         ) : submitQueued ? (
-                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Finishing save…</>
+                          <><X className="h-4 w-4 mr-2" />Cancel submit</>
                         ) : (
                           <><RefreshCw className="h-4 w-4 mr-2" />Try again</>
                         )}
@@ -2814,9 +2823,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       Back
                     </Button>
                     <Button 
-                      onClick={requestSubmit} 
+                      onClick={submitQueued ? cancelQueuedSubmit : requestSubmit} 
                       className="flex-1"
-                      disabled={loading || submitQueued || (incomeType !== 'outstanding' && amount <= 0)}
+                      variant={submitQueued ? 'secondary' : 'default'}
+                      disabled={loading || (incomeType !== 'outstanding' && amount <= 0)}
                     >
                       {loading ? (
                         <>
@@ -2825,8 +2835,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </>
                       ) : submitQueued ? (
                         <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Finishing save…
+                          <X className="h-4 w-4 mr-2" />
+                          Cancel submit
                         </>
                       ) : (
                         'Register Tenant'
@@ -3811,15 +3821,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </p>
                   <Button
                     type="button"
-                    onClick={requestSubmit}
-                    disabled={loading || submitQueued}
-                    variant="destructive"
+                    onClick={submitQueued ? cancelQueuedSubmit : requestSubmit}
+                    disabled={loading}
+                    variant={submitQueued ? 'secondary' : 'destructive'}
                     className="w-full"
                   >
                     {loading ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Trying again…</>
                     ) : submitQueued ? (
-                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Finishing save…</>
+                      <><X className="h-4 w-4 mr-2" />Cancel submit</>
                     ) : (
                       <><RefreshCw className="h-4 w-4 mr-2" />Try again</>
                     )}
@@ -4119,9 +4129,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Button>
                 ) : (
                   <Button
-                    onClick={requestSubmit}
+                    onClick={submitQueued ? cancelQueuedSubmit : requestSubmit}
                     className="flex-1"
-                    disabled={loading || submitQueued || !amount || amount < 50000}
+                    variant={submitQueued ? 'secondary' : 'default'}
+                    disabled={loading || !amount || amount < 50000}
                   >
                     {loading ? (
                       <>
@@ -4130,8 +4141,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </>
                     ) : submitQueued ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Finishing save…
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel submit
                       </>
                     ) : (
                       'Submit Request'
