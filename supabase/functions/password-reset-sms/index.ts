@@ -69,7 +69,6 @@ async function sendViaYoola(phone: string, message: string): Promise<{ ok: boole
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ phone: phoneYoola, message, api_key: apiKey }),
     });
