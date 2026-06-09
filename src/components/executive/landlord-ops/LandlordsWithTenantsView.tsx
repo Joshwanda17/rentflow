@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, Users, Search, CheckCircle2, Clock, ChevronDown, ChevronRight,
-  Phone, Building2, AlertTriangle, UserX, Download,
+  Phone, Building2, AlertTriangle, UserX, Download, EyeOff,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
@@ -49,6 +49,7 @@ interface LandlordGroup {
   paidCount: number;
   pendingCount: number;
   totalAmount: number;
+  allHidden: boolean;
 }
 
 function classify(status: string): 'paid' | 'pending' | null {
@@ -122,7 +123,17 @@ export function LandlordsWithTenantsView() {
         if (hl) houseLinks.push(...(hl as any));
       }
 
-      // 4. Tenant profiles for everything we have so far
+      // 4. House-listing visibility (is_hidden + status) — for collapsed-row badge
+      const houseVis: { landlord_id: string; is_hidden: boolean | null; status: string | null }[] = [];
+      for (let i = 0; i < landlordIds.length; i += 200) {
+        const { data: hv } = await supabase
+          .from('house_listings')
+          .select('landlord_id, is_hidden, status')
+          .in('landlord_id', landlordIds.slice(i, i + 200));
+        if (hv) houseVis.push(...(hv as any));
+      }
+
+      // 5. Tenant profiles for everything we have so far
       const tenantIds = new Set<string>();
       validRows.forEach(r => r.tenant_id && tenantIds.add(r.tenant_id));
       houseLinks.forEach(h => h.tenant_id && tenantIds.add(h.tenant_id));
@@ -137,14 +148,22 @@ export function LandlordsWithTenantsView() {
         for (const t of tt || []) tenantMap.set(t.id, t as any);
       }
 
-      return { allLandlords, validRows, landlordMap, tenantMap, houseLinks };
+      return { allLandlords, validRows, landlordMap, tenantMap, houseLinks, houseVis };
     },
     staleTime: 60_000,
   });
 
   const groups: LandlordGroup[] = useMemo(() => {
     if (!data) return [];
-    const { allLandlords, validRows, landlordMap, tenantMap, houseLinks } = data;
+    const { allLandlords, validRows, landlordMap, tenantMap, houseLinks, houseVis } = data;
+
+    // Pre-compute hidden status per landlord
+    const hiddenMap = new Map<string, boolean>();
+    for (const l of allLandlords) {
+      const houses = houseVis.filter(h => h.landlord_id === l.id);
+      const liveHouses = houses.filter(h => h.status !== 'rejected' && h.status !== 'delisted');
+      hiddenMap.set(l.id, liveHouses.length > 0 && liveHouses.every(h => h.is_hidden));
+    }
 
     // Initialize bucket for EVERY landlord (so all 325+ appear, even without tenants)
     const map = new Map<string, Map<string, TenantRow>>();
@@ -232,6 +251,7 @@ export function LandlordsWithTenantsView() {
           name: 'No Landlord Linked',
           phone: null,
           tenants, paidCount, pendingCount, totalAmount,
+          allHidden: false,
         });
       } else {
         const ll = landlordMap.get(lkey);
@@ -240,6 +260,7 @@ export function LandlordsWithTenantsView() {
           name: ll?.name || 'Unknown Landlord',
           phone: ll?.phone || null,
           tenants, paidCount, pendingCount, totalAmount,
+          allHidden: !!hiddenMap.get(lkey),
         });
       }
     }
@@ -655,6 +676,11 @@ export function LandlordsWithTenantsView() {
                     <div className="text-right shrink-0">
                       <p className="font-bold font-mono text-sm">{formatUGX(g.totalAmount)}</p>
                       <div className="flex items-center justify-end gap-1 mt-0.5">
+                        {g.allHidden && (
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] px-1.5 py-0 h-4 gap-0.5">
+                            <EyeOff className="h-2.5 w-2.5" /> Hidden
+                          </Badge>
+                        )}
                         {g.paidCount > 0 && (
                           <Badge className="bg-success/10 text-success border-success/30 text-[10px] px-1.5 py-0 h-4">
                             <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{g.paidCount}
