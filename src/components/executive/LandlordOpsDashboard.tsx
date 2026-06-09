@@ -2176,6 +2176,7 @@ export function LandlordOpsDashboard() {
           data={occupiedLandlords}
           rowKey={(l) => l.id}
           emptyMessage="No occupied houses"
+          onRowClick={(l) => setEntityDetail({ type: 'landlord', data: l })}
           columns={[
             { key: 'name', label: 'Landlord', render: (l) => <span className="font-semibold">{l.name}</span> },
             { key: 'phone', label: 'Phone', render: (l) => l.phone || '—' },
