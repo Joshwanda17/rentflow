@@ -105,10 +105,21 @@ Deno.serve(async (req) => {
         .eq("id", challenge_id);
 
       const phone = normalizePhone(existing.landlord_phone);
-      await sendSms(
+      const resent = await sendSms(
         phone,
         `Welile: You are receiving UGX ${Number(existing.amount).toLocaleString()} as rent. OTP: ${otp}. Valid 1 hour. Share with the agent ONLY if you want to receive this money.`,
       );
+      await admin.from("landlord_payout_otp_events").insert({
+        challenge_id,
+        agent_id: agentId,
+        landlord_id: existing.landlord_id,
+        event_type: "resent",
+        landlord_phone: existing.landlord_phone,
+        amount: existing.amount,
+        otp_expires_at,
+        detail: resent ? "OTP resent via SMS" : "OTP regenerated (SMS not confirmed)",
+        metadata: { sms_sent: resent },
+      });
       return json({ success: true, challenge_id, expires_at: otp_expires_at });
     }
 
