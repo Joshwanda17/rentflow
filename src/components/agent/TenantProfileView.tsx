@@ -301,9 +301,18 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .order('created_at', { ascending: true })
           .limit(400);
         setFloatAllocations(
-          (allocData || [])
-            .filter((r: any) => !(r.notes || '').toLowerCase().includes('[reversed'))
-            .map((r: any) => ({ date: r.created_at, amount: Number(r.amount) || 0 })),
+          (allocData || []).map((r: any) => {
+            const notes = String(r.notes || '');
+            const isReversed = notes.toLowerCase().includes('[reversed');
+            // Pull out the bracketed reversal note if present.
+            const reasonMatch = notes.match(/\[reversed[:\s-]*([^\]]*)\]/i);
+            return {
+              date: r.created_at,
+              amount: Number(r.amount) || 0,
+              status: (isReversed ? 'reversed' : 'active') as 'active' | 'reversed',
+              reason: reasonMatch ? (reasonMatch[1].trim() || null) : null,
+            };
+          }),
         );
       }
 
