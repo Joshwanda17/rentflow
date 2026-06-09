@@ -1,5 +1,3 @@
-import { Country, City } from "country-state-city";
-
 /**
  * Country / city data for the profile-completion location picker.
  *
@@ -7,6 +5,11 @@ import { Country, City } from "country-state-city";
  * `country-state-city` dataset so we can offer EVERY city/town in the
  * world. We layer a best-effort continent map on top so the continent
  * field can auto-fill from a country pick.
+ *
+ * IMPORTANT: the `country-state-city` dataset is ~2.2 MB. It is loaded
+ * lazily (dynamic import) ONLY when the location picker is actually
+ * opened, so it never bloats the app's startup bundle for the (vast
+ * majority of) users who already have a complete profile.
  */
 export interface WorldCountry {
   name: string;
@@ -60,27 +63,48 @@ const CONTINENT_BY_ISO: Record<string, string> = {
   SB: "Oceania", TO: "Oceania", TV: "Oceania", VU: "Oceania",
 };
 
-/** Every country in the world, sourced from the country-state-city dataset. */
-export const WORLD_COUNTRIES: WorldCountry[] = Country.getAllCountries().map((c) => ({
-  name: c.name,
-  isoCode: c.isoCode,
-  continent: CONTINENT_BY_ISO[c.isoCode] ?? "",
-}));
+// In-memory cache so the heavy dataset is parsed at most once per session.
+let _countriesCache: WorldCountry[] | null = null;
+let _countriesPromise: Promise<WorldCountry[]> | null = null;
 
-/** Uganda-first ordering so the most common pick is at the top. */
-export const WORLD_COUNTRIES_UGANDA_FIRST: WorldCountry[] = [
-  WORLD_COUNTRIES.find((c) => c.isoCode === "UG")!,
-  ...WORLD_COUNTRIES.filter((c) => c.isoCode !== "UG").sort((a, b) =>
-    a.name.localeCompare(b.name),
-  ),
-];
-
-export function continentForCountry(name: string): string | null {
-  return WORLD_COUNTRIES.find((c) => c.name === name)?.continent ?? null;
+/** Lazily load every country in the world (cached after first call). */
+export async function loadWorldCountries(): Promise<WorldCountry[]> {
+  if (_countriesCache) return _countriesCache;
+  if (!_countriesPromise) {
+    _countriesPromise = import("country-state-city").then(({ Country }) => {
+      _countriesCache = Country.getAllCountries().map((c) => ({
+        name: c.name,
+        isoCode: c.isoCode,
+        continent: CONTINENT_BY_ISO[c.isoCode] ?? "",
+      }));
+      return _countriesCache;
+    });
+  }
+  return _countriesPromise;
 }
 
+/** Uganda-first ordering so the most common pick is at the top. */
+export async function loadWorldCountriesUgandaFirst(): Promise<WorldCountry[]> {
+  const all = await loadWorldCountries();
+  const ug = all.find((c) => c.isoCode === "UG");
+  const rest = all
+    .filter((c) => c.isoCode !== "UG")
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return ug ? [ug, ...rest] : rest;
+}
+
+/**
+ * Synchronous continent lookup. Returns null until the dataset has been
+ * loaded at least once via `loadWorldCountries()` (the picker does this
+ * when it opens).
+ */
+export function continentForCountry(name: string): string | null {
+  return _countriesCache?.find((c) => c.name === name)?.continent ?? null;
+}
+
+/** Synchronous ISO lookup. Null until the dataset has been loaded once. */
 export function isoForCountry(name: string): string | null {
-  return WORLD_COUNTRIES.find((c) => c.name === name)?.isoCode ?? null;
+  return _countriesCache?.find((c) => c.name === name)?.isoCode ?? null;
 }
 
 export interface WorldCity {
@@ -89,8 +113,9 @@ export interface WorldCity {
 }
 
 /** All cities/towns for a country (deduplicated by name), alphabetically sorted. */
-export function citiesForCountry(isoCode: string): WorldCity[] {
+export async function loadCitiesForCountry(isoCode: string): Promise<WorldCity[]> {
   if (!isoCode) return [];
+  const { City } = await import("country-state-city");
   const seen = new Set<string>();
   const out: WorldCity[] = [];
   for (const c of City.getCitiesOfCountry(isoCode) ?? []) {
