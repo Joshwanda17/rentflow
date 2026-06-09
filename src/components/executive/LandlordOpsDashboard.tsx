@@ -2018,6 +2018,7 @@ export function LandlordOpsDashboard() {
           data={filtered}
           rowKey={(t) => t.id}
           emptyMessage="All tenants have landlords listed"
+          onRowClick={(t) => setEntityDetail({ type: 'no-landlord', data: t })}
           columns={[
             { key: 'tenant_name', label: 'Tenant', render: (t) => <span className="font-semibold">{t.tenant_name}</span> },
             { key: 'request_city', label: 'City', render: (t) => t.request_city || '—' },
