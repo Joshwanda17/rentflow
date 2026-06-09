@@ -17,6 +17,7 @@ import {
   Table2, Printer, CalendarIcon, Loader2, Upload,
 } from 'lucide-react';
 import { Eye, EyeOff } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +29,9 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+} from '@/components/ui/sheet';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -246,6 +250,7 @@ export function LandlordOpsDashboard() {
   const { toast } = useToast();
   const [view, setView] = useState<View>('home');
   const [search, setSearch] = useState('');
+  const [navSheetOpen, setNavSheetOpen] = useState(false);
   const [landlordPage, setLandlordPage] = useState(1);
   const [landlordCategory, setLandlordCategory] = useState('all');
   const [verifying, setVerifying] = useState<string | null>(null);
@@ -1268,22 +1273,61 @@ export function LandlordOpsDashboard() {
   const totalMonthlyRevenue = occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
   const lostMonthlyRevenue = emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
 
-  // ─── Back Button ───
+  // ─── Navigate to any section (resets transient search/filter state) ───
+  const goToView = (id: View) => {
+    setView(id);
+    setSearch('');
+    setVerifySearch('');
+    setVerifyFilter('all');
+    setVerifySort('newest');
+    setPendingFilter('all');
+    setLandlordSort('newest');
+    setNavSheetOpen(false);
+  };
+
+  // ─── Section switcher (mobile-friendly jump menu, available in every view) ───
+  const SectionSwitcher = ({ className = '' }: { className?: string }) => (
+    <Sheet open={navSheetOpen} onOpenChange={setNavSheetOpen}>
+      <SheetTrigger asChild>
+        <button
+          className={`flex items-center gap-1.5 text-sm font-semibold rounded-full border border-border bg-card px-3 min-h-[44px] touch-manipulation active:scale-[0.98] ${className}`}
+        >
+          <LayoutGrid className="h-4 w-4" /> Sections
+        </button>
+      </SheetTrigger>
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+        <SheetHeader className="text-left">
+          <SheetTitle>Jump to section</SheetTitle>
+        </SheetHeader>
+        <div className="mt-3 grid grid-cols-2 gap-2 pb-4">
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => goToView(item.id)}
+              className={`flex items-center gap-2 p-3 rounded-xl border text-left min-h-[56px] touch-manipulation active:scale-[0.98] ${item.color} ${view === item.id ? 'ring-2 ring-primary' : ''}`}
+            >
+              <div className={`h-8 w-8 rounded-lg ${item.color.split(' ')[0]} flex items-center justify-center shrink-0`}>
+                <item.icon className="h-4 w-4" />
+              </div>
+              <span className="font-bold text-xs leading-tight">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
+  // ─── Back Button (sticky nav row: back to overview + section switcher) ───
   const BackButton = () => (
-    <button
-      onClick={() => {
-        setView('home');
-        setSearch('');
-        setVerifySearch('');
-        setVerifyFilter('all');
-        setVerifySort('newest');
-        setPendingFilter('all');
-        setLandlordSort('newest');
-      }}
-      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3 min-h-[44px] touch-manipulation"
-    >
-      <ArrowLeft className="h-4 w-4" /> Back to Overview
-    </button>
+    <div className="flex items-center justify-between gap-2 mb-3 sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/60">
+      <button
+        onClick={() => goToView('home')}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px] touch-manipulation"
+      >
+        <ArrowLeft className="h-4 w-4" /> Overview
+      </button>
+      <SectionSwitcher />
+    </div>
   );
 
   const refetchAll = () => { refetch(); refetchLandlords(); refetchLC1(); };
@@ -2637,6 +2681,14 @@ export function LandlordOpsDashboard() {
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-4">
+      {/* Sticky header with quick section switcher */}
+      <div className="flex items-center justify-between gap-2 sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/60">
+        <h2 className="text-base font-extrabold flex items-center gap-2 min-w-0">
+          <Building2 className="h-5 w-5 text-sky-600 shrink-0" />
+          <span className="truncate">Landlord Ops</span>
+        </h2>
+        <SectionSwitcher />
+      </div>
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(unverifiedListings.length > 0 || unverifiedLandlords.length > 0) && (
         <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3.5 space-y-2.5 shadow-sm">
