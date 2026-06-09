@@ -282,6 +282,23 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .eq('user_id', tenantId),
       ]);
 
+      // Agent's own float allocations toward this tenant (exact date & time).
+      if (user?.id) {
+        const { data: allocData } = await supabase
+          .from('agent_collections')
+          .select('amount, created_at, notes')
+          .eq('agent_id', user.id)
+          .eq('tenant_id', tenantId)
+          .ilike('notes', '%float allocation%')
+          .order('created_at', { ascending: true })
+          .limit(400);
+        setFloatAllocations(
+          (allocData || [])
+            .filter((r: any) => !(r.notes || '').toLowerCase().includes('[reversed'))
+            .map((r: any) => ({ date: r.created_at, amount: Number(r.amount) || 0 })),
+        );
+      }
+
       if (profileRes.data) {
         setProfile(profileRes.data as unknown as TenantProfile);
       }
