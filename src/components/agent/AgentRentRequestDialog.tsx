@@ -537,6 +537,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // or a draft auto-save is mid-flight, we don't block them — we remember the
   // intent and fire the real submit the instant everything settles.
   const [submitQueued, setSubmitQueued] = useState(false);
+  const [queueStatus, setQueueStatus] = useState<'idle' | 'queued' | 'cancelling' | 'ready'>('idle');
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
@@ -2234,6 +2235,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (loading) return; // a real submission is already running
     if (submitWaiting) {
       setSubmitQueued(true);
+      setQueueStatus('queued');
       toast.info('Finishing save…', {
         description: 'Your request will submit automatically in a moment. Tap again to cancel.',
       });
@@ -2246,9 +2248,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
    *  while auto-save or capacity is still finishing. */
   const cancelQueuedSubmit = useCallback(() => {
     setSubmitQueued(false);
+    setQueueStatus('cancelling');
     toast('Submit cancelled', {
       description: 'Your draft is still saved. Tap Submit when you are ready.',
     });
+    window.setTimeout(() => setQueueStatus('idle'), 900);
   }, []);
 
   // Flush a queued submit the moment capacity + auto-save settle. A safety
@@ -2258,11 +2262,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (!submitQueued || loading) return;
     if (!submitWaiting) {
       setSubmitQueued(false);
+      setQueueStatus('ready');
       handleSubmitRef.current();
       return;
     }
     const t = setTimeout(() => {
       setSubmitQueued(false);
+      setQueueStatus('ready');
       handleSubmitRef.current();
     }, 8000);
     return () => clearTimeout(t);
@@ -2297,6 +2303,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         </DialogHeader>
 
         <RequestStateBanner state={requestState} />
+
+        <QueuedSubmitBanner status={queueStatus} />
 
         {!isOnline && !success && (
           <div className="flex items-start gap-2 rounded-xl border-2 border-warning/50 bg-warning/10 p-3 text-warning-foreground">
