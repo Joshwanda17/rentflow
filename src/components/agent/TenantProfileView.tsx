@@ -769,6 +769,35 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     }
   };
 
+  const handleShareAllocationsWhatsApp = async () => {
+    if (!profile) return;
+    setSharingAllocWa(true);
+    try {
+      await shareFloatAllocationsWhatsApp({
+        aiId,
+        tenantName: profile.full_name,
+        phone: profile.phone,
+        agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
+        rows: filteredAllocations.map((a) => ({
+          date: a.date,
+          amount: a.amount,
+          status: a.status,
+          reason: a.reason,
+        })),
+        periodFrom: allocFrom || null,
+        periodTo: allocTo || null,
+        statusFilter: allocStatus,
+      });
+      toast({ title: '📲 Ready to send on WhatsApp' });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast({ title: 'Failed to share PDF', description: err?.message, variant: 'destructive' });
+      }
+    } finally {
+      setSharingAllocWa(false);
+    }
+  };
+
   // Quick presets for the repayment-sheet reporting window.
   const applySheetPreset = (preset: 'all' | 'thisMonth' | '30d' | '90d') => {
     const today = new Date();
