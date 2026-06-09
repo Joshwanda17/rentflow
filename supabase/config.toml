@@ -130,3 +130,6 @@ project_id = "wirntoujqoyjobfhyelc"
 
 [functions.cash-deposit-verify-code]
 verify_jwt = false
+
+[functions.sms-test-send]
+verify_jwt = false
