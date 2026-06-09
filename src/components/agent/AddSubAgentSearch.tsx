@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
-import { Search, Loader2, UserPlus, UsersRound, CheckCircle2, ShieldCheck, Shield } from 'lucide-react';
+import { Search, Loader2, UserPlus, UsersRound, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface UserResult {
@@ -16,7 +16,6 @@ interface UserResult {
   full_name: string | null;
   phone: string | null;
   email: string | null;
-  verified: boolean | null;
 }
 
 interface AddSubAgentSearchProps {
@@ -29,12 +28,11 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<UserResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [verifiedOnly, setVerifiedOnly] = useState(true);
 
   const term = query.trim();
 
   const { data: results, isFetching } = useQuery({
-    queryKey: ['add-subagent-search', term, verifiedOnly],
+    queryKey: ['add-subagent-search', term],
     enabled: term.length >= 2,
     staleTime: 10_000,
     queryFn: async (): Promise<UserResult[]> => {
@@ -42,15 +40,12 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
       const isPhone = cleaned.length >= 3;
       let q = supabase
         .from('profiles')
-        .select('id, full_name, phone, email, verified')
+        .select('id, full_name, phone, email')
         .limit(15);
       if (isPhone) {
         q = q.ilike('phone', `%${cleaned.slice(-9)}%`);
       } else {
         q = q.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
-      }
-      if (verifiedOnly) {
-        q = q.eq('verified', true);
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -102,34 +97,6 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
           </div>
         </div>
 
-        {/* Verification status filter */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setVerifiedOnly(true)}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-              verifiedOnly
-                ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40'
-                : 'bg-muted text-muted-foreground border-border hover:bg-accent'
-            )}
-          >
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Verified only
-          </button>
-          <button
-            onClick={() => setVerifiedOnly(false)}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-              !verifiedOnly
-                ? 'bg-primary/15 text-primary border-primary/40'
-                : 'bg-muted text-muted-foreground border-border hover:bg-accent'
-            )}
-          >
-            <Shield className="h-3.5 w-3.5" />
-            All users
-          </button>
-        </div>
-
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -158,12 +125,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
                 className="w-full flex items-center gap-2 p-3 text-left text-sm border-b border-border last:border-b-0 hover:bg-accent transition-colors"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium truncate">{u.full_name || 'Unnamed'}</span>
-                    {u.verified && (
-                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                    )}
-                  </div>
+                  <div className="font-medium truncate">{u.full_name || 'Unnamed'}</div>
                   <div className="text-xs text-muted-foreground truncate">
                     {u.phone || u.email || u.id.slice(0, 8)}
                   </div>
@@ -178,14 +140,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
             <div className={cn('flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm')}>
               <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-medium truncate">{selected.full_name || 'Unnamed'}</span>
-                  {selected.verified && (
-                    <Badge variant="outline" className="text-emerald-600 border-emerald-300 bg-emerald-50 text-[10px] px-1 py-0 shrink-0">
-                      <ShieldCheck className="h-3 w-3 mr-0.5" /> Verified
-                    </Badge>
-                  )}
-                </div>
+                <div className="font-medium truncate">{selected.full_name || 'Unnamed'}</div>
                 <div className="text-xs text-muted-foreground truncate">
                   {selected.phone || selected.email}
                 </div>
