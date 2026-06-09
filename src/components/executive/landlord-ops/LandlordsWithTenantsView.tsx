@@ -716,6 +716,23 @@ export function LandlordsWithTenantsView() {
                           </Badge>
                         )}
                       </div>
+                      {/* Collapsed-row photo thumbnails */}
+                      {g.photoCount > 0 && (
+                        <div className="flex items-center justify-end gap-1 mt-2">
+                          {g.photos.map((url, i) => (
+                            <img
+                              key={`${url}-${i}`}
+                              src={url}
+                              alt={`House ${i + 1}`}
+                              className="h-10 w-10 rounded-md object-cover border"
+                              loading="lazy"
+                            />
+                          ))}
+                          {g.photoCount >= 4 && (
+                            <span className="text-[10px] text-muted-foreground ml-0.5">+</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center justify-end mt-2 text-[11px] text-muted-foreground">
