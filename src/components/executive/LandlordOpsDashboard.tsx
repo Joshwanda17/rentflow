@@ -2105,27 +2105,47 @@ export function LandlordOpsDashboard() {
         <BackButton />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {verifyScope === 'all' ? 'houses' : 'pending'}</Badge>
+          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter}</Badge>
         </div>
 
-        {/* Scope toggle: act on pending only, or ANY house (verify / reject / hide) */}
-        <div className="flex gap-1.5">
+        {/* Thumb-friendly status filter chips */}
+        <div className="flex gap-2 flex-wrap items-center">
           {([
-            { value: 'pending' as VerifyScope, label: `Pending (${unverifiedListings.length})` },
-            { value: 'all' as VerifyScope, label: 'All houses' },
-          ]).map(s => (
+            { value: 'pending' as HouseStatusFilter, label: 'Pending', count: unverifiedListings.length, color: 'amber' },
+            { value: 'verified' as HouseStatusFilter, label: 'Verified', count: verifiedListings.length, color: 'emerald' },
+            { value: 'hidden' as HouseStatusFilter, label: 'Hidden', count: hiddenListings.length, color: 'slate' },
+            { value: 'all' as HouseStatusFilter, label: 'All houses', count: rows.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id)).length, color: 'primary' },
+          ]).map(s => {
+            const active = houseStatusFilter === s.value;
+            const colorMap: Record<string, string> = {
+              amber: active ? 'bg-amber-500 text-white border-amber-500' : 'bg-background text-amber-700 border-amber-300 hover:bg-amber-50',
+              emerald: active ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-background text-emerald-700 border-emerald-300 hover:bg-emerald-50',
+              slate: active ? 'bg-slate-500 text-white border-slate-500' : 'bg-background text-slate-700 border-slate-300 hover:bg-slate-50',
+              primary: active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-primary border-primary/30 hover:bg-primary/5',
+            };
+            return (
+              <button
+                key={s.value}
+                onClick={() => setHouseStatusFilter(s.value)}
+                className={`min-h-[44px] px-4 py-2 rounded-full text-sm font-bold transition-all border shadow-sm flex items-center gap-1.5 ${colorMap[s.color]}`}
+              >
+                {s.label}
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${active ? 'bg-white/25 text-white' : 'bg-muted text-muted-foreground'}`}>
+                  {s.count}
+                </span>
+              </button>
+            );
+          })}
+          {(houseStatusFilter !== 'pending' || verifyFilter !== 'all' || verifySearch) && (
             <button
-              key={s.value}
-              onClick={() => setVerifyScope(s.value)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                verifyScope === s.value
-                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
-              }`}
+              onClick={() => { setHouseStatusFilter('pending'); setVerifyFilter('all'); setVerifySearch(''); }}
+              className="min-h-[44px] px-3 py-2 rounded-full text-sm font-semibold text-muted-foreground border border-border bg-background hover:bg-muted transition-all flex items-center gap-1.5"
+              title="Reset filters"
             >
-              {s.label}
+              <RotateCcw className="h-4 w-4" />
+              Reset
             </button>
-          ))}
+          )}
         </div>
 
         {/* Search */}
@@ -2416,7 +2436,7 @@ export function LandlordOpsDashboard() {
           {scopeListings.length === 0 && (
             <div className="text-center py-12">
               <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
-              <p className="font-semibold">{verifyScope === 'all' ? 'No houses found.' : 'All listings verified! ✅'}</p>
+              <p className="font-semibold">{houseStatusFilter === 'all' ? 'No houses found.' : 'No listings in this view.'}</p>
             </div>
           )}
         </div>
