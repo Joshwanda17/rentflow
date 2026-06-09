@@ -45,20 +45,28 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (chErr || !ch) return json({ error: "Challenge not found" }, 404);
 
-    if (ch.status !== "pending") return json({ error: `Challenge already ${ch.status}` }, 400);
+    if (ch.status !== "pending") {
+      await logEvent(admin, ch, challenge_id, agentId, {
+        event_type: ch.status === "verified" ? "already_verified" : "failed",
+        failure_reason: ch.status === "verified" ? "already_verified" : `challenge_${ch.status}`,
+        detail: `Challenge already ${ch.status}`,
+      });
+      return json({ error: `Challenge already ${ch.status}` }, 400);
+    }
     if (new Date(ch.otp_expires_at).getTime() < Date.now()) {
       await admin.from("landlord_payout_otp_challenges").update({ status: "expired" }).eq("id", challenge_id);
+      await logEvent(admin, ch, challenge_id, agentId, {
+        event_type: "failed",
+        failure_reason: "expired",
+        detail: "OTP expired before verification",
+      });
       return json({ error: "OTP expired. Request a new code." }, 400);
     }
     if (ch.attempts >= ch.max_attempts) {
       await admin.from("landlord_payout_otp_challenges").update({ status: "failed" }).eq("id", challenge_id);
-      await admin.from("landlord_payout_otp_events").insert({
-        challenge_id,
-        agent_id: agentId,
-        landlord_id: ch.landlord_id,
+      await logEvent(admin, ch, challenge_id, agentId, {
         event_type: "failed",
-        landlord_phone: ch.landlord_phone,
-        amount: ch.amount,
+        failure_reason: "too_many_attempts",
         detail: "Too many attempts — challenge locked",
       });
       return json({ error: "Too many attempts. Start over." }, 400);
@@ -72,13 +80,9 @@ Deno.serve(async (req) => {
         .from("landlord_payout_otp_challenges")
         .update({ attempts: newAttempts, status: exhausted ? "failed" : "pending" })
         .eq("id", challenge_id);
-      await admin.from("landlord_payout_otp_events").insert({
-        challenge_id,
-        agent_id: agentId,
-        landlord_id: ch.landlord_id,
+      await logEvent(admin, ch, challenge_id, agentId, {
         event_type: exhausted ? "failed" : "incorrect_attempt",
-        landlord_phone: ch.landlord_phone,
-        amount: ch.amount,
+        failure_reason: exhausted ? "too_many_attempts" : "invalid_code",
         detail: exhausted ? "Too many incorrect attempts" : `Incorrect OTP (attempt ${newAttempts}/${ch.max_attempts})`,
         metadata: { attempts: newAttempts, max_attempts: ch.max_attempts },
       });
