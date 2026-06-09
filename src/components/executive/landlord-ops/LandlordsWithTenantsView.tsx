@@ -271,15 +271,20 @@ export function LandlordsWithTenantsView() {
           phone: null,
           tenants, paidCount, pendingCount, totalAmount,
           allHidden: false,
+          photos: [],
+          photoCount: 0,
         });
       } else {
         const ll = landlordMap.get(lkey);
+        const photos = photoMap.get(lkey) || [];
         out.push({
           landlord_id: lkey,
           name: ll?.name || 'Unknown Landlord',
           phone: ll?.phone || null,
           tenants, paidCount, pendingCount, totalAmount,
           allHidden: !!hiddenMap.get(lkey),
+          photos,
+          photoCount: photos.length,
         });
       }
     }
