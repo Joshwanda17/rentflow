@@ -373,7 +373,14 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [resolvedRecipientId],
-        payload: { title: "💰 Transfer Received", body: `UGX ${amount.toLocaleString()} received in your wallet`, url: "/dashboard/tenant", type: "success" },
+        payload: {
+          title: "💰 Transfer Received",
+          body: hasReason
+            ? `UGX ${amount.toLocaleString()} from ${senderLabel} — ${trimmedReason}`
+            : `UGX ${amount.toLocaleString()} received from ${senderLabel}`,
+          url: "/dashboard/tenant",
+          type: "success",
+        },
       }),
     }).catch(() => {});
 
