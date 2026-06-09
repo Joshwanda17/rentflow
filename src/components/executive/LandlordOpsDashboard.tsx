@@ -1067,6 +1067,121 @@ export function LandlordOpsDashboard() {
     }
   };
 
+  // ─── Verification Queue bulk actions ───
+  const toggleVerifySelect = (id: string) => {
+    setVerifySelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const clearVerifySelection = () => setVerifySelectedIds(new Set());
+
+  // Hide or unhide every selected house from the tenant dashboard.
+  const handleBulkHide = async (selected: ListingWithLandlord[], nextHidden: boolean) => {
+    if (!user || selected.length === 0) return;
+    const action = nextHidden ? 'hide' : 'unhide';
+    const reason = window.prompt(
+      `Reason to ${action} ${selected.length} house${selected.length === 1 ? '' : 's'} (min 10 characters) — visible only to landlord ops & audit logs:`,
+      nextHidden ? 'Hidden from tenant browse' : 'Restored to tenant browse'
+    );
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 10) {
+      toast({ title: 'Reason too short', description: 'Please enter at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setBulkBusy(nextHidden ? 'hide' : 'unhide');
+    let ok = 0; let failed = 0;
+    for (const h of selected) {
+      try {
+        const { error } = await supabase.from('house_listings').update({ is_hidden: nextHidden }).eq('id', h.id);
+        if (error) throw error;
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: nextHidden ? 'listing_hidden' : 'listing_unhidden',
+          table_name: 'house_listings',
+          record_id: h.id,
+          metadata: { reason: trimmed, listing_title: h.title, hidden_by: 'landlord_ops', bulk: true },
+        });
+        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, is_hidden: nextHidden } : l) : old);
+        ok++;
+      } catch { failed++; }
+    }
+    setBulkBusy(null);
+    clearVerifySelection();
+    toast({
+      title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} ${nextHidden ? 'hidden' : 'shown'}` : `${ok} done, ${failed} failed`,
+      description: nextHidden ? 'Selected houses are off the tenant dashboard.' : 'Selected houses are back on the tenant dashboard.',
+      variant: failed === 0 ? undefined : 'destructive',
+    });
+    refetch();
+  };
+
+  // Verify (credit bonus where unpaid) every selected unverified house.
+  const handleBulkVerify = async (selected: ListingWithLandlord[]) => {
+    if (!user || selected.length === 0) return;
+    const targets = selected.filter(h => !h.verified);
+    if (targets.length === 0) {
+      toast({ title: 'Nothing to verify', description: 'All selected houses are already verified.' });
+      return;
+    }
+    if (!window.confirm(`Verify ${targets.length} house${targets.length === 1 ? '' : 's'}? Each unpaid listing credits the agent UGX 5,000.`)) return;
+    setBulkBusy('verify');
+    let ok = 0; let failed = 0;
+    for (const h of targets) {
+      try {
+        const { data, error } = await supabase.functions.invoke('credit-listing-bonus', { body: { listing_id: h.id } });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, verified: true, listing_bonus_paid: true } : l) : old);
+        ok++;
+      } catch { failed++; }
+    }
+    setBulkBusy(null);
+    clearVerifySelection();
+    toast({
+      title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} verified` : `${ok} verified, ${failed} failed`,
+      description: failed === 0 ? 'Agents credited for newly verified listings.' : 'Some listings could not be verified.',
+      variant: failed === 0 ? undefined : 'destructive',
+    });
+    refetch();
+  };
+
+  // Reject every selected house (single shared reason, min 10 chars).
+  const handleBulkReject = async (selected: ListingWithLandlord[]) => {
+    if (!user || selected.length === 0) return;
+    const reason = window.prompt(`Reason to reject ${selected.length} house${selected.length === 1 ? '' : 's'} (min 10 characters):`, '');
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 10) {
+      toast({ title: 'Reason too short', description: 'Please enter at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setBulkBusy('reject');
+    let ok = 0; let failed = 0;
+    for (const h of selected) {
+      try {
+        const { data, error } = await supabase.rpc('reject_house_listing', { p_listing_id: h.id, p_reason: trimmed });
+        if (error) throw error;
+        if (data && typeof data === 'object' && 'error' in (data as any)) throw new Error((data as any).error);
+        queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) =>
+          Array.isArray(old) ? old.map(l => l.id === h.id ? { ...l, status: 'rejected' } : l) : old);
+        ok++;
+      } catch { failed++; }
+    }
+    setBulkBusy(null);
+    clearVerifySelection();
+    toast({
+      title: failed === 0 ? `${ok} house${ok === 1 ? '' : 's'} rejected` : `${ok} rejected, ${failed} failed`,
+      variant: failed === 0 ? undefined : 'destructive',
+    });
+    refetch();
+  };
+
   // Approve (verify) a pending landlord with an optional inline note.
   const handleApproveLandlord = async (landlord: any, note?: string) => {
     if (!user) return;
