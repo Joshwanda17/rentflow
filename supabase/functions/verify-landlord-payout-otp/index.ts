@@ -60,6 +60,13 @@ Deno.serve(async (req) => {
 
     const { challenge_id, otp } = (await req.json().catch(() => ({}))) ?? {};
     if (!challenge_id || !otp || !/^\d{6}$/.test(String(otp))) {
+      if (challenge_id) {
+        await logEvent(admin, {}, String(challenge_id), agentId, {
+          event_type: "incorrect_attempt",
+          failure_reason: "invalid_code",
+          detail: "Submitted code was missing or not a 6-digit number",
+        });
+      }
       return json({ error: "Invalid request" }, 400);
     }
 
