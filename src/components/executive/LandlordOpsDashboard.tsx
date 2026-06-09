@@ -1014,6 +1014,54 @@ export function LandlordOpsDashboard() {
     }
   };
 
+  // Hide / unhide a house from the tenant-facing dashboard & marketplace.
+  // Uses the `is_hidden` flag that all tenant/public listing queries respect.
+  const handleToggleHidden = async (listing: ListingWithLandlord) => {
+    if (!user) return;
+    const nextHidden = !listing.is_hidden;
+    const action = nextHidden ? 'hide' : 'unhide';
+    const reason = window.prompt(
+      `Reason to ${action} "${listing.title}" (min 10 characters) — visible only to landlord ops & audit logs:`,
+      nextHidden ? 'Hidden from tenant browse' : 'Restored to tenant browse'
+    );
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < 10) {
+      toast({ title: 'Reason too short', description: 'Please enter at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setTogglingHide(s => ({ ...s, [listing.id]: true }));
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ is_hidden: nextHidden })
+        .eq('id', listing.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: nextHidden ? 'listing_hidden' : 'listing_unhidden',
+        table_name: 'house_listings',
+        record_id: listing.id,
+        metadata: { reason: trimmed, listing_title: listing.title, hidden_by: 'landlord_ops' },
+      });
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map(l => l.id === listing.id ? { ...l, is_hidden: nextHidden } : l);
+      });
+      toast({
+        title: nextHidden ? 'House hidden' : 'House visible',
+        description: nextHidden
+          ? `${listing.title} is hidden from the tenant dashboard.`
+          : `${listing.title} is back on the tenant dashboard.`,
+      });
+      refetch();
+    } catch (err: any) {
+      toast({ title: `Failed to ${action} house`, description: err?.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setTogglingHide(s => ({ ...s, [listing.id]: false }));
+    }
+  };
+
   // Approve (verify) a pending landlord with an optional inline note.
   const handleApproveLandlord = async (landlord: any, note?: string) => {
     if (!user) return;
