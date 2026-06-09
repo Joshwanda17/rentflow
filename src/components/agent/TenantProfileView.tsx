@@ -169,7 +169,15 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
-  const [floatAllocations, setFloatAllocations] = useState<{ date: string; amount: number }[]>([]);
+  const [floatAllocations, setFloatAllocations] = useState<
+    { date: string; amount: number; status: 'active' | 'reversed'; reason: string | null }[]
+  >([]);
+  // Float-allocation viewer filters (date range + status).
+  const [allocFrom, setAllocFrom] = useState<string>('');
+  const [allocTo, setAllocTo] = useState<string>('');
+  const [allocStatus, setAllocStatus] = useState<'all' | 'active' | 'reversed'>('all');
+  const [downloadingAllocPdf, setDownloadingAllocPdf] = useState(false);
+  const [showAllAllocations, setShowAllAllocations] = useState(false);
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
