@@ -133,12 +133,12 @@ export function LandlordsWithTenantsView() {
         if (hl) houseLinks.push(...(hl as any));
       }
 
-      // 4. House-listing visibility + photos (is_hidden + status + image_urls) — for collapsed-row badge & thumbnails
-      const houseVis: { landlord_id: string; is_hidden: boolean | null; status: string | null; image_urls: string[] | null }[] = [];
+      // 4. House-listing visibility + photos (is_hidden + status + image_urls + address/date) — for collapsed-row badge, thumbnails & captions
+      const houseVis: { landlord_id: string; is_hidden: boolean | null; status: string | null; image_urls: string[] | null; title: string | null; address: string | null; created_at: string | null }[] = [];
       for (let i = 0; i < landlordIds.length; i += 200) {
         const { data: hv } = await supabase
           .from('house_listings')
-          .select('landlord_id, is_hidden, status, image_urls')
+          .select('landlord_id, is_hidden, status, image_urls, title, address, created_at')
           .in('landlord_id', landlordIds.slice(i, i + 200));
         if (hv) houseVis.push(...(hv as any));
       }
