@@ -155,7 +155,15 @@ export function LandlordsWithTenantsView() {
 
   const groups: LandlordGroup[] = useMemo(() => {
     if (!data) return [];
-    const { allLandlords, validRows, landlordMap, tenantMap, houseLinks } = data;
+    const { allLandlords, validRows, landlordMap, tenantMap, houseLinks, houseVis } = data;
+
+    // Pre-compute hidden status per landlord
+    const hiddenMap = new Map<string, boolean>();
+    for (const l of allLandlords) {
+      const houses = houseVis.filter(h => h.landlord_id === l.id);
+      const liveHouses = houses.filter(h => h.status !== 'rejected' && h.status !== 'delisted');
+      hiddenMap.set(l.id, liveHouses.length > 0 && liveHouses.every(h => h.is_hidden));
+    }
 
     // Initialize bucket for EVERY landlord (so all 325+ appear, even without tenants)
     const map = new Map<string, Map<string, TenantRow>>();
@@ -243,6 +251,7 @@ export function LandlordsWithTenantsView() {
           name: 'No Landlord Linked',
           phone: null,
           tenants, paidCount, pendingCount, totalAmount,
+          allHidden: false,
         });
       } else {
         const ll = landlordMap.get(lkey);
@@ -251,6 +260,7 @@ export function LandlordsWithTenantsView() {
           name: ll?.name || 'Unknown Landlord',
           phone: ll?.phone || null,
           tenants, paidCount, pendingCount, totalAmount,
+          allHidden: !!hiddenMap.get(lkey),
         });
       }
     }
