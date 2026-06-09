@@ -97,6 +97,7 @@ import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizar
 import { AgentLandlordFloatAllocationsDialog } from '@/components/agent/AgentLandlordFloatAllocationsDialog';
 import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
 import { FloatPayoutStatusTracker } from '@/components/agent/FloatPayoutStatusTracker';
+import { LandlordPayoutOtpAuditSheet } from '@/components/agent/LandlordPayoutOtpAuditSheet';
 import { FloatTransactionHistory } from '@/components/agent/FloatTransactionHistory';
 
 import { AgentNotificationBell } from '@/components/agent/AgentNotificationBell';
@@ -359,6 +360,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [floatAllocationsOpen, setFloatAllocationsOpen] = useState(false);
   const [recoveryLedgerOpen, setRecoveryLedgerOpen] = useState(false);
   const [payoutStatusOpen, setPayoutStatusOpen] = useState(false);
+  const [otpAuditOpen, setOtpAuditOpen] = useState(false);
   const [floatHistoryOpen, setFloatHistoryOpen] = useState(false);
   const [requisitionOpen, setRequisitionOpen] = useState(false);
   const [angelPoolInvestOpen, setAngelPoolInvestOpen] = useState(false);
@@ -949,6 +951,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
               onOpenHistory={() => { hapticTap(); setFloatHistoryOpen(true); }}
               onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
+              onOpenOtpAudit={() => { hapticTap(); setOtpAuditOpen(true); }}
             />
             <button
               onClick={() => { hapticTap(); setBusinessAdvanceOpen(true); }}
@@ -1321,6 +1324,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
       <LandlordRecoveryLedger open={recoveryLedgerOpen} onOpenChange={setRecoveryLedgerOpen} />
       <FloatPayoutStatusTracker open={payoutStatusOpen} onOpenChange={setPayoutStatusOpen} />
+      <LandlordPayoutOtpAuditSheet open={otpAuditOpen} onOpenChange={setOtpAuditOpen} />
       <FloatTransactionHistory open={floatHistoryOpen} onOpenChange={setFloatHistoryOpen} />
       <CreditVerificationButton />
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />

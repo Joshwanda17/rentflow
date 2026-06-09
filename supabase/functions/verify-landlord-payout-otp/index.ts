@@ -52,6 +52,15 @@ Deno.serve(async (req) => {
     }
     if (ch.attempts >= ch.max_attempts) {
       await admin.from("landlord_payout_otp_challenges").update({ status: "failed" }).eq("id", challenge_id);
+      await admin.from("landlord_payout_otp_events").insert({
+        challenge_id,
+        agent_id: agentId,
+        landlord_id: ch.landlord_id,
+        event_type: "failed",
+        landlord_phone: ch.landlord_phone,
+        amount: ch.amount,
+        detail: "Too many attempts — challenge locked",
+      });
       return json({ error: "Too many attempts. Start over." }, 400);
     }
 
@@ -63,6 +72,16 @@ Deno.serve(async (req) => {
         .from("landlord_payout_otp_challenges")
         .update({ attempts: newAttempts, status: exhausted ? "failed" : "pending" })
         .eq("id", challenge_id);
+      await admin.from("landlord_payout_otp_events").insert({
+        challenge_id,
+        agent_id: agentId,
+        landlord_id: ch.landlord_id,
+        event_type: exhausted ? "failed" : "incorrect_attempt",
+        landlord_phone: ch.landlord_phone,
+        amount: ch.amount,
+        detail: exhausted ? "Too many incorrect attempts" : `Incorrect OTP (attempt ${newAttempts}/${ch.max_attempts})`,
+        metadata: { attempts: newAttempts, max_attempts: ch.max_attempts },
+      });
       return json(
         { error: exhausted ? "Too many incorrect attempts." : "Incorrect OTP", attempts_left: ch.max_attempts - newAttempts },
         400,
@@ -75,6 +94,16 @@ Deno.serve(async (req) => {
       .from("landlord_payout_otp_challenges")
       .update({ status: "verified", verified_at })
       .eq("id", challenge_id);
+
+    await admin.from("landlord_payout_otp_events").insert({
+      challenge_id,
+      agent_id: agentId,
+      landlord_id: ch.landlord_id,
+      event_type: "verified",
+      landlord_phone: ch.landlord_phone,
+      amount: ch.amount,
+      detail: "OTP verified by landlord — disbursement triggered",
+    });
 
     // Trigger disbursement (passes agent's own JWT so the existing function attributes correctly)
     const disburseRes = await fetch(`${SUPABASE_URL}/functions/v1/landlord-payout-disburse`, {

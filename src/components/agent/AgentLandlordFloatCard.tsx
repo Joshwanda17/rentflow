@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Landmark, ArrowRight, Loader2, TrendingUp, History, ShieldCheck } from 'lucide-react';
+import { Landmark, ArrowRight, Loader2, TrendingUp, History, ShieldCheck, KeyRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface AgentLandlordFloatCardProps {
@@ -10,9 +10,10 @@ interface AgentLandlordFloatCardProps {
   onOpenRecovery?: () => void;
   onOpenHistory?: () => void;
   onOpenStatusTracker?: () => void;
+  onOpenOtpAudit?: () => void;
 }
 
-export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHistory, onOpenStatusTracker }: AgentLandlordFloatCardProps) {
+export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHistory, onOpenStatusTracker, onOpenOtpAudit }: AgentLandlordFloatCardProps) {
   const { user } = useAuth();
 
   const { data: floatData, isLoading } = useQuery({
@@ -85,7 +86,7 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
       </button>
 
       {/* Quick Action Strip */}
-      <div className="border-t border-[#9234EA]/20 grid grid-cols-3 divide-x divide-[#9234EA]/20">
+      <div className="border-t border-[#9234EA]/20 grid grid-cols-4 divide-x divide-[#9234EA]/20">
         <button
           onClick={onOpenRecovery}
           className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-[#9234EA] hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
@@ -99,6 +100,13 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
         >
           <ShieldCheck className="h-3 w-3" />
           Status
+        </button>
+        <button
+          onClick={onOpenOtpAudit}
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-[#9234EA] hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
+        >
+          <KeyRound className="h-3 w-3" />
+          OTP Log
         </button>
         <button
           onClick={onOpenHistory}
