@@ -275,6 +275,9 @@ export function LandlordOpsDashboard() {
   type VerifyScope = 'pending' | 'all';
   const [verifyScope, setVerifyScope] = useState<VerifyScope>('pending');
   const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
+  // ─── Verification Queue bulk selection ───
+  const [verifySelectedIds, setVerifySelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState<null | 'hide' | 'unhide' | 'verify' | 'reject'>(null);
 
   // ─── Landlord Pending Quick Filters ───
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
