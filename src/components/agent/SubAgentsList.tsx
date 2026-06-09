@@ -54,6 +54,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const [totalSubAgentEarnings, setTotalSubAgentEarnings] = useState(0);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const fetchSubAgents = useCallback(async () => {
     if (!user) return;
