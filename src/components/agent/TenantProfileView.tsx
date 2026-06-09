@@ -678,7 +678,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           propertyAddress: r.landlord?.property_address ?? null,
         })),
         transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
-        allocations: floatAllocations,
+        allocations: floatAllocations
+          .filter((a) => a.status === 'active')
+          .map((a) => ({ date: a.date, amount: a.amount })),
       };
       await shareOrDownloadRepaymentSheet(sheet);
       setSheetRangeOpen(false);
