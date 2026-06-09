@@ -1704,21 +1704,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
           {/* Wizard navigation — big Back / Next / List buttons.
               Sticky to the bottom of the scrollable dialog so the main action
-              is always reachable on small phones without scrolling. */}
-          <div className="sticky bottom-0 -mx-4 sm:-mx-6 mt-2 flex gap-2 border-t border-border bg-background/95 px-4 sm:px-6 pt-3 pb-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              is always reachable on small phones without scrolling.
+              Solid background (no backdrop-blur dependency) and a safe-area
+              inset so it stays tappable on low-end Androids and gesture-bar /
+              notched phones common across Africa. */}
+          <div
+            className="sticky bottom-0 -mx-4 sm:-mx-6 mt-2 flex gap-2 border-t border-border bg-background px-4 sm:px-6 pt-3 pb-1"
+            style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
+          >
             {step > 1 && (
-              <Button type="button" variant="outline" className="h-14 flex-1 text-base font-semibold" onClick={goBack}>
-                <ArrowLeft className="h-5 w-5 mr-1" /> Back
+              <Button type="button" variant="outline" className="h-14 flex-1 min-w-0 text-base font-semibold active:scale-95 touch-manipulation" onClick={goBack}>
+                <ArrowLeft className="h-5 w-5 mr-1 shrink-0" /> Back
               </Button>
             )}
             {step < TOTAL_STEPS ? (
-              <Button type="button" className="h-14 flex-[2] text-base font-bold" onClick={goNext}>
-                Next <ArrowRight className="h-5 w-5 ml-1" />
+              <Button type="button" className="h-14 flex-[2] min-w-0 text-base font-bold active:scale-95 touch-manipulation" onClick={goNext}>
+                Next <ArrowRight className="h-5 w-5 ml-1 shrink-0" />
               </Button>
             ) : (
               <Button
                 type="submit"
-                className="h-14 flex-[2] text-base font-bold"
+                className="h-14 flex-[2] min-w-0 text-base font-bold active:scale-95 touch-manipulation"
                 disabled={submitting || !allGatesPass}
                 onClick={(e) => {
                   // Defensive: some mobile browsers swallow form submit when
@@ -1729,7 +1735,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 }}
               >
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Home className="h-5 w-5 mr-2" />}
-                {allGatesPass ? 'List house' : `${missingGates.length} item${missingGates.length === 1 ? '' : 's'} left`}
+                <span className="truncate">{allGatesPass ? 'List house' : `${missingGates.length} item${missingGates.length === 1 ? '' : 's'} left`}</span>
               </Button>
             )}
           </div>
