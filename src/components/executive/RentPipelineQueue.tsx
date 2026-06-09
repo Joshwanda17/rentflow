@@ -750,6 +750,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
 
     setProcessing(true);
     try {
+      const statusChangedAt = new Date().toISOString();
       // For CFO stage: let the edge function handle status + float atomically
       if (stage === 'coo_approved') {
         const { data: floatRes, error: floatErr } = await supabase.functions.invoke('fund-agent-landlord-float', {
@@ -766,8 +767,8 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         const updateData: any = {
           status: config.nextStatus,
           [config.reviewerColumn]: user.id,
-          [config.reviewerAtColumn]: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          [config.reviewerAtColumn]: statusChangedAt,
+          updated_at: statusChangedAt,
         };
 
         // Persist this stage's comment in its dedicated column (visible to next stage)
@@ -811,9 +812,23 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       // approval feedback and exposed network errors to the operator.
       if (config.showLandlordChecklist && !isOutstanding && stage !== 'coo_approved') {
         const bonusReqId = selectedRequest.id;
+        const auditReq = selectedRequest;
         supabase.functions
           .invoke('credit-landlord-verification-bonus', { body: { rent_request_id: bonusReqId } })
-          .catch((bonusErr) => console.warn('Landlord verification bonus failed:', bonusErr));
+          .then(({ error: bonusErr }) => {
+            recordLandlordApprovalAudit(
+              auditReq,
+              statusChangedAt,
+              !bonusErr,
+              bonusErr ? `Bonus queue failed: ${bonusErr.message}` : 'Bonus credit queued',
+            );
+          })
+          .catch((bonusErr) => {
+            console.warn('Landlord verification bonus failed:', bonusErr);
+            recordLandlordApprovalAudit(auditReq, statusChangedAt, false, `Bonus queue error: ${bonusErr?.message ?? 'unknown'}`);
+          });
+      } else if (config.showLandlordChecklist && isOutstanding) {
+        recordLandlordApprovalAudit(selectedRequest, statusChangedAt, false, 'No bonus applicable (outstanding balance)');
       }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
