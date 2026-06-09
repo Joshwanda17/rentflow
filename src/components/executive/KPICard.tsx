@@ -9,11 +9,20 @@ export interface KPICardProps {
   color?: string;
   loading?: boolean;
   subtitle?: string;
+  onClick?: () => void;
 }
 
-export function KPICard({ title, value, icon: Icon, trend, color = 'bg-primary/10 text-primary', loading, subtitle }: KPICardProps) {
+export function KPICard({ title, value, icon: Icon, trend, color = 'bg-primary/10 text-primary', loading, subtitle, onClick }: KPICardProps) {
+  const interactive = typeof onClick === 'function';
+  const Comp = interactive ? 'button' : 'div';
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 flex items-start gap-3 min-w-0">
+    <Comp
+      {...(interactive ? { onClick, type: 'button' as const } : {})}
+      className={cn(
+        'rounded-2xl border border-border bg-card p-4 flex items-start gap-3 min-w-0 w-full text-left',
+        interactive && 'cursor-pointer transition-colors hover:bg-muted/40 hover:border-primary/40 active:scale-[0.98] touch-manipulation',
+      )}
+    >
       <div className={cn('p-2.5 rounded-xl shrink-0', color)}>
         <Icon className="h-5 w-5" />
       </div>
@@ -31,6 +40,6 @@ export function KPICard({ title, value, icon: Icon, trend, color = 'bg-primary/1
         )}
         {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
-    </div>
+    </Comp>
   );
 }
