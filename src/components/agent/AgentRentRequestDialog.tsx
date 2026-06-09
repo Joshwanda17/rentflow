@@ -2194,12 +2194,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (submitWaiting) {
       setSubmitQueued(true);
       toast.info('Finishing save…', {
-        description: 'Your request will submit automatically in a moment.',
+        description: 'Your request will submit automatically in a moment. Tap again to cancel.',
       });
       return;
     }
     handleSubmitRef.current();
   }, [loading, submitWaiting]);
+
+  /** Cancels a queued submit so the agent can stop an unintended submission
+   *  while auto-save or capacity is still finishing. */
+  const cancelQueuedSubmit = useCallback(() => {
+    setSubmitQueued(false);
+    toast('Submit cancelled', {
+      description: 'Your draft is still saved. Tap Submit when you are ready.',
+    });
+  }, []);
 
   // Flush a queued submit the moment capacity + auto-save settle. A safety
   // timeout fires the submit anyway after 8s so a stuck refetch never strands
