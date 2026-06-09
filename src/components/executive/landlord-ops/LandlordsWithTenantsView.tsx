@@ -859,6 +859,7 @@ export function LandlordsWithTenantsView() {
         open={photoPreview.open}
         onClose={() => setPhotoPreview(s => ({ ...s, open: false }))}
         altPrefix={photoPreview.name}
+        captions={photoPreview.captions}
       />
     </div>
   );
