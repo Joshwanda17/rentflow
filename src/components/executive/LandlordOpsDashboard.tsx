@@ -2174,7 +2174,7 @@ export function LandlordOpsDashboard() {
               </div>
             </div>
           ))}
-          {filteredHouses.length === 0 && unverifiedListings.length > 0 && (
+          {filteredHouses.length === 0 && scopeListings.length > 0 && (
             <div className="text-center py-10">
               <Search className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
               <p className="font-semibold text-muted-foreground">No matches for "{verifySearch}"</p>
@@ -2184,10 +2184,10 @@ export function LandlordOpsDashboard() {
               </Button>
             </div>
           )}
-          {unverifiedListings.length === 0 && (
+          {scopeListings.length === 0 && (
             <div className="text-center py-12">
               <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
-              <p className="font-semibold">All listings verified! ✅</p>
+              <p className="font-semibold">{verifyScope === 'all' ? 'No houses found.' : 'All listings verified! ✅'}</p>
             </div>
           )}
         </div>
