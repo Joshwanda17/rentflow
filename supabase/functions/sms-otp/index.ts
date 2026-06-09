@@ -91,8 +91,6 @@ async function sendYoolaAttempt(
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        // Bearer header per Yoola docs; api_key in body is the primary auth.
-        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         phone: formatPhoneYoola(phone),
