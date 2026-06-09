@@ -724,17 +724,43 @@ export function LandlordsWithTenantsView() {
                       {/* Collapsed-row photo thumbnails */}
                       {g.photoCount > 0 && (
                         <div className="flex items-center justify-end gap-1 mt-2">
-                          {g.photos.map((url, i) => (
-                            <img
+                          {g.photos.slice(0, 4).map((url, i) => (
+                            <button
                               key={`${url}-${i}`}
-                              src={url}
-                              alt={`House ${i + 1}`}
-                              className="h-10 w-10 rounded-md object-cover border"
-                              loading="lazy"
-                            />
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPhotoPreview({
+                                  open: true,
+                                  photos: g.photos,
+                                  name: g.name,
+                                  startIndex: i,
+                                });
+                              }}
+                              className="h-10 w-10 rounded-md overflow-hidden border focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            >
+                              <img
+                                src={url}
+                                alt={`House ${i + 1}`}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            </button>
                           ))}
-                          {g.photoCount >= 4 && (
-                            <span className="text-[10px] text-muted-foreground ml-0.5">+</span>
+                          {g.photoCount > 4 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPhotoPreview({
+                                  open: true,
+                                  photos: g.photos,
+                                  name: g.name,
+                                  startIndex: 0,
+                                });
+                              }}
+                              className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground border hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            >
+                              +{g.photoCount - 4}
+                            </button>
                           )}
                         </div>
                       )}
@@ -806,6 +832,13 @@ export function LandlordsWithTenantsView() {
           })}
         </div>
       )}
+      <ImageZoomLightbox
+        images={photoPreview.photos}
+        startIndex={photoPreview.startIndex}
+        open={photoPreview.open}
+        onClose={() => setPhotoPreview(s => ({ ...s, open: false }))}
+        altPrefix={photoPreview.name}
+      />
     </div>
   );
 }
