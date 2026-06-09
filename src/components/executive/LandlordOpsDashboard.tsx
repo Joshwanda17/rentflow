@@ -2010,6 +2010,17 @@ export function LandlordOpsDashboard() {
             <p className="text-sm font-semibold text-destructive">{emptyLandlords.length} empty — UGX {fmt(lostMonthlyRevenue)}/mo lost revenue</p>
           </div>
         )}
+        <DrilldownTable
+          data={emptyLandlords}
+          rowKey={(l) => l.id}
+          emptyMessage="No empty houses"
+          columns={[
+            { key: 'name', label: 'Landlord', render: (l) => <span className="font-semibold">{l.name}</span> },
+            { key: 'phone', label: 'Phone', render: (l) => l.phone || '—' },
+            { key: 'houses', label: 'Houses', align: 'right', sortValue: (l) => landlordHouseCounts.get(l.id) || l.number_of_houses || 0, render: (l) => landlordHouseCounts.get(l.id) || l.number_of_houses || 0 },
+            { key: 'monthly_rent', label: 'Rent', align: 'right', render: (l) => `UGX ${fmt(l.monthly_rent || 0)}` },
+          ] as DrilldownColumn<typeof emptyLandlords[number]>[]}
+        />
         <div className="space-y-2">
           {emptyLandlords.map(landlord => {
             const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
