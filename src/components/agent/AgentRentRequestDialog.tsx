@@ -2773,13 +2773,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </p>
                       <Button
                         type="button"
-                        onClick={handleSubmit}
-                        disabled={loading}
+                        onClick={requestSubmit}
+                        disabled={loading || submitQueued}
                         variant="destructive"
                         className="w-full"
                       >
                         {loading ? (
                           <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Trying again…</>
+                        ) : submitQueued ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Finishing save…</>
                         ) : (
                           <><RefreshCw className="h-4 w-4 mr-2" />Try again</>
                         )}
