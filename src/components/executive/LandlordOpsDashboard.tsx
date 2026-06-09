@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
@@ -278,7 +278,14 @@ export function LandlordOpsDashboard() {
   const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
   // Scope: pending | verified | hidden | all — thumb-friendly status chips
   type HouseStatusFilter = 'pending' | 'verified' | 'hidden' | 'all';
-  const [houseStatusFilter, setHouseStatusFilter] = useState<HouseStatusFilter>('pending');
+  const [houseStatusFilter, setHouseStatusFilter] = useState<HouseStatusFilter>(() => {
+    const saved = localStorage.getItem('landlordOpsHouseFilter');
+    if (saved === 'pending' || saved === 'verified' || saved === 'hidden' || saved === 'all') return saved;
+    return 'pending';
+  });
+  useEffect(() => {
+    localStorage.setItem('landlordOpsHouseFilter', houseStatusFilter);
+  }, [houseStatusFilter]);
   const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
   // ─── Verification Queue bulk selection ───
   const [verifySelectedIds, setVerifySelectedIds] = useState<Set<string>>(new Set());
