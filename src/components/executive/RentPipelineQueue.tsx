@@ -570,11 +570,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
     }
     setQuickProcessingId(req.id);
     try {
+      const statusChangedAt = new Date().toISOString();
       const updateData: any = {
         status: config.nextStatus,
         [config.reviewerColumn]: user.id,
-        [config.reviewerAtColumn]: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        [config.reviewerAtColumn]: statusChangedAt,
+        updated_at: statusChangedAt,
       };
 
       if (config.showLandlordChecklist && !isOutstanding) {
@@ -603,7 +604,21 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       if (config.showLandlordChecklist && !isOutstanding) {
         supabase.functions
           .invoke('credit-landlord-verification-bonus', { body: { rent_request_id: req.id } })
-          .catch((bonusErr) => console.warn('Landlord verification bonus failed:', bonusErr));
+          .then(({ error: bonusErr }) => {
+            recordLandlordApprovalAudit(
+              req,
+              statusChangedAt,
+              !bonusErr,
+              bonusErr ? `Bonus queue failed: ${bonusErr.message}` : 'Bonus credit queued',
+            );
+          })
+          .catch((bonusErr) => {
+            console.warn('Landlord verification bonus failed:', bonusErr);
+            recordLandlordApprovalAudit(req, statusChangedAt, false, `Bonus queue error: ${bonusErr?.message ?? 'unknown'}`);
+          });
+      } else if (config.showLandlordChecklist && isOutstanding) {
+        // Outstanding-balance approvals have no agent bonus to queue.
+        recordLandlordApprovalAudit(req, statusChangedAt, false, 'No bonus applicable (outstanding balance)');
       }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
