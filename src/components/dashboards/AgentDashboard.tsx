@@ -360,6 +360,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [floatAllocationsOpen, setFloatAllocationsOpen] = useState(false);
   const [recoveryLedgerOpen, setRecoveryLedgerOpen] = useState(false);
   const [payoutStatusOpen, setPayoutStatusOpen] = useState(false);
+  const [otpAuditOpen, setOtpAuditOpen] = useState(false);
   const [floatHistoryOpen, setFloatHistoryOpen] = useState(false);
   const [requisitionOpen, setRequisitionOpen] = useState(false);
   const [angelPoolInvestOpen, setAngelPoolInvestOpen] = useState(false);
