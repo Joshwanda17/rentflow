@@ -363,6 +363,83 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
     y += 6;
   }
 
+  // ─── Float allocations made by the agent ───
+  const allAllocations = data.allocations ?? [];
+  const allocs = allAllocations.filter((a) => {
+    const ms = new Date(a.date).getTime();
+    if (fromMs !== null && ms < fromMs) return false;
+    if (toMs !== null && ms > toMs) return false;
+    return true;
+  });
+  const allocTotal = allocs.reduce((s, a) => s + Number(a.amount || 0), 0);
+  if (allAllocations.length > 0) {
+    ensureSpace(24);
+    pdf.setFillColor(238, 242, 255);
+    pdf.roundedRect(margin, y - 4, cw, 8, 2, 2, 'F');
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(67, 56, 202);
+    pdf.text(
+      data.periodFrom || data.periodTo
+        ? 'FLOAT ALLOCATIONS BY AGENT (IN PERIOD)'
+        : 'FLOAT ALLOCATIONS BY AGENT',
+      margin + 3,
+      y + 1,
+    );
+    y += 9;
+
+    if (allocs.length === 0) {
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text('No float allocations recorded in the selected period.', margin + 3, y);
+      y += 6;
+    } else {
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text('#', margin + 3, y);
+      pdf.text('Date & time of allocation', margin + 14, y);
+      pdf.text('Amount allocated', pw - margin - 3, y, { align: 'right' });
+      y += 2;
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.3);
+      pdf.line(margin, y, pw - margin, y);
+      y += 4;
+
+      allocs.forEach((a, i) => {
+        ensureSpace(14);
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(30, 41, 59);
+        pdf.text(String(i + 1), margin + 3, y);
+        pdf.text(new Date(a.date).toLocaleString('en-UG'), margin + 14, y);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(67, 56, 202);
+        pdf.text(formatUGX(a.amount), pw - margin - 3, y, { align: 'right' });
+        y += 5;
+      });
+
+      ensureSpace(12);
+      y += 1;
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.3);
+      pdf.line(margin, y, pw - margin, y);
+      y += 5;
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(
+        `Total allocated by agent (${allocs.length} allocation${allocs.length === 1 ? '' : 's'})`,
+        margin + 3,
+        y,
+      );
+      pdf.setTextColor(67, 56, 202);
+      pdf.text(formatUGX(allocTotal), pw - margin - 3, y, { align: 'right' });
+      y += 6;
+    }
+  }
+
   // ─── Footer on every page ───
   const pageCount = pdf.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
