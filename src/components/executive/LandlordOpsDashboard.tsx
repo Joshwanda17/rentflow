@@ -2062,6 +2062,18 @@ export function LandlordOpsDashboard() {
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedLandlords.length})</h2>
+        <DrilldownTable
+          data={occupiedLandlords}
+          rowKey={(l) => l.id}
+          emptyMessage="No occupied houses"
+          columns={[
+            { key: 'name', label: 'Landlord', render: (l) => <span className="font-semibold">{l.name}</span> },
+            { key: 'phone', label: 'Phone', render: (l) => l.phone || '—' },
+            { key: 'tenants', label: 'Tenants', align: 'right', sortValue: (l) => l.tenants?.length || 0, render: (l) => l.tenants?.length || 0 },
+            { key: 'houses', label: 'Houses', align: 'right', sortValue: (l) => landlordHouseCounts.get(l.id) || l.number_of_houses || 0, render: (l) => landlordHouseCounts.get(l.id) || l.number_of_houses || 0 },
+            { key: 'monthly_rent', label: 'Rent', align: 'right', render: (l) => `UGX ${fmt(l.monthly_rent || 0)}` },
+          ] as DrilldownColumn<typeof occupiedLandlords[number]>[]}
+        />
         <div className="space-y-2">
           {occupiedLandlords.map(landlord => {
             const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
