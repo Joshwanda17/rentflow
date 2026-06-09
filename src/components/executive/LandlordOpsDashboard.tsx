@@ -1999,7 +1999,7 @@ export function LandlordOpsDashboard() {
           data={filtered}
           rowKey={(c, i) => `${c.city}-${i}`}
           emptyMessage="No cities found"
-          onRowClick={(c) => setEntityDetail({ type: 'city', data: c })}
+          onRowClick={(c) => openEntity('city', c)}
           columns={[
             { key: 'city', label: 'City', render: (c) => <span className="font-semibold">{c.city}</span> },
             { key: 'listingCount', label: 'Houses', align: 'right' },
@@ -2071,7 +2071,7 @@ export function LandlordOpsDashboard() {
           data={filtered}
           rowKey={(t) => t.id}
           emptyMessage="All tenants have landlords listed"
-          onRowClick={(t) => setEntityDetail({ type: 'no-landlord', data: t })}
+          onRowClick={(t) => openEntity('no-landlord', t)}
           columns={[
             { key: 'tenant_name', label: 'Tenant', render: (t) => <span className="font-semibold">{t.tenant_name}</span> },
             { key: 'request_city', label: 'City', render: (t) => t.request_city || '—' },
@@ -2176,7 +2176,7 @@ export function LandlordOpsDashboard() {
           data={emptyLandlords}
           rowKey={(l) => l.id}
           emptyMessage="No empty houses"
-          onRowClick={(l) => setEntityDetail({ type: 'landlord', data: l })}
+          onRowClick={(l) => openEntity('landlord', l)}
           columns={[
             { key: 'name', label: 'Landlord', render: (l) => <span className="font-semibold">{l.name}</span> },
             { key: 'phone', label: 'Phone', render: (l) => l.phone || '—' },
@@ -2229,7 +2229,7 @@ export function LandlordOpsDashboard() {
           data={occupiedLandlords}
           rowKey={(l) => l.id}
           emptyMessage="No occupied houses"
-          onRowClick={(l) => setEntityDetail({ type: 'landlord', data: l })}
+          onRowClick={(l) => openEntity('landlord', l)}
           columns={[
             { key: 'name', label: 'Landlord', render: (l) => <span className="font-semibold">{l.name}</span> },
             { key: 'phone', label: 'Phone', render: (l) => l.phone || '—' },
