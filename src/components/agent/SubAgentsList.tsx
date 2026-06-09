@@ -405,10 +405,17 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                     <p className="text-[11px] text-muted-foreground truncate">
                       {sub.tenants_count} tenants
                     </p>
-                    <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
-                      <CheckCircle className="h-2.5 w-2.5" />
-                      Active
-                    </span>
+                    {sub.status === 'pending_acceptance' ? (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                        <Clock className="h-2.5 w-2.5" />
+                        Invite pending
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
+                        <CheckCircle className="h-2.5 w-2.5" />
+                        Active
+                      </span>
+                    )}
                     {sub.status === 'rejected' && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
                         <XCircle className="h-2.5 w-2.5" />
