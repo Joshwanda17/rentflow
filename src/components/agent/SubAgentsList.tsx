@@ -454,6 +454,25 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
               </button>
 
               <div className="flex items-center gap-1.5 shrink-0">
+                {sub.status === 'pending_acceptance' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1 text-xs px-2 border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleResendInvite(sub.sub_agent_id, sub.full_name);
+                    }}
+                    disabled={resendingId === sub.sub_agent_id}
+                  >
+                    {resendingId === sub.sub_agent_id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Mail className="h-3 w-3" />
+                    )}
+                    Resend
+                  </Button>
+                )}
                 <Button
                   size="icon"
                   variant="ghost"
