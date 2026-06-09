@@ -240,6 +240,28 @@ async function sendSMSAttempt(
 const RETRYABLE_REASONS = new Set(["timeout", "network_error"]);
 
 /**
+ * Send via LANA SMS (primary provider), with retries on transient failures.
+ */
+async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
+  const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
+  if (!apiKey) return { accepted: false, reason: "lana_not_configured" };
+
+  let last: SmsResult = { accepted: false, reason: "network_error" };
+  for (let attempt = 1; attempt <= SMS_MAX_ATTEMPTS; attempt++) {
+    last = await sendLanaAttempt(apiKey, phone, message);
+    if (last.accepted || !RETRYABLE_REASONS.has(last.reason ?? "")) return last;
+    if (attempt < SMS_MAX_ATTEMPTS) {
+      const backoff = SMS_BACKOFF_BASE_MS * 2 ** (attempt - 1);
+      console.warn(
+        `[sms-otp] LANA retry ${attempt}/${SMS_MAX_ATTEMPTS - 1} after ${last.reason} (backoff ${backoff}ms)`,
+      );
+      await sleep(backoff);
+    }
+  }
+  return last;
+}
+
+/**
  * Send via Yoola SMS (primary provider while Africa's Talking comes online),
  * with retries on transient failures.
  */
