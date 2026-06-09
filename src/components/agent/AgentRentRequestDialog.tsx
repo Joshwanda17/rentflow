@@ -3605,10 +3605,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 {/* House Photos — 4 outside views */}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    📸 House Photos (optional) — capture all 4 outside views
+                    📸 House Photos * — capture all 4 outside views
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Optional now — you can attach these later. Take one photo of each outside part of the house: front, back, left side and right side.
+                    Required — take one photo of each outside part of the house: front, back, left side and right side.
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {HOUSE_PHOTO_SLOTS.map((slot, idx) => {
