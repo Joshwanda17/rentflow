@@ -74,7 +74,7 @@ export function LandlordsWithTenantsView() {
     startIndex: number;
     captions: string[];
   }>({ open: false, photos: [], name: '', startIndex: 0 });
-  // initial state default applied below
+  }>({ open: false, photos: [], name: '', startIndex: 0, captions: [] });
 
   const { data, isLoading } = useQuery({
     queryKey: ['landlord-ops-landlords-tenants'],
