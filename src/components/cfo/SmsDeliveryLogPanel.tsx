@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Loader2, Clock, Download, Search, Filter, MessageSquare, Phone, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { Loader2, Clock, Download, Search, Filter, MessageSquare, Phone, CheckCircle2, XCircle, RefreshCw, Send, Hourglass } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface SmsRow {
@@ -29,9 +29,29 @@ interface SmsRow {
 
 const STATUS_FILTERS = [
   { label: 'All Statuses', value: 'all' },
+  { label: 'Delivered', value: 'delivered' },
   { label: 'Sent', value: 'sent' },
+  { label: 'Pending', value: 'pending' },
   { label: 'Failed', value: 'failed' },
 ];
+
+// "sent" = accepted by the gateway (awaiting delivery report); "delivered" =
+// carrier-confirmed on the handset; "pending" = intermediate DLR; "failed" =
+// rejected at send or DLR failure.
+function statusMeta(status: string) {
+  switch (status) {
+    case 'delivered':
+      return { label: 'Delivered', tone: 'success' as const, Icon: CheckCircle2 };
+    case 'sent':
+      return { label: 'Sent', tone: 'muted' as const, Icon: Send };
+    case 'pending':
+      return { label: 'Pending', tone: 'muted' as const, Icon: Hourglass };
+    case 'failed':
+      return { label: 'Failed', tone: 'destructive' as const, Icon: XCircle };
+    default:
+      return { label: status, tone: 'muted' as const, Icon: Send };
+  }
+}
 
 export function SmsDeliveryLogPanel() {
   const [search, setSearch] = useState('');
@@ -69,6 +89,7 @@ export function SmsDeliveryLogPanel() {
 
   const sentCount = (rows || []).filter((r) => r.status === 'sent').length;
   const failedCount = (rows || []).filter((r) => r.status === 'failed').length;
+  const deliveredCount = (rows || []).filter((r) => r.status === 'delivered').length;
 
   const handleExportCSV = () => {
     if (!filtered.length) return;
@@ -118,7 +139,10 @@ export function SmsDeliveryLogPanel() {
             </p>
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-[10px] gap-1">
-                <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {sentCount} sent
+                <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {deliveredCount} delivered
+              </Badge>
+              <Badge variant="secondary" className="text-[10px] gap-1">
+                <Send className="h-3 w-3 text-muted-foreground" /> {sentCount} sent
               </Badge>
               <Badge variant="secondary" className="text-[10px] gap-1">
                 <XCircle className="h-3 w-3 text-destructive" /> {failedCount} failed
@@ -160,7 +184,9 @@ export function SmsDeliveryLogPanel() {
           ) : (
             <div className="space-y-2 max-h-[560px] overflow-y-auto">
               {filtered.map((r) => {
-                const sent = r.status === 'sent';
+                const meta = statusMeta(r.status);
+                const isFailed = r.status === 'failed';
+                const StatusIcon = meta.Icon;
                 return (
                   <button
                     key={r.id}
@@ -168,9 +194,15 @@ export function SmsDeliveryLogPanel() {
                     className="w-full text-left flex items-start gap-3 p-2.5 rounded-xl border border-border/50 hover:bg-muted/30 transition-colors"
                   >
                     <div className="shrink-0 mt-0.5">
-                      {sent
-                        ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                        : <XCircle className="h-4 w-4 text-destructive" />}
+                      <StatusIcon
+                        className={`h-4 w-4 ${
+                          meta.tone === 'success'
+                            ? 'text-emerald-600'
+                            : meta.tone === 'destructive'
+                              ? 'text-destructive'
+                              : 'text-muted-foreground'
+                        }`}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
@@ -180,16 +212,16 @@ export function SmsDeliveryLogPanel() {
                           {r.recipient_name && <span className="text-foreground/70 font-normal truncate">· {r.recipient_name}</span>}
                         </p>
                         <Badge
-                          variant={sent ? 'secondary' : 'destructive'}
+                          variant={isFailed ? 'destructive' : 'secondary'}
                           className="text-[10px] shrink-0 capitalize"
                         >
-                          {r.status}
+                          {meta.label}
                         </Badge>
                       </div>
                       {r.message && (
                         <p className="text-[11px] text-foreground/80 truncate mt-0.5">{r.message}</p>
                       )}
-                      {!sent && r.error && (
+                      {isFailed && r.error && (
                         <p className="text-[10px] text-destructive truncate mt-0.5">⚠ {r.error}</p>
                       )}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
