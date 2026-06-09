@@ -1330,6 +1330,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     const file = e.target.files?.[0];
     if (e.target) e.target.value = '';
     if (!file) return;
+    const error = validateImageFile(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
     setHousePhotos(prev => {
       const next = [...prev];
       if (next[index]) URL.revokeObjectURL(next[index].preview);
