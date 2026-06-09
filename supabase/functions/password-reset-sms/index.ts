@@ -50,10 +50,48 @@ function formatPhoneInternational(rawPhone: string): string {
 }
 
 async function sendSMS(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
+  // Primary provider: Yoola SMS (while Africa's Talking comes back online).
+  const yoola = await sendViaYoola(phone, message);
+  if (yoola.ok) return yoola;
+  console.warn(`[password-reset-sms] Yoola not accepted (${yoola.reason}); trying Africa's Talking`);
+  const at = await sendViaAfricasTalking(phone, message);
+  if (at.ok) return at;
+  return yoola.reason === "yoola_not_configured" ? at : yoola;
+}
+
+async function sendViaYoola(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY");
+  if (!apiKey) return { ok: false, reason: "yoola_not_configured" };
+  try {
+    const phoneYoola = formatPhoneInternational(phone).replace(/^\+/, "");
+    const response = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({ phone: phoneYoola, message, api_key: apiKey }),
+    });
+    const text = await response.text();
+    console.log(`[password-reset-sms] Yoola response (${response.status}):`, text);
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const status = String(data?.status ?? "").toLowerCase();
+    if (response.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued" || (!data?.error && status === ""))) {
+      return { ok: true };
+    }
+    return { ok: false, reason: `Yoola rejected (${response.status})` };
+  } catch (error) {
+    console.error("[password-reset-sms] Yoola error:", error);
+    return { ok: false, reason: "Network error contacting SMS provider" };
+  }
+}
+
+async function sendViaAfricasTalking(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
-    console.error("[password-reset-sms] Missing AT credentials");
+    console.warn("[password-reset-sms] Missing AT credentials");
     return { ok: false, reason: "SMS service not configured" };
   }
   const isSandbox = username.toLowerCase() === "sandbox";
