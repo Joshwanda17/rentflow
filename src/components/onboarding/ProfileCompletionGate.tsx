@@ -135,6 +135,19 @@ export default function ProfileCompletionGate() {
   const mandatory = !!profile && profile.address_complete === false;
   const open = mandatory || editMode;
 
+  // Warm the lazy country/city dataset as soon as the gate opens so the
+  // ISO/continent lookups resolve without the user waiting on a picker.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    loadWorldCountries().then(() => {
+      if (!cancelled) setGeoReady((n) => n + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // The country/city dataset is large (~2.2 MB) and loaded lazily. We pull
