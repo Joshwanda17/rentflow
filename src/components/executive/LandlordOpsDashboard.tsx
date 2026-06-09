@@ -2723,24 +2723,24 @@ export function LandlordOpsDashboard() {
   return (
     <div className="space-y-4">
       {/* Sticky header with quick section switcher */}
-      <div className="flex items-center justify-between gap-2 sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/60">
-        <h2 className="text-base font-extrabold flex items-center gap-2 min-w-0">
-          <Building2 className="h-5 w-5 text-sky-600 shrink-0" />
+      <div className="flex items-center justify-between gap-2 sticky top-0 z-30 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-b border-border/50">
+        <h2 className="text-[15px] font-semibold tracking-tight flex items-center gap-2 min-w-0">
+          <Building2 className="h-[18px] w-[18px] text-muted-foreground shrink-0" />
           <span className="truncate">Landlord Ops</span>
         </h2>
         <SectionSwitcher />
       </div>
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(unverifiedListings.length > 0 || unverifiedLandlords.length > 0) && (
-        <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3.5 space-y-2.5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-amber-500/15">
-              <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0" />
+        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-muted">
+              <ShieldCheck className="h-[18px] w-[18px] text-amber-600 shrink-0" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm text-amber-800 dark:text-amber-300 leading-tight">Awaiting your verification</p>
-              <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug">
-                Review newly listed houses & registered landlords
+              <p className="font-semibold text-sm leading-tight">Awaiting your verification</p>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Review newly listed houses &amp; registered landlords
               </p>
             </div>
           </div>
@@ -2748,26 +2748,26 @@ export function LandlordOpsDashboard() {
             <button
               onClick={() => setView('verify')}
               disabled={unverifiedListings.length === 0}
-              className="rounded-lg border border-amber-400/50 bg-card p-2.5 text-left min-h-[60px] touch-manipulation active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
+              className="rounded-xl border border-border bg-background p-3 text-left min-h-[60px] touch-manipulation active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
             >
               <div className="flex items-center gap-1.5">
-                <Home className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Houses</span>
+                <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Houses</span>
               </div>
-              <p className="text-xl font-extrabold text-amber-700 dark:text-amber-300 leading-tight mt-0.5">{unverifiedListings.length}</p>
-              <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 leading-snug">pending · UGX {fmt(unverifiedListings.length * 5000)} bonuses</p>
+              <p className="text-2xl font-semibold tracking-tight leading-tight mt-1">{unverifiedListings.length}</p>
+              <p className="text-[10px] text-muted-foreground leading-snug">pending · UGX {fmt(unverifiedListings.length * 5000)} bonuses</p>
             </button>
             <button
               onClick={() => { setView('landlords'); setLandlordCategory('pending'); }}
               disabled={unverifiedLandlords.length === 0}
-              className="rounded-lg border border-amber-400/50 bg-card p-2.5 text-left min-h-[60px] touch-manipulation active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
+              className="rounded-xl border border-border bg-background p-3 text-left min-h-[60px] touch-manipulation active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
             >
               <div className="flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Landlords</span>
+                <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Landlords</span>
               </div>
-              <p className="text-xl font-extrabold text-amber-700 dark:text-amber-300 leading-tight mt-0.5">{unverifiedLandlords.length}</p>
-              <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 leading-snug">registered · awaiting review</p>
+              <p className="text-2xl font-semibold tracking-tight leading-tight mt-1">{unverifiedLandlords.length}</p>
+              <p className="text-[10px] text-muted-foreground leading-snug">registered · awaiting review</p>
             </button>
           </div>
         </div>
@@ -2776,31 +2776,33 @@ export function LandlordOpsDashboard() {
       {/* HERO: Tenants whose Landlords were Funded — always first */}
       <button
         onClick={() => setView('landlords-paid')}
-        className="w-full rounded-xl border-2 border-emerald-500/50 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform shadow-sm"
+        className="w-full rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform hover:bg-muted/40"
       >
-        <div className="p-2 rounded-lg bg-emerald-500/15">
-          <Banknote className="h-5 w-5 text-emerald-600 shrink-0" />
+        <div className="p-2 rounded-xl bg-muted">
+          <Banknote className="h-[18px] w-[18px] text-emerald-600 shrink-0" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm text-foreground leading-tight">Tenants whose Landlords were Funded</p>
+          <p className="font-semibold text-sm text-foreground leading-tight">Tenants whose Landlords were Funded</p>
           <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
             {paidLandlordsCount !== undefined ? `${paidLandlordsCount} landlords paid · ` : ''}View disbursements from tenant rent
           </p>
         </div>
-        <ChevronRight className="h-5 w-5 text-emerald-600 shrink-0" />
+        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
       </button>
 
       {/* Browse by Location — quick access */}
       <button
         onClick={() => setView('houses-by-landlord')}
-        className="w-full rounded-xl border-2 border-purple-400/40 bg-purple-50 dark:bg-purple-950/20 p-3 flex items-center gap-3 text-left min-h-[56px] touch-manipulation active:scale-[0.98] transition-transform"
+        className="w-full rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-left min-h-[56px] touch-manipulation active:scale-[0.98] transition-transform hover:bg-muted/40"
       >
-        <MapPin className="h-5 w-5 text-purple-600 shrink-0" />
-        <div className="flex-1">
-          <p className="font-bold text-purple-800 dark:text-purple-300 text-sm">Browse Houses by Location</p>
-          <p className="text-[10px] text-purple-700 dark:text-purple-400">Explore properties across regions, districts & wards</p>
+        <div className="p-2 rounded-xl bg-muted">
+          <MapPin className="h-[18px] w-[18px] text-muted-foreground shrink-0" />
         </div>
-        <ChevronRight className="h-4 w-4 text-purple-600 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm leading-tight">Browse Houses by Location</p>
+          <p className="text-[10px] text-muted-foreground leading-snug">Explore properties across regions, districts &amp; wards</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
       </button>
 
       {/* Priority actions */}
