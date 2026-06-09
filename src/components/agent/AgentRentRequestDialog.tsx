@@ -3704,7 +3704,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </label>
                     )}
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Required — take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
+                      Required — take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review. Max {MAX_FILE_SIZE_MB} MB (JPG, PNG, WebP).
                     </p>
                   </div>
                 </div>
