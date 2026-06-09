@@ -1,39 +1,143 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { cleanPhoneNumber } from '@/lib/phoneUtils';
-import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+
+export type OtpSendStatus = 'idle' | 'pending' | 'accepted' | 'failed';
+
+const POLL_INTERVAL_MS = 2000;
+const POLL_MAX_ATTEMPTS = 15;
+const DEFAULT_COOLDOWN_SECONDS = 60;
+
+interface PayoutOtpPayload {
+  landlord_id: string;
+  landlord_name: string;
+  landlord_phone: string;
+  tenant_id?: string;
+  tenant_name?: string;
+  tenant_phone?: string;
+  rent_request_id?: string;
+  amount: number;
+  mobile_money_provider: string;
+  agent_latitude?: number | null;
+  agent_longitude?: number | null;
+  property_latitude?: number | null;
+  property_longitude?: number | null;
+}
 
 export function useLandlordOtp() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
+  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
+  const [sendStatus, setSendStatus] = useState<OtpSendStatus>('idle');
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
+  const pollTokenRef = useRef(0);
+  const cooldownUntilRef = useRef(0);
+  const cooldownTimerRef = useRef<ReturnType<typeof setInterval>>();
+
+  useEffect(() => {
+    return () => {
+      pollTokenRef.current += 1;
+      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    };
+  }, []);
+
+  const startCooldown = useCallback((seconds: number) => {
+    const safe = Math.max(0, Math.ceil(seconds));
+    if (safe <= 0) return;
+    cooldownUntilRef.current = Date.now() + safe * 1000;
+    setCooldownSeconds(safe);
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    cooldownTimerRef.current = setInterval(() => {
+      const remaining = Math.ceil((cooldownUntilRef.current - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setCooldownSeconds(0);
+        if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+      } else {
+        setCooldownSeconds(remaining);
+      }
+    }, 1000);
+  }, []);
+
+  const pollSendStatus = useCallback(async (phone: string) => {
+    const token = ++pollTokenRef.current;
+    const cleaned = cleanPhoneNumber(phone);
+
+    for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      if (token !== pollTokenRef.current) return;
+
+      const { data, error } = await supabase.functions.invoke('sms-otp', {
+        body: { action: 'status', phone: cleaned },
+      });
+      if (token !== pollTokenRef.current) return;
+      if (error) continue;
+
+      const status = data?.status as string | undefined;
+      if (status === 'accepted') {
+        setSendStatus('accepted');
+        return;
+      }
+      if (status === 'failed') {
+        setSendStatus('failed');
+        setOtpError('We could not send the code. Please try again.');
+        return;
+      }
+    }
+  }, []);
+
+  // Generic OTP (legacy / non-payout flows)
   const sendOtp = useCallback(async (phone: string) => {
+    if (cooldownSeconds > 0 || otpLoading) return false;
     setOtpLoading(true);
     setOtpError(null);
+    setSendStatus('idle');
+    pollTokenRef.current += 1;
     try {
       const { data, error } = await supabase.functions.invoke('sms-otp', {
         body: { action: 'send', phone: cleanPhoneNumber(phone) },
       });
       if (error) {
-        const errMsg = await extractFromErrorObject(error, 'Failed to send OTP to landlord');
-        setOtpError(errMsg);
+        let payload: any = null;
+        if (error?.context) {
+          payload = await error.context.json().catch(() => null);
+        }
+        const errMsg = payload?.error || error.message;
+        if (typeof payload?.retry_after === 'number') {
+          startCooldown(payload.retry_after);
+        }
+        setOtpError(errMsg || 'Failed to send OTP');
+        setSendStatus('failed');
         return false;
       }
       if (data?.error) {
+        if (typeof data?.retry_after === 'number') startCooldown(data.retry_after);
         setOtpError(data.error);
+        setSendStatus('failed');
         return false;
       }
       setOtpSent(true);
+      setVerifiedPhone(cleanPhoneNumber(phone));
+      startCooldown(DEFAULT_COOLDOWN_SECONDS);
+      if (data?.pending) {
+        setSendStatus('pending');
+        void pollSendStatus(phone);
+      } else {
+        setSendStatus('accepted');
+      }
       return true;
     } catch (e: any) {
       setOtpError(e?.message || 'Failed to send OTP');
+      setSendStatus('failed');
       return false;
     } finally {
       setOtpLoading(false);
     }
-  }, []);
+  }, [pollSendStatus, startCooldown, cooldownSeconds, otpLoading]);
 
   const verifyOtp = useCallback(async (phone: string, otp: string) => {
     setOtpLoading(true);
@@ -43,8 +147,10 @@ export function useLandlordOtp() {
         body: { action: 'verify', phone: cleanPhoneNumber(phone), otp },
       });
       if (error) {
-        const errMsg = await extractFromErrorObject(error, 'Verification failed');
-        setOtpError(errMsg);
+        const errMsg = error?.context ?
+          await error.context.json().then((r: any) => r.error).catch(() => error.message)
+          : error.message;
+        setOtpError(errMsg || 'Verification failed');
         return false;
       }
       if (data?.error) {
@@ -61,10 +167,145 @@ export function useLandlordOtp() {
     }
   }, []);
 
+  // Payout-specific OTP (challenge-based)
+  const sendPayoutOtp = useCallback(async (payload: PayoutOtpPayload) => {
+    if (cooldownSeconds > 0 || otpLoading) return null;
+    setOtpLoading(true);
+    setOtpError(null);
+    setSendStatus('idle');
+    pollTokenRef.current += 1;
+    try {
+      const { data, error } = await supabase.functions.invoke('issue-landlord-payout-otp', {
+        body: payload,
+      });
+      if (error) {
+        let payload: any = null;
+        if (error?.context) {
+          payload = await error.context.json().catch(() => null);
+        }
+        const errMsg = payload?.error || error.message;
+        if (typeof payload?.retry_after === 'number') {
+          startCooldown(payload.retry_after);
+        }
+        setOtpError(errMsg || 'Failed to send OTP');
+        setSendStatus('failed');
+        return null;
+      }
+      if (data?.error) {
+        if (typeof data?.retry_after === 'number') startCooldown(data.retry_after);
+        setOtpError(data.error);
+        setSendStatus('failed');
+        return null;
+      }
+      setOtpSent(true);
+      setVerifiedPhone(cleanPhoneNumber(payload.landlord_phone));
+      setChallengeId(data?.challenge_id ?? null);
+      setExpiresAt(data?.expires_at ?? null);
+      startCooldown(DEFAULT_COOLDOWN_SECONDS);
+      setSendStatus('accepted');
+      return data?.challenge_id as string | null;
+    } catch (e: any) {
+      setOtpError(e?.message || 'Failed to send OTP');
+      setSendStatus('failed');
+      return null;
+    } finally {
+      setOtpLoading(false);
+    }
+  }, [startCooldown, cooldownSeconds, otpLoading]);
+
+  const resendPayoutOtp = useCallback(async () => {
+    if (!challengeId) {
+      setOtpError('No active challenge to resend');
+      return false;
+    }
+    if (cooldownSeconds > 0 || otpLoading) return false;
+    setOtpLoading(true);
+    setOtpError(null);
+    setSendStatus('idle');
+    pollTokenRef.current += 1;
+    try {
+      const { data, error } = await supabase.functions.invoke('issue-landlord-payout-otp', {
+        body: { challenge_id: challengeId },
+      });
+      if (error) {
+        let payload: any = null;
+        if (error?.context) {
+          payload = await error.context.json().catch(() => null);
+        }
+        const errMsg = payload?.error || error.message;
+        if (typeof payload?.retry_after === 'number') {
+          startCooldown(payload.retry_after);
+        }
+        setOtpError(errMsg || 'Failed to resend OTP');
+        setSendStatus('failed');
+        return false;
+      }
+      if (data?.error) {
+        if (typeof data?.retry_after === 'number') startCooldown(data.retry_after);
+        setOtpError(data.error);
+        setSendStatus('failed');
+        return false;
+      }
+      setOtpSent(true);
+      setExpiresAt(data?.expires_at ?? null);
+      startCooldown(DEFAULT_COOLDOWN_SECONDS);
+      setSendStatus('accepted');
+      return true;
+    } catch (e: any) {
+      setOtpError(e?.message || 'Failed to resend OTP');
+      setSendStatus('failed');
+      return false;
+    } finally {
+      setOtpLoading(false);
+    }
+  }, [challengeId, startCooldown, cooldownSeconds, otpLoading]);
+
+  const verifyPayoutOtp = useCallback(async (otp: string) => {
+    if (!challengeId) {
+      setOtpError('No active challenge to verify');
+      return null;
+    }
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-landlord-payout-otp', {
+        body: { challenge_id: challengeId, otp },
+      });
+      if (error) {
+        let payload: any = null;
+        if (error?.context) {
+          payload = await error.context.json().catch(() => null);
+        }
+        const errMsg = payload?.error || error.message;
+        setOtpError(errMsg || 'Verification failed');
+        return null;
+      }
+      if (data?.error) {
+        setOtpError(data.error);
+        return null;
+      }
+      setOtpVerified(true);
+      return data as { success: boolean; challenge_id: string; payout_id?: string | null; verified_at?: string } | null;
+    } catch (e: any) {
+      setOtpError(e?.message || 'Verification failed');
+      return null;
+    } finally {
+      setOtpLoading(false);
+    }
+  }, [challengeId]);
+
   const resetOtp = useCallback(() => {
     setOtpSent(false);
     setOtpVerified(false);
     setOtpError(null);
+    setVerifiedPhone(null);
+    setSendStatus('idle');
+    pollTokenRef.current += 1;
+    setCooldownSeconds(0);
+    cooldownUntilRef.current = 0;
+    setChallengeId(null);
+    setExpiresAt(null);
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
   }, []);
 
   return {
@@ -72,8 +313,16 @@ export function useLandlordOtp() {
     otpVerified,
     otpLoading,
     otpError,
+    verifiedPhone,
+    sendStatus,
+    cooldownSeconds,
+    challengeId,
+    expiresAt,
     sendOtp,
     verifyOtp,
+    sendPayoutOtp,
+    resendPayoutOtp,
+    verifyPayoutOtp,
     resetOtp,
   };
 }
