@@ -177,6 +177,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [allocFrom, setAllocFrom] = useState<string>('');
   const [allocTo, setAllocTo] = useState<string>('');
   const [allocStatus, setAllocStatus] = useState<'all' | 'active' | 'reversed'>('all');
+  const [allocCaption, setAllocCaption] = useState<string>('');
   const [downloadingAllocPdf, setDownloadingAllocPdf] = useState(false);
   const [sharingAllocWa, setSharingAllocWa] = useState(false);
   const [showAllAllocations, setShowAllAllocations] = useState(false);
@@ -758,6 +759,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         periodFrom: allocFrom || null,
         periodTo: allocTo || null,
         statusFilter: allocStatus,
+        caption: allocCaption.trim() || null,
       });
       toast({ title: '📄 Float allocations PDF ready' });
     } catch (err: any) {
@@ -787,6 +789,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         periodFrom: allocFrom || null,
         periodTo: allocTo || null,
         statusFilter: allocStatus,
+        caption: allocCaption.trim() || null,
       });
       toast({ title: '📲 Ready to send on WhatsApp' });
     } catch (err: any) {
@@ -1960,6 +1963,21 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                 )}
               </div>
             )}
+
+            {/* Agent caption for WhatsApp / PDF */}
+            <label className="block space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Add a note (optional)</span>
+              <textarea
+                value={allocCaption}
+                onChange={(e) => setAllocCaption(e.target.value)}
+                placeholder="e.g. Please confirm receipt of this allocation report."
+                rows={2}
+                className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+              />
+              {allocCaption.trim().length > 0 && (
+                <p className="text-[10px] text-muted-foreground">{allocCaption.trim().length}/200 characters</p>
+              )}
+            </label>
 
             <div className="flex flex-col sm:flex-row gap-2">
               <Button

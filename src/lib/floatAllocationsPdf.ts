@@ -20,6 +20,7 @@ export interface FloatAllocationsPdfData {
   periodFrom?: string | null;
   periodTo?: string | null;
   statusFilter: 'all' | AllocationStatus;
+  caption?: string | null;          // optional WhatsApp note / message from the agent
 }
 
 async function loadLogoAsBase64(): Promise<string | null> {
@@ -98,6 +99,16 @@ export async function generateFloatAllocationsPdf(data: FloatAllocationsPdfData)
   pdf.setTextColor(67, 56, 202);
   pdf.text(`Date range: ${periodText}    •    Status: ${statusLabel(data.statusFilter)}`, margin, y);
   y += 7;
+
+  // ─── Optional agent caption ───
+  if (data.caption) {
+    const captionLines = pdf.splitTextToSize(data.caption, cw - 6);
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'italic');
+    pdf.setTextColor(67, 56, 202);
+    pdf.text(captionLines, margin + 3, y);
+    y += captionLines.length * 3.8 + 3;
+  }
 
   // ─── Tenant / agent identity ───
   const idRow = (label: string, value: string, x: number) => {
@@ -267,7 +278,7 @@ export async function shareFloatAllocationsWhatsApp(data: FloatAllocationsPdfDat
   const blob = await generateFloatAllocationsPdf(data);
   const filename = `Float_Allocations_${data.tenantName.replace(/\s+/g, '_')}.pdf`;
   const file = new File([blob], filename, { type: 'application/pdf' });
-  const caption = `Welile float allocations for ${data.tenantName}`;
+  const caption = (data.caption?.trim() || `Welile float allocations for ${data.tenantName}`);
 
   // Best path: native share sheet with the file attached (lets the agent pick WhatsApp).
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
