@@ -474,7 +474,7 @@ function RequestStateBanner({ state }: { state: 'idle' | 'submitting' | 'success
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId, preselectHouse }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
-  const { data: capMap } = useAgentCapacityMap(capIds);
+  const { data: capMap, isLoading: capLoading } = useAgentCapacityMap(capIds);
   const myCap = user?.id ? capMap?.get(user.id) : undefined;
   // Weekly Good-Standing unlock: an agent rated "Good" (green) on 2+ days last
   // week may post any new rent request, for any amount — no cap, no daily block.
@@ -492,6 +492,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Visible request-state indicator so the agent always knows what's happening
   // after they tap Submit or Try again (idle / submitting / success / error).
   const [requestState, setRequestState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  // Queued submit: when the agent taps Submit while capacity is still loading
+  // or a draft auto-save is mid-flight, we don't block them — we remember the
+  // intent and fire the real submit the instant everything settles.
+  const [submitQueued, setSubmitQueued] = useState(false);
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
