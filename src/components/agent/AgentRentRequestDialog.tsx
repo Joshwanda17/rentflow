@@ -144,6 +144,21 @@ const ACTIVE_RENT_STATUSES = [
 ];
 const AGENT_RENT_CAP_UGX = 100_000_000;
 
+// Photo upload constraints
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+function validateImageFile(file: File): string | null {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type.toLowerCase())) {
+    return `Invalid file type. Allowed: JPG, PNG, WebP, HEIC.`;
+  }
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max: ${MAX_FILE_SIZE_MB} MB.`;
+  }
+  return null;
+}
+
 // Guided wizard steps for the standard (non-outstanding) rent request flow.
 const DETAIL_STEPS = ['Rent', 'Tenant', 'Property', 'Officials', 'Review'] as const;
 
@@ -1315,6 +1330,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     const file = e.target.files?.[0];
     if (e.target) e.target.value = '';
     if (!file) return;
+    const error = validateImageFile(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
     setHousePhotos(prev => {
       const next = [...prev];
       if (next[index]) URL.revokeObjectURL(next[index].preview);
@@ -1335,6 +1355,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const handleTenantPhoto = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const error = validateImageFile(file);
+    if (error) {
+      toast.error(error);
+      if (e.target) e.target.value = '';
+      return;
+    }
     setTenantPhoto(prev => {
       if (prev) URL.revokeObjectURL(prev.preview);
       return { file, preview: URL.createObjectURL(file) };
@@ -3608,7 +3634,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     📸 House Photos * — capture all 4 outside views
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Required — take one photo of each outside part of the house: front, back, left side and right side.
+                    Required — take one photo of each outside part of the house: front, back, left side and right side. Max {MAX_FILE_SIZE_MB} MB each (JPG, PNG, WebP).
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {HOUSE_PHOTO_SLOTS.map((slot, idx) => {
@@ -3678,7 +3704,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </label>
                     )}
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Required — take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review.
+                      Required — take a clear, well-lit photo of the tenant's face (passport-style). Landlord Ops uses this to verify the tenant during review. Max {MAX_FILE_SIZE_MB} MB (JPG, PNG, WebP).
                     </p>
                   </div>
                 </div>
