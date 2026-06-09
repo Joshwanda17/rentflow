@@ -123,7 +123,17 @@ export function LandlordsWithTenantsView() {
         if (hl) houseLinks.push(...(hl as any));
       }
 
-      // 4. Tenant profiles for everything we have so far
+      // 4. House-listing visibility (is_hidden + status) — for collapsed-row badge
+      const houseVis: { landlord_id: string; is_hidden: boolean | null; status: string | null }[] = [];
+      for (let i = 0; i < landlordIds.length; i += 200) {
+        const { data: hv } = await supabase
+          .from('house_listings')
+          .select('landlord_id, is_hidden, status')
+          .in('landlord_id', landlordIds.slice(i, i + 200));
+        if (hv) houseVis.push(...(hv as any));
+      }
+
+      // 5. Tenant profiles for everything we have so far
       const tenantIds = new Set<string>();
       validRows.forEach(r => r.tenant_id && tenantIds.add(r.tenant_id));
       houseLinks.forEach(h => h.tenant_id && tenantIds.add(h.tenant_id));
@@ -138,7 +148,7 @@ export function LandlordsWithTenantsView() {
         for (const t of tt || []) tenantMap.set(t.id, t as any);
       }
 
-      return { allLandlords, validRows, landlordMap, tenantMap, houseLinks };
+      return { allLandlords, validRows, landlordMap, tenantMap, houseLinks, houseVis };
     },
     staleTime: 60_000,
   });
