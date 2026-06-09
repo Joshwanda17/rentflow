@@ -2827,14 +2827,16 @@ export function LandlordOpsDashboard() {
       {noLandlordList.length > 0 && (
         <button
           onClick={() => setView('no-landlord')}
-          className="w-full rounded-xl border-2 border-orange-400/60 bg-orange-50 dark:bg-orange-950/30 p-3 flex items-center gap-3 text-left min-h-[56px] touch-manipulation active:scale-[0.98] transition-transform"
+          className="w-full rounded-2xl border border-border bg-card p-4 flex items-center gap-3 text-left min-h-[56px] touch-manipulation active:scale-[0.98] transition-transform hover:bg-muted/40"
         >
-          <UserX className="h-5 w-5 text-orange-600 shrink-0" />
-          <div className="flex-1">
-            <p className="font-bold text-orange-800 dark:text-orange-300 text-sm">📢 {noLandlordList.length} tenants without landlord</p>
-            <p className="text-[10px] text-orange-700 dark:text-orange-400">Contact them to list property & earn UGX 5,000</p>
+          <div className="p-2 rounded-xl bg-muted">
+            <UserX className="h-[18px] w-[18px] text-orange-600 shrink-0" />
           </div>
-          <ChevronRight className="h-4 w-4 text-orange-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm leading-tight">{noLandlordList.length} tenants without landlord</p>
+            <p className="text-[10px] text-muted-foreground leading-snug">Contact them to list property &amp; earn UGX 5,000</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
         </button>
       )}
 
