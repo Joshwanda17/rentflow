@@ -789,6 +789,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         periodFrom: allocFrom || null,
         periodTo: allocTo || null,
         statusFilter: allocStatus,
+        caption: allocCaption.trim() || null,
       });
       toast({ title: '📲 Ready to send on WhatsApp' });
     } catch (err: any) {
