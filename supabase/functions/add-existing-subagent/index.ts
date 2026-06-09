@@ -86,15 +86,27 @@ Deno.serve(async (req) => {
       return json({ error: "You cannot make yourself your own sub-agent." }, 400);
     }
 
-    // Caller must be an active agent.
+    // Any authenticated user may add a sub-agent. If the caller is not yet an
+    // agent, grant them the agent role so they become a parent agent and gain
+    // an agent dashboard to manage the relationship (idempotent).
     const { data: callerRole } = await adminClient
       .from("user_roles")
-      .select("user_id")
+      .select("id, enabled")
       .eq("user_id", user.id)
       .eq("role", "agent")
       .maybeSingle();
     if (!callerRole) {
-      return json({ error: "Only agents can add sub-agents." }, 403);
+      const { error: callerRoleErr } = await adminClient
+        .from("user_roles")
+        .insert({ user_id: user.id, role: "agent", enabled: true });
+      if (callerRoleErr && !callerRoleErr.message.toLowerCase().includes("duplicate")) {
+        return json({ error: `Failed to grant agent role: ${callerRoleErr.message}` }, 500);
+      }
+    } else if (callerRole.enabled === false) {
+      await adminClient
+        .from("user_roles")
+        .update({ enabled: true })
+        .eq("id", callerRole.id);
     }
 
     // Caller's display name (used in the invite message).
