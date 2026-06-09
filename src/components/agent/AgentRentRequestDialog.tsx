@@ -2173,6 +2173,51 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
   };
 
+  // Keep a live reference to the latest handleSubmit so the queued-submit
+  // effect always fires the current closure (never a stale snapshot of form
+  // state) when capacity / auto-save finish.
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+
+  // True while the submit must wait: capacity still loading on first open, or a
+  // draft auto-save is in flight. These are the two transient states that made
+  // the button briefly feel "unpressable".
+  const submitWaiting = capLoading || autoDraftStatus === 'saving';
+
+  /**
+   * Submit entry point used by every Submit button. If the form isn't ready
+   * yet (capacity loading / auto-saving) we QUEUE the submit instead of
+   * dropping it, then flush automatically once ready (see effect below).
+   */
+  const requestSubmit = useCallback(() => {
+    if (loading) return; // a real submission is already running
+    if (submitWaiting) {
+      setSubmitQueued(true);
+      toast.info('Finishing save…', {
+        description: 'Your request will submit automatically in a moment.',
+      });
+      return;
+    }
+    handleSubmitRef.current();
+  }, [loading, submitWaiting]);
+
+  // Flush a queued submit the moment capacity + auto-save settle. A safety
+  // timeout fires the submit anyway after 8s so a stuck refetch never strands
+  // the agent (handleSubmit tolerates a missing capacity snapshot).
+  useEffect(() => {
+    if (!submitQueued || loading) return;
+    if (!submitWaiting) {
+      setSubmitQueued(false);
+      handleSubmitRef.current();
+      return;
+    }
+    const t = setTimeout(() => {
+      setSubmitQueued(false);
+      handleSubmitRef.current();
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [submitQueued, submitWaiting, loading]);
+
   const getPeriodLabel = (period: RepaymentPeriod) => {
     switch (period) {
       case '7': return '7 Days (1 Week)';
