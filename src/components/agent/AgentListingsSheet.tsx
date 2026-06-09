@@ -68,6 +68,12 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     landlord_id: string | null; landlord_name: string | null; landlord_phone: string | null;
   } | null>(null);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
+  // Empty-state focus targets so we can reliably land focus *inside* the sheet
+  // on open (autoFocus is flaky on some Android/iOS browsers). Radix already
+  // traps focus + handles Escape; the back-gesture stack handles the hardware
+  // back button. This just guarantees the initial focus stays in the sheet.
+  const emptyPrimaryRef = useRef<HTMLButtonElement>(null);
+  const emptySecondaryRef = useRef<HTMLButtonElement>(null);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
@@ -384,7 +390,22 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
   return (
     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl p-0 flex flex-col">
+      <SheetContent
+        side="bottom"
+        className="h-[90vh] rounded-t-3xl p-0 flex flex-col"
+        // Keep focus inside the sheet on open. When the empty state is showing,
+        // land focus on its primary CTA (falling back to the secondary CTA) so
+        // keyboard + screen-reader users start *inside* the trapped sheet.
+        onOpenAutoFocus={(e) => {
+          if (!loading && listings.length === 0) {
+            const target = emptyPrimaryRef.current ?? emptySecondaryRef.current;
+            if (target) {
+              e.preventDefault();
+              target.focus();
+            }
+          }
+        }}
+      >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border">
           <SheetTitle className="flex items-center gap-2">
             <Home className="h-5 w-5 text-primary" />
@@ -611,7 +632,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
               <div className="space-y-2.5">
                 {onListHouse && (
                   <Button
-                    autoFocus
+                    ref={emptyPrimaryRef}
                     aria-describedby="empty-state-desc"
                     onClick={() => { onOpenChange(false); onListHouse(); }}
                     className="w-full gap-2 h-12 text-base font-semibold"
@@ -622,6 +643,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                 )}
                 <Button
                   variant="outline"
+                  ref={emptySecondaryRef}
                   aria-describedby="empty-state-desc"
                   onClick={() => { onOpenChange(false); navigate('/find-a-house'); }}
                   className="w-full gap-2 h-12 text-base"
