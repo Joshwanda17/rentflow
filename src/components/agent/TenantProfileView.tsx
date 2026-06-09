@@ -1961,17 +1961,29 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
               </div>
             )}
 
-            <Button
-              variant="default"
-              size="lg"
-              disabled={downloadingAllocPdf || filteredAllocations.length === 0}
-              onClick={handleDownloadAllocationsPdf}
-              className="w-full h-11 rounded-xl gap-2 font-semibold"
-              aria-label="Download filtered float allocations PDF"
-            >
-              {downloadingAllocPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
-              {downloadingAllocPdf ? 'Generating…' : 'Download Allocations PDF'}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                size="lg"
+                disabled={sharingAllocWa || filteredAllocations.length === 0}
+                onClick={handleShareAllocationsWhatsApp}
+                className="w-full h-11 rounded-xl gap-2 font-semibold bg-success text-success-foreground hover:bg-success/90"
+                aria-label="Share filtered float allocations PDF on WhatsApp"
+              >
+                {sharingAllocWa ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}
+                {sharingAllocWa ? 'Preparing…' : 'Share on WhatsApp'}
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={downloadingAllocPdf || filteredAllocations.length === 0}
+                onClick={handleDownloadAllocationsPdf}
+                className="w-full h-11 rounded-xl gap-2 font-semibold"
+                aria-label="Download filtered float allocations PDF"
+              >
+                {downloadingAllocPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+                {downloadingAllocPdf ? 'Generating…' : 'Download PDF'}
+              </Button>
+            </div>
           </SectionCard>
         )}
 
