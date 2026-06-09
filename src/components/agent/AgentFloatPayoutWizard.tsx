@@ -153,7 +153,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
   const amountValid = effectiveAmount > 0 && effectiveAmount <= Number(selectedRequest?.rent_amount ?? 0);
   const phoneValid = /^(?:\+?256|0)?\d{9}$/.test(landlordPhone.replace(/\s+/g, ''));
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (source: 'auto' | 'manual' = 'manual') => {
     if (!phoneValid) {
       toast.error('Enter a valid landlord phone number');
       return;
@@ -191,11 +191,12 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
       agent_longitude: loc?.longitude ?? null,
       property_latitude: propLat,
       property_longitude: propLng,
+      trigger_source: source,
     });
 
     if (challengeId) {
       setResendCooldown(60);
-      toast.success('OTP sent to landlord\'s phone');
+      toast.success(source === 'auto' ? 'OTP auto-sent to landlord\'s phone' : 'OTP sent to landlord\'s phone');
     }
   };
 
@@ -210,7 +211,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     if (landlordOtp.cooldownSeconds > 0) return;
     if (!phoneValid || !amountValid) return;
     autoSendRef.current = selectedRequest.id;
-    void handleSendOtp();
+    void handleSendOtp('auto');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, selectedRequest, phoneValid, amountValid, landlordOtp.otpSent, landlordOtp.otpLoading, landlordOtp.cooldownSeconds]);
 
@@ -512,7 +513,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
               {!landlordOtp.otpSent ? (
                 <Button
                   type="button"
-                  onClick={handleSendOtp}
+                  onClick={() => handleSendOtp('manual')}
                   disabled={landlordOtp.otpLoading || !phoneValid || !amountValid}
                   className="w-full gap-2 h-12 rounded-xl"
                 >

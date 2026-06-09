@@ -83,7 +83,10 @@ Deno.serve(async (req) => {
       property_latitude,
       property_longitude,
       challenge_id, // optional: resend OTP for existing challenge
+      trigger_source, // optional: 'auto' (auto-sent on withdraw float tap) | 'manual'
     } = body ?? {};
+
+    const normalizedTrigger = trigger_source === "auto" ? "auto" : "manual";
 
     // Resend path
     if (challenge_id) {
@@ -202,8 +205,10 @@ Deno.serve(async (req) => {
       landlord_phone,
       amount: amt,
       otp_expires_at,
-      detail: sent ? "OTP sent via SMS" : "OTP created (SMS not confirmed)",
-      metadata: { sms_sent: sent, tenant_name: tenant_name ?? null },
+      detail: normalizedTrigger === "auto"
+        ? (sent ? "OTP auto-sent via SMS on withdraw float tap" : "OTP auto-created on withdraw float tap (SMS not confirmed)")
+        : (sent ? "OTP sent via SMS" : "OTP created (SMS not confirmed)"),
+      metadata: { sms_sent: sent, tenant_name: tenant_name ?? null, trigger_source: normalizedTrigger },
     });
 
     return json({
