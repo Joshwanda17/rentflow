@@ -35,6 +35,8 @@ interface SmsResult {
   statusCode?: number;
   status?: string;
   reason?: string;
+  messageId?: string;
+  cost?: string;
   raw?: unknown;
 }
 
@@ -81,6 +83,8 @@ async function sendSms(phone: string, message: string): Promise<SmsResult> {
       statusCode: recipient.statusCode,
       status: recipient.status,
       reason: ok ? undefined : `${recipient.status ?? "Rejected"} (code ${recipient.statusCode})`,
+      messageId: recipient.messageId ?? undefined,
+      cost: recipient.cost ?? undefined,
       raw: data ?? text,
     };
   } catch (e) {
@@ -95,14 +99,20 @@ async function logSms(
   message: string,
   result: SmsResult,
   recipientName?: string | null,
+  referenceId?: string | null,
 ) {
   try {
     await admin.from("sms_delivery_log").insert({
       recipient_phone: phone,
       recipient_name: recipientName ?? null,
       message,
+      // "sent" = accepted by the gateway (awaiting delivery report). The DLR
+      // callback later upgrades this to "delivered" or downgrades to "failed".
       status: result.ok ? "sent" : "failed",
       provider: "africastalking",
+      provider_message_id: result.messageId ?? null,
+      cost: result.cost ?? null,
+      reference_id: referenceId ?? null,
       provider_response: result.raw ?? null,
       error: result.ok ? null : (result.reason ?? null),
       source: "issue-landlord-payout-otp",
