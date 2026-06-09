@@ -95,6 +95,16 @@ Deno.serve(async (req) => {
       .update({ status: "verified", verified_at })
       .eq("id", challenge_id);
 
+    await admin.from("landlord_payout_otp_events").insert({
+      challenge_id,
+      agent_id: agentId,
+      landlord_id: ch.landlord_id,
+      event_type: "verified",
+      landlord_phone: ch.landlord_phone,
+      amount: ch.amount,
+      detail: "OTP verified by landlord — disbursement triggered",
+    });
+
     // Trigger disbursement (passes agent's own JWT so the existing function attributes correctly)
     const disburseRes = await fetch(`${SUPABASE_URL}/functions/v1/landlord-payout-disburse`, {
       method: "POST",
