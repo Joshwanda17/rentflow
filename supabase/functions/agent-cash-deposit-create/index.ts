@@ -39,13 +39,33 @@ function normalizePhone(raw: string): string {
   return "+" + d;
 }
 
-// Send the cash code to the selected agent's phone via Africa's Talking.
+// Yoola is the PRIMARY SMS sender; Africa's Talking is the fallback.
 // Non-blocking: a failure here must never abort the session creation.
-async function sendSms(phone: string, message: string): Promise<boolean> {
+async function sendViaYoola(phone: string, message: string): Promise<boolean> {
+  const apiKey = (Deno.env.get("YOOLA_SMS_API_KEY") || "").trim();
+  if (!apiKey) return false;
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: String(phone || "").replace(/\D/g, ""), message, api_key: apiKey }),
+    });
+    const text = await res.text();
+    let data: any = null;
+    try { data = JSON.parse(text); } catch { /* keep raw text */ }
+    const status = String(data?.status ?? "").toLowerCase();
+    return res.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued");
+  } catch (e) {
+    console.error("[agent-cash-create] Yoola error:", e);
+    return false;
+  }
+}
+
+async function sendViaAfricasTalking(phone: string, message: string): Promise<boolean> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
-    console.warn("[agent-cash-create] Missing Africa's Talking creds — skipping SMS");
+    console.warn("[agent-cash-create] Missing Africa's Talking creds — skipping AT");
     return false;
   }
   const isSandbox = username.toLowerCase() === "sandbox";
@@ -61,9 +81,15 @@ async function sendSms(phone: string, message: string): Promise<boolean> {
     });
     return res.ok;
   } catch (e) {
-    console.error("[agent-cash-create] SMS error:", e);
+    console.error("[agent-cash-create] AT SMS error:", e);
     return false;
   }
+}
+
+async function sendSms(phone: string, message: string): Promise<boolean> {
+  if (await sendViaYoola(phone, message)) return true;
+  console.warn("[agent-cash-create] Yoola not accepted — falling back to Africa's Talking");
+  return await sendViaAfricasTalking(phone, message);
 }
 
 Deno.serve(async (req) => {
