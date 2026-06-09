@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import {
-  Send, RefreshCw, ShieldCheck, XCircle, AlertTriangle, Clock, Loader2, User2,
+  Send, RefreshCw, ShieldCheck, XCircle, AlertTriangle, Clock, Loader2, User2, Zap,
 } from 'lucide-react';
 
 interface Props {
@@ -26,6 +26,7 @@ interface OtpEvent {
   otp_expires_at: string | null;
   detail: string | null;
   failure_reason: string | null;
+  metadata: { trigger_source?: string; sms_sent?: boolean; [key: string]: unknown } | null;
   created_at: string;
 }
 
@@ -140,7 +141,17 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                                 <Icon className="h-2.5 w-2.5" />
                               </span>
                               <div className="flex items-center justify-between gap-2">
-                                <Badge variant="outline" className={m.className}>{m.label}</Badge>
+                                <div className="flex items-center gap-1.5">
+                                  <Badge variant="outline" className={m.className}>{m.label}</Badge>
+                                  {ev.event_type === 'sent' && ev.metadata?.trigger_source === 'auto' && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-violet-500/10 text-violet-600 border-violet-500/20 text-[10px] gap-0.5"
+                                    >
+                                      <Zap className="h-2.5 w-2.5" /> Auto-sent
+                                    </Badge>
+                                  )}
+                                </div>
                                 <time className="text-[11px] text-muted-foreground">
                                   {format(new Date(ev.created_at), 'd MMM yyyy, HH:mm:ss')}
                                 </time>
