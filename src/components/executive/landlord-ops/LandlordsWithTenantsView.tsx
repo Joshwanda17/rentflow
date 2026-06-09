@@ -49,6 +49,7 @@ interface LandlordGroup {
   paidCount: number;
   pendingCount: number;
   totalAmount: number;
+  allHidden: boolean;
 }
 
 function classify(status: string): 'paid' | 'pending' | null {
