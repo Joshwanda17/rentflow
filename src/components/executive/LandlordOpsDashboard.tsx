@@ -1906,6 +1906,18 @@ export function LandlordOpsDashboard() {
           <Input placeholder="Search tenant, agent, or city…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
+        <DrilldownTable
+          data={filtered}
+          rowKey={(t) => t.id}
+          emptyMessage="All tenants have landlords listed"
+          columns={[
+            { key: 'tenant_name', label: 'Tenant', render: (t) => <span className="font-semibold">{t.tenant_name}</span> },
+            { key: 'request_city', label: 'City', render: (t) => t.request_city || '—' },
+            { key: 'rent_amount', label: 'Rent', align: 'right', render: (t) => `UGX ${t.rent_amount.toLocaleString()}` },
+            { key: 'status', label: 'Status' },
+            { key: 'agent_name', label: 'Agent', render: (t) => t.agent_name || '—' },
+          ] as DrilldownColumn<typeof filtered[number]>[]}
+        />
         <div className="space-y-2">
           {filtered.map(t => (
             <div key={t.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
