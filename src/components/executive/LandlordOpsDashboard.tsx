@@ -9,6 +9,7 @@ import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerifi
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { AgentRentCapacityPanel } from './AgentRentCapacityPanel';
 import { KPICard } from './KPICard';
+import { DrilldownTable, type DrilldownColumn } from './DrilldownTable';
 import {
   Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
