@@ -474,7 +474,7 @@ function RequestStateBanner({ state }: { state: 'idle' | 'submitting' | 'success
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId, preselectHouse }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
-  const { data: capMap } = useAgentCapacityMap(capIds);
+  const { data: capMap, isLoading: capLoading } = useAgentCapacityMap(capIds);
   const myCap = user?.id ? capMap?.get(user.id) : undefined;
   // Weekly Good-Standing unlock: an agent rated "Good" (green) on 2+ days last
   // week may post any new rent request, for any amount — no cap, no daily block.
@@ -492,6 +492,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Visible request-state indicator so the agent always knows what's happening
   // after they tap Submit or Try again (idle / submitting / success / error).
   const [requestState, setRequestState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  // Queued submit: when the agent taps Submit while capacity is still loading
+  // or a draft auto-save is mid-flight, we don't block them — we remember the
+  // intent and fire the real submit the instant everything settles.
+  const [submitQueued, setSubmitQueued] = useState(false);
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
@@ -2169,6 +2173,51 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
   };
 
+  // Keep a live reference to the latest handleSubmit so the queued-submit
+  // effect always fires the current closure (never a stale snapshot of form
+  // state) when capacity / auto-save finish.
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+
+  // True while the submit must wait: capacity still loading on first open, or a
+  // draft auto-save is in flight. These are the two transient states that made
+  // the button briefly feel "unpressable".
+  const submitWaiting = capLoading || autoDraftStatus === 'saving';
+
+  /**
+   * Submit entry point used by every Submit button. If the form isn't ready
+   * yet (capacity loading / auto-saving) we QUEUE the submit instead of
+   * dropping it, then flush automatically once ready (see effect below).
+   */
+  const requestSubmit = useCallback(() => {
+    if (loading) return; // a real submission is already running
+    if (submitWaiting) {
+      setSubmitQueued(true);
+      toast.info('Finishing save…', {
+        description: 'Your request will submit automatically in a moment.',
+      });
+      return;
+    }
+    handleSubmitRef.current();
+  }, [loading, submitWaiting]);
+
+  // Flush a queued submit the moment capacity + auto-save settle. A safety
+  // timeout fires the submit anyway after 8s so a stuck refetch never strands
+  // the agent (handleSubmit tolerates a missing capacity snapshot).
+  useEffect(() => {
+    if (!submitQueued || loading) return;
+    if (!submitWaiting) {
+      setSubmitQueued(false);
+      handleSubmitRef.current();
+      return;
+    }
+    const t = setTimeout(() => {
+      setSubmitQueued(false);
+      handleSubmitRef.current();
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [submitQueued, submitWaiting, loading]);
+
   const getPeriodLabel = (period: RepaymentPeriod) => {
     switch (period) {
       case '7': return '7 Days (1 Week)';
@@ -2724,13 +2773,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </p>
                       <Button
                         type="button"
-                        onClick={handleSubmit}
-                        disabled={loading}
+                        onClick={requestSubmit}
+                        disabled={loading || submitQueued}
                         variant="destructive"
                         className="w-full"
                       >
                         {loading ? (
                           <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Trying again…</>
+                        ) : submitQueued ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Finishing save…</>
                         ) : (
                           <><RefreshCw className="h-4 w-4 mr-2" />Try again</>
                         )}
@@ -2763,14 +2814,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       Back
                     </Button>
                     <Button 
-                      onClick={handleSubmit} 
+                      onClick={requestSubmit} 
                       className="flex-1"
-                      disabled={loading || (incomeType !== 'outstanding' && amount <= 0)}
+                      disabled={loading || submitQueued || (incomeType !== 'outstanding' && amount <= 0)}
                     >
                       {loading ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           Submitting...
+                        </>
+                      ) : submitQueued ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Finishing save…
                         </>
                       ) : (
                         'Register Tenant'
@@ -3755,13 +3811,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </p>
                   <Button
                     type="button"
-                    onClick={handleSubmit}
-                    disabled={loading}
+                    onClick={requestSubmit}
+                    disabled={loading || submitQueued}
                     variant="destructive"
                     className="w-full"
                   >
                     {loading ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Trying again…</>
+                    ) : submitQueued ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Finishing save…</>
                     ) : (
                       <><RefreshCw className="h-4 w-4 mr-2" />Try again</>
                     )}
@@ -4061,14 +4119,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Button>
                 ) : (
                   <Button
-                    onClick={handleSubmit}
+                    onClick={requestSubmit}
                     className="flex-1"
-                    disabled={loading || !amount || amount < 50000}
+                    disabled={loading || submitQueued || !amount || amount < 50000}
                   >
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Submitting...
+                      </>
+                    ) : submitQueued ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Finishing save…
                       </>
                     ) : (
                       'Submit Request'
