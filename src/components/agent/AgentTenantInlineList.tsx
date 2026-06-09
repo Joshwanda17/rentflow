@@ -58,10 +58,20 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
         .select('tenant_id')
         .eq('agent_id', user.id);
 
+      // Sub-agents are NOT tenants — exclude anyone linked to this agent as a
+      // sub-agent so they don't bleed into the tenant list.
+      const { data: subAgentRows } = await supabase
+        .from('agent_subagents')
+        .select('sub_agent_id')
+        .eq('parent_agent_id', user.id);
+      const subAgentIds = new Set(
+        (subAgentRows || []).map((r: any) => r.sub_agent_id).filter(Boolean) as string[],
+      );
+
       const extraIds = [
         ...(referralRows || []).map((r: any) => r.referred_id),
         ...(agentRequests || []).map((r: any) => r.tenant_id),
-      ].filter((id: string) => id && !referredIds.has(id));
+      ].filter((id: string) => id && !referredIds.has(id) && !subAgentIds.has(id));
 
       let extraTenants: Tenant[] = [];
       if (extraIds.length > 0) {
@@ -74,7 +84,8 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       }
 
       const merged = new Map<string, Tenant>();
-      for (const t of [...referredTenants, ...extraTenants]) {
+      const allowedReferred = referredTenants.filter((t: any) => !subAgentIds.has(t.id));
+      for (const t of [...allowedReferred, ...extraTenants]) {
         merged.set(t.id, t);
       }
       const tenantList = Array.from(merged.values());
