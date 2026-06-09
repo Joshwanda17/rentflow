@@ -25,6 +25,7 @@ interface OtpEvent {
   amount: number | null;
   otp_expires_at: string | null;
   detail: string | null;
+  failure_reason: string | null;
   created_at: string;
 }
 
@@ -38,6 +39,22 @@ const EVENT_META: Record<string, { label: string; icon: typeof Send; className: 
 
 function metaFor(type: string) {
   return EVENT_META[type] ?? { label: type, icon: Clock, className: 'bg-muted text-muted-foreground border-border' };
+}
+
+const FAILURE_REASON_LABELS: Record<string, string> = {
+  invalid_code: 'Invalid code',
+  expired: 'Expired',
+  already_verified: 'Already verified',
+  too_many_attempts: 'Too many attempts',
+  timeout: 'Timeout',
+  disburse_failed: 'Disbursement failed',
+};
+
+function failureReasonLabel(reason: string): string {
+  return FAILURE_REASON_LABELS[reason]
+    ?? reason.replace(/^challenge_/, '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
@@ -128,6 +145,14 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                                   {format(new Date(ev.created_at), 'd MMM yyyy, HH:mm:ss')}
                                 </time>
                               </div>
+                              {ev.failure_reason && (
+                                <Badge
+                                  variant="outline"
+                                  className="mt-1 bg-destructive/10 text-destructive border-destructive/20 text-[10px]"
+                                >
+                                  {failureReasonLabel(ev.failure_reason)}
+                                </Badge>
+                              )}
                               {ev.detail && (
                                 <p className="text-xs text-muted-foreground mt-1">{ev.detail}</p>
                               )}

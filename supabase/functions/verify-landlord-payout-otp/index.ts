@@ -15,6 +15,32 @@ async function sha256(s: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Structured audit-log writer. failure_reason is one of:
+// invalid_code | expired | already_verified | too_many_attempts | timeout | disburse_failed | challenge_<status>
+async function logEvent(
+  admin: ReturnType<typeof createClient>,
+  ch: { landlord_id?: string | null; landlord_phone?: string | null; amount?: number | null },
+  challenge_id: string,
+  agentId: string,
+  opts: { event_type: string; failure_reason?: string | null; detail?: string | null; metadata?: Record<string, unknown> },
+) {
+  try {
+    await admin.from("landlord_payout_otp_events").insert({
+      challenge_id,
+      agent_id: agentId,
+      landlord_id: ch?.landlord_id ?? null,
+      event_type: opts.event_type,
+      failure_reason: opts.failure_reason ?? null,
+      landlord_phone: ch?.landlord_phone ?? null,
+      amount: ch?.amount ?? null,
+      detail: opts.detail ?? null,
+      metadata: opts.metadata ?? {},
+    });
+  } catch (e) {
+    console.error("[verify-landlord-payout-otp] logEvent failed", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -34,6 +60,13 @@ Deno.serve(async (req) => {
 
     const { challenge_id, otp } = (await req.json().catch(() => ({}))) ?? {};
     if (!challenge_id || !otp || !/^\d{6}$/.test(String(otp))) {
+      if (challenge_id) {
+        await logEvent(admin, {}, String(challenge_id), agentId, {
+          event_type: "incorrect_attempt",
+          failure_reason: "invalid_code",
+          detail: "Submitted code was missing or not a 6-digit number",
+        });
+      }
       return json({ error: "Invalid request" }, 400);
     }
 
@@ -45,20 +78,28 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (chErr || !ch) return json({ error: "Challenge not found" }, 404);
 
-    if (ch.status !== "pending") return json({ error: `Challenge already ${ch.status}` }, 400);
+    if (ch.status !== "pending") {
+      await logEvent(admin, ch, challenge_id, agentId, {
+        event_type: ch.status === "verified" ? "already_verified" : "failed",
+        failure_reason: ch.status === "verified" ? "already_verified" : `challenge_${ch.status}`,
+        detail: `Challenge already ${ch.status}`,
+      });
+      return json({ error: `Challenge already ${ch.status}` }, 400);
+    }
     if (new Date(ch.otp_expires_at).getTime() < Date.now()) {
       await admin.from("landlord_payout_otp_challenges").update({ status: "expired" }).eq("id", challenge_id);
+      await logEvent(admin, ch, challenge_id, agentId, {
+        event_type: "failed",
+        failure_reason: "expired",
+        detail: "OTP expired before verification",
+      });
       return json({ error: "OTP expired. Request a new code." }, 400);
     }
     if (ch.attempts >= ch.max_attempts) {
       await admin.from("landlord_payout_otp_challenges").update({ status: "failed" }).eq("id", challenge_id);
-      await admin.from("landlord_payout_otp_events").insert({
-        challenge_id,
-        agent_id: agentId,
-        landlord_id: ch.landlord_id,
+      await logEvent(admin, ch, challenge_id, agentId, {
         event_type: "failed",
-        landlord_phone: ch.landlord_phone,
-        amount: ch.amount,
+        failure_reason: "too_many_attempts",
         detail: "Too many attempts — challenge locked",
       });
       return json({ error: "Too many attempts. Start over." }, 400);
@@ -72,13 +113,9 @@ Deno.serve(async (req) => {
         .from("landlord_payout_otp_challenges")
         .update({ attempts: newAttempts, status: exhausted ? "failed" : "pending" })
         .eq("id", challenge_id);
-      await admin.from("landlord_payout_otp_events").insert({
-        challenge_id,
-        agent_id: agentId,
-        landlord_id: ch.landlord_id,
+      await logEvent(admin, ch, challenge_id, agentId, {
         event_type: exhausted ? "failed" : "incorrect_attempt",
-        landlord_phone: ch.landlord_phone,
-        amount: ch.amount,
+        failure_reason: exhausted ? "too_many_attempts" : "invalid_code",
         detail: exhausted ? "Too many incorrect attempts" : `Incorrect OTP (attempt ${newAttempts}/${ch.max_attempts})`,
         metadata: { attempts: newAttempts, max_attempts: ch.max_attempts },
       });
@@ -106,30 +143,54 @@ Deno.serve(async (req) => {
     });
 
     // Trigger disbursement (passes agent's own JWT so the existing function attributes correctly)
-    const disburseRes = await fetch(`${SUPABASE_URL}/functions/v1/landlord-payout-disburse`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: auth,
-      },
-      body: JSON.stringify({
-        rent_request_id: ch.rent_request_id ?? challenge_id, // fallback for ad-hoc payouts
-        landlord_id: ch.landlord_id,
-        tenant_id: ch.tenant_id,
-        amount: ch.amount,
-        landlord_phone: ch.landlord_phone,
-        landlord_name: ch.landlord_name,
-        mobile_money_provider: ch.mobile_money_provider,
-        otp_verified_at: verified_at,
-        agent_latitude: ch.agent_latitude,
-        agent_longitude: ch.agent_longitude,
-        property_latitude: ch.property_latitude,
-        property_longitude: ch.property_longitude,
-      }),
-    });
+    let disburseRes: Response;
+    const timeoutCtrl = new AbortController();
+    const timeoutId = setTimeout(() => timeoutCtrl.abort(), 25000);
+    try {
+      disburseRes = await fetch(`${SUPABASE_URL}/functions/v1/landlord-payout-disburse`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: auth,
+        },
+        signal: timeoutCtrl.signal,
+        body: JSON.stringify({
+          rent_request_id: ch.rent_request_id ?? challenge_id, // fallback for ad-hoc payouts
+          landlord_id: ch.landlord_id,
+          tenant_id: ch.tenant_id,
+          amount: ch.amount,
+          landlord_phone: ch.landlord_phone,
+          landlord_name: ch.landlord_name,
+          mobile_money_provider: ch.mobile_money_provider,
+          otp_verified_at: verified_at,
+          agent_latitude: ch.agent_latitude,
+          agent_longitude: ch.agent_longitude,
+          property_latitude: ch.property_latitude,
+          property_longitude: ch.property_longitude,
+        }),
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      const isTimeout = e instanceof DOMException && e.name === "AbortError";
+      await logEvent(admin, ch, challenge_id, agentId, {
+        event_type: "failed",
+        failure_reason: isTimeout ? "timeout" : "disburse_failed",
+        detail: isTimeout ? "Disbursement request timed out" : "Disbursement request error",
+      });
+      return json(
+        { error: isTimeout ? "Disbursement timed out. Please retry." : "Disbursement failed to start", challenge_id },
+        504,
+      );
+    }
+    clearTimeout(timeoutId);
 
     const disburseBody = await disburseRes.json().catch(() => ({}));
     if (!disburseRes.ok) {
+      await logEvent(admin, ch, challenge_id, agentId, {
+        event_type: "failed",
+        failure_reason: "disburse_failed",
+        detail: disburseBody?.error ?? "Disbursement failed to start",
+      });
       return json(
         { error: disburseBody?.error ?? "Disbursement failed to start", challenge_id },
         disburseRes.status,
