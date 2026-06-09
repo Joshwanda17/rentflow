@@ -44,6 +44,39 @@ interface SmsResult {
   primaryReason?: string;
 }
 
+// Yoola is the PRIMARY OTP sender. JSON body { phone, message, api_key } posted
+// to https://yoolasms.com/api/v1/send; { status: "success" } = accepted. Phone
+// must be country-code digits WITHOUT a leading "+".
+async function sendYoolaSms(phone: string, message: string): Promise<SmsResult> {
+  const apiKey = (Deno.env.get("YOOLA_SMS_API_KEY") || "").trim();
+  if (!apiKey) {
+    return { ok: false, reason: "Yoola not configured", provider: "yoola" };
+  }
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: phone.replace(/\D/g, ""), message, api_key: apiKey }),
+    });
+    const text = await res.text();
+    let data: any = null;
+    try { data = JSON.parse(text); } catch { /* keep raw text */ }
+    const status = String(data?.status ?? "").toLowerCase();
+    const accepted = res.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued");
+    return {
+      ok: accepted,
+      status: data?.status ?? undefined,
+      reason: accepted ? undefined : (data?.message || `Yoola HTTP ${res.status}`),
+      messageId: data?.message_id ?? undefined,
+      raw: data ?? text,
+      provider: "yoola",
+    };
+  } catch (e) {
+    console.error("[issue-landlord-payout-otp] Yoola error:", e);
+    return { ok: false, reason: e instanceof Error ? e.message : "Yoola network error", provider: "yoola" };
+  }
+}
+
 // Africa's Talking returns HTTP 201 even when a recipient is REJECTED (invalid
 // number, blacklisted/DND, no credit, unsupported sender id). The real outcome
 // lives in SMSMessageData.Recipients[].statusCode (100/101 = accepted). Checking
@@ -145,21 +178,34 @@ async function sendTwilioSms(phone: string, message: string): Promise<SmsResult>
   }
 }
 
-// Send via Africa's Talking first; if it is not accepted, automatically reissue
-// the same OTP through Twilio. The returned result reflects whichever provider
-// ultimately delivered, with fallback metadata preserved for the audit trail.
+// Yoola is PRIMARY. If Yoola is not accepted, fall back to Africa's Talking, then
+// Twilio — reissuing the same OTP. The returned result reflects whichever
+// provider ultimately delivered, with fallback metadata preserved for the audit
+// trail.
 async function sendOtpWithFallback(phone: string, message: string): Promise<SmsResult> {
-  const primary = await sendSms(phone, message);
+  const primary = await sendYoolaSms(phone, message);
   if (primary.ok) return primary;
   console.warn(
-    `[issue-landlord-payout-otp] AT send failed (${primary.reason ?? "unknown"}) — falling back to Twilio`,
+    `[issue-landlord-payout-otp] Yoola send failed (${primary.reason ?? "unknown"}) — falling back to Africa's Talking`,
+  );
+  const at = await sendSms(phone, message);
+  if (at.ok) {
+    return {
+      ...at,
+      fallbackUsed: true,
+      primaryProvider: primary.provider ?? "yoola",
+      primaryReason: primary.reason ?? "Yoola send not accepted",
+    };
+  }
+  console.warn(
+    `[issue-landlord-payout-otp] AT send failed (${at.reason ?? "unknown"}) — falling back to Twilio`,
   );
   const fallback = await sendTwilioSms(phone, message);
   return {
     ...fallback,
     fallbackUsed: true,
-    primaryProvider: primary.provider ?? "africastalking",
-    primaryReason: primary.reason ?? "AT send not accepted",
+    primaryProvider: primary.provider ?? "yoola",
+    primaryReason: primary.reason ?? "Yoola send not accepted",
   };
 }
 
