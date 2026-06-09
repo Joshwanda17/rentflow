@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { citiesForCountry } from "@/lib/worldCountries";
+import { loadCitiesForCountry, type WorldCity } from "@/lib/worldCountries";
 
 interface CityComboboxProps {
   /** ISO-3166 alpha-2 code of the selected country. */
@@ -35,11 +35,26 @@ export function CityCombobox({
 }: CityComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [cities, setCities] = useState<WorldCity[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const cities = useMemo(
-    () => (countryIso ? citiesForCountry(countryIso) : []),
-    [countryIso],
-  );
+  // Lazily load the (large) city dataset only once the picker is opened
+  // for a selected country.
+  useEffect(() => {
+    if (!open || !countryIso) return;
+    let cancelled = false;
+    setLoading(true);
+    loadCitiesForCountry(countryIso)
+      .then((list) => {
+        if (!cancelled) setCities(list);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, countryIso]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -80,7 +95,9 @@ export function CityCombobox({
           />
           <CommandList>
             <CommandEmpty>
-              {hasCities
+              {loading
+                ? "Loading cities…"
+                : hasCities
                 ? "No matching city. You can type it manually below."
                 : "No cities listed for this country. Type it manually below."}
             </CommandEmpty>
