@@ -8399,6 +8399,48 @@ export type Database = {
         }
         Relationships: []
       }
+      landlord_approval_audit: {
+        Row: {
+          bonus_credit_note: string | null
+          bonus_credit_queued: boolean
+          created_at: string
+          id: string
+          landlord_id: string | null
+          new_status: string
+          operator_id: string
+          previous_status: string | null
+          rent_request_id: string
+          status_changed_at: string
+          tenant_id: string | null
+        }
+        Insert: {
+          bonus_credit_note?: string | null
+          bonus_credit_queued?: boolean
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          new_status: string
+          operator_id: string
+          previous_status?: string | null
+          rent_request_id: string
+          status_changed_at?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          bonus_credit_note?: string | null
+          bonus_credit_queued?: boolean
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          new_status?: string
+          operator_id?: string
+          previous_status?: string | null
+          rent_request_id?: string
+          status_changed_at?: string
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       landlord_funder_links: {
         Row: {
           active: boolean
