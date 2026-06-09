@@ -50,6 +50,8 @@ interface LandlordGroup {
   pendingCount: number;
   totalAmount: number;
   allHidden: boolean;
+  photos: string[]; // first few house photo URLs for collapsed-row preview
+  photoCount: number;
 }
 
 function classify(status: string): 'paid' | 'pending' | null {
@@ -123,12 +125,12 @@ export function LandlordsWithTenantsView() {
         if (hl) houseLinks.push(...(hl as any));
       }
 
-      // 4. House-listing visibility (is_hidden + status) — for collapsed-row badge
-      const houseVis: { landlord_id: string; is_hidden: boolean | null; status: string | null }[] = [];
+      // 4. House-listing visibility + photos (is_hidden + status + image_urls) — for collapsed-row badge & thumbnails
+      const houseVis: { landlord_id: string; is_hidden: boolean | null; status: string | null; image_urls: string[] | null }[] = [];
       for (let i = 0; i < landlordIds.length; i += 200) {
         const { data: hv } = await supabase
           .from('house_listings')
-          .select('landlord_id, is_hidden, status')
+          .select('landlord_id, is_hidden, status, image_urls')
           .in('landlord_id', landlordIds.slice(i, i + 200));
         if (hv) houseVis.push(...(hv as any));
       }
@@ -156,13 +158,30 @@ export function LandlordsWithTenantsView() {
   const groups: LandlordGroup[] = useMemo(() => {
     if (!data) return [];
     const { allLandlords, validRows, landlordMap, tenantMap, houseLinks, houseVis } = data;
+    const safeHouseVis = Array.isArray(houseVis) ? houseVis : [];
 
     // Pre-compute hidden status per landlord
     const hiddenMap = new Map<string, boolean>();
     for (const l of allLandlords) {
-      const houses = houseVis.filter(h => h.landlord_id === l.id);
+      const houses = safeHouseVis.filter(h => h.landlord_id === l.id);
       const liveHouses = houses.filter(h => h.status !== 'rejected' && h.status !== 'delisted');
       hiddenMap.set(l.id, liveHouses.length > 0 && liveHouses.every(h => h.is_hidden));
+    }
+
+    // Pre-compute photos per landlord
+    const photoMap = new Map<string, string[]>();
+    for (const l of allLandlords) {
+      const urls: string[] = [];
+      for (const h of safeHouseVis) {
+        if (h.landlord_id === l.id && Array.isArray(h.image_urls)) {
+          for (const u of h.image_urls) {
+            if (u && urls.length < 4) urls.push(u);
+            if (urls.length >= 4) break;
+          }
+        }
+        if (urls.length >= 4) break;
+      }
+      photoMap.set(l.id, urls);
     }
 
     // Initialize bucket for EVERY landlord (so all 325+ appear, even without tenants)
@@ -252,15 +271,20 @@ export function LandlordsWithTenantsView() {
           phone: null,
           tenants, paidCount, pendingCount, totalAmount,
           allHidden: false,
+          photos: [],
+          photoCount: 0,
         });
       } else {
         const ll = landlordMap.get(lkey);
+        const photos = photoMap.get(lkey) || [];
         out.push({
           landlord_id: lkey,
           name: ll?.name || 'Unknown Landlord',
           phone: ll?.phone || null,
           tenants, paidCount, pendingCount, totalAmount,
           allHidden: !!hiddenMap.get(lkey),
+          photos,
+          photoCount: photos.length,
         });
       }
     }
@@ -692,6 +716,23 @@ export function LandlordsWithTenantsView() {
                           </Badge>
                         )}
                       </div>
+                      {/* Collapsed-row photo thumbnails */}
+                      {g.photoCount > 0 && (
+                        <div className="flex items-center justify-end gap-1 mt-2">
+                          {g.photos.map((url, i) => (
+                            <img
+                              key={`${url}-${i}`}
+                              src={url}
+                              alt={`House ${i + 1}`}
+                              className="h-10 w-10 rounded-md object-cover border"
+                              loading="lazy"
+                            />
+                          ))}
+                          {g.photoCount >= 4 && (
+                            <span className="text-[10px] text-muted-foreground ml-0.5">+</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center justify-end mt-2 text-[11px] text-muted-foreground">
