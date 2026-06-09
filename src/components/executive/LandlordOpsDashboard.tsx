@@ -1430,7 +1430,13 @@ export function LandlordOpsDashboard() {
   // Detail sheet opened when a drilldown table row is clicked.
   const renderEntityDetail = () => {
     if (!entityDetail) return null;
-    const close = () => setEntityDetail(null);
+    const close = closeEntity;
+    const buildShareUrl = (type: string, id: string) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('entity', type);
+      url.searchParams.set('eid', id);
+      return url.toString();
+    };
 
     if (entityDetail.type === 'city') {
       const c = entityDetail.data;
@@ -1438,6 +1444,7 @@ export function LandlordOpsDashboard() {
         <EntityDetailSheet
           open
           onClose={close}
+          shareUrl={buildShareUrl('city', c.city)}
           title={c.city}
           subtitle="City overview"
           icon={<Globe className="h-5 w-5 text-teal-600" />}
@@ -1455,6 +1462,7 @@ export function LandlordOpsDashboard() {
         <EntityDetailSheet
           open
           onClose={close}
+          shareUrl={buildShareUrl('no-landlord', t.id)}
           title={t.tenant_name}
           subtitle="Tenant with no landlord listed"
           icon={<UserX className="h-5 w-5 text-orange-600" />}
@@ -1496,6 +1504,7 @@ export function LandlordOpsDashboard() {
       <EntityDetailSheet
         open
         onClose={close}
+        shareUrl={buildShareUrl('landlord', l.id)}
         title={l.name}
         subtitle={tenants.length > 0 ? 'Occupied landlord' : 'Empty landlord'}
         icon={<Building2 className="h-5 w-5 text-sky-600" />}
