@@ -22,6 +22,7 @@ interface PayoutOtpPayload {
   agent_longitude?: number | null;
   property_latitude?: number | null;
   property_longitude?: number | null;
+  trigger_source?: 'auto' | 'manual';
 }
 
 export function useLandlordOtp() {
