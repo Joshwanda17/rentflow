@@ -74,6 +74,70 @@ function formatPhoneYoola(rawPhone: string): string {
 }
 
 /**
+ * Format a phone number for LANA SMS: digits only, with the country code but
+ * WITHOUT a leading "+" (e.g. "256704487563"). Same shape as Yoola.
+ */
+function formatPhoneLana(rawPhone: string): string {
+  return formatPhoneInternational(rawPhone).replace(/^\+/, "");
+}
+
+/**
+ * Single LANA SMS send attempt with a hard timeout. LANA's REST API accepts a
+ * JSON body { phone, message } at https://api.lanasms.com/v1/send with a
+ * Bearer token and returns { status: true|"success", message_id, ... } on
+ * acceptance ({ status: false, message } on rejection — still HTTP 200).
+ */
+async function sendLanaAttempt(
+  apiKey: string,
+  phone: string,
+  message: string,
+): Promise<SmsResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SMS_ATTEMPT_TIMEOUT_MS);
+  try {
+    const response = await fetch("https://api.lanasms.com/v1/send", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        phone: formatPhoneLana(phone),
+        message,
+      }),
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    console.log(`[sms-otp] LANA response (${response.status}):`, text);
+
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON body */ }
+
+    const rawStatus = data?.status;
+    const statusStr = String(rawStatus ?? "").toLowerCase();
+    const accepted = rawStatus === true ||
+      statusStr === "success" || statusStr === "true" ||
+      statusStr === "ok" || statusStr === "sent" || statusStr === "queued";
+    if (response.ok && accepted) return { accepted: true };
+
+    if (!response.ok && (response.status >= 500 || response.status === 429)) {
+      return { accepted: false, reason: "network_error" };
+    }
+    const detail = String(data?.message ?? statusStr ?? "rejected")
+      .toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40);
+    return { accepted: false, reason: `lana_${response.status}_${detail || "rejected"}` };
+  } catch (error) {
+    const aborted = (error as Error)?.name === "AbortError";
+    console.error(`[sms-otp] LANA attempt ${aborted ? "timed out" : "failed"}:`, error);
+    return { accepted: false, reason: aborted ? "timeout" : "network_error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Single Yoola SMS send attempt with a hard timeout. Yoola's REST API accepts
  * a JSON body { phone, message, api_key } at https://yoolasms.com/api/v1/send
  * and returns { status: "success", ... } on acceptance.
