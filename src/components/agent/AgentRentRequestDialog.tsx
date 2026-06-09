@@ -471,6 +471,47 @@ function RequestStateBanner({ state }: { state: 'idle' | 'submitting' | 'success
   );
 }
 
+function QueuedSubmitBanner({ status }: { status: 'idle' | 'queued' | 'cancelling' | 'ready' }) {
+  if (status === 'idle') return null;
+
+  const configs = {
+    queued: {
+      icon: <Loader2 className="h-5 w-5 animate-spin" />,
+      label: 'Submit Queued',
+      body: 'Finishing auto-save before firing. Tap the button again to cancel.',
+      classes: 'bg-amber-500/10 border-amber-500/30 text-amber-700',
+      iconBg: 'bg-amber-500/20',
+    },
+    cancelling: {
+      icon: <X className="h-5 w-5" />,
+      label: 'Cancelling',
+      body: 'Aborting queued submit…',
+      classes: 'bg-muted border-border text-muted-foreground',
+      iconBg: 'bg-muted-foreground/20',
+    },
+    ready: {
+      icon: <Loader2 className="h-5 w-5 animate-spin" />,
+      label: 'Firing Submit',
+      body: 'All clear — submitting your request now.',
+      classes: 'bg-primary/10 border-primary/30 text-primary',
+      iconBg: 'bg-primary/20',
+    },
+  };
+
+  const cfg = configs[status];
+  return (
+    <div className={`rounded-xl border p-3 flex items-center gap-3 ${cfg.classes}`} role="status" aria-live="polite">
+      <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${cfg.iconBg}`}>
+        {cfg.icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold">{cfg.label}</p>
+        <p className="text-xs opacity-90 leading-snug">{cfg.body}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId, preselectHouse }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
