@@ -25,6 +25,7 @@ import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { Undo2 } from 'lucide-react';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
 import { shareOrDownloadRepaymentSheet, type RepaymentSheetData } from '@/lib/agentRepaymentSheetPdf';
+import { shareOrDownloadFloatAllocations } from '@/lib/floatAllocationsPdf';
 import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
 import { EditTenantDialog } from './EditTenantDialog';
@@ -169,7 +170,15 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
-  const [floatAllocations, setFloatAllocations] = useState<{ date: string; amount: number }[]>([]);
+  const [floatAllocations, setFloatAllocations] = useState<
+    { date: string; amount: number; status: 'active' | 'reversed'; reason: string | null }[]
+  >([]);
+  // Float-allocation viewer filters (date range + status).
+  const [allocFrom, setAllocFrom] = useState<string>('');
+  const [allocTo, setAllocTo] = useState<string>('');
+  const [allocStatus, setAllocStatus] = useState<'all' | 'active' | 'reversed'>('all');
+  const [downloadingAllocPdf, setDownloadingAllocPdf] = useState(false);
+  const [showAllAllocations, setShowAllAllocations] = useState(false);
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -293,9 +302,18 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .order('created_at', { ascending: true })
           .limit(400);
         setFloatAllocations(
-          (allocData || [])
-            .filter((r: any) => !(r.notes || '').toLowerCase().includes('[reversed'))
-            .map((r: any) => ({ date: r.created_at, amount: Number(r.amount) || 0 })),
+          (allocData || []).map((r: any) => {
+            const notes = String(r.notes || '');
+            const isReversed = notes.toLowerCase().includes('[reversed');
+            // Pull out the bracketed reversal note if present.
+            const reasonMatch = notes.match(/\[reversed[:\s-]*([^\]]*)\]/i);
+            return {
+              date: r.created_at,
+              amount: Number(r.amount) || 0,
+              status: (isReversed ? 'reversed' : 'active') as 'active' | 'reversed',
+              reason: reasonMatch ? (reasonMatch[1].trim() || null) : null,
+            };
+          }),
         );
       }
 
@@ -661,7 +679,9 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           propertyAddress: r.landlord?.property_address ?? null,
         })),
         transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
-        allocations: floatAllocations,
+        allocations: floatAllocations
+          .filter((a) => a.status === 'active')
+          .map((a) => ({ date: a.date, amount: a.amount })),
       };
       await shareOrDownloadRepaymentSheet(sheet);
       setSheetRangeOpen(false);
@@ -672,6 +692,79 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       }
     } finally {
       setGeneratingSheet(false);
+    }
+  };
+
+  // ── Float-allocation viewer: apply date-range + status filters ──
+  const filteredAllocations = useMemo(() => {
+    const fromMs = allocFrom ? new Date(allocFrom).getTime() : null;
+    const toMs = allocTo ? new Date(allocTo + 'T23:59:59').getTime() : null;
+    return floatAllocations.filter((a) => {
+      if (allocStatus !== 'all' && a.status !== allocStatus) return false;
+      const ms = new Date(a.date).getTime();
+      if (fromMs !== null && ms < fromMs) return false;
+      if (toMs !== null && ms > toMs) return false;
+      return true;
+    });
+  }, [floatAllocations, allocFrom, allocTo, allocStatus]);
+
+  const allocationTotals = useMemo(() => {
+    const active = filteredAllocations.filter((a) => a.status === 'active');
+    const reversed = filteredAllocations.filter((a) => a.status === 'reversed');
+    return {
+      activeCount: active.length,
+      reversedCount: reversed.length,
+      activeTotal: active.reduce((s, a) => s + a.amount, 0),
+      reversedTotal: reversed.reduce((s, a) => s + a.amount, 0),
+    };
+  }, [filteredAllocations]);
+
+  const applyAllocPreset = (preset: 'all' | 'thisMonth' | '30d' | '90d') => {
+    const today = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    if (preset === 'all') {
+      setAllocFrom('');
+      setAllocTo('');
+      return;
+    }
+    if (preset === 'thisMonth') {
+      setAllocFrom(iso(new Date(today.getFullYear(), today.getMonth(), 1)));
+      setAllocTo(iso(today));
+      return;
+    }
+    const days = preset === '30d' ? 30 : 90;
+    const from = new Date(today);
+    from.setDate(from.getDate() - days);
+    setAllocFrom(iso(from));
+    setAllocTo(iso(today));
+  };
+
+  const handleDownloadAllocationsPdf = async () => {
+    if (!profile) return;
+    setDownloadingAllocPdf(true);
+    try {
+      await shareOrDownloadFloatAllocations({
+        aiId,
+        tenantName: profile.full_name,
+        phone: profile.phone,
+        agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
+        rows: filteredAllocations.map((a) => ({
+          date: a.date,
+          amount: a.amount,
+          status: a.status,
+          reason: a.reason,
+        })),
+        periodFrom: allocFrom || null,
+        periodTo: allocTo || null,
+        statusFilter: allocStatus,
+      });
+      toast({ title: '📄 Float allocations PDF ready' });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast({ title: 'Failed to generate PDF', description: err?.message, variant: 'destructive' });
+      }
+    } finally {
+      setDownloadingAllocPdf(false);
     }
   };
 
@@ -1732,6 +1825,123 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         {profile.monthly_rent && profile.monthly_rent > 0 && (
           <SectionCard icon={Banknote} title="Monthly Rent">
             <p className="text-2xl sm:text-3xl font-black font-mono text-primary">{formatUGX(profile.monthly_rent)}</p>
+          </SectionCard>
+        )}
+
+        {/* ── Float Allocations viewer — filter by date range & status, download PDF ── */}
+        {floatAllocations.length > 0 && (
+          <SectionCard
+            icon={Wallet}
+            title="Float Allocations"
+            tone="primary"
+            badge={<Badge variant="outline" className="text-[10px]">{floatAllocations.length} total</Badge>}
+          >
+            {/* Status filter */}
+            <div className="flex flex-wrap gap-2">
+              {(['all', 'active', 'reversed'] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={allocStatus === s ? 'default' : 'soft'}
+                  className="h-9 rounded-lg capitalize"
+                  onClick={() => { setAllocStatus(s); setShowAllAllocations(false); }}
+                >
+                  {s === 'all' ? 'All' : s}
+                </Button>
+              ))}
+            </div>
+
+            {/* Date range presets */}
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="soft" size="sm" className="h-8 rounded-lg text-xs" onClick={() => applyAllocPreset('all')}>All time</Button>
+              <Button type="button" variant="soft" size="sm" className="h-8 rounded-lg text-xs" onClick={() => applyAllocPreset('thisMonth')}>This month</Button>
+              <Button type="button" variant="soft" size="sm" className="h-8 rounded-lg text-xs" onClick={() => applyAllocPreset('30d')}>Last 30 days</Button>
+              <Button type="button" variant="soft" size="sm" className="h-8 rounded-lg text-xs" onClick={() => applyAllocPreset('90d')}>Last 90 days</Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs font-medium text-muted-foreground space-y-1">
+                <span>From</span>
+                <input
+                  type="date"
+                  value={allocFrom}
+                  max={allocTo || undefined}
+                  onChange={(e) => { setAllocFrom(e.target.value); setShowAllAllocations(false); }}
+                  className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+              <label className="text-xs font-medium text-muted-foreground space-y-1">
+                <span>To</span>
+                <input
+                  type="date"
+                  value={allocTo}
+                  min={allocFrom || undefined}
+                  onChange={(e) => { setAllocTo(e.target.value); setShowAllAllocations(false); }}
+                  className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+            </div>
+
+            {/* Summary */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-success/10 px-3 py-2">
+                <p className="text-[11px] text-muted-foreground">Active allocated ({allocationTotals.activeCount})</p>
+                <p className="text-base font-black font-mono text-success">{formatUGX(allocationTotals.activeTotal)}</p>
+              </div>
+              <div className="rounded-xl bg-destructive/10 px-3 py-2">
+                <p className="text-[11px] text-muted-foreground">Reversed ({allocationTotals.reversedCount})</p>
+                <p className="text-base font-black font-mono text-destructive">{formatUGX(allocationTotals.reversedTotal)}</p>
+              </div>
+            </div>
+
+            {/* Filtered list */}
+            {filteredAllocations.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-3">No allocations match these filters.</p>
+            ) : (
+              <div className="space-y-2">
+                {(showAllAllocations ? filteredAllocations : filteredAllocations.slice(0, PAGE_SIZE)).map((a, i) => (
+                  <div
+                    key={`${a.date}-${i}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/30 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        {format(new Date(a.date), 'dd MMM yyyy, HH:mm')}
+                      </p>
+                      {a.reason && <p className="text-[11px] text-muted-foreground truncate">{a.reason}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${a.status === 'reversed' ? 'border-destructive/40 text-destructive' : 'border-success/40 text-success'}`}
+                      >
+                        {a.status === 'reversed' ? 'Reversed' : 'Active'}
+                      </Badge>
+                      <span className={`font-mono font-bold text-sm ${a.status === 'reversed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                        {formatUGX(a.amount)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {filteredAllocations.length > PAGE_SIZE && (
+                  <Button variant="ghost" className="w-full text-sm gap-1 h-10" onClick={() => setShowAllAllocations(!showAllAllocations)}>
+                    {showAllAllocations ? <><ChevronUp className="h-4 w-4" /> Show Less</> : <><ChevronDown className="h-4 w-4" /> Show All ({filteredAllocations.length})</>}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            <Button
+              variant="default"
+              size="lg"
+              disabled={downloadingAllocPdf || filteredAllocations.length === 0}
+              onClick={handleDownloadAllocationsPdf}
+              className="w-full h-11 rounded-xl gap-2 font-semibold"
+              aria-label="Download filtered float allocations PDF"
+            >
+              {downloadingAllocPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+              {downloadingAllocPdf ? 'Generating…' : 'Download Allocations PDF'}
+            </Button>
           </SectionCard>
         )}
 
