@@ -992,13 +992,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           {/* Progress stepper — big, visual, minimal reading */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-stretch gap-1.5">
             {STEP_LABELS.map((label, i) => {
               const n = i + 1;
               const active = n === step;
               const done = n < step;
               return (
-                <div key={label} className="flex-1 text-center">
+                <div key={label} className="flex-1 min-w-0 text-center">
                   <div
                     className={`mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-full text-base font-bold ${
                       done
@@ -1010,7 +1010,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   >
                     {done ? <Check className="h-5 w-5" /> : n}
                   </div>
-                  <span className={`text-xs ${active ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{label}</span>
+                  <span className={`block truncate text-xs leading-tight ${active ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{label}</span>
                 </div>
               );
             })}
