@@ -187,6 +187,8 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                 const head = group[0];
                 const resendable = isResendable(group);
                 const isResending = resendingId === head.challenge_id;
+                const attempts = attemptIndex(group);
+                const totalAttempts = Object.keys(attempts).length;
                 return (
                   <div key={head.challenge_id} className="rounded-lg border bg-card overflow-hidden">
                     <div className="px-3 py-2 bg-muted/40 border-b flex items-center justify-between gap-2">
@@ -202,6 +204,11 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                       <div className="flex items-center gap-2 shrink-0">
                         {head.amount != null && (
                           <Badge variant="secondary">{formatUGX(Number(head.amount))}</Badge>
+                        )}
+                        {totalAttempts > 1 && (
+                          <Badge variant="outline" className="text-[10px]">
+                            {totalAttempts} attempts
+                          </Badge>
                         )}
                         {resendable && (
                           <Button
