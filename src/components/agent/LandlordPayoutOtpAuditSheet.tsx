@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import {
-  Send, RefreshCw, ShieldCheck, XCircle, AlertTriangle, Clock, Loader2, User2, Zap,
+  Send, RefreshCw, ShieldCheck, XCircle, AlertTriangle, Clock, Loader2, User2, Zap, CheckCircle2,
 } from 'lucide-react';
 
 interface Props {
@@ -26,20 +26,25 @@ interface OtpEvent {
   otp_expires_at: string | null;
   detail: string | null;
   failure_reason: string | null;
-  metadata: { trigger_source?: string; sms_sent?: boolean; [key: string]: unknown } | null;
+  metadata: { trigger_source?: string; sms_sent?: boolean; delivery_status?: string; [key: string]: unknown } | null;
   created_at: string;
 }
 
 const EVENT_META: Record<string, { label: string; icon: typeof Send; className: string }> = {
   sent: { label: 'Sent', icon: Send, className: 'bg-primary/10 text-primary border-primary/20' },
   resent: { label: 'Resent', icon: RefreshCw, className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  delivery_report: { label: 'Delivered', icon: CheckCircle2, className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
   verified: { label: 'Verified', icon: ShieldCheck, className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
   incorrect_attempt: { label: 'Wrong code', icon: AlertTriangle, className: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
   failed: { label: 'Failed', icon: XCircle, className: 'bg-destructive/10 text-destructive border-destructive/20' },
 };
 
-function metaFor(type: string) {
-  return EVENT_META[type] ?? { label: type, icon: Clock, className: 'bg-muted text-muted-foreground border-border' };
+function metaFor(ev: OtpEvent) {
+  // A delivery report can be a delivery confirmation OR a delivery failure.
+  if (ev.event_type === 'delivery_report' && ev.metadata?.delivery_status === 'failed') {
+    return { label: 'Not delivered', icon: XCircle, className: 'bg-destructive/10 text-destructive border-destructive/20' };
+  }
+  return EVENT_META[ev.event_type] ?? { label: ev.event_type, icon: Clock, className: 'bg-muted text-muted-foreground border-border' };
 }
 
 const FAILURE_REASON_LABELS: Record<string, string> = {
@@ -133,7 +138,7 @@ export function LandlordPayoutOtpAuditSheet({ open, onOpenChange }: Props) {
                         .slice()
                         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                         .map((ev) => {
-                          const m = metaFor(ev.event_type);
+                          const m = metaFor(ev);
                           const Icon = m.icon;
                           return (
                             <li key={ev.id} className="ml-4 py-2 pr-3">
