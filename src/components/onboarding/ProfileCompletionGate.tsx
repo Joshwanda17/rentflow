@@ -137,6 +137,11 @@ export default function ProfileCompletionGate() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
+  // The country/city dataset is large (~2.2 MB) and loaded lazily. We pull
+  // it in only once the gate is actually open, then bump this counter so
+  // the synchronous `continentForCountry`/`isoForCountry` lookups re-run.
+  const [geoReady, setGeoReady] = useState(0);
+
   // Quick setup is the easy, picture-first path shown by default to the
   // mandatory gate. Users can switch to the detailed form via "More options".
   const [quickMode, setQuickMode] = useState(true);
@@ -395,7 +400,12 @@ export default function ProfileCompletionGate() {
 
   const isUganda = country === "Uganda";
   const resolvedCountry = country.trim();
-  const countryIso = isoForCountry(country);
+  // `geoReady` is referenced so this recomputes once the dataset loads.
+  const countryIso = useMemo(
+    () => isoForCountry(country),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [country, geoReady],
+  );
 
   // Existing referrer (locked attribution) — show their name
   const { data: existingReferrer } = useQuery({
