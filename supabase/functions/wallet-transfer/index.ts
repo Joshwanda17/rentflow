@@ -179,12 +179,15 @@ Deno.serve(async (req) => {
         : 1;
     const breadNoun = breadQty === 1 ? 'Welile bread' : `Welile breads`;
     const breadPrefix = isWelileBread && breadQty > 1 ? `${breadQty} ` : '';
-    const senderDescription = isWelileBread
-      ? `You have sent ${breadPrefix}${breadNoun} of ${formattedAmount}`
-      : `Transfer to user: ${safeDescription}`;
-    const recipientDescription = isWelileBread
-      ? `You have received ${breadPrefix}${breadNoun} of ${formattedAmount}`
-      : `Transfer from user: ${safeDescription}`;
+    // Was a real reason supplied, or just the default placeholder? Used to
+    // decide whether to append " — <reason>" to the statement descriptions.
+    const trimmedReason = (safeDescription || '').trim();
+    const hasReason =
+      trimmedReason.length > 0 &&
+      trimmedReason.toLowerCase() !== 'wallet transfer';
+    // NOTE: senderDescription / recipientDescription are built AFTER the
+    // counterparty profiles are resolved (further down) so the receiver sees
+    // the SENDER'S NAME + reason and the sender sees the RECIPIENT'S name.
 
     // === Stable, human-readable transfer reference ===
     // Persisted on BOTH ledger legs (reference_id) and returned to the
@@ -230,6 +233,20 @@ Deno.serve(async (req) => {
       senderProfile?.full_name?.trim() || senderProfile?.phone || 'Welile user';
     const recipientLabel =
       recipientProfile?.full_name?.trim() || recipientProfile?.phone || 'Welile user';
+
+    // === Statement descriptions (now that we know both names) ===
+    // Receiver's wallet statement shows WHO sent it + WHY. Sender's shows
+    // WHO received it + WHY. Reason is only appended when meaningfully set.
+    const senderDescription = isWelileBread
+      ? `You have sent ${breadPrefix}${breadNoun} of ${formattedAmount} to ${recipientLabel}`
+      : hasReason
+        ? `Transfer to ${recipientLabel}: ${trimmedReason}`
+        : `Transfer to ${recipientLabel}`;
+    const recipientDescription = isWelileBread
+      ? `You have received ${breadPrefix}${breadNoun} of ${formattedAmount} from ${senderLabel}`
+      : hasReason
+        ? `Transfer from ${senderLabel}: ${trimmedReason}`
+        : `Transfer from ${senderLabel}`;
 
     // Pre-check sender balance — STRICT withdrawable only.
     // Wallet transfers move money out of the withdrawable bucket
@@ -356,14 +373,22 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [resolvedRecipientId],
-        payload: { title: "💰 Transfer Received", body: `UGX ${amount.toLocaleString()} received in your wallet`, url: "/dashboard/tenant", type: "success" },
+        payload: {
+          title: "💰 Transfer Received",
+          body: hasReason
+            ? `UGX ${amount.toLocaleString()} from ${senderLabel} — ${trimmedReason}`
+            : `UGX ${amount.toLocaleString()} received from ${senderLabel}`,
+          url: "/dashboard/tenant",
+          type: "success",
+        },
       }),
     }).catch(() => {});
 
     // SMS to recipient: "You have received UGX ... from <sender name>" (fire-and-forget)
     if (recipientProfile?.phone) {
       const smsMessage =
-        `WELILE: You have received ${formattedAmount} from ${senderLabel}. ` +
+        `WELILE: You have received ${formattedAmount} from ${senderLabel}.` +
+        (hasReason ? ` Reason: ${trimmedReason}.` : '') + ` ` +
         `New funds are now in your wallet. Ref: ${transferReference}. Thank you for using WELILE.`;
       sendSMS(recipientProfile.phone, smsMessage).catch(() => {});
     }
