@@ -18,6 +18,8 @@ interface DrilldownTableProps<T = any> {
   pageSize?: number;
   rowKey?: (row: T, index: number) => string;
   emptyMessage?: string;
+  /** When provided, rows become clickable and invoke this with the selected row */
+  onRowClick?: (row: T) => void;
 }
 
 type SortDir = 'asc' | 'desc';
@@ -28,6 +30,7 @@ export function DrilldownTable<T>({
   pageSize = 10,
   rowKey,
   emptyMessage = 'No records found',
+  onRowClick,
 }: DrilldownTableProps<T>) {
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -105,12 +108,13 @@ export function DrilldownTable<T>({
                   </th>
                 );
               })}
+              {onRowClick && <th className="w-8 px-2 py-2" aria-hidden />}
             </tr>
           </thead>
           <tbody>
             {paged.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="text-center py-6 text-muted-foreground">
+                <td colSpan={columns.length + (onRowClick ? 1 : 0)} className="text-center py-6 text-muted-foreground">
                   {emptyMessage}
                 </td>
               </tr>
@@ -118,7 +122,13 @@ export function DrilldownTable<T>({
               paged.map((row, i) => (
                 <tr
                   key={rowKey ? rowKey(row, safePage * pageSize + i) : safePage * pageSize + i}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  className={cn(
+                    'border-b border-border last:border-0 transition-colors',
+                    onRowClick
+                      ? 'cursor-pointer hover:bg-muted/40 active:bg-primary/10 touch-manipulation'
+                      : 'hover:bg-muted/30',
+                  )}
                 >
                   {columns.map(col => (
                     <td
@@ -131,6 +141,11 @@ export function DrilldownTable<T>({
                       {col.render ? col.render(row) : String((row as any)[col.key] ?? '—')}
                     </td>
                   ))}
+                  {onRowClick && (
+                    <td className="w-8 px-2 py-2 text-right align-middle">
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 inline" />
+                    </td>
+                  )}
                 </tr>
               ))
             )}
