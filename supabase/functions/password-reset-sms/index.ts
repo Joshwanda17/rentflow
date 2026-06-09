@@ -50,13 +50,49 @@ function formatPhoneInternational(rawPhone: string): string {
 }
 
 async function sendSMS(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
-  // Primary provider: Yoola SMS (while Africa's Talking comes back online).
+  // Provider chain: LANA (primary) → Yoola → Africa's Talking.
+  const lana = await sendViaLana(phone, message);
+  if (lana.ok) return lana;
+  console.warn(`[password-reset-sms] LANA not accepted (${lana.reason}); trying Yoola`);
   const yoola = await sendViaYoola(phone, message);
   if (yoola.ok) return yoola;
   console.warn(`[password-reset-sms] Yoola not accepted (${yoola.reason}); trying Africa's Talking`);
   const at = await sendViaAfricasTalking(phone, message);
   if (at.ok) return at;
-  return yoola.reason === "yoola_not_configured" ? at : yoola;
+  if (lana.reason && lana.reason !== "lana_not_configured") return lana;
+  if (yoola.reason && yoola.reason !== "yoola_not_configured") return yoola;
+  return at;
+}
+
+async function sendViaLana(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
+  const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
+  if (!apiKey) return { ok: false, reason: "lana_not_configured" };
+  try {
+    const phoneLana = formatPhoneInternational(phone).replace(/^\+/, "");
+    const response = await fetch("https://api.lanasms.com/v1/send", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({ phone: phoneLana, message }),
+    });
+    const text = await response.text();
+    console.log(`[password-reset-sms] LANA response (${response.status}):`, text);
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const rawStatus = data?.status;
+    const statusStr = String(rawStatus ?? "").toLowerCase();
+    const accepted = rawStatus === true ||
+      statusStr === "success" || statusStr === "true" ||
+      statusStr === "ok" || statusStr === "sent" || statusStr === "queued";
+    if (response.ok && accepted) return { ok: true };
+    return { ok: false, reason: `LANA rejected (${response.status}: ${data?.message ?? statusStr})` };
+  } catch (error) {
+    console.error("[password-reset-sms] LANA error:", error);
+    return { ok: false, reason: "Network error contacting SMS provider" };
+  }
 }
 
 async function sendViaYoola(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
