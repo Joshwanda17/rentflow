@@ -4292,6 +4292,31 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           ) : null}
         </AnimatePresence>
       </DialogContent>
+      {/* Photo preview lightbox */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreviewUrl(null)}
+        >
+          <div className="relative max-w-2xl w-full">
+            <button
+              type="button"
+              onClick={() => setPreviewUrl(null)}
+              className="absolute -top-10 right-0 w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={previewUrl}
+              alt={previewLabel}
+              className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+            />
+            {previewLabel && (
+              <p className="text-white text-sm text-center mt-3 font-medium">{previewLabel}</p>
+            )}
+          </div>
+        </div>
+      )}
       <RegisterLandlordDialog
         open={showRegisterLandlord}
         onOpenChange={setShowRegisterLandlord}
