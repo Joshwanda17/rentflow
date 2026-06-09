@@ -48,6 +48,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
   const [phoneOverride, setPhoneOverride] = useState<string>('');
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
+  const autoSendRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -129,6 +130,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     setResendCooldown(0);
     setAmountInput('');
     setPhoneOverride('');
+    autoSendRef.current = null;
     landlordOtp.resetOtp();
   };
 
