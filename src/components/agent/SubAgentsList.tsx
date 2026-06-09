@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
+import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import {
   Users,
   TrendingUp,
@@ -20,6 +22,7 @@ import {
   Search,
   Calendar,
   X,
+  Mail,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
