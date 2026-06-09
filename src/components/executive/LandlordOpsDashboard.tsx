@@ -17,6 +17,7 @@ import {
   Table2, Printer, CalendarIcon, Loader2, Upload,
 } from 'lucide-react';
 import { Eye, EyeOff } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
