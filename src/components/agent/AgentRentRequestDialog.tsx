@@ -538,6 +538,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // intent and fire the real submit the instant everything settles.
   const [submitQueued, setSubmitQueued] = useState(false);
   const [queueStatus, setQueueStatus] = useState<'idle' | 'queued' | 'cancelling' | 'ready'>('idle');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
@@ -2255,6 +2256,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     window.setTimeout(() => setQueueStatus('idle'), 900);
   }, []);
 
+  /** Opens the confirmation dialog before actually cancelling a queued submit. */
+  const promptCancelQueued = useCallback(() => {
+    setShowCancelConfirm(true);
+  }, []);
+
   // Flush a queued submit the moment capacity + auto-save settle. A safety
   // timeout fires the submit anyway after 8s so a stuck refetch never strands
   // the agent (handleSubmit tolerates a missing capacity snapshot).
@@ -2831,7 +2837,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </p>
                       <Button
                         type="button"
-                        onClick={submitQueued ? cancelQueuedSubmit : requestSubmit}
+                        onClick={submitQueued ? promptCancelQueued : requestSubmit}
                         disabled={loading}
                         variant={submitQueued ? 'secondary' : 'destructive'}
                         className="w-full"
@@ -2872,7 +2878,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       Back
                     </Button>
                     <Button 
-                      onClick={submitQueued ? cancelQueuedSubmit : requestSubmit} 
+                      onClick={submitQueued ? promptCancelQueued : requestSubmit}
                       className="flex-1"
                       variant={submitQueued ? 'secondary' : 'default'}
                       disabled={loading || (incomeType !== 'outstanding' && amount <= 0)}
@@ -3870,7 +3876,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </p>
                   <Button
                     type="button"
-                    onClick={submitQueued ? cancelQueuedSubmit : requestSubmit}
+                    onClick={submitQueued ? promptCancelQueued : requestSubmit}
                     disabled={loading}
                     variant={submitQueued ? 'secondary' : 'destructive'}
                     className="w-full"
@@ -4178,7 +4184,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </Button>
                 ) : (
                   <Button
-                    onClick={submitQueued ? cancelQueuedSubmit : requestSubmit}
+                    onClick={submitQueued ? promptCancelQueued : requestSubmit}
                     className="flex-1"
                     variant={submitQueued ? 'secondary' : 'default'}
                     disabled={loading || !amount || amount < 50000}
@@ -4270,6 +4276,28 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Discard &amp; close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel queued submit?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your request is waiting to submit. If you cancel, you'll need to tap Submit again when you're ready.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowCancelConfirm(false)}>Keep queued</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowCancelConfirm(false);
+                cancelQueuedSubmit();
+              }}
+            >
+              Yes, cancel
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
