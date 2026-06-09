@@ -320,6 +320,48 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
           </div>
         </div>
 
+        {/* Date Range Filter */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground">
+              {dateFrom || dateTo
+                ? `${dateFrom ? format(new Date(dateFrom), 'MMM d') : 'Start'} – ${dateTo ? format(new Date(dateTo), 'MMM d') : 'End'}`
+                : 'All time'}
+            </span>
+            {(dateFrom || dateTo) && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 ml-auto"
+                onClick={() => {
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+              >
+                <X className="h-3 w-3 text-muted-foreground" />
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="h-8 text-xs flex-1"
+              placeholder="From"
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="h-8 text-xs flex-1"
+              placeholder="To"
+            />
+          </div>
+        </div>
+
         {/* Search */}
         {subAgents.length > 4 && (
           <div className="relative">
