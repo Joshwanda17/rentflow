@@ -1828,6 +1828,123 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           </SectionCard>
         )}
 
+        {/* ── Float Allocations viewer — filter by date range & status, download PDF ── */}
+        {floatAllocations.length > 0 && (
+          <SectionCard
+            icon={Wallet}
+            title="Float Allocations"
+            tone="primary"
+            badge={<Badge variant="outline" className="text-[10px]">{floatAllocations.length} total</Badge>}
+          >
+            {/* Status filter */}
+            <div className="flex flex-wrap gap-2">
+              {(['all', 'active', 'reversed'] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={allocStatus === s ? 'default' : 'soft'}
+                  className="h-9 rounded-lg capitalize"
+                  onClick={() => { setAllocStatus(s); setShowAllAllocations(false); }}
+                >
+                  {s === 'all' ? 'All' : s}
+                </Button>
+              ))}
+            </div>
+
+            {/* Date range presets */}
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="soft" size="sm" className="h-8 rounded-lg text-xs" onClick={() => applyAllocPreset('all')}>All time</Button>
+              <Button type="button" variant="soft" size="sm" className="h-8 rounded-lg text-xs" onClick={() => applyAllocPreset('thisMonth')}>This month</Button>
+              <Button type="button" variant="soft" size="sm" className="h-8 rounded-lg text-xs" onClick={() => applyAllocPreset('30d')}>Last 30 days</Button>
+              <Button type="button" variant="soft" size="sm" className="h-8 rounded-lg text-xs" onClick={() => applyAllocPreset('90d')}>Last 90 days</Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs font-medium text-muted-foreground space-y-1">
+                <span>From</span>
+                <input
+                  type="date"
+                  value={allocFrom}
+                  max={allocTo || undefined}
+                  onChange={(e) => { setAllocFrom(e.target.value); setShowAllAllocations(false); }}
+                  className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+              <label className="text-xs font-medium text-muted-foreground space-y-1">
+                <span>To</span>
+                <input
+                  type="date"
+                  value={allocTo}
+                  min={allocFrom || undefined}
+                  onChange={(e) => { setAllocTo(e.target.value); setShowAllAllocations(false); }}
+                  className="w-full h-10 rounded-lg border border-border/60 bg-background px-2 text-sm text-foreground"
+                />
+              </label>
+            </div>
+
+            {/* Summary */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-success/10 px-3 py-2">
+                <p className="text-[11px] text-muted-foreground">Active allocated ({allocationTotals.activeCount})</p>
+                <p className="text-base font-black font-mono text-success">{formatUGX(allocationTotals.activeTotal)}</p>
+              </div>
+              <div className="rounded-xl bg-destructive/10 px-3 py-2">
+                <p className="text-[11px] text-muted-foreground">Reversed ({allocationTotals.reversedCount})</p>
+                <p className="text-base font-black font-mono text-destructive">{formatUGX(allocationTotals.reversedTotal)}</p>
+              </div>
+            </div>
+
+            {/* Filtered list */}
+            {filteredAllocations.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-3">No allocations match these filters.</p>
+            ) : (
+              <div className="space-y-2">
+                {(showAllAllocations ? filteredAllocations : filteredAllocations.slice(0, PAGE_SIZE)).map((a, i) => (
+                  <div
+                    key={`${a.date}-${i}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/30 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        {format(new Date(a.date), 'dd MMM yyyy, HH:mm')}
+                      </p>
+                      {a.reason && <p className="text-[11px] text-muted-foreground truncate">{a.reason}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${a.status === 'reversed' ? 'border-destructive/40 text-destructive' : 'border-success/40 text-success'}`}
+                      >
+                        {a.status === 'reversed' ? 'Reversed' : 'Active'}
+                      </Badge>
+                      <span className={`font-mono font-bold text-sm ${a.status === 'reversed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                        {formatUGX(a.amount)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {filteredAllocations.length > PAGE_SIZE && (
+                  <Button variant="ghost" className="w-full text-sm gap-1 h-10" onClick={() => setShowAllAllocations(!showAllAllocations)}>
+                    {showAllAllocations ? <><ChevronUp className="h-4 w-4" /> Show Less</> : <><ChevronDown className="h-4 w-4" /> Show All ({filteredAllocations.length})</>}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            <Button
+              variant="default"
+              size="lg"
+              disabled={downloadingAllocPdf || filteredAllocations.length === 0}
+              onClick={handleDownloadAllocationsPdf}
+              className="w-full h-11 rounded-xl gap-2 font-semibold"
+              aria-label="Download filtered float allocations PDF"
+            >
+              {downloadingAllocPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+              {downloadingAllocPdf ? 'Generating…' : 'Download Allocations PDF'}
+            </Button>
+          </SectionCard>
+        )}
+
         {/* ── Repayment sheet PDF — pick a period, then generate ── */}
         <Popover
           open={sheetRangeOpen}
