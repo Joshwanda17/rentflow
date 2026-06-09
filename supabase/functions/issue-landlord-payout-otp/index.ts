@@ -253,7 +253,7 @@ Deno.serve(async (req) => {
       const attemptNumber = (priorSends ?? 0) + 1;
 
       const phone = normalizePhone(existing.landlord_phone);
-      const resent = await sendSms(
+      const resent = await sendOtpWithFallback(
         phone,
         `Welile: You are receiving UGX ${Number(existing.amount).toLocaleString()} as rent. OTP: ${otp}. Valid 1 hour. Share with the agent ONLY if you want to receive this money.`,
       );
@@ -266,7 +266,11 @@ Deno.serve(async (req) => {
         landlord_phone: existing.landlord_phone,
         amount: existing.amount,
         otp_expires_at,
-        detail: resent.ok ? "OTP resent via SMS" : `OTP regenerated (SMS NOT delivered: ${resent.reason ?? "unknown"})`,
+        detail: resent.ok
+          ? (resent.fallbackUsed
+            ? `OTP resent via Twilio fallback (Africa's Talking failed: ${resent.primaryReason ?? "unknown"})`
+            : "OTP resent via SMS")
+          : `OTP regenerated (SMS NOT delivered: ${resent.reason ?? "unknown"})`,
         failure_reason: resent.ok ? null : (resent.reason ?? "sms_not_delivered"),
         metadata: {
           attempt_number: attemptNumber,
@@ -275,6 +279,10 @@ Deno.serve(async (req) => {
           sms_status_code: resent.statusCode ?? null,
           sms_reason: resent.reason ?? null,
           sms_message_id: resent.messageId ?? null,
+          sms_provider: resent.provider ?? null,
+          fallback_used: resent.fallbackUsed ?? false,
+          primary_provider: resent.primaryProvider ?? null,
+          primary_reason: resent.primaryReason ?? null,
           delivery_status: resent.ok ? "submitted" : "failed",
         },
       });
@@ -347,7 +355,7 @@ Deno.serve(async (req) => {
     }
 
     const phone = normalizePhone(landlord_phone);
-    const sent = await sendSms(
+    const sent = await sendOtpWithFallback(
       phone,
       `Welile: You are receiving UGX ${amt.toLocaleString()} as rent${tenant_name ? ` from ${tenant_name}` : ""}. OTP: ${otp}. Valid 1 hour. Share with the agent ONLY if you want to receive this money.`,
     );
@@ -362,8 +370,16 @@ Deno.serve(async (req) => {
       amount: amt,
       otp_expires_at,
       detail: normalizedTrigger === "auto"
-        ? (sent.ok ? "OTP auto-sent via SMS on withdraw float tap" : `OTP auto-created on withdraw float tap (SMS NOT delivered: ${sent.reason ?? "unknown"})`)
-        : (sent.ok ? "OTP sent via SMS" : `OTP created (SMS NOT delivered: ${sent.reason ?? "unknown"})`),
+        ? (sent.ok
+          ? (sent.fallbackUsed
+            ? `OTP auto-sent via Twilio fallback on withdraw float tap (Africa's Talking failed: ${sent.primaryReason ?? "unknown"})`
+            : "OTP auto-sent via SMS on withdraw float tap")
+          : `OTP auto-created on withdraw float tap (SMS NOT delivered: ${sent.reason ?? "unknown"})`)
+        : (sent.ok
+          ? (sent.fallbackUsed
+            ? `OTP sent via Twilio fallback (Africa's Talking failed: ${sent.primaryReason ?? "unknown"})`
+            : "OTP sent via SMS")
+          : `OTP created (SMS NOT delivered: ${sent.reason ?? "unknown"})`),
       failure_reason: sent.ok ? null : (sent.reason ?? "sms_not_delivered"),
       metadata: {
         attempt_number: 1,
@@ -372,6 +388,10 @@ Deno.serve(async (req) => {
         sms_status_code: sent.statusCode ?? null,
         sms_reason: sent.reason ?? null,
         sms_message_id: sent.messageId ?? null,
+        sms_provider: sent.provider ?? null,
+        fallback_used: sent.fallbackUsed ?? false,
+        primary_provider: sent.primaryProvider ?? null,
+        primary_reason: sent.primaryReason ?? null,
         delivery_status: sent.ok ? "submitted" : "failed",
         tenant_name: tenant_name ?? null,
         trigger_source: normalizedTrigger,
