@@ -2818,12 +2818,12 @@ export function LandlordOpsDashboard() {
 
       {/* KPIs — responsive card grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KPICard title="Total Properties" value={landlordsList.length} icon={Home} loading={isLoading} />
-        <KPICard title="Occupied" value={occupiedLandlords.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} />
-        <KPICard title="Empty" value={emptyLandlords.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} />
-        <KPICard title="Landlords" value={landlordsList.length} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlords.length} verified`} />
-        <KPICard title="Cities" value={cityGroups.length} icon={Globe} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle="operating in" />
-        <KPICard title="No Landlord" value={noLandlordList.length} icon={UserX} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="need listing" />
+        <KPICard title="Total Properties" value={landlordsList.length} icon={Home} loading={isLoading} onClick={() => setView('houses-by-landlord')} />
+        <KPICard title="Occupied" value={occupiedLandlords.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} onClick={() => setView('occupied')} />
+        <KPICard title="Empty" value={emptyLandlords.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} onClick={() => setView('empty')} />
+        <KPICard title="Landlords" value={landlordsList.length} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlords.length} verified`} onClick={() => setView('landlords')} />
+        <KPICard title="Cities" value={cityGroups.length} icon={Globe} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle="operating in" onClick={() => setView('cities')} />
+        <KPICard title="No Landlord" value={noLandlordList.length} icon={UserX} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="need listing" onClick={() => setView('no-landlord')} />
       </div>
 
       {/* No landlord alert */}
