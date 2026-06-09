@@ -2681,6 +2681,14 @@ export function LandlordOpsDashboard() {
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-4">
+      {/* Sticky header with quick section switcher */}
+      <div className="flex items-center justify-between gap-2 sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/60">
+        <h2 className="text-base font-extrabold flex items-center gap-2 min-w-0">
+          <Building2 className="h-5 w-5 text-sky-600 shrink-0" />
+          <span className="truncate">Landlord Ops</span>
+        </h2>
+        <SectionSwitcher />
+      </div>
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(unverifiedListings.length > 0 || unverifiedLandlords.length > 0) && (
         <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3.5 space-y-2.5 shadow-sm">
