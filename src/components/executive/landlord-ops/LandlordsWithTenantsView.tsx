@@ -66,6 +66,12 @@ export function LandlordsWithTenantsView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [exporting, setExporting] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<{
+    open: boolean;
+    photos: string[];
+    name: string;
+    startIndex: number;
+  }>({ open: false, photos: [], name: '', startIndex: 0 });
 
   const { data, isLoading } = useQuery({
     queryKey: ['landlord-ops-landlords-tenants'],
