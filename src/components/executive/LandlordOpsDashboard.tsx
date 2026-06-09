@@ -2133,9 +2133,47 @@ export function LandlordOpsDashboard() {
 
         <ListingBonusApprovalQueue filter="all" collapsible defaultOpen={false} />
         <VerificationTimelinePanel />
+
+        {/* ── Bulk selection bar ── */}
+        {filteredHouses.length > 0 && (() => {
+          const selectedHouses = filteredHouses.filter(h => verifySelectedIds.has(h.id));
+          const allSelected = selectedHouses.length === filteredHouses.length;
+          const anySelected = selectedHouses.length > 0;
+          return (
+            <div className="sticky top-0 z-10 rounded-xl border border-border bg-card/95 backdrop-blur p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={() => allSelected ? clearVerifySelection() : setVerifySelectedIds(new Set(filteredHouses.map(h => h.id)))}
+                  className="flex items-center gap-2 text-sm font-semibold"
+                >
+                  <Checkbox checked={allSelected} className="pointer-events-none" />
+                  {allSelected ? 'Clear all' : 'Select all'}
+                </button>
+                <Badge variant="outline" className="text-xs font-bold">{selectedHouses.length} selected</Badge>
+              </div>
+              {anySelected && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <Button size="sm" variant="outline" className="h-10 gap-1.5 font-semibold" disabled={bulkBusy !== null} onClick={() => handleBulkHide(selectedHouses, true)}>
+                    <EyeOff className="h-4 w-4" />{bulkBusy === 'hide' ? '…' : 'Hide'}
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-10 gap-1.5 font-semibold" disabled={bulkBusy !== null} onClick={() => handleBulkHide(selectedHouses, false)}>
+                    <Eye className="h-4 w-4" />{bulkBusy === 'unhide' ? '…' : 'Unhide'}
+                  </Button>
+                  <Button size="sm" className="h-10 gap-1.5 font-semibold" disabled={bulkBusy !== null} onClick={() => handleBulkVerify(selectedHouses)}>
+                    <ShieldCheck className="h-4 w-4" />{bulkBusy === 'verify' ? '…' : 'Verify'}
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-10 gap-1.5 font-semibold border-destructive/40 text-destructive hover:bg-destructive/10" disabled={bulkBusy !== null} onClick={() => handleBulkReject(selectedHouses)}>
+                    <XCircle className="h-4 w-4" />{bulkBusy === 'reject' ? '…' : 'Reject'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         <div className="space-y-3">
           {filteredHouses.map(house => (
-            <div key={house.id} className="rounded-xl border border-border bg-card overflow-hidden">
+            <div key={house.id} className={`rounded-xl border bg-card overflow-hidden ${verifySelectedIds.has(house.id) ? 'border-primary ring-1 ring-primary/40' : 'border-border'}`}>
               {/* ── Card Header ── */}
               <div className="p-4 pb-3 space-y-3">
                 <div className="flex gap-3">
