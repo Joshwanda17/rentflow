@@ -75,6 +75,24 @@ function failureReasonLabel(reason: string): string {
       .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Short, copy-friendly representation of a long Africa's Talking message id.
+function shortMessageId(id: string): string {
+  return id.length > 16 ? `${id.slice(0, 8)}…${id.slice(-6)}` : id;
+}
+
+// Map every Africa's Talking message id seen in a challenge's send/resend events
+// to its attempt number, so delivery reports can be tied back to the attempt.
+function attemptIndex(group: OtpEvent[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (const e of group) {
+    if (e.event_type !== 'sent' && e.event_type !== 'resent') continue;
+    const mid = e.metadata?.sms_message_id;
+    const n = e.metadata?.attempt_number;
+    if (mid && typeof n === 'number') map[mid] = n;
+  }
+  return map;
+}
+
 // A challenge can be re-issued when its latest attempt failed and it has not
 // been verified or terminally closed. Failure signals: an explicit `failed`
 // event, a delivery report marked failed, or a send/resend the gateway rejected.
