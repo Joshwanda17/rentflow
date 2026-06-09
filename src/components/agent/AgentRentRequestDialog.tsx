@@ -1225,6 +1225,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('Confirming the landlord is registered — please wait a moment');
       }
       if (!propertyAddress.trim()) errors.push('Type the property address');
+      const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+      if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
+      if (!tenantPhoto) errors.push("Take the tenant's passport photo");
     } else if (idx === 3) {
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
