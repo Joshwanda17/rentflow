@@ -2844,7 +2844,7 @@ export function LandlordOpsDashboard() {
       )}
 
       {/* Navigation Cards */}
-      <div className="space-y-2">
+      <div className="space-y-4">
         {/* Print Landlord Payouts Report */}
         <div className="flex flex-wrap justify-end items-center gap-2 pb-1">
           <Popover>
@@ -2880,32 +2880,36 @@ export function LandlordOpsDashboard() {
           </Button>
         </div>
         {/* Priority items first */}
-        {navItems.filter(n => n.priority).map(item => (
-          <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-            item.id === 'landlords' ? `${landlordsList.length}` :
-            item.id === 'landlords-paid' ? (paidLandlordsCount !== undefined ? `${paidLandlordsCount}` : undefined) :
-            item.id === 'locations' ? `${locationGroups.length}` :
-            item.id === 'lc1' ? `${lc1Groups.length}` :
-            item.id === 'cities' ? `${cityGroups.length}` :
-            item.id === 'no-landlord' ? `${noLandlordList.length}` : undefined
-          } />
-        ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {navItems.filter(n => n.priority).map(item => (
+            <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
+              item.id === 'landlords' ? `${landlordsList.length}` :
+              item.id === 'landlords-paid' ? (paidLandlordsCount !== undefined ? `${paidLandlordsCount}` : undefined) :
+              item.id === 'locations' ? `${locationGroups.length}` :
+              item.id === 'lc1' ? `${lc1Groups.length}` :
+              item.id === 'cities' ? `${cityGroups.length}` :
+              item.id === 'no-landlord' ? `${noLandlordList.length}` : undefined
+            } />
+          ))}
+        </div>
 
         {/* Divider */}
-        <div className="flex items-center gap-2 pt-2 pb-1">
+        <div className="flex items-center gap-2 pt-1">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-[10px] text-muted-foreground font-medium">MANAGEMENT</span>
+          <span className="text-[10px] text-muted-foreground font-medium tracking-wider">MANAGEMENT</span>
           <div className="h-px flex-1 bg-border" />
         </div>
 
-        {navItems.filter(n => !n.priority).map(item => (
-          <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-            item.id === 'empty' ? `${emptyLandlords.length}` :
-            item.id === 'occupied' ? `${occupiedLandlords.length}` :
-            item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
-            item.id === 'agents' ? `${agentSummary.length}` : undefined
-          } />
-        ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {navItems.filter(n => !n.priority).map(item => (
+            <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
+              item.id === 'empty' ? `${emptyLandlords.length}` :
+              item.id === 'occupied' ? `${occupiedLandlords.length}` :
+              item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
+              item.id === 'agents' ? `${agentSummary.length}` : undefined
+            } />
+          ))}
+        </div>
       </div>
 
       <LandlordDialogs
