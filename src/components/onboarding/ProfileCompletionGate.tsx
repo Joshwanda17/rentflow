@@ -24,7 +24,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_DISTRICTS } from "@/lib/ugandaDistricts";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
-import { continentForCountry, isoForCountry } from "@/lib/worldCountries";
+import {
+  continentForCountry,
+  isoForCountry,
+  loadWorldCountries,
+} from "@/lib/worldCountries";
 
 /**
  * Continents — used when the user is outside Uganda. Kept short and
