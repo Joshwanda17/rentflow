@@ -158,13 +158,30 @@ export function LandlordsWithTenantsView() {
   const groups: LandlordGroup[] = useMemo(() => {
     if (!data) return [];
     const { allLandlords, validRows, landlordMap, tenantMap, houseLinks, houseVis } = data;
+    const safeHouseVis = Array.isArray(houseVis) ? houseVis : [];
 
     // Pre-compute hidden status per landlord
     const hiddenMap = new Map<string, boolean>();
     for (const l of allLandlords) {
-      const houses = houseVis.filter(h => h.landlord_id === l.id);
+      const houses = safeHouseVis.filter(h => h.landlord_id === l.id);
       const liveHouses = houses.filter(h => h.status !== 'rejected' && h.status !== 'delisted');
       hiddenMap.set(l.id, liveHouses.length > 0 && liveHouses.every(h => h.is_hidden));
+    }
+
+    // Pre-compute photos per landlord
+    const photoMap = new Map<string, string[]>();
+    for (const l of allLandlords) {
+      const urls: string[] = [];
+      for (const h of safeHouseVis) {
+        if (h.landlord_id === l.id && Array.isArray(h.image_urls)) {
+          for (const u of h.image_urls) {
+            if (u && urls.length < 4) urls.push(u);
+            if (urls.length >= 4) break;
+          }
+        }
+        if (urls.length >= 4) break;
+      }
+      photoMap.set(l.id, urls);
     }
 
     // Initialize bucket for EVERY landlord (so all 325+ appear, even without tenants)
