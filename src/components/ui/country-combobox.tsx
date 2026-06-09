@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { WORLD_COUNTRIES_UGANDA_FIRST } from "@/lib/worldCountries";
+import {
+  loadWorldCountriesUgandaFirst,
+  type WorldCountry,
+} from "@/lib/worldCountries";
 
 interface CountryComboboxProps {
   value: string;
@@ -29,6 +32,25 @@ export function CountryCombobox({
   placeholder = "Select country",
 }: CountryComboboxProps) {
   const [open, setOpen] = useState(false);
+  const [countries, setCountries] = useState<WorldCountry[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Lazily pull the (large) country dataset only when the picker opens.
+  useEffect(() => {
+    if (!open || countries.length > 0) return;
+    let cancelled = false;
+    setLoading(true);
+    loadWorldCountriesUgandaFirst()
+      .then((list) => {
+        if (!cancelled) setCountries(list);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, countries.length]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -53,9 +75,11 @@ export function CountryCombobox({
         <Command>
           <CommandInput placeholder="Search country…" />
           <CommandList>
-            <CommandEmpty>No country found.</CommandEmpty>
+            <CommandEmpty>
+              {loading ? "Loading countries…" : "No country found."}
+            </CommandEmpty>
             <CommandGroup>
-              {WORLD_COUNTRIES_UGANDA_FIRST.map((c) => (
+              {countries.map((c) => (
                 <CommandItem
                   key={c.name}
                   value={c.name}
