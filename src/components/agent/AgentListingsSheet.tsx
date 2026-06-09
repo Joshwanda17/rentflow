@@ -68,12 +68,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     landlord_id: string | null; landlord_name: string | null; landlord_phone: string | null;
   } | null>(null);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
-  // Empty-state focus targets so we can reliably land focus *inside* the sheet
-  // on open (autoFocus is flaky on some Android/iOS browsers). Radix already
-  // traps focus + handles Escape; the back-gesture stack handles the hardware
-  // back button. This just guarantees the initial focus stays in the sheet.
   const emptyPrimaryRef = useRef<HTMLButtonElement>(null);
   const emptySecondaryRef = useRef<HTMLButtonElement>(null);
+  // Remember the element that had focus before the sheet opened so we can
+  // return focus to it when the sheet closes — keeps keyboard flow seamless.
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const [reassignTarget, setReassignTarget] = useState<{
     rentRequestId: string; tenantName: string; currentAgentId: string;
   } | null>(null);
@@ -139,6 +138,14 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     if (open && vacantOnly) setStatusFilter('vacant');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, vacantOnly]);
+
+  // Capture the element that has focus right before the sheet opens so we can
+  // restore focus to it when the sheet dismisses (Escape, back-button, or tap-out).
+  useEffect(() => {
+    if (open) {
+      previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    }
+  }, [open]);
 
   // Enrich with landlord profile + tenant profile + active rent_request id for each occupied house.
   const [enrichment, setEnrichment] = useState<{
@@ -404,6 +411,17 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
               target.focus();
             }
           }
+        }}
+        onCloseAutoFocus={(e) => {
+          // Return focus to whatever element triggered the sheet so keyboard
+          // users continue from where they left off. If the saved element is
+          // no longer in the DOM (e.g. unmounted), fall back to document body.
+          const target = previouslyFocusedRef.current;
+          if (target && document.contains(target)) {
+            e.preventDefault();
+            target.focus();
+          }
+          previouslyFocusedRef.current = null;
         }}
       >
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border">
