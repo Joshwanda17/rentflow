@@ -178,6 +178,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [allocTo, setAllocTo] = useState<string>('');
   const [allocStatus, setAllocStatus] = useState<'all' | 'active' | 'reversed'>('all');
   const [downloadingAllocPdf, setDownloadingAllocPdf] = useState(false);
+  const [sharingAllocWa, setSharingAllocWa] = useState(false);
   const [showAllAllocations, setShowAllAllocations] = useState(false);
 
   const [partnershipAmount, setPartnershipAmount] = useState(0);
