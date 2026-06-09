@@ -81,6 +81,7 @@ interface ListingWithLandlord {
   listing_bonus_paid: boolean | null;
   created_at: string;
   status: string;
+  is_hidden: boolean | null;
   landlords?: {
     id: string;
     name: string;
