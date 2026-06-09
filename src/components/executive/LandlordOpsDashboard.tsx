@@ -1920,7 +1920,27 @@ export function LandlordOpsDashboard() {
         <BackButton />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} pending</Badge>
+          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {verifyScope === 'all' ? 'houses' : 'pending'}</Badge>
+        </div>
+
+        {/* Scope toggle: act on pending only, or ANY house (verify / reject / hide) */}
+        <div className="flex gap-1.5">
+          {([
+            { value: 'pending' as VerifyScope, label: `Pending (${unverifiedListings.length})` },
+            { value: 'all' as VerifyScope, label: 'All houses' },
+          ]).map(s => (
+            <button
+              key={s.value}
+              onClick={() => setVerifyScope(s.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                verifyScope === s.value
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
         </div>
 
         {/* Search */}
