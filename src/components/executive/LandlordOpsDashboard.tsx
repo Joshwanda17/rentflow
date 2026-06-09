@@ -301,8 +301,22 @@ export function LandlordOpsDashboard() {
 
   // ─── Sorting ───
   type SortOption = 'newest' | 'oldest' | 'highest_rent';
-  const [verifySort, setVerifySort] = useState<SortOption>('newest');
-  const [landlordSort, setLandlordSort] = useState<SortOption>('newest');
+  const [verifySort, setVerifySort] = useState<SortOption>(() => {
+    const saved = localStorage.getItem('landlordOpsVerifySort');
+    if (saved === 'newest' || saved === 'oldest' || saved === 'highest_rent') return saved;
+    return 'newest';
+  });
+  const [landlordSort, setLandlordSort] = useState<SortOption>(() => {
+    const saved = localStorage.getItem('landlordOpsLandlordSort');
+    if (saved === 'newest' || saved === 'oldest' || saved === 'highest_rent') return saved;
+    return 'newest';
+  });
+  useEffect(() => {
+    localStorage.setItem('landlordOpsVerifySort', verifySort);
+  }, [verifySort]);
+  useEffect(() => {
+    localStorage.setItem('landlordOpsLandlordSort', landlordSort);
+  }, [landlordSort]);
 
   // ─── All Requests delete state (mirrors Tenant Ops UX) ───
   const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
@@ -1287,9 +1301,7 @@ export function LandlordOpsDashboard() {
     setSearch('');
     setVerifySearch('');
     setVerifyFilter('all');
-    setVerifySort('newest');
     setPendingFilter('all');
-    setLandlordSort('newest');
     setNavSheetOpen(false);
   };
 
