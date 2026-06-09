@@ -8786,6 +8786,7 @@ export type Database = {
           created_at: string
           detail: string | null
           event_type: string
+          failure_reason: string | null
           id: string
           landlord_id: string | null
           landlord_phone: string | null
@@ -8799,6 +8800,7 @@ export type Database = {
           created_at?: string
           detail?: string | null
           event_type: string
+          failure_reason?: string | null
           id?: string
           landlord_id?: string | null
           landlord_phone?: string | null
@@ -8812,6 +8814,7 @@ export type Database = {
           created_at?: string
           detail?: string | null
           event_type?: string
+          failure_reason?: string | null
           id?: string
           landlord_id?: string | null
           landlord_phone?: string | null
