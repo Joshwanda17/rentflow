@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
+import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import {
   Users,
   TrendingUp,
@@ -20,6 +22,7 @@ import {
   Search,
   Calendar,
   X,
+  Mail,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -51,6 +54,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const [totalSubAgentEarnings, setTotalSubAgentEarnings] = useState(0);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const fetchSubAgents = useCallback(async () => {
     if (!user) return;
@@ -247,6 +251,29 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
     if (phone && phone !== '—') window.location.href = `tel:${phone}`;
   };
 
+  const handleResendInvite = async (subAgentId: string, name: string) => {
+    setResendingId(subAgentId);
+    const { data, error } = await invokeEdgeFunction<{ ok: boolean; smsSent: boolean; emailSent: boolean }>(
+      'resend-subagent-invite',
+      {
+        body: { subAgentId, origin: window.location.origin },
+        errorTitle: 'Resend failed',
+        fallbackMessage: 'Could not resend the invitation.',
+      },
+    );
+    setResendingId(null);
+    if (error || !data?.ok) return;
+
+    const parts: string[] = [];
+    if (data.smsSent) parts.push('SMS');
+    if (data.emailSent) parts.push('email');
+    const via = parts.length > 0 ? ` via ${parts.join(' and ')}` : '';
+
+    toast.success(`Invite re-sent to ${name}`, {
+      description: `A new acceptance link was sent${via}.`,
+    });
+  };
+
   if (loading) {
     return (
       <Card>
@@ -427,6 +454,25 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
               </button>
 
               <div className="flex items-center gap-1.5 shrink-0">
+                {sub.status === 'pending_acceptance' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1 text-xs px-2 border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleResendInvite(sub.sub_agent_id, sub.full_name);
+                    }}
+                    disabled={resendingId === sub.sub_agent_id}
+                  >
+                    {resendingId === sub.sub_agent_id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Mail className="h-3 w-3" />
+                    )}
+                    Resend
+                  </Button>
+                )}
                 <Button
                   size="icon"
                   variant="ghost"
