@@ -695,6 +695,79 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     }
   };
 
+  // ── Float-allocation viewer: apply date-range + status filters ──
+  const filteredAllocations = useMemo(() => {
+    const fromMs = allocFrom ? new Date(allocFrom).getTime() : null;
+    const toMs = allocTo ? new Date(allocTo + 'T23:59:59').getTime() : null;
+    return floatAllocations.filter((a) => {
+      if (allocStatus !== 'all' && a.status !== allocStatus) return false;
+      const ms = new Date(a.date).getTime();
+      if (fromMs !== null && ms < fromMs) return false;
+      if (toMs !== null && ms > toMs) return false;
+      return true;
+    });
+  }, [floatAllocations, allocFrom, allocTo, allocStatus]);
+
+  const allocationTotals = useMemo(() => {
+    const active = filteredAllocations.filter((a) => a.status === 'active');
+    const reversed = filteredAllocations.filter((a) => a.status === 'reversed');
+    return {
+      activeCount: active.length,
+      reversedCount: reversed.length,
+      activeTotal: active.reduce((s, a) => s + a.amount, 0),
+      reversedTotal: reversed.reduce((s, a) => s + a.amount, 0),
+    };
+  }, [filteredAllocations]);
+
+  const applyAllocPreset = (preset: 'all' | 'thisMonth' | '30d' | '90d') => {
+    const today = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    if (preset === 'all') {
+      setAllocFrom('');
+      setAllocTo('');
+      return;
+    }
+    if (preset === 'thisMonth') {
+      setAllocFrom(iso(new Date(today.getFullYear(), today.getMonth(), 1)));
+      setAllocTo(iso(today));
+      return;
+    }
+    const days = preset === '30d' ? 30 : 90;
+    const from = new Date(today);
+    from.setDate(from.getDate() - days);
+    setAllocFrom(iso(from));
+    setAllocTo(iso(today));
+  };
+
+  const handleDownloadAllocationsPdf = async () => {
+    if (!profile) return;
+    setDownloadingAllocPdf(true);
+    try {
+      await shareOrDownloadFloatAllocations({
+        aiId,
+        tenantName: profile.full_name,
+        phone: profile.phone,
+        agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
+        rows: filteredAllocations.map((a) => ({
+          date: a.date,
+          amount: a.amount,
+          status: a.status,
+          reason: a.reason,
+        })),
+        periodFrom: allocFrom || null,
+        periodTo: allocTo || null,
+        statusFilter: allocStatus,
+      });
+      toast({ title: '📄 Float allocations PDF ready' });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast({ title: 'Failed to generate PDF', description: err?.message, variant: 'destructive' });
+      }
+    } finally {
+      setDownloadingAllocPdf(false);
+    }
+  };
+
   // Quick presets for the repayment-sheet reporting window.
   const applySheetPreset = (preset: 'all' | 'thisMonth' | '30d' | '90d') => {
     const today = new Date();
