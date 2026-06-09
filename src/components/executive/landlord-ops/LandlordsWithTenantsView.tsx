@@ -775,6 +775,7 @@ export function LandlordsWithTenantsView() {
                                   photos: g.photos,
                                   name: g.name,
                                   startIndex: 0,
+                                  captions: g.captions,
                                 });
                               }}
                               className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground border hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-sky-500"
