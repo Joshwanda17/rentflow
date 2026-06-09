@@ -1946,6 +1946,7 @@ export function LandlordOpsDashboard() {
           data={filtered}
           rowKey={(c, i) => `${c.city}-${i}`}
           emptyMessage="No cities found"
+          onRowClick={(c) => setEntityDetail({ type: 'city', data: c })}
           columns={[
             { key: 'city', label: 'City', render: (c) => <span className="font-semibold">{c.city}</span> },
             { key: 'listingCount', label: 'Houses', align: 'right' },
