@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
