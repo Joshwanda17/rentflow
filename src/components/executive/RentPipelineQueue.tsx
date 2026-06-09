@@ -554,13 +554,6 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         updateData.landlord_acknowledged = true;
         updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
         updateData.landlord_call_notes = landlordCallNotes || null;
-        try {
-          await supabase.functions.invoke('credit-landlord-verification-bonus', {
-            body: { rent_request_id: req.id },
-          });
-        } catch (bonusErr) {
-          console.warn('Landlord verification bonus failed:', bonusErr);
-        }
       }
 
       const { error } = await supabase
@@ -574,6 +567,16 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         : config.nextStatus.replace(/_/g, ' ');
       toast({ title: '✅ Approved', description: `${req.tenant_name} → ${finalStatus}` });
       queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
+
+      // Credit the agent's UGX 5,000 landlord-verification bonus in the
+      // background. This is a non-critical, slow edge call (cold start +
+      // ledger RPC) — awaiting it made the approval take many seconds and
+      // surfaced network errors to the operator. Fire-and-forget instead.
+      if (config.showLandlordChecklist && !isOutstanding) {
+        supabase.functions
+          .invoke('credit-landlord-verification-bonus', { body: { rent_request_id: req.id } })
+          .catch((bonusErr) => console.warn('Landlord verification bonus failed:', bonusErr));
+      }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -749,18 +752,6 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
         if (error) throw error;
       }
 
-      // Trigger landlord verification bonus when Landlord Ops approves
-      // (not applicable for outstanding-balance — there is no landlord disbursement)
-      if (config.showLandlordChecklist && !isOutstanding) {
-        try {
-          await supabase.functions.invoke('credit-landlord-verification-bonus', {
-            body: { rent_request_id: selectedRequest.id },
-          });
-        } catch (bonusErr) {
-          console.warn('Landlord verification bonus failed:', bonusErr);
-        }
-      }
-
       toast({
         title: isOutstanding && stage === 'agent_ops_approved'
           ? 'Outstanding balance recorded'
@@ -771,6 +762,16 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       setAssignedAgentId(null);
       setPayoutRef('');
       queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
+
+      // Credit the agent's UGX 5,000 landlord-verification bonus in the
+      // background (non-critical, slow edge call). Awaiting it delayed the
+      // approval feedback and exposed network errors to the operator.
+      if (config.showLandlordChecklist && !isOutstanding && stage !== 'coo_approved') {
+        const bonusReqId = selectedRequest.id;
+        supabase.functions
+          .invoke('credit-landlord-verification-bonus', { body: { rent_request_id: bonusReqId } })
+          .catch((bonusErr) => console.warn('Landlord verification bonus failed:', bonusErr));
+      }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
