@@ -3634,7 +3634,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     📸 House Photos * — capture all 4 outside views
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Required — take one photo of each outside part of the house: front, back, left side and right side.
+                    Required — take one photo of each outside part of the house: front, back, left side and right side. Max {MAX_FILE_SIZE_MB} MB each (JPG, PNG, WebP).
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {HOUSE_PHOTO_SLOTS.map((slot, idx) => {
