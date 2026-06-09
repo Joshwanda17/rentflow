@@ -753,6 +753,7 @@ export function LandlordsWithTenantsView() {
                                   photos: g.photos,
                                   name: g.name,
                                   startIndex: i,
+                                  captions: g.captions,
                                 });
                               }}
                               className="h-10 w-10 rounded-md overflow-hidden border focus:outline-none focus:ring-2 focus:ring-sky-500"
