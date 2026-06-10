@@ -434,7 +434,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     'Location': { step: 1, id: 'lh-field-location' },
     'Rent amount': { step: 1, id: 'lh-field-rent' },
     'House details': { step: 1, id: 'lh-field-house' },
-    'Photos': { step: 1, id: 'lh-field-photos' },
+    'Photos': { step: 2, id: 'lh-field-photos' },
   };
 
   // Smooth-scroll to a field anchor, briefly highlight it and focus its first input.
@@ -509,13 +509,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   };
 
   // ─── Guided wizard navigation ───
-  const TOTAL_STEPS = 2;
-  const STEP_LABELS = ['House & photos', 'Landlord & list'];
+  const TOTAL_STEPS = 3;
+  const STEP_LABELS = ['House & Location', 'Photos', 'Landlord & List'];
 
   // Validate just the current step before moving forward. Returns true if OK.
   const validateStep = (s: number): boolean => {
     if (s === 1) {
-      // Essentials only: rent, region and at least one photo.
+      // Essentials: rent, region, address, village.
       if (!monthlyRent || monthlyRent < 10000) {
         toast.error('Monthly rent must be at least UGX 10,000');
         return false;
@@ -532,12 +532,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Village / Zone is required');
         return false;
       }
+    }
+    if (s === 2) {
+      // Photos are required.
       if (images.length === 0) {
         toast.error('Add at least one photo of the house');
         return false;
       }
     }
-    if (s === 2) {
+    if (s === 3) {
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
       const phoneErr = validateLandlordPhone(form.landlord_phone);
       if (phoneErr) {
