@@ -305,8 +305,16 @@ Deno.serve(async (req) => {
       }
 
       const link = `${origin}/join?t=${activationToken}`;
-      const ok = await sendSMS(phone, buildMessage(role, fullName, link));
-      results.push({ role, phone, outcome: ok ? "sms_sent" : "sms_failed" });
+      const message = buildMessage(role, fullName, link);
+      const sent = await sendSMS(phone, message);
+      await logSmsAttempts(adminClient, {
+        phone,
+        message,
+        name: fullName ?? null,
+        referenceId: activationToken ?? null,
+        source: "send-signup-invite-sms",
+      }, sent);
+      results.push({ role, phone, outcome: sent.ok ? "sms_sent" : "sms_failed" });
     }
 
     return new Response(JSON.stringify({ success: true, results }), {
