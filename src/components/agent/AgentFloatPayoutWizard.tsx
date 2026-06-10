@@ -656,8 +656,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                 <p className="text-xs text-destructive text-center">{disburseError}</p>
               )}
 
-              <Button variant="ghost" size="sm" className="w-full" onClick={() => { resetForm(); }}>
-                ← Back to list
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => { if (allocation) { handleClose(); } else { resetForm(); } }}
+              >
+                {allocation ? '← Close' : '← Back to list'}
               </Button>
             </motion.div>
           )}
