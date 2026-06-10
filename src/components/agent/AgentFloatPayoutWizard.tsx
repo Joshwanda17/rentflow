@@ -143,6 +143,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setAmountInput('');
     setPhoneOverride('');
     autoSendRef.current = null;
+    allocationPrepRef.current = null;
     landlordOtp.resetOtp();
   };
 
