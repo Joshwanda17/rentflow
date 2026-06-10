@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { KPICard } from './KPICard';
+import { SmsFailoverAlerts } from './SmsFailoverAlerts';
 import { MessageSquare, Search, Loader2, CheckCircle2, XCircle, Radio } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -98,6 +99,8 @@ export function SmsDeliveryLogViewer() {
           Per-provider audit trail — which gateway was attempted (Yoola primary → Africa's Talking fallback), timestamps, and final outcome.
         </p>
       </div>
+
+      <SmsFailoverAlerts />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total (last 300)" value={total.toLocaleString()} icon={Radio} loading={isLoading} />
