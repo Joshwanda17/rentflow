@@ -13,9 +13,10 @@ const ALLOWED_ROLES = ["coo", "ceo", "cto", "cmo", "super_admin", "manager"];
 const WHATSAPP = "+256748747134";
 const LIST_LINK = "https://welilereceipts.com/landlord-signup";
 const HQ = "Palm Lane Kabaale, Entebbe (P.O. Box 167564, Kampala)";
+const STOP_LINK = "https://welilereceipts.com/stop-sms";
 const MESSAGE =
   `WELILE guarantees your MONTHLY RENT. List your houses now to always receive your rent every month, guaranteed: ${LIST_LINK} ` +
-  `Chat/Call us on WhatsApp ${WHATSAPP}. HQ: Welile Technologies Ltd, ${HQ}.`;
+  `Chat/Call us on WhatsApp ${WHATSAPP}. HQ: Welile Technologies Ltd, ${HQ}. Stop SMS: ${STOP_LINK}`;
 
 const SMS_ATTEMPT_TIMEOUT_MS = 5000;
 const SMS_MAX_ATTEMPTS = 2;
