@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
@@ -96,6 +96,18 @@ export function CTOEmailsOverview() {
   });
 
   const kpis = data?.kpis;
+
+  // Distinct templates present in the recent set — drives the Template filter
+  // dropdown so the CTO can narrow the table to a single email type.
+  const templateFilterOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of data?.recent ?? []) {
+      if (r.template_name) set.add(r.template_name);
+    }
+    return Array.from(set)
+      .sort((a, b) => a.localeCompare(b))
+      .map((t) => ({ value: t, label: t }));
+  }, [data?.recent]);
 
   const templateColumns: Column<EmailOverview['templateSummary'][number]>[] = [
     { key: 'template', label: 'Template' },
@@ -368,24 +380,32 @@ export function CTOEmailsOverview() {
       {/* Recent emails table */}
       <div>
         <h3 className="text-sm font-semibold mb-3">Recent Emails</h3>
+        <p className="text-xs text-muted-foreground mb-2">
+          Search by recipient email, template, subject, or error — then narrow by status or template.
+        </p>
         <ExecutiveDataTable
           data={data?.recent ?? []}
           columns={recentColumns}
           loading={isLoading}
           title="Latest 100 emails"
           onRowClick={openPreview}
-          filters={[{
-            key: 'status',
-            label: 'Status',
-            options: [
-              { value: 'sent', label: 'Sent' },
-              { value: 'failed', label: 'Failed' },
-              { value: 'pending', label: 'Pending' },
-              { value: 'dlq', label: 'DLQ' },
-              { value: 'bounced', label: 'Bounced' },
-              { value: 'suppressed', label: 'Suppressed' },
-            ],
-          }]}
+          filters={[
+            {
+              key: 'status',
+              label: 'Status',
+              options: [
+                { value: 'sent', label: 'Sent' },
+                { value: 'failed', label: 'Failed' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'dlq', label: 'DLQ' },
+                { value: 'bounced', label: 'Bounced' },
+                { value: 'suppressed', label: 'Suppressed' },
+              ],
+            },
+            ...(templateFilterOptions.length > 0
+              ? [{ key: 'template_name', label: 'Template', options: templateFilterOptions }]
+              : []),
+          ]}
         />
       </div>
 
