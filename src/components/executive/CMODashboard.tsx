@@ -26,19 +26,28 @@ export function CMODashboard() {
   const { data: referralStats } = useQuery({
     queryKey: ['exec-referral-stats'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('id, referrer_id, created_at')
-        .not('referrer_id', 'is', null).limit(500);
-      const referrals = data || [];
-      const totalReferrals = referrals.length;
+      // Accurate total — count server-side instead of capping at a fetched page.
+      const { count: totalReferrals } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .not('referrer_id', 'is', null);
 
-      // Group by month for chart
+      // Per-month referral counts for the last 6 months (mirrors signup trend
+      // window) so the chart reflects recent activity rather than arbitrary rows.
       const byMonth: Record<string, number> = {};
-      referrals.forEach(r => {
-        const m = format(new Date(r.created_at), 'MMM');
-        byMonth[m] = (byMonth[m] || 0) + 1;
-      });
+      for (let i = 5; i >= 0; i--) {
+        const start = startOfMonth(subMonths(new Date(), i));
+        const end = startOfMonth(subMonths(new Date(), i - 1));
+        const { count } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .not('referrer_id', 'is', null)
+          .gte('created_at', start.toISOString())
+          .lt('created_at', end.toISOString());
+        byMonth[format(start, 'MMM')] = count || 0;
+      }
 
-      return { totalReferrals, byMonth };
+      return { totalReferrals: totalReferrals || 0, byMonth };
     },
     staleTime: 600000,
   });
