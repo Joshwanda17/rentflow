@@ -30,3 +30,10 @@ Edge function `landlord-daily-guarantee-sms` texts EVERY distinct landlord phone
   result/audit includes `opted_out` count.
 - `sms_opt_outs` is staff-readable (ops roles via `has_role`); writes happen only
   through the `sms-opt-out` edge function.
+
+## Opt-in (resume)
+- Public page `/resume-sms` (`ResumeSms.tsx`) — phone input (prefilled from `?p=`),
+  calls edge fn `sms-opt-in` (service role) which DELETEs the matching row from
+  `sms_opt_outs` (normalized to `+256…`), re-enrolling the number in the daily batch.
+- The `/stop-sms` success screen links to `/resume-sms?p=<phone>` ("Changed your
+  mind? Resume daily messages").

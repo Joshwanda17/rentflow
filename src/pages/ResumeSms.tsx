@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BellOff, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { BellRing, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 type Status = 'idle' | 'submitting' | 'success' | 'error';
 
-export default function StopSms() {
+export default function ResumeSms() {
   const [params] = useSearchParams();
   const [phone, setPhone] = useState(params.get('p') || '');
   const [status, setStatus] = useState<Status>('idle');
@@ -23,7 +23,7 @@ export default function StopSms() {
       return;
     }
     setStatus('submitting');
-    const { data, error } = await supabase.functions.invoke('sms-opt-out', {
+    const { data, error } = await supabase.functions.invoke('sms-opt-in', {
       body: { phone: trimmed },
     });
     if (error) {
@@ -43,8 +43,8 @@ export default function StopSms() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BellOff className="h-5 w-5 text-primary" />
-            Stop Welile SMS
+            <BellRing className="h-5 w-5 text-primary" />
+            Resume Welile SMS
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -52,24 +52,16 @@ export default function StopSms() {
             <div className="flex flex-col items-center text-center gap-3 py-4">
               <CheckCircle2 className="h-10 w-10 text-primary" />
               <p className="text-sm text-muted-foreground">
-                You've been unsubscribed. This number will no longer receive Welile's
-                daily messages. You can still reach us anytime on WhatsApp{' '}
+                You're back in. This number will resume receiving Welile's daily
+                rent-guarantee updates. You can reach us anytime on WhatsApp{' '}
                 <a href="https://wa.me/256748747134" className="underline">+256 748747134</a>.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Changed your mind?{' '}
-                <a
-                  href={`/resume-sms?p=${encodeURIComponent(phone.trim())}`}
-                  className="underline text-primary"
-                >
-                  Resume daily messages
-                </a>
               </p>
             </div>
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Enter your phone number below to stop receiving Welile's daily SMS updates.
+                Changed your mind? Enter your phone number below to resume receiving
+                Welile's daily SMS updates.
               </p>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone number</Label>
@@ -88,9 +80,9 @@ export default function StopSms() {
               )}
               <Button onClick={submit} className="w-full" disabled={status === 'submitting'}>
                 {status === 'submitting' ? (
-                  <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Stopping…</>
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Resuming…</>
                 ) : (
-                  'Stop messages'
+                  'Resume messages'
                 )}
               </Button>
             </>
