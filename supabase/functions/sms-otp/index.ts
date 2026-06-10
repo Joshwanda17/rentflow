@@ -631,6 +631,11 @@ Deno.serve(async (req) => {
             smsPromise
               .then(async (r) => {
                 await recordSendStatus(r);
+                await logSmsAttempts(
+                  adminClient,
+                  { phone, message, source: "sms-otp" },
+                  r,
+                );
                 console.log(
                   `[sms-otp] late acceptance for ***${phoneKey.slice(-4)}: ${r.accepted ? "ok" : r.reason}`,
                 );
@@ -648,6 +653,11 @@ Deno.serve(async (req) => {
 
       // Gateway responded in time — report the real result.
       await recordSendStatus(outcome);
+      await logSmsAttempts(
+        adminClient,
+        { phone, message, source: "sms-otp" },
+        outcome,
+      );
 
       if (!outcome.accepted) {
         console.error(`[sms-otp] gateway rejected send to ***${phoneKey.slice(-4)}: ${outcome.reason}`);
