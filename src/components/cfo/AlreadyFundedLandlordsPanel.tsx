@@ -40,9 +40,7 @@ export function AlreadyFundedLandlordsPanel() {
         .from('rent_requests')
         .select(
           'id, status, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, created_at,' +
-          'tenant:profiles!rent_requests_tenant_id_fkey(full_name),' +
-          'landlord:landlords!rent_requests_landlord_id_fkey(name, phone),' +
-          'allocation:agent_landlord_float_allocations!agent_landlord_float_allocations_rent_request_id_fkey(allocated_amount, paid_out_amount, remaining_amount, status)'
+          'landlord:landlords!rent_requests_landlord_id_fkey(name, phone)'
         )
         .in('status', ['funded', 'repaying', 'completed'])
         .order('created_at', { ascending: false })
@@ -51,24 +49,45 @@ export function AlreadyFundedLandlordsPanel() {
 
       const raw = (data ?? []) as any[];
 
-      const agentIds = [
-        ...new Set(raw.map((r) => r.assigned_agent_id || r.agent_id).filter(Boolean)),
+      // Resolve agent + tenant names in one batch (tenant_id FK points to auth.users,
+      // so we cannot embed profiles directly via PostgREST).
+      const personIds = [
+        ...new Set(
+          raw
+            .flatMap((r) => [r.assigned_agent_id || r.agent_id, r.tenant_id])
+            .filter(Boolean),
+        ),
       ];
-      const agentNameMap = new Map<string, string>();
-      if (agentIds.length) {
+      const nameMap = new Map<string, string>();
+      if (personIds.length) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name')
-          .in('id', agentIds);
-        for (const p of profiles || []) agentNameMap.set(p.id, p.full_name || 'Unknown');
+          .in('id', personIds);
+        for (const p of profiles || []) nameMap.set(p.id, p.full_name || 'Unknown');
+      }
+
+      // Float allocations have no FK to rent_requests, so fetch them separately.
+      const requestIds = raw.map((r) => r.id);
+      const allocMap = new Map<string, any>();
+      if (requestIds.length) {
+        const { data: allocs } = await supabase
+          .from('agent_landlord_float_allocations')
+          .select('rent_request_id, allocated_amount, paid_out_amount, remaining_amount, status')
+          .in('rent_request_id', requestIds);
+        for (const a of allocs || []) {
+          if (a.rent_request_id && !allocMap.has(a.rent_request_id)) {
+            allocMap.set(a.rent_request_id, a);
+          }
+        }
       }
 
       return raw.map((r) => {
-        const tenantName = r.tenant?.full_name || 'Unknown Tenant';
+        const tenantName = nameMap.get(r.tenant_id) || 'Unknown Tenant';
         const landlordName = r.landlord?.name || 'Unknown Landlord';
         const landlordPhone = r.landlord?.phone || null;
         const agentId = r.assigned_agent_id || r.agent_id;
-        const alloc = Array.isArray(r.allocation) ? r.allocation[0] : r.allocation;
+        const alloc = allocMap.get(r.id);
         return {
           id: r.id,
           rent_request_id: r.id,
@@ -80,7 +99,7 @@ export function AlreadyFundedLandlordsPanel() {
           landlord_name: landlordName,
           landlord_phone: landlordPhone,
           agent_id: agentId,
-          agent_name: agentNameMap.get(agentId) || 'Unknown Agent',
+          agent_name: nameMap.get(agentId) || 'Unknown Agent',
           created_at: r.created_at,
           allocated_amount: alloc ? Number(alloc.allocated_amount) : null,
           paid_out_amount: alloc ? Number(alloc.paid_out_amount) : null,
