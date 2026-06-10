@@ -314,7 +314,7 @@ Deno.serve(async (req) => {
         otp_expires_at,
         detail: resent.ok
           ? (resent.fallbackUsed
-            ? `OTP resent via Twilio fallback (Yoola failed: ${resent.primaryReason ?? "unknown"})`
+            ? `OTP resent via Twilio fallback (Africa's Talking failed: ${resent.primaryReason ?? "unknown"})`
             : "OTP resent via SMS")
           : `OTP regenerated (SMS NOT delivered: ${resent.reason ?? "unknown"})`,
         failure_reason: resent.ok ? null : (resent.reason ?? "sms_not_delivered"),
