@@ -1378,7 +1378,18 @@ function RequestDetailDrawer({
               </div>
             </div>
 
-            <DrawerFooter className="shrink-0">
+            <DrawerFooter className="shrink-0 gap-2 border-t bg-background">
+              {canCancel && (
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setConfirmCancel(true)}
+                  disabled={cancelling}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Reject / Cancel request
+                </Button>
+              )}
               <DrawerClose asChild>
                 <Button variant="outline" className="w-full">Close</Button>
               </DrawerClose>
@@ -1386,6 +1397,26 @@ function RequestDetailDrawer({
           </div>
         )}
       </DrawerContent>
+      <AlertDialog open={confirmCancel} onOpenChange={(o) => { if (!cancelling) setConfirmCancel(o); }}>
+        <AlertDialogContent className="z-[210]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this rent request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the rent request from the pipeline. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep request</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleCancel(); }}
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Drawer>
   );
 }
