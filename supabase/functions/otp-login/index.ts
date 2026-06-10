@@ -229,6 +229,13 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true, 
+      // Preferred path: the client calls supabase.auth.verifyOtp({ type:'magiclink',
+      // token_hash }) which establishes the session FIRST-PARTY (same-origin
+      // fetch). This avoids the cross-domain bounce through <project>.supabase.co
+      // that iOS Safari ITP classifies as bounce-tracking and evicts on the next
+      // cold launch — the root cause of iPhone users being logged out.
+      token_hash: tokenHash,
+      // Legacy fallback (older clients) — performs the cross-domain redirect.
       verify_url: verifyUrl,
       user_name: profile.full_name,
       // Resolved canonical auth user id. The client stores this and, after the
