@@ -24,6 +24,16 @@ import {
   DrawerClose,
 } from '@/components/ui/drawer';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -53,6 +63,7 @@ import {
   Wallet,
   HandCoins,
   ArrowUpDown,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
