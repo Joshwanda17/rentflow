@@ -44,6 +44,7 @@ interface AgentRentRequest {
   created_at: string;
   tenant_id: string;
   landlord_id: string;
+  agent_id?: string | null;
   house_listing_id?: string | null;
   registration_type?: string | null;
   initial_outstanding_balance?: number | null;
