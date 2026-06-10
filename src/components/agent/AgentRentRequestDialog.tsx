@@ -107,6 +107,7 @@ interface AgentRentRequestDialogProps {
     landlord_name: string | null;
     landlord_phone: string | null;
     tenant_id?: string | null;
+    image_urls?: string[] | null;
   } | null;
 }
 
