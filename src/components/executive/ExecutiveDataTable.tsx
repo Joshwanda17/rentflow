@@ -249,11 +249,12 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
         {filters.map((f) => (
           <Select
             key={f.key}
-            value={activeFilters[f.key] || 'all'}
+            value={serverSearchActive ? 'all' : (activeFilters[f.key] || 'all')}
             onValueChange={(v) => setActiveFilters((prev) => ({ ...prev, [f.key]: v }))}
+            disabled={serverSearchActive}
           >
             <SelectTrigger className="w-full sm:w-[140px] h-9">
-              <SelectValue placeholder={f.label} />
+              <SelectValue placeholder={serverSearchActive ? `All ${f.label}` : f.label} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All {f.label}</SelectItem>
