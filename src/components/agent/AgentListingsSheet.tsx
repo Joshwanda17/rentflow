@@ -258,6 +258,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
         landlord_id: swapTarget.landlord_id ?? null,
         landlord_name: landlord?.name ?? null,
         landlord_phone: landlord?.phone ?? null,
+        image_urls: swapTarget.image_urls ?? null,
       });
       setSwapTarget(null);
       refresh();
