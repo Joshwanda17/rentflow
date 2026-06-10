@@ -1,10 +1,12 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useLandlordFloatAllocations, type LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
-import { Loader2, Landmark, ArrowRight, Inbox, User, Phone } from 'lucide-react';
+import { Loader2, Landmark, ArrowRight, Inbox, User, Phone, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 interface Props {
   open: boolean;
@@ -20,7 +22,18 @@ interface Props {
 export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSelectAllocation }: Props) {
   const { data: allocations = [], isLoading } = useLandlordFloatAllocations({ onlyOpen: true });
 
-  const totalRemaining = allocations.reduce((sum, a) => sum + a.remaining_amount, 0);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return allocations;
+    return allocations.filter((a) =>
+      (a.landlord_name || '').toLowerCase().includes(q) ||
+      (a.landlord_phone || '').toLowerCase().includes(q),
+    );
+  }, [allocations, search]);
+
+  const totalRemaining = filtered.reduce((sum, a) => sum + a.remaining_amount, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
