@@ -561,6 +561,21 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
                             </div>
                           )}
                         </div>
+
+                        {/* ═══ CANCEL / DELETE ═══ */}
+                        {canCancel(req) && (
+                          <div className="border-t p-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full gap-2 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                              onClick={() => { hapticTap(); setCancelTarget(req); }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              {req.status === 'rejected' ? 'Delete Request' : 'Cancel Request'}
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -570,6 +585,31 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
           )}
         </ScrollArea>
       </SheetContent>
+
+      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => { if (!o) setCancelTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this rent request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget?.tenant?.full_name
+                ? `This will remove the rent request for ${cancelTarget.tenant.full_name}. `
+                : 'This will remove the rent request. '}
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleCancel(); }}
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+            >
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Yes, cancel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
