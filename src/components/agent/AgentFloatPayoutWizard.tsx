@@ -478,7 +478,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
         </DialogHeader>
 
         <AnimatePresence mode="wait">
-          {step === 'select' && (
+          {step === 'select' && allocation && (
+            <motion.div key="prep" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-10 gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Loading landlord payout…</p>
+            </motion.div>
+          )}
+          {step === 'select' && !allocation && (
             <motion.div key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
               <p className="text-sm text-muted-foreground">Select a rent request to pay the landlord:</p>
               {isLoading ? (
