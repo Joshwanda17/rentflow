@@ -55,6 +55,16 @@ function isSuccess(status: string) {
 
 type MetricRow = { created_at: string; status: string; provider: string };
 
+type DailyTrafficRow = {
+  day: string;
+  total: number;
+  delivered: number;
+  failed: number;
+  yoola: number;
+  africastalking: number;
+  other: number;
+};
+
 export function SmsDeliveryLogViewer() {
   const [search, setSearch] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
@@ -79,19 +89,21 @@ export function SmsDeliveryLogViewer() {
     staleTime: 30_000,
   });
 
-  // Traffic metrics: fetch lightweight rows over the last 90 days for aggregation.
+  // Traffic metrics: aggregate server-side (avoids the Data API 1,000-row cap).
   const { data: metrics, isLoading: metricsLoading } = useQuery({
     queryKey: ['cto-sms-metrics'],
     queryFn: async () => {
-      const since = subDays(startOfDay(new Date()), 89).toISOString();
-      const { data, error } = await supabase
-        .from('sms_delivery_log')
-        .select('created_at, status, provider')
-        .gte('created_at', since)
-        .order('created_at', { ascending: false })
-        .limit(20000);
+      const { data, error } = await supabase.rpc('get_sms_traffic_daily', { p_days: 90 });
       if (error) throw error;
-      return (data || []) as MetricRow[];
+      return ((data || []) as any[]).map((r) => ({
+        day: String(r.day),
+        total: Number(r.total) || 0,
+        delivered: Number(r.delivered) || 0,
+        failed: Number(r.failed) || 0,
+        yoola: Number(r.yoola) || 0,
+        africastalking: Number(r.africastalking) || 0,
+        other: Number(r.other) || 0,
+      })) as DailyTrafficRow[];
     },
     staleTime: 60_000,
   });
@@ -105,8 +117,10 @@ export function SmsDeliveryLogViewer() {
   const countSince = (cutoff: number) => {
     let sent = 0, fail = 0;
     for (const r of rows) {
-      if (new Date(r.created_at).getTime() < cutoff) continue;
-      if (isSuccess(r.status)) sent++; else fail++;
+      // r.day is a yyyy-MM-dd date string; compare at day granularity.
+      if (startOfDay(new Date(`${r.day}T00:00:00`)).getTime() < startOfDay(new Date(cutoff)).getTime()) continue;
+      sent += r.delivered;
+      fail += r.failed;
     }
     return { total: sent + fail, sent, fail };
   };
@@ -121,12 +135,12 @@ export function SmsDeliveryLogViewer() {
       byDay[format(subDays(now, i), 'yyyy-MM-dd')] = { delivered: 0, failed: 0 };
     }
     for (const r of rows) {
-      const key = format(new Date(r.created_at), 'yyyy-MM-dd');
-      if (!byDay[key]) continue;
-      if (isSuccess(r.status)) byDay[key].delivered++; else byDay[key].failed++;
+      if (!byDay[r.day]) continue;
+      byDay[r.day].delivered += r.delivered;
+      byDay[r.day].failed += r.failed;
     }
     return Object.entries(byDay).map(([date, v]) => ({
-      day: format(new Date(date), 'dd MMM'),
+      day: format(new Date(`${date}T00:00:00`), 'dd MMM'),
       delivered: v.delivered,
       failed: v.failed,
     }));
