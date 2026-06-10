@@ -23,15 +23,24 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LandlordPayoutProgress } from './LandlordPayoutProgress';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
+import type { LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
 
 interface AgentFloatPayoutWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * When the agent drilled in from the per-tenant allocations list, this is the
+   * exact ring-fenced allocation they tapped. The wizard MUST scope the payout
+   * to this landlord/tenant instead of showing its own internal list (which was
+   * pulling an unrelated assigned request — e.g. "boniface" — and ignoring the
+   * agent's actual selection).
+   */
+  allocation?: LandlordFloatAllocation | null;
 }
 
 type Step = 'select' | 'otp' | 'disburse' | 'done';
 
-export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutWizardProps) {
+export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: AgentFloatPayoutWizardProps) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const geo = useCaptureLocation();
