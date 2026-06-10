@@ -42,6 +42,19 @@ interface SmsResult {
   fallbackUsed?: boolean;
   primaryProvider?: string;
   primaryReason?: string;
+  /** Ordered, timestamped trail of every provider attempt for this send. */
+  attempts?: ProviderAttempt[];
+}
+
+interface ProviderAttempt {
+  provider: string;
+  accepted: boolean;
+  reason?: string;
+  messageId?: string;
+  cost?: string;
+  raw?: unknown;
+  started_at: string;
+  finished_at: string;
 }
 
 // Yoola is the PRIMARY OTP sender. JSON body { phone, message, api_key } posted
