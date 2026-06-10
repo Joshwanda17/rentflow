@@ -54,6 +54,33 @@ interface SmsResult {
   reason?: string;
 }
 
+/** A single provider attempt within one logical SMS send. */
+interface ProviderAttempt {
+  provider: string;
+  accepted: boolean;
+  reason?: string;
+  /** ISO timestamp when this provider attempt started. */
+  started_at: string;
+  /** ISO timestamp when this provider attempt finished. */
+  finished_at: string;
+  /** Whether the provider was configured/eligible to attempt at all. */
+  attempted: boolean;
+}
+
+/** Final outcome of a logical SMS send, including the full provider trail. */
+interface SmsOutcome extends SmsResult {
+  /** Provider that ultimately accepted the message (undefined if none did). */
+  provider?: string;
+  /** Ordered list of every provider attempt for this send. */
+  attempts: ProviderAttempt[];
+}
+
+/** A reason that means the provider was skipped (never actually dialed out). */
+function wasSkipped(reason?: string): boolean {
+  return reason === "missing_credentials" ||
+    (typeof reason === "string" && reason.endsWith("not_configured"));
+}
+
 // Per-attempt network timeout for the gateway call. Keeps a single stuck
 // request from hanging the whole send. Each retry gets its own fresh timeout.
 const SMS_ATTEMPT_TIMEOUT_MS = 5000;
