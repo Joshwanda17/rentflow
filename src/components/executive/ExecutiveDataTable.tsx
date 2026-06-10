@@ -234,9 +234,9 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            placeholder={searchPlaceholder || 'Search...'}
+            value={searchInputValue}
+            onChange={(e) => (serverSearch ? onSearchChange!(e.target.value) : setSearch(e.target.value))}
             className="pl-9 h-9"
           />
         </div>
