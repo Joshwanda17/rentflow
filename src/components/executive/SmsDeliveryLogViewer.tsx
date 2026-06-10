@@ -53,8 +53,6 @@ function isSuccess(status: string) {
   return s === 'sent' || s === 'success' || s === 'delivered' || s === 'accepted';
 }
 
-type MetricRow = { created_at: string; status: string; provider: string };
-
 type DailyTrafficRow = {
   day: string;
   total: number;
