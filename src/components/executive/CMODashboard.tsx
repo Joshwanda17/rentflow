@@ -167,24 +167,32 @@ export function CMODashboard() {
   });
 
   const { data: topReferrers, isLoading: loadingTopReferrers } = useQuery({
-    queryKey: ['exec-top-referrers', startMonth, endMonth],
+    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus],
     queryFn: async () => {
-      const { data: refRows } = await supabase
+      let q = supabase
         .from('referrals')
-        .select('referrer_id')
+        .select('referrer_id, credited')
         .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString())
-        .order('created_at', { ascending: false });
+        .lte('created_at', end.toISOString());
 
+      if (referralStatus === 'pending') q = q.eq('credited', false);
+      if (referralStatus === 'completed') q = q.eq('credited', true);
+
+      const { data: refRows } = await q;
       if (!refRows || refRows.length === 0) return [];
 
-      const counts: Record<string, number> = {};
+      const counts: Record<string, { total: number; pending: number; completed: number }> = {};
       refRows.forEach((r) => {
-        counts[r.referrer_id] = (counts[r.referrer_id] || 0) + 1;
+        const c = counts[r.referrer_id] || { total: 0, pending: 0, completed: 0 };
+        c.total += 1;
+        if (r.credited) c.completed += 1;
+        else c.pending += 1;
+        counts[r.referrer_id] = c;
       });
 
+      const sortKey = referralStatus === 'pending' ? 'pending' : referralStatus === 'completed' ? 'completed' : 'total';
       const sorted = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
+        .sort((a, b) => b[1][sortKey as keyof typeof b[1]] - a[1][sortKey as keyof typeof a[1]])
         .slice(0, 20);
 
       const referrerIds = sorted.map(([id]) => id);
@@ -195,11 +203,13 @@ export function CMODashboard() {
 
       const profileMap = new Map((profilesData || []).map((p) => [p.id, p]));
 
-      return sorted.map(([id, count], idx) => ({
+      return sorted.map(([id, c], idx) => ({
         rank: idx + 1,
         referrer_id: id,
         name: profileMap.get(id)?.full_name || profileMap.get(id)?.phone || 'Unknown',
-        referrals: count,
+        referrals: c.total,
+        pending: c.pending,
+        completed: c.completed,
       }));
     },
     staleTime: 600000,
