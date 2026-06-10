@@ -1247,6 +1247,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       } else if (landlordCheck === 'checking') {
         errors.push('Confirming the landlord is registered — please wait a moment');
       }
+      // The landlord's listed house MUST show photos. Block rent requests on
+      // any selected listing that has no photos on record.
+      if (selectedHouse && (!Array.isArray(selectedHouse.image_urls) || selectedHouse.image_urls.length === 0)) {
+        errors.push("This landlord's house has no photos — pick a house that shows photos before posting the rent request");
+      }
       if (!propertyAddress.trim()) errors.push('Type the property address');
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
       if (missingHousePhotos) errors.push('Take all 4 house photos (front, back, left and right)');
