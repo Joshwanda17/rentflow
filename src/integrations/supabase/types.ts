@@ -19770,6 +19770,18 @@ export type Database = {
           total_samples: number
         }[]
       }
+      get_sms_traffic_daily: {
+        Args: { p_days?: number }
+        Returns: {
+          africastalking: number
+          day: string
+          delivered: number
+          failed: number
+          other: number
+          total: number
+          yoola: number
+        }[]
+      }
       get_supporter_pool_stats: { Args: never; Returns: Json }
       get_tenant_behavior_segments: {
         Args: never
