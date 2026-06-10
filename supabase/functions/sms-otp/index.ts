@@ -330,22 +330,27 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 }
 
 /**
- * Send the OTP SMS. Provider chain: Yoola (primary) → LANA (fallback).
- * Africa's Talking is intentionally NOT used for OTP — its messages were not
- * being delivered. Each provider is tried only if the previous one is
- * unconfigured or fails, so delivery is never blocked on a single provider.
+ * Send the OTP SMS. Provider chain: Yoola (primary) → Africa's Talking → LANA.
+ * Each provider is tried only if the previous one is unconfigured or fails, so
+ * delivery is never blocked on a single provider.
  */
 async function sendSMS(phone: string, message: string): Promise<SmsResult> {
   const yoola = await sendViaYoola(phone, message);
   if (yoola.accepted) return yoola;
 
-  // Yoola failed or is not configured — try LANA as a final fallback.
-  console.warn(`[sms-otp] Yoola send not accepted (${yoola.reason}); trying LANA`);
+  // Yoola failed or is not configured — try Africa's Talking.
+  console.warn(`[sms-otp] Yoola send not accepted (${yoola.reason}); trying Africa's Talking`);
+  const at = await sendViaAfricasTalking(phone, message);
+  if (at.accepted) return at;
+
+  // AT failed or is not configured — try LANA as a final fallback.
+  console.warn(`[sms-otp] Africa's Talking not accepted (${at.reason}); trying LANA`);
   const lana = await sendViaLana(phone, message);
   if (lana.accepted) return lana;
 
   // All failed — surface the most informative reason (skip "not_configured").
   if (yoola.reason && yoola.reason !== "yoola_not_configured") return yoola;
+  if (at.reason && at.reason !== "missing_credentials") return at;
   return lana;
 }
 
