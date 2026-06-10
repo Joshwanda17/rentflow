@@ -64,9 +64,10 @@ export function useFunderApprovalStatus(userId: string | null | undefined): Fund
     },
   });
 
-  // Self-registered funders are gated by Partner Ops / COO verification.
-  // Everyone else keeps the legacy "always allowed" behavior.
-  const isApproved = data?.isSelfRegistered ? !!data?.verifiedAt : true;
+  // All joined users are auto-allowed to invest as long as they have funds
+  // in their wallet. Verification is no longer required to fund / back
+  // portfolios, so every authenticated funder is treated as approved.
+  const isApproved = true;
 
   return {
     status: data?.status ?? 'none',

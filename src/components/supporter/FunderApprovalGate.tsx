@@ -1,58 +1,13 @@
-import { Shield, Clock, XCircle, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
-import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 
 /**
- * Renders a status banner explaining why "Support Tenant" / portfolio funding
- * actions are locked for self-registered funders awaiting Partner Ops approval.
- * Renders nothing once the funder is approved.
+ * Verification is no longer required — all joined users can invest as long as
+ * they have funds in their wallet. The approval banner is retired and renders
+ * nothing; kept as a no-op so existing call sites remain valid.
  */
-export function FunderApprovalBanner({ className }: { className?: string }) {
-  const { user } = useAuth();
-  const { status, rejectionReason, isLoading } = useFunderApprovalStatus(user?.id);
-
-  if (isLoading || status === 'approved') return null;
-
-  if (status === 'rejected') {
-    return (
-      <div
-        className={cn(
-          'rounded-xl border border-destructive/30 bg-destructive/5 p-3 flex items-start gap-2.5',
-          className
-        )}
-      >
-        <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-        <div className="text-xs">
-          <p className="font-bold text-destructive">Account verification rejected</p>
-          <p className="text-muted-foreground mt-0.5">
-            {rejectionReason || 'Your funder account was not approved. Please contact Partner Ops for next steps.'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // pending / none
-  return (
-    <div
-      className={cn(
-        'rounded-xl border border-warning/30 bg-warning/5 p-3 flex items-start gap-2.5',
-        className
-      )}
-    >
-      <Shield className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-      <div className="text-xs">
-        <p className="font-bold text-warning flex items-center gap-1">
-          <Clock className="h-3 w-3" /> Awaiting verification
-        </p>
-        <p className="text-muted-foreground mt-0.5 leading-relaxed">
-          Your account is being reviewed by Partner Ops. You'll be able to support tenants
-          and create portfolios as soon as you're approved — usually within 24 hours.
-        </p>
-      </div>
-    </div>
-  );
+export function FunderApprovalBanner(_props: { className?: string }) {
+  return null;
 }
 
 export function FunderApprovedBadge({ className }: { className?: string }) {
