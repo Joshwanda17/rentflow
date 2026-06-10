@@ -178,27 +178,16 @@ async function sendTwilioSms(phone: string, message: string): Promise<SmsResult>
   }
 }
 
-// Yoola is PRIMARY. If Yoola is not accepted, fall back to Africa's Talking, then
-// Twilio — reissuing the same OTP. The returned result reflects whichever
+// Yoola is PRIMARY. If Yoola is not accepted, fall back to Twilio — reissuing
+// the same OTP. Africa's Talking is intentionally NOT used for OTP — its
+// messages were not being delivered. The returned result reflects whichever
 // provider ultimately delivered, with fallback metadata preserved for the audit
 // trail.
 async function sendOtpWithFallback(phone: string, message: string): Promise<SmsResult> {
   const primary = await sendYoolaSms(phone, message);
   if (primary.ok) return primary;
   console.warn(
-    `[issue-landlord-payout-otp] Yoola send failed (${primary.reason ?? "unknown"}) — falling back to Africa's Talking`,
-  );
-  const at = await sendSms(phone, message);
-  if (at.ok) {
-    return {
-      ...at,
-      fallbackUsed: true,
-      primaryProvider: primary.provider ?? "yoola",
-      primaryReason: primary.reason ?? "Yoola send not accepted",
-    };
-  }
-  console.warn(
-    `[issue-landlord-payout-otp] AT send failed (${at.reason ?? "unknown"}) — falling back to Twilio`,
+    `[issue-landlord-payout-otp] Yoola send failed (${primary.reason ?? "unknown"}) — falling back to Twilio`,
   );
   const fallback = await sendTwilioSms(phone, message);
   return {
@@ -314,7 +303,7 @@ Deno.serve(async (req) => {
         otp_expires_at,
         detail: resent.ok
           ? (resent.fallbackUsed
-            ? `OTP resent via Twilio fallback (Africa's Talking failed: ${resent.primaryReason ?? "unknown"})`
+            ? `OTP resent via Twilio fallback (Yoola failed: ${resent.primaryReason ?? "unknown"})`
             : "OTP resent via SMS")
           : `OTP regenerated (SMS NOT delivered: ${resent.reason ?? "unknown"})`,
         failure_reason: resent.ok ? null : (resent.reason ?? "sms_not_delivered"),
@@ -418,12 +407,12 @@ Deno.serve(async (req) => {
       detail: normalizedTrigger === "auto"
         ? (sent.ok
           ? (sent.fallbackUsed
-            ? `OTP auto-sent via Twilio fallback on withdraw float tap (Africa's Talking failed: ${sent.primaryReason ?? "unknown"})`
+            ? `OTP auto-sent via Twilio fallback on withdraw float tap (Yoola failed: ${sent.primaryReason ?? "unknown"})`
             : "OTP auto-sent via SMS on withdraw float tap")
           : `OTP auto-created on withdraw float tap (SMS NOT delivered: ${sent.reason ?? "unknown"})`)
         : (sent.ok
           ? (sent.fallbackUsed
-            ? `OTP sent via Twilio fallback (Africa's Talking failed: ${sent.primaryReason ?? "unknown"})`
+            ? `OTP sent via Twilio fallback (Yoola failed: ${sent.primaryReason ?? "unknown"})`
             : "OTP sent via SMS")
           : `OTP created (SMS NOT delivered: ${sent.reason ?? "unknown"})`),
       failure_reason: sent.ok ? null : (sent.reason ?? "sms_not_delivered"),

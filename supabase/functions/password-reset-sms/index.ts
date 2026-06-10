@@ -50,18 +50,16 @@ function formatPhoneInternational(rawPhone: string): string {
 }
 
 async function sendSMS(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
-  // Provider chain: Yoola (primary) → Africa's Talking → LANA.
+  // Provider chain: Yoola (primary) → LANA (fallback).
+  // Africa's Talking is intentionally NOT used for OTP — its messages were not
+  // being delivered.
   const yoola = await sendViaYoola(phone, message);
   if (yoola.ok) return yoola;
-  console.warn(`[password-reset-sms] Yoola not accepted (${yoola.reason}); trying Africa's Talking`);
-  const at = await sendViaAfricasTalking(phone, message);
-  if (at.ok) return at;
-  console.warn(`[password-reset-sms] Africa's Talking not accepted (${at.reason}); trying LANA`);
+  console.warn(`[password-reset-sms] Yoola not accepted (${yoola.reason}); trying LANA`);
   const lana = await sendViaLana(phone, message);
   if (lana.ok) return lana;
   if (yoola.reason && yoola.reason !== "yoola_not_configured") return yoola;
-  if (lana.reason && lana.reason !== "lana_not_configured") return lana;
-  return at;
+  return lana;
 }
 
 async function sendViaLana(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
