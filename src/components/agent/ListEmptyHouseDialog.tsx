@@ -1460,7 +1460,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <>
           <FormStepHeader
             icon={Home}
-            stepLabel="Step 1 of 2"
+            stepLabel="Step 1 of 3"
             title="What kind of house?"
             subtitle="Tap the picture that matches."
           />
