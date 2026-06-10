@@ -59,6 +59,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
   const autoSendRef = useRef<string | null>(null);
+  const allocationPrepRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -142,6 +143,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setAmountInput('');
     setPhoneOverride('');
     autoSendRef.current = null;
+    allocationPrepRef.current = null;
     landlordOtp.resetOtp();
   };
 
@@ -278,8 +280,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   // an unrelated assigned landlord/tenant (e.g. "boniface").
   useEffect(() => {
     if (!open || !allocation) return;
-    if (selectedRequest || allocationPrepping) return;
-    let cancelled = false;
+    // Guard against re-entry without using state in the dependency array —
+    // previously `allocationPrepping`/`selectedRequest` were deps, so calling
+    // setAllocationPrepping(true) re-ran the effect, fired the cleanup
+    // (cancelled = true) for the in-flight run, and the async resolved into a
+    // cancelled closure → setStep('otp') never ran → infinite spinner.
+    if (allocationPrepRef.current === allocation.id) return;
+    allocationPrepRef.current = allocation.id;
     (async () => {
       setAllocationPrepping(true);
       try {
@@ -299,7 +306,6 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                 .maybeSingle()
             : Promise.resolve({ data: null } as any),
         ]);
-        if (cancelled) return;
 
         const landlord = landlordRes?.data || {
           id: allocation.landlord_id,
@@ -326,11 +332,10 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
         setPhoneOverride('');
         setStep('otp');
       } finally {
-        if (!cancelled) setAllocationPrepping(false);
+        setAllocationPrepping(false);
       }
     })();
-    return () => { cancelled = true; };
-  }, [open, allocation, selectedRequest, allocationPrepping]);
+  }, [open, allocation]);
 
   const submitPayout = useMutation({
     mutationFn: async () => {
