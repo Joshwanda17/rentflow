@@ -180,6 +180,39 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
     shareRepaymentPdfWhatsApp(buildPdfData(req), req.tenant?.phone);
   };
 
+  // An agent may cancel/delete a request they own only before any money has
+  // moved (i.e. not funded/disbursed/completed). Ownership = agent_id is them.
+  const canCancel = (req: AgentRentRequest) =>
+    !!user &&
+    req.agent_id === user.id &&
+    ['pending', 'approved', 'rejected'].includes(req.status || '');
+
+  const handleCancel = async () => {
+    if (!cancelTarget || !user) return;
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .update({ status: 'deleted_by_agent' })
+        .eq('id', cancelTarget.id)
+        .eq('agent_id', user.id);
+
+      if (error) throw error;
+
+      setRequests(prev => prev.filter(r => r.id !== cancelTarget.id));
+      toast({ title: 'Request cancelled', description: 'The rent request has been removed.' });
+      setCancelTarget(null);
+    } catch (e: any) {
+      toast({
+        title: 'Could not cancel',
+        description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const getStatusBadge = (status: string | null) => {
     switch (status) {
       case 'pending':
