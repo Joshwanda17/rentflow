@@ -407,12 +407,12 @@ Deno.serve(async (req) => {
       detail: normalizedTrigger === "auto"
         ? (sent.ok
           ? (sent.fallbackUsed
-            ? `OTP auto-sent via Twilio fallback on withdraw float tap (Africa's Talking failed: ${sent.primaryReason ?? "unknown"})`
+            ? `OTP auto-sent via Twilio fallback on withdraw float tap (Yoola failed: ${sent.primaryReason ?? "unknown"})`
             : "OTP auto-sent via SMS on withdraw float tap")
           : `OTP auto-created on withdraw float tap (SMS NOT delivered: ${sent.reason ?? "unknown"})`)
         : (sent.ok
           ? (sent.fallbackUsed
-            ? `OTP sent via Twilio fallback (Africa's Talking failed: ${sent.primaryReason ?? "unknown"})`
+            ? `OTP sent via Twilio fallback (Yoola failed: ${sent.primaryReason ?? "unknown"})`
             : "OTP sent via SMS")
           : `OTP created (SMS NOT delivered: ${sent.reason ?? "unknown"})`),
       failure_reason: sent.ok ? null : (sent.reason ?? "sms_not_delivered"),
