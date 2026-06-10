@@ -776,6 +776,11 @@ Deno.serve(async (req) => {
         });
       }
       const sent = await sendSMS(phone, message);
+      await logSmsAttempts(
+        adminClient,
+        { phone, message, source: "sms-otp:custom" },
+        sent,
+      );
       if (!sent.accepted) {
         return new Response(JSON.stringify({ error: "Failed to send SMS" }), {
           status: 500,
