@@ -95,6 +95,12 @@ export default function LandlordSignup() {
           <p className="text-muted-foreground">A Welile agent will contact you shortly.</p>
           <p className="text-xl font-semibold text-primary">You will not miss rent.</p>
 
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-4 py-3">
+            <MessageCircle className="w-4 h-4 text-[#25D366]" />
+            <span className="text-sm text-muted-foreground">Confirm on WhatsApp</span>
+            <span className="text-sm font-semibold text-foreground">0777 607 640</span>
+          </div>
+
           <a
             href={whatsappUrl}
             target="_blank"
