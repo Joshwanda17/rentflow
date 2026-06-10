@@ -375,6 +375,7 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
               {allFiltered.length !== data.length && (
                 <span className="text-muted-foreground/70"> (filtered from {data.length.toLocaleString()})</span>
               )}
+              {searching && <span className="text-primary"> • searching…</span>}
             </span>
             <div className="flex items-center gap-1">
               <Button
