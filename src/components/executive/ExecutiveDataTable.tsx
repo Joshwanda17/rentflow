@@ -75,6 +75,10 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
   // filter so we don't double-filter already-matched rows.
   const serverSearch = typeof onSearchChange === 'function';
   const searchInputValue = serverSearch ? (searchValue ?? '') : search;
+  // While a backend search is active, the query already returned the universal
+  // result set — dropdown filters (e.g. template) must NOT narrow it further,
+  // otherwise the search appears "based on templates".
+  const serverSearchActive = serverSearch && searchInputValue.trim().length > 0;
 
   const selectionEnabled = !!getRowId && !!onSelectionChange;
   const selectedSet = useMemo(() => new Set(selectedIds || []), [selectedIds]);
@@ -94,9 +98,11 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
     }
 
     // Apply dropdown filters
-    for (const [key, val] of Object.entries(activeFilters)) {
-      if (val && val !== 'all') {
-        result = result.filter((row) => String(row[key]).toLowerCase() === val.toLowerCase());
+    if (!serverSearchActive) {
+      for (const [key, val] of Object.entries(activeFilters)) {
+        if (val && val !== 'all') {
+          result = result.filter((row) => String(row[key]).toLowerCase() === val.toLowerCase());
+        }
       }
     }
 
@@ -116,7 +122,7 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
     }
 
     return result;
-  }, [data, search, serverSearch, sortKey, sortDir, activeFilters, columns]);
+  }, [data, search, serverSearch, serverSearchActive, sortKey, sortDir, activeFilters, columns]);
 
   // Reset to first page whenever the filtered set changes shape.
   useEffect(() => {
