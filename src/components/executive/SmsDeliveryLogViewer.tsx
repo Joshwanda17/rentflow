@@ -150,37 +150,27 @@ export function SmsDeliveryLogViewer() {
     if (generating) return;
     setGenerating(true);
     try {
-      // Pull a wider window directly for the report (last 90 days).
+      // Server-aggregated rollup (last 90 days) — avoids the Data API 1,000-row cap.
       const since = subDays(startOfDay(new Date()), 89).toISOString();
-      const { data, error } = await supabase
-        .from('sms_delivery_log')
-        .select('created_at, status, provider')
-        .gte('created_at', since)
-        .order('created_at', { ascending: true })
-        .limit(50000);
+      const { data, error } = await supabase.rpc('get_sms_traffic_daily', { p_days: 90 });
       if (error) throw error;
-      const report = (data || []) as MetricRow[];
+      const report = ((data || []) as any[]).map((r) => ({
+        day: String(r.day),
+        total: Number(r.total) || 0,
+        delivered: Number(r.delivered) || 0,
+        failed: Number(r.failed) || 0,
+        yoola: Number(r.yoola) || 0,
+        at: Number(r.africastalking) || 0,
+        other: Number(r.other) || 0,
+      }));
       if (report.length === 0) {
         toast.error('No SMS traffic in the last 90 days to report.');
         return;
       }
-      // Per-day rollup.
-      const agg: Record<string, { total: number; delivered: number; failed: number; yoola: number; at: number; other: number }> = {};
-      for (const r of report) {
-        const key = format(new Date(r.created_at), 'yyyy-MM-dd');
-        agg[key] ||= { total: 0, delivered: 0, failed: 0, yoola: 0, at: 0, other: 0 };
-        const a = agg[key];
-        a.total++;
-        if (isSuccess(r.status)) a.delivered++; else a.failed++;
-        const p = (r.provider || '').toLowerCase();
-        if (p === 'yoola') a.yoola++;
-        else if (p.includes('africa')) a.at++;
-        else a.other++;
-      }
-      const reportRows = Object.entries(agg)
-        .sort(([a], [b]) => (a < b ? 1 : -1))
-        .map(([day, a]) => [
-          format(new Date(day), 'dd MMM yyyy'),
+      const reportRows = [...report]
+        .sort((a, b) => (a.day < b.day ? 1 : -1))
+        .map((a) => [
+          format(new Date(`${a.day}T00:00:00`), 'dd MMM yyyy'),
           a.total,
           a.delivered,
           a.failed,
@@ -189,8 +179,8 @@ export function SmsDeliveryLogViewer() {
           a.at,
           a.other,
         ]);
-      const totalAll = report.length;
-      const deliveredAll = report.filter((r) => isSuccess(r.status)).length;
+      const totalAll = report.reduce((s, r) => s + r.total, 0);
+      const deliveredAll = report.reduce((s, r) => s + r.delivered, 0);
       await downloadAuditPdf(
         `sms-otp-traffic-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`,
         ['Date', 'Total', 'Delivered', 'Failed', 'Success %', 'Yoola', "Africa's Talking", 'Other'],
