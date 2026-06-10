@@ -285,10 +285,17 @@ Deno.serve(async (req) => {
     // exact number so the agent can confirm and release the cash. Float is
     // debited on confirm (agent-cash-deposit-confirm).
     const agentPhoneForSms = normalizePhone(agentProfile.phone ?? agentPhoneRaw);
-    const smsSent = await sendSms(
-      agentPhoneForSms,
-      `Welile: ${depositorProfile?.full_name ?? "A user"} is collecting UGX ${amount.toLocaleString()} cash from your float. Confirmation code: ${pin}. Share it ONLY after handing over the cash. Your float will reduce by this amount.`,
-    );
+    const smsBody = `Welile: ${depositorProfile?.full_name ?? "A user"} is collecting UGX ${amount.toLocaleString()} cash from your float. Confirmation code: ${pin}. Share it ONLY after handing over the cash. Your float will reduce by this amount.`;
+    const smsOutcome = await sendSms(agentPhoneForSms, smsBody);
+    await logSmsAttempts(admin, {
+      phone: agentPhoneForSms,
+      message: smsBody,
+      userId: agentProfile.id,
+      name: agentProfile.full_name ?? null,
+      referenceId: (session as any).id ?? null,
+      source: "agent-cash-deposit-create",
+    }, smsOutcome);
+    const smsSent = smsOutcome.ok;
 
     return json(200, {
       ok: true,
