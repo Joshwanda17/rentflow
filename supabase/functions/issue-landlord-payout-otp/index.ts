@@ -196,29 +196,49 @@ async function sendTwilioSms(phone: string, message: string): Promise<SmsResult>
 // provider ultimately delivered, with fallback metadata preserved for the audit
 // trail.
 async function sendOtpWithFallback(phone: string, message: string): Promise<SmsResult> {
-  const primary = await sendYoolaSms(phone, message);
-  if (primary.ok) return primary;
+  const attempts: ProviderAttempt[] = [];
+  const run = async (provider: string, fn: () => Promise<SmsResult>): Promise<SmsResult> => {
+    const started_at = new Date().toISOString();
+    const r = await fn();
+    const finished_at = new Date().toISOString();
+    attempts.push({
+      provider,
+      accepted: r.ok,
+      reason: r.reason,
+      messageId: r.messageId,
+      cost: r.cost,
+      raw: r.raw,
+      started_at,
+      finished_at,
+    });
+    return r;
+  };
+
+  const primary = await run("yoola", () => sendYoolaSms(phone, message));
+  if (primary.ok) return { ...primary, attempts };
   console.warn(
     `[issue-landlord-payout-otp] Yoola send failed (${primary.reason ?? "unknown"}) — falling back to Africa's Talking`,
   );
-  const at = await sendSms(phone, message);
+  const at = await run("africastalking", () => sendSms(phone, message));
   if (at.ok) {
     return {
       ...at,
       fallbackUsed: true,
       primaryProvider: primary.provider ?? "yoola",
       primaryReason: primary.reason ?? "Yoola send not accepted",
+      attempts,
     };
   }
   console.warn(
     `[issue-landlord-payout-otp] AT send failed (${at.reason ?? "unknown"}) — falling back to Twilio`,
   );
-  const fallback = await sendTwilioSms(phone, message);
+  const fallback = await run("twilio", () => sendTwilioSms(phone, message));
   return {
     ...fallback,
     fallbackUsed: true,
     primaryProvider: primary.provider ?? "yoola",
     primaryReason: primary.reason ?? "Yoola send not accepted",
+    attempts,
   };
 }
 
