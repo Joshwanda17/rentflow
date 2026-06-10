@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, CalendarDays } from 'lucide-react';
+import { Loader2, CheckCircle2, Banknote, Home, TrendingUp, Users, Wallet, AlertTriangle, XCircle, CalendarDays, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -52,6 +52,7 @@ export function RentDisbursementQueue() {
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<'all' | '7d' | '30d'>('all');
+  const [search, setSearch] = useState('');
   const [batchRef, setBatchRef] = useState('');
   const [rejectTarget, setRejectTarget] = useState<ApprovedRentItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -134,12 +135,22 @@ export function RentDisbursementQueue() {
     setSelected(next);
   };
 
-  // Date-window filter: which requests are within the chosen lookback.
+  // Date-window + text-search filter: which requests are within the chosen
+  // lookback and match the CFO's search (tenant, landlord, or agent name).
   const filteredItems = useMemo(() => {
-    if (dateFilter === 'all') return items;
-    const cutoff = Date.now() - (dateFilter === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000;
-    return items.filter(it => new Date(it.created_at).getTime() >= cutoff);
-  }, [items, dateFilter]);
+    const cutoff = dateFilter === 'all'
+      ? null
+      : Date.now() - (dateFilter === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000;
+    const q = search.trim().toLowerCase();
+    return items.filter(it => {
+      if (cutoff !== null && new Date(it.created_at).getTime() < cutoff) return false;
+      if (q) {
+        const haystack = `${it.tenant_name} ${it.landlord_name} ${it.agent_name}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [items, dateFilter, search]);
 
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
   // agent's tenants at a glance.
@@ -303,6 +314,15 @@ export function RentDisbursementQueue() {
             )}
           </CardTitle>
           <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative w-[230px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setSelected(new Set()); }}
+                placeholder="Search tenant, landlord, agent…"
+                className="h-7 text-xs pl-8"
+              />
+            </div>
             <Select value={agentFilter} onValueChange={setAgentFilter}>
               <SelectTrigger className="h-7 text-xs w-[220px]">
                 <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
