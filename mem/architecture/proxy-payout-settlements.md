@@ -12,6 +12,10 @@ type: feature
 - Backfill: 239 historical CFO-approved payouts whose partner strict withdrawable ≤ UGX 50 were inserted as settled.
 
 **Edge fn `approve-withdrawal`.** After `status=completed`, when `proxy_partner_id` (or legacy `linked_party`) is present:
+
+**Two-stage lifecycle (clarified 2026-06-10).** CFO approval ONLY puts the partner's ROI card onto the proxy list (`pending_wallet_operations.status='approved'` + `coo_approved_by`). The withdrawal itself is approved by **FinOps**, which runs `approve-withdrawal` → flips the request to `completed` → inserts the settlement row → card disappears. FinOps approval is the SOLE completion event. A FinOps-**rejected** withdrawal writes no settlement, so the card correctly persists (ROI returned, re-request needed). If a partner was paid in cash OFF-system, the only way to retire the card is a manual `proxy_payout_settlements` insert (force-settle) — no ledger/wallet movement occurs, so use only when CFO confirms the cash payout.
+
+1. Fetch CFO-approved ...
 1. Fetch CFO-approved `pending_wallet_operations` (`category='roi_payout'`, `status='approved'`, `metadata.coo_approved_by IS NOT NULL`, `source_id` matches partner portfolios).
 2. Exclude any `approval_id` already in `proxy_payout_settlements`.
 3. FIFO-walk by `created_at ASC`, sum up to withdrawal amount.
