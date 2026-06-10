@@ -385,6 +385,14 @@ Deno.serve(async (req) => {
 
       const message = `Your Welile password reset code is: ${otp}. It expires in 1 hour. Do not share this code with anyone.`;
       const sent = await sendSMS(phone, message);
+      await logSmsAttempts(adminClient, {
+        phone,
+        message,
+        userId: profile.id,
+        name: profile.full_name ?? null,
+        referenceId: resetKey,
+        source: "password-reset-sms",
+      }, sent);
 
       if (!sent.ok) {
         // Return 200 with structured error to avoid frontend blank-screen on 500.
