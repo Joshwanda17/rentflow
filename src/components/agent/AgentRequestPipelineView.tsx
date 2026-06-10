@@ -1341,7 +1341,7 @@ function RequestDetailDrawer({
               </div>
             </div>
 
-            <DrawerFooter>
+            <DrawerFooter className="shrink-0">
               <DrawerClose asChild>
                 <Button variant="outline" className="w-full">Close</Button>
               </DrawerClose>
