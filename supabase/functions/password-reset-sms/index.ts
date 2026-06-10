@@ -49,19 +49,84 @@ function formatPhoneInternational(rawPhone: string): string {
   return "+" + digits;
 }
 
-async function sendSMS(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
-  // Provider chain: Yoola (primary) → Africa's Talking → LANA.
-  const yoola = await sendViaYoola(phone, message);
-  if (yoola.ok) return yoola;
+interface ProviderAttempt {
+  provider: string;
+  accepted: boolean;
+  reason?: string;
+  started_at: string;
+  finished_at: string;
+  attempted: boolean;
+}
+interface SmsOutcome {
+  ok: boolean;
+  reason?: string;
+  provider?: string;
+  attempts: ProviderAttempt[];
+}
+function wasSkipped(reason?: string): boolean {
+  return reason === "SMS service not configured" ||
+    (typeof reason === "string" && reason.endsWith("not_configured"));
+}
+
+async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
+  // Provider chain: Yoola (primary) → Africa's Talking → LANA. Each provider is
+  // tried only if the previous one did not accept, and every attempt is
+  // timestamped so we can prove there was never a simultaneous double-send.
+  const attempts: ProviderAttempt[] = [];
+  const run = async (provider: string, fn: () => Promise<{ ok: boolean; reason?: string }>) => {
+    const started_at = new Date().toISOString();
+    const r = await fn();
+    const finished_at = new Date().toISOString();
+    attempts.push({ provider, accepted: r.ok, reason: r.reason, started_at, finished_at, attempted: !wasSkipped(r.reason) });
+    return r;
+  };
+
+  const yoola = await run("yoola", () => sendViaYoola(phone, message));
+  if (yoola.ok) return { ok: true, provider: "yoola", attempts };
   console.warn(`[password-reset-sms] Yoola not accepted (${yoola.reason}); trying Africa's Talking`);
-  const at = await sendViaAfricasTalking(phone, message);
-  if (at.ok) return at;
+  const at = await run("africastalking", () => sendViaAfricasTalking(phone, message));
+  if (at.ok) return { ok: true, provider: "africastalking", attempts };
   console.warn(`[password-reset-sms] Africa's Talking not accepted (${at.reason}); trying LANA`);
-  const lana = await sendViaLana(phone, message);
-  if (lana.ok) return lana;
-  if (yoola.reason && yoola.reason !== "yoola_not_configured") return yoola;
-  if (lana.reason && lana.reason !== "lana_not_configured") return lana;
-  return at;
+  const lana = await run("lana", () => sendViaLana(phone, message));
+  if (lana.ok) return { ok: true, provider: "lana", attempts };
+  let reason = at.reason;
+  if (yoola.reason && yoola.reason !== "yoola_not_configured") reason = yoola.reason;
+  else if (lana.reason && lana.reason !== "lana_not_configured") reason = lana.reason;
+  return { ok: false, reason, attempts };
+}
+
+/** Best-effort per-provider attempt audit trail into sms_delivery_log. */
+async function logSmsAttempts(
+  admin: ReturnType<typeof createClient>,
+  ctx: { phone: string; message: string; userId?: string | null; name?: string | null; referenceId?: string | null; source: string },
+  outcome: SmsOutcome,
+): Promise<void> {
+  try {
+    if (!outcome.attempts.length) return;
+    const rows = outcome.attempts.map((a, i) => ({
+      recipient_phone: ctx.phone,
+      recipient_user_id: ctx.userId ?? null,
+      recipient_name: ctx.name ?? null,
+      message: ctx.message,
+      provider: a.provider,
+      status: a.accepted ? "accepted" : (a.attempted ? "failed" : "skipped"),
+      error: a.accepted ? null : (a.reason ?? null),
+      reference_id: ctx.referenceId ?? null,
+      source: ctx.source,
+      provider_response: {
+        attempt_sequence: i + 1,
+        total_attempts: outcome.attempts.length,
+        started_at: a.started_at,
+        finished_at: a.finished_at,
+        reason: a.reason ?? null,
+        final_provider: outcome.provider ?? null,
+        final_accepted: outcome.ok,
+      },
+    }));
+    await admin.from("sms_delivery_log").insert(rows);
+  } catch (e) {
+    console.warn("[password-reset-sms] sms_delivery_log insert failed (non-critical):", e);
+  }
 }
 
 async function sendViaLana(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
