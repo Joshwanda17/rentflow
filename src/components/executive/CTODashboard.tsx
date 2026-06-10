@@ -9,6 +9,7 @@ import { SystemLogsViewer } from './SystemLogsViewer';
 import { InfrastructureHealthMonitor } from './InfrastructureHealthMonitor';
 import { CTOEmailsOverview } from './CTOEmailsOverview';
 import { CTOCommunicationOverview } from './CTOCommunicationOverview';
+import { SmsDeliveryLogViewer } from './SmsDeliveryLogViewer';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 import { CTOLedgerExport } from './CTOLedgerExport';
 import MaintenanceToggleCard from '@/components/cto/MaintenanceToggleCard';
@@ -18,6 +19,9 @@ import ExportUsersWithHashesCard from '@/components/cto/ExportUsersWithHashesCar
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
     return <SystemLogsViewer />;
+  }
+  if (activeTab === 'sms-delivery') {
+    return <SmsDeliveryLogViewer />;
   }
   if (activeTab === 'emails' || activeTab === 'communication') {
     return <CTOCommunicationOverview />;
