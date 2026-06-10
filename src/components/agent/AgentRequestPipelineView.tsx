@@ -24,6 +24,16 @@ import {
   DrawerClose,
 } from '@/components/ui/drawer';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -53,6 +63,7 @@ import {
   Wallet,
   HandCoins,
   ArrowUpDown,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isToday, isThisWeek, isThisMonth } from 'date-fns';
@@ -1182,8 +1193,34 @@ function RequestDetailDrawer({
   stageLabel: string;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const dailyRepay =
     row && row.duration_days > 0 ? Math.round(row.total_repayment / row.duration_days) : 0;
+  const canCancel =
+    !!row && !!user && SUBMITTED_STATUSES.includes(row.status);
+  const handleCancel = async () => {
+    if (!row || !user) return;
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .update({ status: 'deleted_by_agent' })
+        .eq('id', row.id)
+        .eq('agent_id', user.id);
+      if (error) throw error;
+      toast.success('Request cancelled', { description: 'The rent request has been removed.' });
+      setConfirmCancel(false);
+      queryClient.invalidateQueries({ queryKey: ['agent-pipeline'] });
+      onClose();
+    } catch (e: any) {
+      toast.error('Could not cancel', { description: e?.message || 'Please try again.' });
+    } finally {
+      setCancelling(false);
+    }
+  };
   const history = useQuery({
     queryKey: ['agent-request-history', row?.id],
     enabled: !!row?.id,
@@ -1341,7 +1378,18 @@ function RequestDetailDrawer({
               </div>
             </div>
 
-            <DrawerFooter className="shrink-0">
+            <DrawerFooter className="shrink-0 gap-2 border-t bg-background">
+              {canCancel && (
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setConfirmCancel(true)}
+                  disabled={cancelling}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Reject / Cancel request
+                </Button>
+              )}
               <DrawerClose asChild>
                 <Button variant="outline" className="w-full">Close</Button>
               </DrawerClose>
@@ -1349,6 +1397,26 @@ function RequestDetailDrawer({
           </div>
         )}
       </DrawerContent>
+      <AlertDialog open={confirmCancel} onOpenChange={(o) => { if (!cancelling) setConfirmCancel(o); }}>
+        <AlertDialogContent className="z-[210]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this rent request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the rent request from the pipeline. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep request</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleCancel(); }}
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Drawer>
   );
 }
