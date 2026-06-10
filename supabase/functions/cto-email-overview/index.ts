@@ -37,6 +37,32 @@ Deno.serve(async (req) => {
     const days = Math.max(1, Math.min(90, Number(url.searchParams.get("days") ?? 30)));
     const since = new Date(Date.now() - days * 86400000).toISOString();
 
+    // Backend search mode: when the CTO types a query in the Recent Emails
+    // table, search hits the database directly across ALL time (not just the
+    // current range / capped set). recentOnly skips the heavy KPI computation
+    // and returns only matching rows so each keystroke stays cheap.
+    const search = (url.searchParams.get("search") ?? "").trim().replace(/[,()*]/g, " ").trim();
+    const recentOnly = url.searchParams.get("recentOnly") === "1";
+    if (recentOnly) {
+      let q = adminClient
+        .from("email_send_log")
+        .select("id, message_id, template_name, recipient_email, status, error_message, created_at")
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      if (search) {
+        const like = `%${search}%`;
+        q = q.or(
+          `recipient_email.ilike.${like},template_name.ilike.${like},error_message.ilike.${like}`,
+        );
+      } else {
+        // No query → fall back to the recent set within the selected range.
+        q = q.gte("created_at", since);
+      }
+      const { data: matches, error: mErr } = await q;
+      if (mErr) return json({ error: mErr.message }, 500);
+      return json({ recent: matches ?? [] }, 200);
+    }
+
     // Pull recent log rows in one go (capped) — used for KPIs, time-series, and table
     const { data: rows, error: rowsErr } = await adminClient
       .from("email_send_log")

@@ -38,6 +38,14 @@ interface ExecutiveDataTableProps<T> {
   bulkActions?: (selectedIds: string[]) => React.ReactNode;
   /** Optional click handler — when set, rows become clickable. */
   onRowClick?: (row: T) => void;
+  /** When provided, the search box is controlled by the parent and client-side
+   *  text filtering is disabled (the parent is expected to search the backend). */
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  /** Placeholder for the search input. */
+  searchPlaceholder?: string;
+  /** Shown next to the result count when a backend search is active. */
+  searching?: boolean;
 }
 
 export function ExecutiveDataTable<T extends Record<string, any>>({
@@ -52,12 +60,21 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
   onSelectionChange,
   bulkActions,
   onRowClick,
+  searchValue,
+  onSearchChange,
+  searchPlaceholder,
+  searching,
 }: ExecutiveDataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
+
+  // When the parent controls search (backend search), skip the local text
+  // filter so we don't double-filter already-matched rows.
+  const serverSearch = typeof onSearchChange === 'function';
+  const searchInputValue = serverSearch ? (searchValue ?? '') : search;
 
   const selectionEnabled = !!getRowId && !!onSelectionChange;
   const selectedSet = useMemo(() => new Set(selectedIds || []), [selectedIds]);
@@ -66,7 +83,7 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
     let result = [...data];
 
     // Search across all string columns
-    if (search) {
+    if (!serverSearch && search) {
       const q = search.toLowerCase();
       result = result.filter((row) =>
         columns.some((col) => {
@@ -99,12 +116,12 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
     }
 
     return result;
-  }, [data, search, sortKey, sortDir, activeFilters, columns]);
+  }, [data, search, serverSearch, sortKey, sortDir, activeFilters, columns]);
 
   // Reset to first page whenever the filtered set changes shape.
   useEffect(() => {
     setPage(0);
-  }, [search, activeFilters, sortKey, sortDir, data.length]);
+  }, [search, searchValue, activeFilters, sortKey, sortDir, data.length]);
 
   const totalPages = Math.max(1, Math.ceil(allFiltered.length / limit));
   const safePage = Math.min(page, totalPages - 1);
@@ -217,9 +234,9 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            placeholder={searchPlaceholder || 'Search...'}
+            value={searchInputValue}
+            onChange={(e) => (serverSearch ? onSearchChange!(e.target.value) : setSearch(e.target.value))}
             className="pl-9 h-9"
           />
         </div>
@@ -358,6 +375,7 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
               {allFiltered.length !== data.length && (
                 <span className="text-muted-foreground/70"> (filtered from {data.length.toLocaleString()})</span>
               )}
+              {searching && <span className="text-primary"> • searching…</span>}
             </span>
             <div className="flex items-center gap-1">
               <Button
