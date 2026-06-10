@@ -3,7 +3,7 @@ import {
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt,
-  ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck
+  ShieldCheck, GraduationCap, Mail, FolderOpen, CalendarCheck, Landmark
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -68,6 +68,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Rent Payouts', icon: Banknote, id: 'rent-payouts' },
         { label: 'Landlord Payout Float', icon: Home, id: 'landlord-payout-float' },
+        { label: 'Already Funded Landlords', icon: Landmark, id: 'already-funded-landlords' },
         { label: 'Agent Commissions', icon: Banknote, id: 'commissions' },
         { label: 'Withdrawals', icon: Wallet, id: 'withdrawals' },
         { label: 'Withdrawal History', icon: ClipboardList, id: 'withdrawal-history' },

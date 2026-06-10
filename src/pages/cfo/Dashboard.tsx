@@ -56,6 +56,7 @@ import { PhantomCorrectionDriftPanel } from '@/components/cfo/PhantomCorrectionD
 import { CFOUnfundingApprovals } from '@/components/cfo/CFOUnfundingApprovals';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
+import { AlreadyFundedLandlordsPanel } from '@/components/cfo/AlreadyFundedLandlordsPanel';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 export default function CFODashboardPage() {
@@ -169,6 +170,19 @@ export default function CFODashboardPage() {
             <RentDisbursementQueue />
             <BatchPayoutProcessor />
             <LandlordFloatAllocationsPanel />
+          </div>
+        );
+      case 'already-funded-landlords':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">🏛️ Already Funded Landlords</h1>
+              <p className="text-sm text-muted-foreground">
+                Landlords whose rent has already been disbursed by the CFO and is now either with the agent
+                (awaiting MoMo payout) or already forwarded to the landlord. Tracks funded, repaying, and completed rent requests.
+              </p>
+            </div>
+            <AlreadyFundedLandlordsPanel />
           </div>
         );
       case 'advanced-ledgers':
