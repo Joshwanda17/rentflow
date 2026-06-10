@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
@@ -53,11 +53,19 @@ const RANGE_OPTIONS = [
 
 export function CTOEmailsOverview() {
   const [days, setDays] = useState(30);
+  const [emailSearch, setEmailSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [previewRow, setPreviewRow] = useState<EmailOverview['recent'][number] | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewSubject, setPreviewSubject] = useState<string | null>(null);
+
+  // Debounce the search box so each keystroke doesn't fire a backend query.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(emailSearch.trim()), 350);
+    return () => clearTimeout(t);
+  }, [emailSearch]);
 
   const openPreview = async (row: EmailOverview['recent'][number]) => {
     setPreviewRow(row);
@@ -95,19 +103,39 @@ export function CTOEmailsOverview() {
     staleTime: 60_000,
   });
 
+  // Backend search for the Recent Emails table — hits the database directly
+  // across all time when the CTO types a query (≥2 chars). Otherwise the table
+  // shows the recent set from the main overview payload.
+  const isSearching = debouncedSearch.length >= 2;
+  const { data: searchData, isFetching: searchFetching } = useQuery({
+    queryKey: ['cto-email-search', debouncedSearch],
+    enabled: isSearching,
+    queryFn: async () => {
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes.data.session?.access_token;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cto-email-overview?recentOnly=1&days=${days}&search=${encodeURIComponent(debouncedSearch)}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(await res.text());
+      return (await res.json()) as { recent: EmailOverview['recent'] };
+    },
+    staleTime: 30_000,
+  });
+
+  const recentRows = isSearching ? (searchData?.recent ?? []) : (data?.recent ?? []);
+
   const kpis = data?.kpis;
 
   // Distinct templates present in the recent set — drives the Template filter
   // dropdown so the CTO can narrow the table to a single email type.
   const templateFilterOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const r of data?.recent ?? []) {
+    for (const r of recentRows) {
       if (r.template_name) set.add(r.template_name);
     }
     return Array.from(set)
       .sort((a, b) => a.localeCompare(b))
       .map((t) => ({ value: t, label: t }));
-  }, [data?.recent]);
+  }, [recentRows]);
 
   const templateColumns: Column<EmailOverview['templateSummary'][number]>[] = [
     { key: 'template', label: 'Template' },
