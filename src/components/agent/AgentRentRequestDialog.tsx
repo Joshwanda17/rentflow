@@ -745,7 +745,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         // A house with no photos can never be used for a rent request — the
         // landlord's property must be visually verifiable. Drop them from the
         // picker so agents can't select a photoless listing.
-        if (!Array.isArray(r.image_urls) || r.image_urls.length === 0) continue;
+        if (!listingHasRealPhoto(r)) continue;
         unique.push(r);
       }
 
@@ -1250,7 +1250,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
       // The landlord's listed house MUST show photos. Block rent requests on
       // any selected listing that has no photos on record.
-      if (selectedHouse && (!Array.isArray(selectedHouse.image_urls) || selectedHouse.image_urls.length === 0)) {
+      if (selectedHouse && !listingHasRealPhoto(selectedHouse)) {
         errors.push("This landlord's house has no photos — pick a house that shows photos before posting the rent request");
       }
       if (!propertyAddress.trim()) errors.push('Type the property address');
