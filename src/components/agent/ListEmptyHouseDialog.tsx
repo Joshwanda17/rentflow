@@ -631,6 +631,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Village / Zone is required');
       return;
     }
+    if (images.length === 0) {
+      failWith('Add at least one photo of the house');
+      return;
+    }
     // Landlord phone is mandatory for every listing.
     if (!form.landlord_phone.trim()) {
       failWith('Landlord phone number is required');
