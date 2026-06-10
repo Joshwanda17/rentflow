@@ -16,6 +16,7 @@ import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from '.
 import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaPhone, formatUgandaPhone, toUgandaLocalDigits } from '@/lib/phoneUtils';
 import FormStepHeader from '@/components/shared/FormStepHeader';
 import FieldError from '@/components/shared/FieldError';
+import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
