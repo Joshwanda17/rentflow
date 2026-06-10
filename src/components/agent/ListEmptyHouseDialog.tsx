@@ -16,6 +16,7 @@ import { Lc1ChairpersonPicker, validateLc1Selection, type Lc1Selection } from '.
 import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaPhone, formatUgandaPhone, toUgandaLocalDigits } from '@/lib/phoneUtils';
 import FormStepHeader from '@/components/shared/FormStepHeader';
 import FieldError from '@/components/shared/FieldError';
+import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -113,6 +114,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   };
   const [phoneMatch, setPhoneMatch] = useState<PhoneMatch | null>(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
+  // House photos — at least one is REQUIRED to list an empty house.
+  const [images, setImages] = useState<HouseImageFile[]>([]);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -430,7 +433,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     'Location': { step: 1, id: 'lh-field-location' },
     'Rent amount': { step: 1, id: 'lh-field-rent' },
     'House details': { step: 1, id: 'lh-field-house' },
-    'Photos': { step: 1, id: 'lh-field-house' },
+    'Photos': { step: 1, id: 'lh-field-photos' },
   };
 
   // Smooth-scroll to a field anchor, briefly highlight it and focus its first input.
@@ -528,6 +531,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Village / Zone is required');
         return false;
       }
+      if (images.length === 0) {
+        toast.error('Add at least one photo of the house');
+        return false;
+      }
     }
     if (s === 2) {
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
@@ -582,6 +589,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   ];
   preflightGates.push({ label: 'Address', ok: !!form.address.trim(), hint: 'Enter the property address', step: 1 });
   preflightGates.push({ label: 'Village / Zone', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 1 });
+  preflightGates.push({ label: 'At least one photo', ok: images.length > 0, hint: 'Add at least one photo of the house', step: 1 });
   preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 2 });
   if (form.caretaker_type === 'other') {
     preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 2 });
@@ -621,6 +629,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     if (!form.village.trim()) {
       failWith('Village / Zone is required');
+      return;
+    }
+    if (images.length === 0) {
+      failWith('Add at least one photo of the house');
       return;
     }
     // Landlord phone is mandatory for every listing.
@@ -721,6 +733,26 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         .single();
 
       if (error) throw error;
+
+      // Upload the captured house photos and attach them to the new listing.
+      if (listing?.id && images.length > 0) {
+        try {
+          const uploaded = await uploadHouseImages(
+            user.id,
+            listing.id,
+            images.map((i) => i.file),
+            images.map((i) => i.thumbnailFile),
+          );
+          if (uploaded.length > 0) {
+            await supabase
+              .from('house_listings')
+              .update({ image_urls: uploaded } as any)
+              .eq('id', listing.id);
+          }
+        } catch (photoErr) {
+          console.warn('[ListEmptyHouseDialog] photo upload warning:', photoErr);
+        }
+      }
 
       // Remember this landlord locally so the next listing can reuse them in one tap.
       try {
@@ -857,6 +889,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setPhoneMatch(null);
     setCheckingPhone(false);
     setStep(1);
+    setImages([]);
   };
 
   const buildShare = () => {
@@ -1579,6 +1612,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 }}
               />
             </div>
+          </div>
+          {/* Photos — REQUIRED. Every listing must carry at least one photo. */}
+          <div
+            id="lh-field-photos"
+            className={`space-y-2 p-3 rounded-xl border ${
+              attempted && images.length === 0 ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
+            }`}
+          >
+            <p className="text-sm font-medium">
+              House photos <span className="text-destructive">*</span>
+            </p>
+            <HouseImageUploader
+              images={images}
+              onChange={setImages}
+              region={form.region}
+              district={form.district}
+              village={form.village}
+            />
+            {attempted && images.length === 0 && (
+              <FieldError message="Add at least one photo of the house to list it." />
+            )}
           </div>
           </>
           )}
