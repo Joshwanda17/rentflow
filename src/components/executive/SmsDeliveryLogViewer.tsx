@@ -3,13 +3,19 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+} from 'recharts';
 import { KPICard } from './KPICard';
 import { SmsFailoverAlerts } from './SmsFailoverAlerts';
-import { MessageSquare, Search, Loader2, CheckCircle2, XCircle, Radio } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { MessageSquare, Search, Loader2, CheckCircle2, XCircle, Radio, CalendarDays, CalendarRange, Calendar, FileDown } from 'lucide-react';
+import { format, formatDistanceToNow, subDays, startOfWeek, startOfMonth, startOfDay } from 'date-fns';
+import { downloadAuditPdf } from '@/lib/pdfAuditReport';
+import { toast } from 'sonner';
 
 type SmsLog = {
   id: string;
@@ -47,10 +53,13 @@ function isSuccess(status: string) {
   return s === 'sent' || s === 'success' || s === 'delivered' || s === 'accepted';
 }
 
+type MetricRow = { created_at: string; status: string; provider: string };
+
 export function SmsDeliveryLogViewer() {
   const [search, setSearch] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [generating, setGenerating] = useState(false);
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['cto-sms-delivery-log', providerFilter, statusFilter],
@@ -69,6 +78,128 @@ export function SmsDeliveryLogViewer() {
     },
     staleTime: 30_000,
   });
+
+  // Traffic metrics: fetch lightweight rows over the last 90 days for aggregation.
+  const { data: metrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ['cto-sms-metrics'],
+    queryFn: async () => {
+      const since = subDays(startOfDay(new Date()), 89).toISOString();
+      const { data, error } = await supabase
+        .from('sms_delivery_log')
+        .select('created_at, status, provider')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(20000);
+      if (error) throw error;
+      return (data || []) as MetricRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  const rows = metrics || [];
+  const now = new Date();
+  const dayStart = startOfDay(now).getTime();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 }).getTime();
+  const monthStart = startOfMonth(now).getTime();
+
+  const countSince = (cutoff: number) => {
+    let sent = 0, fail = 0;
+    for (const r of rows) {
+      if (new Date(r.created_at).getTime() < cutoff) continue;
+      if (isSuccess(r.status)) sent++; else fail++;
+    }
+    return { total: sent + fail, sent, fail };
+  };
+  const today = countSince(dayStart);
+  const thisWeek = countSince(weekStart);
+  const thisMonth = countSince(monthStart);
+
+  // Daily traffic chart (last 30 days), delivered vs failed.
+  const dailyTraffic = (() => {
+    const byDay: Record<string, { delivered: number; failed: number }> = {};
+    for (let i = 29; i >= 0; i--) {
+      byDay[format(subDays(now, i), 'yyyy-MM-dd')] = { delivered: 0, failed: 0 };
+    }
+    for (const r of rows) {
+      const key = format(new Date(r.created_at), 'yyyy-MM-dd');
+      if (!byDay[key]) continue;
+      if (isSuccess(r.status)) byDay[key].delivered++; else byDay[key].failed++;
+    }
+    return Object.entries(byDay).map(([date, v]) => ({
+      day: format(new Date(date), 'dd MMM'),
+      delivered: v.delivered,
+      failed: v.failed,
+    }));
+  })();
+
+  const handleGenerateReport = async () => {
+    if (generating) return;
+    setGenerating(true);
+    try {
+      // Pull a wider window directly for the report (last 90 days).
+      const since = subDays(startOfDay(new Date()), 89).toISOString();
+      const { data, error } = await supabase
+        .from('sms_delivery_log')
+        .select('created_at, status, provider')
+        .gte('created_at', since)
+        .order('created_at', { ascending: true })
+        .limit(50000);
+      if (error) throw error;
+      const report = (data || []) as MetricRow[];
+      if (report.length === 0) {
+        toast.error('No SMS traffic in the last 90 days to report.');
+        return;
+      }
+      // Per-day rollup.
+      const agg: Record<string, { total: number; delivered: number; failed: number; yoola: number; at: number; other: number }> = {};
+      for (const r of report) {
+        const key = format(new Date(r.created_at), 'yyyy-MM-dd');
+        agg[key] ||= { total: 0, delivered: 0, failed: 0, yoola: 0, at: 0, other: 0 };
+        const a = agg[key];
+        a.total++;
+        if (isSuccess(r.status)) a.delivered++; else a.failed++;
+        const p = (r.provider || '').toLowerCase();
+        if (p === 'yoola') a.yoola++;
+        else if (p.includes('africa')) a.at++;
+        else a.other++;
+      }
+      const reportRows = Object.entries(agg)
+        .sort(([a], [b]) => (a < b ? 1 : -1))
+        .map(([day, a]) => [
+          format(new Date(day), 'dd MMM yyyy'),
+          a.total,
+          a.delivered,
+          a.failed,
+          a.total ? `${Math.round((a.delivered / a.total) * 100)}%` : '—',
+          a.yoola,
+          a.at,
+          a.other,
+        ]);
+      const totalAll = report.length;
+      const deliveredAll = report.filter((r) => isSuccess(r.status)).length;
+      await downloadAuditPdf(
+        `sms-otp-traffic-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`,
+        ['Date', 'Total', 'Delivered', 'Failed', 'Success %', 'Yoola', "Africa's Talking", 'Other'],
+        reportRows,
+        {
+          title: 'SMS / OTP Traffic Report',
+          subtitle: 'Welile Technologies — CTO Communications',
+          filters: [
+            `Window: last 90 days (since ${format(new Date(since), 'dd MMM yyyy')})`,
+            `Total messages: ${totalAll.toLocaleString()}`,
+            `Delivered: ${deliveredAll.toLocaleString()} (${totalAll ? Math.round((deliveredAll / totalAll) * 100) : 0}%)`,
+            `Today: ${today.total} · This week: ${thisWeek.total} · This month: ${thisMonth.total}`,
+          ],
+          footerLabel: 'Welile SMS/OTP Traffic',
+        },
+      );
+      toast.success('SMS traffic report generated.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate report.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const filtered = search.trim()
     ? logs.filter((l) => {
@@ -101,6 +232,66 @@ export function SmsDeliveryLogViewer() {
       </div>
 
       <SmsFailoverAlerts />
+
+      {/* Traffic metrics — daily / weekly / monthly */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+        <KPICard
+          title="Sent Today"
+          value={today.total.toLocaleString()}
+          icon={CalendarDays}
+          color="bg-primary/10 text-primary"
+          loading={metricsLoading}
+          subtitle={`${today.sent} delivered · ${today.fail} failed`}
+        />
+        <KPICard
+          title="This Week"
+          value={thisWeek.total.toLocaleString()}
+          icon={CalendarRange}
+          color="bg-blue-500/10 text-blue-600"
+          loading={metricsLoading}
+          subtitle={`${thisWeek.sent} delivered · ${thisWeek.fail} failed`}
+        />
+        <KPICard
+          title="This Month"
+          value={thisMonth.total.toLocaleString()}
+          icon={Calendar}
+          color="bg-teal-500/10 text-teal-600"
+          loading={metricsLoading}
+          subtitle={`${thisMonth.sent} delivered · ${thisMonth.fail} failed`}
+        />
+      </div>
+
+      {/* Daily traffic chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" /> Daily Traffic (30d)
+            </CardTitle>
+            <Button size="sm" variant="outline" onClick={handleGenerateReport} disabled={generating} className="h-8 text-xs gap-1.5">
+              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+              Generate Report
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {metricsLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={dailyTraffic}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={2} />
+                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="delivered" name="Delivered" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="failed" name="Failed" stackId="a" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total (last 300)" value={total.toLocaleString()} icon={Radio} loading={isLoading} />
