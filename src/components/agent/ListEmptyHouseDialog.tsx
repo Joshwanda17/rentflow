@@ -531,6 +531,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Village / Zone is required');
         return false;
       }
+      if (images.length === 0) {
+        toast.error('Add at least one photo of the house');
+        return false;
+      }
     }
     if (s === 2) {
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
