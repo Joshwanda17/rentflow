@@ -178,27 +178,16 @@ async function sendTwilioSms(phone: string, message: string): Promise<SmsResult>
   }
 }
 
-// Yoola is PRIMARY. If Yoola is not accepted, fall back to Africa's Talking, then
-// Twilio — reissuing the same OTP. The returned result reflects whichever
+// Yoola is PRIMARY. If Yoola is not accepted, fall back to Twilio — reissuing
+// the same OTP. Africa's Talking is intentionally NOT used for OTP — its
+// messages were not being delivered. The returned result reflects whichever
 // provider ultimately delivered, with fallback metadata preserved for the audit
 // trail.
 async function sendOtpWithFallback(phone: string, message: string): Promise<SmsResult> {
   const primary = await sendYoolaSms(phone, message);
   if (primary.ok) return primary;
   console.warn(
-    `[issue-landlord-payout-otp] Yoola send failed (${primary.reason ?? "unknown"}) — falling back to Africa's Talking`,
-  );
-  const at = await sendSms(phone, message);
-  if (at.ok) {
-    return {
-      ...at,
-      fallbackUsed: true,
-      primaryProvider: primary.provider ?? "yoola",
-      primaryReason: primary.reason ?? "Yoola send not accepted",
-    };
-  }
-  console.warn(
-    `[issue-landlord-payout-otp] AT send failed (${at.reason ?? "unknown"}) — falling back to Twilio`,
+    `[issue-landlord-payout-otp] Yoola send failed (${primary.reason ?? "unknown"}) — falling back to Twilio`,
   );
   const fallback = await sendTwilioSms(phone, message);
   return {
