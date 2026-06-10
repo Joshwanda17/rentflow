@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange } from 'lucide-react';
+import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange, Trophy } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -166,6 +166,45 @@ export function CMODashboard() {
     staleTime: 600000,
   });
 
+  const { data: topReferrers, isLoading: loadingTopReferrers } = useQuery({
+    queryKey: ['exec-top-referrers', startMonth, endMonth],
+    queryFn: async () => {
+      const { data: refRows } = await supabase
+        .from('referrals')
+        .select('referrer_id')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (!refRows || refRows.length === 0) return [];
+
+      const counts: Record<string, number> = {};
+      refRows.forEach((r) => {
+        counts[r.referrer_id] = (counts[r.referrer_id] || 0) + 1;
+      });
+
+      const sorted = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20);
+
+      const referrerIds = sorted.map(([id]) => id);
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', referrerIds);
+
+      const profileMap = new Map((profilesData || []).map((p) => [p.id, p]));
+
+      return sorted.map(([id, count], idx) => ({
+        rank: idx + 1,
+        referrer_id: id,
+        name: profileMap.get(id)?.full_name || profileMap.get(id)?.phone || 'Unknown',
+        referrals: count,
+      }));
+    },
+    staleTime: 600000,
+  });
+
   const statusOptions: { label: string; value: ReferralStatus }[] = [
     { label: 'All', value: 'all' },
     { label: 'Pending', value: 'pending' },
@@ -272,6 +311,40 @@ export function CMODashboard() {
               <Bar dataKey="completed" fill="#22c55e" radius={[4, 4, 0, 0]} name="Completed" />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-500" />
+            Top Referrers
+          </h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={topReferrers || []} layout="vertical" margin={{ left: 16, right: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis type="number" className="text-xs" />
+              <YAxis dataKey="name" type="category" width={100} className="text-xs" tickFormatter={(v: string) => (v.length > 14 ? v.slice(0, 14) + '...' : v)} />
+              <Tooltip />
+              <Bar dataKey="referrals" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-500" />
+            Referrer Leaderboard
+          </h3>
+          <ExecutiveDataTable
+            data={topReferrers || []}
+            columns={[
+              { key: 'rank', label: 'Rank', render: (v) => <span className="font-bold text-muted-foreground">#{v}</span> },
+              { key: 'name', label: 'Referrer' },
+              { key: 'referrals', label: 'Referrals', render: (v) => <span className="font-semibold">{v}</span> },
+            ]}
+            loading={loadingTopReferrers}
+            title="Top Referrers"
+          />
         </div>
       </div>
 
