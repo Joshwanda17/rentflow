@@ -1205,12 +1205,18 @@ function RequestDetailDrawer({
     if (!row || !user) return;
     setCancelling(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('rent_requests')
         .update({ status: 'deleted_by_agent' })
         .eq('id', row.id)
-        .eq('agent_id', user.id);
+        .eq('agent_id', user.id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          'This request could not be cancelled — it may no longer be yours or has already moved further in the pipeline.',
+        );
+      }
       toast.success('Request cancelled', { description: 'The rent request has been removed.' });
       setConfirmCancel(false);
       queryClient.invalidateQueries({ queryKey: ['agent-pipeline'] });
