@@ -270,6 +270,67 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setStep('otp');
   };
 
+  // When the agent drilled in from the per-tenant allocations list, scope the
+  // payout to THAT exact ring-fenced allocation. We build a synthetic request
+  // from the allocation (capped at its remaining amount) and jump straight to
+  // the OTP step — never showing the internal list, which previously surfaced
+  // an unrelated assigned landlord/tenant (e.g. "boniface").
+  useEffect(() => {
+    if (!open || !allocation) return;
+    if (selectedRequest || allocationPrepping) return;
+    let cancelled = false;
+    (async () => {
+      setAllocationPrepping(true);
+      try {
+        const [landlordRes, tenantRes] = await Promise.all([
+          allocation.landlord_id
+            ? supabase
+                .from('landlords')
+                .select('id, name, phone, mobile_money_number, latitude, longitude')
+                .eq('id', allocation.landlord_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null } as any),
+          allocation.tenant_id
+            ? supabase
+                .from('profiles')
+                .select('id, full_name, phone')
+                .eq('id', allocation.tenant_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null } as any),
+        ]);
+        if (cancelled) return;
+
+        const landlord = landlordRes?.data || {
+          id: allocation.landlord_id,
+          name: allocation.landlord_name,
+          phone: allocation.landlord_phone,
+          mobile_money_number: allocation.landlord_phone,
+          latitude: null,
+          longitude: null,
+        };
+        const tenant = tenantRes?.data || null;
+
+        const synthetic = {
+          id: allocation.rent_request_id,
+          rent_amount: allocation.remaining_amount,
+          tenant_id: allocation.tenant_id,
+          landlord_id: allocation.landlord_id,
+          landlord,
+          tenant,
+          created_at: allocation.created_at,
+          __allocationId: allocation.id,
+        };
+        setSelectedRequest(synthetic);
+        setAmountInput(String(allocation.remaining_amount ?? ''));
+        setPhoneOverride('');
+        setStep('otp');
+      } finally {
+        if (!cancelled) setAllocationPrepping(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, allocation, selectedRequest, allocationPrepping]);
+
   const submitPayout = useMutation({
     mutationFn: async () => {
       if (!user || !selectedRequest) throw new Error('Missing data');
