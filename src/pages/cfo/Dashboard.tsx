@@ -56,6 +56,7 @@ import { PhantomCorrectionDriftPanel } from '@/components/cfo/PhantomCorrectionD
 import { CFOUnfundingApprovals } from '@/components/cfo/CFOUnfundingApprovals';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
+import { AlreadyFundedLandlordsPanel } from '@/components/cfo/AlreadyFundedLandlordsPanel';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 export default function CFODashboardPage() {

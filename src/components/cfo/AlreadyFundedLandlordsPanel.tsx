@@ -1,0 +1,328 @@
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Loader2, Landmark, Users, Phone, CheckCircle2, Search, Home } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+
+const fmt = (n: number) =>
+  new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n || 0);
+
+interface FundedLandlordRow {
+  id: string;
+  rent_request_id: string;
+  status: string;
+  rent_amount: number;
+  tenant_id: string;
+  tenant_name: string;
+  landlord_id: string;
+  landlord_name: string;
+  landlord_phone: string | null;
+  agent_id: string;
+  agent_name: string;
+  created_at: string;
+  allocated_amount: number | null;
+  paid_out_amount: number | null;
+  remaining_amount: number | null;
+  allocation_status: string | null;
+}
+
+export function AlreadyFundedLandlordsPanel() {
+  const [search, setSearch] = useState('');
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['cfo-already-funded-landlords'],
+    queryFn: async (): Promise<FundedLandlordRow[]> => {
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .select(
+          'id, status, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, created_at,' +
+          'tenant:profiles!rent_requests_tenant_id_fkey(full_name),' +
+          'landlord:landlords!rent_requests_landlord_id_fkey(name, phone),' +
+          'allocation:agent_landlord_float_allocations!agent_landlord_float_allocations_rent_request_id_fkey(allocated_amount, paid_out_amount, remaining_amount, status)'
+        )
+        .in('status', ['funded', 'repaying', 'completed'])
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+
+      const raw = (data ?? []) as any[];
+
+      const agentIds = [
+        ...new Set(raw.map((r) => r.assigned_agent_id || r.agent_id).filter(Boolean)),
+      ];
+      const agentNameMap = new Map<string, string>();
+      if (agentIds.length) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', agentIds);
+        for (const p of profiles || []) agentNameMap.set(p.id, p.full_name || 'Unknown');
+      }
+
+      return raw.map((r) => {
+        const tenantName = r.tenant?.full_name || 'Unknown Tenant';
+        const landlordName = r.landlord?.name || 'Unknown Landlord';
+        const landlordPhone = r.landlord?.phone || null;
+        const agentId = r.assigned_agent_id || r.agent_id;
+        const alloc = Array.isArray(r.allocation) ? r.allocation[0] : r.allocation;
+        return {
+          id: r.id,
+          rent_request_id: r.id,
+          status: r.status,
+          rent_amount: Number(r.rent_amount) || 0,
+          tenant_id: r.tenant_id,
+          tenant_name: tenantName,
+          landlord_id: r.landlord_id,
+          landlord_name: landlordName,
+          landlord_phone: landlordPhone,
+          agent_id: agentId,
+          agent_name: agentNameMap.get(agentId) || 'Unknown Agent',
+          created_at: r.created_at,
+          allocated_amount: alloc ? Number(alloc.allocated_amount) : null,
+          paid_out_amount: alloc ? Number(alloc.paid_out_amount) : null,
+          remaining_amount: alloc ? Number(alloc.remaining_amount) : null,
+          allocation_status: alloc ? alloc.status : null,
+        };
+      });
+    },
+    staleTime: 15_000,
+  });
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return rows;
+    const q = search.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        r.landlord_name.toLowerCase().includes(q) ||
+        r.tenant_name.toLowerCase().includes(q) ||
+        r.agent_name.toLowerCase().includes(q) ||
+        (r.landlord_phone || '').includes(q),
+    );
+  }, [rows, search]);
+
+  const totals = useMemo(() => {
+    const totalRent = filtered.reduce((s, r) => s + r.rent_amount, 0);
+    const totalAllocated = filtered.reduce(
+      (s, r) => s + (r.allocated_amount ?? r.rent_amount),
+      0,
+    );
+    const totalPaid = filtered.reduce((s, r) => s + (r.paid_out_amount ?? 0), 0);
+    const totalRemaining = filtered.reduce(
+      (s, r) => s + (r.remaining_amount ?? r.rent_amount),
+      0,
+    );
+    const landlords = new Set(filtered.map((r) => r.landlord_id)).size;
+    const tenants = new Set(filtered.map((r) => r.tenant_id)).size;
+    return { totalRent, totalAllocated, totalPaid, totalRemaining, landlords, tenants };
+  }, [filtered]);
+
+  // Group by landlord
+  const grouped = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        landlord_id: string;
+        landlord_name: string;
+        landlord_phone: string | null;
+        rows: FundedLandlordRow[];
+        totalRent: number;
+        totalPaid: number;
+        totalRemaining: number;
+      }
+    >();
+    for (const r of filtered) {
+      const g = map.get(r.landlord_id) ?? {
+        landlord_id: r.landlord_id,
+        landlord_name: r.landlord_name,
+        landlord_phone: r.landlord_phone,
+        rows: [],
+        totalRent: 0,
+        totalPaid: 0,
+        totalRemaining: 0,
+      };
+      g.rows.push(r);
+      g.totalRent += r.rent_amount;
+      g.totalPaid += r.paid_out_amount ?? 0;
+      g.totalRemaining += r.remaining_amount ?? r.rent_amount;
+      map.set(r.landlord_id, g);
+    }
+    return [...map.values()].sort((a, b) => b.totalRent - a.totalRent);
+  }, [filtered]);
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'funded':
+        return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'repaying':
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'completed':
+        return 'bg-purple-100 text-purple-700 border-purple-200';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const allocBadge = (status: string | null) => {
+    if (!status) return 'bg-gray-100 text-gray-600 border-gray-200';
+    switch (status) {
+      case 'fully_paid':
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'partially_paid':
+        return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'open':
+        return 'bg-blue-100 text-blue-700 border-blue-200';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-primary" />
+              Already Funded Landlords
+              {rows.length > 0 && (
+                <Badge variant="outline" className="text-[10px] ml-1 bg-primary/10 text-primary border-primary/30">
+                  {totals.landlords} landlords · {totals.tenants} tenants
+                </Badge>
+              )}
+            </CardTitle>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search landlord, tenant, agent…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-8 text-xs"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Landlords whose rent has already been funded by the CFO (status: funded, repaying, or completed).
+            Shows payout float allocation and how much the agent has already forwarded to the landlord.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-emerald-500" />
+              <p className="font-medium">No funded landlords found</p>
+              <p className="text-xs">
+                {search.trim() ? 'Try a different search term.' : 'No rent requests have reached funded status yet.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Totals strip */}
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 rounded-lg border-2 border-primary/20 bg-primary/5 p-3 text-center">
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Total Rent Funded</p>
+                  <p className="font-bold text-sm text-primary">{fmt(totals.totalRent)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Allocated to Agents</p>
+                  <p className="font-bold text-sm text-[#9234EA]">{fmt(totals.totalAllocated)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Paid to Landlords</p>
+                  <p className="font-bold text-sm text-emerald-600">{fmt(totals.totalPaid)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Still on Agent Cards</p>
+                  <p className="font-bold text-sm text-orange-600">{fmt(totals.totalRemaining)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Records</p>
+                  <p className="font-bold text-sm">{filtered.length}</p>
+                </div>
+              </div>
+
+              {/* Grouped by landlord */}
+              <ScrollArea className="max-h-[600px]">
+                <div className="space-y-3">
+                  {grouped.map((g) => (
+                    <div key={g.landlord_id} className="rounded-lg border">
+                      <div className="flex items-center justify-between px-3 py-2 bg-muted/40 rounded-t-lg">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <p className="font-semibold text-sm truncate">{g.landlord_name}</p>
+                          {g.landlord_phone && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <Phone className="h-2.5 w-2.5" />
+                              {g.landlord_phone}
+                            </span>
+                          )}
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+                            {g.rows.length} tenant{g.rows.length === 1 ? '' : 's'}
+                          </Badge>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-bold text-sm text-primary">{fmt(g.totalRent)}</p>
+                          {g.totalPaid > 0 && (
+                            <p className="text-[10px] text-emerald-600">
+                              paid {fmt(g.totalPaid)} · remaining {fmt(g.totalRemaining)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="divide-y">
+                        {g.rows.map((r) => (
+                          <div
+                            key={r.id}
+                            className="flex items-start gap-2 px-3 py-2 text-xs hover:bg-muted/20 transition-colors"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Users className="h-3 w-3 text-muted-foreground shrink-0" />
+                                <p className="font-medium truncate">{r.tenant_name}</p>
+                                <span className="text-[10px] text-muted-foreground">via</span>
+                                <p className="font-medium truncate text-muted-foreground">{r.agent_name}</p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap mt-1 text-[10px] text-muted-foreground">
+                                <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${statusBadge(r.status)}`}>
+                                  {r.status}
+                                </Badge>
+                                {r.allocation_status && (
+                                  <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${allocBadge(r.allocation_status)}`}>
+                                    float: {r.allocation_status}
+                                  </Badge>
+                                )}
+                                <span>{format(new Date(r.created_at), 'dd MMM yyyy')}</span>
+                                <span className="text-muted-foreground/60">
+                                  {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="font-bold text-sm">{fmt(r.rent_amount)}</p>
+                              {r.remaining_amount != null && (
+                                <p className="text-[10px] text-muted-foreground">
+                                  {fmt(r.paid_out_amount ?? 0)} paid / {fmt(r.remaining_amount)} rem
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
