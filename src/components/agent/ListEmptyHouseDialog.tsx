@@ -114,6 +114,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   };
   const [phoneMatch, setPhoneMatch] = useState<PhoneMatch | null>(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
+  // House photos — at least one is REQUIRED to list an empty house.
+  const [images, setImages] = useState<HouseImageFile[]>([]);
   const [form, setForm] = useState({
     title: '',
     description: '',
