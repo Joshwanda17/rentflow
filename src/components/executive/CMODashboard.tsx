@@ -167,24 +167,32 @@ export function CMODashboard() {
   });
 
   const { data: topReferrers, isLoading: loadingTopReferrers } = useQuery({
-    queryKey: ['exec-top-referrers', startMonth, endMonth],
+    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus],
     queryFn: async () => {
-      const { data: refRows } = await supabase
+      let q = supabase
         .from('referrals')
-        .select('referrer_id')
+        .select('referrer_id, credited')
         .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString())
-        .order('created_at', { ascending: false });
+        .lte('created_at', end.toISOString());
 
+      if (referralStatus === 'pending') q = q.eq('credited', false);
+      if (referralStatus === 'completed') q = q.eq('credited', true);
+
+      const { data: refRows } = await q;
       if (!refRows || refRows.length === 0) return [];
 
-      const counts: Record<string, number> = {};
+      const counts: Record<string, { total: number; pending: number; completed: number }> = {};
       refRows.forEach((r) => {
-        counts[r.referrer_id] = (counts[r.referrer_id] || 0) + 1;
+        const c = counts[r.referrer_id] || { total: 0, pending: 0, completed: 0 };
+        c.total += 1;
+        if (r.credited) c.completed += 1;
+        else c.pending += 1;
+        counts[r.referrer_id] = c;
       });
 
+      const sortKey = referralStatus === 'pending' ? 'pending' : referralStatus === 'completed' ? 'completed' : 'total';
       const sorted = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
+        .sort((a, b) => b[1][sortKey as keyof typeof b[1]] - a[1][sortKey as keyof typeof a[1]])
         .slice(0, 20);
 
       const referrerIds = sorted.map(([id]) => id);
@@ -195,11 +203,13 @@ export function CMODashboard() {
 
       const profileMap = new Map((profilesData || []).map((p) => [p.id, p]));
 
-      return sorted.map(([id, count], idx) => ({
+      return sorted.map(([id, c], idx) => ({
         rank: idx + 1,
         referrer_id: id,
         name: profileMap.get(id)?.full_name || profileMap.get(id)?.phone || 'Unknown',
-        referrals: count,
+        referrals: c.total,
+        pending: c.pending,
+        completed: c.completed,
       }));
     },
     staleTime: 600000,
@@ -319,6 +329,7 @@ export function CMODashboard() {
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Trophy className="w-4 h-4 text-amber-500" />
             Top Referrers
+            <span className="ml-auto text-xs font-normal text-muted-foreground capitalize">{referralStatus}</span>
           </h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={topReferrers || []} layout="vertical" margin={{ left: 16, right: 16 }}>
@@ -326,7 +337,7 @@ export function CMODashboard() {
               <XAxis type="number" className="text-xs" />
               <YAxis dataKey="name" type="category" width={100} className="text-xs" tickFormatter={(v: string) => (v.length > 14 ? v.slice(0, 14) + '...' : v)} />
               <Tooltip />
-              <Bar dataKey="referrals" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              <Bar dataKey={referralStatus === 'pending' ? 'pending' : referralStatus === 'completed' ? 'completed' : 'referrals'} fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -340,7 +351,9 @@ export function CMODashboard() {
             columns={[
               { key: 'rank', label: 'Rank', render: (v) => <span className="font-bold text-muted-foreground">#{v}</span> },
               { key: 'name', label: 'Referrer' },
-              { key: 'referrals', label: 'Referrals', render: (v) => <span className="font-semibold">{v}</span> },
+              { key: 'referrals', label: 'Total', render: (v) => <span className="font-semibold">{v}</span> },
+              { key: 'pending', label: 'Pending', render: (v) => <span className="text-amber-600 font-medium">{v}</span> },
+              { key: 'completed', label: 'Completed', render: (v) => <span className="text-green-600 font-medium">{v}</span> },
             ]}
             loading={loadingTopReferrers}
             title="Top Referrers"
