@@ -14725,6 +14725,30 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_opt_outs: {
+        Row: {
+          created_at: string
+          id: string
+          phone: string
+          reason: string | null
+          source: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          phone: string
+          reason?: string | null
+          source?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          phone?: string
+          reason?: string | null
+          source?: string | null
+        }
+        Relationships: []
+      }
       staff_access_passwords: {
         Row: {
           created_at: string | null
