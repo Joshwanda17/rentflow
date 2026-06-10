@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera, Trophy, Sparkles, User, ImagePlus, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Home, MapPin, Loader2, ShieldCheck, Search, X, UserCheck, Share2, MessageCircle, Copy, Check, PartyPopper, ChevronDown, ArrowLeft, ArrowRight, Camera, Trophy, Sparkles, User, ImagePlus, CheckCircle2, AlertTriangle, GripVertical } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -117,6 +117,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // House photos — at least one is REQUIRED to list an empty house.
   const [images, setImages] = useState<HouseImageFile[]>([]);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -895,6 +897,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setStep(1);
     setImages([]);
     setPreviewIndex(0);
+    setDragOverIndex(null);
+    setIsDragging(false);
   };
 
   const buildShare = () => {
@@ -1690,30 +1694,68 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 </div>
               </div>
 
-              {/* Thumbnail strip — clickable */}
-              <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
+              {/* Thumbnail strip — clickable and draggable to reorder */}
+              <div className="flex gap-2 overflow-x-auto pb-1 snap-x items-center">
                 {images.map((img, i) => (
-                  <button
+                  <div
                     key={img.id}
-                    type="button"
+                    draggable
+                    onDragStart={() => {
+                      setIsDragging(true);
+                      setDragOverIndex(i);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (dragOverIndex !== i) setDragOverIndex(i);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const from = dragOverIndex ?? i;
+                      if (from !== i) {
+                        const next = [...images];
+                        const [moved] = next.splice(from, 1);
+                        next.splice(i, 0, moved);
+                        setImages(next);
+                        // Keep the preview on the moved image
+                        if (previewIndex === from) {
+                          setPreviewIndex(i);
+                        } else if (from < i && previewIndex > from && previewIndex <= i) {
+                          setPreviewIndex(previewIndex - 1);
+                        } else if (from > i && previewIndex >= i && previewIndex < from) {
+                          setPreviewIndex(previewIndex + 1);
+                        }
+                      }
+                      setDragOverIndex(null);
+                      setIsDragging(false);
+                    }}
+                    onDragEnd={() => {
+                      setDragOverIndex(null);
+                      setIsDragging(false);
+                    }}
                     onClick={() => setPreviewIndex(i)}
-                    className={`relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                    className={`relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all cursor-grab active:cursor-grabbing ${
                       i === previewIndex
                         ? 'border-primary ring-2 ring-primary/30'
-                        : 'border-border opacity-80 hover:opacity-100'
+                        : dragOverIndex === i && isDragging
+                          ? 'border-dashed border-primary bg-primary/10 scale-105'
+                          : 'border-border opacity-80 hover:opacity-100'
                     }`}
                   >
+                    <div className="absolute top-0.5 left-0.5 z-10 bg-black/40 text-white rounded-full p-0.5">
+                      <GripVertical className="h-3 w-3" />
+                    </div>
                     <img
                       src={img.previewUrl}
                       alt={`Thumbnail ${i + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover pointer-events-none"
+                      draggable={false}
                     />
                     {img.source === 'existing' && (
                       <div className="absolute bottom-0 left-0 right-0 bg-amber-500/80 text-[8px] text-center text-white font-medium py-0.5">
                         Reused
                       </div>
                     )}
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
