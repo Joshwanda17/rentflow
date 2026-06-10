@@ -314,6 +314,40 @@ export function CMODashboard() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-500" />
+            Top Referrers
+          </h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={topReferrers || []} layout="vertical" margin={{ left: 16, right: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis type="number" className="text-xs" />
+              <YAxis dataKey="name" type="category" width={100} className="text-xs" tickFormatter={(v: string) => (v.length > 14 ? v.slice(0, 14) + '...' : v)} />
+              <Tooltip />
+              <Bar dataKey="referrals" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-500" />
+            Referrer Leaderboard
+          </h3>
+          <ExecutiveDataTable
+            data={topReferrers || []}
+            columns={[
+              { key: 'rank', label: 'Rank', render: (v) => <span className="font-bold text-muted-foreground">#{v}</span> },
+              { key: 'name', label: 'Referrer' },
+              { key: 'referrals', label: 'Referrals', render: (v) => <span className="font-semibold">{v}</span> },
+            ]}
+            loading={loadingTopReferrers}
+            title="Top Referrers"
+          />
+        </div>
+      </div>
+
       <div>
         <h3 className="text-sm font-semibold mb-3">Recent Referrals</h3>
         <ExecutiveDataTable
