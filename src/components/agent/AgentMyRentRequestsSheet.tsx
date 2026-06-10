@@ -13,8 +13,18 @@ import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verificat
 import {
   FileText, User, Building, MapPin, Calendar, Banknote,
   Clock, CheckCircle, XCircle, Shield, ShieldCheck, RefreshCw,
-  ExternalLink, ChevronDown, ChevronUp, FileDown, MessageCircle, Loader2,
+  ExternalLink, ChevronDown, ChevronUp, FileDown, MessageCircle, Loader2, Trash2,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format, eachDayOfInterval, startOfDay, isSameDay } from 'date-fns';
 import { hapticTap } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
