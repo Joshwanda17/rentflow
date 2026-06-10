@@ -1,10 +1,12 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useLandlordFloatAllocations, type LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
-import { Loader2, Landmark, ArrowRight, Inbox, User, Phone } from 'lucide-react';
+import { Loader2, Landmark, ArrowRight, Inbox, User, Phone, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 interface Props {
   open: boolean;
@@ -20,7 +22,18 @@ interface Props {
 export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSelectAllocation }: Props) {
   const { data: allocations = [], isLoading } = useLandlordFloatAllocations({ onlyOpen: true });
 
-  const totalRemaining = allocations.reduce((sum, a) => sum + a.remaining_amount, 0);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return allocations;
+    return allocations.filter((a) =>
+      (a.landlord_name || '').toLowerCase().includes(q) ||
+      (a.landlord_phone || '').toLowerCase().includes(q),
+    );
+  }, [allocations, search]);
+
+  const totalRemaining = filtered.reduce((sum, a) => sum + a.remaining_amount, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -53,9 +66,27 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
               <span className="text-xs text-muted-foreground">Total ring-fenced</span>
               <span className="font-bold text-foreground">{formatUGX(totalRemaining)}</span>
             </div>
+            <div className="shrink-0 px-3 py-2 border-b">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search landlord by name or phone…"
+                  className="pl-9 h-10"
+                  autoFocus={false}
+                />
+              </div>
+            </div>
             <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
               <div className="p-3 space-y-2">
-                {allocations.map((a) => (
+                {filtered.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 px-6 text-center text-muted-foreground">
+                    <Search className="h-8 w-8 mb-2 opacity-50" />
+                    <p className="text-sm font-medium text-foreground">No landlord matches “{search}”</p>
+                    <p className="text-xs mt-1">Try a different name or clear the search.</p>
+                  </div>
+                ) : filtered.map((a) => (
                   <button
                     key={a.id}
                     onClick={() => onSelectAllocation(a)}
