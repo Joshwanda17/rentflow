@@ -329,6 +329,7 @@ export function CMODashboard() {
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Trophy className="w-4 h-4 text-amber-500" />
             Top Referrers
+            <span className="ml-auto text-xs font-normal text-muted-foreground capitalize">{referralStatus}</span>
           </h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={topReferrers || []} layout="vertical" margin={{ left: 16, right: 16 }}>
@@ -336,7 +337,7 @@ export function CMODashboard() {
               <XAxis type="number" className="text-xs" />
               <YAxis dataKey="name" type="category" width={100} className="text-xs" tickFormatter={(v: string) => (v.length > 14 ? v.slice(0, 14) + '...' : v)} />
               <Tooltip />
-              <Bar dataKey="referrals" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              <Bar dataKey={referralStatus === 'pending' ? 'pending' : referralStatus === 'completed' ? 'completed' : 'referrals'} fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -350,7 +351,9 @@ export function CMODashboard() {
             columns={[
               { key: 'rank', label: 'Rank', render: (v) => <span className="font-bold text-muted-foreground">#{v}</span> },
               { key: 'name', label: 'Referrer' },
-              { key: 'referrals', label: 'Referrals', render: (v) => <span className="font-semibold">{v}</span> },
+              { key: 'referrals', label: 'Total', render: (v) => <span className="font-semibold">{v}</span> },
+              { key: 'pending', label: 'Pending', render: (v) => <span className="text-amber-600 font-medium">{v}</span> },
+              { key: 'completed', label: 'Completed', render: (v) => <span className="text-green-600 font-medium">{v}</span> },
             ]}
             loading={loadingTopReferrers}
             title="Top Referrers"
