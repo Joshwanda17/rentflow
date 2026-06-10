@@ -38,7 +38,38 @@ function formatPhoneInternational(phone: string): string {
   return `+${digits}`;
 }
 
-async function sendSMS(phone: string, message: string): Promise<boolean> {
+// Yoola is the PRIMARY SMS provider. JSON body { phone, message, api_key }
+// posted to https://yoolasms.com/api/v1/send; { status: "success" } = accepted.
+// Phone is digits only with country code, no leading "+".
+async function sendViaYoola(phone: string, message: string): Promise<boolean> {
+  // Trim — Yoola returns 403 "invalidkey" if the key has surrounding whitespace.
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
+  if (!apiKey) {
+    console.warn("[send-signup-invite-sms] Yoola not configured");
+    return false;
+  }
+  const phoneYoola = formatPhoneInternational(phone).replace(/^\+/, "");
+  if (!phoneYoola) return false;
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: phoneYoola, message, api_key: apiKey }),
+    });
+    const raw = await res.text();
+    let data: any;
+    try { data = JSON.parse(raw); } catch { data = null; }
+    const ok = res.ok && String(data?.status ?? "").toLowerCase() === "success";
+    console.log(`[send-signup-invite-sms] Yoola to=${phoneYoola} ok=${ok} status=${res.status}`);
+    return ok;
+  } catch (err) {
+    console.error("[send-signup-invite-sms] Yoola send failed:", err);
+    return false;
+  }
+}
+
+// Africa's Talking — used only as a FALLBACK when Yoola is not accepted.
+async function sendViaAfricasTalking(phone: string, message: string): Promise<boolean> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
@@ -74,12 +105,20 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     const ok = recipients.some(
       (r: any) => r.statusCode === 100 || r.statusCode === 101,
     );
-    console.log(`[send-signup-invite-sms] to=${to} ok=${ok} status=${res.status}`);
+    console.log(`[send-signup-invite-sms] AT to=${to} ok=${ok} status=${res.status}`);
     return ok;
   } catch (err) {
-    console.error("[send-signup-invite-sms] send failed:", err);
+    console.error("[send-signup-invite-sms] AT send failed:", err);
     return false;
   }
+}
+
+// Provider chain: Yoola (primary) → Africa's Talking (fallback). Tried one at a
+// time — AT only fires if Yoola is unconfigured or did not accept the message.
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  if (await sendViaYoola(phone, message)) return true;
+  console.warn("[send-signup-invite-sms] Yoola not accepted; trying Africa's Talking");
+  return await sendViaAfricasTalking(phone, message);
 }
 
 function buildMessage(role: InviteRole, fullName: string, link: string): string {
