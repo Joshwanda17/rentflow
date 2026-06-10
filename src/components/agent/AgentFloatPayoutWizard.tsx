@@ -23,21 +23,31 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LandlordPayoutProgress } from './LandlordPayoutProgress';
 import { setCriticalFlowActive } from '@/lib/criticalFlowGuard';
+import type { LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
 
 interface AgentFloatPayoutWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * When the agent drilled in from the per-tenant allocations list, this is the
+   * exact ring-fenced allocation they tapped. The wizard MUST scope the payout
+   * to this landlord/tenant instead of showing its own internal list (which was
+   * pulling an unrelated assigned request — e.g. "boniface" — and ignoring the
+   * agent's actual selection).
+   */
+  allocation?: LandlordFloatAllocation | null;
 }
 
 type Step = 'select' | 'otp' | 'disburse' | 'done';
 
-export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutWizardProps) {
+export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: AgentFloatPayoutWizardProps) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const geo = useCaptureLocation();
   const landlordOtp = useLandlordOtp();
   const [step, setStep] = useState<Step>('select');
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [allocationPrepping, setAllocationPrepping] = useState(false);
   const [provider, setProvider] = useState('');
   const [tid, setTid] = useState('');
   const [notes, setNotes] = useState('');
@@ -122,6 +132,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
   const resetForm = () => {
     setStep('select');
     setSelectedRequest(null);
+    setAllocationPrepping(false);
     setProvider('');
     setTid('');
     setNotes('');
@@ -259,6 +270,67 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     setPhoneOverride('');
     setStep('otp');
   };
+
+  // When the agent drilled in from the per-tenant allocations list, scope the
+  // payout to THAT exact ring-fenced allocation. We build a synthetic request
+  // from the allocation (capped at its remaining amount) and jump straight to
+  // the OTP step — never showing the internal list, which previously surfaced
+  // an unrelated assigned landlord/tenant (e.g. "boniface").
+  useEffect(() => {
+    if (!open || !allocation) return;
+    if (selectedRequest || allocationPrepping) return;
+    let cancelled = false;
+    (async () => {
+      setAllocationPrepping(true);
+      try {
+        const [landlordRes, tenantRes] = await Promise.all([
+          allocation.landlord_id
+            ? supabase
+                .from('landlords')
+                .select('id, name, phone, mobile_money_number, latitude, longitude')
+                .eq('id', allocation.landlord_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null } as any),
+          allocation.tenant_id
+            ? supabase
+                .from('profiles')
+                .select('id, full_name, phone')
+                .eq('id', allocation.tenant_id)
+                .maybeSingle()
+            : Promise.resolve({ data: null } as any),
+        ]);
+        if (cancelled) return;
+
+        const landlord = landlordRes?.data || {
+          id: allocation.landlord_id,
+          name: allocation.landlord_name,
+          phone: allocation.landlord_phone,
+          mobile_money_number: allocation.landlord_phone,
+          latitude: null,
+          longitude: null,
+        };
+        const tenant = tenantRes?.data || null;
+
+        const synthetic = {
+          id: allocation.rent_request_id,
+          rent_amount: allocation.remaining_amount,
+          tenant_id: allocation.tenant_id,
+          landlord_id: allocation.landlord_id,
+          landlord,
+          tenant,
+          created_at: allocation.created_at,
+          __allocationId: allocation.id,
+        };
+        setSelectedRequest(synthetic);
+        setAmountInput(String(allocation.remaining_amount ?? ''));
+        setPhoneOverride('');
+        setStep('otp');
+      } finally {
+        if (!cancelled) setAllocationPrepping(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, allocation, selectedRequest, allocationPrepping]);
 
   const submitPayout = useMutation({
     mutationFn: async () => {
@@ -406,7 +478,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         </DialogHeader>
 
         <AnimatePresence mode="wait">
-          {step === 'select' && (
+          {step === 'select' && allocation && (
+            <motion.div key="prep" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-10 gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Loading landlord payout…</p>
+            </motion.div>
+          )}
+          {step === 'select' && !allocation && (
             <motion.div key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
               <p className="text-sm text-muted-foreground">Select a rent request to pay the landlord:</p>
               {isLoading ? (
@@ -584,8 +662,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
                 <p className="text-xs text-destructive text-center">{disburseError}</p>
               )}
 
-              <Button variant="ghost" size="sm" className="w-full" onClick={() => { resetForm(); }}>
-                ← Back to list
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => { if (allocation) { handleClose(); } else { resetForm(); } }}
+              >
+                {allocation ? '← Close' : '← Back to list'}
               </Button>
             </motion.div>
           )}

@@ -95,6 +95,7 @@ import { AgentTenantHealthCard } from '@/components/agent/AgentTenantHealthCard'
 import { AgentVouchHighlightCard } from '@/components/agent/AgentVouchHighlightCard';
 import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
 import { AgentLandlordFloatAllocationsDialog } from '@/components/agent/AgentLandlordFloatAllocationsDialog';
+import type { LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
 import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
 import { FloatPayoutStatusTracker } from '@/components/agent/FloatPayoutStatusTracker';
 import { LandlordPayoutOtpAuditSheet } from '@/components/agent/LandlordPayoutOtpAuditSheet';
@@ -358,6 +359,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [landlordPayoutFlowOpen, setLandlordPayoutFlowOpen] = useState(false);
   const [floatPayoutOpen, setFloatPayoutOpen] = useState(false);
   const [floatAllocationsOpen, setFloatAllocationsOpen] = useState(false);
+  const [selectedFloatAllocation, setSelectedFloatAllocation] = useState<LandlordFloatAllocation | null>(null);
   const [recoveryLedgerOpen, setRecoveryLedgerOpen] = useState(false);
   const [payoutStatusOpen, setPayoutStatusOpen] = useState(false);
   const [otpAuditOpen, setOtpAuditOpen] = useState(false);
@@ -1309,12 +1311,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentManagedPropertiesSheet open={managedPropertiesSheetOpen} onOpenChange={setManagedPropertiesSheetOpen} onRequestPayout={(p) => { setPayoutProperty(p); setPayoutDialogOpen(true); }} />
       <AgentLandlordPayoutDialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen} property={payoutProperty} />
       <AgentLandlordPayoutFlow open={landlordPayoutFlowOpen} onOpenChange={setLandlordPayoutFlowOpen} />
-      <AgentFloatPayoutWizard open={floatPayoutOpen} onOpenChange={setFloatPayoutOpen} />
+      <AgentFloatPayoutWizard
+        open={floatPayoutOpen}
+        onOpenChange={(o) => { setFloatPayoutOpen(o); if (!o) setSelectedFloatAllocation(null); }}
+        allocation={selectedFloatAllocation}
+      />
       <AgentLandlordFloatAllocationsDialog
         open={floatAllocationsOpen}
         onOpenChange={setFloatAllocationsOpen}
-        onSelectAllocation={() => {
+        onSelectAllocation={(allocation) => {
           setFloatAllocationsOpen(false);
+          setSelectedFloatAllocation(allocation);
           // Defer opening the payout wizard until the allocations dialog has
           // fully closed. Opening a second Radix dialog in the same tick steals
           // focus/pointer state from the closing one, which makes the wizard
