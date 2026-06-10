@@ -13,8 +13,18 @@ import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verificat
 import {
   FileText, User, Building, MapPin, Calendar, Banknote,
   Clock, CheckCircle, XCircle, Shield, ShieldCheck, RefreshCw,
-  ExternalLink, ChevronDown, ChevronUp, FileDown, MessageCircle, Loader2,
+  ExternalLink, ChevronDown, ChevronUp, FileDown, MessageCircle, Loader2, Trash2,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format, eachDayOfInterval, startOfDay, isSameDay } from 'date-fns';
 import { hapticTap } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,6 +44,7 @@ interface AgentRentRequest {
   created_at: string;
   tenant_id: string;
   landlord_id: string;
+  agent_id?: string | null;
   house_listing_id?: string | null;
   registration_type?: string | null;
   initial_outstanding_balance?: number | null;
@@ -85,6 +96,8 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
   const [refreshing, setRefreshing] = useState(false);
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<AgentRentRequest | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (open && user) fetchRequests();
@@ -96,7 +109,7 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
 
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, rent_amount, total_repayment, amount_repaid, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, house_listing_id, registration_type, initial_outstanding_balance, outstanding_grace_days, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
+      .select('id, rent_amount, total_repayment, amount_repaid, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, agent_id, house_listing_id, registration_type, initial_outstanding_balance, outstanding_grace_days, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
       .or(`agent_id.eq.${user.id},agent_verified_by.eq.${user.id}`)
       .neq('status', 'deleted_by_agent')
       .order('created_at', { ascending: false });
@@ -165,6 +178,39 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
 
   const handleWhatsApp = (req: AgentRentRequest) => {
     shareRepaymentPdfWhatsApp(buildPdfData(req), req.tenant?.phone);
+  };
+
+  // An agent may cancel/delete a request they own only before any money has
+  // moved (i.e. not funded/disbursed/completed). Ownership = agent_id is them.
+  const canCancel = (req: AgentRentRequest) =>
+    !!user &&
+    req.agent_id === user.id &&
+    ['pending', 'approved', 'rejected'].includes(req.status || '');
+
+  const handleCancel = async () => {
+    if (!cancelTarget || !user) return;
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .update({ status: 'deleted_by_agent' })
+        .eq('id', cancelTarget.id)
+        .eq('agent_id', user.id);
+
+      if (error) throw error;
+
+      setRequests(prev => prev.filter(r => r.id !== cancelTarget.id));
+      toast({ title: 'Request cancelled', description: 'The rent request has been removed.' });
+      setCancelTarget(null);
+    } catch (e: any) {
+      toast({
+        title: 'Could not cancel',
+        description: e?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCancelling(false);
+    }
   };
 
   const getStatusBadge = (status: string | null) => {
@@ -515,6 +561,21 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
                             </div>
                           )}
                         </div>
+
+                        {/* ═══ CANCEL / DELETE ═══ */}
+                        {canCancel(req) && (
+                          <div className="border-t p-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full gap-2 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                              onClick={() => { hapticTap(); setCancelTarget(req); }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              {req.status === 'rejected' ? 'Delete Request' : 'Cancel Request'}
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -524,6 +585,31 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
           )}
         </ScrollArea>
       </SheetContent>
+
+      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => { if (!o) setCancelTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this rent request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget?.tenant?.full_name
+                ? `This will remove the rent request for ${cancelTarget.tenant.full_name}. `
+                : 'This will remove the rent request. '}
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelling}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleCancel(); }}
+              disabled={cancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+            >
+              {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Yes, cancel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
