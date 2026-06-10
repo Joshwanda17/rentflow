@@ -135,12 +135,22 @@ export function RentDisbursementQueue() {
     setSelected(next);
   };
 
-  // Date-window filter: which requests are within the chosen lookback.
+  // Date-window + text-search filter: which requests are within the chosen
+  // lookback and match the CFO's search (tenant, landlord, or agent name).
   const filteredItems = useMemo(() => {
-    if (dateFilter === 'all') return items;
-    const cutoff = Date.now() - (dateFilter === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000;
-    return items.filter(it => new Date(it.created_at).getTime() >= cutoff);
-  }, [items, dateFilter]);
+    const cutoff = dateFilter === 'all'
+      ? null
+      : Date.now() - (dateFilter === '7d' ? 7 : 30) * 24 * 60 * 60 * 1000;
+    const q = search.trim().toLowerCase();
+    return items.filter(it => {
+      if (cutoff !== null && new Date(it.created_at).getTime() < cutoff) return false;
+      if (q) {
+        const haystack = `${it.tenant_name} ${it.landlord_name} ${it.agent_name}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [items, dateFilter, search]);
 
   // Group rows by agent so CFO can pick one tenant, a few, or all of an
   // agent's tenants at a glance.
