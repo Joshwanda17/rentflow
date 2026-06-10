@@ -1311,12 +1311,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentManagedPropertiesSheet open={managedPropertiesSheetOpen} onOpenChange={setManagedPropertiesSheetOpen} onRequestPayout={(p) => { setPayoutProperty(p); setPayoutDialogOpen(true); }} />
       <AgentLandlordPayoutDialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen} property={payoutProperty} />
       <AgentLandlordPayoutFlow open={landlordPayoutFlowOpen} onOpenChange={setLandlordPayoutFlowOpen} />
-      <AgentFloatPayoutWizard open={floatPayoutOpen} onOpenChange={setFloatPayoutOpen} />
+      <AgentFloatPayoutWizard
+        open={floatPayoutOpen}
+        onOpenChange={(o) => { setFloatPayoutOpen(o); if (!o) setSelectedFloatAllocation(null); }}
+        allocation={selectedFloatAllocation}
+      />
       <AgentLandlordFloatAllocationsDialog
         open={floatAllocationsOpen}
         onOpenChange={setFloatAllocationsOpen}
-        onSelectAllocation={() => {
+        onSelectAllocation={(allocation) => {
           setFloatAllocationsOpen(false);
+          setSelectedFloatAllocation(allocation);
           // Defer opening the payout wizard until the allocations dialog has
           // fully closed. Opening a second Radix dialog in the same tick steals
           // focus/pointer state from the closing one, which makes the wizard
