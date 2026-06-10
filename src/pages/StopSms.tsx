@@ -56,6 +56,15 @@ export default function StopSms() {
                 daily messages. You can still reach us anytime on WhatsApp{' '}
                 <a href="https://wa.me/256748747134" className="underline">+256 748747134</a>.
               </p>
+              <p className="text-xs text-muted-foreground">
+                Changed your mind?{' '}
+                <a
+                  href={`/resume-sms?p=${encodeURIComponent(phone.trim())}`}
+                  className="underline text-primary"
+                >
+                  Resume daily messages
+                </a>
+              </p>
             </div>
           ) : (
             <>
