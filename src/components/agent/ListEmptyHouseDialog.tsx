@@ -897,6 +897,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setStep(1);
     setImages([]);
     setPreviewIndex(0);
+    setDragOverIndex(null);
+    setIsDragging(false);
   };
 
   const buildShare = () => {
