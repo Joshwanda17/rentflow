@@ -741,6 +741,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       for (const r of rows) {
         if (seen.has(r.id)) continue;
         seen.add(r.id);
+        // A house with no photos can never be used for a rent request — the
+        // landlord's property must be visually verifiable. Drop them from the
+        // picker so agents can't select a photoless listing.
+        if (!Array.isArray(r.image_urls) || r.image_urls.length === 0) continue;
         unique.push(r);
       }
 
@@ -774,6 +778,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         landlord_name: r.landlord_id ? llMap[r.landlord_id]?.name ?? null : null,
         landlord_phone: r.landlord_id ? llMap[r.landlord_id]?.phone ?? null : null,
         tenant_id: r.tenant_id ?? null,
+        image_urls: Array.isArray(r.image_urls) ? r.image_urls : [],
       }));
       setHouseResults(mapped);
     } catch (e) {
