@@ -409,14 +409,18 @@ export function CTOEmailsOverview() {
       <div>
         <h3 className="text-sm font-semibold mb-3">Recent Emails</h3>
         <p className="text-xs text-muted-foreground mb-2">
-          Search by recipient email, template, subject, or error — then narrow by status or template.
+          Search hits the database directly across all emails (recipient, template, or error) — not just the rows shown. Then narrow by status or template.
         </p>
         <ExecutiveDataTable
-          data={data?.recent ?? []}
+          data={recentRows}
           columns={recentColumns}
-          loading={isLoading}
-          title="Latest 100 emails"
+          loading={isLoading && !isSearching}
+          title={isSearching ? `Search results for "${debouncedSearch}"` : 'Recent emails'}
           onRowClick={openPreview}
+          searchValue={emailSearch}
+          onSearchChange={setEmailSearch}
+          searchPlaceholder="Search all emails by recipient, template, or error…"
+          searching={searchFetching}
           filters={[
             {
               key: 'status',
