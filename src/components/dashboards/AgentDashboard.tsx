@@ -95,6 +95,7 @@ import { AgentTenantHealthCard } from '@/components/agent/AgentTenantHealthCard'
 import { AgentVouchHighlightCard } from '@/components/agent/AgentVouchHighlightCard';
 import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
 import { AgentLandlordFloatAllocationsDialog } from '@/components/agent/AgentLandlordFloatAllocationsDialog';
+import type { LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
 import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
 import { FloatPayoutStatusTracker } from '@/components/agent/FloatPayoutStatusTracker';
 import { LandlordPayoutOtpAuditSheet } from '@/components/agent/LandlordPayoutOtpAuditSheet';
