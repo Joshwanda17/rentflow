@@ -116,6 +116,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [checkingPhone, setCheckingPhone] = useState(false);
   // House photos — at least one is REQUIRED to list an empty house.
   const [images, setImages] = useState<HouseImageFile[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -433,7 +434,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     'Location': { step: 1, id: 'lh-field-location' },
     'Rent amount': { step: 1, id: 'lh-field-rent' },
     'House details': { step: 1, id: 'lh-field-house' },
-    'Photos': { step: 1, id: 'lh-field-photos' },
+    'Photos': { step: 2, id: 'lh-field-photos' },
   };
 
   // Smooth-scroll to a field anchor, briefly highlight it and focus its first input.
@@ -508,13 +509,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   };
 
   // ─── Guided wizard navigation ───
-  const TOTAL_STEPS = 2;
-  const STEP_LABELS = ['House & photos', 'Landlord & list'];
+  const TOTAL_STEPS = 3;
+  const STEP_LABELS = ['House & Location', 'Photos', 'Landlord & List'];
 
   // Validate just the current step before moving forward. Returns true if OK.
   const validateStep = (s: number): boolean => {
     if (s === 1) {
-      // Essentials only: rent, region and at least one photo.
+      // Essentials: rent, region, address, village.
       if (!monthlyRent || monthlyRent < 10000) {
         toast.error('Monthly rent must be at least UGX 10,000');
         return false;
@@ -531,12 +532,15 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Village / Zone is required');
         return false;
       }
+    }
+    if (s === 2) {
+      // Photos are required.
       if (images.length === 0) {
         toast.error('Add at least one photo of the house');
         return false;
       }
     }
-    if (s === 2) {
+    if (s === 3) {
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
       const phoneErr = validateLandlordPhone(form.landlord_phone);
       if (phoneErr) {
@@ -589,13 +593,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   ];
   preflightGates.push({ label: 'Address', ok: !!form.address.trim(), hint: 'Enter the property address', step: 1 });
   preflightGates.push({ label: 'Village / Zone', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 1 });
-  preflightGates.push({ label: 'At least one photo', ok: images.length > 0, hint: 'Add at least one photo of the house', step: 1 });
-  preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 2 });
+  preflightGates.push({ label: 'At least one photo', ok: images.length > 0, hint: 'Add at least one photo of the house', step: 2 });
+  preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 3 });
   if (form.caretaker_type === 'other') {
-    preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 2 });
+    preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 3 });
   }
   if (lc1Selection) {
-    preflightGates.push({ label: 'LC1 chairperson details', ok: !lc1PartialErr, hint: lc1PartialErr || 'Complete the LC1 chairperson details', step: 2 });
+    preflightGates.push({ label: 'LC1 chairperson details', ok: !lc1PartialErr, hint: lc1PartialErr || 'Complete the LC1 chairperson details', step: 3 });
   }
   const missingGates = preflightGates.filter((g) => !g.ok);
   const allGatesPass = missingGates.length === 0;
@@ -890,6 +894,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setCheckingPhone(false);
     setStep(1);
     setImages([]);
+    setPreviewIndex(0);
   };
 
   const buildShare = () => {
@@ -1049,12 +1054,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             })}
           </div>
 
-          {/* ── Step 2: Landlord (optional) ── */}
-          {step === 2 && (
+          {/* ── Step 3: Landlord ── */}
+          {step === 3 && (
           <>
           <FormStepHeader
             icon={User}
-            stepLabel="Step 2 of 2"
+            stepLabel="Step 3 of 3"
             title="Landlord phone"
             subtitle="Just the phone number is a must — the rest can come later."
           />
@@ -1455,7 +1460,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <>
           <FormStepHeader
             icon={Home}
-            stepLabel="Step 1 of 2"
+            stepLabel="Step 1 of 3"
             title="What kind of house?"
             subtitle="Tap the picture that matches."
           />
@@ -1613,7 +1618,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               />
             </div>
           </div>
-          {/* Photos — REQUIRED. Every listing must carry at least one photo. */}
+          </>
+          )}
+
+          {/* ── Step 2: Photo review gallery ── */}
+          {step === 2 && (
+          <>
+          <FormStepHeader
+            icon={Camera}
+            stepLabel="Step 2 of 3"
+            title="Photo review"
+            subtitle="Review your photos before submitting the listing."
+          />
+          {/* Photo uploader — agents can still add more */}
           <div
             id="lh-field-photos"
             className={`space-y-2 p-3 rounded-xl border ${
@@ -1622,10 +1639,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           >
             <p className="text-sm font-medium">
               House photos <span className="text-destructive">*</span>
+              <span className="text-muted-foreground font-normal ml-1">({images.length} added)</span>
             </p>
             <HouseImageUploader
               images={images}
-              onChange={setImages}
+              onChange={(newImages) => {
+                setImages(newImages);
+                setPreviewIndex((prev) => Math.min(prev, Math.max(0, newImages.length - 1)));
+              }}
               region={form.region}
               district={form.district}
               village={form.village}
@@ -1634,11 +1655,83 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <FieldError message="Add at least one photo of the house to list it." />
             )}
           </div>
+
+          {/* Full gallery preview — large image + thumbnail strip */}
+          {images.length > 0 && (
+            <div className="space-y-3 p-3 rounded-xl border border-border bg-muted/20">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Preview gallery</p>
+
+              {/* Main large preview */}
+              <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted border border-border">
+                <img
+                  src={images[previewIndex]?.previewUrl}
+                  alt={`House photo ${previewIndex + 1} of ${images.length}`}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = images[previewIndex]?.id;
+                    if (id) {
+                      const img = images.find(i => i.id === id);
+                      if (img) URL.revokeObjectURL(img.previewUrl);
+                      const next = images.filter(i => i.id !== id);
+                      setImages(next);
+                      setPreviewIndex((prev) => Math.min(prev, Math.max(0, next.length - 1)));
+                    }
+                  }}
+                  className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1.5 shadow-lg hover:scale-105 transition-transform"
+                  aria-label="Remove this photo"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm">
+                  {previewIndex + 1} / {images.length}
+                </div>
+              </div>
+
+              {/* Thumbnail strip — clickable */}
+              <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
+                {images.map((img, i) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => setPreviewIndex(i)}
+                    className={`relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                      i === previewIndex
+                        ? 'border-primary ring-2 ring-primary/30'
+                        : 'border-border opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={img.previewUrl}
+                      alt={`Thumbnail ${i + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    {img.source === 'existing' && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-amber-500/80 text-[8px] text-center text-white font-medium py-0.5">
+                        Reused
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state when no photos yet */}
+          {images.length === 0 && (
+            <div className="p-6 rounded-xl border border-dashed border-border bg-muted/20 text-center space-y-2">
+              <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground" />
+              <p className="text-sm font-medium text-muted-foreground">No photos yet</p>
+              <p className="text-xs text-muted-foreground">Take or upload at least one house photo above.</p>
+            </div>
+          )}
           </>
           )}
 
-          {/* ── Step 2 (cont.): LC1 (optional) & confirm ── */}
-          {step === 2 && (
+          {/* ── Step 3 (cont.): LC1 (optional) & confirm ── */}
+          {step === 3 && (
           <>
           <FormStepHeader
             icon={CheckCircle2}
@@ -1741,7 +1834,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     {!g.ok && (
                       <span className="block text-[11px] text-amber-700 dark:text-amber-400">
                         {g.hint}
-                        {g.step !== 2 && (
+                        {g.step !== 3 && (
                           <button type="button" onClick={() => { setStep(g.step); scrollDialogToTop(); }} className="ml-1 underline font-semibold">
                             Fix on step {g.step}
                           </button>
