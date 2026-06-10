@@ -235,19 +235,41 @@ export default function Auth() {
         return;
       }
 
-      if (data.verify_url) {
+      if (data.token_hash || data.verify_url) {
         if (data.user_name) localStorage.setItem('welile_last_user_name', data.user_name);
         localStorage.setItem('welile_last_login_method', 'otp');
         localStorage.setItem('welile_had_session', 'true');
         // OTP login fallback guard: remember the auth user id the OTP backend
-        // resolved for this phone. After the magic-link redirect establishes a
-        // session, the auth listener verifies the session's user id matches
-        // this value before completing sign-in (and signs out on mismatch).
+        // resolved for this phone. Once the session is established, the auth
+        // listener verifies the session's user id matches this value before
+        // completing sign-in (and signs out on mismatch).
         try {
           if (data.user_id) localStorage.setItem('welile_otp_expected_uid', data.user_id);
           else localStorage.removeItem('welile_otp_expected_uid');
         } catch { /* storage unavailable — guard simply won't run */ }
         setDeviceTrust(rememberThisDevice);
+
+        // PREFERRED: verify the magic-link token FIRST-PARTY (same-origin). This
+        // writes the session into localStorage directly, with NO cross-domain
+        // bounce through <project>.supabase.co. iOS Safari ITP evicts storage
+        // written as the result of a cross-site bounce on the next cold launch,
+        // which is why iPhone users were getting logged out. verifyOtp avoids it.
+        if (data.token_hash) {
+          const { error: verifyErr } = await supabase.auth.verifyOtp({
+            type: 'magiclink',
+            token_hash: data.token_hash,
+          });
+          if (verifyErr) {
+            toast({ title: 'Login Failed', description: verifyErr.message || 'Could not complete login. Please try again.', variant: 'destructive' });
+            return;
+          }
+          toast({ title: `Welcome back${data.user_name ? ', ' + data.user_name : ''}! 🎉`, description: 'Logging you in...' });
+          // Same-origin navigation — session is already persisted first-party.
+          window.location.href = '/';
+          return;
+        }
+
+        // LEGACY fallback: server didn't return a token_hash (older deploy).
         toast({ title: `Welcome back${data.user_name ? ', ' + data.user_name : ''}! 🎉`, description: 'Logging you in...' });
         window.location.href = data.verify_url;
       }
