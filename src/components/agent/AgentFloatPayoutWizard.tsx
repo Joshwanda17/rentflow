@@ -132,6 +132,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const resetForm = () => {
     setStep('select');
     setSelectedRequest(null);
+    setAllocationPrepping(false);
     setProvider('');
     setTid('');
     setNotes('');
