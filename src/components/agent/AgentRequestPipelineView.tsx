@@ -1193,8 +1193,34 @@ function RequestDetailDrawer({
   stageLabel: string;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const dailyRepay =
     row && row.duration_days > 0 ? Math.round(row.total_repayment / row.duration_days) : 0;
+  const canCancel =
+    !!row && !!user && SUBMITTED_STATUSES.includes(row.status);
+  const handleCancel = async () => {
+    if (!row || !user) return;
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .update({ status: 'deleted_by_agent' })
+        .eq('id', row.id)
+        .eq('agent_id', user.id);
+      if (error) throw error;
+      toast.success('Request cancelled', { description: 'The rent request has been removed.' });
+      setConfirmCancel(false);
+      queryClient.invalidateQueries({ queryKey: ['agent-pipeline'] });
+      onClose();
+    } catch (e: any) {
+      toast.error('Could not cancel', { description: e?.message || 'Please try again.' });
+    } finally {
+      setCancelling(false);
+    }
+  };
   const history = useQuery({
     queryKey: ['agent-request-history', row?.id],
     enabled: !!row?.id,
