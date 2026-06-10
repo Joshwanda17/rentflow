@@ -889,6 +889,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setPhoneMatch(null);
     setCheckingPhone(false);
     setStep(1);
+    setImages([]);
   };
 
   const buildShare = () => {
