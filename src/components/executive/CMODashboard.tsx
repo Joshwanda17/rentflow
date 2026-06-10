@@ -4,16 +4,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, isBefore, isAfter } from 'date-fns';
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+type ReferralStatus = 'all' | 'pending' | 'completed';
 
 export function CMODashboard() {
   const now = new Date();
   const [startMonth, setStartMonth] = useState(format(subMonths(now, 5), 'yyyy-MM'));
   const [endMonth, setEndMonth] = useState(format(now, 'yyyy-MM'));
+  const [referralStatus, setReferralStatus] = useState<ReferralStatus>('all');
 
   const start = startOfMonth(new Date(startMonth + '-01'));
   const end = endOfMonth(new Date(endMonth + '-01'));
@@ -38,27 +41,47 @@ export function CMODashboard() {
   const { data: referralStats } = useQuery({
     queryKey: ['exec-referral-stats', startMonth, endMonth],
     queryFn: async () => {
-      const { count: totalReferrals } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .not('referrer_id', 'is', null)
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString());
+      const rangeFilter = (q: any) =>
+        q.gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
 
-      const byMonth: Record<string, number> = {};
+      const { count: totalReferrals } = await rangeFilter(
+        supabase.from('referrals').select('*', { count: 'exact', head: true })
+      );
+
+      const { count: pendingReferrals } = await rangeFilter(
+        supabase.from('referrals').select('*', { count: 'exact', head: true }).eq('credited', false)
+      );
+
+      const { count: completedReferrals } = await rangeFilter(
+        supabase.from('referrals').select('*', { count: 'exact', head: true }).eq('credited', true)
+      );
+
+      const byMonth: Record<string, { total: number; pending: number; completed: number }> = {};
       for (const m of months) {
         const s = startOfMonth(m);
         const e = endOfMonth(m);
-        const { count } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .not('referrer_id', 'is', null)
-          .gte('created_at', s.toISOString())
-          .lte('created_at', e.toISOString());
-        byMonth[format(s, 'MMM yyyy')] = count || 0;
+        const monthQ = (q: any) =>
+          q.gte('created_at', s.toISOString()).lte('created_at', e.toISOString());
+
+        const [{ count: total }, { count: pending }, { count: completed }] = await Promise.all([
+          monthQ(supabase.from('referrals').select('*', { count: 'exact', head: true })),
+          monthQ(supabase.from('referrals').select('*', { count: 'exact', head: true }).eq('credited', false)),
+          monthQ(supabase.from('referrals').select('*', { count: 'exact', head: true }).eq('credited', true)),
+        ]);
+
+        byMonth[format(s, 'MMM yyyy')] = {
+          total: total || 0,
+          pending: pending || 0,
+          completed: completed || 0,
+        };
       }
 
-      return { totalReferrals: totalReferrals || 0, byMonth };
+      return {
+        totalReferrals: totalReferrals || 0,
+        pendingReferrals: pendingReferrals || 0,
+        completedReferrals: completedReferrals || 0,
+        byMonth,
+      };
     },
     staleTime: 600000,
   });
@@ -79,30 +102,75 @@ export function CMODashboard() {
 
   const referralData = signupTrend?.map(m => ({
     ...m,
-    referrals: referralStats?.byMonth[m.month] || 0,
+    referrals: referralStats?.byMonth[m.month]?.total || 0,
+    pending: referralStats?.byMonth[m.month]?.pending || 0,
+    completed: referralStats?.byMonth[m.month]?.completed || 0,
   })) || [];
 
-  const recentSignupsColumns: Column<any>[] = [
+  const referralTotalForStatus =
+    referralStatus === 'pending'
+      ? referralStats?.pendingReferrals || 0
+      : referralStatus === 'completed'
+        ? referralStats?.completedReferrals || 0
+        : referralStats?.totalReferrals || 0;
+
+  const recentReferralsColumns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
-    { key: 'full_name', label: 'Name' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'referrer_id', label: 'Referred', render: (v) => v ? '✓ Yes' : 'Organic' },
+    { key: 'referred_name', label: 'Referred User' },
+    { key: 'referrer_name', label: 'Referrer' },
+    {
+      key: 'credited',
+      label: 'Status',
+      render: (v) =>
+        v ? (
+          <span className="inline-flex items-center rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">Completed</span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600">Pending</span>
+        ),
+    },
   ];
 
-  const { data: recentUsers, isLoading: loadingUsers } = useQuery({
-    queryKey: ['exec-recent-users', startMonth, endMonth],
+  const { data: recentReferrals, isLoading: loadingReferrals } = useQuery({
+    queryKey: ['exec-recent-referrals', startMonth, endMonth, referralStatus],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, referrer_id, created_at')
+      let q = supabase
+        .from('referrals')
+        .select('id, referred_id, referrer_id, credited, created_at')
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString())
         .order('created_at', { ascending: false })
         .limit(200);
-      return data || [];
+
+      if (referralStatus === 'pending') q = q.eq('credited', false);
+      if (referralStatus === 'completed') q = q.eq('credited', true);
+
+      const { data: refRows } = await q;
+      if (!refRows || refRows.length === 0) return [];
+
+      const userIds = [...new Set([...refRows.map(r => r.referred_id), ...refRows.map(r => r.referrer_id)])];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds);
+
+      const profileMap = new Map((profilesData || []).map(p => [p.id, p]));
+
+      return refRows.map(r => ({
+        id: r.id,
+        created_at: r.created_at,
+        credited: r.credited,
+        referred_name: profileMap.get(r.referred_id)?.full_name || profileMap.get(r.referred_id)?.phone || 'Unknown',
+        referrer_name: profileMap.get(r.referrer_id)?.full_name || profileMap.get(r.referrer_id)?.phone || 'Unknown',
+      }));
     },
     staleTime: 600000,
   });
+
+  const statusOptions: { label: string; value: ReferralStatus }[] = [
+    { label: 'All', value: 'all' },
+    { label: 'Pending', value: 'pending' },
+    { label: 'Completed', value: 'completed' },
+  ];
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -147,11 +215,35 @@ export function CMODashboard() {
         </Button>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {statusOptions.map((opt) => (
+          <Button
+            key={opt.value}
+            size="sm"
+            variant={referralStatus === opt.value ? 'default' : 'outline'}
+            onClick={() => setReferralStatus(opt.value)}
+          >
+            {opt.label}
+          </Button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total Users" value={(totalUsers || 0).toLocaleString()} icon={Users} loading={isLoading} />
         <KPICard title="Monthly Signups" value={lastMonth} icon={UserPlus} loading={isLoading} color="bg-green-500/10 text-green-600" trend={{ value: growthRate, label: 'vs prev month' }} />
-        <KPICard title="Referral Signups" value={referralStats?.totalReferrals || 0} icon={Megaphone} color="bg-purple-500/10 text-purple-600" />
+        <KPICard
+          title={referralStatus === 'all' ? 'Referral Signups' : referralStatus === 'pending' ? 'Pending Referrals' : 'Completed Referrals'}
+          value={referralTotalForStatus}
+          icon={Megaphone}
+          color="bg-purple-500/10 text-purple-600"
+        />
         <KPICard title="Conversion Rate" value={totalUsers ? `${Math.round((referralStats?.totalReferrals || 0) / totalUsers * 100)}%` : '0%'} icon={Target} color="bg-orange-500/10 text-orange-600" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3">
+        <KPICard title="Total Referrals" value={referralStats?.totalReferrals || 0} icon={Megaphone} color="bg-purple-500/10 text-purple-600" />
+        <KPICard title="Pending Referrals" value={referralStats?.pendingReferrals || 0} icon={TrendingUp} color="bg-amber-500/10 text-amber-600" />
+        <KPICard title="Completed Referrals" value={referralStats?.completedReferrals || 0} icon={BarChart3} color="bg-green-500/10 text-green-600" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
@@ -175,15 +267,22 @@ export function CMODashboard() {
               <XAxis dataKey="month" className="text-xs" />
               <YAxis className="text-xs" />
               <Tooltip />
-              <Bar dataKey="referrals" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Legend />
+              <Bar dataKey="pending" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Pending" />
+              <Bar dataKey="completed" fill="#22c55e" radius={[4, 4, 0, 0]} name="Completed" />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold mb-3">Recent Signups</h3>
-        <ExecutiveDataTable data={recentUsers || []} columns={recentSignupsColumns} loading={loadingUsers} title="Signups" />
+        <h3 className="text-sm font-semibold mb-3">Recent Referrals</h3>
+        <ExecutiveDataTable
+          data={recentReferrals || []}
+          columns={recentReferralsColumns}
+          loading={loadingReferrals}
+          title="Referrals"
+        />
       </div>
     </div>
   );
