@@ -1,19 +1,12 @@
-import { Shield, Clock, XCircle, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
-import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 
 /**
- * Renders a status banner explaining why "Support Tenant" / portfolio funding
- * actions are locked for self-registered funders awaiting Partner Ops approval.
- * Renders nothing once the funder is approved.
+ * Verification is no longer required — all joined users can invest as long as
+ * they have funds in their wallet. The approval banner is retired and renders
+ * nothing; kept as a no-op so existing call sites remain valid.
  */
-export function FunderApprovalBanner({ className }: { className?: string }) {
-  const { user } = useAuth();
-  const { status, rejectionReason, isLoading } = useFunderApprovalStatus(user?.id);
-
-  // Verification is no longer required — all joined users can invest as long
-  // as they have funds in their wallet. The approval banner is retired.
+export function FunderApprovalBanner(_props: { className?: string }) {
   return null;
 }
 
