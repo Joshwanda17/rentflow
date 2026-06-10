@@ -291,6 +291,10 @@ export default function Auth() {
 
   const wrappedHandleGoogleSignIn = async () => {
     localStorage.setItem('welile_last_login_method', 'google');
+    // OAuth sign-ins are always persistent — clear any stale ephemeral flag
+    // left by a previous "don't remember this device" login, otherwise the
+    // boot guard keeps wiping the session on iOS cold starts.
+    setDeviceTrust(true);
     await handleGoogleSignIn();
   };
 
