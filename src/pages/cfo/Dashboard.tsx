@@ -172,6 +172,19 @@ export default function CFODashboardPage() {
             <LandlordFloatAllocationsPanel />
           </div>
         );
+      case 'already-funded-landlords':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">🏛️ Already Funded Landlords</h1>
+              <p className="text-sm text-muted-foreground">
+                Landlords whose rent has already been disbursed by the CFO and is now either with the agent
+                (awaiting MoMo payout) or already forwarded to the landlord. Tracks funded, repaying, and completed rent requests.
+              </p>
+            </div>
+            <AlreadyFundedLandlordsPanel />
+          </div>
+        );
       case 'advanced-ledgers':
         return <LedgerHub />;
       case 'partner-topups':
