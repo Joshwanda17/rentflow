@@ -433,7 +433,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     'Location': { step: 1, id: 'lh-field-location' },
     'Rent amount': { step: 1, id: 'lh-field-rent' },
     'House details': { step: 1, id: 'lh-field-house' },
-    'Photos': { step: 1, id: 'lh-field-house' },
+    'Photos': { step: 1, id: 'lh-field-photos' },
   };
 
   // Smooth-scroll to a field anchor, briefly highlight it and focus its first input.
