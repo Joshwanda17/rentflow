@@ -1613,6 +1613,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               />
             </div>
           </div>
+          {/* Photos — REQUIRED. Every listing must carry at least one photo. */}
+          <div
+            id="lh-field-photos"
+            className={`space-y-2 p-3 rounded-xl border ${
+              attempted && images.length === 0 ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
+            }`}
+          >
+            <p className="text-sm font-medium">
+              House photos <span className="text-destructive">*</span>
+            </p>
+            <HouseImageUploader
+              images={images}
+              onChange={setImages}
+              region={form.region}
+              district={form.district}
+              village={form.village}
+            />
+            {attempted && images.length === 0 && (
+              <FieldError message="Add at least one photo of the house to list it." />
+            )}
+          </div>
           </>
           )}
 
