@@ -29,15 +29,15 @@ function formatPhoneInternational(phone: string): string {
 
 // Yoola is the PRIMARY SMS gateway; Africa's Talking is the fallback. Phone for
 // Yoola is digits only with country code, no leading "+".
-async function sendViaYoola(phone: string, message: string): Promise<boolean> {
+async function sendViaYoola(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
   // Trim — Yoola returns 403 "invalidkey" if the key has surrounding whitespace.
   const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) {
     console.warn("[cash-verify-code] Yoola not configured");
-    return false;
+    return { ok: false, reason: "yoola_not_configured" };
   }
   const phoneYoola = formatPhoneInternational(phone).replace(/^\+/, "");
-  if (!phoneYoola) return false;
+  if (!phoneYoola) return { ok: false, reason: "invalid_phone" };
   try {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
@@ -55,27 +55,27 @@ async function sendViaYoola(phone: string, message: string): Promise<boolean> {
       (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
         (!data?.error && status === ""));
     console.log(`[cash-verify-code] Yoola to=${phoneYoola} ok=${ok} status=${res.status}`);
-    return ok;
+    return ok ? { ok: true } : { ok: false, reason: `yoola_${res.status}_${status || "rejected"}` };
   } catch (err) {
     console.error("[cash-verify-code] Yoola error:", err);
-    return false;
+    return { ok: false, reason: "network_error" };
   }
 }
 
 // Africa's Talking — used only as a FALLBACK when Yoola is not accepted.
-async function sendViaAfricasTalking(phone: string, message: string): Promise<boolean> {
+async function sendViaAfricasTalking(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
     console.error("[cash-verify-code] Missing AT credentials");
-    return false;
+    return { ok: false, reason: "missing_credentials" };
   }
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
     ? "https://api.sandbox.africastalking.com/version1/messaging"
     : "https://api.africastalking.com/version1/messaging";
   const formattedPhone = formatPhoneInternational(phone);
-  if (!formattedPhone) return false;
+  if (!formattedPhone) return { ok: false, reason: "invalid_phone" };
   try {
     const body = new URLSearchParams({
       username,
@@ -96,22 +96,89 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<bo
     let data: any;
     try { data = JSON.parse(rawText); } catch {
       console.error(`[cash-verify-code] Non-JSON AT response: ${rawText}`);
-      return false;
+      return { ok: false, reason: "non_json_response" };
     }
     const recipients = data?.SMSMessageData?.Recipients || [];
-    return recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    const ok = recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    return ok ? { ok: true } : { ok: false, reason: `at_status_${recipients[0]?.statusCode ?? "none"}` };
   } catch (err) {
     console.error("[cash-verify-code] AT error:", err);
-    return false;
+    return { ok: false, reason: "network_error" };
   }
+}
+
+interface ProviderAttempt {
+  provider: string;
+  accepted: boolean;
+  reason?: string;
+  started_at: string;
+  finished_at: string;
+  attempted: boolean;
+}
+interface SmsOutcome {
+  ok: boolean;
+  reason?: string;
+  provider?: string;
+  attempts: ProviderAttempt[];
+}
+function wasSkipped(reason?: string): boolean {
+  return reason === "missing_credentials" ||
+    (typeof reason === "string" && reason.endsWith("not_configured"));
 }
 
 // Provider chain: Yoola (primary) → Africa's Talking (fallback). Tried one at a
 // time — AT only fires if Yoola is unconfigured or did not accept the message.
-async function sendSMS(phone: string, message: string): Promise<boolean> {
-  if (await sendViaYoola(phone, message)) return true;
+// Every attempt is timestamped so the delivery log proves there is never a
+// simultaneous double-send.
+async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
+  const attempts: ProviderAttempt[] = [];
+  const run = async (provider: string, fn: () => Promise<{ ok: boolean; reason?: string }>) => {
+    const started_at = new Date().toISOString();
+    const r = await fn();
+    const finished_at = new Date().toISOString();
+    attempts.push({ provider, accepted: r.ok, reason: r.reason, started_at, finished_at, attempted: !wasSkipped(r.reason) });
+    return r;
+  };
+  const yoola = await run("yoola", () => sendViaYoola(phone, message));
+  if (yoola.ok) return { ok: true, provider: "yoola", attempts };
   console.warn("[cash-verify-code] Yoola not accepted — falling back to Africa's Talking");
-  return await sendViaAfricasTalking(phone, message);
+  const at = await run("africastalking", () => sendViaAfricasTalking(phone, message));
+  if (at.ok) return { ok: true, provider: "africastalking", attempts };
+  const reason = (yoola.reason && yoola.reason !== "yoola_not_configured") ? yoola.reason : at.reason;
+  return { ok: false, reason, attempts };
+}
+
+async function logSmsAttempts(
+  admin: ReturnType<typeof createClient>,
+  ctx: { phone: string; message: string; userId?: string | null; name?: string | null; referenceId?: string | null; source: string },
+  outcome: SmsOutcome,
+): Promise<void> {
+  try {
+    if (!outcome.attempts.length) return;
+    const rows = outcome.attempts.map((a, i) => ({
+      recipient_phone: ctx.phone,
+      recipient_user_id: ctx.userId ?? null,
+      recipient_name: ctx.name ?? null,
+      message: ctx.message,
+      provider: a.provider,
+      status: a.accepted ? "accepted" : (a.attempted ? "failed" : "skipped"),
+      error: a.accepted ? null : (a.reason ?? null),
+      reference_id: ctx.referenceId ?? null,
+      source: ctx.source,
+      provider_response: {
+        attempt_sequence: i + 1,
+        total_attempts: outcome.attempts.length,
+        started_at: a.started_at,
+        finished_at: a.finished_at,
+        reason: a.reason ?? null,
+        final_provider: outcome.provider ?? null,
+        final_accepted: outcome.ok,
+      },
+    }));
+    await admin.from("sms_delivery_log").insert(rows);
+  } catch (e) {
+    console.warn("[cash-verify-code] sms_delivery_log insert failed (non-critical):", e);
+  }
 }
 
 const fmtUGX = (n: number) =>
@@ -423,8 +490,15 @@ Deno.serve(async (req) => {
           `Welile: Cash deposit confirmed. ${fmtUGX(ver.amount)} credited to your wallet ` +
           `(receipt ${enteredCode}).${balanceLine} Thank you.`;
         const sent = await sendSMS(phone, smsBody);
-        console.log(`[cash-verify-code] confirmation SMS to ${phone} (via ${source}) sent=${sent}`);
-        if (!sent) console.error("[cash-verify-code] confirmation SMS not sent");
+        await logSmsAttempts(admin, {
+          phone,
+          message: smsBody,
+          userId: user.id,
+          referenceId: ver.id ?? null,
+          source: "cash-deposit-verify-code",
+        }, sent);
+        console.log(`[cash-verify-code] confirmation SMS to ${phone} (via ${source}) sent=${sent.ok}`);
+        if (!sent.ok) console.error("[cash-verify-code] confirmation SMS not sent");
       } else {
         console.error("[cash-verify-code] no phone on file for confirmation SMS");
       }

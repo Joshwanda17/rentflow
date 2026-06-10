@@ -42,6 +42,19 @@ interface SmsResult {
   fallbackUsed?: boolean;
   primaryProvider?: string;
   primaryReason?: string;
+  /** Ordered, timestamped trail of every provider attempt for this send. */
+  attempts?: ProviderAttempt[];
+}
+
+interface ProviderAttempt {
+  provider: string;
+  accepted: boolean;
+  reason?: string;
+  messageId?: string;
+  cost?: string;
+  raw?: unknown;
+  started_at: string;
+  finished_at: string;
 }
 
 // Yoola is the PRIMARY OTP sender. JSON body { phone, message, api_key } posted
@@ -183,29 +196,49 @@ async function sendTwilioSms(phone: string, message: string): Promise<SmsResult>
 // provider ultimately delivered, with fallback metadata preserved for the audit
 // trail.
 async function sendOtpWithFallback(phone: string, message: string): Promise<SmsResult> {
-  const primary = await sendYoolaSms(phone, message);
-  if (primary.ok) return primary;
+  const attempts: ProviderAttempt[] = [];
+  const run = async (provider: string, fn: () => Promise<SmsResult>): Promise<SmsResult> => {
+    const started_at = new Date().toISOString();
+    const r = await fn();
+    const finished_at = new Date().toISOString();
+    attempts.push({
+      provider,
+      accepted: r.ok,
+      reason: r.reason,
+      messageId: r.messageId,
+      cost: r.cost,
+      raw: r.raw,
+      started_at,
+      finished_at,
+    });
+    return r;
+  };
+
+  const primary = await run("yoola", () => sendYoolaSms(phone, message));
+  if (primary.ok) return { ...primary, attempts };
   console.warn(
     `[issue-landlord-payout-otp] Yoola send failed (${primary.reason ?? "unknown"}) — falling back to Africa's Talking`,
   );
-  const at = await sendSms(phone, message);
+  const at = await run("africastalking", () => sendSms(phone, message));
   if (at.ok) {
     return {
       ...at,
       fallbackUsed: true,
       primaryProvider: primary.provider ?? "yoola",
       primaryReason: primary.reason ?? "Yoola send not accepted",
+      attempts,
     };
   }
   console.warn(
     `[issue-landlord-payout-otp] AT send failed (${at.reason ?? "unknown"}) — falling back to Twilio`,
   );
-  const fallback = await sendTwilioSms(phone, message);
+  const fallback = await run("twilio", () => sendTwilioSms(phone, message));
   return {
     ...fallback,
     fallbackUsed: true,
     primaryProvider: primary.provider ?? "yoola",
     primaryReason: primary.reason ?? "Yoola send not accepted",
+    attempts,
   };
 }
 
@@ -218,21 +251,47 @@ async function logSms(
   referenceId?: string | null,
 ) {
   try {
-    await admin.from("sms_delivery_log").insert({
+    // Write one row per provider attempt so the audit trail shows exactly which
+    // provider was tried, in what order, and the timestamped outcome — proving
+    // providers fired strictly sequentially (never a double-send).
+    const attempts = result.attempts && result.attempts.length
+      ? result.attempts
+      : [{
+          provider: result.provider ?? "africastalking",
+          accepted: result.ok,
+          reason: result.reason,
+          messageId: result.messageId,
+          cost: result.cost,
+          raw: result.raw,
+          started_at: new Date().toISOString(),
+          finished_at: new Date().toISOString(),
+        } as ProviderAttempt];
+
+    const rows = attempts.map((a, i) => ({
       recipient_phone: phone,
       recipient_name: recipientName ?? null,
       message,
       // "sent" = accepted by the gateway (awaiting delivery report). The DLR
       // callback later upgrades this to "delivered" or downgrades to "failed".
-      status: result.ok ? "sent" : "failed",
-      provider: result.provider ?? "africastalking",
-      provider_message_id: result.messageId ?? null,
-      cost: result.cost ?? null,
+      status: a.accepted ? "sent" : "failed",
+      provider: a.provider,
+      provider_message_id: a.messageId ?? null,
+      cost: a.cost ?? null,
       reference_id: referenceId ?? null,
-      provider_response: result.raw ?? null,
-      error: result.ok ? null : (result.reason ?? null),
+      provider_response: {
+        attempt_sequence: i + 1,
+        total_attempts: attempts.length,
+        started_at: a.started_at,
+        finished_at: a.finished_at,
+        reason: a.reason ?? null,
+        final_provider: result.ok ? result.provider ?? null : null,
+        final_accepted: result.ok,
+        gateway_response: a.raw ?? null,
+      },
+      error: a.accepted ? null : (a.reason ?? null),
       source: "issue-landlord-payout-otp",
-    });
+    }));
+    await admin.from("sms_delivery_log").insert(rows);
   } catch (e) {
     console.warn("[issue-landlord-payout-otp] sms_delivery_log insert failed (non-critical):", e);
   }

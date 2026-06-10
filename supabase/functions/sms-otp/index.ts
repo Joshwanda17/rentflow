@@ -54,6 +54,33 @@ interface SmsResult {
   reason?: string;
 }
 
+/** A single provider attempt within one logical SMS send. */
+interface ProviderAttempt {
+  provider: string;
+  accepted: boolean;
+  reason?: string;
+  /** ISO timestamp when this provider attempt started. */
+  started_at: string;
+  /** ISO timestamp when this provider attempt finished. */
+  finished_at: string;
+  /** Whether the provider was configured/eligible to attempt at all. */
+  attempted: boolean;
+}
+
+/** Final outcome of a logical SMS send, including the full provider trail. */
+interface SmsOutcome extends SmsResult {
+  /** Provider that ultimately accepted the message (undefined if none did). */
+  provider?: string;
+  /** Ordered list of every provider attempt for this send. */
+  attempts: ProviderAttempt[];
+}
+
+/** A reason that means the provider was skipped (never actually dialed out). */
+function wasSkipped(reason?: string): boolean {
+  return reason === "missing_credentials" ||
+    (typeof reason === "string" && reason.endsWith("not_configured"));
+}
+
 // Per-attempt network timeout for the gateway call. Keeps a single stuck
 // request from hanging the whole send. Each retry gets its own fresh timeout.
 const SMS_ATTEMPT_TIMEOUT_MS = 5000;
@@ -332,26 +359,96 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<Sm
 /**
  * Send the OTP SMS. Provider chain: Yoola (primary) → Africa's Talking → LANA.
  * Each provider is tried only if the previous one is unconfigured or fails, so
- * delivery is never blocked on a single provider.
+ * delivery is never blocked on a single provider. Returns the full ordered
+ * trail of provider attempts (with timestamps) so we can prove a message was
+ * only routed to ONE provider at a time and never double-sent.
  */
-async function sendSMS(phone: string, message: string): Promise<SmsResult> {
-  const yoola = await sendViaYoola(phone, message);
-  if (yoola.accepted) return yoola;
+async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
+  const attempts: ProviderAttempt[] = [];
+
+  // Run a single provider, capturing precise start/finish timestamps so the
+  // delivery log can show that providers fired strictly sequentially.
+  const run = async (
+    provider: string,
+    fn: () => Promise<SmsResult>,
+  ): Promise<SmsResult> => {
+    const started_at = new Date().toISOString();
+    const r = await fn();
+    const finished_at = new Date().toISOString();
+    attempts.push({
+      provider,
+      accepted: r.accepted,
+      reason: r.reason,
+      started_at,
+      finished_at,
+      attempted: !wasSkipped(r.reason),
+    });
+    return r;
+  };
+
+  const yoola = await run("yoola", () => sendViaYoola(phone, message));
+  if (yoola.accepted) return { accepted: true, provider: "yoola", attempts };
 
   // Yoola failed or is not configured — try Africa's Talking.
   console.warn(`[sms-otp] Yoola send not accepted (${yoola.reason}); trying Africa's Talking`);
-  const at = await sendViaAfricasTalking(phone, message);
-  if (at.accepted) return at;
+  const at = await run("africastalking", () => sendViaAfricasTalking(phone, message));
+  if (at.accepted) return { accepted: true, provider: "africastalking", attempts };
 
   // AT failed or is not configured — try LANA as a final fallback.
   console.warn(`[sms-otp] Africa's Talking not accepted (${at.reason}); trying LANA`);
-  const lana = await sendViaLana(phone, message);
-  if (lana.accepted) return lana;
+  const lana = await run("lana", () => sendViaLana(phone, message));
+  if (lana.accepted) return { accepted: true, provider: "lana", attempts };
 
   // All failed — surface the most informative reason (skip "not_configured").
-  if (yoola.reason && yoola.reason !== "yoola_not_configured") return yoola;
-  if (at.reason && at.reason !== "missing_credentials") return at;
-  return lana;
+  let reason = lana.reason;
+  if (yoola.reason && yoola.reason !== "yoola_not_configured") reason = yoola.reason;
+  else if (at.reason && at.reason !== "missing_credentials") reason = at.reason;
+  return { accepted: false, reason, attempts };
+}
+
+/**
+ * Persist one row per provider attempt into `sms_delivery_log`, giving finance
+ * leadership a precise, timestamped audit trail of which provider was tried,
+ * in what order, and the final outcome. Best-effort — never throws.
+ */
+async function logSmsAttempts(
+  admin: ReturnType<typeof createClient>,
+  ctx: {
+    phone: string;
+    message: string;
+    userId?: string | null;
+    name?: string | null;
+    referenceId?: string | null;
+    source: string;
+  },
+  outcome: SmsOutcome,
+): Promise<void> {
+  try {
+    if (!outcome.attempts.length) return;
+    const rows = outcome.attempts.map((a, i) => ({
+      recipient_phone: ctx.phone,
+      recipient_user_id: ctx.userId ?? null,
+      recipient_name: ctx.name ?? null,
+      message: ctx.message,
+      provider: a.provider,
+      status: a.accepted ? "accepted" : (a.attempted ? "failed" : "skipped"),
+      error: a.accepted ? null : (a.reason ?? null),
+      reference_id: ctx.referenceId ?? null,
+      source: ctx.source,
+      provider_response: {
+        attempt_sequence: i + 1,
+        total_attempts: outcome.attempts.length,
+        started_at: a.started_at,
+        finished_at: a.finished_at,
+        reason: a.reason ?? null,
+        final_provider: outcome.provider ?? null,
+        final_accepted: outcome.accepted,
+      },
+    }));
+    await admin.from("sms_delivery_log").insert(rows);
+  } catch (e) {
+    console.warn("[sms-otp] sms_delivery_log insert failed (non-critical):", e);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -534,6 +631,11 @@ Deno.serve(async (req) => {
             smsPromise
               .then(async (r) => {
                 await recordSendStatus(r);
+                await logSmsAttempts(
+                  adminClient,
+                  { phone, message, source: "sms-otp" },
+                  r,
+                );
                 console.log(
                   `[sms-otp] late acceptance for ***${phoneKey.slice(-4)}: ${r.accepted ? "ok" : r.reason}`,
                 );
@@ -551,6 +653,11 @@ Deno.serve(async (req) => {
 
       // Gateway responded in time — report the real result.
       await recordSendStatus(outcome);
+      await logSmsAttempts(
+        adminClient,
+        { phone, message, source: "sms-otp" },
+        outcome,
+      );
 
       if (!outcome.accepted) {
         console.error(`[sms-otp] gateway rejected send to ***${phoneKey.slice(-4)}: ${outcome.reason}`);
@@ -669,6 +776,11 @@ Deno.serve(async (req) => {
         });
       }
       const sent = await sendSMS(phone, message);
+      await logSmsAttempts(
+        adminClient,
+        { phone, message, source: "sms-otp:custom" },
+        sent,
+      );
       if (!sent.accepted) {
         return new Response(JSON.stringify({ error: "Failed to send SMS" }), {
           status: 500,

@@ -41,15 +41,15 @@ function formatPhoneInternational(phone: string): string {
 // Yoola is the PRIMARY SMS provider. JSON body { phone, message, api_key }
 // posted to https://yoolasms.com/api/v1/send; { status: "success" } = accepted.
 // Phone is digits only with country code, no leading "+".
-async function sendViaYoola(phone: string, message: string): Promise<boolean> {
+async function sendViaYoola(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
   // Trim — Yoola returns 403 "invalidkey" if the key has surrounding whitespace.
   const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) {
     console.warn("[send-signup-invite-sms] Yoola not configured");
-    return false;
+    return { ok: false, reason: "yoola_not_configured" };
   }
   const phoneYoola = formatPhoneInternational(phone).replace(/^\+/, "");
-  if (!phoneYoola) return false;
+  if (!phoneYoola) return { ok: false, reason: "invalid_phone" };
   try {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
@@ -67,20 +67,20 @@ async function sendViaYoola(phone: string, message: string): Promise<boolean> {
       (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
         (!data?.error && status === ""));
     console.log(`[send-signup-invite-sms] Yoola to=${phoneYoola} ok=${ok} status=${res.status}`);
-    return ok;
+    return ok ? { ok: true } : { ok: false, reason: `yoola_${res.status}_${status || "rejected"}` };
   } catch (err) {
     console.error("[send-signup-invite-sms] Yoola send failed:", err);
-    return false;
+    return { ok: false, reason: "network_error" };
   }
 }
 
 // Africa's Talking — used only as a FALLBACK when Yoola is not accepted.
-async function sendViaAfricasTalking(phone: string, message: string): Promise<boolean> {
+async function sendViaAfricasTalking(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
     console.error("[send-signup-invite-sms] Missing AT credentials");
-    return false;
+    return { ok: false, reason: "missing_credentials" };
   }
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
@@ -88,7 +88,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<bo
     : "https://api.africastalking.com/version1/messaging";
 
   const to = formatPhoneInternational(phone);
-  if (!to) return false;
+  if (!to) return { ok: false, reason: "invalid_phone" };
 
   try {
     const body = new URLSearchParams({ username, to, message, from: "WELILE" });
@@ -105,26 +105,93 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<bo
     let data: any;
     try { data = JSON.parse(raw); } catch {
       console.error("[send-signup-invite-sms] Non-JSON AT response:", raw);
-      return false;
+      return { ok: false, reason: "non_json_response" };
     }
     const recipients = data?.SMSMessageData?.Recipients || [];
     const ok = recipients.some(
       (r: any) => r.statusCode === 100 || r.statusCode === 101,
     );
     console.log(`[send-signup-invite-sms] AT to=${to} ok=${ok} status=${res.status}`);
-    return ok;
+    return ok ? { ok: true } : { ok: false, reason: `at_status_${recipients[0]?.statusCode ?? "none"}` };
   } catch (err) {
     console.error("[send-signup-invite-sms] AT send failed:", err);
-    return false;
+    return { ok: false, reason: "network_error" };
   }
+}
+
+interface ProviderAttempt {
+  provider: string;
+  accepted: boolean;
+  reason?: string;
+  started_at: string;
+  finished_at: string;
+  attempted: boolean;
+}
+interface SmsOutcome {
+  ok: boolean;
+  reason?: string;
+  provider?: string;
+  attempts: ProviderAttempt[];
+}
+function wasSkipped(reason?: string): boolean {
+  return reason === "missing_credentials" ||
+    (typeof reason === "string" && reason.endsWith("not_configured"));
 }
 
 // Provider chain: Yoola (primary) → Africa's Talking (fallback). Tried one at a
 // time — AT only fires if Yoola is unconfigured or did not accept the message.
-async function sendSMS(phone: string, message: string): Promise<boolean> {
-  if (await sendViaYoola(phone, message)) return true;
+// Every attempt is timestamped so the delivery log proves there is never a
+// simultaneous double-send.
+async function sendSMS(phone: string, message: string): Promise<SmsOutcome> {
+  const attempts: ProviderAttempt[] = [];
+  const run = async (provider: string, fn: () => Promise<{ ok: boolean; reason?: string }>) => {
+    const started_at = new Date().toISOString();
+    const r = await fn();
+    const finished_at = new Date().toISOString();
+    attempts.push({ provider, accepted: r.ok, reason: r.reason, started_at, finished_at, attempted: !wasSkipped(r.reason) });
+    return r;
+  };
+  const yoola = await run("yoola", () => sendViaYoola(phone, message));
+  if (yoola.ok) return { ok: true, provider: "yoola", attempts };
   console.warn("[send-signup-invite-sms] Yoola not accepted; trying Africa's Talking");
-  return await sendViaAfricasTalking(phone, message);
+  const at = await run("africastalking", () => sendViaAfricasTalking(phone, message));
+  if (at.ok) return { ok: true, provider: "africastalking", attempts };
+  const reason = (yoola.reason && yoola.reason !== "yoola_not_configured") ? yoola.reason : at.reason;
+  return { ok: false, reason, attempts };
+}
+
+/** Best-effort per-provider attempt audit trail into sms_delivery_log. */
+async function logSmsAttempts(
+  admin: ReturnType<typeof createClient>,
+  ctx: { phone: string; message: string; userId?: string | null; name?: string | null; referenceId?: string | null; source: string },
+  outcome: SmsOutcome,
+): Promise<void> {
+  try {
+    if (!outcome.attempts.length) return;
+    const rows = outcome.attempts.map((a, i) => ({
+      recipient_phone: ctx.phone,
+      recipient_user_id: ctx.userId ?? null,
+      recipient_name: ctx.name ?? null,
+      message: ctx.message,
+      provider: a.provider,
+      status: a.accepted ? "accepted" : (a.attempted ? "failed" : "skipped"),
+      error: a.accepted ? null : (a.reason ?? null),
+      reference_id: ctx.referenceId ?? null,
+      source: ctx.source,
+      provider_response: {
+        attempt_sequence: i + 1,
+        total_attempts: outcome.attempts.length,
+        started_at: a.started_at,
+        finished_at: a.finished_at,
+        reason: a.reason ?? null,
+        final_provider: outcome.provider ?? null,
+        final_accepted: outcome.ok,
+      },
+    }));
+    await admin.from("sms_delivery_log").insert(rows);
+  } catch (e) {
+    console.warn("[send-signup-invite-sms] sms_delivery_log insert failed (non-critical):", e);
+  }
 }
 
 function buildMessage(role: InviteRole, fullName: string, link: string): string {
@@ -238,8 +305,16 @@ Deno.serve(async (req) => {
       }
 
       const link = `${origin}/join?t=${activationToken}`;
-      const ok = await sendSMS(phone, buildMessage(role, fullName, link));
-      results.push({ role, phone, outcome: ok ? "sms_sent" : "sms_failed" });
+      const message = buildMessage(role, fullName, link);
+      const sent = await sendSMS(phone, message);
+      await logSmsAttempts(adminClient, {
+        phone,
+        message,
+        name: fullName ?? null,
+        referenceId: activationToken ?? null,
+        source: "send-signup-invite-sms",
+      }, sent);
+      results.push({ role, phone, outcome: sent.ok ? "sms_sent" : "sms_failed" });
     }
 
     return new Response(JSON.stringify({ success: true, results }), {
