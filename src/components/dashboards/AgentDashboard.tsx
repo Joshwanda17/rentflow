@@ -358,6 +358,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [landlordPayoutFlowOpen, setLandlordPayoutFlowOpen] = useState(false);
   const [floatPayoutOpen, setFloatPayoutOpen] = useState(false);
   const [floatAllocationsOpen, setFloatAllocationsOpen] = useState(false);
+  const [selectedFloatAllocation, setSelectedFloatAllocation] = useState<LandlordFloatAllocation | null>(null);
   const [recoveryLedgerOpen, setRecoveryLedgerOpen] = useState(false);
   const [payoutStatusOpen, setPayoutStatusOpen] = useState(false);
   const [otpAuditOpen, setOtpAuditOpen] = useState(false);
