@@ -47,6 +47,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const landlordOtp = useLandlordOtp();
   const [step, setStep] = useState<Step>('select');
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [allocationPrepping, setAllocationPrepping] = useState(false);
   const [provider, setProvider] = useState('');
   const [tid, setTid] = useState('');
   const [notes, setNotes] = useState('');
