@@ -689,7 +689,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
 
   const HOUSE_SELECT =
-    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id, tenant_id';
+    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id, tenant_id, image_urls';
 
   const searchAvailableHouses = useCallback(async () => {
     const q = houseQuery.trim();
