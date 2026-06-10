@@ -1204,10 +1204,10 @@ function RequestDetailDrawer({
   });
   return (
     <Drawer open={!!row} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DrawerContent className="z-[200]" overlayClassName="z-[190]">
+      <DrawerContent className="z-[200] max-h-[90vh]" overlayClassName="z-[190]">
         {row && (
-          <div className="mx-auto w-full max-w-md">
-            <DrawerHeader className="text-left">
+          <div className="mx-auto w-full max-w-md flex flex-col min-h-0 max-h-[90vh]">
+            <DrawerHeader className="text-left shrink-0">
               <div className="flex items-center justify-between gap-2">
                 <DrawerTitle className="text-base">Request details</DrawerTitle>
                 <Badge variant="secondary" className="text-[10px]">{stageLabel}</Badge>
@@ -1217,7 +1217,7 @@ function RequestDetailDrawer({
               </DrawerDescription>
             </DrawerHeader>
 
-            <div className="px-4 pb-2 space-y-3 max-h-[60vh] overflow-y-auto">
+            <div className="px-4 pb-2 space-y-3 flex-1 min-h-0 overflow-y-auto">
               {/* Tenant */}
               <div className="rounded-xl border bg-muted/30 px-3.5">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground pt-3">
