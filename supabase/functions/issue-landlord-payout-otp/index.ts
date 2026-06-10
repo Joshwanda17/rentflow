@@ -251,21 +251,47 @@ async function logSms(
   referenceId?: string | null,
 ) {
   try {
-    await admin.from("sms_delivery_log").insert({
+    // Write one row per provider attempt so the audit trail shows exactly which
+    // provider was tried, in what order, and the timestamped outcome — proving
+    // providers fired strictly sequentially (never a double-send).
+    const attempts = result.attempts && result.attempts.length
+      ? result.attempts
+      : [{
+          provider: result.provider ?? "africastalking",
+          accepted: result.ok,
+          reason: result.reason,
+          messageId: result.messageId,
+          cost: result.cost,
+          raw: result.raw,
+          started_at: new Date().toISOString(),
+          finished_at: new Date().toISOString(),
+        } as ProviderAttempt];
+
+    const rows = attempts.map((a, i) => ({
       recipient_phone: phone,
       recipient_name: recipientName ?? null,
       message,
       // "sent" = accepted by the gateway (awaiting delivery report). The DLR
       // callback later upgrades this to "delivered" or downgrades to "failed".
-      status: result.ok ? "sent" : "failed",
-      provider: result.provider ?? "africastalking",
-      provider_message_id: result.messageId ?? null,
-      cost: result.cost ?? null,
+      status: a.accepted ? "sent" : "failed",
+      provider: a.provider,
+      provider_message_id: a.messageId ?? null,
+      cost: a.cost ?? null,
       reference_id: referenceId ?? null,
-      provider_response: result.raw ?? null,
-      error: result.ok ? null : (result.reason ?? null),
+      provider_response: {
+        attempt_sequence: i + 1,
+        total_attempts: attempts.length,
+        started_at: a.started_at,
+        finished_at: a.finished_at,
+        reason: a.reason ?? null,
+        final_provider: result.ok ? result.provider ?? null : null,
+        final_accepted: result.ok,
+        gateway_response: a.raw ?? null,
+      },
+      error: a.accepted ? null : (a.reason ?? null),
       source: "issue-landlord-payout-otp",
-    });
+    }));
+    await admin.from("sms_delivery_log").insert(rows);
   } catch (e) {
     console.warn("[issue-landlord-payout-otp] sms_delivery_log insert failed (non-critical):", e);
   }
