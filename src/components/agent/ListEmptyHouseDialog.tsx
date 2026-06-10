@@ -1054,12 +1054,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             })}
           </div>
 
-          {/* ── Step 2: Landlord (optional) ── */}
-          {step === 2 && (
+          {/* ── Step 3: Landlord ── */}
+          {step === 3 && (
           <>
           <FormStepHeader
             icon={User}
-            stepLabel="Step 2 of 2"
+            stepLabel="Step 3 of 3"
             title="Landlord phone"
             subtitle="Just the phone number is a must — the rest can come later."
           />
@@ -1621,8 +1621,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </>
           )}
 
-          {/* ── Step 2 (cont.): LC1 (optional) & confirm ── */}
-          {step === 2 && (
+          {/* ── Step 3 (cont.): LC1 (optional) & confirm ── */}
+          {step === 3 && (
           <>
           <FormStepHeader
             icon={CheckCircle2}
@@ -1725,7 +1725,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     {!g.ok && (
                       <span className="block text-[11px] text-amber-700 dark:text-amber-400">
                         {g.hint}
-                        {g.step !== 2 && (
+                        {g.step !== 3 && (
                           <button type="button" onClick={() => { setStep(g.step); scrollDialogToTop(); }} className="ml-1 underline font-semibold">
                             Fix on step {g.step}
                           </button>
