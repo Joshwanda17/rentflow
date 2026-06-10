@@ -47,7 +47,13 @@ async function sendViaYoola(phone: string, message: string): Promise<boolean> {
     const raw = await res.text();
     let data: any;
     try { data = JSON.parse(raw); } catch { data = null; }
-    const ok = res.ok && String(data?.status ?? "").toLowerCase() === "success";
+    const status = String(data?.status ?? "").toLowerCase();
+    // Treat any successful HTTP response that Yoola did not explicitly reject as
+    // "accepted" so Africa's Talking never double-sends after a real delivery.
+    const ok =
+      res.ok &&
+      (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
+        (!data?.error && status === ""));
     console.log(`[cash-verify-code] Yoola to=${phoneYoola} ok=${ok} status=${res.status}`);
     return ok;
   } catch (err) {
