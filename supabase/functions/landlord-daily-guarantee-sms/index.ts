@@ -228,6 +228,19 @@ Deno.serve(async (req) => {
 
     // ---- Daily batch run: every distinct landlord phone ----
     const PAGE = 1000;
+    // Pull the opt-out list once so we never message landlords who tapped "Stop".
+    const optedOut = new Set<string>();
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await admin
+        .from("sms_opt_outs")
+        .select("phone")
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      for (const row of data) optedOut.add(formatPhoneInternational((row as any).phone));
+      if (data.length < PAGE) break;
+    }
+
     const seen = new Set<string>();
     const recipients: { phone: string; name: string | null }[] = [];
     for (let from = 0; ; from += PAGE) {
@@ -243,6 +256,7 @@ Deno.serve(async (req) => {
         if (!isValidPhone(phone)) continue;
         const intl = formatPhoneInternational(phone);
         if (seen.has(intl)) continue;
+        if (optedOut.has(intl)) continue;
         seen.add(intl);
         recipients.push({ phone: intl, name: (row as any).name ?? null });
       }
@@ -285,11 +299,11 @@ Deno.serve(async (req) => {
       table_name: "landlords",
       record_id: "00000000-0000-0000-0000-000000000000",
       reason: "Daily guaranteed-rent marketing SMS to every landlord phone",
-      metadata: { total: recipients.length, sent, failed, by_provider: byProvider },
+      metadata: { total: recipients.length, sent, failed, by_provider: byProvider, opted_out: optedOut.size },
     });
 
     return new Response(JSON.stringify({
-      success: true, total: recipients.length, sent, failed, by_provider: byProvider,
+      success: true, total: recipients.length, sent, failed, by_provider: byProvider, opted_out: optedOut.size,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("landlord-daily-guarantee-sms error:", e);
