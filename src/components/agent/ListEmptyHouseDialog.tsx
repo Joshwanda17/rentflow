@@ -1621,6 +1621,115 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           </>
           )}
 
+          {/* ── Step 2: Photo review gallery ── */}
+          {step === 2 && (
+          <>
+          <FormStepHeader
+            icon={Camera}
+            stepLabel="Step 2 of 3"
+            title="Photo review"
+            subtitle="Review your photos before submitting the listing."
+          />
+          {/* Photo uploader — agents can still add more */}
+          <div
+            id="lh-field-photos"
+            className={`space-y-2 p-3 rounded-xl border ${
+              attempted && images.length === 0 ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
+            }`}
+          >
+            <p className="text-sm font-medium">
+              House photos <span className="text-destructive">*</span>
+              <span className="text-muted-foreground font-normal ml-1">({images.length} added)</span>
+            </p>
+            <HouseImageUploader
+              images={images}
+              onChange={(newImages) => {
+                setImages(newImages);
+                setPreviewIndex((prev) => Math.min(prev, Math.max(0, newImages.length - 1)));
+              }}
+              region={form.region}
+              district={form.district}
+              village={form.village}
+            />
+            {attempted && images.length === 0 && (
+              <FieldError message="Add at least one photo of the house to list it." />
+            )}
+          </div>
+
+          {/* Full gallery preview — large image + thumbnail strip */}
+          {images.length > 0 && (
+            <div className="space-y-3 p-3 rounded-xl border border-border bg-muted/20">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Preview gallery</p>
+
+              {/* Main large preview */}
+              <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted border border-border">
+                <img
+                  src={images[previewIndex]?.previewUrl}
+                  alt={`House photo ${previewIndex + 1} of ${images.length}`}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = images[previewIndex]?.id;
+                    if (id) {
+                      const img = images.find(i => i.id === id);
+                      if (img) URL.revokeObjectURL(img.previewUrl);
+                      const next = images.filter(i => i.id !== id);
+                      setImages(next);
+                      setPreviewIndex((prev) => Math.min(prev, Math.max(0, next.length - 1)));
+                    }
+                  }}
+                  className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1.5 shadow-lg hover:scale-105 transition-transform"
+                  aria-label="Remove this photo"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs font-medium px-2.5 py-1 rounded-full backdrop-blur-sm">
+                  {previewIndex + 1} / {images.length}
+                </div>
+              </div>
+
+              {/* Thumbnail strip — clickable */}
+              <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
+                {images.map((img, i) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => setPreviewIndex(i)}
+                    className={`relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                      i === previewIndex
+                        ? 'border-primary ring-2 ring-primary/30'
+                        : 'border-border opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={img.previewUrl}
+                      alt={`Thumbnail ${i + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    {img.source === 'existing' && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-amber-500/80 text-[8px] text-center text-white font-medium py-0.5">
+                        Reused
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state when no photos yet */}
+          {images.length === 0 && (
+            <div className="p-6 rounded-xl border border-dashed border-border bg-muted/20 text-center space-y-2">
+              <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground" />
+              <p className="text-sm font-medium text-muted-foreground">No photos yet</p>
+              <p className="text-xs text-muted-foreground">Take or upload at least one house photo above.</p>
+            </div>
+          )}
+          </>
+          )}
+
           {/* ── Step 3 (cont.): LC1 (optional) & confirm ── */}
           {step === 3 && (
           <>
