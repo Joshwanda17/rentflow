@@ -75,7 +75,8 @@ export default function LandlordSignup() {
     }
   };
 
-  const whatsappUrl = `https://wa.me/256700000000?text=${encodeURIComponent('I have completed my Welile landlord signup')}`;
+  // Confirmation must go to the Welile WhatsApp line shown in the SMS invite.
+  const whatsappUrl = `https://wa.me/256777607640?text=${encodeURIComponent('I have completed my Welile landlord signup')}`;
 
   if (submitted) {
     return (
