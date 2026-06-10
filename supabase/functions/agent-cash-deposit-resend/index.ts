@@ -29,9 +29,9 @@ function normalizePhone(raw: string): string {
 }
 
 // Yoola is the PRIMARY SMS sender; Africa's Talking is the fallback.
-async function sendViaYoola(phone: string, message: string): Promise<boolean> {
+async function sendViaYoola(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
   const apiKey = (Deno.env.get("YOOLA_SMS_API_KEY") || "").trim();
-  if (!apiKey) return false;
+  if (!apiKey) return { ok: false, reason: "yoola_not_configured" };
   try {
     const res = await fetch("https://yoolasms.com/api/v1/send", {
       method: "POST",
@@ -48,19 +48,19 @@ async function sendViaYoola(phone: string, message: string): Promise<boolean> {
       res.ok &&
       (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
         (!data?.error && status === ""));
-    return accepted;
+    return accepted ? { ok: true } : { ok: false, reason: `yoola_${res.status}_${status || "rejected"}` };
   } catch (e) {
     console.error("[agent-cash-resend] Yoola error:", e);
-    return false;
+    return { ok: false, reason: "network_error" };
   }
 }
 
-async function sendViaAfricasTalking(phone: string, message: string): Promise<boolean> {
+async function sendViaAfricasTalking(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
     console.warn("[agent-cash-resend] Missing Africa's Talking creds — skipping AT");
-    return false;
+    return { ok: false, reason: "missing_credentials" };
   }
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
@@ -73,17 +73,83 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<bo
       headers: { apiKey, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
       body: params.toString(),
     });
-    return res.ok;
+    return res.ok ? { ok: true } : { ok: false, reason: `at_http_${res.status}` };
   } catch (e) {
     console.error("[agent-cash-resend] AT SMS error:", e);
-    return false;
+    return { ok: false, reason: "network_error" };
   }
 }
 
-async function sendSms(phone: string, message: string): Promise<boolean> {
-  if (await sendViaYoola(phone, message)) return true;
+interface ProviderAttempt {
+  provider: string;
+  accepted: boolean;
+  reason?: string;
+  started_at: string;
+  finished_at: string;
+  attempted: boolean;
+}
+interface SmsOutcome {
+  ok: boolean;
+  reason?: string;
+  provider?: string;
+  attempts: ProviderAttempt[];
+}
+function wasSkipped(reason?: string): boolean {
+  return reason === "missing_credentials" ||
+    (typeof reason === "string" && reason.endsWith("not_configured"));
+}
+
+// Yoola (primary) → Africa's Talking (fallback), one at a time. Every attempt
+// is timestamped so the delivery log proves there is never a double-send.
+async function sendSms(phone: string, message: string): Promise<SmsOutcome> {
+  const attempts: ProviderAttempt[] = [];
+  const run = async (provider: string, fn: () => Promise<{ ok: boolean; reason?: string }>) => {
+    const started_at = new Date().toISOString();
+    const r = await fn();
+    const finished_at = new Date().toISOString();
+    attempts.push({ provider, accepted: r.ok, reason: r.reason, started_at, finished_at, attempted: !wasSkipped(r.reason) });
+    return r;
+  };
+  const yoola = await run("yoola", () => sendViaYoola(phone, message));
+  if (yoola.ok) return { ok: true, provider: "yoola", attempts };
   console.warn("[agent-cash-resend] Yoola not accepted — falling back to Africa's Talking");
-  return await sendViaAfricasTalking(phone, message);
+  const at = await run("africastalking", () => sendViaAfricasTalking(phone, message));
+  if (at.ok) return { ok: true, provider: "africastalking", attempts };
+  const reason = (yoola.reason && yoola.reason !== "yoola_not_configured") ? yoola.reason : at.reason;
+  return { ok: false, reason, attempts };
+}
+
+async function logSmsAttempts(
+  admin: ReturnType<typeof createClient>,
+  ctx: { phone: string; message: string; userId?: string | null; name?: string | null; referenceId?: string | null; source: string },
+  outcome: SmsOutcome,
+): Promise<void> {
+  try {
+    if (!outcome.attempts.length) return;
+    const rows = outcome.attempts.map((a, i) => ({
+      recipient_phone: ctx.phone,
+      recipient_user_id: ctx.userId ?? null,
+      recipient_name: ctx.name ?? null,
+      message: ctx.message,
+      provider: a.provider,
+      status: a.accepted ? "accepted" : (a.attempted ? "failed" : "skipped"),
+      error: a.accepted ? null : (a.reason ?? null),
+      reference_id: ctx.referenceId ?? null,
+      source: ctx.source,
+      provider_response: {
+        attempt_sequence: i + 1,
+        total_attempts: outcome.attempts.length,
+        started_at: a.started_at,
+        finished_at: a.finished_at,
+        reason: a.reason ?? null,
+        final_provider: outcome.provider ?? null,
+        final_accepted: outcome.ok,
+      },
+    }));
+    await admin.from("sms_delivery_log").insert(rows);
+  } catch (e) {
+    console.warn("[agent-cash-resend] sms_delivery_log insert failed (non-critical):", e);
+  }
 }
 
 Deno.serve(async (req) => {
