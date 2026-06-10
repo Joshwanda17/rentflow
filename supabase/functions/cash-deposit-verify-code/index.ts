@@ -27,8 +27,37 @@ function formatPhoneInternational(phone: string): string {
   return `+${digits}`;
 }
 
-// Send a confirmation SMS via Africa's Talking. Returns true on success.
-async function sendSMS(phone: string, message: string): Promise<boolean> {
+// Yoola is the PRIMARY SMS gateway; Africa's Talking is the fallback. Phone for
+// Yoola is digits only with country code, no leading "+".
+async function sendViaYoola(phone: string, message: string): Promise<boolean> {
+  // Trim — Yoola returns 403 "invalidkey" if the key has surrounding whitespace.
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
+  if (!apiKey) {
+    console.warn("[cash-verify-code] Yoola not configured");
+    return false;
+  }
+  const phoneYoola = formatPhoneInternational(phone).replace(/^\+/, "");
+  if (!phoneYoola) return false;
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: phoneYoola, message, api_key: apiKey }),
+    });
+    const raw = await res.text();
+    let data: any;
+    try { data = JSON.parse(raw); } catch { data = null; }
+    const ok = res.ok && String(data?.status ?? "").toLowerCase() === "success";
+    console.log(`[cash-verify-code] Yoola to=${phoneYoola} ok=${ok} status=${res.status}`);
+    return ok;
+  } catch (err) {
+    console.error("[cash-verify-code] Yoola error:", err);
+    return false;
+  }
+}
+
+// Africa's Talking — used only as a FALLBACK when Yoola is not accepted.
+async function sendViaAfricasTalking(phone: string, message: string): Promise<boolean> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
@@ -66,9 +95,17 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     const recipients = data?.SMSMessageData?.Recipients || [];
     return recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
   } catch (err) {
-    console.error("[cash-verify-code] SMS error:", err);
+    console.error("[cash-verify-code] AT error:", err);
     return false;
   }
+}
+
+// Provider chain: Yoola (primary) → Africa's Talking (fallback). Tried one at a
+// time — AT only fires if Yoola is unconfigured or did not accept the message.
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  if (await sendViaYoola(phone, message)) return true;
+  console.warn("[cash-verify-code] Yoola not accepted — falling back to Africa's Talking");
+  return await sendViaAfricasTalking(phone, message);
 }
 
 const fmtUGX = (n: number) =>
