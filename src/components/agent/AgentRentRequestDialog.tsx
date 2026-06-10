@@ -10,6 +10,7 @@ import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/La
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
+import { listingHasRealPhoto } from '@/hooks/useHouseListings';
 import { ExistingTenantPhoneNotice } from '@/components/agent/ExistingTenantPhoneNotice';
 import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useExistingTenantByPhone';
 import { useAuth } from '@/hooks/useAuth';
@@ -106,6 +107,7 @@ interface AgentRentRequestDialogProps {
     landlord_name: string | null;
     landlord_phone: string | null;
     tenant_id?: string | null;
+    image_urls?: string[] | null;
   } | null;
 }
 
@@ -652,6 +654,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     landlord_name: string | null;
     landlord_phone: string | null;
     tenant_id?: string | null;
+    image_urls?: string[] | null;
   };
   const [houseQuery, setHouseQuery] = useState('');
   const [houseResults, setHouseResults] = useState<AvailableHouse[]>([]);
@@ -688,7 +691,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
 
   const HOUSE_SELECT =
-    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id, tenant_id';
+    'id, title, address, region, district, house_category, monthly_rent, short_code, latitude, longitude, landlord_id, tenant_id, image_urls';
 
   const searchAvailableHouses = useCallback(async () => {
     const q = houseQuery.trim();
@@ -740,6 +743,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       for (const r of rows) {
         if (seen.has(r.id)) continue;
         seen.add(r.id);
+        // A house with no photos can never be used for a rent request — the
+        // landlord's property must be visually verifiable. Drop them from the
+        // picker so agents can't select a photoless listing.
+        if (!listingHasRealPhoto(r)) continue;
         unique.push(r);
       }
 
@@ -773,6 +780,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         landlord_name: r.landlord_id ? llMap[r.landlord_id]?.name ?? null : null,
         landlord_phone: r.landlord_id ? llMap[r.landlord_id]?.phone ?? null : null,
         tenant_id: r.tenant_id ?? null,
+        image_urls: Array.isArray(r.image_urls) ? r.image_urls : [],
       }));
       setHouseResults(mapped);
     } catch (e) {
@@ -1240,6 +1248,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
       } else if (landlordCheck === 'checking') {
         errors.push('Confirming the landlord is registered — please wait a moment');
+      }
+      // The landlord's listed house MUST show photos. Block rent requests on
+      // any selected listing that has no photos on record.
+      if (selectedHouse && !listingHasRealPhoto(selectedHouse)) {
+        errors.push("This landlord's house has no photos — pick a house that shows photos before posting the rent request");
       }
       if (!propertyAddress.trim()) errors.push('Type the property address');
       const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);

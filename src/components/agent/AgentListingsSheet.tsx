@@ -66,6 +66,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     district: string | null; house_category: string | null; monthly_rent: number | null;
     short_code: string | null; latitude: number | null; longitude: number | null;
     landlord_id: string | null; landlord_name: string | null; landlord_phone: string | null;
+    image_urls: string[] | null;
   } | null>(null);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
   const emptyPrimaryRef = useRef<HTMLButtonElement>(null);
@@ -257,6 +258,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
         landlord_id: swapTarget.landlord_id ?? null,
         landlord_name: landlord?.name ?? null,
         landlord_phone: landlord?.phone ?? null,
+        image_urls: swapTarget.image_urls ?? null,
       });
       setSwapTarget(null);
       refresh();
