@@ -166,6 +166,45 @@ export function CMODashboard() {
     staleTime: 600000,
   });
 
+  const { data: topReferrers, isLoading: loadingTopReferrers } = useQuery({
+    queryKey: ['exec-top-referrers', startMonth, endMonth],
+    queryFn: async () => {
+      const { data: refRows } = await supabase
+        .from('referrals')
+        .select('referrer_id')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (!refRows || refRows.length === 0) return [];
+
+      const counts: Record<string, number> = {};
+      refRows.forEach((r) => {
+        counts[r.referrer_id] = (counts[r.referrer_id] || 0) + 1;
+      });
+
+      const sorted = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20);
+
+      const referrerIds = sorted.map(([id]) => id);
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', referrerIds);
+
+      const profileMap = new Map((profilesData || []).map((p) => [p.id, p]));
+
+      return sorted.map(([id, count], idx) => ({
+        rank: idx + 1,
+        referrer_id: id,
+        name: profileMap.get(id)?.full_name || profileMap.get(id)?.phone || 'Unknown',
+        referrals: count,
+      }));
+    },
+    staleTime: 600000,
+  });
+
   const statusOptions: { label: string; value: ReferralStatus }[] = [
     { label: 'All', value: 'all' },
     { label: 'Pending', value: 'pending' },
