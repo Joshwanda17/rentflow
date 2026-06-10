@@ -734,6 +734,26 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
       if (error) throw error;
 
+      // Upload the captured house photos and attach them to the new listing.
+      if (listing?.id && images.length > 0) {
+        try {
+          const uploaded = await uploadHouseImages(
+            user.id,
+            listing.id,
+            images.map((i) => i.file),
+            images.map((i) => i.thumbnailFile),
+          );
+          if (uploaded.length > 0) {
+            await supabase
+              .from('house_listings')
+              .update({ image_urls: uploaded } as any)
+              .eq('id', listing.id);
+          }
+        } catch (photoErr) {
+          console.warn('[ListEmptyHouseDialog] photo upload warning:', photoErr);
+        }
+      }
+
       // Remember this landlord locally so the next listing can reuse them in one tap.
       try {
         const remembered: LandlordHit | null = selectedLandlord
