@@ -522,7 +522,12 @@ export default function Auth() {
                     variant="standard"
                   />
                   <AppleSignInButton
-                    onClick={handleAppleSignIn}
+                    onClick={() => {
+                      localStorage.setItem('welile_last_login_method', 'apple');
+                      // OAuth sign-ins are always persistent — clear stale ephemeral flag.
+                      setDeviceTrust(true);
+                      handleAppleSignIn();
+                    }}
                     disabled={isGoogleLoading || isAppleLoading || isLoading}
                     isLoading={isAppleLoading}
                   />
