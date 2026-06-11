@@ -217,6 +217,7 @@ interface SummaryData {
 }
 
 const MIN_INVEST = 1000;
+const MAX_INVEST = 500000000;
 const PAGE_SIZE = 15;
 
 /* ─── Helpers ─── */
@@ -1431,6 +1432,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const duration = Number(addPortfolioDuration);
 
     if (isNaN(amt) || amt < MIN_INVEST) { toast.error(`Minimum investment: ${formatUGX(MIN_INVEST)}`); return; }
+    if (amt > MAX_INVEST) { toast.error(`Maximum investment: ${formatUGX(MAX_INVEST)}`); return; }
     if (isNaN(roi) || roi <= 0 || roi > 100) { toast.error('ROI must be between 1 and 100'); return; }
     if (isNaN(duration) || duration < 1 || duration > 60) { toast.error('Duration must be 1-60 months'); return; }
 
@@ -1802,6 +1804,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     if (!investPartner) return;
     const amt = Number(investAmount);
     if (isNaN(amt) || amt < MIN_INVEST) { toast.error(`Minimum: ${formatUGX(MIN_INVEST)}`); return; }
+    if (amt > MAX_INVEST) { toast.error(`Maximum: ${formatUGX(MAX_INVEST)}`); return; }
     if (amt > investPartner.walletBalance) { toast.error(`Only ${formatUGX(investPartner.walletBalance)} available`); return; }
     setInvesting(true);
     try {
