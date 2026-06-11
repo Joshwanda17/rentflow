@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
-import { Target, Banknote, Percent, Loader2 } from 'lucide-react';
+import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month';
 
