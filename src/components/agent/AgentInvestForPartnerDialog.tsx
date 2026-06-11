@@ -135,6 +135,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       toast.error('Minimum investment is UGX 1,000');
       return false;
     }
+    if (parsedAmount > 500000000) {
+      toast.error('Maximum investment is UGX 500,000,000');
+      return false;
+    }
     if (parsedAmount > agentBalance) {
       toast.error('Amount exceeds your wallet balance');
       return false;
@@ -476,10 +480,13 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                 min={1000}
               />
               <p className="text-xs text-muted-foreground">
-                Allowed range: UGX 1,000 – UGX 500,000,000. Amounts below the minimum will disable submission.
+                Allowed range: {formatUGX(1000)} – {formatUGX(Math.min(500000000, agentBalance))}. Amounts outside this range will disable submission.
               </p>
               {parsedAmount > 0 && parsedAmount < 1000 && (
                 <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
+              )}
+              {parsedAmount > 500000000 && (
+                <p className="text-xs text-destructive">Amount must not exceed {formatUGX(500000000)}</p>
               )}
               {parsedAmount > agentBalance && (
                 <p className="text-xs text-destructive">Exceeds your wallet balance</p>
@@ -569,7 +576,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
             <Button
               onClick={handleConfirmOpen}
-              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 1000 || parsedAmount > agentBalance || investmentReference.trim().length < 3 || !receiptFile}
+              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 1000 || parsedAmount > 500000000 || parsedAmount > agentBalance || investmentReference.trim().length < 3 || !receiptFile}
               className="w-full"
             >
               {submitting ? (
