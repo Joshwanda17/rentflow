@@ -20615,6 +20615,10 @@ export type Database = {
         Args: { p_max_age_days?: number; p_min_age_minutes?: number }
         Returns: Json
       }
+      renew_rent_request: {
+        Args: { p_prev_request_id: string }
+        Returns: string
+      }
       reopen_deposit_for_repair: {
         Args: { p_deposit_id: string }
         Returns: Json
