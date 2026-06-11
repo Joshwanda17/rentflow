@@ -96,7 +96,7 @@ const SURFACES: Record<string, { mustInclude: string[]; mustNotInclude: string[]
   },
   "src/pages/AgentCommissionBenefits.tsx": {
     mustInclude: [
-      "the agent who REGISTERED the tenant gets *2%*".replace("the", "The"),
+      "The agent who REGISTERED the tenant gets *2%*",
       "The agent MANAGING the tenant gets *8%*",
       "you keep the full *10%*",
     ],
