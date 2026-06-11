@@ -145,7 +145,10 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     handleInstall();
   }, [handleInstall]);
 
-  if (isStandalone || skipped) {
+  // Desktop browsers pass through (install is optional there). On phones the gate
+  // is unavoidable — there is no way to dismiss it until the app is installed.
+  const isMobile = isIOS || isAndroid;
+  if (isStandalone || !isMobile) {
     return <>{children}</>;
   }
 
