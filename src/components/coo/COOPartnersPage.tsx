@@ -216,7 +216,7 @@ interface SummaryData {
   topPartnerName: string;
 }
 
-const MIN_INVEST = 50000;
+const MIN_INVEST = 1000;
 const PAGE_SIZE = 15;
 
 /* ─── Helpers ─── */
@@ -3025,7 +3025,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 <Input type="number" min={MIN_INVEST} max={investPartner.walletBalance} value={investAmount}
                   onChange={e => setInvestAmount(e.target.value)} placeholder={`Min ${MIN_INVEST.toLocaleString()}`} />
                 <div className="flex gap-2 flex-wrap">
-                  {[50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
+                  {[1000, 5000, 10000, 50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
                     <Button key={a} variant="outline" size="sm" className="text-xs h-7" onClick={() => setInvestAmount(String(a))}>{(a / 1000).toFixed(0)}K</Button>
                   ))}
                   <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setInvestAmount(String(investPartner.walletBalance))}>Max</Button>
@@ -3588,7 +3588,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                     : (walletTransferFundSource === 'float' ? (proxyAgentInfo?.float ?? 0) : (proxyAgentInfo?.withdrawable ?? 0));
                   return (
                     <div className="flex gap-2 flex-wrap">
-                      {[50000, 100000, 500000, 1000000].filter(a => a <= maxBal).map(a => (
+                      {[1000, 5000, 10000, 50000, 100000, 500000, 1000000].filter(a => a <= maxBal).map(a => (
                         <Button key={a} variant="outline" size="sm" className="text-xs h-7"
                           onClick={() => setWalletToPortfolioAmount(String(a))}>
                           {formatUGX(a)}

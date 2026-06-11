@@ -2859,8 +2859,8 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
 
   async function handleCreate() {
     const amt = parseFloat(form.investment_amount);
-    if (!form.investment_amount || isNaN(amt) || amt < 50000) {
-      toast({ title: 'Investment must be at least UGX 50,000', variant: 'destructive' });
+    if (!form.investment_amount || isNaN(amt) || amt < 1000) {
+      toast({ title: 'Investment must be at least UGX 1,000', variant: 'destructive' });
       return;
     }
     if (balance === null) {

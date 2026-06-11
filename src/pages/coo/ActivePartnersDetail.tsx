@@ -36,7 +36,7 @@ interface PartnerRow {
   roiMode: string;
 }
 
-const MIN_INVEST = 50000;
+const MIN_INVEST = 1000;
 
 export default function ActivePartnersDetail() {
   const { user, roles, loading, role } = useAuth();
@@ -503,7 +503,7 @@ export default function ActivePartnersDetail() {
                   placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
                 />
                 <div className="flex gap-2 flex-wrap">
-                  {[50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
+                  {[1000, 5000, 10000, 50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
                     <Button key={a} variant="outline" size="sm" className="text-xs h-7"
                       onClick={() => setInvestAmount(String(a))}>
                       {(a / 1000).toFixed(0)}K

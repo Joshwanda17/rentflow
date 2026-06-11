@@ -131,8 +131,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       toast.error(phoneValidation.reason || 'Invalid phone number');
       return false;
     }
-    if (parsedAmount < 50000) {
-      toast.error('Minimum investment is UGX 50,000');
+    if (parsedAmount < 1000) {
+      toast.error('Minimum investment is UGX 1,000');
       return false;
     }
     if (parsedAmount > agentBalance) {
@@ -470,10 +470,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               <Input
                 id="invest-amount"
                 type="number"
-                placeholder="Min 50,000"
+                placeholder="Min 1,000"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                min={50000}
+                min={1000}
               />
               {parsedAmount > agentBalance && (
                 <p className="text-xs text-destructive">Exceeds your wallet balance</p>
@@ -549,7 +549,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             </div>
 
             {/* Reward Preview */}
-            {parsedAmount >= 50000 && (
+            {parsedAmount >= 1000 && (
               <div className="p-3 rounded-lg bg-success/10 border border-success/20 space-y-1">
                 <div className="flex items-center gap-2 text-sm font-medium text-success">
                   <TrendingUp className="h-4 w-4" />
@@ -563,7 +563,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
             <Button
               onClick={handleConfirmOpen}
-              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 50000 || parsedAmount > agentBalance || investmentReference.trim().length < 3 || !receiptFile}
+              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 1000 || parsedAmount > agentBalance || investmentReference.trim().length < 3 || !receiptFile}
               className="w-full"
             >
               {submitting ? (
@@ -574,7 +574,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               ) : (
                 <>
                   <HandCoins className="h-4 w-4 mr-2" />
-                  Invest {parsedAmount >= 50000 ? formatUGX(parsedAmount) : ''} for Partner
+                  Invest {parsedAmount >= 1000 ? formatUGX(parsedAmount) : ''} for Partner
                 </>
               )}
             </Button>
