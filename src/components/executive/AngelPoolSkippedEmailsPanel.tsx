@@ -40,7 +40,7 @@ export function AngelPoolSkippedEmailsPanel() {
   const { data: rows = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ['angel-pool-email-skips'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('angel_pool_email_skips')
         .select('id, investor_id, reference_id, recipient_email, reason, funding_source, source_function, created_at')
         .order('created_at', { ascending: false })
