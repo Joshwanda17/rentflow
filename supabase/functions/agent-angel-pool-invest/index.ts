@@ -205,6 +205,8 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (investorProfile?.email) {
+        const placeholder = isPlaceholderEmail(investorProfile.email);
+        if (!placeholder) {
         // Recompute available shares post-insert for accuracy.
         const { data: postPool } = await adminClient
           .from("angel_pool_investments")
@@ -246,10 +248,29 @@ Deno.serve(async (req) => {
         await logSystemEvent(adminClient, "agent_angel_pool_email_sent", user.id,
           "angel_pool_investments", referenceId,
           { investor_id, recipient: investorProfile.email, reference_id: referenceId });
+        } else {
+          await logSystemEvent(adminClient, "agent_angel_pool_email_skipped", user.id,
+            "angel_pool_investments", referenceId,
+            { investor_id, reason: "placeholder_email", recipient: investorProfile.email, reference_id: referenceId });
+        }
       } else {
         await logSystemEvent(adminClient, "agent_angel_pool_email_skipped", user.id,
           "angel_pool_investments", referenceId,
           { investor_id, reason: "no_email_on_file", reference_id: referenceId });
+      }
+
+      // Best-effort SMS confirmation to the investor — works even when the
+      // email is a placeholder or missing entirely.
+      try {
+        const smsRes = await sendAngelPoolSms(adminClient, {
+          investorId: investor_id, shares, amount: actualAmount, referenceId,
+        });
+        await logSystemEvent(adminClient,
+          smsRes.sent ? "agent_angel_pool_sms_sent" : "agent_angel_pool_sms_skipped",
+          user.id, "angel_pool_investments", referenceId,
+          { investor_id, reference_id: referenceId, reason: smsRes.reason ?? null });
+      } catch (smsEx) {
+        console.error("Angel pool SMS dispatch failed:", smsEx);
       }
       }
     } catch (emailEx) {
