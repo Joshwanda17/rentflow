@@ -116,6 +116,54 @@ export function CMODashboard() {
     staleTime: 600000,
   });
 
+  // Login / authentication metrics (sourced from the OTP login audit, the active login channel)
+  const { data: loginStats } = useQuery({
+    queryKey: ['exec-login-stats', startMonth, endMonth, referralDateFilter],
+    queryFn: async () => {
+      const rangeFilter = (q: any) =>
+        q.gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
+
+      const counter = (outcome?: string) => {
+        let q = supabase.from('otp_login_audit').select('*', { count: 'exact', head: true });
+        if (outcome) q = q.eq('outcome', outcome);
+        return rangeFilter(q);
+      };
+
+      const [{ count: attempts }, { count: success }, { count: failed }, { count: noAccount }] = await Promise.all([
+        counter(),
+        counter('success'),
+        counter('failed'),
+        counter('no_account'),
+      ]);
+
+      const byMonth: Record<string, { attempts: number; success: number; failed: number }> = {};
+      for (const m of months) {
+        const s = startOfMonth(m);
+        const e = endOfMonth(m);
+        const monthQ = (outcome?: string) => {
+          let q = supabase.from('otp_login_audit').select('*', { count: 'exact', head: true });
+          if (outcome) q = q.eq('outcome', outcome);
+          return q.gte('created_at', s.toISOString()).lte('created_at', e.toISOString());
+        };
+        const [{ count: a }, { count: ok }, { count: f }] = await Promise.all([
+          monthQ(),
+          monthQ('success'),
+          monthQ('failed'),
+        ]);
+        byMonth[format(s, 'MMM yyyy')] = { attempts: a || 0, success: ok || 0, failed: f || 0 };
+      }
+
+      return {
+        attempts: attempts || 0,
+        success: success || 0,
+        failed: failed || 0,
+        noAccount: noAccount || 0,
+        byMonth,
+      };
+    },
+    staleTime: 600000,
+  });
+
   const totalSignups = (signupTrend || []).reduce((s, m) => s + m.signups, 0);
   const lastMonth = signupTrend?.[signupTrend.length - 1]?.signups || 0;
   const prevMonth = signupTrend?.[signupTrend.length - 2]?.signups || 1;
