@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,6 +82,7 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning
 
 export default function SubAgentAnalytics() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
@@ -105,6 +106,22 @@ export default function SubAgentAnalytics() {
       fetchCurrentGoal();
     }
   }, [user, authLoading, navigate]);
+
+  // Auto-open detail when ?id=xxx is present in URL
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id || subAgents.length === 0) return;
+    const match = subAgents.find(sa => sa.sub_agent_id === id);
+    if (match) setSelectedSubAgent(match);
+  }, [searchParams, subAgents]);
+
+  const closeDetail = () => {
+    setSelectedSubAgent(null);
+    // Clear the id param from URL so back/refresh doesn't reopen
+    const next = new URLSearchParams(searchParams);
+    next.delete('id');
+    setSearchParams(next, { replace: true });
+  };
 
   const fetchCurrentGoal = async () => {
     if (!user) return;
@@ -597,7 +614,12 @@ export default function SubAgentAnalytics() {
                 {subAgents.map((subAgent) => (
                   <button
                     key={subAgent.id}
-                    onClick={() => setSelectedSubAgent(subAgent)}
+                    onClick={() => {
+                      setSelectedSubAgent(subAgent);
+                      const next = new URLSearchParams(searchParams);
+                      next.set('id', subAgent.sub_agent_id);
+                      setSearchParams(next, { replace: true });
+                    }}
                     className="w-full flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
@@ -632,7 +654,7 @@ export default function SubAgentAnalytics() {
       {selectedSubAgent && (
         <div 
           className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
-          onClick={() => setSelectedSubAgent(null)}
+          onClick={closeDetail}
         >
           <div 
             className="fixed bottom-0 left-0 right-0 bg-background border-t rounded-t-3xl max-h-[85vh] overflow-y-auto"
@@ -648,7 +670,7 @@ export default function SubAgentAnalytics() {
                   <h3 className="font-bold text-lg">{selectedSubAgent.profile?.full_name}</h3>
                   <p className="text-sm text-muted-foreground">{selectedSubAgent.profile?.phone}</p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedSubAgent(null)}>
+                <Button variant="ghost" size="sm" onClick={closeDetail}>
                   Close
                 </Button>
               </div>
