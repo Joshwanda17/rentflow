@@ -615,7 +615,6 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const canRenew = !!lastCompletedRequest && !summary.activeRequest;
 
   const handleRenewCycle = async () => {
-  const handleRenewCycle = async () => {
     // Surface guard failures instead of returning silently — a no-op tap is
     // indistinguishable from a broken button to the user.
     if (renewing) return;
