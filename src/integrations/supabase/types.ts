@@ -3675,6 +3675,39 @@ export type Database = {
         }
         Relationships: []
       }
+      angel_pool_email_skips: {
+        Row: {
+          created_at: string
+          funding_source: string | null
+          id: string
+          investor_id: string | null
+          reason: string
+          recipient_email: string | null
+          reference_id: string | null
+          source_function: string | null
+        }
+        Insert: {
+          created_at?: string
+          funding_source?: string | null
+          id?: string
+          investor_id?: string | null
+          reason: string
+          recipient_email?: string | null
+          reference_id?: string | null
+          source_function?: string | null
+        }
+        Update: {
+          created_at?: string
+          funding_source?: string | null
+          id?: string
+          investor_id?: string | null
+          reason?: string
+          recipient_email?: string | null
+          reference_id?: string | null
+          source_function?: string | null
+        }
+        Relationships: []
+      }
       angel_pool_investments: {
         Row: {
           agent_id: string | null

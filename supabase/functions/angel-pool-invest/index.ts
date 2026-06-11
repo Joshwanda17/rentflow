@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
-import { isPlaceholderEmail, sendAngelPoolSms } from "../_shared/angelPoolNotify.ts";
+import { isPlaceholderEmail, sendAngelPoolSms, recordEmailSkip } from "../_shared/angelPoolNotify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -207,10 +207,18 @@ Deno.serve(async (req) => {
           await logSystemEvent(adminClient, "angel_pool_email_skipped", user.id,
             "angel_pool_investments", referenceId,
             { reason: "placeholder_email", recipient: investorProfile?.email ?? null, reference_id: referenceId });
+          await recordEmailSkip(adminClient, {
+            investorId: user.id, referenceId, recipientEmail: investorProfile?.email ?? null,
+            reason: "placeholder_email", fundingSource: "investor", sourceFunction: "angel-pool-invest",
+          });
         } else {
           await logSystemEvent(adminClient, "angel_pool_email_skipped", user.id,
             "angel_pool_investments", referenceId,
             { reason: "no_email_on_file", reference_id: referenceId });
+          await recordEmailSkip(adminClient, {
+            investorId: user.id, referenceId, recipientEmail: null,
+            reason: "no_email_on_file", fundingSource: "investor", sourceFunction: "angel-pool-invest",
+          });
         }
 
         // Best-effort SMS confirmation — especially valuable for placeholder /
@@ -230,6 +238,10 @@ Deno.serve(async (req) => {
         await logSystemEvent(adminClient, "angel_pool_email_skipped", user.id,
           "angel_pool_investments", referenceId,
           { reason: "not_first_purchase", prior_count: priorCount, reference_id: referenceId });
+        await recordEmailSkip(adminClient, {
+          investorId: user.id, referenceId, recipientEmail: null,
+          reason: "not_first_purchase", fundingSource: "investor", sourceFunction: "angel-pool-invest",
+        });
       }
     } catch (emailEx) {
       console.error("Angel pool email dispatch failed:", emailEx);
