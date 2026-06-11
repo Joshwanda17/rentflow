@@ -562,7 +562,9 @@ const App = () => {
                     <CurrencyProvider>
                       <DeferredProviders>
                         <MaintenanceBanner />
-                        <AppRoutes />
+                        <PWAInstallGate>
+                          <AppRoutes />
+                        </PWAInstallGate>
                         <MaintenanceLockScreen />
                       </DeferredProviders>
                       <DeferredErrorBoundary>
