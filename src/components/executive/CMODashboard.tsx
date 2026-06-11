@@ -152,7 +152,7 @@ export function CMODashboard() {
   ];
 
   const { data: recentReferrals, isLoading: loadingReferrals } = useQuery({
-    queryKey: ['exec-recent-referrals', startMonth, endMonth, referralStatus],
+    queryKey: ['exec-recent-referrals', startMonth, endMonth, referralStatus, referralDateFilter],
     queryFn: async () => {
       let q = supabase
         .from('referrals')
@@ -188,7 +188,7 @@ export function CMODashboard() {
   });
 
   const { data: topReferrers, isLoading: loadingTopReferrers } = useQuery({
-    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus],
+    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus, referralDateFilter],
     queryFn: async () => {
       let q = supabase
         .from('referrals')
