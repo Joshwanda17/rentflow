@@ -351,7 +351,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                   <p className="font-semibold text-sm">Drop Excel file here or click to browse</p>
                   <p className="text-xs text-muted-foreground mt-1">Supports .xlsx files, max 500 rows</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Accepts flexible headers: "Supporter Name", "Principal (UGX)", "Rate", "Contribution Date", etc.</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Minimum investment per portfolio is UGX 1,000. Rows with smaller amounts will be rejected.</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Allowed range per portfolio: UGX 1,000 – UGX 50,000,000. Rows with amounts outside this range will be rejected.</p>
                   <p className="text-[10px] text-muted-foreground/70 mt-2 px-4">💡 Phone is optional. Multiple portfolios per partner? Use the <strong>same phone number</strong> on each row — they'll be grouped automatically.</p>
                 </>
               )}
