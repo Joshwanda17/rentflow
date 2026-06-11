@@ -2549,7 +2549,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                               )}
                               {pendingTopUps[p.id] && (
                                 <p className="text-[9px] text-muted-foreground mb-1.5 pl-0.5">
-                                  Auto-submits for verification at 6:00 PM daily
+                                  Auto-clears daily — merges into capital at next Returns payout (no Financial Ops)
                                 </p>
                               )}
                               {awaitingVerification[p.id] && (
