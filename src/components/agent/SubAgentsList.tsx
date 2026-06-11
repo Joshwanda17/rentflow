@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { hapticTap } from '@/lib/haptics';
 
 interface SubAgent {
   sub_agent_id: string;
