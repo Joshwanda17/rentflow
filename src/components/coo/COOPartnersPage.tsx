@@ -217,6 +217,7 @@ interface SummaryData {
 }
 
 const MIN_INVEST = 1000;
+const MAX_INVEST = 500000000;
 const PAGE_SIZE = 15;
 
 /* ─── Helpers ─── */
@@ -1431,6 +1432,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const duration = Number(addPortfolioDuration);
 
     if (isNaN(amt) || amt < MIN_INVEST) { toast.error(`Minimum investment: ${formatUGX(MIN_INVEST)}`); return; }
+    if (amt > MAX_INVEST) { toast.error(`Maximum investment: ${formatUGX(MAX_INVEST)}`); return; }
     if (isNaN(roi) || roi <= 0 || roi > 100) { toast.error('ROI must be between 1 and 100'); return; }
     if (isNaN(duration) || duration < 1 || duration > 60) { toast.error('Duration must be 1-60 months'); return; }
 
@@ -1802,6 +1804,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     if (!investPartner) return;
     const amt = Number(investAmount);
     if (isNaN(amt) || amt < MIN_INVEST) { toast.error(`Minimum: ${formatUGX(MIN_INVEST)}`); return; }
+    if (amt > MAX_INVEST) { toast.error(`Maximum: ${formatUGX(MAX_INVEST)}`); return; }
     if (amt > investPartner.walletBalance) { toast.error(`Only ${formatUGX(investPartner.walletBalance)} available`); return; }
     setInvesting(true);
     try {
@@ -2931,7 +2934,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
               />
               <p className="text-xs text-muted-foreground">
-                Allowed range: UGX 1,000 – UGX 500,000,000. Amounts below the minimum will disable submission.
+                Allowed range: {formatUGX(MIN_INVEST)} – {formatUGX(MAX_INVEST)}. Amounts outside this range will disable submission.
               </p>
               <div className="flex gap-2 flex-wrap">
                 {[500000, 1000000, 2000000, 5000000, 10000000].map(a => (
@@ -2999,13 +3002,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             {addPortfolioAmount && Number(addPortfolioAmount) < MIN_INVEST && (
               <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
             )}
+            {addPortfolioAmount && Number(addPortfolioAmount) > MAX_INVEST && (
+              <p className="text-xs text-destructive">Amount must not exceed {formatUGX(MAX_INVEST)}</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddPortfolioOpen(false)} disabled={addingPortfolio}>Cancel</Button>
             <Button
               type="button"
               onClick={handleAddPortfolio}
-              disabled={addingPortfolio || !addPortfolioAmount || Number(addPortfolioAmount) < MIN_INVEST}
+              disabled={addingPortfolio || !addPortfolioAmount || Number(addPortfolioAmount) < MIN_INVEST || Number(addPortfolioAmount) > MAX_INVEST}
             >
               {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Portfolio</>}
             </Button>
@@ -3031,7 +3037,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 <Input type="number" min={MIN_INVEST} max={investPartner.walletBalance} value={investAmount}
                   onChange={e => setInvestAmount(e.target.value)} placeholder={`Min ${MIN_INVEST.toLocaleString()}`} />
                 <p className="text-xs text-muted-foreground">
-                  Allowed range: UGX 1,000 – UGX 500,000,000. Amounts below the minimum will disable submission.
+                  Allowed range: {formatUGX(MIN_INVEST)} – {formatUGX(Math.min(MAX_INVEST, investPartner.walletBalance))}. Amounts outside this range will disable submission.
                 </p>
                 <div className="flex gap-2 flex-wrap">
                   {[1000, 5000, 10000, 50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
@@ -3052,11 +3058,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               {investAmount && Number(investAmount) < MIN_INVEST && (
                 <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
               )}
+              {investAmount && Number(investAmount) > Math.min(MAX_INVEST, investPartner.walletBalance) && (
+                <p className="text-xs text-destructive">Amount must not exceed {formatUGX(Math.min(MAX_INVEST, investPartner.walletBalance))}</p>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setInvestPartner(null)}>Cancel</Button>
-            <Button onClick={handleInvest} disabled={investing || !investAmount || Number(investAmount) < MIN_INVEST}>
+            <Button onClick={handleInvest} disabled={investing || !investAmount || Number(investAmount) < MIN_INVEST || Number(investAmount) > Math.min(MAX_INVEST, investPartner.walletBalance)}>
               {investing && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Confirm Investment
             </Button>
           </DialogFooter>

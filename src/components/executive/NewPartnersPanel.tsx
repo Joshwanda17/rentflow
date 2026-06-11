@@ -2863,6 +2863,10 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
       toast({ title: 'Investment must be at least UGX 1,000', variant: 'destructive' });
       return;
     }
+    if (amt > 500000000) {
+      toast({ title: 'Investment must not exceed UGX 500,000,000', variant: 'destructive' });
+      return;
+    }
     if (balance === null) {
       toast({ title: 'Partner wallet balance not loaded yet', variant: 'destructive' });
       return;
@@ -2971,7 +2975,7 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
             className="h-8 text-xs"
           />
           <p className="text-[10px] text-muted-foreground">
-            Allowed range: UGX 1,000 – UGX 500,000,000. Amounts below the minimum will disable submission.
+            Allowed range: UGX 1,000 – UGX {Math.min(500000000, balance ?? 500000000).toLocaleString()}. Amounts outside this range will disable submission.
           </p>
         </div>
         <div className="space-y-1">
@@ -3084,7 +3088,7 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
         <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={onCancel} disabled={saving}>
           <X className="h-3 w-3" /> Cancel
         </Button>
-        <Button size="sm" className="h-8 text-xs gap-1" onClick={handleCreate} disabled={saving || balanceLoading || !form.investment_amount || Number(form.investment_amount) < 1000}>
+        <Button size="sm" className="h-8 text-xs gap-1" onClick={handleCreate} disabled={saving || balanceLoading || !form.investment_amount || Number(form.investment_amount) < 1000 || Number(form.investment_amount) > Math.min(500000000, balance ?? 500000000)}>
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
           Create Portfolio
         </Button>

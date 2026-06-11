@@ -134,6 +134,7 @@ function validateRow(row: any, rowNum: number): ParsedRow {
   if (!name) errors.push('Missing partner name');
   if (phone && phone.length < 10) errors.push('Invalid phone (must be 10+ digits or blank)');
   if (isNaN(amount) || amount < 1000) errors.push('Amount must be ≥ 1,000');
+  else if (amount > 500000000) errors.push('Amount must be ≤ 500,000,000');
   if (isNaN(roi) || roi < 1 || roi > 30) errors.push('ROI must be 1-30%');
   if (isNaN(duration) || duration < 1 || duration > 36) errors.push('Duration must be 1-36 months');
   if (!VALID_ROI_MODES.includes(roiMode)) errors.push(`ROI mode must be: ${VALID_ROI_MODES.join(' or ')}`);
