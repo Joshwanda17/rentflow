@@ -98,7 +98,7 @@ export function EarningsRankSystemSheet({ open, onOpenChange }: EarningsRankSyst
 
 💰 Earn UGX 500 per registration
 ✅ UGX 5,000 per approved rent request
-📈 Up to 5% commission on every repayment
+📈 Up to 10% commission on every repayment
 🎁 Recruit 2 agents → Unlock advances (300k-30M)
 🏍️ Get 50 repaying tenants → Win Electric Bike!
 
