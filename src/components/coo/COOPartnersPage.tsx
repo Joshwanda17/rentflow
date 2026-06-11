@@ -2934,7 +2934,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
               />
               <p className="text-xs text-muted-foreground">
-                Allowed range: UGX 1,000 – UGX 500,000,000. Amounts below the minimum will disable submission.
+                Allowed range: {formatUGX(MIN_INVEST)} – {formatUGX(MAX_INVEST)}. Amounts outside this range will disable submission.
               </p>
               <div className="flex gap-2 flex-wrap">
                 {[500000, 1000000, 2000000, 5000000, 10000000].map(a => (
@@ -3002,13 +3002,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             {addPortfolioAmount && Number(addPortfolioAmount) < MIN_INVEST && (
               <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
             )}
+            {addPortfolioAmount && Number(addPortfolioAmount) > MAX_INVEST && (
+              <p className="text-xs text-destructive">Amount must not exceed {formatUGX(MAX_INVEST)}</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddPortfolioOpen(false)} disabled={addingPortfolio}>Cancel</Button>
             <Button
               type="button"
               onClick={handleAddPortfolio}
-              disabled={addingPortfolio || !addPortfolioAmount || Number(addPortfolioAmount) < MIN_INVEST}
+              disabled={addingPortfolio || !addPortfolioAmount || Number(addPortfolioAmount) < MIN_INVEST || Number(addPortfolioAmount) > MAX_INVEST}
             >
               {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Portfolio</>}
             </Button>
