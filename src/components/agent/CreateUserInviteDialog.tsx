@@ -449,7 +449,7 @@ Just click the link and enter your password to get started!`;
         <div className="space-y-3 px-1">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Investment Amount (UGX) *</Label>
-            <Input type="number" min={50000} placeholder="e.g. 5000000" value={investmentData.investmentAmount} onChange={(e) => setInvestmentData(prev => ({ ...prev, investmentAmount: e.target.value }))} className="h-12 text-base rounded-xl" inputMode="numeric" />
+            <Input type="number" min={1000} placeholder="e.g. 5000000" value={investmentData.investmentAmount} onChange={(e) => setInvestmentData(prev => ({ ...prev, investmentAmount: e.target.value }))} className="h-12 text-base rounded-xl" inputMode="numeric" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

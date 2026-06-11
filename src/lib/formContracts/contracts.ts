@@ -160,7 +160,7 @@ export const INVESTOR_PORTFOLIO_CONTRACT: FormContract = {
   investor_id: { type: 'uuid', required: false, label: 'Investor ID' },
   agent_id: { type: 'uuid', required: true, label: 'Agent ID' },
   invite_id: { type: 'uuid', required: false, label: 'Invite ID' },
-  investment_amount: { type: 'numeric', required: true, label: 'Investment Amount', min: 50000, max: 50000000 },
+  investment_amount: { type: 'numeric', required: true, label: 'Investment Amount', min: 1000, max: 50000000 },
   duration_months: { type: 'integer', required: true, label: 'Duration (months)', allowedValues: [3, 6, 12] },
   roi_percentage: { type: 'numeric', required: true, label: 'Monthly ROI %', min: 1, max: 100 },
   roi_mode: { type: 'text', required: true, label: 'ROI Mode', allowedValues: ['monthly_payout', 'monthly_compounding'] },
