@@ -133,14 +133,21 @@ export function AgentGoalCard() {
         if (error) throw error;
       }
 
-      toast({ title: '🎯 Goal saved successfully!' });
+      const action = currentGoal ? 'updated' : 'set';
+      toast({
+        title: `🎯 Monthly goal ${action}!`,
+        description: `Target: ${formData.target_registrations} registrations${formData.target_activations > 0 ? `, ${formData.target_activations} activations` : ''} for ${format(currentMonth, 'MMMM yyyy')}.`,
+      });
       setDialogOpen(false);
       fetchGoalAndProgress();
     } catch (error: any) {
-      toast({ 
-        title: 'Error saving goal', 
-        description: error.message, 
-        variant: 'destructive' 
+      const isNetwork = !error.message || error.message.includes('network') || error.message.includes('fetch');
+      toast({
+        title: `Could not ${currentGoal ? 'update' : 'set'} goal`,
+        description: isNetwork
+          ? 'Please check your connection and try again.'
+          : error.message || 'Something went wrong. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setSaving(false);
