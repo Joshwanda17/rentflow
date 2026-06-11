@@ -285,18 +285,6 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
             </motion.div>
           )}
         </AnimatePresence>
-
-        <button
-          type="button"
-          onClick={() => {
-            hapticTap();
-            sessionStorage.setItem('welile_pwa_gate_skipped', 'true');
-            setSkipped(true);
-          }}
-          className="mt-6 text-xs text-muted-foreground/60 underline underline-offset-2 hover:text-muted-foreground transition-colors"
-        >
-          Continue in browser
-        </button>
       </motion.div>
     </div>
   );
