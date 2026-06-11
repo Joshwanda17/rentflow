@@ -649,7 +649,7 @@ export default function SubAgentAnalytics() {
       {selectedSubAgent && (
         <div 
           className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
-          onClick={() => setSelectedSubAgent(null)}
+          onClick={closeDetail}
         >
           <div 
             className="fixed bottom-0 left-0 right-0 bg-background border-t rounded-t-3xl max-h-[85vh] overflow-y-auto"
@@ -665,7 +665,7 @@ export default function SubAgentAnalytics() {
                   <h3 className="font-bold text-lg">{selectedSubAgent.profile?.full_name}</h3>
                   <p className="text-sm text-muted-foreground">{selectedSubAgent.profile?.phone}</p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedSubAgent(null)}>
+                <Button variant="ghost" size="sm" onClick={closeDetail}>
                   Close
                 </Button>
               </div>
