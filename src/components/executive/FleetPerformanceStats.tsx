@@ -21,7 +21,7 @@ import {
   Legend,
 } from 'recharts';
 
-type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month' | 'custom';
+type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month' | 'all' | 'custom';
 
 const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: 'today', label: 'Today' },
@@ -30,7 +30,21 @@ const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: 'last30', label: 'Last 30 days' },
   { key: 'this_month', label: 'This month' },
   { key: 'last_month', label: 'Last month' },
+  { key: 'all', label: 'All time' },
 ];
+
+/** Earliest date used as the lower bound for the "All time" range. */
+const ALL_TIME_START = new Date(2023, 0, 1);
+
+const STORAGE_KEY = 'fleet-perf-range';
+
+type TrendGranularity = 'hour' | 'day' | 'month';
+
+function granularityFor(days: number): TrendGranularity {
+  if (days <= 1) return 'hour';
+  if (days <= 92) return 'day';
+  return 'month';
+}
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 
