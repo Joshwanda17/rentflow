@@ -183,6 +183,8 @@ function resolvePeriod(key: PeriodKey): { start: Date; end: Date; days: number }
       const days = Math.round((e.getTime() - s.getTime()) / 86_400_000);
       return { start: s, end: e, days };
     }
+    default:
+      return { start: today, end: now, days: 1 };
   }
 }
 
