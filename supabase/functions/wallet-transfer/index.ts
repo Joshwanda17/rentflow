@@ -19,35 +19,91 @@ function formatPhoneInternational(phone: string): string {
   return `+${digits}`;
 }
 
-async function sendSMS(phone: string, message: string): Promise<void> {
+const toBareDigits = (p: string) => formatPhoneInternational(p).replace(/^\+/, "");
+
+// === SMS provider chain: Yoola (primary) -> Africa's Talking -> LANA ===
+// Mirrors the shared chain used across the platform so a single provider
+// running out of credit never blocks delivery.
+async function sendViaYoola(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
+  if (!apiKey) return false;
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey }),
+    });
+    const text = await res.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const status = String(data?.status ?? "").toLowerCase();
+    if (res.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued")) return true;
+    if (res.ok && !data?.error && status === "") return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function sendViaAfricasTalking(phone: string, message: string): Promise<boolean> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
-  if (!apiKey || !username) return;
-
+  if (!apiKey || !username) return false;
   const isSandbox = username.toLowerCase() === "sandbox";
-  const baseUrl = isSandbox
+  const url = isSandbox
     ? "https://api.sandbox.africastalking.com/version1/messaging"
     : "https://api.africastalking.com/version1/messaging";
-
-  const formattedPhone = formatPhoneInternational(phone);
-  if (!formattedPhone) return;
-
   try {
-    const body = new URLSearchParams({
+    const params = new URLSearchParams({
       username,
-      to: formattedPhone,
+      to: formatPhoneInternational(phone),
       message,
       from: "WELILE",
     });
-    await fetch(baseUrl, {
+    const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        apiKey,
-        Accept: "application/json",
-      },
-      body: body.toString(),
+      headers: { apiKey, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body: params.toString(),
     });
+    const data = await res.json().catch(() => null);
+    const recipients = data?.SMSMessageData?.Recipients;
+    if (recipients && recipients.length > 0) {
+      const s = recipients[0].statusCode;
+      return s === 100 || s === 101 || s === 102;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function sendViaLana(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
+  if (!apiKey) return false;
+  try {
+    const res = await fetch("https://api.lanasms.com/v1/send", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: toBareDigits(phone), message }),
+    });
+    const text = await res.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const raw = data?.status;
+    const s = String(raw ?? "").toLowerCase();
+    return res.ok && (raw === true || s === "success" || s === "true" || s === "ok" || s === "sent" || s === "queued");
+  } catch {
+    return false;
+  }
+}
+
+async function sendSMS(phone: string, message: string): Promise<void> {
+  const formatted = formatPhoneInternational(phone);
+  if (!formatted) return;
+  try {
+    if (await sendViaYoola(phone, message)) return;
+    if (await sendViaAfricasTalking(phone, message)) return;
+    await sendViaLana(phone, message);
   } catch (err) {
     console.error("[wallet-transfer] SMS send failed:", err);
   }
