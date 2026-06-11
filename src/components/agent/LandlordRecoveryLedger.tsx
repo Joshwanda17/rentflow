@@ -242,7 +242,7 @@ export function LandlordRecoveryLedger({ open, onOpenChange }: Props) {
                             <div className="space-y-0.5">
                               <div className="flex justify-between text-[10px]">
                                 <span>{t.recoveryPct.toFixed(0)}%</span>
-                                <span>{formatUGX((t.rent_amount || 0) - (t.amount_repaid || 0))} left</span>
+                                <span>{formatUGX(Math.max(0, (t.rent_amount || 0) - (t.amount_repaid || 0)))} left</span>
                               </div>
                               <Progress value={t.recoveryPct} className="h-1.5" />
                             </div>
