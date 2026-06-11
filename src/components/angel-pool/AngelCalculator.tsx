@@ -6,7 +6,7 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import {
   TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD,
-  type CurrencyView, formatCurrency, formatCurrencyCompact,
+  type CurrencyView, formatCurrencyCompact,
 } from './constants';
 
 export function AngelCalculator() {
