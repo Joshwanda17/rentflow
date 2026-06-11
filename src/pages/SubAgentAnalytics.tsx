@@ -132,6 +132,31 @@ export default function SubAgentAnalytics() {
     if (match) setSelectedSubAgent(match);
   }, [searchParams, subAgents]);
 
+  // Load per-transaction recruiter splits (8% sub-agent vs 2% recruiter) for the open sub-agent
+  useEffect(() => {
+    if (!selectedSubAgent) {
+      setRecruiterSplits([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setSplitsLoading(true);
+      try {
+        const { data, error } = await supabase.rpc('get_subagent_recruiter_splits', {
+          p_sub_agent_id: selectedSubAgent.sub_agent_id,
+        });
+        if (error) throw error;
+        if (!cancelled) setRecruiterSplits((data as RecruiterSplit[]) || []);
+      } catch (err) {
+        console.error('Error fetching recruiter splits:', err);
+        if (!cancelled) setRecruiterSplits([]);
+      } finally {
+        if (!cancelled) setSplitsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedSubAgent]);
+
   const closeDetail = () => {
     setSelectedSubAgent(null);
     // Clear the id param from URL so back/refresh doesn't reopen
