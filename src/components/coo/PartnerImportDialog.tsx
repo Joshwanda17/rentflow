@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { investBounds, defaultUGXFormatter, isInvestAmountValid } from '@/lib/partnershipInvestment';
 import { parseContributionDate } from '@/lib/portfolioDates';
 import { toast } from 'sonner';
 import {
@@ -133,8 +134,11 @@ function validateRow(row: any, rowNum: number): ParsedRow {
 
   if (!name) errors.push('Missing partner name');
   if (phone && phone.length < 10) errors.push('Invalid phone (must be 10+ digits or blank)');
-  if (isNaN(amount) || amount < 1000) errors.push('Amount must be ≥ 1,000');
-  else if (amount > 500000000) errors.push('Amount must be ≤ 500,000,000');
+  if (!isInvestAmountValid(amount)) {
+    const { min, max } = investBounds();
+    if (isNaN(amount) || amount < min) errors.push(`Amount must be ≥ ${min.toLocaleString('en-US')}`);
+    else errors.push(`Amount must be ≤ ${max.toLocaleString('en-US')}`);
+  }
   if (isNaN(roi) || roi < 1 || roi > 30) errors.push('ROI must be 1-30%');
   if (isNaN(duration) || duration < 1 || duration > 36) errors.push('Duration must be 1-36 months');
   if (!VALID_ROI_MODES.includes(roiMode)) errors.push(`ROI mode must be: ${VALID_ROI_MODES.join(' or ')}`);
