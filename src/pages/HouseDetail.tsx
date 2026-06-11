@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
+import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { useHouseReviews } from '@/hooks/useHouseReviews';
 import WriteHouseReviewForm from '@/components/reviews/WriteHouseReviewForm';
 import HouseReviewsList from '@/components/reviews/HouseReviewsList';
@@ -284,10 +285,10 @@ export default function HouseDetail() {
             </button>
             <div className="flex items-center gap-2">
               <SaveHouseButton houseId={listing.id} variant="icon" />
-              <button onClick={handleCopyLink}
+              <button onClick={handleShare}
                 className="bg-background/80 backdrop-blur-sm text-foreground rounded-full p-2.5 shadow-lg active:scale-95 transition-transform"
-                title="Copy share link">
-                {copied ? <Check className="h-5 w-5 text-success" /> : <Copy className="h-5 w-5" />}
+                title="Share this house">
+                <Share2 className="h-5 w-5" />
               </button>
             </div>
           </div>
