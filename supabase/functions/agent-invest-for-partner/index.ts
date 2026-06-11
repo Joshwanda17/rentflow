@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
+import { isValidInvestmentAmount, MIN_INVESTMENT_ERROR } from "../_shared/investmentAmount.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!partner_id || !uuidRegex.test(partner_id)) return errorResponse("Invalid partner ID", 400);
-    if (!amount || amount < 1000) return errorResponse("Minimum investment is UGX 1,000", 400);
+    if (!isValidInvestmentAmount(amount)) return errorResponse(MIN_INVESTMENT_ERROR, 400);
 
     // --- Verify partner is a supporter ---
     const { data: partnerRole } = await adminClient

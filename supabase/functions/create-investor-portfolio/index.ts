@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isValidInvestmentAmount, MIN_INVESTMENT_ERROR_PORTFOLIO } from "../_shared/investmentAmount.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,8 +97,8 @@ Deno.serve(async (req) => {
     const accountName = typeof body.account_name === 'string' ? body.account_name.trim().slice(0, 200) : null;
     const accountNumber = typeof body.account_number === 'string' ? body.account_number.trim().slice(0, 50) : null;
 
-    if (!investmentAmount || investmentAmount < 1000) {
-      return new Response(JSON.stringify({ error: "Investment amount must be at least UGX 1,000" }), {
+    if (!isValidInvestmentAmount(investmentAmount)) {
+      return new Response(JSON.stringify({ error: MIN_INVESTMENT_ERROR_PORTFOLIO }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
