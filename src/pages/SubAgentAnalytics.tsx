@@ -104,6 +104,8 @@ export default function SubAgentAnalytics() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [selectedSubAgent, setSelectedSubAgent] = useState<SubAgent | null>(null);
+  const [recruiterSplits, setRecruiterSplits] = useState<RecruiterSplit[]>([]);
+  const [splitsLoading, setSplitsLoading] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [currentGoal, setCurrentGoal] = useState<TeamGoal | null>(null);
