@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     // Validate
     if (!body.partner_id || !UUID.test(body.partner_id)) return json({ error: "Invalid partner ID" }, 400);
     if (!body.source_wallet_user_id || !UUID.test(body.source_wallet_user_id)) return json({ error: "Invalid source wallet" }, 400);
-    if (!body.amount || body.amount < 50000) return json({ error: "Minimum investment is UGX 50,000" }, 400);
+    if (!body.amount || body.amount < 1000) return json({ error: "Minimum investment is UGX 1,000" }, 400);
     if (!body.roi_percentage || body.roi_percentage <= 0 || body.roi_percentage > 100) return json({ error: "ROI must be 1-100%" }, 400);
     if (!body.duration_months || body.duration_months < 1 || body.duration_months > 60) return json({ error: "Duration must be 1-60 months" }, 400);
     if (!["monthly_payout", "monthly_compounding"].includes(body.roi_mode)) return json({ error: "Invalid ROI mode" }, 400);

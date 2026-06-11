@@ -58,8 +58,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Invalid partner ID" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    if (!amount || amount < 50000) {
-      return new Response(JSON.stringify({ error: "Minimum investment is UGX 50,000" }),
+    if (!amount || amount < 1000) {
+      return new Response(JSON.stringify({ error: "Minimum investment is UGX 1,000" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
