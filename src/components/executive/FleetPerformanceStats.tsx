@@ -256,7 +256,8 @@ export function FleetPerformanceStats() {
 
           {/* Agent-by-agent breakdown */}
           <div className="mt-3 rounded-lg border border-border overflow-hidden">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 bg-muted/60 text-[10px] font-bold uppercase tracking-wide text-muted-foreground items-center">
+            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 bg-muted/60 text-[10px] font-bold uppercase tracking-wide text-muted-foreground items-center">
+              <span className="text-center">#</span>
               <span>Agent</span>
               <SortHeader label="Expected" sortKey="expected" sort={sort} onChange={setSort} align="right" />
               <SortHeader label="Collected" sortKey="collected" sort={sort} onChange={setSort} align="right" />
@@ -268,13 +269,14 @@ export function FleetPerformanceStats() {
                   No agent activity in this period.
                 </div>
               ) : (
-                rows.map((r) => {
+                rows.map((r, idx) => {
                   const tone = r.rate >= 80 ? 'text-emerald-600' : r.rate >= 50 ? 'text-amber-600' : 'text-destructive';
                   return (
                     <div
                       key={r.id}
-                      className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 text-[11px] items-center"
+                      className="grid grid-cols-[2rem_minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 text-[11px] items-center"
                     >
+                      <span className="text-center tabular-nums font-bold text-muted-foreground">{idx + 1}</span>
                       <span className="font-semibold text-foreground truncate">{r.name}</span>
                       <span className="text-right tabular-nums text-violet-600">{formatUGX(r.expected)}</span>
                       <span className="text-right tabular-nums text-primary font-semibold">{formatUGX(r.collected)}</span>
