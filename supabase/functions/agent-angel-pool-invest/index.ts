@@ -197,6 +197,10 @@ Deno.serve(async (req) => {
         await logSystemEvent(adminClient, "agent_angel_pool_email_skipped", user.id,
           "angel_pool_investments", referenceId,
           { investor_id, reason: "not_first_purchase", prior_count: priorCount, reference_id: referenceId });
+        await recordEmailSkip(adminClient, {
+          investorId: investor_id, referenceId, recipientEmail: null,
+          reason: "not_first_purchase", fundingSource: fundingSource, sourceFunction: "agent-angel-pool-invest",
+        });
       } else {
       const { data: investorProfile } = await adminClient
         .from("profiles")
@@ -252,11 +256,19 @@ Deno.serve(async (req) => {
           await logSystemEvent(adminClient, "agent_angel_pool_email_skipped", user.id,
             "angel_pool_investments", referenceId,
             { investor_id, reason: "placeholder_email", recipient: investorProfile.email, reference_id: referenceId });
+          await recordEmailSkip(adminClient, {
+            investorId: investor_id, referenceId, recipientEmail: investorProfile.email,
+            reason: "placeholder_email", fundingSource: fundingSource, sourceFunction: "agent-angel-pool-invest",
+          });
         }
       } else {
         await logSystemEvent(adminClient, "agent_angel_pool_email_skipped", user.id,
           "angel_pool_investments", referenceId,
           { investor_id, reason: "no_email_on_file", reference_id: referenceId });
+        await recordEmailSkip(adminClient, {
+          investorId: investor_id, referenceId, recipientEmail: null,
+          reason: "no_email_on_file", fundingSource: fundingSource, sourceFunction: "agent-angel-pool-invest",
+        });
       }
 
       // Best-effort SMS confirmation to the investor — works even when the
