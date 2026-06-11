@@ -314,7 +314,7 @@ Start your journey: ${shareLink}`;
                       <p className="font-semibold text-success">If you have NO upline</p>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      You earn the full <span className="font-bold text-success">5%</span> of every tenant repayment.
+                      You earn the full <span className="font-bold text-success">10%</span> of every tenant repayment.
                     </p>
                   </div>
 
