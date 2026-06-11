@@ -460,7 +460,7 @@ Deno.serve(async (req) => {
       const appLink = 'https://welilereceipts.com/dashboard';
       const smsMessage =
         `WELILE: You have received ${formattedAmount} from ${senderLabel}.` +
-        (hasReason ? ` Reason: ${trimmedReason}.` : '') +
+        ` Reason: ${trimmedReason || 'Wallet transfer'}.` +
         recipientBalanceText +
         ` Ref: ${transferReference}. Open the app: ${appLink}`;
       sendSMS(recipientProfile.phone, smsMessage).catch(() => {});
@@ -484,7 +484,7 @@ Deno.serve(async (req) => {
       const appLink = 'https://welilereceipts.com/dashboard';
       const senderSmsMessage =
         `WELILE: You have sent ${formattedAmount} to ${recipientLabel}.` +
-        (hasReason ? ` Reason: ${trimmedReason}.` : '') +
+        ` Reason: ${trimmedReason || 'Wallet transfer'}.` +
         senderBalanceText +
         ` Ref: ${transferReference}. View transaction: ${appLink}`;
       sendSMS(senderProfile.phone, senderSmsMessage).catch(() => {});
