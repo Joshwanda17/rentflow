@@ -18,19 +18,27 @@ const PERIODS: { key: PeriodKey; label: string }[] = [
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 
-/** Build a clean, large-print, color-coded HTML report and open the print/share dialog. */
+/** Build a board-ready, color-coded HTML report (cover page + breakdown) and open the print/share dialog. */
 function shareAsPdf(opts: {
   periodLabel: string;
   days: number;
+  start: Date;
+  end: Date;
   totalExpected: number;
   totalCollected: number;
   rate: number;
   rows: { id: string; name: string; expected: number; collected: number; rate: number }[];
 }) {
-  const { periodLabel, days, totalExpected, totalCollected, rate, rows } = opts;
+  const { periodLabel, days, start, end, totalExpected, totalCollected, rate, rows } = opts;
   const toneFor = (r: number) => (r >= 80 ? '#059669' : r >= 50 ? '#d97706' : '#dc2626');
   const verdict = rate >= 80 ? 'On track' : rate >= 50 ? 'Needs a push' : 'Falling behind';
   const generated = new Date().toLocaleString();
+  const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  // end is exclusive; show the last covered day for human reading
+  const lastDay = new Date(end.getTime() - 1);
+  const rangeLabel = days <= 1 ? fmtDate(start) : `${fmtDate(start)} – ${fmtDate(lastDay)}`;
+  const shortfall = Math.max(0, totalExpected - totalCollected);
+  const topName = rows[0]?.name || '—';
   const rowsHtml = rows
     .map((r, i) => {
       const c = toneFor(r.rate);
@@ -74,16 +82,45 @@ function shareAsPdf(opts: {
       tr:nth-child(even) td { background: #fafafa; }
       .foot { margin-top: 20px; color: #9ca3af; font-size: 11px; }
       @media print { body { padding: 0; } }
+      /* Cover page */
+      .cover { min-height: 92vh; display: flex; flex-direction: column; justify-content: center; padding: 8vh 6vw; page-break-after: always; }
+      .brand { font-size: 13px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: #2563eb; margin-bottom: 14px; }
+      .cover h1 { font-size: 46px; line-height: 1.05; margin: 0 0 10px; }
+      .cover .period { font-size: 20px; font-weight: 700; color: #111827; margin: 0 0 4px; }
+      .cover .periodsub { font-size: 14px; color: #6b7280; margin: 0 0 28px; }
+      .cover .verdict { font-size: 18px; }
+      .keytotals { display: flex; gap: 16px; margin-top: 8px; }
+      .keytotals .card { background: #fafafa; }
+      .keytotals .card .val { font-size: 30px; }
+      .cover .gen { margin-top: auto; padding-top: 30px; color: #9ca3af; font-size: 12px; }
+      .section-title { font-size: 18px; font-weight: 800; margin: 0 0 14px; }
     </style></head><body>
+    <!-- Cover page -->
+    <section class="cover">
+      <div class="brand">Welile · Executive Report</div>
+      <h1>Fleet Performance<br/>Collection Report</h1>
+      <p class="period">${periodLabel}</p>
+      <p class="periodsub">Reporting period: ${rangeLabel} · ${days} day${days === 1 ? '' : 's'} · ${rows.length} agent${rows.length === 1 ? '' : 's'}</p>
+      <div class="verdict" style="background:${toneFor(rate)}">${verdict} — ${rate}% collected</div>
+      <div class="keytotals">
+        <div class="card"><div class="lbl">Expected</div><div class="val" style="color:#7c3aed">${formatUGX(totalExpected)}</div></div>
+        <div class="card"><div class="lbl">Collected</div><div class="val" style="color:#2563eb">${formatUGX(totalCollected)}</div></div>
+        <div class="card"><div class="lbl">Shortfall</div><div class="val" style="color:${shortfall > 0 ? '#dc2626' : '#059669'}">${formatUGX(shortfall)}</div></div>
+        <div class="card"><div class="lbl">Top agent</div><div class="val" style="font-size:18px;color:#111827">${topName.replace(/</g, '&lt;')}</div></div>
+      </div>
+      <p class="gen">Generated ${generated}</p>
+    </section>
+
+    <!-- Detail page -->
     <h1>Fleet Performance</h1>
-    <p class="sub">${periodLabel} · ${days} day${days === 1 ? '' : 's'} · ${rows.length} agent${rows.length === 1 ? '' : 's'} · generated ${generated}</p>
-    <div class="verdict" style="background:${toneFor(rate)}">${verdict} — ${rate}% collected</div>
+    <p class="sub">${periodLabel} · ${rangeLabel} · ${rows.length} agent${rows.length === 1 ? '' : 's'}</p>
     <div class="cards">
       <div class="card"><div class="lbl">Expected</div><div class="val" style="color:#7c3aed">${formatUGX(totalExpected)}</div></div>
       <div class="card"><div class="lbl">Collected</div><div class="val" style="color:#2563eb">${formatUGX(totalCollected)}</div></div>
       <div class="card"><div class="lbl">Collection rate</div><div class="val" style="color:${toneFor(rate)}">${rate}%</div></div>
     </div>
     <div class="barwrap"><div class="bar" style="width:${rate}%;background:${toneFor(rate)}"></div></div>
+    <p class="section-title">Agent-by-agent breakdown</p>
     <table>
       <thead><tr><th>#</th><th>Agent</th><th class="num">Expected</th><th class="num">Collected</th><th class="rate">Rate</th></tr></thead>
       <tbody>${rowsHtml || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:24px">No agent activity in this period.</td></tr>'}</tbody>
@@ -294,6 +331,8 @@ export function FleetPerformanceStats() {
               shareAsPdf({
                 periodLabel: PERIODS.find((p) => p.key === period)?.label || '',
                 days,
+                start,
+                end,
                 totalExpected,
                 totalCollected,
                 rate,
