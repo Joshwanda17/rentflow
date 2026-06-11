@@ -19045,6 +19045,16 @@ export type Database = {
             }
             Returns: undefined
           }
+      credit_recruiter_override: {
+        Args: {
+          p_event_type: string
+          p_label?: string
+          p_source_id: string
+          p_source_table: string
+          p_sub_agent_id: string
+        }
+        Returns: Json
+      }
       cron_jobs_health: {
         Args: never
         Returns: {
