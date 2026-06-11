@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { AngelPoolSkippedEmailsPanel } from './AngelPoolSkippedEmailsPanel';
 
 interface Props {
   userRole: string;
