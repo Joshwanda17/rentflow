@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
+import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { useHouseReviews } from '@/hooks/useHouseReviews';
 import WriteHouseReviewForm from '@/components/reviews/WriteHouseReviewForm';
 import HouseReviewsList from '@/components/reviews/HouseReviewsList';
@@ -284,10 +285,10 @@ export default function HouseDetail() {
             </button>
             <div className="flex items-center gap-2">
               <SaveHouseButton houseId={listing.id} variant="icon" />
-              <button onClick={handleCopyLink}
+              <button onClick={handleShare}
                 className="bg-background/80 backdrop-blur-sm text-foreground rounded-full p-2.5 shadow-lg active:scale-95 transition-transform"
-                title="Copy share link">
-                {copied ? <Check className="h-5 w-5 text-success" /> : <Copy className="h-5 w-5" />}
+                title="Share this house">
+                <Share2 className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -353,48 +354,24 @@ export default function HouseDetail() {
             <MoveInOfferBadge variant="banner" className="mt-4" />
           </motion.div>
 
-          {/* ── One-tap copy share link ── */}
+          {/* ── Share row ── */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
-            <button
-              onClick={handleCopyLink}
-              className="w-full flex items-center justify-center gap-2.5 min-h-[48px] px-6 py-3 rounded-xl border-2 border-primary/30 bg-primary/5 text-primary font-bold text-sm shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
-            >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? 'Link copied — paste it anywhere!' : 'Copy share link'}
-            </button>
-          </motion.div>
-
-          {/* ── One-tap Share on WhatsApp ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <button
-              onClick={async () => {
-                const richUrl = listing ? ogShareUrl : shareUrl;
-                const msg = listing
-                  ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
-                  : richUrl;
-                try {
-                  await navigator.clipboard.writeText(msg);
-                  setCopied(true);
-                  toast({ title: 'Link copied — opening WhatsApp!', description: 'Paste the link in the chat if it is not pre-filled.' });
-                  setTimeout(() => setCopied(false), 2500);
-                } catch {
-                  toast({ title: 'Could not copy link', variant: 'destructive' });
-                }
-                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-              }}
-              className="w-full flex items-center justify-center gap-2.5 min-h-[48px] px-6 py-3 rounded-xl bg-[#25D366] text-white font-bold text-sm shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Share on WhatsApp
-            </button>
+            <ShareHouseButton
+              listingId={listing.id}
+              title={listing.title}
+              region={listing.region}
+              dailyRate={listing.daily_rate}
+              shortCode={listing.short_code}
+              variant="full"
+              address={listing.address}
+              monthlyRent={listing.monthly_rent}
+              rooms={listing.number_of_rooms}
+              category={listing.house_category}
+            />
           </motion.div>
 
           {/* ── Room & Amenities grid ── */}

@@ -138,7 +138,7 @@ export function PublicHousesPreview() {
                     region={house.region}
                     dailyRate={house.daily_rate}
                     shortCode={house.short_code}
-                    mode="whatsapp"
+                    mode="share"
                     address={house.address}
                     monthlyRent={house.monthly_rent}
                     rooms={house.number_of_rooms}
