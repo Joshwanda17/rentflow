@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
-import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 
 type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month';
 
@@ -135,6 +135,7 @@ async function fetchAgentNames(agentIds: string[]): Promise<Record<string, strin
 export function FleetPerformanceStats() {
   const [period, setPeriod] = useState<PeriodKey>('today');
   const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
+  const [search, setSearch] = useState('');
   const { start, end, days } = useMemo(() => resolvePeriod(period), [period]);
 
   const { data: expectedByAgent = {}, isLoading: expLoading } = useQuery({
@@ -172,9 +173,17 @@ export function FleetPerformanceStats() {
       .filter((r) => r.expected > 0 || r.collected > 0);
   }, [agentIds, expectedByAgent, collectedByAgent, names, days]);
 
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rawRows;
+    return rawRows.filter((r) =>
+      r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
+    );
+  }, [rawRows, search]);
+
   const rows = useMemo(() => {
     const { key, dir } = sort;
-    const sorted = [...rawRows].sort((a, b) => {
+    const sorted = [...filteredRows].sort((a, b) => {
       let cmp = 0;
       if (key === 'expected') cmp = a.expected - b.expected;
       else if (key === 'collected') cmp = a.collected - b.collected;
@@ -182,7 +191,7 @@ export function FleetPerformanceStats() {
       return dir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [rawRows, sort]);
+  }, [filteredRows, sort]);
 
   const loading = expLoading || colLoading;
   const totalExpected = rows.reduce((s, r) => s + r.expected, 0);
@@ -232,6 +241,18 @@ export function FleetPerformanceStats() {
           <p className="mt-1.5 text-[10px] text-muted-foreground tabular-nums">
             {formatUGX(totalCollected)} collected of {formatUGX(totalExpected)} expected ({days} day{days === 1 ? '' : 's'} · {rows.length} agent{rows.length === 1 ? '' : 's'})
           </p>
+
+          {/* Search */}
+          <div className="mt-3 relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search agent name or ID…"
+              className="w-full h-8 pl-8 pr-3 rounded-lg border border-border bg-background text-[11px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
 
           {/* Agent-by-agent breakdown */}
           <div className="mt-3 rounded-lg border border-border overflow-hidden">
