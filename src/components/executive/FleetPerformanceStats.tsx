@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
-import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
+import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search, Share2 } from 'lucide-react';
 
 type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month';
 
@@ -17,6 +17,87 @@ const PERIODS: { key: PeriodKey; label: string }[] = [
 ];
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+
+/** Build a clean, large-print, color-coded HTML report and open the print/share dialog. */
+function shareAsPdf(opts: {
+  periodLabel: string;
+  days: number;
+  totalExpected: number;
+  totalCollected: number;
+  rate: number;
+  rows: { id: string; name: string; expected: number; collected: number; rate: number }[];
+}) {
+  const { periodLabel, days, totalExpected, totalCollected, rate, rows } = opts;
+  const toneFor = (r: number) => (r >= 80 ? '#059669' : r >= 50 ? '#d97706' : '#dc2626');
+  const verdict = rate >= 80 ? 'On track' : rate >= 50 ? 'Needs a push' : 'Falling behind';
+  const generated = new Date().toLocaleString();
+  const rowsHtml = rows
+    .map((r, i) => {
+      const c = toneFor(r.rate);
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+      return `<tr>
+        <td class="rank">${medal || i + 1}</td>
+        <td class="name">${(r.name || '').replace(/</g, '&lt;')}</td>
+        <td class="num">${formatUGX(r.expected)}</td>
+        <td class="num strong">${formatUGX(r.collected)}</td>
+        <td class="rate" style="color:${c}">
+          <span class="dot" style="background:${c}"></span>${r.rate}%
+        </td>
+      </tr>`;
+    })
+    .join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Fleet Performance · ${periodLabel}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 28px; }
+      h1 { font-size: 24px; margin: 0 0 2px; }
+      .sub { color: #6b7280; font-size: 13px; margin: 0 0 18px; }
+      .cards { display: flex; gap: 12px; margin-bottom: 18px; }
+      .card { flex: 1; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px 16px; }
+      .card .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; font-weight: 700; }
+      .card .val { font-size: 26px; font-weight: 800; margin-top: 4px; }
+      .verdict { display: inline-block; padding: 6px 14px; border-radius: 999px; font-weight: 800; font-size: 15px; color: #fff; margin-bottom: 18px; }
+      .barwrap { height: 14px; background: #f1f5f9; border-radius: 999px; overflow: hidden; margin: 10px 0 22px; }
+      .bar { height: 100%; border-radius: 999px; }
+      table { width: 100%; border-collapse: collapse; font-size: 15px; }
+      th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; border-bottom: 2px solid #e5e7eb; padding: 8px 10px; }
+      th.num, th.rate { text-align: right; }
+      td { padding: 11px 10px; border-bottom: 1px solid #f1f5f9; }
+      td.rank { font-weight: 800; width: 44px; font-size: 17px; }
+      td.name { font-weight: 700; }
+      td.num { text-align: right; font-variant-numeric: tabular-nums; }
+      td.num.strong { font-weight: 800; }
+      td.rate { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+      .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+      tr:nth-child(even) td { background: #fafafa; }
+      .foot { margin-top: 20px; color: #9ca3af; font-size: 11px; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+    <h1>Fleet Performance</h1>
+    <p class="sub">${periodLabel} · ${days} day${days === 1 ? '' : 's'} · ${rows.length} agent${rows.length === 1 ? '' : 's'} · generated ${generated}</p>
+    <div class="verdict" style="background:${toneFor(rate)}">${verdict} — ${rate}% collected</div>
+    <div class="cards">
+      <div class="card"><div class="lbl">Expected</div><div class="val" style="color:#7c3aed">${formatUGX(totalExpected)}</div></div>
+      <div class="card"><div class="lbl">Collected</div><div class="val" style="color:#2563eb">${formatUGX(totalCollected)}</div></div>
+      <div class="card"><div class="lbl">Collection rate</div><div class="val" style="color:${toneFor(rate)}">${rate}%</div></div>
+    </div>
+    <div class="barwrap"><div class="bar" style="width:${rate}%;background:${toneFor(rate)}"></div></div>
+    <table>
+      <thead><tr><th>#</th><th>Agent</th><th class="num">Expected</th><th class="num">Collected</th><th class="rate">Rate</th></tr></thead>
+      <tbody>${rowsHtml || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:24px">No agent activity in this period.</td></tr>'}</tbody>
+    </table>
+    <p class="foot">Welile · Agent rent collection report</p>
+    <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 250); };</script>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
 
 /** Resolve a period to [start, end) and the number of calendar days it spans. */
 function resolvePeriod(key: PeriodKey): { start: Date; end: Date; days: number } {
