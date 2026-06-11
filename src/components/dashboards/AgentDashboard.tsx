@@ -63,6 +63,7 @@ import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequ
 import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebrationModal';
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
 import { useAgentUnblockToast } from '@/hooks/useAgentUnblockToast';
+import { useRecruiterOverrideToast } from '@/hooks/useRecruiterOverrideToast';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
