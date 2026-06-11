@@ -3116,6 +3116,7 @@ export type Database = {
           acceptance_token: string | null
           accepted_at: string | null
           created_at: string
+          expires_at: string | null
           id: string
           parent_agent_id: string
           rejection_reason: string | null
@@ -3129,6 +3130,7 @@ export type Database = {
           acceptance_token?: string | null
           accepted_at?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           parent_agent_id: string
           rejection_reason?: string | null
@@ -3142,6 +3144,7 @@ export type Database = {
           acceptance_token?: string | null
           accepted_at?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           parent_agent_id?: string
           rejection_reason?: string | null
