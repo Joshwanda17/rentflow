@@ -19,6 +19,26 @@ function fmtInviteDate(iso: string | null | undefined) {
   );
 }
 
+type InviteStatus = 'pending' | 'accepted' | 'expired';
+
+function classifyInviteStatus(raw: string): InviteStatus {
+  const s = raw.toLowerCase().trim();
+  if (s === 'pending') return 'pending';
+  if (s === 'expired' || s === 'rejected' || s === 'inactive' || s === 'revoked') return 'expired';
+  return 'accepted'; // approved, verified, active, etc.
+}
+
+function statusBadgeClass(status: InviteStatus) {
+  switch (status) {
+    case 'pending':
+      return 'bg-amber-500/10 text-amber-600';
+    case 'accepted':
+      return 'bg-emerald-500/10 text-emerald-600';
+    case 'expired':
+      return 'bg-red-500/10 text-red-600';
+  }
+}
+
 /**
  * Shows the invited (sub-)agent who recruited them — i.e. their parent agent.
  * Renders nothing if the current agent was not invited by anyone.
@@ -59,6 +79,7 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
   if (isLoading || !data) return null;
 
   const inviteDateLabel = fmtInviteDate(data.createdAt);
+  const inviteStatus = classifyInviteStatus(data.status);
 
   return (
     <Card className="border border-primary/20 bg-primary/[0.03]">
@@ -79,14 +100,16 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
           {inviteDateLabel && (
             <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
               <Clock className="h-3 w-3" />
-              {data.status === 'approved' || data.status === 'verified'
+              {inviteStatus === 'accepted'
                 ? `Recruited on ${inviteDateLabel}`
                 : `Invited on ${inviteDateLabel}`}
             </p>
           )}
         </div>
-        <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/10 text-primary capitalize shrink-0">
-          {data.status === 'approved' || data.status === 'verified' ? 'Your agent' : data.status}
+        <span
+          className={`text-[10px] font-semibold px-2 py-1 rounded-full capitalize shrink-0 ${statusBadgeClass(inviteStatus)}`}
+        >
+          {inviteStatus}
         </span>
       </CardContent>
     </Card>
