@@ -167,6 +167,86 @@ function shareAsPdf(opts: {
   w.document.close();
 }
 
+/** Build a print-ready PDF of the trend chart data (per hour / day / month) and open the print dialog. */
+function shareTrendAsPdf(opts: {
+  periodLabel: string;
+  granLabel: string;
+  rangeLabel: string;
+  rows: { label: string; collected: number; expected: number }[];
+}) {
+  const { periodLabel, granLabel, rangeLabel, rows } = opts;
+  const generated = new Date().toLocaleString();
+  const totalExpected = rows.reduce((s, r) => s + r.expected, 0);
+  const totalCollected = rows.reduce((s, r) => s + r.collected, 0);
+  const overallRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  const maxVal = Math.max(1, ...rows.map((r) => Math.max(r.collected, r.expected)));
+  const toneFor = (r: number) => (r >= 100 ? '#059669' : r >= 50 ? '#d97706' : '#dc2626');
+  const rowsHtml = rows
+    .map((r) => {
+      const rate = r.expected > 0 ? Math.round((r.collected / r.expected) * 100) : 0;
+      const c = toneFor(rate);
+      const w = Math.round((r.collected / maxVal) * 100);
+      const overLabel = rate > 100 ? ` ↑${rate - 100}%` : '';
+      return `<tr>
+        <td class="lbl">${(r.label || '').replace(/</g, '&lt;')}</td>
+        <td class="num">${formatUGX(r.expected)}</td>
+        <td class="num strong">${formatUGX(r.collected)}</td>
+        <td class="barcell"><div class="minibar"><div class="minifill" style="width:${w}%;background:${c}"></div></div></td>
+        <td class="rate" style="color:${c}">${rate}%${overLabel}</td>
+      </tr>`;
+    })
+    .join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Collection Trend · ${granLabel}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 28px; }
+      .brand { font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: #2563eb; margin-bottom: 8px; }
+      h1 { font-size: 24px; margin: 0 0 2px; }
+      .sub { color: #6b7280; font-size: 13px; margin: 0 0 18px; }
+      .cards { display: flex; gap: 12px; margin-bottom: 18px; }
+      .card { flex: 1; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px 16px; }
+      .card .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; font-weight: 700; }
+      .card .val { font-size: 24px; font-weight: 800; margin-top: 4px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; border-bottom: 2px solid #e5e7eb; padding: 8px 10px; }
+      th.num, th.rate { text-align: right; }
+      td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; }
+      td.lbl { font-weight: 700; white-space: nowrap; }
+      td.num { text-align: right; font-variant-numeric: tabular-nums; }
+      td.num.strong { font-weight: 800; }
+      td.rate { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+      td.barcell { width: 28%; }
+      .minibar { height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+      .minifill { height: 100%; border-radius: 999px; }
+      tr:nth-child(even) td { background: #fafafa; }
+      .foot { margin-top: 20px; color: #9ca3af; font-size: 11px; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+    <div class="brand">Welile · Executive Report</div>
+    <h1>Collection Trend — ${granLabel}</h1>
+    <p class="sub">${periodLabel} · ${rangeLabel} · ${rows.length} interval${rows.length === 1 ? '' : 's'}</p>
+    <div class="cards">
+      <div class="card"><div class="lbl">Expected</div><div class="val" style="color:#7c3aed">${formatUGX(totalExpected)}</div></div>
+      <div class="card"><div class="lbl">Collected</div><div class="val" style="color:#2563eb">${formatUGX(totalCollected)}</div></div>
+      <div class="card"><div class="lbl">Collection rate</div><div class="val" style="color:${toneFor(overallRate)}">${overallRate}%</div></div>
+    </div>
+    <table>
+      <thead><tr><th>${granLabel}</th><th class="num">Expected</th><th class="num">Collected</th><th>Flow</th><th class="rate">Rate</th></tr></thead>
+      <tbody>${rowsHtml || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:24px">No collection activity in this period.</td></tr>'}</tbody>
+    </table>
+    <p class="foot">Welile · Collection trend report · Generated ${generated}</p>
+    <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 250); };</script>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
 /** Resolve a period to [start, end) and the number of calendar days it spans. */
 function resolvePeriod(key: PeriodKey): { start: Date; end: Date; days: number } {
   const now = new Date();
@@ -500,6 +580,20 @@ export function FleetPerformanceStats() {
       : granularity === 'month' ? 'Collection trend · monthly flow vs target'
       : 'Collection trend · daily flow vs target';
 
+  const granLabel = granularity === 'hour' ? 'Hour' : granularity === 'month' ? 'Month' : 'Day';
+  const trendRangeLabel = (() => {
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    const lastDay = new Date(end.getTime() - 1);
+    return days <= 1 ? fmt(start) : `${fmt(start)} – ${fmt(lastDay)}`;
+  })();
+  const exportTrendPdf = () =>
+    shareTrendAsPdf({
+      periodLabel: period === 'custom' ? 'Custom range' : PERIODS.find((p) => p.key === period)?.label || '',
+      granLabel,
+      rangeLabel: trendRangeLabel,
+      rows: trendData,
+    });
+
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
       <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
@@ -600,9 +694,19 @@ export function FleetPerformanceStats() {
           {/* Collection trend: collected per day vs expected daily target */}
           {trendData.length > 1 && (
             <div className="mt-3 rounded-lg border border-border bg-card p-3">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                {trendTitle}
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  {trendTitle}
+                </p>
+                <button
+                  type="button"
+                  onClick={exportTrendPdf}
+                  className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-muted text-foreground hover:bg-muted/70 transition-colors"
+                >
+                  <Share2 className="h-3 w-3" />
+                  Trend PDF
+                </button>
+              </div>
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={trendData} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
