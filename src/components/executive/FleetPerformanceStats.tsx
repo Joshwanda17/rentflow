@@ -235,11 +235,11 @@ export function FleetPerformanceStats() {
 
           {/* Agent-by-agent breakdown */}
           <div className="mt-3 rounded-lg border border-border overflow-hidden">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 bg-muted/60 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 bg-muted/60 text-[10px] font-bold uppercase tracking-wide text-muted-foreground items-center">
               <span>Agent</span>
-              <span className="text-right">Expected</span>
-              <span className="text-right">Collected</span>
-              <span className="text-right">Rate</span>
+              <SortHeader label="Expected" sortKey="expected" sort={sort} onChange={setSort} align="right" />
+              <SortHeader label="Collected" sortKey="collected" sort={sort} onChange={setSort} align="right" />
+              <SortHeader label="Rate" sortKey="rate" sort={sort} onChange={setSort} align="right" />
             </div>
             <div className="max-h-72 overflow-y-auto divide-y divide-border">
               {rows.length === 0 ? (
