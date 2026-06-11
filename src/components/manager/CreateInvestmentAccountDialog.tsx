@@ -186,8 +186,8 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
       return;
     }
     const amt = parseFloat(form.investment_amount);
-    if (isNaN(amt) || amt < 50000) {
-      toast({ title: 'Investment must be at least UGX 50,000', variant: 'destructive' });
+    if (isNaN(amt) || amt < 1000) {
+      toast({ title: 'Investment must be at least UGX 1,000', variant: 'destructive' });
       return;
     }
     if (partnerBalance === null) {
