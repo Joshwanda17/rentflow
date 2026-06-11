@@ -242,9 +242,18 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
     };
   }, [user, fetchSubAgents]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    hapticTap();
     setRefreshing(true);
-    fetchSubAgents();
+    // Guarantee a visible spin even when the fetch resolves instantly (iOS
+    // taps otherwise give no feedback and feel like nothing happened).
+    const minSpin = new Promise((r) => setTimeout(r, 600));
+    try {
+      await Promise.all([fetchSubAgents(), minSpin]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleCall = (phone: string) => {
