@@ -39,6 +39,9 @@ export function useLandlordOtp() {
   const pollTokenRef = useRef(0);
   const cooldownUntilRef = useRef(0);
   const cooldownTimerRef = useRef<ReturnType<typeof setInterval>>();
+  // Synchronous in-flight lock — prevents rapid double-taps from firing two
+  // SMS sends before the async `otpLoading` state has had a chance to update.
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -93,7 +96,8 @@ export function useLandlordOtp() {
 
   // Generic OTP (legacy / non-payout flows)
   const sendOtp = useCallback(async (phone: string) => {
-    if (cooldownSeconds > 0 || otpLoading) return false;
+    if (inFlightRef.current || cooldownSeconds > 0 || otpLoading) return false;
+    inFlightRef.current = true;
     setOtpLoading(true);
     setOtpError(null);
     setSendStatus('idle');
@@ -136,6 +140,7 @@ export function useLandlordOtp() {
       setSendStatus('failed');
       return false;
     } finally {
+      inFlightRef.current = false;
       setOtpLoading(false);
     }
   }, [pollSendStatus, startCooldown, cooldownSeconds, otpLoading]);
@@ -170,7 +175,8 @@ export function useLandlordOtp() {
 
   // Payout-specific OTP (challenge-based)
   const sendPayoutOtp = useCallback(async (payload: PayoutOtpPayload) => {
-    if (cooldownSeconds > 0 || otpLoading) return null;
+    if (inFlightRef.current || cooldownSeconds > 0 || otpLoading) return null;
+    inFlightRef.current = true;
     setOtpLoading(true);
     setOtpError(null);
     setSendStatus('idle');
@@ -210,6 +216,7 @@ export function useLandlordOtp() {
       setSendStatus('failed');
       return null;
     } finally {
+      inFlightRef.current = false;
       setOtpLoading(false);
     }
   }, [startCooldown, cooldownSeconds, otpLoading]);
@@ -219,7 +226,8 @@ export function useLandlordOtp() {
       setOtpError('No active challenge to resend');
       return false;
     }
-    if (cooldownSeconds > 0 || otpLoading) return false;
+    if (inFlightRef.current || cooldownSeconds > 0 || otpLoading) return false;
+    inFlightRef.current = true;
     setOtpLoading(true);
     setOtpError(null);
     setSendStatus('idle');
@@ -257,6 +265,7 @@ export function useLandlordOtp() {
       setSendStatus('failed');
       return false;
     } finally {
+      inFlightRef.current = false;
       setOtpLoading(false);
     }
   }, [challengeId, startCooldown, cooldownSeconds, otpLoading]);
@@ -302,6 +311,7 @@ export function useLandlordOtp() {
     setVerifiedPhone(null);
     setSendStatus('idle');
     pollTokenRef.current += 1;
+    inFlightRef.current = false;
     setCooldownSeconds(0);
     cooldownUntilRef.current = 0;
     setChallengeId(null);
