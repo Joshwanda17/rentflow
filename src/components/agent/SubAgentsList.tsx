@@ -198,7 +198,6 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
       console.error('Error fetching sub-agents:', error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [user, onSummary, dateFrom, dateTo]);
 
