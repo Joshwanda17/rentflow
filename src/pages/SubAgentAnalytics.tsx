@@ -62,6 +62,10 @@ interface SubAgent {
   tenantsCount: number;
   monthlyEarnings: { month: string; amount: number }[];
   tenants: { id: string; name: string; totalRepaid: number }[];
+  facilitatedRentVolume: number;
+  accessedFunds: number;
+  platformRewards: number;
+  serviceFees: number;
 }
 
 interface MonthlyData {
