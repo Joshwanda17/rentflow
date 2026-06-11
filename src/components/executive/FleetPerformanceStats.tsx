@@ -134,6 +134,7 @@ async function fetchAgentNames(agentIds: string[]): Promise<Record<string, strin
 
 export function FleetPerformanceStats() {
   const [period, setPeriod] = useState<PeriodKey>('today');
+  const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
   const { start, end, days } = useMemo(() => resolvePeriod(period), [period]);
 
   const { data: expectedByAgent = {}, isLoading: expLoading } = useQuery({
@@ -160,7 +161,7 @@ export function FleetPerformanceStats() {
     staleTime: 5 * 60_000,
   });
 
-  const rows = useMemo(() => {
+  const rawRows = useMemo(() => {
     return agentIds
       .map((id) => {
         const expected = (expectedByAgent[id] || 0) * days;
@@ -168,9 +169,20 @@ export function FleetPerformanceStats() {
         const rate = expected > 0 ? Math.min(100, Math.round((collected / expected) * 100)) : 0;
         return { id, name: names[id] || id.slice(0, 8), expected, collected, rate };
       })
-      .filter((r) => r.expected > 0 || r.collected > 0)
-      .sort((a, b) => b.collected - a.collected);
+      .filter((r) => r.expected > 0 || r.collected > 0);
   }, [agentIds, expectedByAgent, collectedByAgent, names, days]);
+
+  const rows = useMemo(() => {
+    const { key, dir } = sort;
+    const sorted = [...rawRows].sort((a, b) => {
+      let cmp = 0;
+      if (key === 'expected') cmp = a.expected - b.expected;
+      else if (key === 'collected') cmp = a.collected - b.collected;
+      else cmp = a.rate - b.rate;
+      return dir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [rawRows, sort]);
 
   const loading = expLoading || colLoading;
   const totalExpected = rows.reduce((s, r) => s + r.expected, 0);
