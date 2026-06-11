@@ -384,6 +384,8 @@ export function FleetPerformanceStats() {
   // Stable key fragment so custom-range queries refetch when the range changes.
   const rangeKey = period === 'custom' ? `custom:${start.toISOString()}:${end.toISOString()}` : period;
 
+  const granularity = granularityFor(days);
+
   const { data: expectedByAgent = {}, isLoading: expLoading } = useQuery({
     queryKey: ['fleet-perf-expected-by-agent'],
     queryFn: fetchExpectedDailyByAgent,
@@ -396,9 +398,9 @@ export function FleetPerformanceStats() {
     staleTime: 30_000,
   });
 
-  const { data: collectedByDay = {} } = useQuery({
-    queryKey: ['fleet-perf-collected-by-day', rangeKey],
-    queryFn: () => fetchCollectedByDay(start, end),
+  const { data: collectedBuckets = {} } = useQuery({
+    queryKey: ['fleet-perf-collected-buckets', rangeKey, granularity],
+    queryFn: () => fetchCollectedBuckets(start, end, granularity),
     staleTime: 30_000,
   });
 
