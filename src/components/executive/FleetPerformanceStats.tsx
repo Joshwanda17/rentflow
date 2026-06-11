@@ -334,11 +334,41 @@ async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranular
 }
 
 export function FleetPerformanceStats() {
-  const [period, setPeriod] = useState<PeriodKey>('today');
+  // Restore last-used range from localStorage.
+  const restored = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { period?: PeriodKey; from?: string; to?: string };
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const [period, setPeriod] = useState<PeriodKey>(restored?.period || 'today');
   const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
   const [search, setSearch] = useState('');
-  const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(
+    restored?.from
+      ? { from: new Date(restored.from), to: restored.to ? new Date(restored.to) : undefined }
+      : undefined,
+  );
   const [rangeOpen, setRangeOpen] = useState(false);
+
+  // Persist the selected range whenever it changes.
+  useEffect(() => {
+    try {
+      const payload: { period: PeriodKey; from?: string; to?: string } = { period };
+      if (period === 'custom' && customRange?.from) {
+        payload.from = customRange.from.toISOString();
+        if (customRange.to) payload.to = customRange.to.toISOString();
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      /* ignore storage failures */
+    }
+  }, [period, customRange]);
 
   const { start, end, days } = useMemo(() => {
     if (period === 'custom' && customRange?.from) {
