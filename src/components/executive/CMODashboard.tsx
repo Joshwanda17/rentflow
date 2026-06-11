@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange, Trophy } from 'lucide-react';
+import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange, Trophy, LogIn, ShieldCheck, ShieldAlert, UserX } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfDay, endOfDay, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
