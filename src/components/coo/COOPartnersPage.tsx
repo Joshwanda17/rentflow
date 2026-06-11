@@ -2930,6 +2930,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 onChange={e => setAddPortfolioAmount(e.target.value)}
                 placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
               />
+              <p className="text-xs text-muted-foreground">
+                Minimum investment is UGX 1,000. If you enter less, the submit button will be disabled and you won't be able to proceed.
+              </p>
               <div className="flex gap-2 flex-wrap">
                 {[500000, 1000000, 2000000, 5000000, 10000000].map(a => (
                   <Button key={a} variant="outline" size="sm" className="text-xs h-7"
@@ -3024,6 +3027,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 <Label>Investment Amount (UGX)</Label>
                 <Input type="number" min={MIN_INVEST} max={investPartner.walletBalance} value={investAmount}
                   onChange={e => setInvestAmount(e.target.value)} placeholder={`Min ${MIN_INVEST.toLocaleString()}`} />
+                <p className="text-xs text-muted-foreground">
+                  Minimum investment is UGX 1,000. If you enter less, the submit button will be disabled and you won't be able to proceed.
+                </p>
                 <div className="flex gap-2 flex-wrap">
                   {[1000, 5000, 10000, 50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
                     <Button key={a} variant="outline" size="sm" className="text-xs h-7" onClick={() => setInvestAmount(String(a))}>{(a / 1000).toFixed(0)}K</Button>

@@ -475,6 +475,9 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                 onChange={(e) => setAmount(e.target.value)}
                 min={1000}
               />
+              <p className="text-xs text-muted-foreground">
+                Minimum investment is UGX 1,000. If you enter less, the submit button will be disabled and you won't be able to proceed.
+              </p>
               {parsedAmount > agentBalance && (
                 <p className="text-xs text-destructive">Exceeds your wallet balance</p>
               )}

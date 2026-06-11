@@ -2963,13 +2963,16 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
           <Label className="text-[10px]">From Wallet (UGX) *</Label>
           <Input
             type="number"
-            min={50000}
+            min={1000}
             max={balance ?? undefined}
             value={form.investment_amount}
             onChange={e => set('investment_amount', e.target.value)}
             disabled={balanceLoading}
             className="h-8 text-xs"
           />
+          <p className="text-[10px] text-muted-foreground">
+            Minimum investment is UGX 1,000. If you enter less, the submit button will be disabled and you won't be able to proceed.
+          </p>
         </div>
         <div className="space-y-1">
           <Label className="text-[10px]">ROI %</Label>

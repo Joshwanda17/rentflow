@@ -502,6 +502,9 @@ export default function ActivePartnersDetail() {
                   onChange={(e) => setInvestAmount(e.target.value)}
                   placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Minimum investment is UGX 1,000. If you enter less, the submit button will be disabled and you won't be able to proceed.
+                </p>
                 <div className="flex gap-2 flex-wrap">
                   {[1000, 5000, 10000, 50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
                     <Button key={a} variant="outline" size="sm" className="text-xs h-7"
