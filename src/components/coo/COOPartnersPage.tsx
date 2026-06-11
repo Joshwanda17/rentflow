@@ -2547,6 +2547,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   </Badge>
                                 </div>
                               )}
+                              {pendingTopUps[p.id] && (
+                                <p className="text-[9px] text-muted-foreground mb-1.5 pl-0.5">
+                                  Auto-submits for verification at 6:00 PM daily
+                                </p>
+                              )}
                               {awaitingVerification[p.id] && (
                                 <div className="flex items-center gap-1.5 mb-2.5">
                                   <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-blue-500/40 text-blue-600 bg-blue-500/5">
