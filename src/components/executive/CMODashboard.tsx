@@ -36,10 +36,12 @@ export function CMODashboard() {
   const [startMonth, setStartMonth] = useState(format(subMonths(now, 5), 'yyyy-MM'));
   const [endMonth, setEndMonth] = useState(format(now, 'yyyy-MM'));
   const [referralStatus, setReferralStatus] = useState<ReferralStatus>('all');
+  const [referralDateFilter, setReferralDateFilter] = useState<ReferralDateFilter>('6months');
 
-  const start = startOfMonth(new Date(startMonth + '-01'));
-  const end = endOfMonth(new Date(endMonth + '-01'));
-  const months = eachMonthOfInterval({ start, end });
+  const customStart = startOfMonth(new Date(startMonth + '-01'));
+  const customEnd = endOfMonth(new Date(endMonth + '-01'));
+  const { start, end } = getDateBounds(referralDateFilter, customStart, customEnd);
+  const months = eachMonthOfInterval({ start: customStart, end: customEnd });
 
   const { data: signupTrend, isLoading } = useQuery({
     queryKey: ['exec-signup-trend', startMonth, endMonth],
