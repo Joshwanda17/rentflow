@@ -293,9 +293,23 @@ function dayKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Collected total per calendar day across the whole fleet within [start, end). */
-async function fetchCollectedByDay(start: Date, end: Date): Promise<Record<string, number>> {
-  const byDay: Record<string, number> = {};
+/** Local hour bucket key, e.g. 2026-06-11T14. */
+function hourKey(d: Date) {
+  return `${dayKey(d)}T${String(d.getHours()).padStart(2, '0')}`;
+}
+
+/** Local month bucket key, e.g. 2026-06. */
+function monthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function bucketKeyFor(d: Date, gran: TrendGranularity) {
+  return gran === 'hour' ? hourKey(d) : gran === 'month' ? monthKey(d) : dayKey(d);
+}
+
+/** Collected total per time bucket (hour/day/month) across the whole fleet within [start, end). */
+async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranularity): Promise<Record<string, number>> {
+  const byBucket: Record<string, number> = {};
   const PAGE = 1000;
   let from = 0;
   // eslint-disable-next-line no-constant-condition
@@ -306,17 +320,17 @@ async function fetchCollectedByDay(start: Date, end: Date): Promise<Record<strin
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
       .range(from, from + PAGE - 1);
-    if (error) { console.error('[FleetPerformanceStats] daily repayments page failed', error); break; }
+    if (error) { console.error('[FleetPerformanceStats] bucket repayments page failed', error); break; }
     const rows = data || [];
     rows.forEach((r: any) => {
       if (!r.created_at) return;
-      const k = dayKey(new Date(r.created_at));
-      byDay[k] = (byDay[k] || 0) + (Number(r.amount) || 0);
+      const k = bucketKeyFor(new Date(r.created_at), gran);
+      byBucket[k] = (byBucket[k] || 0) + (Number(r.amount) || 0);
     });
     if (rows.length < PAGE) break;
     from += PAGE;
   }
-  return byDay;
+  return byBucket;
 }
 
 export function FleetPerformanceStats() {
