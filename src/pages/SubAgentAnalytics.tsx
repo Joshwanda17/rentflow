@@ -262,6 +262,19 @@ export default function SubAgentAnalytics() {
         }
       }
 
+      // Pre-compute aggregates from batched queries
+      const platformRewardsPerSubAgent: Record<string, number> = {};
+      (ownEarnings || []).forEach(e => {
+        const id = e.agent_id as string;
+        platformRewardsPerSubAgent[id] = (platformRewardsPerSubAgent[id] || 0) + Number(e.amount || 0);
+      });
+
+      const accessedFundsPerSubAgent: Record<string, number> = {};
+      (advances || []).forEach(a => {
+        const id = a.agent_id as string;
+        accessedFundsPerSubAgent[id] = (accessedFundsPerSubAgent[id] || 0) + Number(a.principal || 0);
+      });
+
       // Build enriched sub-agents data
       const enrichedSubAgents: SubAgent[] = subAgentsData.map(sa => {
         const monthlyEarnings = Object.entries(monthlyEarningsPerSubAgent[sa.sub_agent_id] || {})
@@ -275,6 +288,10 @@ export default function SubAgentAnalytics() {
           tenantsCount: tenantsData[sa.sub_agent_id]?.length || 0,
           monthlyEarnings,
           tenants: tenantsData[sa.sub_agent_id] || [],
+          facilitatedRentVolume: rentVolumePerSubAgent[sa.sub_agent_id] || 0,
+          accessedFunds: accessedFundsPerSubAgent[sa.sub_agent_id] || 0,
+          platformRewards: platformRewardsPerSubAgent[sa.sub_agent_id] || 0,
+          serviceFees: serviceFeesPerSubAgent[sa.sub_agent_id] || 0,
         };
       });
 
