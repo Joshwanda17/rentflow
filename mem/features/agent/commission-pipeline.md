@@ -35,3 +35,11 @@ Then POST once to `auto-charge-wallets` to drain backlog (idempotent per `next_c
 ## 2026-05-11 incident
 
 All three crons `active=false`. 6 active subscriptions stuck at `next_charge_date=2026-04-16` (~25 days). Platform-wide commission produced since 2026-04-01: 2 rows / 3,000 UGX. Re-enabled + drained: 6 charges processed, 387,563 UGX catch-up debt accrued.
+
+## Sub-agent recruiter override on float allocations (2026-06-11)
+
+`agent_allocate_tenant_payment` (5-arg overload — the one called by `AgentTenantCollectDialog` and `submit-offline-collection`) now mirrors the auto-charge recruiter split:
+- If the allocating agent (`p_agent_id`) is a sub-agent (row in `agent_subagents` with `sub_agent_id = p_agent_id`, status in verified/approved/accepted), the sub-agent earns **8%** (`round(p_amount*0.08)`) and the **parent_agent_id** (recruiter) earns the remaining **2%** override.
+- Non-sub-agents keep the full **10%**.
+- Platform always pays the full 10% via one `agent_commission_payable` platform leg; the recruiter leg is an extra `agent_commission_earned` wallet leg (recipient_type=user → withdrawable). Double-entry stays balanced (8% + 2% in == 10% out).
+- Return jsonb now includes `parent_agent_id` and `parent_override`; `commission_earned` reflects the allocating agent's own share (8% when sub-agent).
