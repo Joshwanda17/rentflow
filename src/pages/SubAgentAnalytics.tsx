@@ -82,6 +82,7 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning
 
 export default function SubAgentAnalytics() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
@@ -105,6 +106,22 @@ export default function SubAgentAnalytics() {
       fetchCurrentGoal();
     }
   }, [user, authLoading, navigate]);
+
+  // Auto-open detail when ?id=xxx is present in URL
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id || subAgents.length === 0) return;
+    const match = subAgents.find(sa => sa.sub_agent_id === id);
+    if (match) setSelectedSubAgent(match);
+  }, [searchParams, subAgents]);
+
+  const closeDetail = () => {
+    setSelectedSubAgent(null);
+    // Clear the id param from URL so back/refresh doesn't reopen
+    const next = new URLSearchParams(searchParams);
+    next.delete('id');
+    setSearchParams(next, { replace: true });
+  };
 
   const fetchCurrentGoal = async () => {
     if (!user) return;
