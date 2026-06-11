@@ -288,6 +288,24 @@ export function FleetPerformanceStats() {
           Fleet performance · Expected vs Collected
         </p>
         <div className="flex items-center gap-1 flex-wrap">
+          <button
+            type="button"
+            onClick={() =>
+              shareAsPdf({
+                periodLabel: PERIODS.find((p) => p.key === period)?.label || '',
+                days,
+                totalExpected,
+                totalCollected,
+                rate,
+                rows,
+              })
+            }
+            disabled={loading || rows.length === 0}
+            className="h-7 px-2.5 rounded-lg text-[11px] font-semibold inline-flex items-center gap-1 bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-40"
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            Share PDF
+          </button>
           {PERIODS.map((p) => (
             <button
               key={p.key}
