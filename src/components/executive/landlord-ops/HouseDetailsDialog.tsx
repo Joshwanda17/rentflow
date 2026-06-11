@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Loader2, Home, MapPin, User, UserCog, Building2, Droplet, Zap, Shield, Car, Sofa,
   Calendar, Hash, EyeOff, CheckCircle2, Image as ImageIcon, Phone, Tag, ZoomIn,
-  ChevronLeft, ChevronRight, X,
+  ChevronLeft, ChevronRight, X, Share2, MessageCircle, Copy,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ImageZoomLightbox } from './ImageZoomLightbox';
@@ -42,12 +42,25 @@ export function HouseDetailsDialog({ houseId, onOpenChange }: Props) {
           profiles[p.id] = { name: p.full_name || 'Unnamed', phone: p.phone ?? null };
         }
       }
-      return { house, profiles };
+      // Share analytics for this listing
+      const { data: shareRows } = await supabase
+        .from('house_share_events')
+        .select('share_method')
+        .eq('listing_id', houseId!);
+      const shares = { total: 0, native: 0, whatsapp: 0, copy: 0 };
+      for (const r of (shareRows ?? []) as Array<{ share_method: string }>) {
+        shares.total += 1;
+        if (r.share_method === 'native') shares.native += 1;
+        else if (r.share_method === 'whatsapp') shares.whatsapp += 1;
+        else if (r.share_method === 'copy') shares.copy += 1;
+      }
+      return { house, profiles, shares };
     },
   });
 
   const house: any = data?.house;
   const profs = data?.profiles ?? {};
+  const shares = data?.shares ?? { total: 0, native: 0, whatsapp: 0, copy: 0 };
   const agent = house?.agent_id ? profs[house.agent_id] : null;
   const landlord = house?.landlord_id ? profs[house.landlord_id] : null;
   const tenant = house?.tenant_id ? profs[house.tenant_id] : null;
@@ -226,6 +239,22 @@ export function HouseDetailsDialog({ houseId, onOpenChange }: Props) {
               <Row k="Listed on" v={new Date(house.created_at).toLocaleString()} />
               {house.updated_at && <Row k="Last updated" v={new Date(house.updated_at).toLocaleString()} />}
               <Row k="Listing ID" v={<code className="text-[10px]">{house.id}</code>} />
+            </Section>
+
+            {/* Sharing */}
+            <Section title="Sharing" icon={Share2}>
+              <Row k="Total shares" v={<strong>{shares.total.toLocaleString()}</strong>} />
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <Badge variant="outline" className="gap-1 text-[10px]">
+                  <Share2 className="h-3 w-3" /> Native {shares.native}
+                </Badge>
+                <Badge variant="outline" className="gap-1 text-[10px]">
+                  <MessageCircle className="h-3 w-3" /> WhatsApp {shares.whatsapp}
+                </Badge>
+                <Badge variant="outline" className="gap-1 text-[10px]">
+                  <Copy className="h-3 w-3" /> Copy link {shares.copy}
+                </Badge>
+              </div>
             </Section>
           </div>
         )}

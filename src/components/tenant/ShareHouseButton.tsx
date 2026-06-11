@@ -3,6 +3,7 @@ import { Share2, Check, Copy, MessageCircle } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
+import { supabase } from '@/integrations/supabase/client';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = `https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house`;
@@ -26,6 +27,21 @@ interface ShareHouseButtonProps {
 export function ShareHouseButton({ listingId, title, region, dailyRate, shortCode, address, monthlyRent, rooms, category, variant = 'icon', mode = 'share' }: ShareHouseButtonProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+
+  // Fire-and-forget share analytics — never blocks or breaks the share UX
+  const trackShare = (shareMethod: 'native' | 'whatsapp' | 'copy') => {
+    void (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from('house_share_events').insert({
+          listing_id: listingId,
+          share_method: shareMethod,
+          short_code: shortCode ?? null,
+          user_id: user?.id ?? null,
+        });
+      } catch { /* analytics is best-effort */ }
+    })();
+  };
 
   // OG link goes through edge function for rich previews (image in WhatsApp), then redirects to app
   const ogUrl = shortCode
@@ -62,6 +78,7 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
       setCopied(true);
       toast({ title: 'Link copied!', description: 'Paste it on WhatsApp or anywhere to share.' });
       setTimeout(() => setCopied(false), 2000);
+      trackShare('copy');
     } catch {
       toast({ title: 'Could not copy', variant: 'destructive' });
     }
@@ -70,6 +87,7 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
   const handleWhatsApp = (e: React.MouseEvent) => {
     e.stopPropagation();
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    trackShare('whatsapp');
   };
 
   const handleShareOnWhatsApp = async (e: React.MouseEvent) => {
@@ -84,6 +102,7 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
       toast({ title: 'Could not copy link', variant: 'destructive' });
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    trackShare('whatsapp');
   };
 
   const handleNativeShare = async (e: React.MouseEvent) => {
@@ -91,6 +110,7 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
     if (navigator.share) {
       try {
         await navigator.share({ title: `${title} — Welile`, text: message, url: shareUrl });
+        trackShare('native');
       } catch {}
     } else {
       handleCopyLink(e);
