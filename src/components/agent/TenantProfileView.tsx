@@ -633,38 +633,14 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     }
     setRenewing(true);
     try {
-      const fees = calculateRentRepayment(req.rent_amount, req.duration_days);
-      const { data, error } = await supabase
-        .from('rent_requests')
-        .insert({
-          tenant_id: profile.id,
-          agent_id: user.id,
-          landlord_id: req.landlord_id,
-          lc1_id: req.lc1_id ?? null,
-          rent_amount: fees.rentAmount,
-          duration_days: fees.durationDays,
-          access_fee: fees.accessFee,
-          request_fee: fees.requestFee,
-          total_repayment: fees.totalRepayment,
-          daily_repayment: fees.dailyRepayment,
-          status: 'pending',
-          house_category: req.house_category ?? req.landlord?.house_category ?? null,
-          tenant_no_smartphone: req.tenant_no_smartphone ?? false,
-          request_latitude: req.request_latitude ?? null,
-          request_longitude: req.request_longitude ?? null,
-          // Agent acts as guarantor on every posted rent request (matches the
-          // primary rent-request flow). Without this the post can be rejected
-          // downstream and the renew appears to do nothing.
-          agent_guarantor_consent: true,
-          agent_guarantor_consent_at: new Date().toISOString(),
-          agent_guarantor_consent_version: 'v1',
-        } as any)
-        // `.select()` forces RLS / trigger rejections to surface as an error
-        // (and returns the new row) instead of silently inserting nothing.
-        .select('id')
-        .single();
+      // One atomic call. The RPC re-posts the prior plan server-side, bypasses
+      // the daily-eligibility gate (renewals of fully-repaid tenants are exempt)
+      // and lets the rent-formula trigger fill in the canonical fees. Any guard
+      // failure surfaces as a real error instead of a silent no-op.
+      const { data: newId, error } = await supabase
+        .rpc('renew_rent_request', { p_prev_request_id: req.id });
       if (error) throw error;
-      if (!data?.id) throw new Error('The rent request could not be posted. Please try again.');
+      if (!newId) throw new Error('The rent request could not be posted. Please try again.');
       toast({ title: 'Rent request renewed ✅', description: `Posted for ${profile.full_name}` });
       loadFullProfile();
     } catch (err: any) {
