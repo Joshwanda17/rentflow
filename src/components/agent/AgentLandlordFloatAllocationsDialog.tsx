@@ -140,11 +140,23 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
                     <p className="text-sm font-medium text-foreground">No landlord matches “{search}”</p>
                     <p className="text-xs mt-1">Try a different name or clear the search.</p>
                   </div>
-                ) : filtered.map((a) => (
+                ) : filtered.map((a) => {
+                  const lockExpiry = locks[allocationLockKey(a)] ?? 0;
+                  const remainingMs = Math.max(0, lockExpiry - now);
+                  const isLocked = remainingMs > 0;
+                  const mins = Math.floor(remainingMs / 60000);
+                  const secs = Math.floor((remainingMs % 60000) / 1000);
+                  return (
                   <button
                     key={a.id}
-                    onClick={() => onSelectAllocation(a)}
-                    className="w-full text-left p-3 rounded-xl border-2 border-border bg-card hover:border-[#9234EA]/40 hover:bg-[#9234EA]/5 transition-colors active:scale-[0.99] touch-manipulation"
+                    onClick={() => handleSelect(a)}
+                    disabled={isLocked}
+                    aria-disabled={isLocked}
+                    className={`w-full text-left p-3 rounded-xl border-2 transition-colors touch-manipulation ${
+                      isLocked
+                        ? 'border-border bg-muted/40 opacity-60 cursor-not-allowed'
+                        : 'border-border bg-card hover:border-[#9234EA]/40 hover:bg-[#9234EA]/5 active:scale-[0.99]'
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1 min-w-0">
@@ -177,12 +189,22 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
                         )}
                       </div>
                       <div className="flex items-center gap-1 text-xs font-semibold text-[#9234EA]">
-                        Withdraw
-                        <ArrowRight className="h-4 w-4" />
+                        {isLocked ? (
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Lock className="h-3.5 w-3.5" />
+                            {mins}:{secs.toString().padStart(2, '0')}
+                          </span>
+                        ) : (
+                          <>
+                            Withdraw
+                            <ArrowRight className="h-4 w-4" />
+                          </>
+                        )}
                       </div>
                     </div>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </ScrollArea>
           </div>
