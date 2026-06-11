@@ -8039,6 +8039,33 @@ export type Database = {
           },
         ]
       }
+      house_share_events: {
+        Row: {
+          created_at: string
+          id: string
+          listing_id: string
+          share_method: string
+          short_code: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          listing_id: string
+          share_method: string
+          short_code?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          listing_id?: string
+          share_method?: string
+          short_code?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       infrastructure_settings: {
         Row: {
           current_instance: string
