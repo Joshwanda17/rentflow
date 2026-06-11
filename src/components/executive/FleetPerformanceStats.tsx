@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
-import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search, Share2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown,
+  Search, Share2, ChevronDown, ChevronLeft, ChevronRight, X,
+} from 'lucide-react';
 import { CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
@@ -732,6 +735,28 @@ export function FleetPerformanceStats() {
           <p className="mt-1.5 text-[10px] text-muted-foreground tabular-nums">
             {formatUGX(totalCollected)} collected of {formatUGX(totalExpected)} expected ({days} day{days === 1 ? '' : 's'} · {rows.length} agent{rows.length === 1 ? '' : 's'})
           </p>
+
+          {/* Search — placed prominently under summary stats */}
+          <div className="mt-3 relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search agent name or ID…"
+              className="w-full h-8 pl-8 pr-8 rounded-lg border border-border bg-background text-[11px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-5 w-5 rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
 
           {/* Collection trend: collected per day vs expected daily target */}
           {trendData.length > 1 && (
