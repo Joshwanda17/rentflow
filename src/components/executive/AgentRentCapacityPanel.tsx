@@ -19,6 +19,7 @@ import {
 } from '@/lib/generateAgentCapacityPdf';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
 import { AgentEligibilityHistoryStrip } from './AgentEligibilityHistoryStrip';
+import { FleetPerformanceStats } from './FleetPerformanceStats';
 
 type AgentRow = {
   agent_id: string;
@@ -379,6 +380,8 @@ export function AgentRentCapacityPanel({
             />
           </div>
         )}
+
+        {!compact && <FleetPerformanceStats />}
       </div>
 
       <div className="p-3 sm:p-4 space-y-3">
