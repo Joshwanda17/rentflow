@@ -580,6 +580,20 @@ export function FleetPerformanceStats() {
       : granularity === 'month' ? 'Collection trend · monthly flow vs target'
       : 'Collection trend · daily flow vs target';
 
+  const granLabel = granularity === 'hour' ? 'Hour' : granularity === 'month' ? 'Month' : 'Day';
+  const trendRangeLabel = (() => {
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    const lastDay = new Date(end.getTime() - 1);
+    return days <= 1 ? fmt(start) : `${fmt(start)} – ${fmt(lastDay)}`;
+  })();
+  const exportTrendPdf = () =>
+    shareTrendAsPdf({
+      periodLabel: period === 'custom' ? 'Custom range' : PERIODS.find((p) => p.key === period)?.label || '',
+      granLabel,
+      rangeLabel: trendRangeLabel,
+      rows: trendData,
+    });
+
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
       <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
