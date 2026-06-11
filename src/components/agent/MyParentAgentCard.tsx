@@ -2,10 +2,21 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { UserAvatar } from '@/components/UserAvatar';
-import { UsersRound } from 'lucide-react';
+import { UsersRound, Clock } from 'lucide-react';
 
 interface MyParentAgentCardProps {
   agentId: string;
+}
+
+function fmtInviteDate(iso: string | null | undefined) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return (
+    d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) +
+    ' · ' +
+    d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  );
 }
 
 /**
@@ -37,6 +48,7 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
         parentId: link.parent_agent_id,
         status: link.status as string,
         acceptedAt: link.accepted_at as string | null,
+        createdAt: link.created_at as string | null,
         fullName: (profile?.full_name as string) || 'Your agent',
         avatarUrl: (profile?.avatar_url as string) || null,
         phone: (profile?.phone as string) || null,
@@ -45,6 +57,8 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
   });
 
   if (isLoading || !data) return null;
+
+  const inviteDateLabel = fmtInviteDate(data.createdAt);
 
   return (
     <Card className="border border-primary/20 bg-primary/[0.03]">
@@ -61,6 +75,14 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
           <p className="font-semibold text-foreground truncate">{data.fullName}</p>
           {data.phone && (
             <p className="text-xs text-muted-foreground truncate">{data.phone}</p>
+          )}
+          {inviteDateLabel && (
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+              <Clock className="h-3 w-3" />
+              {data.status === 'approved' || data.status === 'verified'
+                ? `Recruited on ${inviteDateLabel}`
+                : `Invited on ${inviteDateLabel}`}
+            </p>
           )}
         </div>
         <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-primary/10 text-primary capitalize shrink-0">
