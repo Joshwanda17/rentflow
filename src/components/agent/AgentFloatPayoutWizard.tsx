@@ -60,6 +60,11 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
   const autoSendRef = useRef<string | null>(null);
   const allocationPrepRef = useRef<string | null>(null);
+  // Landlords this agent has already sent an OTP to in this session. Once an
+  // OTP is sent for a landlord we lock the button so a repeat tap can never
+  // fire a second SMS to the same person.
+  const sentLandlordsRef = useRef<Set<string>>(new Set());
+  const [, forceLockRender] = useState(0);
 
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -181,6 +186,18 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     }
     if (!user || !selectedRequest) return;
 
+    // Hard per-landlord lock — reserve synchronously BEFORE any await so two
+    // rapid taps (or auto-send racing a manual tap) cannot both reach the SMS.
+    const landlordKey = String(selectedRequest.landlord_id);
+    if (sentLandlordsRef.current.has(landlordKey)) {
+      if (source === 'manual') {
+        toast.info('OTP already sent to this landlord — ask them for the code or use Resend.');
+      }
+      return;
+    }
+    sentLandlordsRef.current.add(landlordKey);
+    forceLockRender((n) => n + 1);
+
     // Capture GPS for the challenge payload
     const loc = await geo.captureLocation().catch(() => null);
     const r = selectedRequest;
@@ -210,6 +227,10 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     if (challengeId) {
       setResendCooldown(60);
       toast.success(source === 'auto' ? 'OTP auto-sent to landlord\'s phone' : 'OTP sent to landlord\'s phone');
+    } else {
+      // Send failed — release the lock so the agent can legitimately retry.
+      sentLandlordsRef.current.delete(landlordKey);
+      forceLockRender((n) => n + 1);
     }
   };
 
@@ -223,6 +244,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     if (landlordOtp.otpSent || landlordOtp.otpLoading) return;
     if (landlordOtp.cooldownSeconds > 0) return;
     if (!phoneValid || !amountValid) return;
+    if (sentLandlordsRef.current.has(String(selectedRequest.landlord_id))) return;
     autoSendRef.current = selectedRequest.id;
     void handleSendOtp('auto');
     // eslint-disable-next-line react-hooks/exhaustive-deps
