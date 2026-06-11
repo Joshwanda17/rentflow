@@ -18739,6 +18739,7 @@ export type Database = {
         Args: { p_category: string; p_recipient_type: string }
         Returns: undefined
       }
+      auto_apply_pending_topups: { Args: never; Returns: Json }
       auto_close_fully_repaid_rents: {
         Args: never
         Returns: {
