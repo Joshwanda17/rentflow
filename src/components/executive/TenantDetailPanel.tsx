@@ -120,14 +120,17 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
   const profile = data?.profile;
   const requests = data?.requests || [];
-  // For outstanding_balance registrations, the true obligation is total_repayment (not rent_amount, which is the property's monthly rent kept for context).
+  // The true obligation is total_repayment (rent + Welile fees), since amount_repaid
+  // is tracked against that same total. rent_amount is only the property's monthly rent
+  // kept for context and would understate the obligation, producing negative outstanding.
   const obligationFor = (r: any) =>
-    r.registration_type === 'outstanding_balance'
+    Number(r.total_repayment || 0) > 0
       ? Number(r.total_repayment || 0)
       : Number(r.rent_amount || 0);
   const totalRent = requests.reduce((s, r) => s + obligationFor(r), 0);
   const totalRepaid = requests.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
-  const outstandingTotal = totalRent - totalRepaid;
+  // Clamp at 0 — a fully-repaid tenant can never owe a negative amount.
+  const outstandingTotal = Math.max(0, totalRent - totalRepaid);
 
   // Inline editing on the Outstanding card targets any single active rent request,
   // regardless of registration_type. When the tenant has multiple requests, edit
