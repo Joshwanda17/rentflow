@@ -2971,7 +2971,7 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
             className="h-8 text-xs"
           />
           <p className="text-[10px] text-muted-foreground">
-            Allowed range: UGX 1,000 – UGX 50,000,000. Amounts below the minimum will disable submission.
+            Allowed range: UGX 1,000 – UGX 500,000,000. Amounts below the minimum will disable submission.
           </p>
         </div>
         <div className="space-y-1">
