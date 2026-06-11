@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
 import { Input } from '@/components/ui/input';
-import { investHelperRange, isInvestAmountValid } from '@/lib/partnershipInvestment';
+import { MAX_INVEST, investHelperRange, isInvestAmountValid } from '@/lib/partnershipInvestment';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -2864,8 +2864,8 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
       toast({ title: 'Investment must be at least UGX 1,000', variant: 'destructive' });
       return;
     }
-    if (amt > 500000000) {
-      toast({ title: 'Investment must not exceed UGX 500,000,000', variant: 'destructive' });
+    if (amt > MAX_INVEST) {
+      toast({ title: `Investment must not exceed UGX ${MAX_INVEST.toLocaleString('en-US')}`, variant: 'destructive' });
       return;
     }
     if (balance === null) {
