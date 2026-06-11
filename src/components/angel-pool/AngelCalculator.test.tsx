@@ -63,15 +63,16 @@ describe('AngelCalculator USD/UGX toggle (US$5 = UGX 20,000)', () => {
   it('keeps the future-value estimate equivalent across currencies', () => {
     render(<AngelCalculator />);
 
-    // 0.01% company ownership at $5B = $500K = UGX 2B.
+    // Full pool (25,000 shares = 8% company) at $5B valuation.
+    // 8% * $5B = $400M → * 4,000 UGX/US$1 = UGX 1,600B.
     fireEvent.change(getAmountInput(), { target: { value: '500,000,000' } });
     fireEvent.click(screen.getByRole('button', { name: '$5B' }));
 
     // UGX view.
-    expect(screen.getByText('UGX 2.0B')).toBeInTheDocument();
+    expect(screen.getByText('UGX 1600.0B')).toBeInTheDocument();
 
     // USD view — the same estimate in dollars (4,000 UGX per US$1).
     fireEvent.click(screen.getByRole('button', { name: 'USD' }));
-    expect(screen.getByText('US$500.0K')).toBeInTheDocument();
+    expect(screen.getByText('US$400.0M')).toBeInTheDocument();
   });
 });
