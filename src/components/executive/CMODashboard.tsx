@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange, Trophy } from 'lucide-react';
+import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange, Trophy, LogIn, ShieldCheck, ShieldAlert, UserX } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfDay, endOfDay, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -116,6 +116,54 @@ export function CMODashboard() {
     staleTime: 600000,
   });
 
+  // Login / authentication metrics (sourced from the OTP login audit, the active login channel)
+  const { data: loginStats } = useQuery({
+    queryKey: ['exec-login-stats', startMonth, endMonth, referralDateFilter],
+    queryFn: async () => {
+      const rangeFilter = (q: any) =>
+        q.gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
+
+      const counter = (outcome?: string) => {
+        let q = supabase.from('otp_login_audit').select('*', { count: 'exact', head: true });
+        if (outcome) q = q.eq('outcome', outcome);
+        return rangeFilter(q);
+      };
+
+      const [{ count: attempts }, { count: success }, { count: failed }, { count: noAccount }] = await Promise.all([
+        counter(),
+        counter('success'),
+        counter('failed'),
+        counter('no_account'),
+      ]);
+
+      const byMonth: Record<string, { attempts: number; success: number; failed: number }> = {};
+      for (const m of months) {
+        const s = startOfMonth(m);
+        const e = endOfMonth(m);
+        const monthQ = (outcome?: string) => {
+          let q = supabase.from('otp_login_audit').select('*', { count: 'exact', head: true });
+          if (outcome) q = q.eq('outcome', outcome);
+          return q.gte('created_at', s.toISOString()).lte('created_at', e.toISOString());
+        };
+        const [{ count: a }, { count: ok }, { count: f }] = await Promise.all([
+          monthQ(),
+          monthQ('success'),
+          monthQ('failed'),
+        ]);
+        byMonth[format(s, 'MMM yyyy')] = { attempts: a || 0, success: ok || 0, failed: f || 0 };
+      }
+
+      return {
+        attempts: attempts || 0,
+        success: success || 0,
+        failed: failed || 0,
+        noAccount: noAccount || 0,
+        byMonth,
+      };
+    },
+    staleTime: 600000,
+  });
+
   const totalSignups = (signupTrend || []).reduce((s, m) => s + m.signups, 0);
   const lastMonth = signupTrend?.[signupTrend.length - 1]?.signups || 0;
   const prevMonth = signupTrend?.[signupTrend.length - 2]?.signups || 1;
@@ -127,6 +175,16 @@ export function CMODashboard() {
     pending: referralStats?.byMonth[m.month]?.pending || 0,
     completed: referralStats?.byMonth[m.month]?.completed || 0,
   })) || [];
+
+  const loginTrend = months.map(m => {
+    const key = format(startOfMonth(m), 'MMM yyyy');
+    const v = loginStats?.byMonth[key];
+    return { month: key, success: v?.success || 0, failed: v?.failed || 0 };
+  });
+
+  const loginSuccessRate = loginStats && loginStats.attempts > 0
+    ? Math.round((loginStats.success / loginStats.attempts) * 100)
+    : 0;
 
   const referralTotalForStatus =
     referralStatus === 'pending'
@@ -339,6 +397,13 @@ export function CMODashboard() {
         <KPICard title="Completed Referrals" value={referralStats?.completedReferrals || 0} icon={BarChart3} color="bg-green-500/10 text-green-600" />
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <KPICard title="Successful Logins" value={(loginStats?.success || 0).toLocaleString()} icon={LogIn} color="bg-green-500/10 text-green-600" />
+        <KPICard title="Login Success Rate" value={`${loginSuccessRate}%`} icon={ShieldCheck} color="bg-emerald-500/10 text-emerald-600" />
+        <KPICard title="Failed Logins" value={(loginStats?.failed || 0).toLocaleString()} icon={ShieldAlert} color="bg-red-500/10 text-red-600" />
+        <KPICard title="No-Account Attempts" value={(loginStats?.noAccount || 0).toLocaleString()} icon={UserX} color="bg-amber-500/10 text-amber-600" />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Signup Growth</h3>
@@ -352,7 +417,27 @@ export function CMODashboard() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <LogIn className="w-4 h-4 text-primary" />
+            Login Activity
+          </h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={loginTrend}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="month" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="success" fill="#22c55e" radius={[4, 4, 0, 0]} name="Successful" />
+              <Bar dataKey="failed" fill="#ef4444" radius={[4, 4, 0, 0]} name="Failed" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Referral Performance</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={referralData}>
