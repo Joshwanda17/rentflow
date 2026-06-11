@@ -62,6 +62,10 @@ interface SubAgent {
   tenantsCount: number;
   monthlyEarnings: { month: string; amount: number }[];
   tenants: { id: string; name: string; totalRepaid: number }[];
+  facilitatedRentVolume: number;
+  accessedFunds: number;
+  platformRewards: number;
+  serviceFees: number;
 }
 
 interface MonthlyData {
@@ -172,20 +176,39 @@ export default function SubAgentAnalytics() {
         .eq('earning_type', 'subagent_commission')
         .order('created_at', { ascending: false });
 
+      // Fetch sub-agents' own earnings (platform rewards)
+      const { data: ownEarnings } = await supabase
+        .from('agent_earnings')
+        .select('agent_id, amount')
+        .in('agent_id', subAgentIds);
+
+      // Fetch business advances (accessed funds)
+      const { data: advances } = await supabase
+        .from('business_advances')
+        .select('agent_id, principal')
+        .in('agent_id', subAgentIds)
+        .in('status', ['active', 'completed', 'cfo_disbursed']);
+
       // Fetch tenants per sub-agent
       const tenantsData: Record<string, { id: string; name: string; totalRepaid: number }[]> = {};
       const earningsPerSubAgent: Record<string, number> = {};
       const monthlyEarningsPerSubAgent: Record<string, Record<string, number>> = {};
+      const rentVolumePerSubAgent: Record<string, number> = {};
+      const serviceFeesPerSubAgent: Record<string, number> = {};
 
       for (const subAgentId of subAgentIds) {
         // Get rent requests for this sub-agent's tenants
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id')
+          .select('tenant_id, total_repayment, request_fee')
           .eq('agent_id', subAgentId);
 
         const tenantIds = [...new Set(rentRequests?.map(rr => rr.tenant_id) || [])];
         
+        // Sum facilitated rent volume and service fees
+        rentVolumePerSubAgent[subAgentId] = (rentRequests || []).reduce((sum, rr) => sum + Number(rr.total_repayment || 0), 0);
+        serviceFeesPerSubAgent[subAgentId] = (rentRequests || []).reduce((sum, rr) => sum + Number(rr.request_fee || 0), 0);
+
         if (tenantIds.length > 0) {
           // Get tenant profiles
           const { data: tenantProfiles } = await supabase
@@ -239,6 +262,19 @@ export default function SubAgentAnalytics() {
         }
       }
 
+      // Pre-compute aggregates from batched queries
+      const platformRewardsPerSubAgent: Record<string, number> = {};
+      (ownEarnings || []).forEach(e => {
+        const id = e.agent_id as string;
+        platformRewardsPerSubAgent[id] = (platformRewardsPerSubAgent[id] || 0) + Number(e.amount || 0);
+      });
+
+      const accessedFundsPerSubAgent: Record<string, number> = {};
+      (advances || []).forEach(a => {
+        const id = a.agent_id as string;
+        accessedFundsPerSubAgent[id] = (accessedFundsPerSubAgent[id] || 0) + Number(a.principal || 0);
+      });
+
       // Build enriched sub-agents data
       const enrichedSubAgents: SubAgent[] = subAgentsData.map(sa => {
         const monthlyEarnings = Object.entries(monthlyEarningsPerSubAgent[sa.sub_agent_id] || {})
@@ -252,6 +288,10 @@ export default function SubAgentAnalytics() {
           tenantsCount: tenantsData[sa.sub_agent_id]?.length || 0,
           monthlyEarnings,
           tenants: tenantsData[sa.sub_agent_id] || [],
+          facilitatedRentVolume: rentVolumePerSubAgent[sa.sub_agent_id] || 0,
+          accessedFunds: accessedFundsPerSubAgent[sa.sub_agent_id] || 0,
+          platformRewards: platformRewardsPerSubAgent[sa.sub_agent_id] || 0,
+          serviceFees: serviceFeesPerSubAgent[sa.sub_agent_id] || 0,
         };
       });
 
@@ -677,20 +717,48 @@ export default function SubAgentAnalytics() {
             </div>
 
             <div className="p-4 space-y-4">
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-success/10 rounded-xl p-3 text-center">
-                  <p className="font-bold text-success">{formatUGX(selectedSubAgent.totalEarnings)}</p>
-                  <p className="text-xs text-muted-foreground">Your 1%</p>
+              {/* Primary KPI — Parent earnings from this sub-agent */}
+              <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-2xl p-5 text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                  Your Earnings from {selectedSubAgent.profile?.full_name?.split(' ')[0] || 'This Sub-Agent'}
+                </p>
+                <p className="text-3xl font-bold text-orange-600 mt-1">
+                  {formatUGX(selectedSubAgent.totalEarnings)}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  1% of all collections facilitated
+                </p>
+              </div>
+
+              {/* KPI Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-success/10 rounded-xl p-3 text-center border border-success/20">
+                  <p className="text-[11px] text-muted-foreground">Facilitated Rent Volume</p>
+                  <p className="font-bold text-success text-base mt-0.5">{formatUGX(selectedSubAgent.facilitatedRentVolume)}</p>
                 </div>
-                <div className="bg-primary/10 rounded-xl p-3 text-center">
-                  <p className="font-bold text-primary">{selectedSubAgent.tenantsCount}</p>
-                  <p className="text-xs text-muted-foreground">Tenants</p>
+                <div className="bg-primary/10 rounded-xl p-3 text-center border border-primary/20">
+                  <p className="text-[11px] text-muted-foreground">Accessed Funds</p>
+                  <p className="font-bold text-primary text-base mt-0.5">{formatUGX(selectedSubAgent.accessedFunds)}</p>
                 </div>
-                <div className="bg-muted rounded-xl p-3 text-center">
-                  <p className="font-bold">{format(new Date(selectedSubAgent.created_at), 'MMM yyyy')}</p>
-                  <p className="text-xs text-muted-foreground">Joined</p>
+                <div className="bg-warning/10 rounded-xl p-3 text-center border border-warning/20">
+                  <p className="text-[11px] text-muted-foreground">Platform Rewards</p>
+                  <p className="font-bold text-warning text-base mt-0.5">{formatUGX(selectedSubAgent.platformRewards)}</p>
                 </div>
+                <div className="bg-muted rounded-xl p-3 text-center border border-border">
+                  <p className="text-[11px] text-muted-foreground">Service Fees Generated</p>
+                  <p className="font-bold text-foreground text-base mt-0.5">{formatUGX(selectedSubAgent.serviceFees)}</p>
+                </div>
+              </div>
+
+              {/* Tenants & Joined mini row */}
+              <div className="flex items-center justify-between text-sm px-1">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-orange-500" />
+                  <span className="text-muted-foreground">{selectedSubAgent.tenantsCount} tenant{selectedSubAgent.tenantsCount !== 1 ? 's' : ''}</span>
+                </div>
+                <span className="text-muted-foreground text-xs">
+                  Joined {format(new Date(selectedSubAgent.created_at), 'MMM yyyy')}
+                </span>
               </div>
 
               {/* Monthly Earnings Chart */}
