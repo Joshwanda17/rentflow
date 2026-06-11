@@ -50,7 +50,7 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
     <Card className="border border-primary/20 bg-primary/[0.03]">
       <CardContent className="p-4 flex items-center gap-3">
         <UserAvatar
-          name={data.fullName}
+          fullName={data.fullName}
           avatarUrl={data.avatarUrl}
           className="h-11 w-11 shrink-0"
         />
