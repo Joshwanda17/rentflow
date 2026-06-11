@@ -683,7 +683,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Tab Navigation — sticky so it stays under the header and never collides with the fixed bottom role switcher */}
         <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background border-b border-border/40">
-          <AgentHubTabs active={activeTab} onChange={(tab) => { setSlideDirection(null); setActiveTab(tab); }} />
+          <AgentHubTabs
+            active={activeTab}
+            onChange={(tab) => {
+              // Tapping the "Sub Agents" icon opens the full team analytics page
+              // rather than the inline panel.
+              if (tab === 'subagents') { navigate('/sub-agents'); return; }
+              setSlideDirection(null);
+              setActiveTab(tab);
+            }}
+          />
         </div>
 
         {/* Screen-reader live region announces the active hub tab after a swipe gesture */}
