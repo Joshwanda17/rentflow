@@ -614,7 +614,12 @@ export default function SubAgentAnalytics() {
                 {subAgents.map((subAgent) => (
                   <button
                     key={subAgent.id}
-                    onClick={() => setSelectedSubAgent(subAgent)}
+                    onClick={() => {
+                      setSelectedSubAgent(subAgent);
+                      const next = new URLSearchParams(searchParams);
+                      next.set('id', subAgent.sub_agent_id);
+                      setSearchParams(next, { replace: true });
+                    }}
                     className="w-full flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
