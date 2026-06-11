@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
         verified_by: user.id,
         verified_at: nowIso,
         accepted_at: nowIso,
+        expires_at: null,
       })
       .eq("id", link.id);
     if (updErr) return json({ error: updErr.message }, 500);

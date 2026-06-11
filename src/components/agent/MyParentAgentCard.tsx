@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { UserAvatar } from '@/components/UserAvatar';
-import { UsersRound, Clock } from 'lucide-react';
+import { UsersRound, Clock, AlertCircle } from 'lucide-react';
 
 interface MyParentAgentCardProps {
   agentId: string;
@@ -14,16 +14,19 @@ function fmtInviteDate(iso: string | null | undefined) {
   if (isNaN(d.getTime())) return null;
   return (
     d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) +
-    ' · ' +
+    ' \u00B7 ' +
     d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
   );
 }
 
 type InviteStatus = 'pending' | 'accepted' | 'expired';
 
-function classifyInviteStatus(raw: string): InviteStatus {
+function classifyInviteStatus(raw: string, expiresAt: string | null): InviteStatus {
   const s = raw.toLowerCase().trim();
-  if (s === 'pending') return 'pending';
+  if (s === 'pending' || s === 'pending_acceptance') {
+    if (expiresAt && new Date(expiresAt) < new Date()) return 'expired';
+    return 'pending';
+  }
   if (s === 'expired' || s === 'rejected' || s === 'inactive' || s === 'revoked') return 'expired';
   return 'accepted'; // approved, verified, active, etc.
 }
@@ -50,7 +53,7 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
     queryFn: async () => {
       const { data: link } = await supabase
         .from('agent_subagents')
-        .select('parent_agent_id, status, accepted_at, created_at')
+        .select('parent_agent_id, status, accepted_at, created_at, expires_at')
         .eq('sub_agent_id', agentId)
         .order('created_at', { ascending: true })
         .limit(1)
@@ -69,6 +72,7 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
         status: link.status as string,
         acceptedAt: link.accepted_at as string | null,
         createdAt: link.created_at as string | null,
+        expiresAt: link.expires_at as string | null,
         fullName: (profile?.full_name as string) || 'Your agent',
         avatarUrl: (profile?.avatar_url as string) || null,
         phone: (profile?.phone as string) || null,
@@ -79,10 +83,12 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
   if (isLoading || !data) return null;
 
   const inviteDateLabel = fmtInviteDate(data.createdAt);
-  const inviteStatus = classifyInviteStatus(data.status);
+  const expiresDateLabel = fmtInviteDate(data.expiresAt);
+  const inviteStatus = classifyInviteStatus(data.status, data.expiresAt);
+  const isExpired = inviteStatus === 'expired';
 
   return (
-    <Card className="border border-primary/20 bg-primary/[0.03]">
+    <Card className={`border ${isExpired ? 'border-red-300 bg-red-50/[0.03]' : 'border-primary/20 bg-primary/[0.03]'}`}>
       <CardContent className="p-4 flex items-center gap-3">
         <UserAvatar
           fullName={data.fullName}
@@ -103,6 +109,17 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
               {inviteStatus === 'accepted'
                 ? `Recruited on ${inviteDateLabel}`
                 : `Invited on ${inviteDateLabel}`}
+            </p>
+          )}
+          {isExpired && expiresDateLabel && (
+            <p className="text-[11px] text-red-500 flex items-center gap-1 mt-0.5">
+              <AlertCircle className="h-3 w-3" />
+              Expired on {expiresDateLabel}
+            </p>
+          )}
+          {isExpired && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              This invitation is no longer valid. Ask your agent to re-send it.
             </p>
           )}
         </div>
