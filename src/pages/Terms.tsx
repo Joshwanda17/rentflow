@@ -54,7 +54,7 @@ export default function Terms() {
           <section>
             <h2 className="text-lg font-semibold">6. Agent Terms</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Agents earn commissions for registering tenants and facilitating transactions. Sub-agent overrides (1%) are earned on transactions from recruited sub-agents. All agent activities are subject to verification and platform policies.
+              Agents earn commissions for registering tenants and facilitating transactions. Sub-agent overrides (2%) are earned on transactions from recruited sub-agents. All agent activities are subject to verification and platform policies.
             </p>
           </section>
 
