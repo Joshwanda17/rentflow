@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatUGX } from '@/lib/rentCalculations';
+import { investHelperRange, isInvestAmountValid } from '@/lib/partnershipInvestment';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { createShortLink } from '@/lib/createShortLink';
 import { Loader2, HandCoins, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info, User, Phone, Upload, FileText, X, Image } from 'lucide-react';
@@ -480,7 +481,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                 min={1000}
               />
               <p className="text-xs text-muted-foreground">
-                Allowed range: {formatUGX(1000)} – {formatUGX(Math.min(500000000, agentBalance))}. Amounts outside this range will disable submission.
+                {investHelperRange(agentBalance)}
               </p>
               {parsedAmount > 0 && parsedAmount < 1000 && (
                 <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
@@ -576,7 +577,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
             <Button
               onClick={handleConfirmOpen}
-              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 1000 || parsedAmount > 500000000 || parsedAmount > agentBalance || investmentReference.trim().length < 3 || !receiptFile}
+              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || !isInvestAmountValid(parsedAmount, agentBalance) || investmentReference.trim().length < 3 || !receiptFile}
               className="w-full"
             >
               {submitting ? (
