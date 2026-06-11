@@ -733,13 +733,23 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
         (rentRequests || []).forEach((rr: any) => {
           const effective = getEffectiveRentRequestAmounts(rr);
           const owing = effective.totalRepayment - (rr.amount_repaid || 0);
-          balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          // A tenant only truly OWES once Welile has funded/disbursed the rent.
+          // In-review (pending/approved) and cancelled/rejected duplicates must
+          // never inflate the outstanding balance — only count real debt.
+          const isDebt =
+            ['funded', 'disbursed', 'repaying'].includes(rr.status || '') ||
+            rr.registration_type === 'outstanding_balance';
+          if (isDebt) {
+            balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          }
           // Sum daily expected only from active (still-owing) cycles
           if (owing > 0 && ['approved', 'funded', 'disbursed', 'repaying'].includes(rr.status)) {
             daily[rr.tenant_id] = (daily[rr.tenant_id] || 0) + effective.dailyRepayment;
           }
-          const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
-          totals[rr.tenant_id] = { total: prev.total + effective.totalRepayment, paid: prev.paid + (rr.amount_repaid || 0) };
+          if (isDebt) {
+            const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
+            totals[rr.tenant_id] = { total: prev.total + effective.totalRepayment, paid: prev.paid + (rr.amount_repaid || 0) };
+          }
           if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
           if (rr.status) statusMap[rr.tenant_id].add(rr.status);
           // Latest-first context (first hit wins thanks to descending order)
