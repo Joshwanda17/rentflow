@@ -436,6 +436,7 @@ export function FleetPerformanceStats() {
       : undefined,
   );
   const [rangeOpen, setRangeOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Persist the selected range whenever it changes.
   useEffect(() => {
