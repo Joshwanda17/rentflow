@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatUGX } from '@/lib/rentCalculations';
-import { investHelperRange, isInvestAmountValid } from '@/lib/partnershipInvestment';
+import { MAX_INVEST, investHelperRange, isInvestAmountValid } from '@/lib/partnershipInvestment';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { createShortLink } from '@/lib/createShortLink';
 import { Loader2, HandCoins, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info, User, Phone, Upload, FileText, X, Image } from 'lucide-react';
@@ -136,8 +136,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       toast.error('Minimum investment is UGX 1,000');
       return false;
     }
-    if (parsedAmount > 500000000) {
-      toast.error('Maximum investment is UGX 500,000,000');
+    if (parsedAmount > MAX_INVEST) {
+      toast.error(`Maximum investment is ${formatUGX(MAX_INVEST)}`);
       return false;
     }
     if (parsedAmount > agentBalance) {
@@ -486,8 +486,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               {parsedAmount > 0 && parsedAmount < 1000 && (
                 <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
               )}
-              {parsedAmount > 500000000 && (
-                <p className="text-xs text-destructive">Amount must not exceed {formatUGX(500000000)}</p>
+              {parsedAmount > MAX_INVEST && (
+                <p className="text-xs text-destructive">Amount must not exceed {formatUGX(MAX_INVEST)}</p>
               )}
               {parsedAmount > agentBalance && (
                 <p className="text-xs text-destructive">Exceeds your wallet balance</p>
