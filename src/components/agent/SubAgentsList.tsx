@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { hapticTap } from '@/lib/haptics';
 
 interface SubAgent {
   sub_agent_id: string;
@@ -197,7 +198,6 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
       console.error('Error fetching sub-agents:', error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [user, onSummary, dateFrom, dateTo]);
 
@@ -242,9 +242,18 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
     };
   }, [user, fetchSubAgents]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    hapticTap();
     setRefreshing(true);
-    fetchSubAgents();
+    // Guarantee a visible spin even when the fetch resolves instantly (iOS
+    // taps otherwise give no feedback and feel like nothing happened).
+    const minSpin = new Promise((r) => setTimeout(r, 600));
+    try {
+      await Promise.all([fetchSubAgents(), minSpin]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleCall = (phone: string) => {
@@ -311,14 +320,16 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
               {subAgents.length}
             </Badge>
             <Button
+              type="button"
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
+              className="h-10 w-10 touch-manipulation"
               onClick={handleRefresh}
               disabled={refreshing}
+              aria-label="Refresh sub-agents"
             >
               <RefreshCw
-                className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+                className={`h-4 w-4 pointer-events-none ${refreshing ? 'animate-spin' : ''}`}
               />
             </Button>
           </div>
