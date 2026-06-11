@@ -311,6 +311,12 @@ export function FleetPerformanceStats() {
     staleTime: 30_000,
   });
 
+  const { data: collectedByDay = {} } = useQuery({
+    queryKey: ['fleet-perf-collected-by-day', period],
+    queryFn: () => fetchCollectedByDay(start, end),
+    staleTime: 30_000,
+  });
+
   const agentIds = useMemo(() => {
     const set = new Set<string>([...Object.keys(expectedByAgent), ...Object.keys(collectedByAgent)]);
     return Array.from(set).sort();
