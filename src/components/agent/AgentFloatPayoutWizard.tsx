@@ -619,7 +619,12 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                 <Button
                   type="button"
                   onClick={() => handleSendOtp('manual')}
-                  disabled={landlordOtp.otpLoading || !phoneValid || !amountValid}
+                  disabled={
+                    landlordOtp.otpLoading ||
+                    !phoneValid ||
+                    !amountValid ||
+                    (!!selectedRequest && sentLandlordsRef.current.has(String(selectedRequest.landlord_id)))
+                  }
                   className="w-full gap-2 h-12 rounded-xl"
                 >
                   {landlordOtp.otpLoading ? (
@@ -627,7 +632,9 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                   ) : (
                     <Phone className="h-4 w-4" />
                   )}
-                  Send OTP to Landlord ({landlordPhone || '—'})
+                  {selectedRequest && sentLandlordsRef.current.has(String(selectedRequest.landlord_id))
+                    ? 'OTP already sent to landlord'
+                    : `Send OTP to Landlord (${landlordPhone || '—'})`}
                 </Button>
               ) : (
                 <div className="space-y-3 p-3 rounded-xl border-2 border-chart-4/30 bg-chart-4/5">
