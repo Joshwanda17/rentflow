@@ -410,6 +410,7 @@ export function FleetPerformanceStats() {
               ) : (
                 rows.map((r, idx) => {
                   const tone = r.rate >= 100 ? 'text-emerald-600' : r.rate >= 80 ? 'text-emerald-600' : r.rate >= 50 ? 'text-amber-600' : 'text-destructive';
+                  const barTone = r.rate >= 100 ? 'bg-emerald-500' : r.rate >= 80 ? 'bg-emerald-500' : r.rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
                   const overLabel = r.rate > 100 ? ` ↑${r.rate - 100}% over` : '';
                   return (
                     <div
@@ -420,7 +421,12 @@ export function FleetPerformanceStats() {
                       <span className="font-semibold text-foreground truncate">{r.name}</span>
                       <span className="text-right tabular-nums text-violet-600">{formatUGX(r.expected)}</span>
                       <span className="text-right tabular-nums text-primary font-semibold">{formatUGX(r.collected)}</span>
-                      <span className={`text-right tabular-nums font-bold ${tone}`}>{r.rate}%{overLabel}</span>
+                      <div className="flex flex-col items-end gap-0.5 min-w-[3.5rem]">
+                        <div className="h-1 w-10 rounded-full bg-muted overflow-hidden">
+                          <div className={`h-full ${barTone} ${r.rate > 100 ? 'brightness-110' : ''}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
+                        </div>
+                        <span className={`text-right tabular-nums font-bold ${tone}`}>{r.rate}%{overLabel}</span>
+                      </div>
                     </div>
                   );
                 })
