@@ -3,8 +3,8 @@ export const TOTAL_SHARES = 25_000;
 export const PRICE_PER_SHARE = 20_000;
 export const POOL_PERCENT = 8;
 
-// UGX to USD approximate rate
-export const UGX_PER_USD = 3_750;
+// UGX to USD rate: US$5 = UGX 20,000 (one share) → US$1 = UGX 4,000
+export const UGX_PER_USD = 4_000;
 
 export const VALUATIONS = [
   { label: '$1B', value: 1_000_000_000 },
