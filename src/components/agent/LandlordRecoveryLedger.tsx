@@ -98,7 +98,10 @@ export function LandlordRecoveryLedger({ open, onOpenChange }: Props) {
           totalFunded,
           totalRecovered,
           totalPaidToLandlord,
-          outstanding: totalFunded - totalRecovered,
+          // Recovery can never exceed what was funded — amount_repaid includes
+          // Welile fees on top of the rent principal, so a fully-repaid tenant
+          // would otherwise drive this negative. Clamp at 0.
+          outstanding: Math.max(0, totalFunded - totalRecovered),
           recoveryPct: totalFunded > 0 ? Math.min(100, (totalRecovered / totalFunded) * 100) : 0,
           tenants: tenantBreakdown,
           payouts: landlordPayouts,
@@ -239,7 +242,7 @@ export function LandlordRecoveryLedger({ open, onOpenChange }: Props) {
                             <div className="space-y-0.5">
                               <div className="flex justify-between text-[10px]">
                                 <span>{t.recoveryPct.toFixed(0)}%</span>
-                                <span>{formatUGX((t.rent_amount || 0) - (t.amount_repaid || 0))} left</span>
+                                <span>{formatUGX(Math.max(0, (t.rent_amount || 0) - (t.amount_repaid || 0)))} left</span>
                               </div>
                               <Progress value={t.recoveryPct} className="h-1.5" />
                             </div>
