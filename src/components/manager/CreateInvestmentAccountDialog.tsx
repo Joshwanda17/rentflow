@@ -334,7 +334,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, o
               </Label>
               <Input
                 type="number"
-                min={50000}
+                min={1000}
                 max={partnerBalance ?? undefined}
                 value={form.investment_amount}
                 onChange={e => set('investment_amount', e.target.value)}
