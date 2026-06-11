@@ -331,6 +331,8 @@ export function FleetPerformanceStats() {
               shareAsPdf({
                 periodLabel: PERIODS.find((p) => p.key === period)?.label || '',
                 days,
+                start,
+                end,
                 totalExpected,
                 totalCollected,
                 rate,
