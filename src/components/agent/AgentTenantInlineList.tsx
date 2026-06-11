@@ -95,7 +95,7 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
         const tenantIds = tenantList.map((t) => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, status')
+          .select('tenant_id, total_repayment, amount_repaid, status, registration_type')
           .in('tenant_id', tenantIds)
           .or('status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance');
 
@@ -104,7 +104,17 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
         (rentRequests || []).forEach((rr: any) => {
           const effective = getEffectiveRentRequestAmounts(rr);
           const owing = effective.totalRepayment - (rr.amount_repaid || 0);
-          balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          // A tenant only truly OWES once Welile has funded/disbursed the rent.
+          // In-review (pending/approved) and cancelled/rejected duplicates must
+          // never inflate the outstanding balance — only count real debt:
+          // disbursed cycles (funded/disbursed/repaying) + genuine carried-over
+          // outstanding_balance rows.
+          const isDebt =
+            ['funded', 'disbursed', 'repaying'].includes(rr.status || '') ||
+            rr.registration_type === 'outstanding_balance';
+          if (isDebt) {
+            balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          }
           if (rr.status !== 'completed') activeIds.add(rr.tenant_id);
         });
         setTenantBalances(balances);
