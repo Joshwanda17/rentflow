@@ -173,9 +173,17 @@ export function FleetPerformanceStats() {
       .filter((r) => r.expected > 0 || r.collected > 0);
   }, [agentIds, expectedByAgent, collectedByAgent, names, days]);
 
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rawRows;
+    return rawRows.filter((r) =>
+      r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
+    );
+  }, [rawRows, search]);
+
   const rows = useMemo(() => {
     const { key, dir } = sort;
-    const sorted = [...rawRows].sort((a, b) => {
+    const sorted = [...filteredRows].sort((a, b) => {
       let cmp = 0;
       if (key === 'expected') cmp = a.expected - b.expected;
       else if (key === 'collected') cmp = a.collected - b.collected;
@@ -183,7 +191,7 @@ export function FleetPerformanceStats() {
       return dir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [rawRows, sort]);
+  }, [filteredRows, sort]);
 
   const loading = expLoading || colLoading;
   const totalExpected = rows.reduce((s, r) => s + r.expected, 0);
