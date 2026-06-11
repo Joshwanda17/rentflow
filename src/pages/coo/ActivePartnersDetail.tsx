@@ -531,6 +531,9 @@ export default function ActivePartnersDetail() {
                   <p>Remaining wallet: <strong>{formatUGX(investPartner.walletBalance - Number(investAmount))}</strong></p>
                 </div>
               )}
+              {investAmount && Number(investAmount) < MIN_INVEST && (
+                <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
+              )}
             </div>
           )}
 
