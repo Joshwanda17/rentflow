@@ -43,13 +43,14 @@ function shareAsPdf(opts: {
     .map((r, i) => {
       const c = toneFor(r.rate);
       const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+      const overLabel = r.rate > 100 ? ` ↑${r.rate - 100}% over` : '';
       return `<tr>
         <td class="rank">${medal || i + 1}</td>
         <td class="name">${(r.name || '').replace(/</g, '&lt;')}</td>
         <td class="num">${formatUGX(r.expected)}</td>
         <td class="num strong">${formatUGX(r.collected)}</td>
         <td class="rate" style="color:${c}">
-          <span class="dot" style="background:${c}"></span>${r.rate}%
+          <span class="dot" style="background:${c}"></span>${r.rate}%${overLabel}
         </td>
       </tr>`;
     })
@@ -119,7 +120,7 @@ function shareAsPdf(opts: {
       <div class="card"><div class="lbl">Collected</div><div class="val" style="color:#2563eb">${formatUGX(totalCollected)}</div></div>
       <div class="card"><div class="lbl">Collection rate</div><div class="val" style="color:${toneFor(rate)}">${rate}%</div></div>
     </div>
-    <div class="barwrap"><div class="bar" style="width:${rate}%;background:${toneFor(rate)}"></div></div>
+    <div class="barwrap"><div class="bar" style="width:${Math.min(rate, 100)}%;background:${toneFor(rate)}"></div></div>
     <p class="section-title">Agent-by-agent breakdown</p>
     <table>
       <thead><tr><th>#</th><th>Agent</th><th class="num">Expected</th><th class="num">Collected</th><th class="rate">Rate</th></tr></thead>
