@@ -2996,13 +2996,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </div>
               </div>
             )}
+            {addPortfolioAmount && Number(addPortfolioAmount) < MIN_INVEST && (
+              <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddPortfolioOpen(false)} disabled={addingPortfolio}>Cancel</Button>
             <Button
               type="button"
               onClick={handleAddPortfolio}
-              disabled={addingPortfolio}
+              disabled={addingPortfolio || !addPortfolioAmount || Number(addPortfolioAmount) < MIN_INVEST}
             >
               {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Portfolio</>}
             </Button>
@@ -3045,6 +3048,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                   <p>Monthly reward ({investPartner.roiPercentage}%): <strong className="text-primary">{formatUGX(Math.round(Number(investAmount) * (investPartner.roiPercentage / 100)))}</strong></p>
                   <p>Remaining wallet: <strong>{formatUGX(investPartner.walletBalance - Number(investAmount))}</strong></p>
                 </div>
+              )}
+              {investAmount && Number(investAmount) < MIN_INVEST && (
+                <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
               )}
             </div>
           )}

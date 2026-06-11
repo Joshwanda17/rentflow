@@ -3084,7 +3084,7 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
         <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={onCancel} disabled={saving}>
           <X className="h-3 w-3" /> Cancel
         </Button>
-        <Button size="sm" className="h-8 text-xs gap-1" onClick={handleCreate} disabled={saving || balanceLoading}>
+        <Button size="sm" className="h-8 text-xs gap-1" onClick={handleCreate} disabled={saving || balanceLoading || !form.investment_amount || Number(form.investment_amount) < 1000}>
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
           Create Portfolio
         </Button>
