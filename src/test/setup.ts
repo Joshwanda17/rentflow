@@ -21,6 +21,17 @@ if (!("scrollTo" in window)) {
   window.scrollTo = () => {};
 }
 
+// Radix UI (Slider, etc.) relies on ResizeObserver, which jsdom lacks.
+if (!("ResizeObserver" in globalThis)) {
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  // @ts-expect-error jsdom polyfill
+  globalThis.ResizeObserver = ResizeObserver;
+}
+
 // Stub haptics so tests don't try to vibrate
 vi.mock("@/lib/haptics", () => ({
   hapticTap: () => {},
