@@ -326,16 +326,16 @@ Start your journey: ${shareLink}`;
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-sm">You (Sub-Agent) earn</span>
-                        <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400">4%</Badge>
+                        <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400">8%</Badge>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm">Your Upline earns</span>
-                        <Badge className="bg-primary/10 text-primary">1%</Badge>
+                        <Badge className="bg-primary/10 text-primary">2%</Badge>
                       </div>
                       <Separator className="my-2" />
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">Total System Payout</span>
-                        <Badge variant="outline">5% (Fixed)</Badge>
+                        <Badge variant="outline">10% (Fixed)</Badge>
                       </div>
                     </div>
                   </div>

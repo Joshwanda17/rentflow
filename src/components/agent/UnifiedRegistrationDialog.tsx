@@ -474,7 +474,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
 
 You've been invited to join as an Agent!
 
-💰 You'll earn 4% commission on all rent repayments from tenants you register!
+💰 You'll earn 8% commission on all rent repayments from tenants you register!
 
 🔐 Your temporary password: ${createdInvite.password}
 
@@ -617,7 +617,7 @@ Password: ${createdInvite?.password}`;
             </p>
             <p className="text-sm text-muted-foreground">
               {selectedType === 'sub-agent' 
-                ? 'They earn 4%, you earn 1% of their tenants' 
+                ? 'They earn 8%, you earn 2% of their tenants' 
                 : selectedType === 'supporter'
                 ? 'They earn 15% ROI monthly on rent funded'
                 : registrationConfig[selectedType].description}

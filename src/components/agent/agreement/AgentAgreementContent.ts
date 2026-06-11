@@ -98,19 +98,19 @@ IMPORTANT — WALLET SEPARATION:
 A) Direct Agent Commission (5%)
 If YOU directly onboarded a tenant, you earn 5% commission on every rent repayment that tenant makes. This is your primary income stream — the more tenants you onboard, the more you earn continuously.
 
-B) Sub-Agent Commission (4%)
-If you are a Sub-Agent (recruited by another agent), you earn 4% commission on every rent repayment from tenants YOU onboarded. The remaining 1% goes to your recruiting (Super) Agent.
+B) Sub-Agent Commission (8%)
+If you are a Sub-Agent (recruited by another agent), you earn 8% commission on every rent repayment from tenants YOU onboarded. The remaining 2% goes to your recruiting (Super) Agent.
 
-C) Super Agent Override Commission (1%)
-If you recruit Sub-Agents, you earn 1% override commission on ALL rent repayments made by tenants onboarded by your Sub-Agents. This is PASSIVE INCOME — you earn without doing the field work yourself.
+C) Super Agent Override Commission (2%)
+If you recruit Sub-Agents, you earn 2% override commission on ALL rent repayments made by tenants onboarded by your Sub-Agents. This is PASSIVE INCOME — you earn without doing the field work yourself.
 
 Example: If your Sub-Agent onboards 50 tenants each paying UGX 300,000/month in rent repayments:
-• Your Sub-Agent earns: 4% × 300,000 × 50 = UGX 600,000/month
-• YOU earn as Super Agent: 1% × 300,000 × 50 = UGX 150,000/month (passive!)
+• Your Sub-Agent earns: 8% × 300,000 × 50 = UGX 1,200,000/month
+• YOU earn as Super Agent: 2% × 300,000 × 50 = UGX 300,000/month (passive!)
 • With 10 Sub-Agents at this level = UGX 1,500,000/month passive income
 
 WHY RECRUIT SUB-AGENTS?
-✅ Earn 1% on every tenant your sub-agents bring — forever
+✅ Earn 2% on every tenant your sub-agents bring — forever
 ✅ Build a passive income stream that grows as your team grows
 ✅ More sub-agents = more tenants = more recurring commissions
 ✅ Team Leaders (2+ sub-agents) unlock cash advances from 300K to 30M UGX

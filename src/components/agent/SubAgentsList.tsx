@@ -502,7 +502,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                     {formatUGX(sub.earnings)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    your 1%
+                    your 2%
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
