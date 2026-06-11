@@ -388,7 +388,7 @@ export default function SubAgentAnalytics() {
       'Phone',
       'Joined Date',
       'Total Tenants',
-      'Your 1% Earnings (UGX)',
+      'Your 2% Earnings (UGX)',
     ];
 
     const rows = subAgents.map(sa => [
@@ -422,7 +422,7 @@ export default function SubAgentAnalytics() {
       'Sub-Agent Name',
       'Tenant Name',
       'Total Repaid by Tenant (UGX)',
-      'Your 1% Share (UGX)',
+      'Your 2% Share (UGX)',
     ];
 
     const rows: (string | number)[][] = [];
@@ -549,7 +549,7 @@ export default function SubAgentAnalytics() {
               </div>
               <h3 className="font-bold text-lg mb-2">No Sub-Agents Yet</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Build your team by registering sub-agents. You'll earn 1% of all their tenants' repayments!
+                Build your team by registering sub-agents. You'll earn 2% of all their tenants' repayments!
               </p>
               <Button onClick={() => setRegisterDialogOpen(true)} className="gap-2">
                 <UserPlus className="h-4 w-4" />
@@ -600,7 +600,7 @@ export default function SubAgentAnalytics() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-success" />
-                  Monthly Earnings (1% from Sub-Agents)
+                  Monthly Earnings (2% from Sub-Agents)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -716,7 +716,7 @@ export default function SubAgentAnalytics() {
                     <div className="text-right flex items-center gap-2">
                       <div>
                         <p className="font-bold text-sm text-success">{formatUGX(subAgent.totalEarnings)}</p>
-                        <p className="text-[10px] text-muted-foreground">your 1%</p>
+                        <p className="text-[10px] text-muted-foreground">your 2%</p>
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
@@ -764,7 +764,7 @@ export default function SubAgentAnalytics() {
                   {formatUGX(selectedSubAgent.totalEarnings)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  1% of all collections facilitated
+                  2% of all collections facilitated
                 </p>
               </div>
 

@@ -362,7 +362,7 @@ export function AgentMenuDrawer({
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-sm">Build Your Team 🚀</p>
-                          <p className="text-[10px] text-muted-foreground">Earn <span className="font-bold text-amber-600">UGX 500</span> per signup + <span className="font-bold text-amber-600">1%</span> of their collections</p>
+                          <p className="text-[10px] text-muted-foreground">Earn <span className="font-bold text-amber-600">UGX 500</span> per signup + <span className="font-bold text-amber-600">2%</span> of their collections</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5">

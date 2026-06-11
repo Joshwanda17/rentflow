@@ -354,9 +354,9 @@ export function WalletBreakdown() {
                               : earning.earning_type === 'commission'
                               ? `💡 A tenant you registered made a rent repayment. You earned 5% = ${formatUGX(earning.amount)}.`
                               : earning.earning_type === 'subagent_commission' && earning.source_user_name
-                              ? `💡 ${earning.source_user_name} (your sub-agent) collected rent. You earned 1% = ${formatUGX(earning.amount)} as their parent agent.`
+                              ? `💡 ${earning.source_user_name} (your sub-agent) collected rent. You earned 2% = ${formatUGX(earning.amount)} as their parent agent.`
                               : earning.earning_type === 'subagent_commission'
-                              ? `💡 A sub-agent under you collected rent. You earned 1% = ${formatUGX(earning.amount)}.`
+                              ? `💡 A sub-agent under you collected rent. You earned 2% = ${formatUGX(earning.amount)}.`
                               : earning.earning_type === 'approval_bonus'
                               ? `💡 A tenant you registered was approved for rent facilitation. You earned UGX 5,000 approval bonus.`
                               : earning.earning_type === 'referral_bonus'
