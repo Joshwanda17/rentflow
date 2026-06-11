@@ -187,7 +187,7 @@ export default function SubAgentAnalytics() {
         .from('business_advances')
         .select('agent_id, principal')
         .in('agent_id', subAgentIds)
-        .in('status', ['approved', 'active', 'repaying', 'paid', 'completed']);
+        .in('status', ['active', 'completed', 'cfo_disbursed']);
 
       // Fetch tenants per sub-agent
       const tenantsData: Record<string, { id: string; name: string; totalRepaid: number }[]> = {};
