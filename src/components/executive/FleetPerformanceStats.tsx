@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
-import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search, Share2 } from 'lucide-react';
+import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search, Share2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CalendarRange } from 'lucide-react';
 import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
@@ -437,6 +437,8 @@ export function FleetPerformanceStats() {
   );
   const [rangeOpen, setRangeOpen] = useState(false);
   const isMobile = useIsMobile();
+  const [page, setPage] = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Persist the selected range whenever it changes.
   useEffect(() => {
@@ -535,6 +537,18 @@ export function FleetPerformanceStats() {
   const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
   const rateTone = rate >= 100 ? 'text-emerald-600' : rate >= 80 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-destructive';
   const barTone = rate >= 100 ? 'bg-emerald-500' : rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
+
+  // Pagination for the agent-by-agent breakdown.
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageStart = safePage * PAGE_SIZE;
+  const pageRows = rows.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // Reset to first page whenever the result set changes.
+  useEffect(() => {
+    setPage(0);
+  }, [search, sort, rangeKey]);
 
   // Daily expected target across the whole fleet (constant per day).
   const expectedPerDay = useMemo(
@@ -793,45 +807,108 @@ export function FleetPerformanceStats() {
             />
           </div>
 
-          {/* Agent-by-agent breakdown */}
+          {/* Agent-by-agent breakdown — mobile-friendly, paginated, expandable rows */}
           <div className="mt-3 rounded-lg border border-border overflow-hidden">
-            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 bg-muted/60 text-[10px] font-bold uppercase tracking-wide text-muted-foreground items-center">
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 grid grid-cols-[1.5rem_minmax(0,1fr)_auto_1rem] sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto_auto_1rem] gap-2 px-2.5 py-1.5 bg-muted text-[10px] font-bold uppercase tracking-wide text-muted-foreground items-center border-b border-border">
               <span className="text-center">#</span>
               <span>Agent</span>
-              <SortHeader label="Expected" sortKey="expected" sort={sort} onChange={setSort} align="right" />
-              <SortHeader label="Collected" sortKey="collected" sort={sort} onChange={setSort} align="right" />
+              <span className="hidden sm:block">
+                <SortHeader label="Expected" sortKey="expected" sort={sort} onChange={setSort} align="right" />
+              </span>
+              <span className="hidden sm:block">
+                <SortHeader label="Collected" sortKey="collected" sort={sort} onChange={setSort} align="right" />
+              </span>
               <SortHeader label="Rate" sortKey="rate" sort={sort} onChange={setSort} align="right" />
+              <span aria-hidden />
             </div>
-            <div className="max-h-72 overflow-y-auto divide-y divide-border">
+            <div className="divide-y divide-border">
               {rows.length === 0 ? (
                 <div className="px-2.5 py-4 text-center text-[11px] text-muted-foreground">
                   No agent activity in this period.
                 </div>
               ) : (
-                rows.map((r, idx) => {
+                pageRows.map((r, idx) => {
+                  const rank = pageStart + idx + 1;
                   const tone = r.rate >= 100 ? 'text-emerald-600' : r.rate >= 80 ? 'text-emerald-600' : r.rate >= 50 ? 'text-amber-600' : 'text-destructive';
                   const barTone = r.rate >= 100 ? 'bg-emerald-500' : r.rate >= 80 ? 'bg-emerald-500' : r.rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
-                  const overLabel = r.rate > 100 ? ` ↑${r.rate - 100}% over` : '';
+                  const overLabel = r.rate > 100 ? ` ↑${r.rate - 100}%` : '';
+                  const expanded = expandedId === r.id;
                   return (
-                    <div
-                      key={r.id}
-                      className="grid grid-cols-[2rem_minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 text-[11px] items-center"
-                    >
-                      <span className="text-center tabular-nums font-bold text-muted-foreground">{idx + 1}</span>
-                      <span className="font-semibold text-foreground truncate">{r.name}</span>
-                      <span className="text-right tabular-nums text-violet-600">{formatUGX(r.expected)}</span>
-                      <span className="text-right tabular-nums text-primary font-semibold">{formatUGX(r.collected)}</span>
-                      <div className="flex flex-col items-end gap-0.5 min-w-[3.5rem]">
-                        <div className="h-1 w-10 rounded-full bg-muted overflow-hidden">
-                          <div className={`h-full ${barTone} ${r.rate > 100 ? 'brightness-110' : ''}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
+                    <div key={r.id}>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(expanded ? null : r.id)}
+                        aria-expanded={expanded}
+                        className="w-full grid grid-cols-[1.5rem_minmax(0,1fr)_auto_1rem] sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto_auto_1rem] gap-2 px-2.5 py-2 text-[11px] items-center text-left hover:bg-muted/40 transition-colors"
+                      >
+                        <span className="text-center tabular-nums font-bold text-muted-foreground">{rank}</span>
+                        <span className="font-semibold text-foreground truncate">{r.name}</span>
+                        <span className="hidden sm:block text-right tabular-nums text-violet-600">{formatUGX(r.expected)}</span>
+                        <span className="hidden sm:block text-right tabular-nums text-primary font-semibold">{formatUGX(r.collected)}</span>
+                        <div className="flex flex-col items-end gap-0.5 min-w-[3.5rem]">
+                          <div className="h-1 w-10 rounded-full bg-muted overflow-hidden">
+                            <div className={`h-full ${barTone} ${r.rate > 100 ? 'brightness-110' : ''}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
+                          </div>
+                          <span className={`text-right tabular-nums font-bold ${tone}`}>{r.rate}%{overLabel}</span>
                         </div>
-                        <span className={`text-right tabular-nums font-bold ${tone}`}>{r.rate}%{overLabel}</span>
-                      </div>
+                        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                      </button>
+                      {expanded && (
+                        <div className="px-2.5 pb-2.5 pt-0.5 bg-muted/30">
+                          <div className="grid grid-cols-2 gap-2 text-[11px] sm:hidden">
+                            <div className="rounded-md border border-border bg-card p-2">
+                              <p className="text-[9px] font-bold uppercase tracking-wide text-violet-600">Expected</p>
+                              <p className="mt-0.5 tabular-nums font-bold text-foreground">{formatUGX(r.expected)}</p>
+                            </div>
+                            <div className="rounded-md border border-border bg-card p-2">
+                              <p className="text-[9px] font-bold uppercase tracking-wide text-primary">Collected</p>
+                              <p className="mt-0.5 tabular-nums font-bold text-foreground">{formatUGX(r.collected)}</p>
+                            </div>
+                          </div>
+                          <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                            <div className={`h-full ${barTone} ${r.rate > 100 ? 'brightness-110' : ''}`} style={{ width: `${Math.min(r.rate, 100)}%` }} />
+                          </div>
+                          <p className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground tabular-nums">
+                            <span>{r.rate >= 100 ? `Over target by ${r.rate - 100}%` : `${100 - r.rate}% short of target`}</span>
+                            <span className="font-mono text-[9px] opacity-70">{r.id.slice(0, 8)}</span>
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })
               )}
             </div>
+            {/* Pagination footer */}
+            {rows.length > PAGE_SIZE && (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-2 border-t border-border bg-muted/40">
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, rows.length)} of {rows.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={safePage === 0}
+                    className="h-6 px-1.5 rounded-md inline-flex items-center gap-0.5 text-[10px] font-semibold bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-3 w-3" /> Prev
+                  </button>
+                  <span className="text-[10px] text-muted-foreground tabular-nums px-1">
+                    {safePage + 1}/{totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={safePage >= totalPages - 1}
+                    className="h-6 px-1.5 rounded-md inline-flex items-center gap-0.5 text-[10px] font-semibold bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40"
+                  >
+                    Next <ChevronRight className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
