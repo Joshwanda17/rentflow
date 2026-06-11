@@ -27,7 +27,7 @@ export function RecruitSubAgentCTA({ onRegister, onViewSubAgents, onShareLink }:
           </div>
           <div>
             <p className="font-bold text-sm">Build Your Team</p>
-            <p className="text-[11px] text-muted-foreground">Earn <span className="font-bold text-warning">1%</span> from all their collections</p>
+            <p className="text-[11px] text-muted-foreground">Earn <span className="font-bold text-warning">2%</span> from all their collections</p>
           </div>
         </div>
         {subAgentCount > 0 && (
@@ -44,7 +44,7 @@ export function RecruitSubAgentCTA({ onRegister, onViewSubAgents, onShareLink }:
       <div className="grid grid-cols-3 gap-2 text-center">
         {[
           { emoji: '💰', label: 'UGX 500/signup' },
-          { emoji: '📈', label: '1% their earnings' },
+          { emoji: '📈', label: '2% their earnings' },
           { emoji: '🚀', label: 'Unlimited team' },
         ].map(b => (
           <div key={b.label} className="py-2 px-1 rounded-lg bg-background/60 border border-border/40">

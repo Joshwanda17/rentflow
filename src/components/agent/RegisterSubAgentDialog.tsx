@@ -143,7 +143,7 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
 
 You've been invited to join as a Sub-Agent!
 
-💰 As a sub-agent, you'll earn 4% commission on all rent repayments from tenants you register!
+💰 As a sub-agent, you'll earn 8% commission on all rent repayments from tenants you register!
 
 🔐 Your password: ${createdInvite.password}
 
@@ -193,11 +193,11 @@ Password: ${createdInvite?.password}`;
             <p className="text-[10px] text-muted-foreground">you earn now</p>
           </div>
           <div className="py-1.5 rounded-lg bg-background/60">
-            <p className="text-sm font-bold text-warning">📈 1%</p>
+            <p className="text-sm font-bold text-warning">📈 2%</p>
             <p className="text-[10px] text-muted-foreground">their earnings</p>
           </div>
           <div className="py-1.5 rounded-lg bg-background/60">
-            <p className="text-sm font-bold text-warning">🤝 4%</p>
+            <p className="text-sm font-bold text-warning">🤝 8%</p>
             <p className="text-[10px] text-muted-foreground">they earn</p>
           </div>
         </div>
@@ -407,7 +407,7 @@ Password: ${createdInvite?.password}`;
           <DialogDescription>
             {createdInvite 
               ? 'Share this link with your new sub-agent to activate their account'
-              : 'Build your team and earn 1% from all their tenants\' repayments'}
+              : 'Build your team and earn 2% from all their tenants\' repayments'}
           </DialogDescription>
         </DialogHeader>
 

@@ -48,7 +48,7 @@ export function ShareSubAgentLink() {
 
 💰 Earn money by:
 • Registering tenants & landlords
-• Earning 4% commission on repayments
+• Earning 8% commission on repayments
 • Building your own team of sub-agents
 
 ✨ It's FREE to join and start earning!
@@ -160,7 +160,7 @@ Let's grow together! 🤝`;
             </p>
           </div>
           <p className="text-[11px] text-center text-muted-foreground">
-            When someone signs up using your link, they become your sub-agent and you earn 1% of their earnings!
+            When someone signs up using your link, they become your sub-agent and you earn 2% of their earnings!
           </p>
         </CardContent>
       </Card>

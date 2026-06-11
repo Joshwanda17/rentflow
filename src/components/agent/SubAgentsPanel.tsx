@@ -81,7 +81,7 @@ export function SubAgentsPanel({ agentId, onInviteSubAgent }: SubAgentsPanelProp
             <div>
               <p className="font-semibold text-sm">No sub-agents yet</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Invite trusted helpers to grow your tenant base. You earn 1% on every collection they make.
+                Invite trusted helpers to grow your tenant base. You earn 2% on every collection they make.
               </p>
             </div>
             {onInviteSubAgent && (
