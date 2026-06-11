@@ -4,6 +4,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search, Share2 } from 'lucide-react';
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  Legend,
+} from 'recharts';
 
 type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month';
 
@@ -251,6 +262,37 @@ async function fetchAgentNames(agentIds: string[]): Promise<Record<string, strin
   return names;
 }
 
+/** Local YYYY-MM-DD key for a date. */
+function dayKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Collected total per calendar day across the whole fleet within [start, end). */
+async function fetchCollectedByDay(start: Date, end: Date): Promise<Record<string, number>> {
+  const byDay: Record<string, number> = {};
+  const PAGE = 1000;
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await supabase
+      .from('repayments')
+      .select('amount, created_at')
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString())
+      .range(from, from + PAGE - 1);
+    if (error) { console.error('[FleetPerformanceStats] daily repayments page failed', error); break; }
+    const rows = data || [];
+    rows.forEach((r: any) => {
+      if (!r.created_at) return;
+      const k = dayKey(new Date(r.created_at));
+      byDay[k] = (byDay[k] || 0) + (Number(r.amount) || 0);
+    });
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return byDay;
+}
+
 export function FleetPerformanceStats() {
   const [period, setPeriod] = useState<PeriodKey>('today');
   const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
@@ -266,6 +308,12 @@ export function FleetPerformanceStats() {
   const { data: collectedByAgent = {}, isLoading: colLoading } = useQuery({
     queryKey: ['fleet-perf-collected-by-agent', period],
     queryFn: () => fetchCollectedByAgent(start, end),
+    staleTime: 30_000,
+  });
+
+  const { data: collectedByDay = {} } = useQuery({
+    queryKey: ['fleet-perf-collected-by-day', period],
+    queryFn: () => fetchCollectedByDay(start, end),
     staleTime: 30_000,
   });
 
@@ -318,6 +366,26 @@ export function FleetPerformanceStats() {
   const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
   const rateTone = rate >= 100 ? 'text-emerald-600' : rate >= 80 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-destructive';
   const barTone = rate >= 100 ? 'bg-emerald-500' : rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
+
+  // Daily expected target across the whole fleet (constant per day).
+  const expectedPerDay = useMemo(
+    () => Object.values(expectedByAgent).reduce((s, v) => s + (Number(v) || 0), 0),
+    [expectedByAgent],
+  );
+
+  // Per-day series of collected vs expected for the trend chart.
+  const trendData = useMemo(() => {
+    const out: { label: string; collected: number; expected: number }[] = [];
+    const cursor = startOfDay(start);
+    const endMs = end.getTime();
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    while (cursor.getTime() < endMs) {
+      const k = dayKey(cursor);
+      out.push({ label: fmt(cursor), collected: collectedByDay[k] || 0, expected: expectedPerDay });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return out;
+  }, [start, end, collectedByDay, expectedPerDay]);
 
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
@@ -380,6 +448,58 @@ export function FleetPerformanceStats() {
           <p className="mt-1.5 text-[10px] text-muted-foreground tabular-nums">
             {formatUGX(totalCollected)} collected of {formatUGX(totalExpected)} expected ({days} day{days === 1 ? '' : 's'} · {rows.length} agent{rows.length === 1 ? '' : 's'})
           </p>
+
+          {/* Collection trend: collected per day vs expected daily target */}
+          {trendData.length > 1 && (
+            <div className="mt-3 rounded-lg border border-border bg-card p-3">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                Collection trend · daily flow vs target
+              </p>
+              <div className="h-44 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={trendData} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tickLine={false}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      interval="preserveStartEnd"
+                      minTickGap={16}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={48}
+                      tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
+                    />
+                    <Tooltip
+                      formatter={(v: number, n: string) => [formatUGX(Number(v)), n === 'collected' ? 'Collected' : 'Expected']}
+                      contentStyle={{
+                        background: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: 8,
+                        fontSize: 11,
+                        color: 'hsl(var(--popover-foreground))',
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="collected" name="Collected" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} maxBarSize={26} />
+                    <Line
+                      type="monotone"
+                      dataKey="expected"
+                      name="Expected"
+                      stroke="hsl(var(--destructive))"
+                      strokeWidth={2}
+                      strokeDasharray="5 4"
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
 
           {/* Search */}
           <div className="mt-3 relative">
