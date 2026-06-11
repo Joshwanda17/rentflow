@@ -320,14 +320,16 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
               {subAgents.length}
             </Badge>
             <Button
+              type="button"
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
+              className="h-10 w-10 touch-manipulation"
               onClick={handleRefresh}
               disabled={refreshing}
+              aria-label="Refresh sub-agents"
             >
               <RefreshCw
-                className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+                className={`h-4 w-4 pointer-events-none ${refreshing ? 'animate-spin' : ''}`}
               />
             </Button>
           </div>
