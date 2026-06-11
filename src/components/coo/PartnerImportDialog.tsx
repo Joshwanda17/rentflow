@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { investBounds, defaultUGXFormatter, isInvestAmountValid } from '@/lib/partnershipInvestment';
 import { parseContributionDate } from '@/lib/portfolioDates';
 import { toast } from 'sonner';
 import {
@@ -133,8 +134,11 @@ function validateRow(row: any, rowNum: number): ParsedRow {
 
   if (!name) errors.push('Missing partner name');
   if (phone && phone.length < 10) errors.push('Invalid phone (must be 10+ digits or blank)');
-  if (isNaN(amount) || amount < 1000) errors.push('Amount must be ≥ 1,000');
-  else if (amount > 500000000) errors.push('Amount must be ≤ 500,000,000');
+  if (!isInvestAmountValid(amount)) {
+    const { min, max } = investBounds();
+    if (isNaN(amount) || amount < min) errors.push(`Amount must be ≥ ${min.toLocaleString('en-US')}`);
+    else errors.push(`Amount must be ≤ ${max.toLocaleString('en-US')}`);
+  }
   if (isNaN(roi) || roi < 1 || roi > 30) errors.push('ROI must be 1-30%');
   if (isNaN(duration) || duration < 1 || duration > 36) errors.push('Duration must be 1-36 months');
   if (!VALID_ROI_MODES.includes(roiMode)) errors.push(`ROI mode must be: ${VALID_ROI_MODES.join(' or ')}`);
@@ -352,7 +356,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                   <p className="font-semibold text-sm">Drop Excel file here or click to browse</p>
                   <p className="text-xs text-muted-foreground mt-1">Supports .xlsx files, max 500 rows</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Accepts flexible headers: "Supporter Name", "Principal (UGX)", "Rate", "Contribution Date", etc.</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Allowed range per portfolio: UGX 1,000 – UGX 500,000,000. Rows with amounts outside this range will be rejected.</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Allowed range per portfolio: {defaultUGXFormatter(investBounds().min)} – {defaultUGXFormatter(investBounds().max)}. Rows with amounts outside this range will be rejected.</p>
                   <p className="text-[10px] text-muted-foreground/70 mt-2 px-4">💡 Phone is optional. Multiple portfolios per partner? Use the <strong>same phone number</strong> on each row — they'll be grouped automatically.</p>
                 </>
               )}

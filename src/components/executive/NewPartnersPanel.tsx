@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
 import { Input } from '@/components/ui/input';
+import { MAX_INVEST, investHelperRange, isInvestAmountValid } from '@/lib/partnershipInvestment';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -2863,8 +2864,8 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
       toast({ title: 'Investment must be at least UGX 1,000', variant: 'destructive' });
       return;
     }
-    if (amt > 500000000) {
-      toast({ title: 'Investment must not exceed UGX 500,000,000', variant: 'destructive' });
+    if (amt > MAX_INVEST) {
+      toast({ title: `Investment must not exceed UGX ${MAX_INVEST.toLocaleString('en-US')}`, variant: 'destructive' });
       return;
     }
     if (balance === null) {
@@ -2975,7 +2976,7 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
             className="h-8 text-xs"
           />
           <p className="text-[10px] text-muted-foreground">
-            Allowed range: UGX 1,000 – UGX {Math.min(500000000, balance ?? 500000000).toLocaleString()}. Amounts outside this range will disable submission.
+            {investHelperRange(balance ?? undefined)}
           </p>
         </div>
         <div className="space-y-1">
@@ -3088,7 +3089,7 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
         <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={onCancel} disabled={saving}>
           <X className="h-3 w-3" /> Cancel
         </Button>
-        <Button size="sm" className="h-8 text-xs gap-1" onClick={handleCreate} disabled={saving || balanceLoading || !form.investment_amount || Number(form.investment_amount) < 1000 || Number(form.investment_amount) > Math.min(500000000, balance ?? 500000000)}>
+        <Button size="sm" className="h-8 text-xs gap-1" onClick={handleCreate} disabled={saving || balanceLoading || !form.investment_amount || !isInvestAmountValid(Number(form.investment_amount), balance ?? undefined)}>
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
           Create Portfolio
         </Button>

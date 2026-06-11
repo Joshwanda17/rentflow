@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { MIN_INVEST, MAX_INVEST, investHelperRange, isInvestAmountValid } from '@/lib/partnershipInvestment';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
@@ -216,8 +217,6 @@ interface SummaryData {
   topPartnerName: string;
 }
 
-const MIN_INVEST = 1000;
-const MAX_INVEST = 500000000;
 const PAGE_SIZE = 15;
 
 /* ─── Helpers ─── */
@@ -2934,7 +2933,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
               />
               <p className="text-xs text-muted-foreground">
-                Allowed range: {formatUGX(MIN_INVEST)} – {formatUGX(MAX_INVEST)}. Amounts outside this range will disable submission.
+                {investHelperRange()}
               </p>
               <div className="flex gap-2 flex-wrap">
                 {[500000, 1000000, 2000000, 5000000, 10000000].map(a => (
@@ -3011,7 +3010,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <Button
               type="button"
               onClick={handleAddPortfolio}
-              disabled={addingPortfolio || !addPortfolioAmount || Number(addPortfolioAmount) < MIN_INVEST || Number(addPortfolioAmount) > MAX_INVEST}
+              disabled={addingPortfolio || !addPortfolioAmount || !isInvestAmountValid(Number(addPortfolioAmount))}
             >
               {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Portfolio</>}
             </Button>
@@ -3037,7 +3036,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 <Input type="number" min={MIN_INVEST} max={investPartner.walletBalance} value={investAmount}
                   onChange={e => setInvestAmount(e.target.value)} placeholder={`Min ${MIN_INVEST.toLocaleString()}`} />
                 <p className="text-xs text-muted-foreground">
-                  Allowed range: {formatUGX(MIN_INVEST)} – {formatUGX(Math.min(MAX_INVEST, investPartner.walletBalance))}. Amounts outside this range will disable submission.
+                  {investHelperRange(investPartner.walletBalance)}
                 </p>
                 <div className="flex gap-2 flex-wrap">
                   {[1000, 5000, 10000, 50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
@@ -3065,7 +3064,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setInvestPartner(null)}>Cancel</Button>
-            <Button onClick={handleInvest} disabled={investing || !investAmount || Number(investAmount) < MIN_INVEST || Number(investAmount) > Math.min(MAX_INVEST, investPartner.walletBalance)}>
+            <Button onClick={handleInvest} disabled={investing || !investAmount || !isInvestAmountValid(Number(investAmount), investPartner.walletBalance)}>
               {investing && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Confirm Investment
             </Button>
           </DialogFooter>
