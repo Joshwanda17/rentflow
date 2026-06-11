@@ -60,7 +60,7 @@ export function CMODashboard() {
   });
 
   const { data: referralStats } = useQuery({
-    queryKey: ['exec-referral-stats', startMonth, endMonth],
+    queryKey: ['exec-referral-stats', startMonth, endMonth, referralDateFilter],
     queryFn: async () => {
       const rangeFilter = (q: any) =>
         q.gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
