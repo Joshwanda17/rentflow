@@ -82,6 +82,17 @@ interface TeamGoal {
   notes: string | null;
 }
 
+interface RecruiterSplit {
+  trace_id: string;
+  created_at: string;
+  tracking_id: string | null;
+  tenant_name: string;
+  amount: number;
+  total_commission: number;
+  subagent_share: number;
+  recruiter_override: number;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))', 'hsl(142, 76%, 36%)', 'hsl(221, 83%, 53%)'];
 
 export default function SubAgentAnalytics() {
