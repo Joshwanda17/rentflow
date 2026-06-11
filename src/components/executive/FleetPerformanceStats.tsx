@@ -4,6 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
 import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search, Share2 } from 'lucide-react';
+import { CalendarRange } from 'lucide-react';
+import { format } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   ComposedChart,
   Bar,
@@ -16,7 +21,7 @@ import {
   Legend,
 } from 'recharts';
 
-type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month';
+type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month' | 'custom';
 
 const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: 'today', label: 'Today' },
@@ -178,6 +183,8 @@ function resolvePeriod(key: PeriodKey): { start: Date; end: Date; days: number }
       const days = Math.round((e.getTime() - s.getTime()) / 86_400_000);
       return { start: s, end: e, days };
     }
+    default:
+      return { start: today, end: now, days: 1 };
   }
 }
 
@@ -297,7 +304,22 @@ export function FleetPerformanceStats() {
   const [period, setPeriod] = useState<PeriodKey>('today');
   const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
   const [search, setSearch] = useState('');
-  const { start, end, days } = useMemo(() => resolvePeriod(period), [period]);
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+  const [rangeOpen, setRangeOpen] = useState(false);
+
+  const { start, end, days } = useMemo(() => {
+    if (period === 'custom' && customRange?.from) {
+      const s = startOfDay(customRange.from);
+      const e = new Date(startOfDay(customRange.to || customRange.from));
+      e.setDate(e.getDate() + 1); // make end exclusive of the day after the last selected day
+      const d = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86_400_000));
+      return { start: s, end: e, days: d };
+    }
+    return resolvePeriod(period);
+  }, [period, customRange]);
+
+  // Stable key fragment so custom-range queries refetch when the range changes.
+  const rangeKey = period === 'custom' ? `custom:${start.toISOString()}:${end.toISOString()}` : period;
 
   const { data: expectedByAgent = {}, isLoading: expLoading } = useQuery({
     queryKey: ['fleet-perf-expected-by-agent'],
@@ -306,13 +328,13 @@ export function FleetPerformanceStats() {
   });
 
   const { data: collectedByAgent = {}, isLoading: colLoading } = useQuery({
-    queryKey: ['fleet-perf-collected-by-agent', period],
+    queryKey: ['fleet-perf-collected-by-agent', rangeKey],
     queryFn: () => fetchCollectedByAgent(start, end),
     staleTime: 30_000,
   });
 
   const { data: collectedByDay = {} } = useQuery({
-    queryKey: ['fleet-perf-collected-by-day', period],
+    queryKey: ['fleet-perf-collected-by-day', rangeKey],
     queryFn: () => fetchCollectedByDay(start, end),
     staleTime: 30_000,
   });
@@ -398,7 +420,10 @@ export function FleetPerformanceStats() {
             type="button"
             onClick={() =>
               shareAsPdf({
-                periodLabel: PERIODS.find((p) => p.key === period)?.label || '',
+                periodLabel:
+                  period === 'custom'
+                    ? 'Custom range'
+                    : PERIODS.find((p) => p.key === period)?.label || '',
                 days,
                 start,
                 end,
@@ -428,6 +453,38 @@ export function FleetPerformanceStats() {
               {p.label}
             </button>
           ))}
+          <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-colors inline-flex items-center gap-1 ${
+                  period === 'custom'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                }`}
+              >
+                <CalendarRange className="h-3.5 w-3.5" />
+                {period === 'custom' && customRange?.from
+                  ? `${format(customRange.from, 'MMM d')}${customRange.to ? ` – ${format(customRange.to, 'MMM d')}` : ''}`
+                  : 'Custom range'}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="range"
+                selected={customRange}
+                onSelect={(r) => {
+                  setCustomRange(r);
+                  if (r?.from) setPeriod('custom');
+                  if (r?.from && r?.to) setRangeOpen(false);
+                }}
+                numberOfMonths={2}
+                disabled={{ after: new Date() }}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
