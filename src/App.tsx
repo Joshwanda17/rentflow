@@ -43,6 +43,7 @@ const Toaster = optionalLazyWithRetry(() => import("@/components/ui/toaster").th
 const SonnerToaster = optionalLazyWithRetry(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })), "SonnerToaster");
 import MaintenanceBanner from "@/components/MaintenanceBanner";
 import MaintenanceLockScreen from "@/components/MaintenanceLockScreen";
+import PWAInstallGate from "@/components/PWAInstallGate";
 const CreditLoadingDebugPanel = optionalLazyWithRetry(() => import("@/components/debug/CreditLoadingDebugPanel").then(m => ({ default: m.CreditLoadingDebugPanel })), "CreditLoadingDebugPanel");
 
 const DeferredExtras = optionalLazyWithRetry(() => import("@/components/DeferredExtras"), "DeferredExtras");
