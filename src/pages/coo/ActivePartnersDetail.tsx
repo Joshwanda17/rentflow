@@ -8,6 +8,7 @@ import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet, Pencil, ShieldOff,
 import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
 import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
 import { formatUGX } from '@/lib/rentCalculations';
+import { MIN_INVEST, MAX_INVEST, investHelperRange, isInvestAmountValid } from '@/lib/partnershipInvestment';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
@@ -35,9 +36,6 @@ interface PartnerRow {
   payoutDay: number;
   roiMode: string;
 }
-
-const MIN_INVEST = 1000;
-const MAX_INVEST = 500000000;
 
 export default function ActivePartnersDetail() {
   const { user, roles, loading, role } = useAuth();
