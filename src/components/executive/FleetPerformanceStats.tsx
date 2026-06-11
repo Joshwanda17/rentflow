@@ -420,7 +420,10 @@ export function FleetPerformanceStats() {
             type="button"
             onClick={() =>
               shareAsPdf({
-                periodLabel: PERIODS.find((p) => p.key === period)?.label || '',
+                periodLabel:
+                  period === 'custom'
+                    ? 'Custom range'
+                    : PERIODS.find((p) => p.key === period)?.label || '',
                 days,
                 start,
                 end,
@@ -450,6 +453,38 @@ export function FleetPerformanceStats() {
               {p.label}
             </button>
           ))}
+          <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-colors inline-flex items-center gap-1 ${
+                  period === 'custom'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                }`}
+              >
+                <CalendarRange className="h-3.5 w-3.5" />
+                {period === 'custom' && customRange?.from
+                  ? `${format(customRange.from, 'MMM d')}${customRange.to ? ` – ${format(customRange.to, 'MMM d')}` : ''}`
+                  : 'Custom range'}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="range"
+                selected={customRange}
+                onSelect={(r) => {
+                  setCustomRange(r);
+                  if (r?.from) setPeriod('custom');
+                  if (r?.from && r?.to) setRangeOpen(false);
+                }}
+                numberOfMonths={2}
+                disabled={{ after: new Date() }}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
