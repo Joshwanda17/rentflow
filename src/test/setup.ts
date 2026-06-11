@@ -28,8 +28,7 @@ if (!("ResizeObserver" in globalThis)) {
     unobserve() {}
     disconnect() {}
   }
-  // @ts-expect-error jsdom polyfill
-  globalThis.ResizeObserver = ResizeObserver;
+  globalThis.ResizeObserver = ResizeObserver as unknown as typeof globalThis.ResizeObserver;
 }
 
 // Stub haptics so tests don't try to vibrate
