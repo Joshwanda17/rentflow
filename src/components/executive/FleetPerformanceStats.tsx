@@ -30,8 +30,8 @@ function shareAsPdf(opts: {
   rows: { id: string; name: string; expected: number; collected: number; rate: number }[];
 }) {
   const { periodLabel, days, start, end, totalExpected, totalCollected, rate, rows } = opts;
-  const toneFor = (r: number) => (r >= 80 ? '#059669' : r >= 50 ? '#d97706' : '#dc2626');
-  const verdict = rate >= 80 ? 'On track' : rate >= 50 ? 'Needs a push' : 'Falling behind';
+  const toneFor = (r: number) => (r >= 100 ? '#059669' : r >= 80 ? '#059669' : r >= 50 ? '#d97706' : '#dc2626');
+  const verdict = rate >= 100 ? 'Exceeding target' : rate >= 80 ? 'On track' : rate >= 50 ? 'Needs a push' : 'Falling behind';
   const generated = new Date().toLocaleString();
   const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   // end is exclusive; show the last covered day for human reading
