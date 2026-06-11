@@ -285,7 +285,7 @@ export function FleetPerformanceStats() {
       .map((id) => {
         const expected = (expectedByAgent[id] || 0) * days;
         const collected = collectedByAgent[id] || 0;
-        const rate = expected > 0 ? Math.min(100, Math.round((collected / expected) * 100)) : 0;
+        const rate = expected > 0 ? Math.round((collected / expected) * 100) : 0;
         return { id, name: names[id] || id.slice(0, 8), expected, collected, rate };
       })
       .filter((r) => r.expected > 0 || r.collected > 0);
@@ -314,9 +314,9 @@ export function FleetPerformanceStats() {
   const loading = expLoading || colLoading;
   const totalExpected = rows.reduce((s, r) => s + r.expected, 0);
   const totalCollected = rows.reduce((s, r) => s + r.collected, 0);
-  const rate = totalExpected > 0 ? Math.min(100, Math.round((totalCollected / totalExpected) * 100)) : 0;
-  const rateTone = rate >= 80 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-destructive';
-  const barTone = rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
+  const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  const rateTone = rate >= 100 ? 'text-emerald-600' : rate >= 80 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-destructive';
+  const barTone = rate >= 100 ? 'bg-emerald-500' : rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
 
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
@@ -374,7 +374,7 @@ export function FleetPerformanceStats() {
             <Stat icon={<Percent className="h-3.5 w-3.5" />} label="Collection rate" value={`${rate}%`} tone={rateTone} />
           </div>
           <div className="mt-2.5 h-2 w-full rounded-full bg-muted overflow-hidden">
-            <div className={`h-full ${barTone} transition-all`} style={{ width: `${rate}%` }} />
+            <div className={`h-full ${barTone} transition-all`} style={{ width: `${Math.min(rate, 100)}%` }} />
           </div>
           <p className="mt-1.5 text-[10px] text-muted-foreground tabular-nums">
             {formatUGX(totalCollected)} collected of {formatUGX(totalExpected)} expected ({days} day{days === 1 ? '' : 's'} · {rows.length} agent{rows.length === 1 ? '' : 's'})
@@ -408,7 +408,8 @@ export function FleetPerformanceStats() {
                 </div>
               ) : (
                 rows.map((r, idx) => {
-                  const tone = r.rate >= 80 ? 'text-emerald-600' : r.rate >= 50 ? 'text-amber-600' : 'text-destructive';
+                  const tone = r.rate >= 100 ? 'text-emerald-600' : r.rate >= 80 ? 'text-emerald-600' : r.rate >= 50 ? 'text-amber-600' : 'text-destructive';
+                  const overLabel = r.rate > 100 ? ` ↑${r.rate - 100}% over` : '';
                   return (
                     <div
                       key={r.id}
@@ -418,7 +419,7 @@ export function FleetPerformanceStats() {
                       <span className="font-semibold text-foreground truncate">{r.name}</span>
                       <span className="text-right tabular-nums text-violet-600">{formatUGX(r.expected)}</span>
                       <span className="text-right tabular-nums text-primary font-semibold">{formatUGX(r.collected)}</span>
-                      <span className={`text-right tabular-nums font-bold ${tone}`}>{r.rate}%</span>
+                      <span className={`text-right tabular-nums font-bold ${tone}`}>{r.rate}%{overLabel}</span>
                     </div>
                   );
                 })
