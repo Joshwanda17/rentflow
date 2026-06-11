@@ -5,12 +5,31 @@ import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange, Trophy } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfDay, endOfDay, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 type ReferralStatus = 'all' | 'pending' | 'completed';
+type ReferralDateFilter = '6months' | 'today' | 'yesterday' | 'last_week';
+
+function getDateBounds(filter: ReferralDateFilter, customStart: Date, customEnd: Date): { start: Date; end: Date } {
+  const now = new Date();
+  switch (filter) {
+    case 'today':
+      return { start: startOfDay(now), end: endOfDay(now) };
+    case 'yesterday': {
+      const y = subDays(now, 1);
+      return { start: startOfDay(y), end: endOfDay(y) };
+    }
+    case 'last_week': {
+      const weekAgo = subDays(now, 6);
+      return { start: startOfDay(weekAgo), end: endOfDay(now) };
+    }
+    default:
+      return { start: customStart, end: customEnd };
+  }
+}
 
 export function CMODashboard() {
   const now = new Date();
