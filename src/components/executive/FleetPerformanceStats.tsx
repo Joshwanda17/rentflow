@@ -262,6 +262,37 @@ async function fetchAgentNames(agentIds: string[]): Promise<Record<string, strin
   return names;
 }
 
+/** Local YYYY-MM-DD key for a date. */
+function dayKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Collected total per calendar day across the whole fleet within [start, end). */
+async function fetchCollectedByDay(start: Date, end: Date): Promise<Record<string, number>> {
+  const byDay: Record<string, number> = {};
+  const PAGE = 1000;
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await supabase
+      .from('repayments')
+      .select('amount, created_at')
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString())
+      .range(from, from + PAGE - 1);
+    if (error) { console.error('[FleetPerformanceStats] daily repayments page failed', error); break; }
+    const rows = data || [];
+    rows.forEach((r: any) => {
+      if (!r.created_at) return;
+      const k = dayKey(new Date(r.created_at));
+      byDay[k] = (byDay[k] || 0) + (Number(r.amount) || 0);
+    });
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return byDay;
+}
+
 export function FleetPerformanceStats() {
   const [period, setPeriod] = useState<PeriodKey>('today');
   const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
