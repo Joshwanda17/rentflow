@@ -476,7 +476,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                 min={1000}
               />
               <p className="text-xs text-muted-foreground">
-                Minimum investment is UGX 1,000. If you enter less, the submit button will be disabled and you won't be able to proceed.
+                Allowed range: UGX 1,000 – UGX 50,000,000. Amounts below the minimum will disable submission.
               </p>
               {parsedAmount > 0 && parsedAmount < 1000 && (
                 <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>

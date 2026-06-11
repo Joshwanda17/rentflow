@@ -2971,7 +2971,7 @@ function InlineCreatePortfolioForm({ partner, actingUserId, onCreated, onCancel 
             className="h-8 text-xs"
           />
           <p className="text-[10px] text-muted-foreground">
-            Minimum investment is UGX 1,000. If you enter less, the submit button will be disabled and you won't be able to proceed.
+            Allowed range: UGX 1,000 – UGX 50,000,000. Amounts below the minimum will disable submission.
           </p>
         </div>
         <div className="space-y-1">
