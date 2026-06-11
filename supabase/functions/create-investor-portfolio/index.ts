@@ -96,8 +96,8 @@ Deno.serve(async (req) => {
     const accountName = typeof body.account_name === 'string' ? body.account_name.trim().slice(0, 200) : null;
     const accountNumber = typeof body.account_number === 'string' ? body.account_number.trim().slice(0, 50) : null;
 
-    if (!investmentAmount || investmentAmount < 50000) {
-      return new Response(JSON.stringify({ error: "Investment amount must be at least UGX 50,000" }), {
+    if (!investmentAmount || investmentAmount < 1000) {
+      return new Response(JSON.stringify({ error: "Investment amount must be at least UGX 1,000" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
