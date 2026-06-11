@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -21,7 +21,7 @@ import {
   Legend,
 } from 'recharts';
 
-type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month' | 'custom';
+type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month' | 'all' | 'custom';
 
 const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: 'today', label: 'Today' },
@@ -30,7 +30,21 @@ const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: 'last30', label: 'Last 30 days' },
   { key: 'this_month', label: 'This month' },
   { key: 'last_month', label: 'Last month' },
+  { key: 'all', label: 'All time' },
 ];
+
+/** Earliest date used as the lower bound for the "All time" range. */
+const ALL_TIME_START = new Date(2023, 0, 1);
+
+const STORAGE_KEY = 'fleet-perf-range';
+
+type TrendGranularity = 'hour' | 'day' | 'month';
+
+function granularityFor(days: number): TrendGranularity {
+  if (days <= 1) return 'hour';
+  if (days <= 92) return 'day';
+  return 'month';
+}
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 
@@ -183,6 +197,11 @@ function resolvePeriod(key: PeriodKey): { start: Date; end: Date; days: number }
       const days = Math.round((e.getTime() - s.getTime()) / 86_400_000);
       return { start: s, end: e, days };
     }
+    case 'all': {
+      const s = startOfDay(ALL_TIME_START);
+      const days = Math.max(1, Math.round((now.getTime() - s.getTime()) / 86_400_000));
+      return { start: s, end: now, days };
+    }
     default:
       return { start: today, end: now, days: 1 };
   }
@@ -274,9 +293,23 @@ function dayKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Collected total per calendar day across the whole fleet within [start, end). */
-async function fetchCollectedByDay(start: Date, end: Date): Promise<Record<string, number>> {
-  const byDay: Record<string, number> = {};
+/** Local hour bucket key, e.g. 2026-06-11T14. */
+function hourKey(d: Date) {
+  return `${dayKey(d)}T${String(d.getHours()).padStart(2, '0')}`;
+}
+
+/** Local month bucket key, e.g. 2026-06. */
+function monthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function bucketKeyFor(d: Date, gran: TrendGranularity) {
+  return gran === 'hour' ? hourKey(d) : gran === 'month' ? monthKey(d) : dayKey(d);
+}
+
+/** Collected total per time bucket (hour/day/month) across the whole fleet within [start, end). */
+async function fetchCollectedBuckets(start: Date, end: Date, gran: TrendGranularity): Promise<Record<string, number>> {
+  const byBucket: Record<string, number> = {};
   const PAGE = 1000;
   let from = 0;
   // eslint-disable-next-line no-constant-condition
@@ -287,25 +320,55 @@ async function fetchCollectedByDay(start: Date, end: Date): Promise<Record<strin
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
       .range(from, from + PAGE - 1);
-    if (error) { console.error('[FleetPerformanceStats] daily repayments page failed', error); break; }
+    if (error) { console.error('[FleetPerformanceStats] bucket repayments page failed', error); break; }
     const rows = data || [];
     rows.forEach((r: any) => {
       if (!r.created_at) return;
-      const k = dayKey(new Date(r.created_at));
-      byDay[k] = (byDay[k] || 0) + (Number(r.amount) || 0);
+      const k = bucketKeyFor(new Date(r.created_at), gran);
+      byBucket[k] = (byBucket[k] || 0) + (Number(r.amount) || 0);
     });
     if (rows.length < PAGE) break;
     from += PAGE;
   }
-  return byDay;
+  return byBucket;
 }
 
 export function FleetPerformanceStats() {
-  const [period, setPeriod] = useState<PeriodKey>('today');
+  // Restore last-used range from localStorage.
+  const restored = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { period?: PeriodKey; from?: string; to?: string };
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const [period, setPeriod] = useState<PeriodKey>(restored?.period || 'today');
   const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
   const [search, setSearch] = useState('');
-  const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(
+    restored?.from
+      ? { from: new Date(restored.from), to: restored.to ? new Date(restored.to) : undefined }
+      : undefined,
+  );
   const [rangeOpen, setRangeOpen] = useState(false);
+
+  // Persist the selected range whenever it changes.
+  useEffect(() => {
+    try {
+      const payload: { period: PeriodKey; from?: string; to?: string } = { period };
+      if (period === 'custom' && customRange?.from) {
+        payload.from = customRange.from.toISOString();
+        if (customRange.to) payload.to = customRange.to.toISOString();
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      /* ignore storage failures */
+    }
+  }, [period, customRange]);
 
   const { start, end, days } = useMemo(() => {
     if (period === 'custom' && customRange?.from) {
@@ -321,6 +384,8 @@ export function FleetPerformanceStats() {
   // Stable key fragment so custom-range queries refetch when the range changes.
   const rangeKey = period === 'custom' ? `custom:${start.toISOString()}:${end.toISOString()}` : period;
 
+  const granularity = granularityFor(days);
+
   const { data: expectedByAgent = {}, isLoading: expLoading } = useQuery({
     queryKey: ['fleet-perf-expected-by-agent'],
     queryFn: fetchExpectedDailyByAgent,
@@ -333,9 +398,9 @@ export function FleetPerformanceStats() {
     staleTime: 30_000,
   });
 
-  const { data: collectedByDay = {} } = useQuery({
-    queryKey: ['fleet-perf-collected-by-day', rangeKey],
-    queryFn: () => fetchCollectedByDay(start, end),
+  const { data: collectedBuckets = {} } = useQuery({
+    queryKey: ['fleet-perf-collected-buckets', rangeKey, granularity],
+    queryFn: () => fetchCollectedBuckets(start, end, granularity),
     staleTime: 30_000,
   });
 
@@ -395,19 +460,45 @@ export function FleetPerformanceStats() {
     [expectedByAgent],
   );
 
-  // Per-day series of collected vs expected for the trend chart.
+  // Trend series of collected vs expected, bucketed by hour / day / month.
   const trendData = useMemo(() => {
     const out: { label: string; collected: number; expected: number }[] = [];
-    const cursor = startOfDay(start);
     const endMs = end.getTime();
-    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    while (cursor.getTime() < endMs) {
-      const k = dayKey(cursor);
-      out.push({ label: fmt(cursor), collected: collectedByDay[k] || 0, expected: expectedPerDay });
-      cursor.setDate(cursor.getDate() + 1);
+    if (granularity === 'hour') {
+      const cursor = new Date(start);
+      cursor.setMinutes(0, 0, 0);
+      const expectedPerHour = expectedPerDay / 24;
+      while (cursor.getTime() < endMs) {
+        const k = hourKey(cursor);
+        out.push({ label: format(cursor, 'h a'), collected: collectedBuckets[k] || 0, expected: expectedPerHour });
+        cursor.setHours(cursor.getHours() + 1);
+      }
+    } else if (granularity === 'month') {
+      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (cursor.getTime() < endMs) {
+        const k = monthKey(cursor);
+        const bucketStart = Math.max(cursor.getTime(), start.getTime());
+        const nextMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+        const bucketEnd = Math.min(nextMonth.getTime(), endMs);
+        const dCount = Math.max(1, Math.round((bucketEnd - bucketStart) / 86_400_000));
+        out.push({ label: format(cursor, 'MMM yy'), collected: collectedBuckets[k] || 0, expected: expectedPerDay * dCount });
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    } else {
+      const cursor = startOfDay(start);
+      while (cursor.getTime() < endMs) {
+        const k = dayKey(cursor);
+        out.push({ label: format(cursor, 'MMM d'), collected: collectedBuckets[k] || 0, expected: expectedPerDay });
+        cursor.setDate(cursor.getDate() + 1);
+      }
     }
     return out;
-  }, [start, end, collectedByDay, expectedPerDay]);
+  }, [start, end, granularity, collectedBuckets, expectedPerDay]);
+
+  const trendTitle =
+    granularity === 'hour' ? 'Collection trend · hourly flow vs target'
+      : granularity === 'month' ? 'Collection trend · monthly flow vs target'
+      : 'Collection trend · daily flow vs target';
 
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
@@ -510,7 +601,7 @@ export function FleetPerformanceStats() {
           {trendData.length > 1 && (
             <div className="mt-3 rounded-lg border border-border bg-card p-3">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                Collection trend · daily flow vs target
+                {trendTitle}
               </p>
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
