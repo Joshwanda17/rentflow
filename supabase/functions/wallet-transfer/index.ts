@@ -440,12 +440,29 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
-    // SMS to recipient: "You have received UGX ... from <sender name>" (fire-and-forget)
+    // SMS to recipient: amount received + sender + new wallet balance + app link
+    // (fire-and-forget). Uses the Yoola -> Africa's Talking -> LANA chain above.
     if (recipientProfile?.phone) {
+      // Fetch the recipient's up-to-date wallet balance to show "new balance".
+      let recipientBalanceText = '';
+      try {
+        const { data: recipientWallet } = await adminClient
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', resolvedRecipientId)
+          .single();
+        if (recipientWallet && Number.isFinite(Number(recipientWallet.balance))) {
+          recipientBalanceText =
+            ` New balance: UGX ${Number(recipientWallet.balance).toLocaleString('en-US')}.`;
+        }
+      } catch { /* balance is best-effort */ }
+
+      const appLink = 'https://welilereceipts.com/dashboard';
       const smsMessage =
         `WELILE: You have received ${formattedAmount} from ${senderLabel}.` +
-        (hasReason ? ` Reason: ${trimmedReason}.` : '') + ` ` +
-        `New funds are now in your wallet. Ref: ${transferReference}. Thank you for using WELILE.`;
+        (hasReason ? ` Reason: ${trimmedReason}.` : '') +
+        recipientBalanceText +
+        ` Ref: ${transferReference}. Open the app: ${appLink}`;
       sendSMS(recipientProfile.phone, smsMessage).catch(() => {});
     }
 
