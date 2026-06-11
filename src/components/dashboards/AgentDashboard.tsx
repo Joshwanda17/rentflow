@@ -56,6 +56,7 @@ import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
+import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
 import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
 import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
 import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequestDialog';
