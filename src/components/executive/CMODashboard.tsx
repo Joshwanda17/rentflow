@@ -176,6 +176,16 @@ export function CMODashboard() {
     completed: referralStats?.byMonth[m.month]?.completed || 0,
   })) || [];
 
+  const loginTrend = months.map(m => {
+    const key = format(startOfMonth(m), 'MMM yyyy');
+    const v = loginStats?.byMonth[key];
+    return { month: key, success: v?.success || 0, failed: v?.failed || 0 };
+  });
+
+  const loginSuccessRate = loginStats && loginStats.attempts > 0
+    ? Math.round((loginStats.success / loginStats.attempts) * 100)
+    : 0;
+
   const referralTotalForStatus =
     referralStatus === 'pending'
       ? referralStats?.pendingReferrals || 0
