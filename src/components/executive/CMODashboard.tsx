@@ -292,17 +292,33 @@ export function CMODashboard() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {statusOptions.map((opt) => (
-          <Button
-            key={opt.value}
-            size="sm"
-            variant={referralStatus === opt.value ? 'default' : 'outline'}
-            onClick={() => setReferralStatus(opt.value)}
-          >
-            {opt.label}
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-2">
+          {statusOptions.map((opt) => (
+            <Button
+              key={opt.value}
+              size="sm"
+              variant={referralStatus === opt.value ? 'default' : 'outline'}
+              onClick={() => setReferralStatus(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+        <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
+        <div className="flex flex-wrap gap-2">
+          {dateFilterOptions.map((opt) => (
+            <Button
+              key={opt.value}
+              size="sm"
+              variant={referralDateFilter === opt.value ? 'secondary' : 'outline'}
+              onClick={() => setReferralDateFilter(opt.value)}
+              className="text-xs"
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
