@@ -4,15 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } from './constants';
-
-import { formatDynamic as formatUGX, formatDynamicCompact } from '@/lib/currencyFormat';
-
-const formatCompact = formatDynamicCompact;
+import {
+  TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD,
+  type CurrencyView, formatCurrency, formatCurrencyCompact,
+} from './constants';
 
 export function AngelCalculator() {
   const [amount, setAmount] = useState(1_000_000);
   const [selectedValuation, setSelectedValuation] = useState<number | null>(null);
+  const [view, setView] = useState<CurrencyView>('UGX');
+
+  const formatCompact = (n: number) => formatCurrencyCompact(n, view);
 
   // Fractional shares — UGX 50,000 → 2.5 shares, no truncation.
   const shares = amount / PRICE_PER_SHARE;
@@ -33,20 +35,37 @@ export function AngelCalculator() {
   return (
     <Card className="border-primary/20">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-primary/10">
-            <Calculator className="h-4 w-4 text-primary" />
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <Calculator className="h-4 w-4 text-primary" />
+            </div>
+            Investment Calculator
+          </CardTitle>
+          <div className="flex items-center rounded-full border border-border bg-muted/40 p-0.5">
+            {(['UGX', 'USD'] as CurrencyView[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setView(c)}
+                className={`px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors ${
+                  view === c ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
           </div>
-          Investment Calculator
-        </CardTitle>
+        </div>
+        <p className="text-[10px] text-muted-foreground pt-1">1 share = UGX 20,000 = US$5</p>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Amount input */}
         <div>
-          <label className="text-xs text-muted-foreground font-medium mb-1.5 block">Investment Amount (UGX)</label>
+          <label className="text-xs text-muted-foreground font-medium mb-1.5 block">Investment Amount ({view})</label>
           <Input
             type="text"
-            value={amount.toLocaleString()}
+            value={(view === 'USD' ? amount / UGX_PER_USD : amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}
             onChange={(e) => handleAmountChange(e.target.value)}
             className="text-lg font-bold"
           />
