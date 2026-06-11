@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ACTIVE_RENT_STATUSES } from '@/hooks/useAgentCapacityMap';
-import { Target, Banknote, Percent, Loader2 } from 'lucide-react';
+import { Target, Banknote, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'this_month' | 'last_month';
 
@@ -134,6 +134,7 @@ async function fetchAgentNames(agentIds: string[]): Promise<Record<string, strin
 
 export function FleetPerformanceStats() {
   const [period, setPeriod] = useState<PeriodKey>('today');
+  const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
   const { start, end, days } = useMemo(() => resolvePeriod(period), [period]);
 
   const { data: expectedByAgent = {}, isLoading: expLoading } = useQuery({
@@ -160,7 +161,7 @@ export function FleetPerformanceStats() {
     staleTime: 5 * 60_000,
   });
 
-  const rows = useMemo(() => {
+  const rawRows = useMemo(() => {
     return agentIds
       .map((id) => {
         const expected = (expectedByAgent[id] || 0) * days;
@@ -168,9 +169,20 @@ export function FleetPerformanceStats() {
         const rate = expected > 0 ? Math.min(100, Math.round((collected / expected) * 100)) : 0;
         return { id, name: names[id] || id.slice(0, 8), expected, collected, rate };
       })
-      .filter((r) => r.expected > 0 || r.collected > 0)
-      .sort((a, b) => b.collected - a.collected);
+      .filter((r) => r.expected > 0 || r.collected > 0);
   }, [agentIds, expectedByAgent, collectedByAgent, names, days]);
+
+  const rows = useMemo(() => {
+    const { key, dir } = sort;
+    const sorted = [...rawRows].sort((a, b) => {
+      let cmp = 0;
+      if (key === 'expected') cmp = a.expected - b.expected;
+      else if (key === 'collected') cmp = a.collected - b.collected;
+      else cmp = a.rate - b.rate;
+      return dir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [rawRows, sort]);
 
   const loading = expLoading || colLoading;
   const totalExpected = rows.reduce((s, r) => s + r.expected, 0);
@@ -223,11 +235,11 @@ export function FleetPerformanceStats() {
 
           {/* Agent-by-agent breakdown */}
           <div className="mt-3 rounded-lg border border-border overflow-hidden">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 bg-muted/60 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 px-2.5 py-1.5 bg-muted/60 text-[10px] font-bold uppercase tracking-wide text-muted-foreground items-center">
               <span>Agent</span>
-              <span className="text-right">Expected</span>
-              <span className="text-right">Collected</span>
-              <span className="text-right">Rate</span>
+              <SortHeader label="Expected" sortKey="expected" sort={sort} onChange={setSort} align="right" />
+              <SortHeader label="Collected" sortKey="collected" sort={sort} onChange={setSort} align="right" />
+              <SortHeader label="Rate" sortKey="rate" sort={sort} onChange={setSort} align="right" />
             </div>
             <div className="max-h-72 overflow-y-auto divide-y divide-border">
               {rows.length === 0 ? (
@@ -267,6 +279,39 @@ function Stat({ icon, label, value, tone }: { icon: React.ReactNode; label: stri
       </div>
       <div className="mt-0.5 text-sm font-extrabold tabular-nums text-foreground truncate">{value}</div>
     </div>
+  );
+}
+
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onChange,
+  align = 'left',
+}: {
+  label: string;
+  sortKey: 'expected' | 'collected' | 'rate';
+  sort: { key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' };
+  onChange: (s: { key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = sort.key === sortKey;
+  const Icon = active ? (sort.dir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (active) {
+          onChange({ key: sortKey, dir: sort.dir === 'asc' ? 'desc' : 'asc' });
+        } else {
+          onChange({ key: sortKey, dir: 'desc' });
+        }
+      }}
+      className={`flex items-center gap-1 select-none ${align === 'right' ? 'justify-end' : 'justify-start'} text-muted-foreground hover:text-foreground transition-colors`}
+    >
+      <span>{label}</span>
+      <Icon className="h-3 w-3 opacity-70" />
+    </button>
   );
 }
 
