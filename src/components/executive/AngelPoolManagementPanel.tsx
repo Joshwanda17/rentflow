@@ -423,6 +423,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
         </CardContent>
       </Card>
 
+      {/* Skipped onboarding emails review */}
+      <AngelPoolSkippedEmailsPanel />
+
       {/* Edit Dialog — CEO only */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
