@@ -176,20 +176,39 @@ export default function SubAgentAnalytics() {
         .eq('earning_type', 'subagent_commission')
         .order('created_at', { ascending: false });
 
+      // Fetch sub-agents' own earnings (platform rewards)
+      const { data: ownEarnings } = await supabase
+        .from('agent_earnings')
+        .select('agent_id, amount')
+        .in('agent_id', subAgentIds);
+
+      // Fetch business advances (accessed funds)
+      const { data: advances } = await supabase
+        .from('business_advances')
+        .select('agent_id, principal')
+        .in('agent_id', subAgentIds)
+        .in('status', ['approved', 'active', 'repaying', 'paid', 'completed']);
+
       // Fetch tenants per sub-agent
       const tenantsData: Record<string, { id: string; name: string; totalRepaid: number }[]> = {};
       const earningsPerSubAgent: Record<string, number> = {};
       const monthlyEarningsPerSubAgent: Record<string, Record<string, number>> = {};
+      const rentVolumePerSubAgent: Record<string, number> = {};
+      const serviceFeesPerSubAgent: Record<string, number> = {};
 
       for (const subAgentId of subAgentIds) {
         // Get rent requests for this sub-agent's tenants
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id')
+          .select('tenant_id, total_repayment, request_fee')
           .eq('agent_id', subAgentId);
 
         const tenantIds = [...new Set(rentRequests?.map(rr => rr.tenant_id) || [])];
         
+        // Sum facilitated rent volume and service fees
+        rentVolumePerSubAgent[subAgentId] = (rentRequests || []).reduce((sum, rr) => sum + Number(rr.total_repayment || 0), 0);
+        serviceFeesPerSubAgent[subAgentId] = (rentRequests || []).reduce((sum, rr) => sum + Number(rr.request_fee || 0), 0);
+
         if (tenantIds.length > 0) {
           // Get tenant profiles
           const { data: tenantProfiles } = await supabase
