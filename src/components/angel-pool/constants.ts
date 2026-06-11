@@ -11,3 +11,28 @@ export const VALUATIONS = [
   { label: '$3B', value: 3_000_000_000 },
   { label: '$5B', value: 5_000_000_000 },
 ] as const;
+
+export type CurrencyView = 'UGX' | 'USD';
+
+// Convert a UGX amount to the chosen display currency.
+export const toDisplayAmount = (ugx: number, view: CurrencyView) =>
+  view === 'USD' ? ugx / UGX_PER_USD : ugx;
+
+// Format a UGX amount in the chosen currency (full, with symbol).
+export const formatCurrency = (ugx: number, view: CurrencyView) => {
+  const amt = toDisplayAmount(ugx, view);
+  if (view === 'USD') {
+    return `US$${amt.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  }
+  return `UGX ${Math.round(amt).toLocaleString()}`;
+};
+
+// Format a UGX amount in the chosen currency (compact, with symbol).
+export const formatCurrencyCompact = (ugx: number, view: CurrencyView) => {
+  const amt = toDisplayAmount(ugx, view);
+  const symbol = view === 'USD' ? 'US$' : 'UGX ';
+  if (amt >= 1_000_000_000) return `${symbol}${(amt / 1_000_000_000).toFixed(1)}B`;
+  if (amt >= 1_000_000) return `${symbol}${(amt / 1_000_000).toFixed(1)}M`;
+  if (amt >= 1_000) return `${symbol}${(amt / 1_000).toFixed(1)}K`;
+  return `${symbol}${amt.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+};
