@@ -367,6 +367,26 @@ export function FleetPerformanceStats() {
   const rateTone = rate >= 100 ? 'text-emerald-600' : rate >= 80 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-destructive';
   const barTone = rate >= 100 ? 'bg-emerald-500' : rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
 
+  // Daily expected target across the whole fleet (constant per day).
+  const expectedPerDay = useMemo(
+    () => Object.values(expectedByAgent).reduce((s, v) => s + (Number(v) || 0), 0),
+    [expectedByAgent],
+  );
+
+  // Per-day series of collected vs expected for the trend chart.
+  const trendData = useMemo(() => {
+    const out: { label: string; collected: number; expected: number }[] = [];
+    const cursor = startOfDay(start);
+    const endMs = end.getTime();
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    while (cursor.getTime() < endMs) {
+      const k = dayKey(cursor);
+      out.push({ label: fmt(cursor), collected: collectedByDay[k] || 0, expected: expectedPerDay });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return out;
+  }, [start, end, collectedByDay, expectedPerDay]);
+
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
       <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
