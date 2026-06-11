@@ -19,6 +19,36 @@ export function isPlaceholderEmail(email?: string | null): boolean {
   return /(@|\.)welile\.user$/.test(e) || e.endsWith("@noapp.welile.user");
 }
 
+/**
+ * Best-effort: persist a skipped Angel Pool onboarding email to the
+ * `angel_pool_email_skips` audit table so executives can review them.
+ * Never throws — a logging failure must not roll back money that has moved.
+ */
+export async function recordEmailSkip(
+  adminClient: any,
+  args: {
+    investorId?: string | null;
+    referenceId?: string | null;
+    recipientEmail?: string | null;
+    reason: string;
+    fundingSource?: string | null;
+    sourceFunction: string;
+  },
+): Promise<void> {
+  try {
+    await adminClient.from("angel_pool_email_skips").insert({
+      investor_id: args.investorId ?? null,
+      reference_id: args.referenceId ?? null,
+      recipient_email: args.recipientEmail ?? null,
+      reason: args.reason,
+      funding_source: args.fundingSource ?? null,
+      source_function: args.sourceFunction,
+    });
+  } catch (err) {
+    console.error("[angelPoolNotify] recordEmailSkip failed:", err);
+  }
+}
+
 function formatPhoneInternational(phone: string): string {
   const digits = (phone || "").replace(/[^0-9]/g, "");
   if (!digits) return "";
