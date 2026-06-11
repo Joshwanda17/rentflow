@@ -312,15 +312,27 @@ export async function fetchAllNearingPayoutPortfolios(): Promise<{
 
   const profiles = await batchedQuery<{ id: string; full_name: string; phone: string; email: string }>(
     Array.from(ownerIds),
-    (batch) => supabase.from('profiles').select('id, full_name, phone, email').in('id', batch)
+    (batch) => supabase.from('profiles').select('id, full_name, phone, email, frozen_at').in('id', batch)
   );
 
   const profileMap = new Map(profiles.map(p => [p.id, p]));
 
+  // Suspended (frozen) owners must NOT surface in nearing payouts. Drop every
+  // portfolio whose owner has a non-null `frozen_at`, and remove those owners
+  // from the owner set so downstream name resolution skips them too.
+  const frozenOwnerIds = new Set(
+    profiles.filter((p: any) => p.frozen_at != null).map((p) => p.id)
+  );
+  const filteredPortfolios = portfolios.filter((p) => {
+    const ownerId = p.investor_id || p.agent_id;
+    return ownerId ? !frozenOwnerIds.has(ownerId) : true;
+  });
+  frozenOwnerIds.forEach((id) => ownerIds.delete(id));
+
   // `supporterIds` is now "the set of all owner IDs we have profiles for" — the
   // downstream consumer uses it only to resolve the display name, so any owner
   // counts. Naming kept for backward compatibility with the call site.
-  return { portfolios, profileMap, supporterIds: ownerIds };
+  return { portfolios: filteredPortfolios, profileMap, supporterIds: ownerIds };
 }
 
 /**
