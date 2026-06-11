@@ -30,8 +30,8 @@ function shareAsPdf(opts: {
   rows: { id: string; name: string; expected: number; collected: number; rate: number }[];
 }) {
   const { periodLabel, days, start, end, totalExpected, totalCollected, rate, rows } = opts;
-  const toneFor = (r: number) => (r >= 80 ? '#059669' : r >= 50 ? '#d97706' : '#dc2626');
-  const verdict = rate >= 80 ? 'On track' : rate >= 50 ? 'Needs a push' : 'Falling behind';
+  const toneFor = (r: number) => (r >= 100 ? '#059669' : r >= 80 ? '#059669' : r >= 50 ? '#d97706' : '#dc2626');
+  const verdict = rate >= 100 ? 'Exceeding target' : rate >= 80 ? 'On track' : rate >= 50 ? 'Needs a push' : 'Falling behind';
   const generated = new Date().toLocaleString();
   const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   // end is exclusive; show the last covered day for human reading
@@ -43,13 +43,14 @@ function shareAsPdf(opts: {
     .map((r, i) => {
       const c = toneFor(r.rate);
       const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+      const overLabel = r.rate > 100 ? ` ↑${r.rate - 100}% over` : '';
       return `<tr>
         <td class="rank">${medal || i + 1}</td>
         <td class="name">${(r.name || '').replace(/</g, '&lt;')}</td>
         <td class="num">${formatUGX(r.expected)}</td>
         <td class="num strong">${formatUGX(r.collected)}</td>
         <td class="rate" style="color:${c}">
-          <span class="dot" style="background:${c}"></span>${r.rate}%
+          <span class="dot" style="background:${c}"></span>${r.rate}%${overLabel}
         </td>
       </tr>`;
     })
@@ -119,7 +120,7 @@ function shareAsPdf(opts: {
       <div class="card"><div class="lbl">Collected</div><div class="val" style="color:#2563eb">${formatUGX(totalCollected)}</div></div>
       <div class="card"><div class="lbl">Collection rate</div><div class="val" style="color:${toneFor(rate)}">${rate}%</div></div>
     </div>
-    <div class="barwrap"><div class="bar" style="width:${rate}%;background:${toneFor(rate)}"></div></div>
+    <div class="barwrap"><div class="bar" style="width:${Math.min(rate, 100)}%;background:${toneFor(rate)}"></div></div>
     <p class="section-title">Agent-by-agent breakdown</p>
     <table>
       <thead><tr><th>#</th><th>Agent</th><th class="num">Expected</th><th class="num">Collected</th><th class="rate">Rate</th></tr></thead>
@@ -285,7 +286,7 @@ export function FleetPerformanceStats() {
       .map((id) => {
         const expected = (expectedByAgent[id] || 0) * days;
         const collected = collectedByAgent[id] || 0;
-        const rate = expected > 0 ? Math.min(100, Math.round((collected / expected) * 100)) : 0;
+        const rate = expected > 0 ? Math.round((collected / expected) * 100) : 0;
         return { id, name: names[id] || id.slice(0, 8), expected, collected, rate };
       })
       .filter((r) => r.expected > 0 || r.collected > 0);
@@ -314,9 +315,9 @@ export function FleetPerformanceStats() {
   const loading = expLoading || colLoading;
   const totalExpected = rows.reduce((s, r) => s + r.expected, 0);
   const totalCollected = rows.reduce((s, r) => s + r.collected, 0);
-  const rate = totalExpected > 0 ? Math.min(100, Math.round((totalCollected / totalExpected) * 100)) : 0;
-  const rateTone = rate >= 80 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-destructive';
-  const barTone = rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
+  const rate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  const rateTone = rate >= 100 ? 'text-emerald-600' : rate >= 80 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-destructive';
+  const barTone = rate >= 100 ? 'bg-emerald-500' : rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
 
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
@@ -374,7 +375,7 @@ export function FleetPerformanceStats() {
             <Stat icon={<Percent className="h-3.5 w-3.5" />} label="Collection rate" value={`${rate}%`} tone={rateTone} />
           </div>
           <div className="mt-2.5 h-2 w-full rounded-full bg-muted overflow-hidden">
-            <div className={`h-full ${barTone} transition-all`} style={{ width: `${rate}%` }} />
+            <div className={`h-full ${barTone} transition-all`} style={{ width: `${Math.min(rate, 100)}%` }} />
           </div>
           <p className="mt-1.5 text-[10px] text-muted-foreground tabular-nums">
             {formatUGX(totalCollected)} collected of {formatUGX(totalExpected)} expected ({days} day{days === 1 ? '' : 's'} · {rows.length} agent{rows.length === 1 ? '' : 's'})
@@ -408,7 +409,8 @@ export function FleetPerformanceStats() {
                 </div>
               ) : (
                 rows.map((r, idx) => {
-                  const tone = r.rate >= 80 ? 'text-emerald-600' : r.rate >= 50 ? 'text-amber-600' : 'text-destructive';
+                  const tone = r.rate >= 100 ? 'text-emerald-600' : r.rate >= 80 ? 'text-emerald-600' : r.rate >= 50 ? 'text-amber-600' : 'text-destructive';
+                  const overLabel = r.rate > 100 ? ` ↑${r.rate - 100}% over` : '';
                   return (
                     <div
                       key={r.id}
@@ -418,7 +420,7 @@ export function FleetPerformanceStats() {
                       <span className="font-semibold text-foreground truncate">{r.name}</span>
                       <span className="text-right tabular-nums text-violet-600">{formatUGX(r.expected)}</span>
                       <span className="text-right tabular-nums text-primary font-semibold">{formatUGX(r.collected)}</span>
-                      <span className={`text-right tabular-nums font-bold ${tone}`}>{r.rate}%</span>
+                      <span className={`text-right tabular-nums font-bold ${tone}`}>{r.rate}%{overLabel}</span>
                     </div>
                   );
                 })
