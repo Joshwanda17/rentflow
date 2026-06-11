@@ -135,6 +135,7 @@ async function fetchAgentNames(agentIds: string[]): Promise<Record<string, strin
 export function FleetPerformanceStats() {
   const [period, setPeriod] = useState<PeriodKey>('today');
   const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
+  const [search, setSearch] = useState('');
   const { start, end, days } = useMemo(() => resolvePeriod(period), [period]);
 
   const { data: expectedByAgent = {}, isLoading: expLoading } = useQuery({
