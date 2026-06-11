@@ -5,13 +5,33 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useLandlordFloatAllocations, type LandlordFloatAllocation } from '@/hooks/useLandlordFloatAllocations';
-import { Loader2, Landmark, ArrowRight, Inbox, User, Phone, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Loader2, Landmark, ArrowRight, Inbox, User, Phone, Search, Lock } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectAllocation: (allocation: LandlordFloatAllocation) => void;
+}
+
+/** Per-landlord withdrawal cooldown: one tap, then locked for 10 minutes. */
+const WITHDRAW_LOCK_MS = 10 * 60 * 1000;
+
+const lockStorageKey = (agentId?: string | null) => `welile-ll-withdraw-lock:${agentId ?? 'anon'}`;
+const allocationLockKey = (a: LandlordFloatAllocation) => a.landlord_id || a.id;
+
+function loadLocks(agentId?: string | null): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(lockStorageKey(agentId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, number>;
+    const now = Date.now();
+    // Drop expired entries on read so storage stays small.
+    return Object.fromEntries(Object.entries(parsed).filter(([, exp]) => exp > now));
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -20,9 +40,43 @@ interface Props {
  * to a landlord. Tapping an allocation hands off to the existing payout wizard.
  */
 export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSelectAllocation }: Props) {
+  const { user } = useAuth();
   const { data: allocations = [], isLoading } = useLandlordFloatAllocations({ onlyOpen: true });
 
   const [search, setSearch] = useState('');
+  const [locks, setLocks] = useState<Record<string, number>>({});
+  const [now, setNow] = useState(() => Date.now());
+
+  // Hydrate locks whenever the dialog opens (catches locks set on other screens/sessions).
+  useEffect(() => {
+    if (open) setLocks(loadLocks(user?.id));
+  }, [open, user?.id]);
+
+  // Tick every second while there is at least one active lock so countdowns update.
+  const hasActiveLock = useMemo(
+    () => Object.values(locks).some((exp) => exp > now),
+    [locks, now],
+  );
+  useEffect(() => {
+    if (!open || !hasActiveLock) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [open, hasActiveLock]);
+
+  const handleSelect = (a: LandlordFloatAllocation) => {
+    const key = allocationLockKey(a);
+    const expiry = locks[key];
+    if (expiry && expiry > Date.now()) return; // still locked — ignore the tap
+    const next = { ...loadLocks(user?.id), [key]: Date.now() + WITHDRAW_LOCK_MS };
+    setLocks(next);
+    setNow(Date.now());
+    try {
+      localStorage.setItem(lockStorageKey(user?.id), JSON.stringify(next));
+    } catch {
+      /* ignore storage failures */
+    }
+    onSelectAllocation(a);
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
