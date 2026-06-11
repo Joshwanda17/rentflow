@@ -63,6 +63,7 @@ import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequ
 import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebrationModal';
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
 import { useAgentUnblockToast } from '@/hooks/useAgentUnblockToast';
+import { useRecruiterOverrideToast } from '@/hooks/useRecruiterOverrideToast';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
@@ -196,6 +197,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // Celebratory toast the moment the agent crosses today's 20% eligibility
   // threshold (fires once per Kampala day, on mount or via realtime).
   useAgentUnblockToast(user?.id);
+  // Success / error toast when a UGX 3,000 recruiter override payout is created
+  // for this agent (a verified sub-agent listing / landlord / LC1 chairperson).
+  useRecruiterOverrideToast(user?.id);
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
   const { wallet, refreshWallet, loading: walletLoading } = useWallet();
   const { commissionBalance, withdrawableBalance, otherBalance, refetch: refreshBalances, isLoading: balancesLoading } = useAgentBalances();

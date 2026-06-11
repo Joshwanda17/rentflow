@@ -13254,6 +13254,57 @@ export type Database = {
           },
         ]
       }
+      recruiter_override_events: {
+        Row: {
+          amount: number
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          is_read: boolean
+          label: string | null
+          occurred_at: string
+          recruiter_id: string
+          source_id: string | null
+          source_table: string | null
+          status: string
+          sub_agent_id: string | null
+          toast_seen_at: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          is_read?: boolean
+          label?: string | null
+          occurred_at?: string
+          recruiter_id: string
+          source_id?: string | null
+          source_table?: string | null
+          status?: string
+          sub_agent_id?: string | null
+          toast_seen_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          is_read?: boolean
+          label?: string | null
+          occurred_at?: string
+          recruiter_id?: string
+          source_id?: string | null
+          source_table?: string | null
+          status?: string
+          sub_agent_id?: string | null
+          toast_seen_at?: string | null
+        }
+        Relationships: []
+      }
       referral_rewards: {
         Row: {
           created_at: string
