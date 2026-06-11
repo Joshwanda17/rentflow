@@ -397,6 +397,13 @@ export function CMODashboard() {
         <KPICard title="Completed Referrals" value={referralStats?.completedReferrals || 0} icon={BarChart3} color="bg-green-500/10 text-green-600" />
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <KPICard title="Successful Logins" value={(loginStats?.success || 0).toLocaleString()} icon={LogIn} color="bg-green-500/10 text-green-600" />
+        <KPICard title="Login Success Rate" value={`${loginSuccessRate}%`} icon={ShieldCheck} color="bg-emerald-500/10 text-emerald-600" />
+        <KPICard title="Failed Logins" value={(loginStats?.failed || 0).toLocaleString()} icon={ShieldAlert} color="bg-red-500/10 text-red-600" />
+        <KPICard title="No-Account Attempts" value={(loginStats?.noAccount || 0).toLocaleString()} icon={UserX} color="bg-amber-500/10 text-amber-600" />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Signup Growth</h3>
@@ -410,6 +417,26 @@ export function CMODashboard() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <LogIn className="w-4 h-4 text-primary" />
+            Login Activity
+          </h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={loginTrend}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="month" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="success" fill="#22c55e" radius={[4, 4, 0, 0]} name="Successful" />
+              <Bar dataKey="failed" fill="#ef4444" radius={[4, 4, 0, 0]} name="Failed" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <div className="rounded-2xl border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3">Referral Performance</h3>
           <ResponsiveContainer width="100%" height={200}>
