@@ -23,9 +23,11 @@ export function AngelCalculator() {
   const sharesLabel = shares.toLocaleString(undefined, { maximumFractionDigits: 4 });
 
   const handleAmountChange = (val: string) => {
-    const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
-    if (!isNaN(num)) setAmount(Math.min(num, 500_000_000));
-    else setAmount(0);
+    const num = parseFloat(val.replace(/[^0-9.]/g, ''));
+    if (!isNaN(num)) {
+      const ugx = view === 'USD' ? num * UGX_PER_USD : num;
+      setAmount(Math.min(Math.round(ugx), 500_000_000));
+    } else setAmount(0);
   };
 
   const estimatedValue = selectedValuation
