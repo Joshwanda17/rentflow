@@ -694,9 +694,19 @@ export function FleetPerformanceStats() {
           {/* Collection trend: collected per day vs expected daily target */}
           {trendData.length > 1 && (
             <div className="mt-3 rounded-lg border border-border bg-card p-3">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                {trendTitle}
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  {trendTitle}
+                </p>
+                <button
+                  type="button"
+                  onClick={exportTrendPdf}
+                  className="h-6 px-2 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 bg-muted text-foreground hover:bg-muted/70 transition-colors"
+                >
+                  <Share2 className="h-3 w-3" />
+                  Trend PDF
+                </button>
+              </div>
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={trendData} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
