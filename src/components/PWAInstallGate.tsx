@@ -34,9 +34,6 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<'accepted' | 'dismissed' | null>(null);
   const [promptReady, setPromptReady] = useState(!!deferredPrompt);
-  const [skipped, setSkipped] = useState(() =>
-    sessionStorage.getItem('welile_pwa_gate_skipped') === 'true'
-  );
   const tapLockRef = useRef(0);
 
   useEffect(() => {
