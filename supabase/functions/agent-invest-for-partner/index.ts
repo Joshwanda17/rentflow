@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!partner_id || !uuidRegex.test(partner_id)) return errorResponse("Invalid partner ID", 400);
-    if (!amount || amount < 50000) return errorResponse("Minimum investment is UGX 50,000", 400);
+    if (!amount || amount < 1000) return errorResponse("Minimum investment is UGX 1,000", 400);
 
     // --- Verify partner is a supporter ---
     const { data: partnerRole } = await adminClient
