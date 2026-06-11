@@ -398,14 +398,20 @@ Deno.serve(async (req) => {
     }
 
     // ═══ POST-PAYOUT: Merge pending top-ups into portfolio principal ═══
-    // IMPORTANT: this MUST run for EVERY active portfolio that has approved/pending
-    // top-ups — NOT only for partners who happened to have a funded rent request
-    // this cycle. Previously the merge iterated over supporters derived from
-    // `fundedRequests`, so partners whose capital was not yet deployed to a funded
-    // tenant never got their approved top-ups merged (they stayed stuck forever).
+    // IMPORTANT: this MUST run for EVERY active portfolio that has an open top-up
+    // (status `pending`, `awaiting_verification`, or `approved`) — NOT only for
+    // partners who happened to have a funded rent request this cycle. Previously the
+    // merge iterated over supporters derived from `fundedRequests`, so partners whose
+    // capital was not yet deployed to a funded tenant never got their top-ups merged.
+    //
+    // NO FINOPS REQUIRED: a parked top-up auto-merges into principal the moment its
+    // portfolio's Returns payout is processed (ROI date due). It does NOT need to be
+    // approved by Financial Ops first — the payout event itself is the trigger. So we
+    // include `awaiting_verification` (the state the 6PM cron parks them in) alongside
+    // `pending`/`approved` in the merge filter below.
     //
     // We now discover the work directly from the top-up queue: gather every
-    // approved/pending portfolio_topup, resolve its active portfolio, and merge.
+    // open portfolio_topup, resolve its active portfolio, and merge.
     const { data: openTopups } = await supabase
       .from('pending_wallet_operations')
       .select('source_id')
