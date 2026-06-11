@@ -98,7 +98,10 @@ export function LandlordRecoveryLedger({ open, onOpenChange }: Props) {
           totalFunded,
           totalRecovered,
           totalPaidToLandlord,
-          outstanding: totalFunded - totalRecovered,
+          // Recovery can never exceed what was funded — amount_repaid includes
+          // Welile fees on top of the rent principal, so a fully-repaid tenant
+          // would otherwise drive this negative. Clamp at 0.
+          outstanding: Math.max(0, totalFunded - totalRecovered),
           recoveryPct: totalFunded > 0 ? Math.min(100, (totalRecovered / totalFunded) * 100) : 0,
           tenants: tenantBreakdown,
           payouts: landlordPayouts,
