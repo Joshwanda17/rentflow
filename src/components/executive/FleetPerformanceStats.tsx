@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   ComposedChart,
   Bar,
@@ -435,6 +436,7 @@ export function FleetPerformanceStats() {
       : undefined,
   );
   const [rangeOpen, setRangeOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Persist the selected range whenever it changes.
   useEffect(() => {
@@ -596,11 +598,11 @@ export function FleetPerformanceStats() {
 
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-          Fleet performance · Expected vs Collected
-        </p>
-        <div className="flex items-center gap-1 flex-wrap">
+      <div className="flex flex-col gap-2 mb-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            Fleet performance · Expected vs Collected
+          </p>
           <button
             type="button"
             onClick={() =>
@@ -619,7 +621,33 @@ export function FleetPerformanceStats() {
               })
             }
             disabled={loading || rows.length === 0}
-            className="h-7 px-2.5 rounded-lg text-[11px] font-semibold inline-flex items-center gap-1 bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-40"
+            className="h-7 px-2.5 rounded-lg text-[11px] font-semibold inline-flex items-center gap-1 bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0 sm:hidden"
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            PDF
+          </button>
+        </div>
+        {/* Period selector: horizontally scrollable strip on small screens, wraps on desktop */}
+        <div className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+          <button
+            type="button"
+            onClick={() =>
+              shareAsPdf({
+                periodLabel:
+                  period === 'custom'
+                    ? 'Custom range'
+                    : PERIODS.find((p) => p.key === period)?.label || '',
+                days,
+                start,
+                end,
+                totalExpected,
+                totalCollected,
+                rate,
+                rows,
+              })
+            }
+            disabled={loading || rows.length === 0}
+            className="hidden h-7 px-2.5 rounded-lg text-[11px] font-semibold sm:inline-flex items-center gap-1 bg-foreground text-background hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
           >
             <Share2 className="h-3.5 w-3.5" />
             Share PDF
@@ -629,7 +657,7 @@ export function FleetPerformanceStats() {
               key={p.key}
               type="button"
               onClick={() => setPeriod(p.key)}
-              className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-colors ${
+              className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 ${
                 period === p.key
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:bg-muted/70'
@@ -642,7 +670,7 @@ export function FleetPerformanceStats() {
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-colors inline-flex items-center gap-1 ${
+                className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0 ${
                   period === 'custom'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-muted/70'
@@ -654,7 +682,7 @@ export function FleetPerformanceStats() {
                   : 'Custom range'}
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
+            <PopoverContent className="w-auto max-w-[calc(100vw-2rem)] p-0" align="end">
               <Calendar
                 mode="range"
                 selected={customRange}
@@ -663,7 +691,7 @@ export function FleetPerformanceStats() {
                   if (r?.from) setPeriod('custom');
                   if (r?.from && r?.to) setRangeOpen(false);
                 }}
-                numberOfMonths={2}
+                numberOfMonths={isMobile ? 1 : 2}
                 disabled={{ after: new Date() }}
                 initialFocus
                 className="p-3 pointer-events-auto"
