@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
+import { isValidInvestmentAmount, MIN_INVESTMENT_ERROR } from "../_shared/investmentAmount.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,8 +59,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Invalid partner ID" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    if (!amount || amount < 1000) {
-      return new Response(JSON.stringify({ error: "Minimum investment is UGX 1,000" }),
+    if (!isValidInvestmentAmount(amount)) {
+      return new Response(JSON.stringify({ error: MIN_INVESTMENT_ERROR }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
