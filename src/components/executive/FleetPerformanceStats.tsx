@@ -282,4 +282,37 @@ function Stat({ icon, label, value, tone }: { icon: React.ReactNode; label: stri
   );
 }
 
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onChange,
+  align = 'left',
+}: {
+  label: string;
+  sortKey: 'expected' | 'collected' | 'rate';
+  sort: { key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' };
+  onChange: (s: { key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = sort.key === sortKey;
+  const Icon = active ? (sort.dir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (active) {
+          onChange({ key: sortKey, dir: sort.dir === 'asc' ? 'desc' : 'asc' });
+        } else {
+          onChange({ key: sortKey, dir: 'desc' });
+        }
+      }}
+      className={`flex items-center gap-1 select-none ${align === 'right' ? 'justify-end' : 'justify-start'} text-muted-foreground hover:text-foreground transition-colors`}
+    >
+      <span>{label}</span>
+      <Icon className="h-3 w-3 opacity-70" />
+    </button>
+  );
+}
+
 export default FleetPerformanceStats;
