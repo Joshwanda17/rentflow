@@ -615,7 +615,18 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const canRenew = !!lastCompletedRequest && !summary.activeRequest;
 
   const handleRenewCycle = async () => {
-    if (!user || !profile || !lastCompletedRequest) return;
+  const handleRenewCycle = async () => {
+    // Surface guard failures instead of returning silently — a no-op tap is
+    // indistinguishable from a broken button to the user.
+    if (renewing) return;
+    if (!user?.id) {
+      toast({ title: 'Please sign in', description: 'Your session expired. Sign in again to renew this rent cycle.', variant: 'destructive' });
+      return;
+    }
+    if (!profile || !lastCompletedRequest) {
+      toast({ title: 'Cannot renew', description: 'No completed rent cycle was found to re-post.', variant: 'destructive' });
+      return;
+    }
     const req = lastCompletedRequest;
     if (!req.landlord_id) {
       toast({ title: 'Cannot renew', description: 'Landlord info missing on prior request.', variant: 'destructive' });
@@ -624,29 +635,47 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     setRenewing(true);
     try {
       const fees = calculateRentRepayment(req.rent_amount, req.duration_days);
-      const { error } = await supabase.from('rent_requests').insert({
-        tenant_id: profile.id,
-        agent_id: user.id,
-        landlord_id: req.landlord_id,
-        lc1_id: req.lc1_id ?? null,
-        rent_amount: fees.rentAmount,
-        duration_days: fees.durationDays,
-        access_fee: fees.accessFee,
-        request_fee: fees.requestFee,
-        total_repayment: fees.totalRepayment,
-        daily_repayment: fees.dailyRepayment,
-        status: 'pending',
-        house_category: req.house_category ?? req.landlord?.house_category ?? null,
-        tenant_no_smartphone: req.tenant_no_smartphone ?? false,
-        request_latitude: req.request_latitude ?? null,
-        request_longitude: req.request_longitude ?? null,
-      } as any);
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .insert({
+          tenant_id: profile.id,
+          agent_id: user.id,
+          landlord_id: req.landlord_id,
+          lc1_id: req.lc1_id ?? null,
+          rent_amount: fees.rentAmount,
+          duration_days: fees.durationDays,
+          access_fee: fees.accessFee,
+          request_fee: fees.requestFee,
+          total_repayment: fees.totalRepayment,
+          daily_repayment: fees.dailyRepayment,
+          status: 'pending',
+          house_category: req.house_category ?? req.landlord?.house_category ?? null,
+          tenant_no_smartphone: req.tenant_no_smartphone ?? false,
+          request_latitude: req.request_latitude ?? null,
+          request_longitude: req.request_longitude ?? null,
+          // Agent acts as guarantor on every posted rent request (matches the
+          // primary rent-request flow). Without this the post can be rejected
+          // downstream and the renew appears to do nothing.
+          agent_guarantor_consent: true,
+          agent_guarantor_consent_at: new Date().toISOString(),
+          agent_guarantor_consent_version: 'v1',
+        } as any)
+        // `.select()` forces RLS / trigger rejections to surface as an error
+        // (and returns the new row) instead of silently inserting nothing.
+        .select('id')
+        .single();
       if (error) throw error;
+      if (!data?.id) throw new Error('The rent request could not be posted. Please try again.');
       toast({ title: 'Rent request renewed ✅', description: `Posted for ${profile.full_name}` });
       loadFullProfile();
     } catch (err: any) {
       console.error('Renew failed:', err);
-      toast({ title: 'Renew failed', description: err?.message || 'Try again', variant: 'destructive' });
+      const raw = err?.message || err?.error_description || '';
+      // Translate the most common backend guard into plain language.
+      const friendly = raw.includes('DAILY_ELIGIBILITY_BLOCKED')
+        ? 'Collect from your existing tenants first — you must reach 20% of your daily target before posting a new rent request.'
+        : (raw || 'Something went wrong. Please try again.');
+      toast({ title: 'Renew failed', description: friendly, variant: 'destructive' });
     } finally {
       setRenewing(false);
     }
