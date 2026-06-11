@@ -98,11 +98,12 @@ Deno.serve(async (req) => {
       return json({ error: "This invite is no longer pending." }, 400);
     }
 
-    // Regenerate a fresh acceptance token
+    // Regenerate a fresh acceptance token and extend expiration
     const newToken = crypto.randomUUID();
+    const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { error: updErr } = await adminClient
       .from("agent_subagents")
-      .update({ acceptance_token: newToken })
+      .update({ acceptance_token: newToken, expires_at: inviteExpiresAt })
       .eq("id", link.id);
     if (updErr) return json({ error: updErr.message }, 500);
 

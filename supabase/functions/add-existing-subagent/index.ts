@@ -152,6 +152,7 @@ Deno.serve(async (req) => {
     // via the link they receive by email/SMS before the relationship (and any
     // commission) becomes active.
     const acceptanceToken = crypto.randomUUID();
+    const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
     const { data: existingLink } = await adminClient
       .from("agent_subagents")
       .select("id, parent_agent_id, status, acceptance_token")
@@ -176,6 +177,7 @@ Deno.serve(async (req) => {
           verified_at: null,
           accepted_at: null,
           acceptance_token: acceptanceToken,
+          expires_at: inviteExpiresAt,
           rejection_reason: null,
         })
         .eq("id", existingLink.id);
@@ -189,6 +191,7 @@ Deno.serve(async (req) => {
           source: "agent_self_assignment",
           status: "pending_acceptance",
           acceptance_token: acceptanceToken,
+          expires_at: inviteExpiresAt,
         });
       if (insErr) return json({ error: insErr.message }, 500);
     }
