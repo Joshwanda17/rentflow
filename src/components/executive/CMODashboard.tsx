@@ -242,6 +242,13 @@ export function CMODashboard() {
     { label: 'Completed', value: 'completed' },
   ];
 
+  const dateFilterOptions: { label: string; value: ReferralDateFilter }[] = [
+    { label: '6 Months', value: '6months' },
+    { label: 'Today', value: 'today' },
+    { label: 'Yesterday', value: 'yesterday' },
+    { label: 'Last Week', value: 'last_week' },
+  ];
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-wrap items-end gap-3">
