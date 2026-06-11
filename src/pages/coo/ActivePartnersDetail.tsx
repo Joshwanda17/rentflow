@@ -506,7 +506,7 @@ export default function ActivePartnersDetail() {
                   placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Allowed range: {formatUGX(MIN_INVEST)} – {formatUGX(Math.min(MAX_INVEST, investPartner.walletBalance))}. Amounts outside this range will disable submission.
+                  {investHelperRange(investPartner.walletBalance)}
                 </p>
                 <div className="flex gap-2 flex-wrap">
                   {[1000, 5000, 10000, 50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
@@ -545,7 +545,7 @@ export default function ActivePartnersDetail() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setInvestPartner(null)}>Cancel</Button>
-            <Button onClick={handleInvest} disabled={investing || !investAmount || Number(investAmount) < MIN_INVEST || Number(investAmount) > Math.min(MAX_INVEST, investPartner.walletBalance)}>
+            <Button onClick={handleInvest} disabled={investing || !investAmount || !isInvestAmountValid(Number(investAmount), investPartner.walletBalance)}>
               {investing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirm Investment
             </Button>
