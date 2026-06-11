@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
-import { formatUGX, calculateRentRepayment, calculateRequestFee } from '@/lib/rentCalculations';
+import { formatUGX, calculateRequestFee } from '@/lib/rentCalculations';
 import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { format } from 'date-fns';
