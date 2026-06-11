@@ -5,22 +5,43 @@ import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TrendingUp, UserPlus, Target, Megaphone, BarChart3, Users, CalendarRange, Trophy } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfDay, endOfDay, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 type ReferralStatus = 'all' | 'pending' | 'completed';
+type ReferralDateFilter = '6months' | 'today' | 'yesterday' | 'last_week';
+
+function getDateBounds(filter: ReferralDateFilter, customStart: Date, customEnd: Date): { start: Date; end: Date } {
+  const now = new Date();
+  switch (filter) {
+    case 'today':
+      return { start: startOfDay(now), end: endOfDay(now) };
+    case 'yesterday': {
+      const y = subDays(now, 1);
+      return { start: startOfDay(y), end: endOfDay(y) };
+    }
+    case 'last_week': {
+      const weekAgo = subDays(now, 6);
+      return { start: startOfDay(weekAgo), end: endOfDay(now) };
+    }
+    default:
+      return { start: customStart, end: customEnd };
+  }
+}
 
 export function CMODashboard() {
   const now = new Date();
   const [startMonth, setStartMonth] = useState(format(subMonths(now, 5), 'yyyy-MM'));
   const [endMonth, setEndMonth] = useState(format(now, 'yyyy-MM'));
   const [referralStatus, setReferralStatus] = useState<ReferralStatus>('all');
+  const [referralDateFilter, setReferralDateFilter] = useState<ReferralDateFilter>('6months');
 
-  const start = startOfMonth(new Date(startMonth + '-01'));
-  const end = endOfMonth(new Date(endMonth + '-01'));
-  const months = eachMonthOfInterval({ start, end });
+  const customStart = startOfMonth(new Date(startMonth + '-01'));
+  const customEnd = endOfMonth(new Date(endMonth + '-01'));
+  const { start, end } = getDateBounds(referralDateFilter, customStart, customEnd);
+  const months = eachMonthOfInterval({ start: customStart, end: customEnd });
 
   const { data: signupTrend, isLoading } = useQuery({
     queryKey: ['exec-signup-trend', startMonth, endMonth],
@@ -39,7 +60,7 @@ export function CMODashboard() {
   });
 
   const { data: referralStats } = useQuery({
-    queryKey: ['exec-referral-stats', startMonth, endMonth],
+    queryKey: ['exec-referral-stats', startMonth, endMonth, referralDateFilter],
     queryFn: async () => {
       const rangeFilter = (q: any) =>
         q.gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
@@ -131,7 +152,7 @@ export function CMODashboard() {
   ];
 
   const { data: recentReferrals, isLoading: loadingReferrals } = useQuery({
-    queryKey: ['exec-recent-referrals', startMonth, endMonth, referralStatus],
+    queryKey: ['exec-recent-referrals', startMonth, endMonth, referralStatus, referralDateFilter],
     queryFn: async () => {
       let q = supabase
         .from('referrals')
@@ -167,7 +188,7 @@ export function CMODashboard() {
   });
 
   const { data: topReferrers, isLoading: loadingTopReferrers } = useQuery({
-    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus],
+    queryKey: ['exec-top-referrers', startMonth, endMonth, referralStatus, referralDateFilter],
     queryFn: async () => {
       let q = supabase
         .from('referrals')
@@ -221,6 +242,13 @@ export function CMODashboard() {
     { label: 'Completed', value: 'completed' },
   ];
 
+  const dateFilterOptions: { label: string; value: ReferralDateFilter }[] = [
+    { label: '6 Months', value: '6months' },
+    { label: 'Today', value: 'today' },
+    { label: 'Yesterday', value: 'yesterday' },
+    { label: 'Last Week', value: 'last_week' },
+  ];
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-wrap items-end gap-3">
@@ -264,17 +292,33 @@ export function CMODashboard() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {statusOptions.map((opt) => (
-          <Button
-            key={opt.value}
-            size="sm"
-            variant={referralStatus === opt.value ? 'default' : 'outline'}
-            onClick={() => setReferralStatus(opt.value)}
-          >
-            {opt.label}
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-2">
+          {statusOptions.map((opt) => (
+            <Button
+              key={opt.value}
+              size="sm"
+              variant={referralStatus === opt.value ? 'default' : 'outline'}
+              onClick={() => setReferralStatus(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+        <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
+        <div className="flex flex-wrap gap-2">
+          {dateFilterOptions.map((opt) => (
+            <Button
+              key={opt.value}
+              size="sm"
+              variant={referralDateFilter === opt.value ? 'secondary' : 'outline'}
+              onClick={() => setReferralDateFilter(opt.value)}
+              className="text-xs"
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
