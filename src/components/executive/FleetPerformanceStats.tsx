@@ -601,7 +601,7 @@ export function FleetPerformanceStats() {
           {trendData.length > 1 && (
             <div className="mt-3 rounded-lg border border-border bg-card p-3">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                Collection trend · daily flow vs target
+                {trendTitle}
               </p>
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
