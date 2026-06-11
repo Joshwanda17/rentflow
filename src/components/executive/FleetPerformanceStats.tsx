@@ -304,7 +304,22 @@ export function FleetPerformanceStats() {
   const [period, setPeriod] = useState<PeriodKey>('today');
   const [sort, setSort] = useState<{ key: 'expected' | 'collected' | 'rate'; dir: 'asc' | 'desc' }>({ key: 'collected', dir: 'desc' });
   const [search, setSearch] = useState('');
-  const { start, end, days } = useMemo(() => resolvePeriod(period), [period]);
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+  const [rangeOpen, setRangeOpen] = useState(false);
+
+  const { start, end, days } = useMemo(() => {
+    if (period === 'custom' && customRange?.from) {
+      const s = startOfDay(customRange.from);
+      const e = new Date(startOfDay(customRange.to || customRange.from));
+      e.setDate(e.getDate() + 1); // make end exclusive of the day after the last selected day
+      const d = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86_400_000));
+      return { start: s, end: e, days: d };
+    }
+    return resolvePeriod(period);
+  }, [period, customRange]);
+
+  // Stable key fragment so custom-range queries refetch when the range changes.
+  const rangeKey = period === 'custom' ? `custom:${start.toISOString()}:${end.toISOString()}` : period;
 
   const { data: expectedByAgent = {}, isLoading: expLoading } = useQuery({
     queryKey: ['fleet-perf-expected-by-agent'],
@@ -313,13 +328,13 @@ export function FleetPerformanceStats() {
   });
 
   const { data: collectedByAgent = {}, isLoading: colLoading } = useQuery({
-    queryKey: ['fleet-perf-collected-by-agent', period],
+    queryKey: ['fleet-perf-collected-by-agent', rangeKey],
     queryFn: () => fetchCollectedByAgent(start, end),
     staleTime: 30_000,
   });
 
   const { data: collectedByDay = {} } = useQuery({
-    queryKey: ['fleet-perf-collected-by-day', period],
+    queryKey: ['fleet-perf-collected-by-day', rangeKey],
     queryFn: () => fetchCollectedByDay(start, end),
     staleTime: 30_000,
   });
