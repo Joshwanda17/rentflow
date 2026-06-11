@@ -460,19 +460,45 @@ export function FleetPerformanceStats() {
     [expectedByAgent],
   );
 
-  // Per-day series of collected vs expected for the trend chart.
+  // Trend series of collected vs expected, bucketed by hour / day / month.
   const trendData = useMemo(() => {
     const out: { label: string; collected: number; expected: number }[] = [];
-    const cursor = startOfDay(start);
     const endMs = end.getTime();
-    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    while (cursor.getTime() < endMs) {
-      const k = dayKey(cursor);
-      out.push({ label: fmt(cursor), collected: collectedByDay[k] || 0, expected: expectedPerDay });
-      cursor.setDate(cursor.getDate() + 1);
+    if (granularity === 'hour') {
+      const cursor = new Date(start);
+      cursor.setMinutes(0, 0, 0);
+      const expectedPerHour = expectedPerDay / 24;
+      while (cursor.getTime() < endMs) {
+        const k = hourKey(cursor);
+        out.push({ label: format(cursor, 'h a'), collected: collectedBuckets[k] || 0, expected: expectedPerHour });
+        cursor.setHours(cursor.getHours() + 1);
+      }
+    } else if (granularity === 'month') {
+      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (cursor.getTime() < endMs) {
+        const k = monthKey(cursor);
+        const bucketStart = Math.max(cursor.getTime(), start.getTime());
+        const nextMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+        const bucketEnd = Math.min(nextMonth.getTime(), endMs);
+        const dCount = Math.max(1, Math.round((bucketEnd - bucketStart) / 86_400_000));
+        out.push({ label: format(cursor, 'MMM yy'), collected: collectedBuckets[k] || 0, expected: expectedPerDay * dCount });
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    } else {
+      const cursor = startOfDay(start);
+      while (cursor.getTime() < endMs) {
+        const k = dayKey(cursor);
+        out.push({ label: format(cursor, 'MMM d'), collected: collectedBuckets[k] || 0, expected: expectedPerDay });
+        cursor.setDate(cursor.getDate() + 1);
+      }
     }
     return out;
-  }, [start, end, collectedByDay, expectedPerDay]);
+  }, [start, end, granularity, collectedBuckets, expectedPerDay]);
+
+  const trendTitle =
+    granularity === 'hour' ? 'Collection trend · hourly flow vs target'
+      : granularity === 'month' ? 'Collection trend · monthly flow vs target'
+      : 'Collection trend · daily flow vs target';
 
   return (
     <div className="mt-3 rounded-xl border border-border bg-background/60 p-3">
