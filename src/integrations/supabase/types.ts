@@ -19846,6 +19846,19 @@ export type Database = {
           yoola: number
         }[]
       }
+      get_subagent_recruiter_splits: {
+        Args: { p_sub_agent_id: string }
+        Returns: {
+          amount: number
+          created_at: string
+          recruiter_override: number
+          subagent_share: number
+          tenant_name: string
+          total_commission: number
+          trace_id: string
+          tracking_id: string
+        }[]
+      }
       get_supporter_pool_stats: { Args: never; Returns: Json }
       get_tenant_behavior_segments: {
         Args: never

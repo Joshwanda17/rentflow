@@ -82,6 +82,17 @@ interface TeamGoal {
   notes: string | null;
 }
 
+interface RecruiterSplit {
+  trace_id: string;
+  created_at: string;
+  tracking_id: string | null;
+  tenant_name: string;
+  amount: number;
+  total_commission: number;
+  subagent_share: number;
+  recruiter_override: number;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))', 'hsl(142, 76%, 36%)', 'hsl(221, 83%, 53%)'];
 
 export default function SubAgentAnalytics() {
@@ -93,6 +104,8 @@ export default function SubAgentAnalytics() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [selectedSubAgent, setSelectedSubAgent] = useState<SubAgent | null>(null);
+  const [recruiterSplits, setRecruiterSplits] = useState<RecruiterSplit[]>([]);
+  const [splitsLoading, setSplitsLoading] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [currentGoal, setCurrentGoal] = useState<TeamGoal | null>(null);
@@ -118,6 +131,31 @@ export default function SubAgentAnalytics() {
     const match = subAgents.find(sa => sa.sub_agent_id === id);
     if (match) setSelectedSubAgent(match);
   }, [searchParams, subAgents]);
+
+  // Load per-transaction recruiter splits (8% sub-agent vs 2% recruiter) for the open sub-agent
+  useEffect(() => {
+    if (!selectedSubAgent) {
+      setRecruiterSplits([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setSplitsLoading(true);
+      try {
+        const { data, error } = await supabase.rpc('get_subagent_recruiter_splits', {
+          p_sub_agent_id: selectedSubAgent.sub_agent_id,
+        });
+        if (error) throw error;
+        if (!cancelled) setRecruiterSplits((data as RecruiterSplit[]) || []);
+      } catch (err) {
+        console.error('Error fetching recruiter splits:', err);
+        if (!cancelled) setRecruiterSplits([]);
+      } finally {
+        if (!cancelled) setSplitsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedSubAgent]);
 
   const closeDetail = () => {
     setSelectedSubAgent(null);
@@ -760,6 +798,88 @@ export default function SubAgentAnalytics() {
                   Joined {format(new Date(selectedSubAgent.created_at), 'MMM yyyy')}
                 </span>
               </div>
+
+              {/* Recruiter-split breakdown (8% sub-agent vs 2% recruiter) */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Coins className="h-4 w-4 text-orange-500" />
+                    Recruiter Split Breakdown
+                  </CardTitle>
+                  <p className="text-[11px] text-muted-foreground">
+                    Sub-agent keeps 8% · you earn 2% on each rent allocation
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {splitsLoading ? (
+                    <div className="flex justify-center py-6">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : recruiterSplits.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No rent allocations yet
+                    </p>
+                  ) : (
+                    <>
+                      {/* Totals */}
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        <div className="bg-muted/50 rounded-lg p-2 text-center">
+                          <p className="text-[10px] text-muted-foreground">Allocated</p>
+                          <p className="text-xs font-bold">
+                            {formatUGX(recruiterSplits.reduce((s, r) => s + Number(r.amount), 0))}
+                          </p>
+                        </div>
+                        <div className="bg-primary/10 rounded-lg p-2 text-center border border-primary/20">
+                          <p className="text-[10px] text-muted-foreground">Sub-agent 8%</p>
+                          <p className="text-xs font-bold text-primary">
+                            {formatUGX(recruiterSplits.reduce((s, r) => s + Number(r.subagent_share), 0))}
+                          </p>
+                        </div>
+                        <div className="bg-orange-500/10 rounded-lg p-2 text-center border border-orange-500/20">
+                          <p className="text-[10px] text-muted-foreground">Your 2%</p>
+                          <p className="text-xs font-bold text-orange-600">
+                            {formatUGX(recruiterSplits.reduce((s, r) => s + Number(r.recruiter_override), 0))}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Per-transaction rows */}
+                      <div className="space-y-2">
+                        {recruiterSplits.map((r) => (
+                          <div key={r.trace_id} className="rounded-lg border border-border p-2.5">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium truncate">{r.tenant_name}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {format(new Date(r.created_at), 'dd MMM yyyy · HH:mm')}
+                                  {r.tracking_id ? ` · ${r.tracking_id}` : ''}
+                                </p>
+                              </div>
+                              <span className="text-xs font-semibold shrink-0 ml-2">
+                                {formatUGX(Number(r.amount))}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-primary/10 rounded-md px-2 py-1 text-center">
+                                <span className="text-[10px] text-muted-foreground">8% </span>
+                                <span className="text-xs font-semibold text-primary">
+                                  {formatUGX(Number(r.subagent_share))}
+                                </span>
+                              </div>
+                              <div className="flex-1 bg-orange-500/10 rounded-md px-2 py-1 text-center">
+                                <span className="text-[10px] text-muted-foreground">2% </span>
+                                <span className="text-xs font-semibold text-orange-600">
+                                  {formatUGX(Number(r.recruiter_override))}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Monthly Earnings Chart */}
               {selectedSubAgent.monthlyEarnings.length > 0 && (
