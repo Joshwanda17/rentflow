@@ -538,6 +538,18 @@ export function FleetPerformanceStats() {
   const rateTone = rate >= 100 ? 'text-emerald-600' : rate >= 80 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-destructive';
   const barTone = rate >= 100 ? 'bg-emerald-500' : rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-destructive';
 
+  // Pagination for the agent-by-agent breakdown.
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageStart = safePage * PAGE_SIZE;
+  const pageRows = rows.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // Reset to first page whenever the result set changes.
+  useEffect(() => {
+    setPage(0);
+  }, [search, sort, rangeKey]);
+
   // Daily expected target across the whole fleet (constant per day).
   const expectedPerDay = useMemo(
     () => Object.values(expectedByAgent).reduce((s, v) => s + (Number(v) || 0), 0),
