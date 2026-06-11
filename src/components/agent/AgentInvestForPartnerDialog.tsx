@@ -476,7 +476,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                 min={1000}
               />
               <p className="text-xs text-muted-foreground">
-                Allowed range: UGX 1,000 – UGX 50,000,000. Amounts below the minimum will disable submission.
+                Allowed range: UGX 1,000 – UGX 500,000,000. Amounts below the minimum will disable submission.
               </p>
               {parsedAmount > 0 && parsedAmount < 1000 && (
                 <p className="text-xs text-destructive">Amount must be at least UGX 1,000</p>
