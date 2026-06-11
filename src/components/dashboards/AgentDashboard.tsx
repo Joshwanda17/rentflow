@@ -56,6 +56,7 @@ import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
+import { MyParentAgentCard } from '@/components/agent/MyParentAgentCard';
 import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
 import SavedRentDraftsPanel from '@/components/agent/SavedRentDraftsPanel';
 import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequestDialog';
@@ -1129,6 +1130,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* === SUB AGENTS TAB === Team management */}
         {activeTab === 'subagents' && (
           <div className={cn("space-y-5", tabAnimClass)}>
+            <MyParentAgentCard agentId={user.id} />
             <SubAgentsPanel agentId={user.id} onInviteSubAgent={handleInviteSubAgent} />
           </div>
         )}
