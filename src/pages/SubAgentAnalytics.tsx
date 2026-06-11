@@ -717,20 +717,48 @@ export default function SubAgentAnalytics() {
             </div>
 
             <div className="p-4 space-y-4">
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-success/10 rounded-xl p-3 text-center">
-                  <p className="font-bold text-success">{formatUGX(selectedSubAgent.totalEarnings)}</p>
-                  <p className="text-xs text-muted-foreground">Your 1%</p>
+              {/* Primary KPI — Parent earnings from this sub-agent */}
+              <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-2xl p-5 text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+                  Your Earnings from {selectedSubAgent.profile?.full_name?.split(' ')[0] || 'This Sub-Agent'}
+                </p>
+                <p className="text-3xl font-bold text-orange-600 mt-1">
+                  {formatUGX(selectedSubAgent.totalEarnings)}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  1% of all collections facilitated
+                </p>
+              </div>
+
+              {/* KPI Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-success/10 rounded-xl p-3 text-center border border-success/20">
+                  <p className="text-[11px] text-muted-foreground">Facilitated Rent Volume</p>
+                  <p className="font-bold text-success text-base mt-0.5">{formatUGX(selectedSubAgent.facilitatedRentVolume)}</p>
                 </div>
-                <div className="bg-primary/10 rounded-xl p-3 text-center">
-                  <p className="font-bold text-primary">{selectedSubAgent.tenantsCount}</p>
-                  <p className="text-xs text-muted-foreground">Tenants</p>
+                <div className="bg-primary/10 rounded-xl p-3 text-center border border-primary/20">
+                  <p className="text-[11px] text-muted-foreground">Accessed Funds</p>
+                  <p className="font-bold text-primary text-base mt-0.5">{formatUGX(selectedSubAgent.accessedFunds)}</p>
                 </div>
-                <div className="bg-muted rounded-xl p-3 text-center">
-                  <p className="font-bold">{format(new Date(selectedSubAgent.created_at), 'MMM yyyy')}</p>
-                  <p className="text-xs text-muted-foreground">Joined</p>
+                <div className="bg-warning/10 rounded-xl p-3 text-center border border-warning/20">
+                  <p className="text-[11px] text-muted-foreground">Platform Rewards</p>
+                  <p className="font-bold text-warning text-base mt-0.5">{formatUGX(selectedSubAgent.platformRewards)}</p>
                 </div>
+                <div className="bg-muted rounded-xl p-3 text-center border border-border">
+                  <p className="text-[11px] text-muted-foreground">Service Fees Generated</p>
+                  <p className="font-bold text-foreground text-base mt-0.5">{formatUGX(selectedSubAgent.serviceFees)}</p>
+                </div>
+              </div>
+
+              {/* Tenants & Joined mini row */}
+              <div className="flex items-center justify-between text-sm px-1">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-orange-500" />
+                  <span className="text-muted-foreground">{selectedSubAgent.tenantsCount} tenant{selectedSubAgent.tenantsCount !== 1 ? 's' : ''}</span>
+                </div>
+                <span className="text-muted-foreground text-xs">
+                  Joined {format(new Date(selectedSubAgent.created_at), 'MMM yyyy')}
+                </span>
               </div>
 
               {/* Monthly Earnings Chart */}
