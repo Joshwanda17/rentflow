@@ -193,45 +193,19 @@ Deno.serve(async (req) => {
       user_id: user.id,
       event_type: "code_issued",
       amount,
-      detail: "Receipt code generated and emailed to the cash verifier (10-minute expiry).",
+      detail: "Receipt code generated for the Financial Ops Cash Deposit Codes panel (10-minute expiry).",
       metadata: {
-        emailed_to: VERIFIER_EMAIL,
+        delivery: "fin_ops_panel",
         max_attempts: (verRow as any)?.max_attempts ?? null,
         expires_at: (verRow as any)?.expires_at ?? null,
         deposit_purpose: depositPurpose,
       },
     });
 
-    // 3) Email the code to the verifier.
-    const subject = `Cash deposit code ${code} — ${fmtUGX(amount)} from ${depositorName}`;
-    const emailBody = [
-      "A user has started a CASH deposit and needs you to confirm the cash, then",
-      "read the receipt code back to them so they can enter it in the app.",
-      "",
-      `Receipt code:  ${code}`,
-      `Amount:        ${fmtUGX(amount)}`,
-      `Depositor:     ${depositorName}`,
-      `Phone:         ${depositorPhone}`,
-      `Purpose:       ${purposeLabel}`,
-      reason ? `Note:          ${reason}` : "",
-      `Started:       ${new Date().toLocaleString("en-UG")}`,
-      "",
-      "Only read this code back AFTER you have received the matching cash.",
-      "Entering the code instantly credits the user's wallet. Code expires in 10 minutes.",
-    ].filter(Boolean).join("\n");
-
-    let emailed = true;
-    try {
-      await sendGmail(VERIFIER_EMAIL, subject, emailBody);
-    } catch (mailErr) {
-      console.error("[cash-request-code] email send failed", mailErr);
-      // Email is now only a fallback — the verifier reads the code from the
-      // in-app "Cash Deposit Codes" panel (fin_ops_recent_cash_codes RPC).
-      // Don't fail the deposit just because the mailbox is unreachable.
-      emailed = false;
-    }
-
-    return new Response(JSON.stringify({ ok: true, deposit_request_id: depositId, verifier: VERIFIER_EMAIL, emailed }), {
+    // 3) No email is sent. The receipt code is surfaced ONLY in the role-gated
+    //    Financial Ops "Cash Deposit Codes" panel (fin_ops_recent_cash_codes RPC),
+    //    which also removes the self-sent-code ingestion risk entirely.
+    return new Response(JSON.stringify({ ok: true, deposit_request_id: depositId, emailed: false }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
