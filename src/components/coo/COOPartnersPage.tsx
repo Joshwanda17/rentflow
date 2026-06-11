@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { MIN_INVEST, MAX_INVEST, investHelperRange, isInvestAmountValid } from '@/lib/partnershipInvestment';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
@@ -216,8 +217,6 @@ interface SummaryData {
   topPartnerName: string;
 }
 
-const MIN_INVEST = 1000;
-const MAX_INVEST = 500000000;
 const PAGE_SIZE = 15;
 
 /* ─── Helpers ─── */
