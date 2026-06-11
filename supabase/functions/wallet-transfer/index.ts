@@ -466,6 +466,30 @@ Deno.serve(async (req) => {
       sendSMS(recipientProfile.phone, smsMessage).catch(() => {});
     }
 
+    // SMS to sender: transfer confirmation + new balance + app link
+    if (senderProfile?.phone) {
+      let senderBalanceText = '';
+      try {
+        const { data: senderWallet } = await adminClient
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', senderId)
+          .single();
+        if (senderWallet && Number.isFinite(Number(senderWallet.balance))) {
+          senderBalanceText =
+            ` New balance: UGX ${Number(senderWallet.balance).toLocaleString('en-US')}.`;
+        }
+      } catch { /* balance is best-effort */ }
+
+      const appLink = 'https://welilereceipts.com/dashboard';
+      const senderSmsMessage =
+        `WELILE: You have sent ${formattedAmount} to ${recipientLabel}.` +
+        (hasReason ? ` Reason: ${trimmedReason}.` : '') +
+        senderBalanceText +
+        ` Ref: ${transferReference}. View transaction: ${appLink}`;
+      sendSMS(senderProfile.phone, senderSmsMessage).catch(() => {});
+    }
+
 
     return new Response(
       JSON.stringify({
