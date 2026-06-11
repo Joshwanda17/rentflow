@@ -34,9 +34,6 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<'accepted' | 'dismissed' | null>(null);
   const [promptReady, setPromptReady] = useState(!!deferredPrompt);
-  const [skipped, setSkipped] = useState(() =>
-    sessionStorage.getItem('welile_pwa_gate_skipped') === 'true'
-  );
   const tapLockRef = useRef(0);
 
   useEffect(() => {
@@ -148,7 +145,10 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     handleInstall();
   }, [handleInstall]);
 
-  if (isStandalone || skipped) {
+  // Desktop browsers pass through (install is optional there). On phones the gate
+  // is unavoidable — there is no way to dismiss it until the app is installed.
+  const isMobile = isIOS || isAndroid;
+  if (isStandalone || !isMobile) {
     return <>{children}</>;
   }
 
@@ -285,18 +285,6 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
             </motion.div>
           )}
         </AnimatePresence>
-
-        <button
-          type="button"
-          onClick={() => {
-            hapticTap();
-            sessionStorage.setItem('welile_pwa_gate_skipped', 'true');
-            setSkipped(true);
-          }}
-          className="mt-6 text-xs text-muted-foreground/60 underline underline-offset-2 hover:text-muted-foreground transition-colors"
-        >
-          Continue in browser
-        </button>
       </motion.div>
     </div>
   );
