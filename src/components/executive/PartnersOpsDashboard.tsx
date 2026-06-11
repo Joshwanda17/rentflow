@@ -66,12 +66,17 @@ export function PartnersOpsDashboard() {
 
       const ids = new Set<string>();
       data.forEach(p => { if (p.investor_id) ids.add(p.investor_id); ids.add(p.agent_id); });
-      const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', Array.from(ids));
+      const { data: profiles } = await supabase.from('profiles').select('id, full_name, frozen_at').in('id', Array.from(ids));
       const nameMap = new Map<string, string>();
-      (profiles || []).forEach(p => nameMap.set(p.id, p.full_name));
+      const frozenIds = new Set<string>();
+      (profiles || []).forEach(p => {
+        nameMap.set(p.id, p.full_name);
+        if (p.frozen_at != null) frozenIds.add(p.id);
+      });
 
       return data.map(p => ({
         ...p,
+        owner_frozen: frozenIds.has(p.investor_id || p.agent_id),
         investor_name: p.investor_id ? nameMap.get(p.investor_id) || '—' : '—',
         agent_name: nameMap.get(p.agent_id) || '—',
       }));
@@ -86,6 +91,7 @@ export function PartnersOpsDashboard() {
   // Count portfolios nearing payout (within 7 days based on next_roi_date)
   const nearingPayoutsList = rows.filter(p => {
     if (p.status !== 'active') return false;
+    if ((p as any).owner_frozen) return false;
     const roiDate = p.next_roi_date;
     if (!roiDate) return false;
     const today = format(new Date(), 'yyyy-MM-dd');
