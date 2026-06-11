@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
-import { isPlaceholderEmail, sendAngelPoolSms } from "../_shared/angelPoolNotify.ts";
+import { isPlaceholderEmail, sendAngelPoolSms, recordEmailSkip } from "../_shared/angelPoolNotify.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
