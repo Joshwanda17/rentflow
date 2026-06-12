@@ -8,12 +8,12 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { plainDeductionReason } from '@/lib/deductionReason';
 import { deductionTimeline } from '@/lib/deductionReason';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
 import {
   Wallet, HandCoins, Banknote, Landmark, AlertTriangle, Loader2,
   ArrowDownLeft, ArrowUpRight, User, ChevronRight, Search, Info,
 } from 'lucide-react';
 import { ChevronDown, ExternalLink, Clock } from 'lucide-react';
+import { LedgerEntryDetailDrawer } from '@/components/wallet/LedgerEntryDetailDrawer';
 
 /**
  * Financial Ops — per-user wallet statements.
@@ -151,6 +151,7 @@ function useWalletSummary(userId: string | null) {
 /* ── Single expandable ledger row ── */
 function LedgerRowItem({ row: r }: { row: LedgerRow }) {
   const [open, setOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const isIn = r.direction === 'cash_in';
   const why = !isIn ? plainDeductionReason(r) : null;
   const timeline = !isIn ? deductionTimeline(r) : null;
@@ -270,14 +271,20 @@ function LedgerRowItem({ row: r }: { row: LedgerRow }) {
             </dl>
           </div>
 
-          <Link
-            to={`/cfo/n/${r.id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[12px] font-semibold text-primary hover:bg-primary/10 transition-colors"
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setDetailOpen(true); }}
+            className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[12px] font-semibold text-primary hover:bg-primary/10 transition-colors"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             Open full ledger record
-          </Link>
+          </button>
+
+          <LedgerEntryDetailDrawer
+            entryId={r.id}
+            open={detailOpen}
+            onOpenChange={setDetailOpen}
+          />
         </div>
       )}
     </div>
