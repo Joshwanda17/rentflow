@@ -983,38 +983,87 @@ export default function SubAgentAnalytics() {
                 ) : (
                   <div className="space-y-2">
                     {filteredSubAgents.map((subAgent) => (
-                      <button
-                        key={subAgent.id}
-                        onClick={() => {
-                          setSelectedSubAgent(subAgent);
-                          const next = new URLSearchParams(searchParams);
-                          next.set('id', subAgent.sub_agent_id);
-                          setSearchParams(next, { replace: true });
-                        }}
-                        className="w-full flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold shrink-0">
-                            {subAgent.profile?.full_name?.charAt(0) || '?'}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{subAgent.profile?.full_name || 'Unknown'}</p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-2">
-                              <span>{subAgent.tenantsCount} tenant{subAgent.tenantsCount !== 1 ? 's' : ''}</span>
-                              <span className="hidden sm:inline">•</span>
-                              <span className="hidden sm:inline">Joined {format(new Date(subAgent.created_at), 'MMM d, yyyy')}</span>
-                            </p>
-                          </div>
+                    {filteredSubAgents.map((subAgent) => {
+                      const accepted = subAgent.status === 'verified' || !!subAgent.accepted_at;
+                      const smsStatus = subAgent.invite_sms_status;
+                      const openDetail = () => {
+                        setSelectedSubAgent(subAgent);
+                        const next = new URLSearchParams(searchParams);
+                        next.set('id', subAgent.sub_agent_id);
+                        setSearchParams(next, { replace: true });
+                      };
+                      return (
+                        <div
+                          key={subAgent.id}
+                          className="rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+                        >
+                          <button
+                            onClick={openDetail}
+                            className="w-full flex items-center justify-between p-3 text-left"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold shrink-0">
+                                {subAgent.profile?.full_name?.charAt(0) || '?'}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-medium text-sm truncate">{subAgent.profile?.full_name || 'Unknown'}</p>
+                                  {/* Invite delivery / acceptance status */}
+                                  {accepted ? (
+                                    <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-success/10 text-success border-success/20">
+                                      <CheckCircle2 className="h-3 w-3" /> Accepted
+                                    </Badge>
+                                  ) : smsStatus === 'failed' ? (
+                                    <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive border-destructive/20">
+                                      <AlertCircle className="h-3 w-3" /> Failed
+                                    </Badge>
+                                  ) : smsStatus === 'sent' ? (
+                                    <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                      <Send className="h-3 w-3" /> Sent
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-warning/10 text-warning border-warning/20">
+                                      <Clock className="h-3 w-3" /> Pending
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                  <span>{subAgent.tenantsCount} tenant{subAgent.tenantsCount !== 1 ? 's' : ''}</span>
+                                  <span className="hidden sm:inline">•</span>
+                                  <span className="hidden sm:inline">Joined {format(new Date(subAgent.created_at), 'MMM d, yyyy')}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right flex items-center gap-2 shrink-0">
+                              <div>
+                                <p className="font-bold text-sm text-success">{formatUGX(subAgent.totalEarnings)}</p>
+                                <p className="text-[10px] text-muted-foreground">your 2%</p>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          </button>
+                          {/* Resend invite — only while not yet accepted */}
+                          {!accepted && (
+                            <div className="px-3 pb-3 -mt-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 text-xs"
+                                disabled={resendingId === subAgent.sub_agent_id}
+                                onClick={() => { hapticTap(); handleResendInvite(subAgent); }}
+                              >
+                                {resendingId === subAgent.sub_agent_id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Send className="h-3.5 w-3.5" />
+                                )}
+                                {smsStatus === 'failed' ? 'Retry invite SMS' : 'Resend invite'}
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        <div className="text-right flex items-center gap-2 shrink-0">
-                          <div>
-                            <p className="font-bold text-sm text-success">{formatUGX(subAgent.totalEarnings)}</p>
-                            <p className="text-[10px] text-muted-foreground">your 2%</p>
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
