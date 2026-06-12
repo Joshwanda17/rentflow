@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +32,10 @@ import {
   MapPin,
   Wallet,
   IdCard,
-  Briefcase
+  Briefcase,
+  Search,
+  X,
+  Filter
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -134,6 +138,11 @@ export default function SubAgentAnalytics() {
   const reportRef = useRef<HTMLDivElement>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
 
+  // Search & filter state
+  const [subAgentSearch, setSubAgentSearch] = useState('');
+  const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
+  const [tenantSearch, setTenantSearch] = useState('');
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
@@ -178,11 +187,17 @@ export default function SubAgentAnalytics() {
 
   const closeDetail = () => {
     setSelectedSubAgent(null);
+    setTenantSearch('');
     // Clear the id param from URL so back/refresh doesn't reopen
     const next = new URLSearchParams(searchParams);
     next.delete('id');
     setSearchParams(next, { replace: true });
   };
+
+  // Clear tenant search when switching sub-agents
+  useEffect(() => {
+    setTenantSearch('');
+  }, [selectedSubAgent?.sub_agent_id]);
 
   const fetchCurrentGoal = async () => {
     if (!user) return;
@@ -528,6 +543,35 @@ export default function SubAgentAnalytics() {
     }
   };
 
+  // Filtered sub-agents
+  const filteredSubAgents = useMemo(() => {
+    let result = subAgents;
+    const q = subAgentSearch.trim().toLowerCase();
+    if (q) {
+      result = result.filter(sa =>
+        (sa.profile?.full_name?.toLowerCase().includes(q)) ||
+        (sa.profile?.phone?.toLowerCase().includes(q))
+      );
+    }
+    if (subAgentStatusFilter === 'with_tenants') {
+      result = result.filter(sa => sa.tenantsCount > 0);
+    } else if (subAgentStatusFilter === 'no_tenants') {
+      result = result.filter(sa => sa.tenantsCount === 0);
+    }
+    return result;
+  }, [subAgents, subAgentSearch, subAgentStatusFilter]);
+
+  // Filtered tenants (inside detail modal)
+  const filteredTenants = useMemo(() => {
+    if (!selectedSubAgent) return [];
+    const q = tenantSearch.trim().toLowerCase();
+    if (!q) return selectedSubAgent.tenants;
+    return selectedSubAgent.tenants.filter(t =>
+      t.name.toLowerCase().includes(q) ||
+      (t.phone?.toLowerCase().includes(q) ?? false)
+    );
+  }, [selectedSubAgent, tenantSearch]);
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -734,45 +778,110 @@ export default function SubAgentAnalytics() {
             {/* Sub-Agents List */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-5 w-5 text-orange-500" />
-                  Your Sub-Agents
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-5 w-5 text-orange-500" />
+                    Your Sub-Agents
+                  </CardTitle>
+                  <Badge variant="secondary" className="text-xs">
+                    {filteredSubAgents.length} of {subAgents.length}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {subAgents.map((subAgent) => (
-                  <button
-                    key={subAgent.id}
-                    onClick={() => {
-                      setSelectedSubAgent(subAgent);
-                      const next = new URLSearchParams(searchParams);
-                      next.set('id', subAgent.sub_agent_id);
-                      setSearchParams(next, { replace: true });
-                    }}
-                    className="w-full flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold">
-                        {subAgent.profile?.full_name?.charAt(0) || '?'}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{subAgent.profile?.full_name || 'Unknown'}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-2">
-                          <span>{subAgent.tenantsCount} tenant{subAgent.tenantsCount !== 1 ? 's' : ''}</span>
-                          <span>•</span>
-                          <span>Joined {format(new Date(subAgent.created_at), 'MMM d, yyyy')}</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right flex items-center gap-2">
-                      <div>
-                        <p className="font-bold text-sm text-success">{formatUGX(subAgent.totalEarnings)}</p>
-                        <p className="text-[10px] text-muted-foreground">your 2%</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </button>
-                ))}
+                {/* Search & filter bar */}
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Search by name or phone..."
+                      value={subAgentSearch}
+                      onChange={(e) => setSubAgentSearch(e.target.value)}
+                      className="pl-9 pr-9 h-10"
+                    />
+                    {subAgentSearch && (
+                      <button
+                        onClick={() => setSubAgentSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                      >
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    <Button
+                      size="sm"
+                      variant={subAgentStatusFilter === 'all' ? 'default' : 'outline'}
+                      onClick={() => setSubAgentStatusFilter('all')}
+                      className="text-xs shrink-0 h-8"
+                    >
+                      All
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={subAgentStatusFilter === 'with_tenants' ? 'default' : 'outline'}
+                      onClick={() => setSubAgentStatusFilter('with_tenants')}
+                      className="text-xs shrink-0 h-8"
+                    >
+                      With Tenants
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={subAgentStatusFilter === 'no_tenants' ? 'default' : 'outline'}
+                      onClick={() => setSubAgentStatusFilter('no_tenants')}
+                      className="text-xs shrink-0 h-8"
+                    >
+                      No Tenants
+                    </Button>
+                  </div>
+                </div>
+
+                {filteredSubAgents.length === 0 ? (
+                  <div className="text-center py-6">
+                    <Search className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      {subAgentSearch || subAgentStatusFilter !== 'all'
+                        ? 'No sub-agents match your search'
+                        : 'No sub-agents yet'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredSubAgents.map((subAgent) => (
+                      <button
+                        key={subAgent.id}
+                        onClick={() => {
+                          setSelectedSubAgent(subAgent);
+                          const next = new URLSearchParams(searchParams);
+                          next.set('id', subAgent.sub_agent_id);
+                          setSearchParams(next, { replace: true });
+                        }}
+                        className="w-full flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold shrink-0">
+                            {subAgent.profile?.full_name?.charAt(0) || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{subAgent.profile?.full_name || 'Unknown'}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-2">
+                              <span>{subAgent.tenantsCount} tenant{subAgent.tenantsCount !== 1 ? 's' : ''}</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span className="hidden sm:inline">Joined {format(new Date(subAgent.created_at), 'MMM d, yyyy')}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right flex items-center gap-2 shrink-0">
+                          <div>
+                            <p className="font-bold text-sm text-success">{formatUGX(subAgent.totalEarnings)}</p>
+                            <p className="text-[10px] text-muted-foreground">your 2%</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1101,17 +1210,43 @@ export default function SubAgentAnalytics() {
 
               {/* Tenants List */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Tenants ({selectedSubAgent.tenants.length})</CardTitle>
+                <CardHeader className="pb-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm">Tenants ({filteredTenants.length})</CardTitle>
+                  </div>
+                  {selectedSubAgent.tenants.length > 0 && (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Find tenant by name or phone..."
+                        value={tenantSearch}
+                        onChange={(e) => setTenantSearch(e.target.value)}
+                        className="pl-9 pr-9 h-9 text-sm"
+                      />
+                      {tenantSearch && (
+                        <button
+                          onClick={() => setTenantSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2"
+                        >
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {selectedSubAgent.tenants.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       No tenants registered yet
                     </p>
+                  ) : filteredTenants.length === 0 ? (
+                    <div className="text-center py-6">
+                      <Search className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">No tenants match your search</p>
+                    </div>
                   ) : (
                     <div className="space-y-2">
-                      {selectedSubAgent.tenants.map((tenant) => (
+                      {filteredTenants.map((tenant) => (
                         <div key={tenant.id} className="flex items-center justify-between gap-2 p-2.5 bg-muted/50 rounded-lg">
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{tenant.name}</p>
