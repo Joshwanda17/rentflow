@@ -246,6 +246,19 @@ export function WalletStatement() {
 
       allEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+      // ── Enrich agent credits with the sub-agent who triggered them ──
+      if (role === 'agent' || role === 'proxy_agent') {
+        try {
+          const subList = await buildSubAgentEarnings(user.id, allEntries);
+          setSubAgentEarnings(subList);
+        } catch (e) {
+          console.error('[WalletStatement] sub-agent enrichment failed', e);
+          setSubAgentEarnings([]);
+        }
+      } else {
+        setSubAgentEarnings([]);
+      }
+
       let runningBalance = 0;
       for (const entry of allEntries) {
         if (entry.type === 'credit') runningBalance += entry.amount;
