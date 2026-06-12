@@ -803,6 +803,80 @@ export default function AgentFloatBreakdown() {
                   </dl>
                 </div>
 
+                {/* Tenant rent allocations funded by this float deposit (FIFO) */}
+                {selected && selected.signed_amount > 0 && (
+                  <div className="rounded-2xl border bg-card overflow-hidden">
+                    <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                        Allocated To Tenant Rent
+                        {allocations && allocations.length > 0 ? ` (${allocations.length})` : ''}
+                      </span>
+                    </div>
+                    <div className="px-4 py-2 border-b">
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        The tenant rent payments this deposit funded, matched oldest-float-first (FIFO).
+                      </p>
+                    </div>
+                    {allocLoading ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground">Tracing allocations…</div>
+                    ) : allocErr ? (
+                      <div className="py-8 text-center text-sm text-rose-500">{allocErr}</div>
+                    ) : !allocations || allocations.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground px-4">
+                        Not yet allocated — this float is still sitting in your wallet, unspent on tenant rent.
+                      </div>
+                    ) : (
+                      <ul className="divide-y">
+                        {allocations.map((a) => {
+                          const phone = (a.tenant_phone ?? '').replace(/[^0-9+]/g, '');
+                          const waPhone = phone.replace(/^0/, '256').replace(/^\+/, '');
+                          return (
+                            <li key={a.use_entry_id} className="px-4 py-3">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <p className="text-sm font-semibold truncate">
+                                  {a.tenant_name ?? labelFor(a.category)}
+                                </p>
+                                <p className="text-sm font-bold tabular-nums whitespace-nowrap text-rose-600 dark:text-rose-400">
+                                  −{formatAmount(Number(a.allocated_amount))}
+                                </p>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {Number(a.allocated_amount) < Number(a.use_amount)
+                                  ? `Part of a ${formatAmount(Number(a.use_amount))} rent payment`
+                                  : labelFor(a.category)}
+                                {' · '}
+                                {new Date(a.occurred_at).toLocaleDateString('en-UG', { dateStyle: 'medium' })}
+                              </p>
+                              {phone && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <a
+                                    href={`tel:${phone}`}
+                                    onClick={() => hapticTap()}
+                                    className="inline-flex items-center gap-1 rounded-lg border bg-background px-2.5 py-1 text-[11px] font-semibold hover:bg-muted active:scale-95"
+                                  >
+                                    <Phone className="h-3 w-3" /> Call
+                                  </a>
+                                  <a
+                                    href={`https://wa.me/${waPhone}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => hapticTap()}
+                                    className="inline-flex items-center gap-1 rounded-lg border bg-background px-2.5 py-1 text-[11px] font-semibold hover:bg-muted active:scale-95"
+                                  >
+                                    <MessageCircle className="h-3 w-3" /> WhatsApp
+                                  </a>
+                                  <span className="text-[10px] text-muted-foreground font-mono ml-auto truncate">{phone}</span>
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
                 {/* Double-entry legs */}
                 {detail.siblings.length > 0 && (
                   <div className="rounded-2xl border bg-card overflow-hidden">
