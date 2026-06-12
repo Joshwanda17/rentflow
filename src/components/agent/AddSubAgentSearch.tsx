@@ -63,7 +63,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
 
   const resultIds = (results || []).map((r) => r.id);
 
-  // Find which of the searched users are already sub-agents of ANOTHER agent
+  // Find which of the searched users already have agent_subagents links (any agent)
   const { data: existingLinks } = useQuery({
     queryKey: ['add-subagent-existing-links', resultIds, user?.id],
     enabled: resultIds.length > 0 && !!user?.id,
@@ -73,7 +73,6 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
         .from('agent_subagents')
         .select('sub_agent_id, parent_agent_id, status')
         .in('sub_agent_id', resultIds)
-        .neq('parent_agent_id', user!.id)
         .not('status', 'in', '("rejected","cancelled")');
       if (error) throw error;
       const rows = data || [];
@@ -88,8 +87,8 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
       }
       const map: Record<string, ExistingLink> = {};
       for (const r of rows) {
-        // keep the first/strongest link per sub-agent
-        if (!map[r.sub_agent_id]) {
+        // keep the first/strongest link per sub-agent (verified wins over pending)
+        if (!map[r.sub_agent_id] || r.status === 'verified') {
           map[r.sub_agent_id] = {
             sub_agent_id: r.sub_agent_id,
             parent_agent_id: r.parent_agent_id,
