@@ -23,17 +23,46 @@ function isValidPhone(p: string | null | undefined): boolean {
   return t.replace(/\D/g, '').length >= 7;
 }
 
-async function sendBatch(numbers: string[], message: string) {
+const toBareDigits = (p: string) => formatPhoneInternational(p).replace(/^\+/, '');
+
+type SmsResult = { accepted: boolean; provider?: string; reason?: string };
+
+// Yoola (primary). Auth is the api_key field in the JSON body only.
+async function sendViaYoola(phone: string, message: string): Promise<SmsResult> {
+  const apiKey = Deno.env.get('YOOLA_SMS_API_KEY')?.trim();
+  if (!apiKey) return { accepted: false, reason: 'yoola_not_configured' };
+  try {
+    const res = await fetch('https://yoolasms.com/api/v1/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey }),
+    });
+    const text = await res.text();
+    let data: any = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const status = String(data?.status ?? '').toLowerCase();
+    if (res.ok && (status === 'success' || status === 'ok' || status === 'sent' || status === 'queued')) {
+      return { accepted: true, provider: 'yoola' };
+    }
+    if (res.ok && !data?.error && status === '') return { accepted: true, provider: 'yoola' };
+    return { accepted: false, reason: `yoola_${res.status}_${status || 'rejected'}` };
+  } catch (e) {
+    return { accepted: false, reason: (e as Error).message };
+  }
+}
+
+// Africa's Talking (fallback).
+async function sendViaAfricasTalking(phone: string, message: string): Promise<SmsResult> {
   const apiKey = Deno.env.get('AFRICASTALKING_API_KEY');
   const username = Deno.env.get('AFRICASTALKING_USERNAME');
-  if (!apiKey || !username) return { ok: false, sent: 0, failed: numbers.length, reason: 'missing_credentials' };
+  if (!apiKey || !username) return { accepted: false, reason: 'missing_credentials' };
   const isSandbox = username.toLowerCase() === 'sandbox';
   const url = isSandbox
     ? 'https://api.sandbox.africastalking.com/version1/messaging'
     : 'https://api.africastalking.com/version1/messaging';
   const params = new URLSearchParams({
     username,
-    to: numbers.join(','),
+    to: formatPhoneInternational(phone),
     message,
     from: 'WELILE',
   });
@@ -43,20 +72,54 @@ async function sendBatch(numbers: string[], message: string) {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', apiKey, Accept: 'application/json' },
       body: params.toString(),
     });
-    const text = await res.text();
-    let data: any = null;
-    try { data = JSON.parse(text); } catch { /* ignore */ }
-    const recipients: any[] = data?.SMSMessageData?.Recipients || [];
-    let sent = 0, failed = 0;
-    for (const r of recipients) {
-      if (r.statusCode === 101 || r.statusCode === 100 || r.statusCode === 102) sent++;
-      else failed++;
+    const data = await res.json().catch(() => null);
+    const recipients = data?.SMSMessageData?.Recipients;
+    if (recipients && recipients.length > 0) {
+      const s = recipients[0].statusCode;
+      if (s === 101 || s === 100 || s === 102) return { accepted: true, provider: 'africastalking' };
+      return { accepted: false, reason: `at_status_${s}` };
     }
-    if (recipients.length === 0) failed = numbers.length;
-    return { ok: res.ok, sent, failed, raw: data ?? text };
+    return { accepted: false, reason: 'at_no_recipients' };
   } catch (e) {
-    return { ok: false, sent: 0, failed: numbers.length, reason: (e as Error).message };
+    return { accepted: false, reason: (e as Error).message };
   }
+}
+
+// LANA (final fallback).
+async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
+  const apiKey = Deno.env.get('LANA_SMS_API_KEY')?.trim();
+  if (!apiKey) return { accepted: false, reason: 'lana_not_configured' };
+  try {
+    const res = await fetch('https://api.lanasms.com/v1/send', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ phone: toBareDigits(phone), message }),
+    });
+    const text = await res.text();
+    let data: any = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const raw = data?.status;
+    const s = String(raw ?? '').toLowerCase();
+    if (res.ok && (raw === true || s === 'success' || s === 'true' || s === 'ok' || s === 'sent' || s === 'queued')) {
+      return { accepted: true, provider: 'lana' };
+    }
+    return { accepted: false, reason: `lana_${res.status}_rejected` };
+  } catch (e) {
+    return { accepted: false, reason: (e as Error).message };
+  }
+}
+
+// Provider chain: Yoola (primary) -> Africa's Talking -> LANA.
+async function sendSMS(phone: string, message: string): Promise<SmsResult> {
+  const yoola = await sendViaYoola(phone, message);
+  if (yoola.accepted) return yoola;
+  const at = await sendViaAfricasTalking(phone, message);
+  if (at.accepted) return at;
+  const lana = await sendViaLana(phone, message);
+  if (lana.accepted) return lana;
+  if (yoola.reason && yoola.reason !== 'yoola_not_configured') return yoola;
+  if (at.reason && at.reason !== 'missing_credentials') return at;
+  return lana;
 }
 
 Deno.serve(async (req) => {
