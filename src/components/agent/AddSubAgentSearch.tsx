@@ -63,7 +63,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
 
   const resultIds = (results || []).map((r) => r.id);
 
-  // Find which of the searched users are already sub-agents of ANOTHER agent
+  // Find which of the searched users already have agent_subagents links (any agent)
   const { data: existingLinks } = useQuery({
     queryKey: ['add-subagent-existing-links', resultIds, user?.id],
     enabled: resultIds.length > 0 && !!user?.id,
@@ -73,7 +73,6 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
         .from('agent_subagents')
         .select('sub_agent_id, parent_agent_id, status')
         .in('sub_agent_id', resultIds)
-        .neq('parent_agent_id', user!.id)
         .not('status', 'in', '("rejected","cancelled")');
       if (error) throw error;
       const rows = data || [];
@@ -88,8 +87,8 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
       }
       const map: Record<string, ExistingLink> = {};
       for (const r of rows) {
-        // keep the first/strongest link per sub-agent
-        if (!map[r.sub_agent_id]) {
+        // keep the first/strongest link per sub-agent (verified wins over pending)
+        if (!map[r.sub_agent_id] || r.status === 'verified') {
           map[r.sub_agent_id] = {
             sub_agent_id: r.sub_agent_id,
             parent_agent_id: r.parent_agent_id,
@@ -169,47 +168,95 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
             {!isFetching && (results?.length || 0) === 0 && (
               <div className="p-3 text-sm text-muted-foreground">No matching users.</div>
             )}
-            {(results || []).map((u) => (
-              <button
-                key={u.id}
-                onClick={() => setSelected(u)}
-                className="w-full flex items-center gap-2 p-3 text-left text-sm border-b border-border last:border-b-0 hover:bg-accent transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium truncate">{u.full_name || 'Unnamed'}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {u.phone || u.email || u.id.slice(0, 8)}
+            {(results || []).map((u) => {
+              const link = existingLinks?.[u.id];
+              const isMine = link?.parent_agent_id === user?.id;
+              const isOther = link && !isMine;
+              let badge: { label: string; variant: any; icon?: typeof UserCheck } = {
+                label: 'Eligible',
+                variant: 'success',
+              };
+              if (isMine && link?.status === 'verified') {
+                badge = { label: 'Your sub-agent', variant: 'success' };
+              } else if (isMine && link?.status === 'pending') {
+                badge = { label: 'Invite pending', variant: 'warning' };
+              } else if (isOther && link?.status === 'verified') {
+                badge = { label: "Another agent's sub-agent", variant: 'warning', icon: UserCheck };
+              } else if (isOther) {
+                badge = { label: 'Invite pending', variant: 'warning', icon: UserCheck };
+              }
+              return (
+                <button
+                  key={u.id}
+                  onClick={() => setSelected(u)}
+                  className="w-full flex items-center gap-2 p-3 text-left text-sm border-b border-border last:border-b-0 hover:bg-accent transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate">{u.full_name || 'Unnamed'}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {u.phone || u.email || u.id.slice(0, 8)}
+                    </div>
                   </div>
-                </div>
-                {existingLinks?.[u.id] && (
                   <Badge
-                    variant="outline"
-                    className="shrink-0 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px]"
+                    variant={badge.variant}
+                    className={cn(
+                      'shrink-0 text-[10px]',
+                      badge.variant === 'warning' && 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+                      badge.variant === 'success' && 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400'
+                    )}
                   >
-                    <UserCheck className="h-3 w-3 mr-1" />
-                    {existingLinks[u.id].status === 'verified' ? "Another agent's sub-agent" : 'Invite pending'}
+                    {badge.icon && <badge.icon className="h-3 w-3 mr-1" />}
+                    {badge.label}
                   </Badge>
-                )}
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
 
         {selected && (
           <div className="space-y-3">
-            {existingLinks?.[selected.id] && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-300">
-                <UserCheck className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>
-                  This user is already
-                  {existingLinks[selected.id].status === 'verified' ? ' a sub-agent of ' : ' invited by '}
-                  <span className="font-semibold">
-                    {existingLinks[selected.id].parent_name || 'another agent'}
-                  </span>
-                  . You can still send your invitation — they choose which agent to join.
-                </span>
-              </div>
-            )}
+            {(() => {
+              const link = existingLinks?.[selected.id];
+              const isMine = link?.parent_agent_id === user?.id;
+              const isOther = link && !isMine;
+              if (isMine && link?.status === 'verified') {
+                return (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-xs text-green-800 dark:text-green-300">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      This user is already your sub-agent. No need to invite again.
+                    </span>
+                  </div>
+                );
+              }
+              if (isMine && link?.status === 'pending') {
+                return (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-300">
+                    <UserCheck className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      You already sent an invite to this user. It is pending their acceptance.
+                    </span>
+                  </div>
+                );
+              }
+              if (isOther) {
+                return (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-300">
+                    <UserCheck className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      This user is already
+                      {link.status === 'verified' ? ' a sub-agent of ' : ' invited by '}
+                      <span className="font-semibold">
+                        {link.parent_name || 'another agent'}
+                      </span>
+                      . You can still send your invitation — they choose which agent to join.
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <div className={cn('flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm')}>
               <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
               <div className="min-w-0 flex-1">
@@ -222,7 +269,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
             </div>
             <Button
               onClick={handleAdd}
-              disabled={submitting}
+              disabled={submitting || existingLinks?.[selected.id]?.parent_agent_id === user?.id}
               className="w-full h-11 gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
