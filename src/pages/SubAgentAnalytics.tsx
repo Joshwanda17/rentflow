@@ -306,6 +306,10 @@ export default function SubAgentAnalytics() {
   const reportRef = useRef<HTMLDivElement>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
 
+  // Houses pagination inside sub-agent detail sheet
+  const [housesPage, setHousesPage] = useState(1);
+  const HOUSES_PER_PAGE = 10;
+
   // Search & filter state
   const [subAgentSearch, setSubAgentSearch] = useState('');
   const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
