@@ -68,13 +68,15 @@ import {
   Search,
   UserPlus,
   X,
-  RefreshCw
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
 import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
 import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface AgentRentRequestDialogProps {
   open: boolean;
@@ -532,6 +534,7 @@ function QueuedSubmitBanner({ status }: { status: 'idle' | 'queued' | 'cancellin
 
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId, preselectHouse }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
   const { data: capMap, isLoading: capLoading } = useAgentCapacityMap(capIds);
   const myCap = user?.id ? capMap?.get(user.id) : undefined;
@@ -2419,6 +2422,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       toast.error('Could not share the form. Please try again.');
     }
   }, [fieldFormBlob, fieldFormFileName, user, downloadFieldForm]);
+
+  // On phones the embedded PDF iframe is cramped / often blank (iOS Safari).
+  // Let the agent pop it open full-screen in a new tab instead.
+  const openFieldFormFullScreen = useCallback(() => {
+    if (!fieldFormPreviewUrl) return;
+    const win = window.open(fieldFormPreviewUrl, '_blank');
+    if (!win) {
+      downloadFieldForm();
+      toast.info('PDF downloaded. Open it from your downloads to view full screen.');
+    }
+  }, [fieldFormPreviewUrl, downloadFieldForm]);
 
   return (
     <>
@@ -4520,18 +4534,44 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         </DialogHeader>
         <div className="flex-1 min-h-0 px-5">
           {fieldFormPreviewUrl ? (
-            <iframe
-              src={fieldFormPreviewUrl}
-              title="Rent request field form preview"
-              className="w-full h-[55vh] rounded-lg border border-border bg-muted"
-            />
+            isMobile ? (
+              <button
+                type="button"
+                onClick={openFieldFormFullScreen}
+                className="flex w-full h-[58vh] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/50 px-4 text-center"
+              >
+                <FileText className="h-10 w-10 text-primary" />
+                <span className="text-sm font-medium">Tap to open the form full screen</span>
+                <span className="text-xs text-muted-foreground">
+                  PDFs preview better in your browser. You can also download or share it below.
+                </span>
+              </button>
+            ) : (
+              <iframe
+                src={fieldFormPreviewUrl}
+                title="Rent request field form preview"
+                className="w-full h-[60vh] rounded-lg border border-border bg-muted"
+              />
+            )
           ) : (
-            <div className="flex h-[55vh] items-center justify-center">
+            <div className="flex h-[58vh] items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-2 px-5 py-4 border-t border-border">
+          {isMobile && (
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 gap-2"
+              onClick={openFieldFormFullScreen}
+              disabled={!fieldFormPreviewUrl}
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open full screen
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
