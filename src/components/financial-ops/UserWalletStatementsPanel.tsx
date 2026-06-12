@@ -361,6 +361,134 @@ function BucketStatement({ userId, bucket }: { userId: string; bucket: BucketKey
   );
 }
 
+/* ── All-activity statement (every wallet bucket, chronological) ── */
+const BUCKET_TONE: Record<string, string> = {
+  withdrawable: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  float: 'bg-sky-500/10 text-sky-700 dark:text-sky-400',
+  advance: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+};
+
+function AllActivityStatement({ userId }: { userId: string }) {
+  const [query, setQuery] = useState('');
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['finops-user-all-ledger', userId],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from('general_ledger')
+        .select('id, transaction_date, direction, category, description, amount, wallet_bucket, ledger_scope, source_table, source_id, classification, currency')
+        .eq('user_id', userId)
+        .eq('ledger_scope', 'wallet')
+        .order('transaction_date', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (rows ?? []) as LedgerRow[];
+    },
+  });
+
+  const filtered = useMemo(() => {
+    const rows = data ?? [];
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    const qDigits = q.replace(/[^0-9]/g, '');
+    return rows.filter((r) => {
+      const haystack = [
+        labelFor(r.category),
+        r.category,
+        r.description,
+        r.wallet_bucket,
+        r.direction,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (haystack.includes(q)) return true;
+      if (qDigits && String(Math.round(Number(r.amount || 0))).includes(qDigits)) return true;
+      return false;
+    });
+  }, [data, query]);
+
+  const { totalIn, totalOut } = useMemo(() => {
+    let i = 0, o = 0;
+    for (const r of filtered) {
+      if (r.direction === 'cash_in') i += Number(r.amount || 0);
+      else o += Number(r.amount || 0);
+    }
+    return { totalIn: i, totalOut: o };
+  }, [filtered]);
+
+  if (isLoading) {
+    return (
+      <div className="py-8 text-center text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading full statement…
+      </div>
+    );
+  }
+  if (error) {
+    return <div className="py-8 text-center text-sm text-destructive">Could not load this statement.</div>;
+  }
+  const net = totalIn - totalOut;
+
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filter activity — reason, note or amount…"
+          className="w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
+          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+            <ArrowDownLeft className="h-3.5 w-3.5" />
+            <p className="text-[10px] font-bold uppercase tracking-wider">Money in</p>
+          </div>
+          <p className="text-sm font-black tabular-nums mt-1 truncate">{formatUGX(totalIn)}</p>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-muted/50 p-3">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <ArrowUpRight className="h-3.5 w-3.5" />
+            <p className="text-[10px] font-bold uppercase tracking-wider">Money out</p>
+          </div>
+          <p className="text-sm font-black tabular-nums mt-1 truncate">{formatUGX(totalOut)}</p>
+        </div>
+        <div className={`rounded-xl border p-3 ${net >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-destructive/30 bg-destructive/5'}`}>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Net flow</p>
+          <p className={`text-sm font-black tabular-nums mt-1 truncate ${net >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+            {net >= 0 ? '+' : '−'}{formatUGX(Math.abs(net))}
+          </p>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/60 bg-background p-8 text-center text-sm text-muted-foreground">
+          {query ? 'No activity matches your search.' : 'No wallet activity yet.'}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-background overflow-hidden divide-y divide-border/40">
+          {filtered.map((r) => (
+            <div key={r.id} className="relative">
+              {r.wallet_bucket && (
+                <span className={`absolute right-10 top-3 z-10 text-[9px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 ${BUCKET_TONE[r.wallet_bucket] ?? 'bg-muted text-muted-foreground'}`}>
+                  {r.wallet_bucket === 'withdrawable' ? 'Withdrawable' : r.wallet_bucket === 'float' ? 'Float' : r.wallet_bucket === 'advance' ? 'Advance' : r.wallet_bucket}
+                </span>
+              )}
+              <LedgerRowItem row={r} />
+            </div>
+          ))}
+        </div>
+      )}
+      {(data ?? []).length >= 500 && (
+        <p className="text-[11px] text-muted-foreground text-center">Showing the most recent 500 entries.</p>
+      )}
+    </div>
+  );
+}
+
 /* ── Landlord payout float statement ── */
 function LandlordFloatStatement({ userId, funded, paidOut, balance }: {
   userId: string; funded: number; paidOut: number; balance: number;
@@ -503,13 +631,17 @@ export function UserWalletStatementsPanel() {
           </div>
 
           {/* Statements */}
-          <Tabs defaultValue="withdrawable" className="w-full">
-            <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full h-auto">
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="grid grid-cols-3 sm:grid-cols-5 w-full h-auto">
+              <TabsTrigger value="all" className="text-xs py-2">All Activity</TabsTrigger>
               <TabsTrigger value="withdrawable" className="text-xs py-2">Withdrawable</TabsTrigger>
               <TabsTrigger value="float" className="text-xs py-2">Op. Float</TabsTrigger>
               <TabsTrigger value="landlord" className="text-xs py-2">Landlord Float</TabsTrigger>
               <TabsTrigger value="advance" className="text-xs py-2">Advance</TabsTrigger>
             </TabsList>
+            <TabsContent value="all" className="pt-4">
+              <AllActivityStatement userId={selected.id} />
+            </TabsContent>
             <TabsContent value="withdrawable" className="pt-4">
               <BucketStatement userId={selected.id} bucket="withdrawable" />
             </TabsContent>
