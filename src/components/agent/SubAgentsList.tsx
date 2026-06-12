@@ -63,7 +63,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending_acceptance' | 'rejected' | 'released'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending_acceptance' | 'rejected' | 'released'>('verified');
   const [totalSubAgentEarnings, setTotalSubAgentEarnings] = useState(0);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
