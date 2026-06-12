@@ -195,6 +195,26 @@ export function EmailPeriodComparison() {
   const [rows, setRows] = useState<TxLite[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Restore persisted UI state on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('welile-email-period-comparison');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (typeof saved.collapsed === 'boolean') setCollapsed(saved.collapsed);
+        if (saved.mode === 'rolling' || saved.mode === 'custom') setMode(saved.mode);
+        if (['day', 'week', 'month', 'quarter', 'year'].includes(saved.granularity)) {
+          setGranularity(saved.granularity);
+        }
+      }
+    } catch { /* ignore corrupt storage */ }
+  }, []);
+
+  // Persist UI state whenever it changes
+  useEffect(() => {
+    localStorage.setItem('welile-email-period-comparison', JSON.stringify({ collapsed, mode, granularity }));
+  }, [collapsed, mode, granularity]);
+
   // Custom range state
   const today = useMemo(() => new Date(), []);
   const [rangeA, setRangeA] = useState<DateRangeVal>({ from: undefined, to: undefined });
