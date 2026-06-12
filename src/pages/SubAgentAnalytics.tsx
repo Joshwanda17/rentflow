@@ -761,26 +761,25 @@ export default function SubAgentAnalytics() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="flex items-center gap-3 p-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border/60">
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex-1">
-            <h1 className="font-bold text-lg">Sub-Agent Analytics</h1>
-            <p className="text-xs text-muted-foreground">Track your team performance</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-semibold text-base tracking-tight truncate">Sub-Agents</h1>
+            <p className="text-[11px] text-muted-foreground truncate">Your team performance</p>
           </div>
-          
+
           {subAgents.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1" disabled={exporting}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" disabled={exporting}>
                   {exporting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Download className="h-4 w-4" />
+                    <Download className="h-[18px] w-[18px]" />
                   )}
-                  Export
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -799,15 +798,14 @@ export default function SubAgentAnalytics() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          
-          <Button 
-            onClick={() => { hapticTap(); setInviteSheetOpen(true); }} 
-            size="sm" 
-            className="gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25"
+
+          <Button
+            onClick={() => { hapticTap(); setInviteSheetOpen(true); }}
+            size="sm"
+            className="h-9 gap-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white shrink-0"
           >
             <UserPlus className="h-4 w-4" />
-            <span className="hidden sm:inline">Invite Sub-Agent</span>
-            <span className="sm:hidden">Invite</span>
+            <span className="font-medium">Invite</span>
           </Button>
         </div>
       </div>
