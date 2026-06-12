@@ -32,6 +32,47 @@ interface StatusRow {
 const ACCEPTED_STATES = ['verified', 'accepted', 'approved'];
 const DECLINED_STATES = ['declined', 'rejected'];
 
+interface OverrideEvent {
+  id: string;
+  event_type: string;
+  label: string | null;
+  amount: number;
+  status: string;
+  created_at: string;
+}
+
+interface RecruiterSplit {
+  trace_id: string;
+  created_at: string;
+  tenant_name: string;
+  amount: number;
+  recruiter_override: number;
+}
+
+interface WalletSnapshot {
+  balance: number;
+  withdrawable_balance: number;
+  float_balance: number;
+  advance_balance: number;
+}
+
+interface DrawerData {
+  loading: boolean;
+  wallet: WalletSnapshot | null;
+  events: OverrideEvent[];
+  splits: RecruiterSplit[];
+}
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  house_listed_verified: 'House listing verified',
+  landlord_verified: 'Landlord verified',
+  lc1_verified: 'LC1 chairperson verified',
+};
+
+function prettyEventType(t: string): string {
+  return EVENT_TYPE_LABELS[t] || t.replace(/_/g, ' ');
+}
+
 function acceptanceLabel(status: string): { label: string; tone: 'accepted' | 'pending' | 'declined' } {
   if (ACCEPTED_STATES.includes(status)) return { label: 'Accepted', tone: 'accepted' };
   if (DECLINED_STATES.includes(status)) return { label: 'Declined', tone: 'declined' };
