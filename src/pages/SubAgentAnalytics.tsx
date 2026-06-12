@@ -113,6 +113,7 @@ interface SubAgent {
   accessedFunds: number;
   platformRewards: number;
   serviceFees: number;
+  hasOtherParent?: boolean;
 }
 
 interface MonthlyData {
@@ -261,6 +262,7 @@ export default function SubAgentAnalytics() {
   // Search & filter state
   const [subAgentSearch, setSubAgentSearch] = useState('');
   const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
+  const [inviteStatusFilter, setInviteStatusFilter] = useState<'all' | 'accepted' | 'pending' | 'declined' | 'switched'>('all');
   const [tenantSearch, setTenantSearch] = useState('');
   const [subAgentSort, setSubAgentSort] = useState<'newest' | 'name_asc' | 'withdrawable_desc'>('newest');
 
@@ -354,6 +356,14 @@ export default function SubAgentAnalytics() {
       }
 
       const subAgentIds = subAgentsData.map(sa => sa.sub_agent_id);
+
+      // Detect "switched" sub-agents (linked to another parent previously)
+      const { data: otherParentLinks } = await supabase
+        .from('agent_subagents')
+        .select('sub_agent_id')
+        .in('sub_agent_id', subAgentIds)
+        .neq('parent_agent_id', user.id);
+      const otherParentSet = new Set((otherParentLinks || []).map(l => l.sub_agent_id));
 
       // Fetch profiles
       const { data: profiles } = await supabase
@@ -517,6 +527,7 @@ export default function SubAgentAnalytics() {
           accessedFunds: accessedFundsPerSubAgent[sa.sub_agent_id] || 0,
           platformRewards: platformRewardsPerSubAgent[sa.sub_agent_id] || 0,
           serviceFees: serviceFeesPerSubAgent[sa.sub_agent_id] || 0,
+          hasOtherParent: otherParentSet.has(sa.sub_agent_id),
         };
       });
 
@@ -699,6 +710,17 @@ export default function SubAgentAnalytics() {
       result = result.filter(sa => sa.tenantsCount === 0);
     }
 
+    // Invite status filter
+    if (inviteStatusFilter === 'accepted') {
+      result = result.filter(sa => sa.status === 'verified' || !!sa.accepted_at);
+    } else if (inviteStatusFilter === 'pending') {
+      result = result.filter(sa => sa.status === 'pending' && !sa.accepted_at);
+    } else if (inviteStatusFilter === 'declined') {
+      result = result.filter(sa => sa.status === 'rejected');
+    } else if (inviteStatusFilter === 'switched') {
+      result = result.filter(sa => sa.hasOtherParent);
+    }
+
     // Sort
     const sorted = [...result];
     if (subAgentSort === 'newest') {
@@ -709,7 +731,7 @@ export default function SubAgentAnalytics() {
       sorted.sort((a, b) => (b.wallet?.withdrawable_balance || 0) - (a.wallet?.withdrawable_balance || 0));
     }
     return sorted;
-  }, [subAgents, subAgentSearch, subAgentStatusFilter, subAgentSort]);
+  }, [subAgents, subAgentSearch, subAgentStatusFilter, inviteStatusFilter, subAgentSort]);
 
   // Filtered tenants (inside detail modal)
   const filteredTenants = useMemo(() => {
@@ -1073,6 +1095,26 @@ export default function SubAgentAnalytics() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                  </div>
+                  {/* Invite status filter chips */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {[
+                      { key: 'all', label: 'All Invites' },
+                      { key: 'accepted', label: 'Accepted' },
+                      { key: 'pending', label: 'Pending' },
+                      { key: 'declined', label: 'Declined' },
+                      { key: 'switched', label: 'Switched' },
+                    ].map((opt) => (
+                      <Button
+                        key={opt.key}
+                        size="sm"
+                        variant={inviteStatusFilter === (opt.key as any) ? 'default' : 'outline'}
+                        onClick={() => setInviteStatusFilter(opt.key as any)}
+                        className="text-xs shrink-0 h-8"
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
                   </div>
                 </div>
 
