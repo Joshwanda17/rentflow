@@ -60,6 +60,7 @@ import { hapticTap } from '@/lib/haptics';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { SubAgentBottomNav, type SubAgentSection } from '@/components/agent/SubAgentBottomNav';
 import {
   BarChart,
   Bar,
@@ -243,6 +244,11 @@ export default function SubAgentAnalytics() {
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [expandedTimelines, setExpandedTimelines] = useState<Set<string>>(new Set());
+  const [activeSection, setActiveSection] = useState<SubAgentSection>('subagent-overview');
+
+  const scrollToSection = (id: SubAgentSection) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const toggleTimeline = (id: string) => {
     setExpandedTimelines(prev => {
@@ -321,6 +327,26 @@ export default function SubAgentAnalytics() {
   useEffect(() => {
     setTenantSearch('');
   }, [selectedSubAgent?.sub_agent_id]);
+
+  // Scroll-spy: highlight the bottom-nav section currently in view
+  useEffect(() => {
+    if (loading || subAgents.length === 0) return;
+    const ids: SubAgentSection[] = ['subagent-overview', 'subagent-invite', 'subagent-team'];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0]) setActiveSection(visible[0].target.id as SubAgentSection);
+      },
+      { rootMargin: '-40% 0px -50% 0px', threshold: [0, 0.25, 0.5, 1] },
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, [loading, subAgents.length]);
 
   const fetchCurrentGoal = async () => {
     if (!user) return;
@@ -759,7 +785,7 @@ export default function SubAgentAnalytics() {
   })).filter(d => d.value > 0);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border/60">
         <div className="flex items-center gap-2 px-3 py-2.5">
@@ -809,31 +835,6 @@ export default function SubAgentAnalytics() {
           </Button>
         </div>
       </div>
-
-      {/* Quick Jump Navigation */}
-      {subAgents.length > 0 && (
-        <div className="sticky top-[57px] z-20 bg-background/80 backdrop-blur-xl border-b border-border/60 px-3 py-2">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            {[
-              { id: 'subagent-overview', label: 'Summary', icon: BarChart3 },
-              { id: 'subagent-invite', label: 'Invites', icon: Sparkles },
-              { id: 'subagent-team', label: 'Team', icon: Users },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  hapticTap();
-                  document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-                className="flex items-center gap-1.5 shrink-0 rounded-full bg-muted/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition-all"
-              >
-                <item.icon className="h-3.5 w-3.5" />
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <main className="px-3 py-4 space-y-4">
         {subAgents.length === 0 ? (
@@ -1278,6 +1279,15 @@ export default function SubAgentAnalytics() {
           </div>
         )}
       </main>
+
+      {/* Mobile bottom navigation */}
+      {subAgents.length > 0 && (
+        <SubAgentBottomNav
+          active={activeSection}
+          onNavigate={scrollToSection}
+          onInvite={() => setInviteSheetOpen(true)}
+        />
+      )}
 
       {/* Sub-Agent Detail Modal */}
       {selectedSubAgent && (
