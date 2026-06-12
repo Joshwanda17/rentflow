@@ -2354,6 +2354,78 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // FIX #5: Outstanding min = 50,000 (matches regular flow)
   const outstandingMinAmount = 50000;
 
+  // ---- Blank field-form PDF: preview, then download / share ----
+  const fieldFormFileName = `rent-request-field-form-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+
+  const buildFieldFormBlob = useCallback(async () => {
+    return generateRentRequestFormPdf({
+      agentName:
+        (user?.user_metadata as any)?.full_name ||
+        (user?.user_metadata as any)?.name ||
+        null,
+      agentPhone: (user?.user_metadata as any)?.phone || user?.phone || null,
+    });
+  }, [user]);
+
+  const openFieldFormPreview = useCallback(async () => {
+    setFieldFormGenerating(true);
+    try {
+      const blob = await buildFieldFormBlob();
+      const url = URL.createObjectURL(blob);
+      setFieldFormBlob(blob);
+      setFieldFormPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+      setFieldFormPreviewOpen(true);
+    } catch {
+      toast.error('Could not generate the form. Please try again.');
+    } finally {
+      setFieldFormGenerating(false);
+    }
+  }, [buildFieldFormBlob]);
+
+  const closeFieldFormPreview = useCallback(() => {
+    setFieldFormPreviewOpen(false);
+    setFieldFormPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFieldFormBlob(null);
+  }, []);
+
+  const downloadFieldForm = useCallback(() => {
+    if (!fieldFormBlob) return;
+    const url = URL.createObjectURL(fieldFormBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fieldFormFileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [fieldFormBlob, fieldFormFileName]);
+
+  const shareFieldForm = useCallback(async () => {
+    if (!fieldFormBlob) return;
+    try {
+      const file = new File([fieldFormBlob], fieldFormFileName, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Rent Request Field Form',
+          text: `Field form for ${(user?.user_metadata as any)?.full_name || 'agent'} — print, fill in the field, then post in the app.`,
+        });
+      } else {
+        downloadFieldForm();
+        toast.info('PDF downloaded. Open your file manager and share it to WhatsApp.');
+      }
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return;
+      toast.error('Could not share the form. Please try again.');
+    }
+  }, [fieldFormBlob, fieldFormFileName, user, downloadFieldForm]);
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md max-h-[88vh] overflow-x-hidden overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+96px)] sm:pb-6 overscroll-contain">
