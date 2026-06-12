@@ -328,6 +328,26 @@ export default function SubAgentAnalytics() {
     setTenantSearch('');
   }, [selectedSubAgent?.sub_agent_id]);
 
+  // Scroll-spy: highlight the bottom-nav section currently in view
+  useEffect(() => {
+    if (loading || subAgents.length === 0) return;
+    const ids: SubAgentSection[] = ['subagent-overview', 'subagent-invite', 'subagent-team'];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0]) setActiveSection(visible[0].target.id as SubAgentSection);
+      },
+      { rootMargin: '-40% 0px -50% 0px', threshold: [0, 0.25, 0.5, 1] },
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, [loading, subAgents.length]);
+
   const fetchCurrentGoal = async () => {
     if (!user) return;
 
