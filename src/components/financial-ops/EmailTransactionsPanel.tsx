@@ -29,6 +29,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RTooltip
 import { DebitBucketAuditSearch } from './DebitBucketAuditSearch';
 import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
+import { EmailPeriodComparison } from './EmailPeriodComparison';
 
 interface GmailTx {
   id: string;
