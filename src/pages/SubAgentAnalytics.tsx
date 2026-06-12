@@ -271,6 +271,9 @@ export default function SubAgentAnalytics() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [selectedSubAgent, setSelectedSubAgent] = useState<SubAgent | null>(null);
+  const [selectedHouse, setSelectedHouse] = useState<SubAgentHouse | null>(null);
+  const [houseTenant, setHouseTenant] = useState<{ full_name: string; phone: string | null } | null>(null);
+  const [houseTenantLoading, setHouseTenantLoading] = useState(false);
   const [recruiterSplits, setRecruiterSplits] = useState<RecruiterSplit[]>([]);
   const [splitsLoading, setSplitsLoading] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
