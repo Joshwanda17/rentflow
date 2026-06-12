@@ -617,6 +617,8 @@ export default function SubAgentAnalytics() {
           accessedFunds: accessedFundsPerSubAgent[sa.sub_agent_id] || 0,
           platformRewards: platformRewardsPerSubAgent[sa.sub_agent_id] || 0,
           serviceFees: serviceFeesPerSubAgent[sa.sub_agent_id] || 0,
+          houses: housesBySubAgent[sa.sub_agent_id] || [],
+          houseOverrideEarnings: houseOverrideBySubAgent[sa.sub_agent_id] || 0,
           hasOtherParent: otherParentSet.has(sa.sub_agent_id),
         };
       });
