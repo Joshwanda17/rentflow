@@ -7,6 +7,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { hapticTap } from '@/lib/haptics';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TenantProfileView } from '@/components/agent/TenantProfileView';
 
 interface FloatRow {
   entry_id: string;
@@ -125,6 +126,7 @@ export default function AgentFloatBreakdown() {
   const [allocSearch, setAllocSearch] = useState('');
   const [allocFromDate, setAllocFromDate] = useState('');
   const [allocToDate, setAllocToDate] = useState('');
+  const [viewingTenantId, setViewingTenantId] = useState<string | null>(null);
 
   // Sync filter state → URL (replace so back button isn't polluted)
   useEffect(() => {
@@ -210,6 +212,7 @@ export default function AgentFloatBreakdown() {
     setAllocSearch('');
     setAllocFromDate('');
     setAllocToDate('');
+    setViewingTenantId(null);
   }, [selected?.entry_id]);
 
   async function copyToClipboard(value: string, key: string) {
@@ -773,15 +776,22 @@ export default function AgentFloatBreakdown() {
       </div>
 
       {/* Drill-down sheet */}
-      <Sheet open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setDetail(null); } }}>
+      <Sheet open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setDetail(null); setViewingTenantId(null); } }}>
         <SheetContent side="bottom" className="h-[90vh] overflow-y-auto p-0">
-          <SheetHeader className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-            <SheetTitle className="text-base text-left">
-              {selected ? labelFor(selected.category) : 'Transaction Detail'}
-            </SheetTitle>
-          </SheetHeader>
+          {viewingTenantId ? (
+            <TenantProfileView
+              tenantId={viewingTenantId}
+              onBack={() => setViewingTenantId(null)}
+            />
+          ) : (
+            <>
+              <SheetHeader className="sticky top-0 z-10 bg-background border-b px-4 py-3">
+                <SheetTitle className="text-base text-left">
+                  {selected ? labelFor(selected.category) : 'Transaction Detail'}
+                </SheetTitle>
+              </SheetHeader>
 
-          <div className="p-4 space-y-4">
+              <div className="p-4 space-y-4">
             {detailLoading && (
               <div className="py-10 text-center text-sm text-muted-foreground">Loading details...</div>
             )}
@@ -914,12 +924,18 @@ export default function AgentFloatBreakdown() {
                           const waPhone = phone.replace(/^0/, '256').replace(/^\+/, '');
                           return (
                             <li key={a.use_entry_id} className="px-4 py-3">
-                              {/* Tenant name — large and clear */}
+                              {/* Tenant name — large, clear, and clickable */}
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-base font-bold truncate leading-tight">
-                                    {a.tenant_name ?? 'Unknown Tenant'}
-                                  </p>
+                                  <button
+                                    onClick={() => { hapticTap(); if (a.tenant_id) setViewingTenantId(a.tenant_id); }}
+                                    className="text-left w-full"
+                                    disabled={!a.tenant_id}
+                                  >
+                                    <p className="text-base font-bold truncate leading-tight text-foreground hover:text-primary transition-colors">
+                                      {a.tenant_name ?? 'Unknown Tenant'}
+                                    </p>
+                                  </button>
                                   {a.tenant_name && (
                                     <p className="text-[11px] text-muted-foreground mt-0.5">
                                       {labelFor(a.category)}
@@ -1009,6 +1025,8 @@ export default function AgentFloatBreakdown() {
               </>
             )}
           </div>
+        </>
+      )}
         </SheetContent>
       </Sheet>
     </div>
