@@ -216,8 +216,14 @@ export default function SubAgentAnalytics() {
       // Fetch profiles
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, avatar_url')
+        .select('id, full_name, phone, avatar_url, email, national_id, district, region, occupation, created_at')
         .in('id', subAgentIds);
+
+      // Fetch sub-agents' wallets
+      const { data: wallets } = await supabase
+        .from('wallets')
+        .select('user_id, balance, withdrawable_balance, float_balance, advance_balance, locked_balance')
+        .in('user_id', subAgentIds);
 
       // Fetch all earnings from sub-agent commissions
       const { data: allEarnings } = await supabase
