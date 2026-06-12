@@ -537,6 +537,35 @@ export default function SubAgentAnalytics() {
     }
   };
 
+  // Filtered sub-agents
+  const filteredSubAgents = useMemo(() => {
+    let result = subAgents;
+    const q = subAgentSearch.trim().toLowerCase();
+    if (q) {
+      result = result.filter(sa =>
+        (sa.profile?.full_name?.toLowerCase().includes(q)) ||
+        (sa.profile?.phone?.toLowerCase().includes(q))
+      );
+    }
+    if (subAgentStatusFilter === 'with_tenants') {
+      result = result.filter(sa => sa.tenantsCount > 0);
+    } else if (subAgentStatusFilter === 'no_tenants') {
+      result = result.filter(sa => sa.tenantsCount === 0);
+    }
+    return result;
+  }, [subAgents, subAgentSearch, subAgentStatusFilter]);
+
+  // Filtered tenants (inside detail modal)
+  const filteredTenants = useMemo(() => {
+    if (!selectedSubAgent) return [];
+    const q = tenantSearch.trim().toLowerCase();
+    if (!q) return selectedSubAgent.tenants;
+    return selectedSubAgent.tenants.filter(t =>
+      t.name.toLowerCase().includes(q) ||
+      (t.phone?.toLowerCase().includes(q) ?? false)
+    );
+  }, [selectedSubAgent, tenantSearch]);
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
