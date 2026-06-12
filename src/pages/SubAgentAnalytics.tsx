@@ -1090,6 +1090,8 @@ export default function SubAgentAnalytics() {
                     {filteredSubAgents.map((subAgent) => {
                       const accepted = subAgent.status === 'verified' || !!subAgent.accepted_at;
                       const smsStatus = subAgent.invite_sms_status;
+                      const timelineOpen = expandedTimelines.has(subAgent.id);
+                      const timeline = buildInviteTimeline(subAgent);
                       const openDetail = () => {
                         setSelectedSubAgent(subAgent);
                         const next = new URLSearchParams(searchParams);
@@ -1146,9 +1148,19 @@ export default function SubAgentAnalytics() {
                               <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             </div>
                           </button>
-                          {/* Resend invite — only while not yet accepted */}
-                          {!accepted && (
-                            <div className="px-3 pb-3 -mt-1">
+                          {/* Row actions: invite history toggle + resend */}
+                          <div className="px-3 pb-3 -mt-1 flex flex-wrap items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1.5 text-xs"
+                              onClick={() => { hapticTap(); toggleTimeline(subAgent.id); }}
+                            >
+                              <History className="h-3.5 w-3.5" />
+                              Invite history
+                              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${timelineOpen ? 'rotate-180' : ''}`} />
+                            </Button>
+                            {!accepted && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -1163,6 +1175,46 @@ export default function SubAgentAnalytics() {
                                 )}
                                 {smsStatus === 'failed' ? 'Retry invite SMS' : 'Resend invite'}
                               </Button>
+                            )}
+                          </div>
+                          {/* Expandable invite timeline */}
+                          {timelineOpen && (
+                            <div className="px-3 pb-3 -mt-1">
+                              <div className="rounded-lg border bg-background/60 p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-semibold text-muted-foreground">Invite timeline</p>
+                                  {subAgent.invite_sent_at && (
+                                    <p className="text-[10px] text-muted-foreground">
+                                      Last sent {format(new Date(subAgent.invite_sent_at), 'MMM d, h:mm a')}
+                                    </p>
+                                  )}
+                                </div>
+                                <ol className="relative space-y-3">
+                                  {timeline.map((ev, idx) => {
+                                    const Icon = ev.icon;
+                                    const isLast = idx === timeline.length - 1;
+                                    return (
+                                      <li key={ev.key} className="flex gap-3">
+                                        <div className="flex flex-col items-center">
+                                          <span className={`flex h-6 w-6 items-center justify-center rounded-full ${TIMELINE_TONE[ev.tone]}`}>
+                                            <Icon className="h-3.5 w-3.5" />
+                                          </span>
+                                          {!isLast && <span className="w-px flex-1 bg-border mt-1" />}
+                                        </div>
+                                        <div className="pb-1 min-w-0">
+                                          <p className="text-xs font-medium leading-tight">{ev.label}</p>
+                                          {ev.detail && (
+                                            <p className="text-[10px] text-muted-foreground capitalize">{ev.detail}</p>
+                                          )}
+                                          <p className="text-[10px] text-muted-foreground">
+                                            {ev.at ? format(new Date(ev.at), 'MMM d, yyyy • h:mm a') : 'Time not recorded'}
+                                          </p>
+                                        </div>
+                                      </li>
+                                    );
+                                  })}
+                                </ol>
+                              </div>
                             </div>
                           )}
                         </div>
