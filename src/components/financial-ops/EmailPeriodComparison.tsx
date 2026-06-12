@@ -318,6 +318,28 @@ export function EmailPeriodComparison() {
     ? `${format(rangeB.from, 'yyyy-MM-dd')}${rangeB.to ? ` → ${format(rangeB.to, 'yyyy-MM-dd')}` : ''}`
     : 'Period B';
 
+  // Transactions included in the drilled-into period, newest first.
+  const drillTx = useMemo(() => {
+    if (!drill) return [];
+    const range = drill === 'a' ? rangeA : rangeB;
+    return rows
+      .filter((r) => inRange(r.internal_date, range))
+      .sort((x, y) => new Date(y.internal_date ?? 0).getTime() - new Date(x.internal_date ?? 0).getTime());
+  }, [drill, rows, rangeA, rangeB]);
+
+  const drillLabel = drill === 'a' ? periodALabel : drill === 'b' ? periodBLabel : '';
+  const drillTotals = useMemo(() => {
+    const t = { in: 0, out: 0 };
+    for (const r of drillTx) {
+      const amt = Number(r.amount) || 0;
+      if (amt > 0) {
+        if (r.direction === 'in') t.in += amt;
+        else if (r.direction === 'out') t.out += amt;
+      }
+    }
+    return t;
+  }, [drillTx]);
+
   return (
     <Card>
       <CardHeader className="pb-3">
