@@ -137,6 +137,7 @@ export default function SubAgentAnalytics() {
   const [recruiterSplits, setRecruiterSplits] = useState<RecruiterSplit[]>([]);
   const [splitsLoading, setSplitsLoading] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [currentGoal, setCurrentGoal] = useState<TeamGoal | null>(null);
   const [currentMonthRegistrations, setCurrentMonthRegistrations] = useState(0);
