@@ -209,16 +209,17 @@ Deno.serve(async (req) => {
       }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Send in AT-friendly batches.
-    const BATCH = 100;
+    // Send per-recipient via the Yoola-first provider chain, in parallel batches.
+    const BATCH = 50;
     let sent = 0, failed = 0;
     const errors: string[] = [];
     for (let i = 0; i < recipients.length; i += BATCH) {
-      const batch = recipients.slice(i, i + BATCH).map((r) => r.phone);
-      const result = await sendBatch(batch, message);
-      sent += result.sent;
-      failed += result.failed;
-      if (!result.ok && result.reason) errors.push(result.reason);
+      const batch = recipients.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map((r) => sendSMS(r.phone, message)));
+      for (const result of results) {
+        if (result.accepted) sent++;
+        else { failed++; if (result.reason) errors.push(result.reason); }
+      }
     }
 
     await admin.from('audit_logs').insert({
