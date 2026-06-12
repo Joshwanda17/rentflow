@@ -1501,6 +1501,9 @@ export default function SubAgentAnalytics() {
               </CardContent>
             </Card>
 
+            {/* Sub-agent status & recruiter override earnings board */}
+            <SubAgentStatusBoard />
+
             {/* Payout audit: earning leg ↔ withdrawable wallet credit */}
             <SubAgentPayoutAudit />
           </div>
