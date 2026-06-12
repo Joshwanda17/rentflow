@@ -2427,6 +2427,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   }, [fieldFormBlob, fieldFormFileName, user, downloadFieldForm]);
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md max-h-[88vh] overflow-x-hidden overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+96px)] sm:pb-6 overscroll-contain">
         <DialogHeader>
