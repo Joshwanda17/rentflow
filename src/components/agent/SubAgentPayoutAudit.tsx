@@ -84,6 +84,14 @@ export function SubAgentPayoutAudit() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState<AuditRow[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Filters
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [subAgentFilter, setSubAgentFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!user) return;
