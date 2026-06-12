@@ -823,7 +823,7 @@ export default function SubAgentAnalytics() {
             </div>
 
             {/* Sub-Agents List */}
-            <Card>
+            <Card id="subagent-team" className="scroll-mt-24">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
