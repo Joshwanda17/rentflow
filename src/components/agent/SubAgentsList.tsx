@@ -9,6 +9,16 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Users,
   TrendingUp,
   Loader2,
@@ -23,6 +33,7 @@ import {
   Calendar,
   X,
   Mail,
+  UserMinus,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -56,6 +67,8 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [releaseTarget, setReleaseTarget] = useState<SubAgent | null>(null);
+  const [releasingId, setReleasingId] = useState<string | null>(null);
 
   const fetchSubAgents = useCallback(async () => {
     if (!user) return;
