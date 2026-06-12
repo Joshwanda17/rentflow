@@ -6,6 +6,7 @@ import { Loader2, TrendingUp, TrendingDown, Minus, CalendarRange, Calendar as Ca
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid } from 'recharts';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { format, startOfDay, endOfDay, isAfter, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +34,12 @@ interface TxLite {
   amount: number | null;
   direction: string | null;
   internal_date: string | null;
+  id?: string;
+  subject?: string | null;
+  counterparty?: string | null;
+  channel?: string | null;
+  transaction_id?: string | null;
+  from_name?: string | null;
 }
 
 interface Bucket {
@@ -194,6 +201,9 @@ export function EmailPeriodComparison() {
 
   const customReady = !!rangeA.from && !!rangeB.from;
 
+  // Drilldown: which period's transactions are being viewed
+  const [drill, setDrill] = useState<'a' | 'b' | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -215,7 +225,7 @@ export function EmailPeriodComparison() {
         sinceIso = startOfDay(candidates.reduce((a, b) => (a < b ? a : b))).toISOString();
       }
       const { data, error } = await (supabase.from('gmail_transactions') as any)
-        .select('amount,direction,internal_date')
+        .select('id,amount,direction,internal_date,subject,counterparty,channel,transaction_id,from_name')
         .gte('internal_date', sinceIso)
         .order('internal_date', { ascending: false })
         .limit(20000);
@@ -307,6 +317,28 @@ export function EmailPeriodComparison() {
   const periodBLabel = rangeB.from
     ? `${format(rangeB.from, 'yyyy-MM-dd')}${rangeB.to ? ` → ${format(rangeB.to, 'yyyy-MM-dd')}` : ''}`
     : 'Period B';
+
+  // Transactions included in the drilled-into period, newest first.
+  const drillTx = useMemo(() => {
+    if (!drill) return [];
+    const range = drill === 'a' ? rangeA : rangeB;
+    return rows
+      .filter((r) => inRange(r.internal_date, range))
+      .sort((x, y) => new Date(y.internal_date ?? 0).getTime() - new Date(x.internal_date ?? 0).getTime());
+  }, [drill, rows, rangeA, rangeB]);
+
+  const drillLabel = drill === 'a' ? periodALabel : drill === 'b' ? periodBLabel : '';
+  const drillTotals = useMemo(() => {
+    const t = { in: 0, out: 0 };
+    for (const r of drillTx) {
+      const amt = Number(r.amount) || 0;
+      if (amt > 0) {
+        if (r.direction === 'in') t.in += amt;
+        else if (r.direction === 'out') t.out += amt;
+      }
+    }
+    return t;
+  }, [drillTx]);
 
   return (
     <Card>
@@ -492,29 +524,93 @@ export function EmailPeriodComparison() {
                     <th className="py-1.5 px-2 font-medium text-right">Out</th>
                     <th className="py-1.5 px-2 font-medium text-right">Net</th>
                     <th className="py-1.5 px-2 font-medium text-right">Emails</th>
+                    <th className="py-1.5 pl-2 font-medium text-right"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-border/50">
+                  <tr
+                    className="border-b border-border/50 cursor-pointer hover:bg-muted/40 transition-colors"
+                    onClick={() => setDrill('a')}
+                  >
                     <td className="py-1.5 pr-2 font-medium">{periodALabel}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-emerald-500">{fmtUgx(customAgg.a.in)}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-rose-500">{fmtUgx(customAgg.a.out)}</td>
                     <td className={`py-1.5 px-2 text-right tabular-nums ${customAgg.a.net >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{fmtUgx(customAgg.a.net)}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{customAgg.a.count.toLocaleString()}</td>
+                    <td className="py-1.5 pl-2 text-right text-muted-foreground">View →</td>
                   </tr>
-                  <tr>
+                  <tr
+                    className="cursor-pointer hover:bg-muted/40 transition-colors"
+                    onClick={() => setDrill('b')}
+                  >
                     <td className="py-1.5 pr-2 font-medium">{periodBLabel}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-emerald-500">{fmtUgx(customAgg.b.in)}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-rose-500">{fmtUgx(customAgg.b.out)}</td>
                     <td className={`py-1.5 px-2 text-right tabular-nums ${customAgg.b.net >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{fmtUgx(customAgg.b.net)}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{customAgg.b.count.toLocaleString()}</td>
+                    <td className="py-1.5 pl-2 text-right text-muted-foreground">View →</td>
                   </tr>
                 </tbody>
               </table>
+              <p className="mt-2 text-[11px] text-muted-foreground">Tap a period row to see its exact transactions.</p>
             </div>
           </div>
         )}
       </CardContent>
+
+      <Sheet open={drill !== null} onOpenChange={(o) => !o && setDrill(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="text-sm">
+              {drill === 'a' ? 'Period A' : 'Period B'} transactions
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              {drillLabel} · {drillTx.length.toLocaleString()} emails · timezone {TZ}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="rounded-md border bg-muted/30 p-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">In</p>
+              <p className="text-sm font-bold tabular-nums text-emerald-500">{fmtUgx(drillTotals.in)}</p>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Out</p>
+              <p className="text-sm font-bold tabular-nums text-rose-500">{fmtUgx(drillTotals.out)}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex-1 overflow-y-auto -mx-2 px-2">
+            {drillTx.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No transactions in this period.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {drillTx.map((r, i) => {
+                  const amt = Number(r.amount) || 0;
+                  const isIn = r.direction === 'in';
+                  return (
+                    <li key={r.id ?? i} className="rounded-md border p-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium">
+                            {r.counterparty || r.from_name || r.subject || 'Unknown'}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {r.internal_date ? format(new Date(r.internal_date), 'yyyy-MM-dd HH:mm') : '—'}
+                            {r.channel ? ` · ${r.channel}` : ''}
+                            {r.transaction_id ? ` · ${r.transaction_id}` : ''}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 text-xs font-semibold tabular-nums ${isIn ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {isIn ? '+' : '−'}{fmtUgx(amt)}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
