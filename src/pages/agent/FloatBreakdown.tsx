@@ -122,6 +122,9 @@ export default function AgentFloatBreakdown() {
   const [allocations, setAllocations] = useState<FloatAllocation[] | null>(null);
   const [allocLoading, setAllocLoading] = useState(false);
   const [allocErr, setAllocErr] = useState<string | null>(null);
+  const [allocSearch, setAllocSearch] = useState('');
+  const [allocFromDate, setAllocFromDate] = useState('');
+  const [allocToDate, setAllocToDate] = useState('');
 
   // Sync filter state → URL (replace so back button isn't polluted)
   useEffect(() => {
@@ -202,6 +205,13 @@ export default function AgentFloatBreakdown() {
     return () => { cancelled = true; };
   }, [selected, user?.id]);
 
+  // Clear allocation filters when a different row is selected
+  useEffect(() => {
+    setAllocSearch('');
+    setAllocFromDate('');
+    setAllocToDate('');
+  }, [selected?.entry_id]);
+
   async function copyToClipboard(value: string, key: string) {
     try {
       await navigator.clipboard.writeText(value);
@@ -232,6 +242,25 @@ export default function AgentFloatBreakdown() {
 
   const totalIn = filteredRows.filter(r => r.signed_amount > 0).reduce((s, r) => s + Number(r.signed_amount), 0);
   const totalOut = filteredRows.filter(r => r.signed_amount < 0).reduce((s, r) => s + Number(r.signed_amount), 0);
+
+  const filteredAllocations = useMemo(() => {
+    if (!allocations) return [];
+    const fromMs = allocFromDate ? new Date(allocFromDate + 'T00:00:00').getTime() : -Infinity;
+    const toMs = allocToDate ? new Date(allocToDate + 'T23:59:59.999').getTime() : Infinity;
+    const q = allocSearch.trim().toLowerCase();
+    return allocations.filter((a) => {
+      const t = new Date(a.occurred_at).getTime();
+      if (t < fromMs || t > toMs) return false;
+      if (!q) return true;
+      return (
+        (a.tenant_name ?? '').toLowerCase().includes(q) ||
+        (a.tenant_phone ?? '').toLowerCase().includes(q) ||
+        (a.description ?? '').toLowerCase().includes(q) ||
+        (a.reference_id ?? '').toLowerCase().includes(q) ||
+        (a.category ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [allocations, allocFromDate, allocToDate, allocSearch]);
 
   function rangeSuffix(): string {
     if (fromDate && toDate) return `${fromDate}_to_${toDate}`;
@@ -810,7 +839,7 @@ export default function AgentFloatBreakdown() {
                       <Users className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                         Allocated To Tenant Rent
-                        {allocations && allocations.length > 0 ? ` (${allocations.length})` : ''}
+                        {allocations && allocations.length > 0 ? ` (${filteredAllocations.length}/${allocations.length})` : ''}
                       </span>
                     </div>
                     <div className="px-4 py-2 border-b">
@@ -818,6 +847,54 @@ export default function AgentFloatBreakdown() {
                         The tenant rent payments this deposit funded, matched oldest-float-first (FIFO).
                       </p>
                     </div>
+
+                    {/* Allocation search + date filters */}
+                    {allocations && allocations.length > 0 && (
+                      <div className="px-4 py-3 border-b space-y-3">
+                        <label className="flex items-center gap-2">
+                          <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <input
+                            type="text"
+                            value={allocSearch}
+                            onChange={(e) => setAllocSearch(e.target.value)}
+                            placeholder="Search tenant name, phone, or reference…"
+                            className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
+                            aria-label="Search allocations"
+                          />
+                          {allocSearch && (
+                            <button
+                              onClick={() => { hapticTap(); setAllocSearch(''); }}
+                              className="p-1 -m-1 rounded hover:bg-muted active:scale-95"
+                              aria-label="Clear allocation search"
+                            >
+                              <X className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                          )}
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="space-y-1">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">From</span>
+                            <input
+                              type="date"
+                              value={allocFromDate}
+                              onChange={(e) => setAllocFromDate(e.target.value)}
+                              className="w-full rounded-lg border bg-background px-2 py-1.5 text-sm"
+                            />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">To</span>
+                            <input
+                              type="date"
+                              value={allocToDate}
+                              min={allocFromDate || undefined}
+                              onChange={(e) => setAllocToDate(e.target.value)}
+                              className="w-full rounded-lg border bg-background px-2 py-1.5 text-sm"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
                     {allocLoading ? (
                       <div className="py-8 text-center text-sm text-muted-foreground">Tracing allocations…</div>
                     ) : allocErr ? (
@@ -826,25 +903,37 @@ export default function AgentFloatBreakdown() {
                       <div className="py-8 text-center text-sm text-muted-foreground px-4">
                         Not yet allocated — this float is still sitting in your wallet, unspent on tenant rent.
                       </div>
+                    ) : filteredAllocations.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground px-4">
+                        No allocations match your filters.
+                      </div>
                     ) : (
                       <ul className="divide-y">
-                        {allocations.map((a) => {
+                        {filteredAllocations.map((a) => {
                           const phone = (a.tenant_phone ?? '').replace(/[^0-9+]/g, '');
                           const waPhone = phone.replace(/^0/, '256').replace(/^\+/, '');
                           return (
                             <li key={a.use_entry_id} className="px-4 py-3">
-                              <div className="flex items-baseline justify-between gap-2">
-                                <p className="text-sm font-semibold truncate">
-                                  {a.tenant_name ?? labelFor(a.category)}
-                                </p>
-                                <p className="text-sm font-bold tabular-nums whitespace-nowrap text-rose-600 dark:text-rose-400">
+                              {/* Tenant name — large and clear */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-base font-bold truncate leading-tight">
+                                    {a.tenant_name ?? 'Unknown Tenant'}
+                                  </p>
+                                  {a.tenant_name && (
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                      {labelFor(a.category)}
+                                    </p>
+                                  )}
+                                </div>
+                                <p className="text-sm font-bold tabular-nums whitespace-nowrap text-rose-600 dark:text-rose-400 mt-0.5">
                                   −{formatAmount(Number(a.allocated_amount))}
                                 </p>
                               </div>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                              <p className="text-[11px] text-muted-foreground mt-1">
                                 {Number(a.allocated_amount) < Number(a.use_amount)
                                   ? `Part of a ${formatAmount(Number(a.use_amount))} rent payment`
-                                  : labelFor(a.category)}
+                                  : 'Full rent payment'}
                                 {' · '}
                                 {new Date(a.occurred_at).toLocaleDateString('en-UG', { dateStyle: 'medium' })}
                               </p>
