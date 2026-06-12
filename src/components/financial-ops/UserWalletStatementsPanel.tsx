@@ -371,19 +371,22 @@ const BUCKET_TONE: Record<string, string> = {
   advance: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
 };
 
-function AllActivityStatement({ userId }: { userId: string }) {
+function AllActivityStatement({ userId, fromDate, toDate }: { userId: string; fromDate: string; toDate: string }) {
   const [query, setQuery] = useState('');
   const { data, isLoading, error } = useQuery({
-    queryKey: ['finops-user-all-ledger', userId],
+    queryKey: ['finops-user-all-ledger', userId, fromDate, toDate],
     staleTime: 30_000,
     queryFn: async () => {
-      const { data: rows, error } = await supabase
+      let query = supabase
         .from('general_ledger')
         .select('id, transaction_date, direction, category, description, amount, wallet_bucket, ledger_scope, source_table, source_id, classification, currency')
         .eq('user_id', userId)
         .eq('ledger_scope', 'wallet')
         .order('transaction_date', { ascending: false })
         .limit(500);
+      if (fromDate) query = query.gte('transaction_date', fromDate);
+      if (toDate) query = query.lte('transaction_date', toDate + 'T23:59:59.999Z');
+      const { data: rows, error } = await query;
       if (error) throw error;
       return (rows ?? []) as LedgerRow[];
     },
@@ -493,19 +496,22 @@ function AllActivityStatement({ userId }: { userId: string }) {
 }
 
 /* ── Landlord payout float statement ── */
-function LandlordFloatStatement({ userId, funded, paidOut, balance }: {
-  userId: string; funded: number; paidOut: number; balance: number;
+function LandlordFloatStatement({ userId, funded, paidOut, balance, fromDate, toDate }: {
+  userId: string; funded: number; paidOut: number; balance: number; fromDate: string; toDate: string;
 }) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['finops-user-landlord-float', userId],
+    queryKey: ['finops-user-landlord-float', userId, fromDate, toDate],
     staleTime: 30_000,
     queryFn: async () => {
-      const { data: rows, error } = await supabase
+      let query = supabase
         .from('agent_float_withdrawals')
         .select('id, amount, landlord_name, landlord_phone, status, mobile_money_provider, created_at, notes')
         .eq('agent_id', userId)
         .order('created_at', { ascending: false })
         .limit(200);
+      if (fromDate) query = query.gte('created_at', fromDate);
+      if (toDate) query = query.lte('created_at', toDate + 'T23:59:59.999Z');
+      const { data: rows, error } = await query;
       if (error) throw error;
       return rows ?? [];
     },
@@ -568,6 +574,8 @@ function LandlordFloatStatement({ userId, funded, paidOut, balance }: {
 export function UserWalletStatementsPanel() {
   const [selected, setSelected] = useState<UserBrief | null>(null);
   const [drillOpen, setDrillOpen] = useState(false);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const { data: summary, isLoading: summaryLoading } = useWalletSummary(selected?.id ?? null);
 
   return (
@@ -633,6 +641,35 @@ export function UserWalletStatementsPanel() {
             ))}
           </div>
 
+          {/* Date range filter */}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3">
+            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">From</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="rounded-md border border-border bg-background px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">To</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="rounded-md border border-border bg-background px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              />
+            </div>
+            {(fromDate || toDate) && (
+              <button
+                type="button"
+                onClick={() => { setFromDate(''); setToDate(''); }}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground underline"
+              >
+                Clear dates
+              </button>
+            )}
+          </div>
+
           {/* Statements */}
           <Tabs defaultValue="all" className="w-full">
             <TabsList className="grid grid-cols-3 sm:grid-cols-5 w-full h-auto">
@@ -643,13 +680,13 @@ export function UserWalletStatementsPanel() {
               <TabsTrigger value="advance" className="text-xs py-2">Advance</TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="pt-4">
-              <AllActivityStatement userId={selected.id} />
+              <AllActivityStatement userId={selected.id} fromDate={fromDate} toDate={toDate} />
             </TabsContent>
             <TabsContent value="withdrawable" className="pt-4">
-              <BucketStatement userId={selected.id} bucket="withdrawable" />
+              <BucketStatement userId={selected.id} bucket="withdrawable" fromDate={fromDate} toDate={toDate} />
             </TabsContent>
             <TabsContent value="float" className="pt-4">
-              <BucketStatement userId={selected.id} bucket="float" />
+              <BucketStatement userId={selected.id} bucket="float" fromDate={fromDate} toDate={toDate} />
             </TabsContent>
             <TabsContent value="landlord" className="pt-4">
               <LandlordFloatStatement
@@ -657,10 +694,12 @@ export function UserWalletStatementsPanel() {
                 funded={summary?.landlordFunded ?? 0}
                 paidOut={summary?.landlordPaidOut ?? 0}
                 balance={summary?.landlordFloat ?? 0}
+                fromDate={fromDate}
+                toDate={toDate}
               />
             </TabsContent>
             <TabsContent value="advance" className="pt-4">
-              <BucketStatement userId={selected.id} bucket="advance" />
+              <BucketStatement userId={selected.id} bucket="advance" fromDate={fromDate} toDate={toDate} />
             </TabsContent>
           </Tabs>
 
