@@ -1903,6 +1903,159 @@ export default function SubAgentAnalytics() {
         onSuccess={fetchSubAgentAnalytics}
       />
 
+      {/* House details */}
+      <Sheet open={!!selectedHouse} onOpenChange={(open) => { if (!open) setSelectedHouse(null); }}>
+        <SheetContent side="bottom" className="h-[88vh] rounded-t-3xl overflow-y-auto pb-8">
+          {selectedHouse && (
+            <>
+              <SheetHeader className="pb-3 text-left">
+                <SheetTitle className="flex items-center gap-2 text-lg">
+                  <Home className="h-5 w-5 text-orange-500" />
+                  {selectedHouse.title || 'Untitled listing'}
+                </SheetTitle>
+                <SheetDescription>
+                  {selectedHouse.house_category || 'House'}
+                  {selectedHouse.number_of_rooms ? ` · ${selectedHouse.number_of_rooms} room${selectedHouse.number_of_rooms === 1 ? '' : 's'}` : ''}
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="space-y-4">
+                {/* Status */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {selectedHouse.verified ? (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-success/10 text-success border border-success/20">
+                      <CheckCircle2 className="h-3 w-3" /> Verified
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                      <Clock className="h-3 w-3" /> Pending verification
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground border border-border capitalize">
+                    {(selectedHouse.status || 'unknown').replace(/_/g, ' ')}
+                  </span>
+                  {selectedHouse.tenant_id && (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      <Users className="h-3 w-3" /> Occupied
+                    </span>
+                  )}
+                </div>
+
+                {/* Address */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-orange-500" /> Address
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">
+                      {[selectedHouse.address, selectedHouse.village, selectedHouse.sub_county, selectedHouse.district, selectedHouse.region]
+                        .filter(Boolean)
+                        .join(', ') || 'No address recorded'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Rent / cost */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-success/10 rounded-xl p-3 text-center border border-success/20">
+                    <p className="text-[11px] text-muted-foreground">Monthly Rent</p>
+                    <p className="font-bold text-success text-base mt-0.5">{formatUGX(selectedHouse.monthly_rent)}</p>
+                  </div>
+                  <div className="bg-primary/10 rounded-xl p-3 text-center border border-primary/20">
+                    <p className="text-[11px] text-muted-foreground">Total Monthly Cost</p>
+                    <p className="font-bold text-primary text-base mt-0.5">{formatUGX(selectedHouse.total_monthly_cost)}</p>
+                  </div>
+                </div>
+
+                {/* Linked tenant */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Users className="h-4 w-4 text-orange-500" /> Linked Tenant
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {!selectedHouse.tenant_id ? (
+                      <p className="text-sm text-muted-foreground">No tenant linked yet</p>
+                    ) : houseTenantLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                      </div>
+                    ) : houseTenant ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{houseTenant.full_name}</p>
+                          {houseTenant.phone ? (
+                            <a href={`tel:${houseTenant.phone}`} className="inline-flex items-center gap-1 text-xs text-primary mt-0.5">
+                              <Phone className="h-3 w-3" /> {houseTenant.phone}
+                            </a>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">No phone</p>
+                          )}
+                        </div>
+                        {houseTenant.phone && (
+                          <a
+                            href={`tel:${houseTenant.phone}`}
+                            className="flex items-center justify-center h-9 w-9 rounded-full bg-success/10 text-success active:bg-success/20"
+                            aria-label={`Call ${houseTenant.full_name}`}
+                          >
+                            <Phone className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Tenant details unavailable</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Per-transaction breakdown */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Coins className="h-4 w-4 text-orange-500" /> Earnings Breakdown
+                      </CardTitle>
+                      {selectedHouse.overrideEarned > 0 && (
+                        <span className="text-xs font-bold text-orange-600">+{formatUGX(selectedHouse.overrideEarned)}</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Your override earnings from this listing</p>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedHouse.transactions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No earnings recorded for this house yet
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedHouse.transactions.map((tx) => (
+                          <div key={tx.id} className="flex items-center justify-between gap-2 p-2.5 bg-muted/50 rounded-lg">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{tx.label}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {tx.occurred_at ? format(new Date(tx.occurred_at), 'dd MMM yyyy · HH:mm') : '—'}
+                              </p>
+                            </div>
+                            <span className="text-xs font-bold text-orange-600 shrink-0">+{formatUGX(tx.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Listed {format(new Date(selectedHouse.created_at), 'MMM d, yyyy')}
+                </p>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {/* Invite an existing user as a sub-agent — searches any user and
           auto-sends an SMS + email invite they must accept. */}
       <Sheet open={inviteSheetOpen} onOpenChange={setInviteSheetOpen}>
