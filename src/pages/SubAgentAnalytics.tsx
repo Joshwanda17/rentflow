@@ -800,8 +800,8 @@ export default function SubAgentAnalytics() {
 
             {/* Invite Banner — always visible to encourage growth */}
             <div 
-              onClick={() => { hapticTap(); setRegisterDialogOpen(true); }}
-              className="relative overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-background p-4 cursor-pointer active:scale-[0.99] transition-transform"
+              id="subagent-invite"
+              className="scroll-mt-24 relative overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-background p-4 cursor-pointer active:scale-[0.99] transition-transform"
             >
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 p-2 rounded-xl bg-orange-500/15 shrink-0">
