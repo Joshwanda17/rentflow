@@ -122,6 +122,9 @@ export default function AgentFloatBreakdown() {
   const [allocations, setAllocations] = useState<FloatAllocation[] | null>(null);
   const [allocLoading, setAllocLoading] = useState(false);
   const [allocErr, setAllocErr] = useState<string | null>(null);
+  const [allocSearch, setAllocSearch] = useState('');
+  const [allocFromDate, setAllocFromDate] = useState('');
+  const [allocToDate, setAllocToDate] = useState('');
 
   // Sync filter state → URL (replace so back button isn't polluted)
   useEffect(() => {
