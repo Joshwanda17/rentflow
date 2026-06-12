@@ -20285,6 +20285,7 @@ export type Database = {
           phone: string
         }[]
       }
+      merge_paidout_topups: { Args: never; Returns: Json }
       move_to_dlq: {
         Args: {
           dlq_name: string

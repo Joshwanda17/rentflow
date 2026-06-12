@@ -410,18 +410,25 @@ Deno.serve(async (req) => {
     // include `awaiting_verification` (the state the 6PM cron parks them in) alongside
     // `pending`/`approved` in the merge filter below.
     //
-    // We now discover the work directly from the top-up queue: gather every
-    // open portfolio_topup, resolve its active portfolio, and merge.
-    const { data: openTopups } = await supabase
-      .from('pending_wallet_operations')
-      .select('source_id')
-      .eq('source_table', 'investor_portfolios')
-      .eq('operation_type', 'portfolio_topup')
-      .in('status', ['approved', 'pending', 'awaiting_verification']);
-
-    const portfolioIdsToMerge = [...new Set(
-      (openTopups || []).map((op: any) => op.source_id).filter(Boolean)
-    )];
+    // MERGE-AFTER-PAYOUT (2026-06-12): the top-up merge no longer happens here.
+    // A parked top-up must only activate AFTER its portfolio's Returns payout has
+    // actually been approved by Financial Ops — not merely when the ROI date is due.
+    // That logic now lives in the DB routine `public.merge_paidout_topups()` which
+    // runs on the `merge-paidout-topups-7pm` cron (16:00 UTC = 7:00 PM EAT). Keeping
+    // the inline merge here would prematurely merge top-ups at the due date before the
+    // payout is approved, so it is disabled.
+    const INLINE_TOPUP_MERGE_ENABLED = false;
+    const portfolioIdsToMerge: string[] = INLINE_TOPUP_MERGE_ENABLED
+      ? [...new Set(
+          ((await supabase
+            .from('pending_wallet_operations')
+            .select('source_id')
+            .eq('source_table', 'investor_portfolios')
+            .eq('operation_type', 'portfolio_topup')
+            .in('status', ['approved', 'pending', 'awaiting_verification'])).data || [])
+            .map((op: any) => op.source_id).filter(Boolean),
+        )]
+      : [];
 
     for (const portfolioId of portfolioIdsToMerge) {
       try {
