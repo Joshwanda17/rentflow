@@ -341,7 +341,32 @@ export default function SubAgentAnalytics() {
 
         return {
           ...sa,
-          profile: profiles?.find(p => p.id === sa.sub_agent_id),
+          profile: (() => {
+            const p = profiles?.find(pr => pr.id === sa.sub_agent_id);
+            if (!p) return undefined;
+            return {
+              full_name: p.full_name,
+              phone: p.phone,
+              avatar_url: p.avatar_url,
+              email: p.email,
+              national_id: p.national_id,
+              district: p.district,
+              region: p.region,
+              occupation: p.occupation,
+              joined_at: p.created_at,
+            };
+          })(),
+          wallet: (() => {
+            const w = wallets?.find(wt => wt.user_id === sa.sub_agent_id);
+            if (!w) return undefined;
+            return {
+              balance: Number(w.balance || 0),
+              withdrawable_balance: Number(w.withdrawable_balance || 0),
+              float_balance: Number(w.float_balance || 0),
+              advance_balance: Number(w.advance_balance || 0),
+              locked_balance: Number(w.locked_balance || 0),
+            };
+          })(),
           totalEarnings: earningsPerSubAgent[sa.sub_agent_id] || 0,
           tenantsCount: tenantsData[sa.sub_agent_id]?.length || 0,
           monthlyEarnings,
