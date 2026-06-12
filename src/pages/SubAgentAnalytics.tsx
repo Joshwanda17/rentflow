@@ -43,6 +43,8 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
+import { AddSubAgentSearch } from '@/components/agent/AddSubAgentSearch';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { SetTeamGoalDialog } from '@/components/agent/SetTeamGoalDialog';
 import { TeamGoalProgress } from '@/components/agent/TeamGoalProgress';
 import { exportToCSV, exportToPDF, formatNumberForExport, formatDateForExport } from '@/lib/exportUtils';
