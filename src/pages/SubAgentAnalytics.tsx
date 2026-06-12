@@ -774,7 +774,7 @@ export default function SubAgentAnalytics() {
     } catch (error) {
       console.error('Error fetching sub-agent analytics:', error);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   };
 
