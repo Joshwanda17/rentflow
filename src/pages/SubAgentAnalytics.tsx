@@ -47,6 +47,7 @@ import {
   History,
   XCircle
 } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
