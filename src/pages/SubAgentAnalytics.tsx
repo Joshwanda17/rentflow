@@ -785,7 +785,7 @@ export default function SubAgentAnalytics() {
   })).filter(d => d.value > 0);
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-[calc(6rem+_env(safe-area-inset-bottom,0px))]">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border/60">
         <div className="flex items-center gap-2 px-3 py-2.5">
