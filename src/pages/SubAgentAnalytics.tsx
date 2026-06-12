@@ -35,7 +35,8 @@ import {
   Briefcase,
   Search,
   X,
-  Filter
+  Filter,
+  ArrowUpDown
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
