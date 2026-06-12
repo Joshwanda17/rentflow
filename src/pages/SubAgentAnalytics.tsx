@@ -60,6 +60,7 @@ import { hapticTap } from '@/lib/haptics';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { SubAgentBottomNav, type SubAgentSection } from '@/components/agent/SubAgentBottomNav';
 import {
   BarChart,
   Bar,
