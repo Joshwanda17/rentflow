@@ -4507,5 +4507,59 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
+
+    <Dialog
+      open={fieldFormPreviewOpen}
+      onOpenChange={(o) => {
+        if (!o) closeFieldFormPreview();
+      }}
+    >
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="px-5 pt-5">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-5 w-5 text-primary" />
+            Field form preview
+          </DialogTitle>
+          <DialogDescription className="text-sm">
+            Review the blank form, then download or share it.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 px-5">
+          {fieldFormPreviewUrl ? (
+            <iframe
+              src={fieldFormPreviewUrl}
+              title="Rent request field form preview"
+              className="w-full h-[55vh] rounded-lg border border-border bg-muted"
+            />
+          ) : (
+            <div className="flex h-[55vh] items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2 px-5 py-4 border-t border-border">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 gap-2"
+            onClick={downloadFieldForm}
+            disabled={!fieldFormBlob}
+          >
+            <FileText className="h-4 w-4" />
+            Download PDF
+          </Button>
+          <Button
+            type="button"
+            className="flex-1 gap-2"
+            onClick={shareFieldForm}
+            disabled={!fieldFormBlob}
+          >
+            <Share2 className="h-4 w-4" />
+            Share PDF (WhatsApp)
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
