@@ -342,7 +342,7 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
                 <TableHead>Date Applied</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Reason</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
