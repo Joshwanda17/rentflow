@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock, Wind } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useCurrency, currencies as ALL_CURRENCIES } from '@/hooks/useCurrency';
 import { Language, languageNames, languageFlags } from '@/i18n/translations';
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
+import { useReducedMotion, reducedMotionOptions } from '@/hooks/useCombinedSettings';
 import { hapticSelection } from '@/lib/haptics';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
@@ -109,6 +110,7 @@ export default function Settings() {
   const { user, roles, loading: authLoading, role } = useAuth();
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
+  const { reducedMotion, setReducedMotion } = useReducedMotion();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
   const { language, setLanguage } = useLanguage();
   const { currency, setCurrency } = useCurrency();
@@ -521,6 +523,12 @@ export default function Settings() {
                     <div className="flex items-center gap-2"><Vibrate className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Vibration</p></div>
                     <RadioGroup value={hapticIntensity} onValueChange={(v) => { setHapticIntensity(v as any); if (v !== 'off') setTimeout(() => hapticSelection(), 100); }} className="grid grid-cols-2 gap-2">
                       {hapticIntensityOptions.map((opt) => (<Label key={opt.value} htmlFor={`haptic-${opt.value}`} className={cn("flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm", hapticIntensity === opt.value ? 'border-primary bg-primary/10' : 'border-border/50')}><RadioGroupItem value={opt.value} id={`haptic-${opt.value}`} /><div><p className="font-medium text-xs">{opt.label}</p><p className="text-[10px] text-muted-foreground">{opt.description}</p></div></Label>))}
+                    </RadioGroup>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2"><Wind className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Motion</p></div>
+                    <RadioGroup value={reducedMotion} onValueChange={(v) => { setReducedMotion(v as any); toast.success(v === 'reduce' ? 'Animations reduced' : v === 'no-preference' ? 'Animations on' : 'Following system'); }} className="grid grid-cols-1 gap-2">
+                      {reducedMotionOptions.map((opt) => (<Label key={opt.value} htmlFor={`motion-${opt.value}`} className={cn("flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm", reducedMotion === opt.value ? 'border-primary bg-primary/10' : 'border-border/50')}><RadioGroupItem value={opt.value} id={`motion-${opt.value}`} /><div><p className="font-medium text-xs">{opt.label}</p><p className="text-[10px] text-muted-foreground">{opt.description}</p></div></Label>))}
                     </RadioGroup>
                   </div>
                   <div className="space-y-3">
