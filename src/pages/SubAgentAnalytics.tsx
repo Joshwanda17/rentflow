@@ -393,9 +393,10 @@ export default function SubAgentAnalytics() {
     setSearchParams(next, { replace: true });
   };
 
-  // Clear tenant search when switching sub-agents
+  // Clear tenant search and reset houses pagination when switching sub-agents
   useEffect(() => {
     setTenantSearch('');
+    setHousesPage(1);
   }, [selectedSubAgent?.sub_agent_id]);
 
   // Scroll-spy: highlight the bottom-nav section currently in view
