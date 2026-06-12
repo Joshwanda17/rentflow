@@ -17,7 +17,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Landmark, Loader2, CheckCircle2, Phone, ArrowRight,
-  Clock, User2, Home, ShieldCheck, RefreshCw, AlertTriangle
+  Clock, User2, Home, ShieldCheck, RefreshCw, AlertTriangle, Timer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
