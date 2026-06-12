@@ -785,7 +785,7 @@ export default function SubAgentAnalytics() {
   })).filter(d => d.value > 0);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border/60">
         <div className="flex items-center gap-2 px-3 py-2.5">
@@ -835,31 +835,6 @@ export default function SubAgentAnalytics() {
           </Button>
         </div>
       </div>
-
-      {/* Quick Jump Navigation */}
-      {subAgents.length > 0 && (
-        <div className="sticky top-[57px] z-20 bg-background/80 backdrop-blur-xl border-b border-border/60 px-3 py-2">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            {[
-              { id: 'subagent-overview', label: 'Summary', icon: BarChart3 },
-              { id: 'subagent-invite', label: 'Invites', icon: Sparkles },
-              { id: 'subagent-team', label: 'Team', icon: Users },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  hapticTap();
-                  document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-                className="flex items-center gap-1.5 shrink-0 rounded-full bg-muted/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition-all"
-              >
-                <item.icon className="h-3.5 w-3.5" />
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <main className="px-3 py-4 space-y-4">
         {subAgents.length === 0 ? (
