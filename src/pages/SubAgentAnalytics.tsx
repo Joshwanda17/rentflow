@@ -864,32 +864,38 @@ export default function SubAgentAnalytics() {
             />
 
             {/* Overview Stats */}
-            <div id="subagent-overview" className="scroll-mt-24">
-              <div className="grid grid-cols-3 gap-3">
-              <Card className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20">
-                <CardContent className="p-4 text-center">
-                  <Users className="h-5 w-5 mx-auto text-orange-500 mb-1" />
-                  <p className="font-bold text-2xl">{subAgents.length}</p>
-                  <p className="text-xs text-muted-foreground">Sub-Agents</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-success/10 to-emerald-500/10 border-success/20">
-                <CardContent className="p-4 text-center">
-                  <Coins className="h-5 w-5 mx-auto text-success mb-1" />
-                  <p className="font-bold text-lg">{formatUGX(totalEarningsFromSubAgents)}</p>
-                  <p className="text-xs text-muted-foreground">Total Earned</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-primary/10 to-blue-500/10 border-primary/20">
-                <CardContent className="p-4 text-center">
-                  <Target className="h-5 w-5 mx-auto text-primary mb-1" />
-                  <p className="font-bold text-2xl">
-                    {subAgents.reduce((sum, sa) => sum + sa.tenantsCount, 0)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Team Tenants</p>
-                </CardContent>
-              </Card>
-            </div>
+            <div id="subagent-overview" className="scroll-mt-28">
+              <div className="grid grid-cols-3 gap-2.5">
+                <Card className="border-border/60 shadow-none">
+                  <CardContent className="p-3.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/10 mb-2">
+                      <Users className="h-4 w-4 text-orange-500" />
+                    </div>
+                    <p className="font-semibold text-xl tracking-tight leading-none">{subAgents.length}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">Sub-Agents</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 shadow-none">
+                  <CardContent className="p-3.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-success/10 mb-2">
+                      <Coins className="h-4 w-4 text-success" />
+                    </div>
+                    <p className="font-semibold text-base tracking-tight leading-none truncate">{formatUGX(totalEarningsFromSubAgents)}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">Total Earned</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 shadow-none">
+                  <CardContent className="p-3.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 mb-2">
+                      <Target className="h-4 w-4 text-primary" />
+                    </div>
+                    <p className="font-semibold text-xl tracking-tight leading-none">
+                      {subAgents.reduce((sum, sa) => sum + sa.tenantsCount, 0)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">Team Tenants</p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Monthly Earnings Chart */}
