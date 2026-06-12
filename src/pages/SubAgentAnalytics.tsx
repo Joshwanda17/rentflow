@@ -308,6 +308,8 @@ export default function SubAgentAnalytics() {
 
   // Houses pagination inside sub-agent detail sheet
   const [housesPage, setHousesPage] = useState(1);
+  const [housesLoadingMore, setHousesLoadingMore] = useState(false);
+  const housesSentinelRef = useRef<HTMLDivElement>(null);
   const HOUSES_PER_PAGE = 10;
 
   // Search & filter state
