@@ -36,7 +36,9 @@ import {
   Search,
   X,
   Filter,
-  ArrowUpDown
+  ArrowUpDown,
+  Sparkles,
+  Plus
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -45,6 +47,8 @@ import { SetTeamGoalDialog } from '@/components/agent/SetTeamGoalDialog';
 import { TeamGoalProgress } from '@/components/agent/TeamGoalProgress';
 import { exportToCSV, exportToPDF, formatNumberForExport, formatDateForExport } from '@/lib/exportUtils';
 import { useToast } from '@/hooks/use-toast';
+import { hapticTap } from '@/lib/haptics';
+import { FloatingActionButton } from '@/components/FloatingActionButton';
 import {
   BarChart,
   Bar,
