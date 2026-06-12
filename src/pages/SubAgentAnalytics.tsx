@@ -45,8 +45,7 @@ import {
   Clock,
   ChevronDown,
   History,
-  XCircle,
-  Mail as MailIcon
+  XCircle
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
