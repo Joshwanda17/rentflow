@@ -88,6 +88,45 @@ export function SubAgentStatusBoard() {
   const { user } = useAuth();
   const [rows, setRows] = useState<StatusRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<StatusRow | null>(null);
+  const [drawer, setDrawer] = useState<DrawerData>({ loading: false, wallet: null, events: [], splits: [] });
+
+  // Load wallet + override breakdown when a row is opened
+  useEffect(() => {
+    if (!selected || !user) return;
+    let cancelled = false;
+    (async () => {
+      setDrawer({ loading: true, wallet: null, events: [], splits: [] });
+      try {
+        const [walletRes, eventsRes, splitsRes] = await Promise.all([
+          supabase
+            .from('wallets')
+            .select('balance, withdrawable_balance, float_balance, advance_balance')
+            .eq('user_id', selected.sub_agent_id)
+            .maybeSingle(),
+          supabase
+            .from('recruiter_override_events')
+            .select('id, event_type, label, amount, status, created_at')
+            .eq('recruiter_id', user.id)
+            .eq('sub_agent_id', selected.sub_agent_id)
+            .order('created_at', { ascending: false }),
+          supabase.rpc('get_subagent_recruiter_splits', { p_sub_agent_id: selected.sub_agent_id }),
+        ]);
+
+        if (cancelled) return;
+        setDrawer({
+          loading: false,
+          wallet: (walletRes.data as WalletSnapshot) || null,
+          events: (eventsRes.data as OverrideEvent[]) || [],
+          splits: ((splitsRes.data as RecruiterSplit[]) || []).filter((s) => Number(s.recruiter_override) > 0),
+        });
+      } catch (err) {
+        console.error('Error loading invitee breakdown:', err);
+        if (!cancelled) setDrawer({ loading: false, wallet: null, events: [], splits: [] });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selected, user]);
 
   useEffect(() => {
     if (!user) return;
