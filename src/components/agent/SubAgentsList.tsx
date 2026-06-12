@@ -343,6 +343,8 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   );
 
   const activeToday = subAgents.filter(s => s.active_today).length;
+  const acceptedCount = subAgents.filter(s => s.status === 'verified').length;
+  const pendingCount = subAgents.filter(s => s.status === 'pending_acceptance').length;
 
   return (
     <Card>
@@ -377,20 +379,22 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Quick stats */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl bg-success/10 p-3">
-            <p className="text-[11px] text-muted-foreground">Active today</p>
+            <p className="text-[11px] text-muted-foreground">Accepted</p>
             <p className="font-bold text-success text-lg leading-none mt-1">
-              {activeToday}
-              <span className="text-xs text-muted-foreground font-normal">
-                {' '}
-                / {subAgents.length}
-              </span>
+              {acceptedCount}
+            </p>
+          </div>
+          <div className="rounded-xl bg-amber-500/10 p-3">
+            <p className="text-[11px] text-muted-foreground">Pending</p>
+            <p className="font-bold text-amber-600 text-lg leading-none mt-1">
+              {pendingCount}
             </p>
           </div>
           <div className="rounded-xl bg-orange-500/10 p-3">
             <p className="text-[11px] text-muted-foreground">
-              Your sub-agent earnings
+              Your earnings
             </p>
             <p className="font-bold text-orange-600 text-base leading-none mt-1">
               {formatUGX(totalSubAgentEarnings)}
