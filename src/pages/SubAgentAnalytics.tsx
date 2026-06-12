@@ -1174,6 +1174,11 @@ export default function SubAgentAnalytics() {
                                       <Clock className="h-3 w-3" /> Pending
                                     </Badge>
                                   )}
+                                  {subAgent.hasOtherParent && (
+                                    <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0 h-4 bg-purple-500/10 text-purple-600 border-purple-500/20">
+                                      <ArrowLeft className="h-3 w-3" /> Switched
+                                    </Badge>
+                                  )}
                                 </div>
                                 <p className="text-xs text-muted-foreground flex items-center gap-2">
                                   <span>{subAgent.tenantsCount} tenant{subAgent.tenantsCount !== 1 ? 's' : ''}</span>
