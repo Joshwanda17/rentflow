@@ -110,7 +110,15 @@ export async function generateAdvanceStatementPdf(input: AdvanceStatementInput):
     pdf.setTextColor(90, 90, 90);
     pdf.text(input.ownerPhone, margin, y + 5);
   }
-  y += 12;
+  if (input.periodLabel) {
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(9);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(input.periodLabel, margin, y + (input.ownerPhone ? 10 : 5));
+    y += (input.ownerPhone ? 15 : 10);
+  } else {
+    y += 12;
+  }
 
   // Headline card
   pdf.setFillColor(255, 247, 237);
