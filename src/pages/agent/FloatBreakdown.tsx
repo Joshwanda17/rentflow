@@ -924,12 +924,18 @@ export default function AgentFloatBreakdown() {
                           const waPhone = phone.replace(/^0/, '256').replace(/^\+/, '');
                           return (
                             <li key={a.use_entry_id} className="px-4 py-3">
-                              {/* Tenant name — large and clear */}
+                              {/* Tenant name — large, clear, and clickable */}
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-base font-bold truncate leading-tight">
-                                    {a.tenant_name ?? 'Unknown Tenant'}
-                                  </p>
+                                  <button
+                                    onClick={() => { hapticTap(); if (a.tenant_id) setViewingTenantId(a.tenant_id); }}
+                                    className="text-left w-full"
+                                    disabled={!a.tenant_id}
+                                  >
+                                    <p className="text-base font-bold truncate leading-tight text-foreground hover:text-primary transition-colors">
+                                      {a.tenant_name ?? 'Unknown Tenant'}
+                                    </p>
+                                  </button>
                                   {a.tenant_name && (
                                     <p className="text-[11px] text-muted-foreground mt-0.5">
                                       {labelFor(a.category)}
