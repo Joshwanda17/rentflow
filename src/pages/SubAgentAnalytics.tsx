@@ -47,6 +47,7 @@ import {
   History,
   XCircle
 } from 'lucide-react';
+import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
@@ -115,7 +116,22 @@ interface SubAgent {
   accessedFunds: number;
   platformRewards: number;
   serviceFees: number;
+  houses: SubAgentHouse[];
+  houseOverrideEarnings: number;
   hasOtherParent?: boolean;
+}
+
+interface SubAgentHouse {
+  id: string;
+  title: string | null;
+  status: string | null;
+  monthly_rent: number;
+  verified: boolean;
+  tenant_id: string | null;
+  region: string | null;
+  district: string | null;
+  created_at: string;
+  overrideEarned: number;
 }
 
 interface MonthlyData {
@@ -430,6 +446,49 @@ export default function SubAgentAnalytics() {
         .in('agent_id', subAgentIds)
         .in('status', ['active', 'completed', 'cfo_disbursed']);
 
+      // Fetch houses listed by each sub-agent
+      const { data: houseRows } = await supabase
+        .from('house_listings')
+        .select('id, agent_id, title, status, monthly_rent, verified, tenant_id, region, district, created_at')
+        .in('agent_id', subAgentIds)
+        .order('created_at', { ascending: false });
+
+      // Fetch the parent's recruiter-override earnings on those sub-agents'
+      // house listings (e.g. 3,000 when a sub-agent's listing gets verified).
+      const { data: overrideRows } = await supabase
+        .from('recruiter_override_events')
+        .select('sub_agent_id, source_table, source_id, amount, status')
+        .eq('recruiter_id', user.id)
+        .eq('source_table', 'house_listings')
+        .in('sub_agent_id', subAgentIds);
+
+      // Map override earnings by house listing id (only successful/credited ones)
+      const overrideByHouse: Record<string, number> = {};
+      const houseOverrideBySubAgent: Record<string, number> = {};
+      (overrideRows || []).forEach(o => {
+        if (o.status && o.status !== 'credited' && o.status !== 'success' && o.status !== 'paid') return;
+        const amt = Number(o.amount || 0);
+        if (o.source_id) overrideByHouse[o.source_id] = (overrideByHouse[o.source_id] || 0) + amt;
+        if (o.sub_agent_id) houseOverrideBySubAgent[o.sub_agent_id] = (houseOverrideBySubAgent[o.sub_agent_id] || 0) + amt;
+      });
+
+      const housesBySubAgent: Record<string, SubAgentHouse[]> = {};
+      (houseRows || []).forEach(h => {
+        const list = housesBySubAgent[h.agent_id] || (housesBySubAgent[h.agent_id] = []);
+        list.push({
+          id: h.id,
+          title: h.title,
+          status: h.status,
+          monthly_rent: Number(h.monthly_rent || 0),
+          verified: !!h.verified,
+          tenant_id: h.tenant_id,
+          region: h.region,
+          district: h.district,
+          created_at: h.created_at,
+          overrideEarned: overrideByHouse[h.id] || 0,
+        });
+      });
+
       // Fetch tenants per sub-agent
       const tenantsData: Record<string, { id: string; name: string; phone: string | null; totalRepaid: number }[]> = {};
       const earningsPerSubAgent: Record<string, number> = {};
@@ -559,6 +618,8 @@ export default function SubAgentAnalytics() {
           accessedFunds: accessedFundsPerSubAgent[sa.sub_agent_id] || 0,
           platformRewards: platformRewardsPerSubAgent[sa.sub_agent_id] || 0,
           serviceFees: serviceFeesPerSubAgent[sa.sub_agent_id] || 0,
+          houses: housesBySubAgent[sa.sub_agent_id] || [],
+          houseOverrideEarnings: houseOverrideBySubAgent[sa.sub_agent_id] || 0,
           hasOtherParent: otherParentSet.has(sa.sub_agent_id),
         };
       });
@@ -1682,6 +1743,76 @@ export default function SubAgentAnalytics() {
                               >
                                 <Phone className="h-4 w-4" />
                               </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Houses Listed by this sub-agent */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Home className="h-4 w-4 text-orange-500" />
+                      Houses Listed ({selectedSubAgent.houses.length})
+                    </CardTitle>
+                    {selectedSubAgent.houseOverrideEarnings > 0 && (
+                      <span className="text-xs font-bold text-orange-600">
+                        +{formatUGX(selectedSubAgent.houseOverrideEarnings)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Your override earnings when their listings get verified
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {selectedSubAgent.houses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No houses listed yet
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedSubAgent.houses.map((house) => (
+                        <div key={house.id} className="flex items-start justify-between gap-2 p-2.5 bg-muted/50 rounded-lg">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {house.title || 'Untitled listing'}
+                            </p>
+                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5 truncate">
+                              <MapPin className="h-3 w-3 shrink-0" />
+                              <span className="truncate">
+                                {[house.district, house.region].filter(Boolean).join(', ') || 'No location'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              {house.verified ? (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
+                                  <CheckCircle2 className="h-2.5 w-2.5" /> Verified
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                                  <Clock className="h-2.5 w-2.5" /> Pending
+                                </span>
+                              )}
+                              {house.tenant_id && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                  <Users className="h-2.5 w-2.5" /> Occupied
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs font-medium">{formatUGX(house.monthly_rent)}</p>
+                            <p className="text-[10px] text-muted-foreground">/month</p>
+                            {house.overrideEarned > 0 && (
+                              <p className="text-[11px] font-bold text-orange-600 mt-1">
+                                +{formatUGX(house.overrideEarned)}
+                              </p>
                             )}
                           </div>
                         </div>
