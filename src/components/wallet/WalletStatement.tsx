@@ -87,6 +87,50 @@ interface LedgerEntry {
   reference_id?: string | null;
   linked_party?: string | null;
   balance_after?: number;
+  /** Set when this credit traces back to a sub-agent's activity. */
+  subAgentName?: string | null;
+  /** Plain-English description of what the sub-agent did to earn this. */
+  subAgentAction?: string | null;
+}
+
+interface SubAgentEarningRow {
+  key: string;
+  subAgentName: string;
+  action: string;
+  amount: number;
+  date: string;
+  /** True when the matching wallet credit landed in the withdrawable bucket. */
+  landed: boolean;
+}
+
+/** Turns a sub-agent earning event into a plain-English "what they did". */
+function describeSubAgentAction(opts: {
+  eventType?: string | null;
+  earningType?: string | null;
+  description?: string | null;
+  label?: string | null;
+}): string {
+  const { eventType, earningType, description, label } = opts;
+  if (eventType) {
+    switch (eventType) {
+      case 'house_listed_verified':
+        return label ? `Listed a house that was verified — ${label}` : 'Listed a house that was verified';
+      case 'landlord_verified':
+        return 'Registered a landlord who was verified';
+      case 'lc1_chairperson_verified':
+        return 'Registered an LC1 chairperson who was verified';
+      case 'tenant_landlord_funded':
+        return "Their tenant got its landlord funded";
+      default:
+        return eventType.replace(/_/g, ' ');
+    }
+  }
+  const d = (description || '').toLowerCase();
+  if (d.includes('deposit')) return 'Collected a tenant deposit';
+  if (d.includes('repayment') || d.includes('rent')) return 'Collected rent from a tenant';
+  if (earningType === 'subagent_registration') return 'You registered them as a sub-agent';
+  if (earningType) return earningType.replace(/_/g, ' ');
+  return 'Sub-agent activity';
 }
 
 const CATEGORY_META: Record<string, { label: string; Icon: React.ElementType; colorClass: string; plainExplanation: string }> = {
