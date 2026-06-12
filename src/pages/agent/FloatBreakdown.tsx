@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus, Search, Download, FileText } from 'lucide-react';
+import { ArrowLeft, ArrowDownCircle, ArrowUpCircle, Wallet, Info, Calendar, X, ChevronRight, Copy, Check, TrendingUp, TrendingDown, Minus, Search, Download, FileText, Phone, MessageCircle, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -64,6 +64,19 @@ interface EntryDetail {
   siblings: SiblingLeg[];
 }
 
+interface FloatAllocation {
+  use_entry_id: string;
+  occurred_at: string;
+  category: string;
+  use_amount: number;
+  allocated_amount: number;
+  tenant_id: string | null;
+  tenant_name: string | null;
+  tenant_phone: string | null;
+  description: string | null;
+  reference_id: string | null;
+}
+
 const CATEGORY_LABEL: Record<string, string> = {
   agent_float_deposit: 'Float Deposit',
   agent_float_used_for_rent: 'Tenant Rent Allocation',
@@ -106,6 +119,9 @@ export default function AgentFloatBreakdown() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailErr, setDetailErr] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [allocations, setAllocations] = useState<FloatAllocation[] | null>(null);
+  const [allocLoading, setAllocLoading] = useState(false);
+  const [allocErr, setAllocErr] = useState<string | null>(null);
 
   // Sync filter state → URL (replace so back button isn't polluted)
   useEffect(() => {
@@ -158,6 +174,30 @@ export default function AgentFloatBreakdown() {
       if (error) setDetailErr(error.message);
       else setDetail(data as unknown as EntryDetail);
       setDetailLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [selected, user?.id]);
+
+  // For float deposits (cash_in), load the tenant rent transactions this
+  // specific deposit funded via FIFO matching.
+  useEffect(() => {
+    if (!selected || !user?.id || selected.signed_amount <= 0) {
+      setAllocations(null);
+      return;
+    }
+    let cancelled = false;
+    setAllocLoading(true);
+    setAllocErr(null);
+    setAllocations(null);
+    (async () => {
+      const { data, error } = await supabase.rpc('get_float_deposit_allocations', {
+        p_user_id: user.id,
+        p_entry_id: selected.entry_id,
+      });
+      if (cancelled) return;
+      if (error) setAllocErr(error.message);
+      else setAllocations((data ?? []) as FloatAllocation[]);
+      setAllocLoading(false);
     })();
     return () => { cancelled = true; };
   }, [selected, user?.id]);
@@ -762,6 +802,80 @@ export default function AgentFloatBreakdown() {
                     <RefRow label="Recipient Type" value={detail.entry.recipient_type} />
                   </dl>
                 </div>
+
+                {/* Tenant rent allocations funded by this float deposit (FIFO) */}
+                {selected && selected.signed_amount > 0 && (
+                  <div className="rounded-2xl border bg-card overflow-hidden">
+                    <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                        Allocated To Tenant Rent
+                        {allocations && allocations.length > 0 ? ` (${allocations.length})` : ''}
+                      </span>
+                    </div>
+                    <div className="px-4 py-2 border-b">
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        The tenant rent payments this deposit funded, matched oldest-float-first (FIFO).
+                      </p>
+                    </div>
+                    {allocLoading ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground">Tracing allocations…</div>
+                    ) : allocErr ? (
+                      <div className="py-8 text-center text-sm text-rose-500">{allocErr}</div>
+                    ) : !allocations || allocations.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground px-4">
+                        Not yet allocated — this float is still sitting in your wallet, unspent on tenant rent.
+                      </div>
+                    ) : (
+                      <ul className="divide-y">
+                        {allocations.map((a) => {
+                          const phone = (a.tenant_phone ?? '').replace(/[^0-9+]/g, '');
+                          const waPhone = phone.replace(/^0/, '256').replace(/^\+/, '');
+                          return (
+                            <li key={a.use_entry_id} className="px-4 py-3">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <p className="text-sm font-semibold truncate">
+                                  {a.tenant_name ?? labelFor(a.category)}
+                                </p>
+                                <p className="text-sm font-bold tabular-nums whitespace-nowrap text-rose-600 dark:text-rose-400">
+                                  −{formatAmount(Number(a.allocated_amount))}
+                                </p>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {Number(a.allocated_amount) < Number(a.use_amount)
+                                  ? `Part of a ${formatAmount(Number(a.use_amount))} rent payment`
+                                  : labelFor(a.category)}
+                                {' · '}
+                                {new Date(a.occurred_at).toLocaleDateString('en-UG', { dateStyle: 'medium' })}
+                              </p>
+                              {phone && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <a
+                                    href={`tel:${phone}`}
+                                    onClick={() => hapticTap()}
+                                    className="inline-flex items-center gap-1 rounded-lg border bg-background px-2.5 py-1 text-[11px] font-semibold hover:bg-muted active:scale-95"
+                                  >
+                                    <Phone className="h-3 w-3" /> Call
+                                  </a>
+                                  <a
+                                    href={`https://wa.me/${waPhone}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => hapticTap()}
+                                    className="inline-flex items-center gap-1 rounded-lg border bg-background px-2.5 py-1 text-[11px] font-semibold hover:bg-muted active:scale-95"
+                                  >
+                                    <MessageCircle className="h-3 w-3" /> WhatsApp
+                                  </a>
+                                  <span className="text-[10px] text-muted-foreground font-mono ml-auto truncate">{phone}</span>
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                )}
 
                 {/* Double-entry legs */}
                 {detail.siblings.length > 0 && (
