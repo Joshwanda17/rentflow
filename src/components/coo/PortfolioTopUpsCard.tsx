@@ -367,7 +367,31 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
                         {r.group === 'applied' ? 'Applied' : 'Pending'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[220px] truncate" title={r.reason}>{r.reason || '—'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {r.group === 'applied' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 text-[11px] border-red-500/40 text-red-600 hover:bg-red-500/10"
+                            onClick={() => { setReasonText(''); setActionTarget({ row: r, action: 'reverse' }); }}
+                            title="Reverse this merge if the cron mis-applied it"
+                          >
+                            <Undo2 className="h-3.5 w-3.5" /> Reverse
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 text-[11px] border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+                            onClick={() => { setReasonText(''); setActionTarget({ row: r, action: 'apply' }); }}
+                            title="Apply now if the merge cron failed to run"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Apply
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
