@@ -987,20 +987,20 @@ export default function SubAgentAnalytics() {
             <div 
               id="subagent-invite"
               onClick={() => { hapticTap(); setInviteSheetOpen(true); }}
-              className="scroll-mt-24 relative overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-background p-4 cursor-pointer active:scale-[0.99] transition-transform"
+              className="scroll-mt-28 relative overflow-hidden rounded-2xl border border-orange-500/15 bg-orange-500/[0.06] p-4 cursor-pointer active:scale-[0.99] transition-transform"
             >
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 p-2 rounded-xl bg-orange-500/15 shrink-0">
+                <div className="mt-0.5 p-2 rounded-xl bg-orange-500/10 shrink-0">
                   <Sparkles className="h-5 w-5 text-orange-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm">Grow Your Team</p>
+                  <p className="font-semibold text-sm">Grow Your Team</p>
                   <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                     Invite more sub-agents and earn <span className="font-semibold text-orange-500">2%</span> from every tenant they register. More agents = more passive income.
                   </p>
                 </div>
                 <div className="shrink-0 self-center">
-                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-orange-500 text-white shadow-lg shadow-orange-500/25">
+                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-orange-500 text-white">
                     <Plus className="h-5 w-5" />
                   </div>
                 </div>
@@ -1008,11 +1008,11 @@ export default function SubAgentAnalytics() {
             </div>
 
             {/* Sub-Agents List */}
-            <Card id="subagent-team" className="scroll-mt-24">
+            <Card id="subagent-team" className="scroll-mt-28 border-border/60 shadow-none">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Users className="h-5 w-5 text-orange-500" />
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Users className="h-4 w-4 text-orange-500" />
                     Your Sub-Agents
                   </CardTitle>
                   <Badge variant="secondary" className="text-xs">
