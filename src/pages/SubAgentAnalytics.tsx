@@ -45,7 +45,8 @@ import {
   Clock,
   ChevronDown,
   History,
-  XCircle
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -312,6 +313,14 @@ export default function SubAgentAnalytics() {
   const housesSentinelRef = useRef<HTMLDivElement>(null);
   const HOUSES_PER_PAGE = 10;
 
+  // Pull-to-refresh state for detail sheet
+  const detailScrollRef = useRef<HTMLDivElement>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [visualPullProgress, setVisualPullProgress] = useState(0);
+  const pullStartYRef = useRef(0);
+  const isPullingRef = useRef(false);
+  const pullProgressRef = useRef(0);
+
   // Search & filter state
   const [subAgentSearch, setSubAgentSearch] = useState('');
   const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
@@ -431,6 +440,52 @@ export default function SubAgentAnalytics() {
     return () => observer.disconnect();
   }, [selectedSubAgent, housesPage]);
 
+  // Pull-to-refresh on the sub-agent detail sheet
+  useEffect(() => {
+    const el = detailScrollRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (el.scrollTop <= 0) {
+        pullStartYRef.current = e.touches[0].clientY;
+        isPullingRef.current = true;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isPullingRef.current) return;
+      const diff = e.touches[0].clientY - pullStartYRef.current;
+      if (diff > 0 && el.scrollTop <= 0) {
+        e.preventDefault();
+        const progress = Math.min(diff / 150, 1);
+        pullProgressRef.current = progress;
+        setVisualPullProgress(progress);
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (pullProgressRef.current >= 1) {
+        setIsRefreshing(true);
+        fetchSubAgentAnalytics({ silent: true }).finally(() => {
+          setIsRefreshing(false);
+        });
+      }
+      isPullingRef.current = false;
+      pullProgressRef.current = 0;
+      setVisualPullProgress(0);
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, []);
+
   // Scroll-spy: highlight the bottom-nav section currently in view
   useEffect(() => {
     if (loading || subAgents.length === 0) return;
@@ -464,9 +519,9 @@ export default function SubAgentAnalytics() {
     }
   };
 
-  const fetchSubAgentAnalytics = async () => {
+  const fetchSubAgentAnalytics = async (opts?: { silent?: boolean }) => {
     if (!user) return;
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
 
     try {
       // Fetch sub-agents
@@ -765,7 +820,7 @@ export default function SubAgentAnalytics() {
     } catch (error) {
       console.error('Error fetching sub-agent analytics:', error);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   };
 
@@ -1463,10 +1518,28 @@ export default function SubAgentAnalytics() {
           className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
           onClick={closeDetail}
         >
-          <div 
-            className="fixed bottom-0 left-0 right-0 bg-background border-t rounded-t-3xl max-h-[85vh] overflow-y-auto"
+          <div
+            ref={detailScrollRef}
+            className="fixed bottom-0 left-0 right-0 bg-background border-t rounded-t-3xl max-h-[85vh] overflow-y-auto overscroll-y-contain"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Pull-to-refresh indicator */}
+            <div
+              className="flex justify-center items-center transition-all duration-200 pointer-events-none"
+              style={{
+                height: `${Math.max(0, visualPullProgress * 50)}px`,
+                opacity: visualPullProgress > 0.1 ? 1 : 0,
+              }}
+            >
+              {isRefreshing ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              ) : (
+                <RefreshCw
+                  className="h-5 w-5 text-muted-foreground transition-transform"
+                  style={{ transform: `rotate(${visualPullProgress * 180}deg)` }}
+                />
+              )}
+            </div>
             <div className="sticky top-0 bg-background p-4 border-b">
               <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-3" />
               <div className="flex items-center gap-3">
