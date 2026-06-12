@@ -806,6 +806,134 @@ export default function SubAgentAnalytics() {
             </div>
 
             <div className="p-4 space-y-4">
+              {/* Quick contact actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <a
+                  href={selectedSubAgent.profile?.phone ? `tel:${selectedSubAgent.profile.phone}` : undefined}
+                  className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium border transition-colors ${
+                    selectedSubAgent.profile?.phone
+                      ? 'bg-success/10 text-success border-success/20 active:bg-success/20'
+                      : 'bg-muted text-muted-foreground border-border pointer-events-none opacity-60'
+                  }`}
+                >
+                  <Phone className="h-4 w-4" />
+                  Call
+                </a>
+                <a
+                  href={selectedSubAgent.profile?.phone ? `https://wa.me/${selectedSubAgent.profile.phone.replace(/[^0-9]/g, '')}` : undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium border transition-colors ${
+                    selectedSubAgent.profile?.phone
+                      ? 'bg-primary/10 text-primary border-primary/20 active:bg-primary/20'
+                      : 'bg-muted text-muted-foreground border-border pointer-events-none opacity-60'
+                  }`}
+                >
+                  <Mail className="h-4 w-4" />
+                  WhatsApp
+                </a>
+              </div>
+
+              {/* Profile Details */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <IdCard className="h-4 w-4 text-orange-500" />
+                    Profile Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2.5">
+                  <div className="flex items-start gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Phone</p>
+                      <p className="font-medium break-all">{selectedSubAgent.profile?.phone || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Email</p>
+                      <p className="font-medium break-all">{selectedSubAgent.profile?.email || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <IdCard className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">National ID</p>
+                      <p className="font-medium break-all">{selectedSubAgent.profile?.national_id || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Location</p>
+                      <p className="font-medium">
+                        {[selectedSubAgent.profile?.district, selectedSubAgent.profile?.region]
+                          .filter(Boolean)
+                          .join(', ') || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <Briefcase className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Occupation</p>
+                      <p className="font-medium">{selectedSubAgent.profile?.occupation || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Joined</p>
+                      <p className="font-medium">
+                        {selectedSubAgent.profile?.joined_at
+                          ? format(new Date(selectedSubAgent.profile.joined_at), 'MMM d, yyyy')
+                          : format(new Date(selectedSubAgent.created_at), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Wallet Details */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-success" />
+                    Wallet Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {selectedSubAgent.wallet ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-success/10 rounded-xl p-3 border border-success/20 col-span-2 text-center">
+                        <p className="text-[11px] text-muted-foreground">Withdrawable Balance</p>
+                        <p className="font-bold text-success text-xl mt-0.5">
+                          {formatUGX(selectedSubAgent.wallet.withdrawable_balance)}
+                        </p>
+                      </div>
+                      <div className="bg-muted/50 rounded-xl p-3 text-center border border-border">
+                        <p className="text-[11px] text-muted-foreground">Float Balance</p>
+                        <p className="font-bold text-foreground text-base mt-0.5">
+                          {formatUGX(selectedSubAgent.wallet.float_balance)}
+                        </p>
+                      </div>
+                      <div className="bg-warning/10 rounded-xl p-3 text-center border border-warning/20">
+                        <p className="text-[11px] text-muted-foreground">Advance (owed)</p>
+                        <p className="font-bold text-warning text-base mt-0.5">
+                          {formatUGX(selectedSubAgent.wallet.advance_balance)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No wallet found for this sub-agent
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Primary KPI — Parent earnings from this sub-agent */}
               <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-2xl p-5 text-center">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
