@@ -189,6 +189,7 @@ function DateRangePicker({
 }
 
 export function EmailPeriodComparison() {
+  const [collapsed, setCollapsed] = useState(true);
   const [mode, setMode] = useState<Mode>('rolling');
   const [granularity, setGranularity] = useState<Granularity>('day');
   const [rows, setRows] = useState<TxLite[]>([]);
@@ -205,6 +206,7 @@ export function EmailPeriodComparison() {
   const [drill, setDrill] = useState<'a' | 'b' | null>(null);
 
   useEffect(() => {
+    if (collapsed) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -235,7 +237,7 @@ export function EmailPeriodComparison() {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [mode, granularity, rangeA.from, rangeB.from]);
+  }, [collapsed, mode, granularity, rangeA.from, rangeB.from]);
 
   const rollingBuckets = useMemo<Bucket[]>(() => {
     const map = new Map<string, Bucket>();
