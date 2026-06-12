@@ -2439,86 +2439,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           <DialogDescription className="text-sm">
             Submit a rent request on behalf of a tenant who doesn't have the app
           </DialogDescription>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2 w-full gap-2"
-              >
-                <FileText className="h-4 w-4" />
-                Print / download blank field form
-                <ChevronDown className="h-3 w-3 ml-auto opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
-              <DropdownMenuItem
-                onClick={async () => {
-                  try {
-                    const blob = await generateRentRequestFormPdf({
-                      agentName:
-                        (user?.user_metadata as any)?.full_name ||
-                        (user?.user_metadata as any)?.name ||
-                        null,
-                      agentPhone: (user?.user_metadata as any)?.phone || user?.phone || null,
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `rent-request-field-form-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    setTimeout(() => URL.revokeObjectURL(url), 1000);
-                  } catch (e) {
-                    toast.error('Could not generate the form. Please try again.');
-                  }
-                }}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Download PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  try {
-                    const blob = await generateRentRequestFormPdf({
-                      agentName:
-                        (user?.user_metadata as any)?.full_name ||
-                        (user?.user_metadata as any)?.name ||
-                        null,
-                      agentPhone: (user?.user_metadata as any)?.phone || user?.phone || null,
-                    });
-                    const file = new File([blob], `rent-request-field-form-${format(new Date(), 'yyyy-MM-dd')}.pdf`, { type: 'application/pdf' });
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                      await navigator.share({
-                        files: [file],
-                        title: 'Rent Request Field Form',
-                        text: `Field form for ${(user?.user_metadata as any)?.full_name || 'agent'} — print, fill in the field, then post in the app.`,
-                      });
-                    } else {
-                      // Fallback: download and prompt user to share manually
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = file.name;
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      setTimeout(() => URL.revokeObjectURL(url), 1000);
-                      toast.info('PDF downloaded. Open your file manager and share it to WhatsApp.');
-                    }
-                  } catch (e: any) {
-                    if (e.name === 'AbortError') return; // user cancelled share sheet
-                    toast.error('Could not share the form. Please try again.');
-                  }
-                }}
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                Share PDF (WhatsApp)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full gap-2"
+            disabled={fieldFormGenerating}
+            onClick={openFieldFormPreview}
+          >
+            {fieldFormGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4" />
+            )}
+            Preview blank field form
+          </Button>
         </DialogHeader>
 
         <RequestStateBanner state={requestState} />
