@@ -1112,11 +1112,35 @@ export default function SubAgentAnalytics() {
                   ) : (
                     <div className="space-y-2">
                       {selectedSubAgent.tenants.map((tenant) => (
-                        <div key={tenant.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-                          <span className="text-sm font-medium">{tenant.name}</span>
-                          <div className="text-right">
-                            <p className="text-xs font-medium">{formatUGX(tenant.totalRepaid)}</p>
-                            <p className="text-[10px] text-muted-foreground">total repaid</p>
+                        <div key={tenant.id} className="flex items-center justify-between gap-2 p-2.5 bg-muted/50 rounded-lg">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{tenant.name}</p>
+                            {tenant.phone ? (
+                              <a
+                                href={`tel:${tenant.phone}`}
+                                className="inline-flex items-center gap-1 text-xs text-primary mt-0.5"
+                              >
+                                <Phone className="h-3 w-3" />
+                                {tenant.phone}
+                              </a>
+                            ) : (
+                              <p className="text-[11px] text-muted-foreground mt-0.5">No phone</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="text-right">
+                              <p className="text-xs font-medium">{formatUGX(tenant.totalRepaid)}</p>
+                              <p className="text-[10px] text-muted-foreground">total repaid</p>
+                            </div>
+                            {tenant.phone && (
+                              <a
+                                href={`tel:${tenant.phone}`}
+                                className="flex items-center justify-center h-9 w-9 rounded-full bg-success/10 text-success active:bg-success/20"
+                                aria-label={`Call ${tenant.name}`}
+                              >
+                                <Phone className="h-4 w-4" />
+                              </a>
+                            )}
                           </div>
                         </div>
                       ))}
