@@ -776,15 +776,22 @@ export default function AgentFloatBreakdown() {
       </div>
 
       {/* Drill-down sheet */}
-      <Sheet open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setDetail(null); } }}>
+      <Sheet open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setDetail(null); setViewingTenantId(null); } }}>
         <SheetContent side="bottom" className="h-[90vh] overflow-y-auto p-0">
-          <SheetHeader className="sticky top-0 z-10 bg-background border-b px-4 py-3">
-            <SheetTitle className="text-base text-left">
-              {selected ? labelFor(selected.category) : 'Transaction Detail'}
-            </SheetTitle>
-          </SheetHeader>
+          {viewingTenantId ? (
+            <TenantProfileView
+              tenantId={viewingTenantId}
+              onBack={() => setViewingTenantId(null)}
+            />
+          ) : (
+            <>
+              <SheetHeader className="sticky top-0 z-10 bg-background border-b px-4 py-3">
+                <SheetTitle className="text-base text-left">
+                  {selected ? labelFor(selected.category) : 'Transaction Detail'}
+                </SheetTitle>
+              </SheetHeader>
 
-          <div className="p-4 space-y-4">
+              <div className="p-4 space-y-4">
             {detailLoading && (
               <div className="py-10 text-center text-sm text-muted-foreground">Loading details...</div>
             )}
