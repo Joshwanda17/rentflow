@@ -87,6 +87,50 @@ interface LedgerEntry {
   reference_id?: string | null;
   linked_party?: string | null;
   balance_after?: number;
+  /** Set when this credit traces back to a sub-agent's activity. */
+  subAgentName?: string | null;
+  /** Plain-English description of what the sub-agent did to earn this. */
+  subAgentAction?: string | null;
+}
+
+interface SubAgentEarningRow {
+  key: string;
+  subAgentName: string;
+  action: string;
+  amount: number;
+  date: string;
+  /** True when the matching wallet credit landed in the withdrawable bucket. */
+  landed: boolean;
+}
+
+/** Turns a sub-agent earning event into a plain-English "what they did". */
+function describeSubAgentAction(opts: {
+  eventType?: string | null;
+  earningType?: string | null;
+  description?: string | null;
+  label?: string | null;
+}): string {
+  const { eventType, earningType, description, label } = opts;
+  if (eventType) {
+    switch (eventType) {
+      case 'house_listed_verified':
+        return label ? `Listed a house that was verified — ${label}` : 'Listed a house that was verified';
+      case 'landlord_verified':
+        return 'Registered a landlord who was verified';
+      case 'lc1_chairperson_verified':
+        return 'Registered an LC1 chairperson who was verified';
+      case 'tenant_landlord_funded':
+        return "Their tenant got its landlord funded";
+      default:
+        return eventType.replace(/_/g, ' ');
+    }
+  }
+  const d = (description || '').toLowerCase();
+  if (d.includes('deposit')) return 'Collected a tenant deposit';
+  if (d.includes('repayment') || d.includes('rent')) return 'Collected rent from a tenant';
+  if (earningType === 'subagent_registration') return 'You registered them as a sub-agent';
+  if (earningType) return earningType.replace(/_/g, ' ');
+  return 'Sub-agent activity';
 }
 
 const CATEGORY_META: Record<string, { label: string; Icon: React.ElementType; colorClass: string; plainExplanation: string }> = {
@@ -118,6 +162,128 @@ function formatAmount(amount: number): string {
   return `UGX ${amount.toLocaleString()}`;
 }
 
+const SUBAGENT_EARNING_TYPES = ['subagent_commission', 'subagent_override', 'subagent_registration'];
+
+/**
+ * Fetches every sub-agent-driven earning leg (recruiter overrides + sub-agent
+ * commissions), resolves the sub-agent's name, and matches each leg to its
+ * withdrawable wallet credit in the ledger. Mutates `entries` in place to attach
+ * sub-agent name + plain-English action, and returns a flat list for the summary.
+ */
+async function buildSubAgentEarnings(userId: string, entries: LedgerEntry[]): Promise<SubAgentEarningRow[]> {
+  const [overridesRes, earningsRes, legsRes] = await Promise.all([
+    supabase
+      .from('recruiter_override_events')
+      .select('id, sub_agent_id, label, amount, source_id, occurred_at, event_type')
+      .eq('recruiter_id', userId)
+      .order('occurred_at', { ascending: false })
+      .limit(300),
+    supabase
+      .from('agent_earnings')
+      .select('id, amount, earning_type, description, source_user_id, created_at')
+      .eq('agent_id', userId)
+      .in('earning_type', SUBAGENT_EARNING_TYPES)
+      .order('created_at', { ascending: false })
+      .limit(300),
+    supabase
+      .from('general_ledger')
+      .select('id, amount, source_id, transaction_date, recipient_type, ledger_scope, wallet_bucket')
+      .eq('user_id', userId)
+      .eq('category', 'agent_commission')
+      .eq('ledger_scope', 'wallet')
+      .neq('classification', 'admin_correction')
+      .order('transaction_date', { ascending: false })
+      .limit(800),
+  ]);
+
+  const overrides = overridesRes.data || [];
+  const earnings = earningsRes.data || [];
+  const legs = (legsRes.data || []).map((l) => ({
+    id: l.id as string,
+    amount: Number(l.amount),
+    source_id: l.source_id ? String(l.source_id) : null,
+    date: l.transaction_date as string,
+    bucket:
+      (l.wallet_bucket as string | null) ||
+      (l.recipient_type === 'user' && l.ledger_scope === 'wallet' ? 'withdrawable' : (l.ledger_scope as string | null)),
+  }));
+
+  // Resolve sub-agent names.
+  const ids = [
+    ...new Set([
+      ...overrides.filter((o) => o.sub_agent_id).map((o) => o.sub_agent_id as string),
+      ...earnings.filter((e) => e.source_user_id).map((e) => e.source_user_id as string),
+    ]),
+  ];
+  const nameMap: Record<string, string> = {};
+  if (ids.length > 0) {
+    const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+    (profiles || []).forEach((p) => { nameMap[p.id] = p.full_name || 'Unknown sub-agent'; });
+  }
+
+  type Leg = {
+    key: string;
+    subAgentName: string;
+    action: string;
+    amount: number;
+    date: string;
+    sourceId: string | null;
+  };
+  const earningLegs: Leg[] = [
+    ...overrides.map((o) => ({
+      key: `roe-${o.id}`,
+      subAgentName: o.sub_agent_id ? (nameMap[o.sub_agent_id] || 'Unknown sub-agent') : 'A sub-agent',
+      action: describeSubAgentAction({ eventType: o.event_type, label: o.label }),
+      amount: Number(o.amount),
+      date: o.occurred_at as string,
+      sourceId: o.source_id ? String(o.source_id) : null,
+    })),
+    ...earnings.map((e) => ({
+      key: `ae-${e.id}`,
+      subAgentName: e.source_user_id ? (nameMap[e.source_user_id] || 'Unknown sub-agent') : 'A sub-agent',
+      action: describeSubAgentAction({ earningType: e.earning_type, description: e.description }),
+      amount: Number(e.amount),
+      date: e.created_at as string,
+      sourceId: null,
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Match each earning leg to a wallet credit (source_id first, then amount + time window).
+  const used = new Set<string>();
+  const result: SubAgentEarningRow[] = earningLegs.map((leg) => {
+    let pick: (typeof legs)[number] | null = null;
+    const avail = legs.filter((w) => !used.has(w.id));
+    if (leg.sourceId) {
+      pick = avail.find((w) => w.source_id === leg.sourceId && Math.abs(w.amount - leg.amount) < 1) || null;
+    }
+    if (!pick) {
+      const t = new Date(leg.date).getTime();
+      pick = avail
+        .filter((w) => Math.abs(w.amount - leg.amount) < 1 && Math.abs(new Date(w.date).getTime() - t) < 5 * 60 * 1000)
+        .sort((a, b) => Math.abs(new Date(a.date).getTime() - t) - Math.abs(new Date(b.date).getTime() - t))[0] || null;
+    }
+    if (pick) {
+      used.add(pick.id);
+      // Attach context to the matching wallet entry in the statement timeline.
+      const entry = entries.find((en) => en.id === pick!.id);
+      if (entry) {
+        entry.subAgentName = leg.subAgentName;
+        entry.subAgentAction = leg.action;
+      }
+    }
+    return {
+      key: leg.key,
+      subAgentName: leg.subAgentName,
+      action: leg.action,
+      amount: leg.amount,
+      date: leg.date,
+      landed: pick ? pick.bucket === 'withdrawable' : false,
+    };
+  });
+
+  return result;
+}
+
 export function WalletStatement() {
   const { user, role } = useAuth();
   const [open, setOpen] = useState(false);
@@ -127,6 +293,7 @@ export function WalletStatement() {
   const [totals, setTotals] = useState({ totalIn: 0, totalOut: 0 });
   const [breakdown, setBreakdown] = useState<Record<string, number>>({});
   const [userName, setUserName] = useState('');
+  const [subAgentEarnings, setSubAgentEarnings] = useState<SubAgentEarningRow[]>([]);
   // Filters
   const [directionFilter, setDirectionFilter] = useState<'all' | 'credit' | 'debit'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -200,6 +367,19 @@ export function WalletStatement() {
       }
 
       allEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // ── Enrich agent credits with the sub-agent who triggered them ──
+      if (role === 'agent') {
+        try {
+          const subList = await buildSubAgentEarnings(user.id, allEntries);
+          setSubAgentEarnings(subList);
+        } catch (e) {
+          console.error('[WalletStatement] sub-agent enrichment failed', e);
+          setSubAgentEarnings([]);
+        }
+      } else {
+        setSubAgentEarnings([]);
+      }
 
       let runningBalance = 0;
       for (const entry of allEntries) {
@@ -704,6 +884,53 @@ export function WalletStatement() {
               </section>
             )}
 
+            {/* ── Earnings from your sub-agents ── */}
+            {subAgentEarnings.length > 0 && (
+              <section aria-labelledby="ws-subagent" className="mb-4 overflow-hidden rounded-2xl border bg-card">
+                <div className="flex items-start justify-between gap-3 border-b bg-primary/5 px-4 py-3">
+                  <div className="min-w-0">
+                    <h3 id="ws-subagent" className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                      <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                      Earnings from your sub-agents
+                    </h3>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Who earned you money, what they did, and how much.
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold text-success tabular-nums">
+                      +{formatUGX(subAgentEarnings.reduce((s, r) => s + r.amount, 0))}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{subAgentEarnings.length} {subAgentEarnings.length === 1 ? 'earning' : 'earnings'}</p>
+                  </div>
+                </div>
+                <ul className="divide-y divide-border/60 list-none p-0 m-0">
+                  {subAgentEarnings.map((row) => (
+                    <li key={row.key} className="flex items-center gap-3 px-4 py-3">
+                      <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center" aria-hidden="true">
+                        <Users className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">{row.subAgentName}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">{row.action}</p>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground/80">{format(new Date(row.date), 'MMM d, yyyy · h:mm a')}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-bold text-success tabular-nums">+{formatUGX(row.amount)}</p>
+                        {row.landed ? (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-success">
+                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> Withdrawable
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">Pending credit</span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {/* ── Income Breakdown (collapsed by default) ── */}
             {breakdownItems.length > 0 && (
               <div className="mb-4 overflow-hidden rounded-xl border">
@@ -898,6 +1125,7 @@ export function WalletStatement() {
                         const isCredit = entry.type === 'credit';
                         const showDescription = entry.description && entry.description !== label;
                         const partyNote =
+                          entry.subAgentName ? `Sub-agent: ${entry.subAgentName}` :
                           entry.linked_party && entry.category === 'tenant_default_charge' ? `Tenant: ${entry.linked_party}` :
                           entry.linked_party && entry.linked_party !== 'platform' && entry.category === 'agent_commission' ? `From: ${entry.linked_party}` :
                           entry.linked_party && entry.linked_party !== 'platform' ? `→ ${entry.linked_party}` :
@@ -933,7 +1161,14 @@ export function WalletStatement() {
                               </div>
                             </summary>
                             <div className="border-t bg-muted/20 px-3 py-3 text-[11px] leading-relaxed text-muted-foreground">
-                              <p>{plainExplanation}</p>
+                              {entry.subAgentName ? (
+                                <p className="text-foreground/80">
+                                  <span className="font-semibold text-foreground">{entry.subAgentName}</span>
+                                  {entry.subAgentAction ? ` — ${entry.subAgentAction}` : ''}
+                                </p>
+                              ) : (
+                                <p>{plainExplanation}</p>
+                              )}
                               {showDescription && (
                                 <p className="mt-1.5 italic text-foreground/70">"{entry.description}"</p>
                               )}
