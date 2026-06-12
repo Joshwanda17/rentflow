@@ -70,6 +70,10 @@ interface SubAgent {
   id: string;
   sub_agent_id: string;
   created_at: string;
+  status?: string;
+  invite_sms_status?: string | null;
+  invite_email_status?: string | null;
+  invite_sent_at?: string | null;
   profile?: {
     full_name: string;
     phone: string;
