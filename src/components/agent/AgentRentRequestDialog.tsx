@@ -74,6 +74,7 @@ import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
 import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
+import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
 
 interface AgentRentRequestDialogProps {
   open: boolean;
