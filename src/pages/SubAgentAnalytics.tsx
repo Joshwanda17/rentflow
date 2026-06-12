@@ -308,6 +308,8 @@ export default function SubAgentAnalytics() {
 
   // Houses pagination inside sub-agent detail sheet
   const [housesPage, setHousesPage] = useState(1);
+  const [housesLoadingMore, setHousesLoadingMore] = useState(false);
+  const housesSentinelRef = useRef<HTMLDivElement>(null);
   const HOUSES_PER_PAGE = 10;
 
   // Search & filter state
@@ -397,7 +399,37 @@ export default function SubAgentAnalytics() {
   useEffect(() => {
     setTenantSearch('');
     setHousesPage(1);
+    setHousesLoadingMore(false);
   }, [selectedSubAgent?.sub_agent_id]);
+
+  // Infinite scroll observer for houses list inside detail sheet
+  useEffect(() => {
+    if (!selectedSubAgent || selectedSubAgent.houses.length === 0) return;
+    const sentinel = housesSentinelRef.current;
+    if (!sentinel) return;
+
+    const total = selectedSubAgent.houses.length;
+    const visibleCount = housesPage * HOUSES_PER_PAGE;
+    const hasMore = visibleCount < total;
+    if (!hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setHousesLoadingMore(true);
+          // tiny delay so the spinner appears briefly and the UI feels responsive
+          requestAnimationFrame(() => {
+            setHousesPage((p) => p + 1);
+            setHousesLoadingMore(false);
+          });
+        }
+      },
+      { root: null, rootMargin: '120px', threshold: 0 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [selectedSubAgent, housesPage]);
 
   // Scroll-spy: highlight the bottom-nav section currently in view
   useEffect(() => {
@@ -1908,14 +1940,15 @@ export default function SubAgentAnalytics() {
                               </p>
                             )}
                             {hasMore && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full h-10 text-xs"
-                                onClick={() => { hapticTap(); setHousesPage(p => p + 1); }}
-                              >
-                                Load more houses
-                              </Button>
+                              <div ref={housesSentinelRef} className="flex justify-center py-3">
+                                {housesLoadingMore ? (
+                                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                ) : (
+                                  <span className="text-[11px] text-muted-foreground">
+                                    Scroll for more
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </>
                         );
