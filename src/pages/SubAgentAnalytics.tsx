@@ -1842,7 +1842,11 @@ export default function SubAgentAnalytics() {
                   ) : (
                     <div className="space-y-2">
                       {selectedSubAgent.houses.map((house) => (
-                        <div key={house.id} className="flex items-start justify-between gap-2 p-2.5 bg-muted/50 rounded-lg">
+                        <button
+                          key={house.id}
+                          onClick={() => { hapticTap(); setSelectedHouse(house); }}
+                          className="w-full flex items-start justify-between gap-2 p-2.5 bg-muted/50 rounded-lg text-left transition-colors hover:bg-muted active:bg-muted/70"
+                        >
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">
                               {house.title || 'Untitled listing'}
@@ -1878,8 +1882,11 @@ export default function SubAgentAnalytics() {
                                 +{formatUGX(house.overrideEarned)}
                               </p>
                             )}
+                            <div className="flex items-center justify-end gap-0.5 text-[10px] text-muted-foreground mt-1">
+                              Details <ChevronRight className="h-3 w-3" />
+                            </div>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
