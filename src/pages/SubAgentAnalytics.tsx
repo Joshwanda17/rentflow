@@ -85,6 +85,8 @@ interface SubAgent {
   invite_sent_at?: string | null;
   accepted_at?: string | null;
   verified_at?: string | null;
+  source?: string | null;
+  rejection_reason?: string | null;
   profile?: {
     full_name: string;
     phone: string;
