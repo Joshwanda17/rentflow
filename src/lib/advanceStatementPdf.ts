@@ -18,6 +18,7 @@ export interface AdvanceStatementInput {
   ownerPhone?: string | null;
   totalOutstanding: number;
   rows: AdvanceStatementRow[];
+  periodLabel?: string;
 }
 
 const STATUS_LABEL: Record<string, string> = {
