@@ -524,29 +524,93 @@ export function EmailPeriodComparison() {
                     <th className="py-1.5 px-2 font-medium text-right">Out</th>
                     <th className="py-1.5 px-2 font-medium text-right">Net</th>
                     <th className="py-1.5 px-2 font-medium text-right">Emails</th>
+                    <th className="py-1.5 pl-2 font-medium text-right"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-border/50">
+                  <tr
+                    className="border-b border-border/50 cursor-pointer hover:bg-muted/40 transition-colors"
+                    onClick={() => setDrill('a')}
+                  >
                     <td className="py-1.5 pr-2 font-medium">{periodALabel}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-emerald-500">{fmtUgx(customAgg.a.in)}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-rose-500">{fmtUgx(customAgg.a.out)}</td>
                     <td className={`py-1.5 px-2 text-right tabular-nums ${customAgg.a.net >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{fmtUgx(customAgg.a.net)}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{customAgg.a.count.toLocaleString()}</td>
+                    <td className="py-1.5 pl-2 text-right text-muted-foreground">View →</td>
                   </tr>
-                  <tr>
+                  <tr
+                    className="cursor-pointer hover:bg-muted/40 transition-colors"
+                    onClick={() => setDrill('b')}
+                  >
                     <td className="py-1.5 pr-2 font-medium">{periodBLabel}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-emerald-500">{fmtUgx(customAgg.b.in)}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-rose-500">{fmtUgx(customAgg.b.out)}</td>
                     <td className={`py-1.5 px-2 text-right tabular-nums ${customAgg.b.net >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{fmtUgx(customAgg.b.net)}</td>
                     <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{customAgg.b.count.toLocaleString()}</td>
+                    <td className="py-1.5 pl-2 text-right text-muted-foreground">View →</td>
                   </tr>
                 </tbody>
               </table>
+              <p className="mt-2 text-[11px] text-muted-foreground">Tap a period row to see its exact transactions.</p>
             </div>
           </div>
         )}
       </CardContent>
+
+      <Sheet open={drill !== null} onOpenChange={(o) => !o && setDrill(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="text-sm">
+              {drill === 'a' ? 'Period A' : 'Period B'} transactions
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              {drillLabel} · {drillTx.length.toLocaleString()} emails · timezone {TZ}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="rounded-md border bg-muted/30 p-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">In</p>
+              <p className="text-sm font-bold tabular-nums text-emerald-500">{fmtUgx(drillTotals.in)}</p>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Out</p>
+              <p className="text-sm font-bold tabular-nums text-rose-500">{fmtUgx(drillTotals.out)}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex-1 overflow-y-auto -mx-2 px-2">
+            {drillTx.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No transactions in this period.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {drillTx.map((r, i) => {
+                  const amt = Number(r.amount) || 0;
+                  const isIn = r.direction === 'in';
+                  return (
+                    <li key={r.id ?? i} className="rounded-md border p-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium">
+                            {r.counterparty || r.from_name || r.subject || 'Unknown'}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {r.internal_date ? format(new Date(r.internal_date), 'yyyy-MM-dd HH:mm') : '—'}
+                            {r.channel ? ` · ${r.channel}` : ''}
+                            {r.transaction_id ? ` · ${r.transaction_id}` : ''}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 text-xs font-semibold tabular-nums ${isIn ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {isIn ? '+' : '−'}{fmtUgx(amt)}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
