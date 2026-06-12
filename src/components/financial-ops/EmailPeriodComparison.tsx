@@ -222,7 +222,7 @@ export function EmailPeriodComparison() {
         sinceIso = startOfDay(candidates.reduce((a, b) => (a < b ? a : b))).toISOString();
       }
       const { data, error } = await (supabase.from('gmail_transactions') as any)
-        .select('amount,direction,internal_date')
+        .select('id,amount,direction,internal_date,subject,counterparty,channel,transaction_id,from_name')
         .gte('internal_date', sinceIso)
         .order('internal_date', { ascending: false })
         .limit(20000);
