@@ -16,9 +16,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { downloadCsv } from '@/lib/csvExport';
 import {
-  ArrowUpCircle, Search, X, CalendarIcon, FileText, FileSpreadsheet, Loader2, RefreshCw,
+  ArrowUpCircle, Search, X, CalendarIcon, FileText, FileSpreadsheet, Loader2, RefreshCw, CheckCircle2, Undo2,
 } from 'lucide-react';
 
 type StatusGroup = 'pending' | 'applied';
@@ -160,6 +161,37 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
   const searchRef = useRef<HTMLInputElement>(null);
+  const [actionTarget, setActionTarget] = useState<{ row: TopUpRow; action: 'apply' | 'reverse' } | null>(null);
+  const [reasonText, setReasonText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const runAction = async () => {
+    if (!actionTarget) return;
+    if (reasonText.trim().length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('portfolio-topup-row-action', {
+        body: { op_id: actionTarget.row.id, action: actionTarget.action, reason: reasonText.trim() },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(
+        actionTarget.action === 'apply'
+          ? `Applied ${formatUGX(actionTarget.row.amount)} into capital`
+          : `Reversed ${formatUGX(actionTarget.row.amount)} — top-up re-parked`,
+      );
+      setActionTarget(null);
+      setReasonText('');
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'Action failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -221,6 +253,7 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -310,7 +343,7 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
                 <TableHead>Date Applied</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Reason</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -335,7 +368,31 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
                         {r.group === 'applied' ? 'Applied' : 'Pending'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[220px] truncate" title={r.reason}>{r.reason || '—'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {r.group === 'applied' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 text-[11px] border-red-500/40 text-red-600 hover:bg-red-500/10"
+                            onClick={() => { setReasonText(''); setActionTarget({ row: r, action: 'reverse' }); }}
+                            title="Reverse this merge if the cron mis-applied it"
+                          >
+                            <Undo2 className="h-3.5 w-3.5" /> Reverse
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 text-[11px] border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+                            onClick={() => { setReasonText(''); setActionTarget({ row: r, action: 'apply' }); }}
+                            title="Apply now if the merge cron failed to run"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Apply
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -344,5 +401,47 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Apply / Reverse confirmation with mandatory reason */}
+    <Dialog open={!!actionTarget} onOpenChange={(v) => { if (!v && !submitting) { setActionTarget(null); setReasonText(''); } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {actionTarget?.action === 'reverse'
+              ? (<><Undo2 className="h-5 w-5 text-red-600" /> Reverse Top-Up Merge</>)
+              : (<><CheckCircle2 className="h-5 w-5 text-emerald-600" /> Apply Top-Up</>)}
+          </DialogTitle>
+          <DialogDescription>
+            {actionTarget && (
+              actionTarget.action === 'reverse'
+                ? `Remove ${formatUGX(actionTarget.row.amount)} from "${actionTarget.row.portfolioName}" and re-park this top-up (use if the cron mis-applied the merge).`
+                : `Merge ${formatUGX(actionTarget.row.amount)} into "${actionTarget.row.portfolioName}" now (use if the merge cron failed to run).`
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <textarea
+          value={reasonText}
+          onChange={(e) => setReasonText(e.target.value)}
+          placeholder="Reason (min 10 characters)…"
+          rows={3}
+          className="w-full rounded-lg border border-border bg-background p-2.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground">{reasonText.trim().length}/10 min</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" disabled={submitting} onClick={() => { setActionTarget(null); setReasonText(''); }}>Cancel</Button>
+            <Button
+              size="sm"
+              disabled={submitting || reasonText.trim().length < 10}
+              className={actionTarget?.action === 'reverse' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}
+              onClick={runAction}
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : (actionTarget?.action === 'reverse' ? 'Reverse' : 'Apply')}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
