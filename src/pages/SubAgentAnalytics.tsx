@@ -1846,53 +1846,80 @@ export default function SubAgentAnalytics() {
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {selectedSubAgent.houses.map((house) => (
-                        <button
-                          key={house.id}
-                          onClick={() => { hapticTap(); setSelectedHouse(house); }}
-                          className="w-full flex items-start justify-between gap-2 p-2.5 bg-muted/50 rounded-lg text-left transition-colors hover:bg-muted active:bg-muted/70"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {house.title || 'Untitled listing'}
-                            </p>
-                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5 truncate">
-                              <MapPin className="h-3 w-3 shrink-0" />
-                              <span className="truncate">
-                                {[house.district, house.region].filter(Boolean).join(', ') || 'No location'}
-                              </span>
+                      {(() => {
+                        const total = selectedSubAgent.houses.length;
+                        const visibleCount = housesPage * HOUSES_PER_PAGE;
+                        const visibleHouses = selectedSubAgent.houses.slice(0, visibleCount);
+                        const hasMore = visibleCount < total;
+                        return (
+                          <>
+                            <div className="space-y-2">
+                              {visibleHouses.map((house) => (
+                                <button
+                                  key={house.id}
+                                  onClick={() => { hapticTap(); setSelectedHouse(house); }}
+                                  className="w-full flex items-start justify-between gap-2 p-2.5 bg-muted/50 rounded-lg text-left transition-colors hover:bg-muted active:bg-muted/70"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium truncate">
+                                      {house.title || 'Untitled listing'}
+                                    </p>
+                                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5 truncate">
+                                      <MapPin className="h-3 w-3 shrink-0" />
+                                      <span className="truncate">
+                                        {[house.district, house.region].filter(Boolean).join(', ') || 'No location'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                      {house.verified ? (
+                                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
+                                          <CheckCircle2 className="h-2.5 w-2.5" /> Verified
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                                          <Clock className="h-2.5 w-2.5" /> Pending
+                                        </span>
+                                      )}
+                                      {house.tenant_id && (
+                                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                          <Users className="h-2.5 w-2.5" /> Occupied
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className="text-xs font-medium">{formatUGX(house.monthly_rent)}</p>
+                                    <p className="text-[10px] text-muted-foreground">/month</p>
+                                    {house.overrideEarned > 0 && (
+                                      <p className="text-[11px] font-bold text-orange-600 mt-1">
+                                        +{formatUGX(house.overrideEarned)}
+                                      </p>
+                                    )}
+                                    <div className="flex items-center justify-end gap-0.5 text-[10px] text-muted-foreground mt-1">
+                                      Details <ChevronRight className="h-3 w-3" />
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
                             </div>
-                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                              {house.verified ? (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
-                                  <CheckCircle2 className="h-2.5 w-2.5" /> Verified
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
-                                  <Clock className="h-2.5 w-2.5" /> Pending
-                                </span>
-                              )}
-                              {house.tenant_id && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                                  <Users className="h-2.5 w-2.5" /> Occupied
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-xs font-medium">{formatUGX(house.monthly_rent)}</p>
-                            <p className="text-[10px] text-muted-foreground">/month</p>
-                            {house.overrideEarned > 0 && (
-                              <p className="text-[11px] font-bold text-orange-600 mt-1">
-                                +{formatUGX(house.overrideEarned)}
+                            {total > HOUSES_PER_PAGE && (
+                              <p className="text-[11px] text-muted-foreground text-center">
+                                Showing {visibleHouses.length} of {total} houses
                               </p>
                             )}
-                            <div className="flex items-center justify-end gap-0.5 text-[10px] text-muted-foreground mt-1">
-                              Details <ChevronRight className="h-3 w-3" />
-                            </div>
-                          </div>
-                        </button>
-                      ))}
+                            {hasMore && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full h-10 text-xs"
+                                onClick={() => { hapticTap(); setHousesPage(p => p + 1); }}
+                              >
+                                Load more houses
+                              </Button>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
                 </CardContent>
