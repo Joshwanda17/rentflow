@@ -115,6 +115,8 @@ interface SubAgent {
   accessedFunds: number;
   platformRewards: number;
   serviceFees: number;
+  houses: SubAgentHouse[];
+  houseOverrideEarnings: number;
   hasOtherParent?: boolean;
 }
 
