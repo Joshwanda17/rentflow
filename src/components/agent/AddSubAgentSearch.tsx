@@ -6,6 +6,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
@@ -185,6 +191,22 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
               } else if (isOther) {
                 badge = { label: 'Invite pending', variant: 'warning', icon: UserCheck };
               }
+              const tooltipText = (() => {
+                if (isMine && link?.status === 'verified') {
+                  return 'This user is already linked to you. No invitation will be sent.';
+                }
+                if (isMine && link?.status === 'pending') {
+                  return 'You already sent an invite. Sending again will deliver a fresh SMS and email reminder.';
+                }
+                if (isOther && link?.status === 'verified') {
+                  return 'This user works under another agent. If you send an invite, they can choose to switch to you.';
+                }
+                if (isOther) {
+                  return 'Another agent already invited this user. If you send an invite, they can choose which agent to join.';
+                }
+                return 'No existing sub-agent link found. Sending an invite will deliver an SMS and email with an acceptance link.';
+              })();
+
               return (
                 <button
                   key={u.id}
@@ -197,17 +219,26 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
                       {u.phone || u.email || u.id.slice(0, 8)}
                     </div>
                   </div>
-                  <Badge
-                    variant={badge.variant}
-                    className={cn(
-                      'shrink-0 text-[10px]',
-                      badge.variant === 'warning' && 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400',
-                      badge.variant === 'success' && 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400'
-                    )}
-                  >
-                    {badge.icon && <badge.icon className="h-3 w-3 mr-1" />}
-                    {badge.label}
-                  </Badge>
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          variant={badge.variant}
+                          className={cn(
+                            'shrink-0 text-[10px] cursor-help',
+                            badge.variant === 'warning' && 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+                            badge.variant === 'success' && 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400'
+                          )}
+                        >
+                          {badge.icon && <badge.icon className="h-3 w-3 mr-1" />}
+                          {badge.label}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs text-xs leading-relaxed">
+                        {tooltipText}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </button>
               );
             })}
