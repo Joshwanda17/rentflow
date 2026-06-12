@@ -201,15 +201,41 @@ export function SubAgentPayoutAudit() {
 
   useEffect(() => { load(); }, [load]);
 
-  const summary = useMemo(() => {
-    const total = rows.length;
-    const withdrawable = rows.filter((r) => r.status === 'withdrawable').length;
-    const otherScope = rows.filter((r) => r.status === 'other_scope').length;
-    const unmatched = rows.filter((r) => r.status === 'unmatched').length;
-    const earned = rows.reduce((s, r) => s + r.amount, 0);
-    const landed = rows.filter((r) => r.status === 'withdrawable').reduce((s, r) => s + r.amount, 0);
-    return { total, withdrawable, otherScope, unmatched, earned, landed };
+  // Unique filter options
+  const subAgentOptions = useMemo(() => {
+    const names = Array.from(new Set(rows.map((r) => r.subAgentName).filter(Boolean)));
+    return names.sort() as string[];
   }, [rows]);
+
+  const categoryOptions = useMemo(() => {
+    const cats = Array.from(new Set(rows.map((r) => r.kind)));
+    return cats.sort();
+  }, [rows]);
+
+  // Apply filters client-side (instant)
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      const t = parseISO(r.occurredAt);
+      if (dateFrom && !isWithinInterval(t, { start: startOfDay(parseISO(dateFrom)), end: endOfDay(dateTo ? parseISO(dateTo) : new Date(3000, 0, 1)) })) return false;
+      if (dateTo && !isWithinInterval(t, { start: startOfDay(dateFrom ? parseISO(dateFrom) : new Date(1970, 0, 1)), end: endOfDay(parseISO(dateTo)) })) return false;
+      if (subAgentFilter !== 'all' && r.subAgentName !== subAgentFilter) return false;
+      if (categoryFilter !== 'all' && r.kind !== categoryFilter) return false;
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      return true;
+    });
+  }, [rows, dateFrom, dateTo, subAgentFilter, categoryFilter, statusFilter]);
+
+  const summary = useMemo(() => {
+    const total = filteredRows.length;
+    const withdrawable = filteredRows.filter((r) => r.status === 'withdrawable').length;
+    const otherScope = filteredRows.filter((r) => r.status === 'other_scope').length;
+    const unmatched = filteredRows.filter((r) => r.status === 'unmatched').length;
+    const earned = filteredRows.reduce((s, r) => s + r.amount, 0);
+    const landed = filteredRows.filter((r) => r.status === 'withdrawable').reduce((s, r) => s + r.amount, 0);
+    return { total, withdrawable, otherScope, unmatched, earned, landed };
+  }, [filteredRows]);
+
+  const hasActiveFilters = dateFrom || dateTo || subAgentFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all';
 
   return (
     <Card id="subagent-audit" className="scroll-mt-28 border-border/60 shadow-none">
@@ -219,29 +245,135 @@ export function SubAgentPayoutAudit() {
             <ShieldCheck className="h-4 w-4 text-orange-500" />
             Payout Audit
           </CardTitle>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 text-xs gap-1.5"
-            onClick={() => load({ silent: true })}
-            disabled={loading || refreshing}
-          >
-            <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className={cn('h-8 text-xs gap-1.5', hasActiveFilters && 'border-primary/60 text-primary')}
+              onClick={() => setShowFilters((s) => !s)}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              Filters
+              {hasActiveFilters && <span className="ml-0.5 rounded-full bg-primary text-primary-foreground w-4 h-4 flex items-center justify-center text-[9px]">•</span>}
+              {showFilters ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => load({ silent: true })}
+              disabled={loading || refreshing}
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
+              Refresh
+            </Button>
+          </div>
         </div>
         <p className="text-[11px] text-muted-foreground">
           Every sub-agent earning leg matched to its withdrawable wallet credit.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* Filters panel */}
+        {showFilters && (
+          <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-3">
+            {/* Date range */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-muted-foreground">From</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full h-8 px-2 rounded-md border border-border bg-background text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-muted-foreground">To</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full h-8 px-2 rounded-md border border-border bg-background text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Sub-agent */}
+            {subAgentOptions.length > 0 && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Sub-agent</label>
+                <select
+                  value={subAgentFilter}
+                  onChange={(e) => setSubAgentFilter(e.target.value)}
+                  className="w-full h-8 px-2 rounded-md border border-border bg-background text-xs"
+                >
+                  <option value="all">All sub-agents</option>
+                  {subAgentOptions.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Category & Status */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Category</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full h-8 px-2 rounded-md border border-border bg-background text-xs"
+                >
+                  <option value="all">All categories</option>
+                  {categoryOptions.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full h-8 px-2 rounded-md border border-border bg-background text-xs"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="withdrawable">Withdrawable</option>
+                  <option value="other_scope">Wrong scope</option>
+                  <option value="unmatched">No credit</option>
+                </select>
+              </div>
+            </div>
+
+            {hasActiveFilters && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-[10px] w-full"
+                onClick={() => {
+                  setDateFrom('');
+                  setDateTo('');
+                  setSubAgentFilter('all');
+                  setCategoryFilter('all');
+                  setStatusFilter('all');
+                }}
+              >
+                Clear all filters
+              </Button>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-10 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
-        ) : rows.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-8">
-            No sub-agent earnings yet. Once your team earns, each payout will appear here with its wallet credit.
+            {hasActiveFilters
+              ? 'No results match the selected filters.'
+              : 'No sub-agent earnings yet. Once your team earns, each payout will appear here with its wallet credit.'}
           </p>
         ) : (
           <>
@@ -275,7 +407,7 @@ export function SubAgentPayoutAudit() {
 
             {/* Rows */}
             <div className="space-y-2">
-              {rows.map((row) => (
+              {filteredRows.map((row) => (
                 <AuditRowCard key={row.key} row={row} />
               ))}
             </div>
