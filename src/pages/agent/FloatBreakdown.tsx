@@ -64,6 +64,19 @@ interface EntryDetail {
   siblings: SiblingLeg[];
 }
 
+interface FloatAllocation {
+  use_entry_id: string;
+  occurred_at: string;
+  category: string;
+  use_amount: number;
+  allocated_amount: number;
+  tenant_id: string | null;
+  tenant_name: string | null;
+  tenant_phone: string | null;
+  description: string | null;
+  reference_id: string | null;
+}
+
 const CATEGORY_LABEL: Record<string, string> = {
   agent_float_deposit: 'Float Deposit',
   agent_float_used_for_rent: 'Tenant Rent Allocation',
