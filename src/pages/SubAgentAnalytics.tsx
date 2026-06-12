@@ -132,6 +132,22 @@ interface SubAgentHouse {
   district: string | null;
   created_at: string;
   overrideEarned: number;
+  address: string | null;
+  sub_county: string | null;
+  village: string | null;
+  house_category: string | null;
+  number_of_rooms: number | null;
+  total_monthly_cost: number;
+  transactions: HouseTransaction[];
+}
+
+interface HouseTransaction {
+  id: string;
+  label: string;
+  event_type: string;
+  amount: number;
+  status: string | null;
+  occurred_at: string;
 }
 
 interface MonthlyData {
@@ -255,6 +271,9 @@ export default function SubAgentAnalytics() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [selectedSubAgent, setSelectedSubAgent] = useState<SubAgent | null>(null);
+  const [selectedHouse, setSelectedHouse] = useState<SubAgentHouse | null>(null);
+  const [houseTenant, setHouseTenant] = useState<{ full_name: string; phone: string | null } | null>(null);
+  const [houseTenantLoading, setHouseTenantLoading] = useState(false);
   const [recruiterSplits, setRecruiterSplits] = useState<RecruiterSplit[]>([]);
   const [splitsLoading, setSplitsLoading] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
@@ -310,6 +329,31 @@ export default function SubAgentAnalytics() {
     const match = subAgents.find(sa => sa.sub_agent_id === id);
     if (match) setSelectedSubAgent(match);
   }, [searchParams, subAgents]);
+
+  // Load the linked tenant for the open house detail
+  useEffect(() => {
+    if (!selectedHouse?.tenant_id) {
+      setHouseTenant(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setHouseTenantLoading(true);
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, phone')
+          .eq('id', selectedHouse.tenant_id)
+          .maybeSingle();
+        if (!cancelled) setHouseTenant(data ? { full_name: data.full_name, phone: data.phone ?? null } : null);
+      } catch {
+        if (!cancelled) setHouseTenant(null);
+      } finally {
+        if (!cancelled) setHouseTenantLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedHouse?.tenant_id]);
 
   // Load per-transaction recruiter splits (8% sub-agent vs 2% recruiter) for the open sub-agent
   useEffect(() => {
@@ -449,7 +493,7 @@ export default function SubAgentAnalytics() {
       // Fetch houses listed by each sub-agent
       const { data: houseRows } = await supabase
         .from('house_listings')
-        .select('id, agent_id, title, status, monthly_rent, verified, tenant_id, region, district, created_at')
+        .select('id, agent_id, title, status, monthly_rent, total_monthly_cost, verified, tenant_id, region, district, sub_county, village, address, house_category, number_of_rooms, created_at')
         .in('agent_id', subAgentIds)
         .order('created_at', { ascending: false });
 
@@ -457,19 +501,32 @@ export default function SubAgentAnalytics() {
       // house listings (e.g. 3,000 when a sub-agent's listing gets verified).
       const { data: overrideRows } = await supabase
         .from('recruiter_override_events')
-        .select('sub_agent_id, source_table, source_id, amount, status')
+        .select('id, sub_agent_id, source_table, source_id, amount, status, event_type, label, occurred_at')
         .eq('recruiter_id', user.id)
         .eq('source_table', 'house_listings')
-        .in('sub_agent_id', subAgentIds);
+        .in('sub_agent_id', subAgentIds)
+        .order('occurred_at', { ascending: false });
 
       // Map override earnings by house listing id (only successful/credited ones)
       const overrideByHouse: Record<string, number> = {};
       const houseOverrideBySubAgent: Record<string, number> = {};
+      const txByHouse: Record<string, HouseTransaction[]> = {};
       (overrideRows || []).forEach(o => {
         if (o.status && o.status !== 'credited' && o.status !== 'success' && o.status !== 'paid') return;
         const amt = Number(o.amount || 0);
         if (o.source_id) overrideByHouse[o.source_id] = (overrideByHouse[o.source_id] || 0) + amt;
         if (o.sub_agent_id) houseOverrideBySubAgent[o.sub_agent_id] = (houseOverrideBySubAgent[o.sub_agent_id] || 0) + amt;
+        if (o.source_id) {
+          const list = txByHouse[o.source_id] || (txByHouse[o.source_id] = []);
+          list.push({
+            id: o.id,
+            label: o.label || 'Override earning',
+            event_type: o.event_type || 'override',
+            amount: amt,
+            status: o.status,
+            occurred_at: o.occurred_at || '',
+          });
+        }
       });
 
       const housesBySubAgent: Record<string, SubAgentHouse[]> = {};
@@ -480,12 +537,19 @@ export default function SubAgentAnalytics() {
           title: h.title,
           status: h.status,
           monthly_rent: Number(h.monthly_rent || 0),
+          total_monthly_cost: Number(h.total_monthly_cost || 0),
           verified: !!h.verified,
           tenant_id: h.tenant_id,
           region: h.region,
           district: h.district,
+          sub_county: h.sub_county,
+          village: h.village,
+          address: h.address,
+          house_category: h.house_category,
+          number_of_rooms: h.number_of_rooms,
           created_at: h.created_at,
           overrideEarned: overrideByHouse[h.id] || 0,
+          transactions: txByHouse[h.id] || [],
         });
       });
 
@@ -1778,7 +1842,11 @@ export default function SubAgentAnalytics() {
                   ) : (
                     <div className="space-y-2">
                       {selectedSubAgent.houses.map((house) => (
-                        <div key={house.id} className="flex items-start justify-between gap-2 p-2.5 bg-muted/50 rounded-lg">
+                        <button
+                          key={house.id}
+                          onClick={() => { hapticTap(); setSelectedHouse(house); }}
+                          className="w-full flex items-start justify-between gap-2 p-2.5 bg-muted/50 rounded-lg text-left transition-colors hover:bg-muted active:bg-muted/70"
+                        >
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">
                               {house.title || 'Untitled listing'}
@@ -1814,8 +1882,11 @@ export default function SubAgentAnalytics() {
                                 +{formatUGX(house.overrideEarned)}
                               </p>
                             )}
+                            <div className="flex items-center justify-end gap-0.5 text-[10px] text-muted-foreground mt-1">
+                              Details <ChevronRight className="h-3 w-3" />
+                            </div>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -1831,6 +1902,159 @@ export default function SubAgentAnalytics() {
         onOpenChange={setRegisterDialogOpen}
         onSuccess={fetchSubAgentAnalytics}
       />
+
+      {/* House details */}
+      <Sheet open={!!selectedHouse} onOpenChange={(open) => { if (!open) setSelectedHouse(null); }}>
+        <SheetContent side="bottom" className="h-[88vh] rounded-t-3xl overflow-y-auto pb-8">
+          {selectedHouse && (
+            <>
+              <SheetHeader className="pb-3 text-left">
+                <SheetTitle className="flex items-center gap-2 text-lg">
+                  <Home className="h-5 w-5 text-orange-500" />
+                  {selectedHouse.title || 'Untitled listing'}
+                </SheetTitle>
+                <SheetDescription>
+                  {selectedHouse.house_category || 'House'}
+                  {selectedHouse.number_of_rooms ? ` · ${selectedHouse.number_of_rooms} room${selectedHouse.number_of_rooms === 1 ? '' : 's'}` : ''}
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="space-y-4">
+                {/* Status */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {selectedHouse.verified ? (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-success/10 text-success border border-success/20">
+                      <CheckCircle2 className="h-3 w-3" /> Verified
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                      <Clock className="h-3 w-3" /> Pending verification
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground border border-border capitalize">
+                    {(selectedHouse.status || 'unknown').replace(/_/g, ' ')}
+                  </span>
+                  {selectedHouse.tenant_id && (
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      <Users className="h-3 w-3" /> Occupied
+                    </span>
+                  )}
+                </div>
+
+                {/* Address */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-orange-500" /> Address
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">
+                      {[selectedHouse.address, selectedHouse.village, selectedHouse.sub_county, selectedHouse.district, selectedHouse.region]
+                        .filter(Boolean)
+                        .join(', ') || 'No address recorded'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Rent / cost */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-success/10 rounded-xl p-3 text-center border border-success/20">
+                    <p className="text-[11px] text-muted-foreground">Monthly Rent</p>
+                    <p className="font-bold text-success text-base mt-0.5">{formatUGX(selectedHouse.monthly_rent)}</p>
+                  </div>
+                  <div className="bg-primary/10 rounded-xl p-3 text-center border border-primary/20">
+                    <p className="text-[11px] text-muted-foreground">Total Monthly Cost</p>
+                    <p className="font-bold text-primary text-base mt-0.5">{formatUGX(selectedHouse.total_monthly_cost)}</p>
+                  </div>
+                </div>
+
+                {/* Linked tenant */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Users className="h-4 w-4 text-orange-500" /> Linked Tenant
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {!selectedHouse.tenant_id ? (
+                      <p className="text-sm text-muted-foreground">No tenant linked yet</p>
+                    ) : houseTenantLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                      </div>
+                    ) : houseTenant ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{houseTenant.full_name}</p>
+                          {houseTenant.phone ? (
+                            <a href={`tel:${houseTenant.phone}`} className="inline-flex items-center gap-1 text-xs text-primary mt-0.5">
+                              <Phone className="h-3 w-3" /> {houseTenant.phone}
+                            </a>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">No phone</p>
+                          )}
+                        </div>
+                        {houseTenant.phone && (
+                          <a
+                            href={`tel:${houseTenant.phone}`}
+                            className="flex items-center justify-center h-9 w-9 rounded-full bg-success/10 text-success active:bg-success/20"
+                            aria-label={`Call ${houseTenant.full_name}`}
+                          >
+                            <Phone className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Tenant details unavailable</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Per-transaction breakdown */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Coins className="h-4 w-4 text-orange-500" /> Earnings Breakdown
+                      </CardTitle>
+                      {selectedHouse.overrideEarned > 0 && (
+                        <span className="text-xs font-bold text-orange-600">+{formatUGX(selectedHouse.overrideEarned)}</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Your override earnings from this listing</p>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedHouse.transactions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No earnings recorded for this house yet
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedHouse.transactions.map((tx) => (
+                          <div key={tx.id} className="flex items-center justify-between gap-2 p-2.5 bg-muted/50 rounded-lg">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{tx.label}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {tx.occurred_at ? format(new Date(tx.occurred_at), 'dd MMM yyyy · HH:mm') : '—'}
+                              </p>
+                            </div>
+                            <span className="text-xs font-bold text-orange-600 shrink-0">+{formatUGX(tx.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Listed {format(new Date(selectedHouse.created_at), 'MMM d, yyyy')}
+                </p>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Invite an existing user as a sub-agent — searches any user and
           auto-sends an SMS + email invite they must accept. */}
