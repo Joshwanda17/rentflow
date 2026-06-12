@@ -194,8 +194,16 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
         };
       });
 
-      // Sort: active today first, then by tenant count desc
+      // Sort: accepted first, then pending, then others; then by tenant count desc
       enriched.sort((a, b) => {
+        const score = (s: SubAgent) => {
+          if (s.status === 'verified') return 3;
+          if (s.status === 'pending_acceptance') return 2;
+          if (s.status === 'rejected') return 1;
+          return 0;
+        };
+        const scoreDiff = score(b) - score(a);
+        if (scoreDiff !== 0) return scoreDiff;
         if (a.active_today !== b.active_today) return a.active_today ? -1 : 1;
         return (b.tenants_count || 0) - (a.tenants_count || 0);
       });
