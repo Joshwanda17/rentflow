@@ -110,6 +110,7 @@ export default function Settings() {
   const { user, roles, loading: authLoading, role } = useAuth();
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
+  const { reducedMotion, setReducedMotion } = useReducedMotion();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
   const { language, setLanguage } = useLanguage();
   const { currency, setCurrency } = useCurrency();
