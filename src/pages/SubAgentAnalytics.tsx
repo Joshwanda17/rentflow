@@ -1417,7 +1417,7 @@ export default function SubAgentAnalytics() {
           {
             icon: UserPlus,
             label: 'Invite Sub-Agent',
-            onClick: () => { hapticTap(); setRegisterDialogOpen(true); },
+            onClick: () => { hapticTap(); setInviteSheetOpen(true); },
             variant: 'default',
           },
         ]}
