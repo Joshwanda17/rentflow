@@ -7,6 +7,7 @@ const EVENT_LABELS: Record<string, string> = {
   house_listed_verified: 'an empty house your sub-agent listed was verified',
   landlord_verified: 'a landlord your sub-agent registered was verified',
   lc1_chairperson_verified: 'an LC1 chairperson your sub-agent registered was verified',
+  tenant_landlord_funded: "your sub-agent's tenant got its landlord funded for the first time",
 };
 
 function describe(eventType: string) {
@@ -37,11 +38,12 @@ export function useRecruiterOverrideToast(agentId?: string | null) {
           duration: 10_000,
         });
       } else {
+        const amount = formatUGX(Number(row.amount) || 3000);
         toast.success('Recruiter override earned! 🎉', {
           description:
-            `You earned UGX ${formatUGX(Number(row.amount) || 3000)} because ` +
-            `${describe(row.event_type)}${row.label ? ` (${row.label})` : ''}. ` +
-            `It's in your withdrawable wallet.`,
+            `You earned UGX ${amount} because ${describe(row.event_type)}` +
+            `${row.label ? ` (${row.label})` : ''}.\n` +
+            `Breakdown: UGX ${amount} from Welile company funds → added to your withdrawable wallet.`,
           duration: 10_000,
         });
       }
