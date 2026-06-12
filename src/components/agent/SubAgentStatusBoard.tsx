@@ -258,9 +258,11 @@ export function SubAgentStatusBoard() {
                 const earningActive = r.override.total > 0;
 
                 return (
-                  <div
+                  <button
                     key={r.id}
-                    className="flex items-center gap-3 rounded-xl border border-border/60 p-3"
+                    type="button"
+                    onClick={() => setSelected(r)}
+                    className="w-full text-left flex items-center gap-3 rounded-xl border border-border/60 p-3 transition-colors hover:bg-muted/50 active:scale-[0.99]"
                   >
                     <UserAvatar avatarUrl={r.avatar_url} fullName={r.name} size="sm" />
                     <div className="flex-1 min-w-0">
@@ -311,13 +313,131 @@ export function SubAgentStatusBoard() {
                         </Badge>
                       )}
                     </div>
-                  </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/60 shrink-0" />
+                  </button>
                 );
               })}
             </div>
           </div>
         )}
       </CardContent>
+
+      {/* Click-through breakdown drawer */}
+      <Sheet open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}>
+        <SheetContent side="bottom" className="h-[88vh] rounded-t-2xl overflow-y-auto pb-10">
+          {selected && (
+            <>
+              <SheetHeader className="pb-3 border-b border-border mb-4">
+                <SheetTitle className="flex items-center gap-3 text-left">
+                  <UserAvatar avatarUrl={selected.avatar_url} fullName={selected.name} size="md" />
+                  <div className="min-w-0">
+                    <p className="font-bold text-base leading-tight truncate">{selected.name}</p>
+                    {selected.phone && <p className="text-xs text-muted-foreground font-normal">{selected.phone}</p>}
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
+
+              {drawer.loading ? (
+                <div className="flex items-center justify-center py-16 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Wallet snapshot */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <Wallet className="h-3.5 w-3.5" /> Wallet breakdown
+                    </p>
+                    {drawer.wallet ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-muted/60 p-3">
+                          <p className="text-[10px] text-muted-foreground">Withdrawable</p>
+                          <p className="font-bold text-base leading-none mt-1 text-emerald-600">{formatUGX(drawer.wallet.withdrawable_balance || 0)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/60 p-3">
+                          <p className="text-[10px] text-muted-foreground">Float</p>
+                          <p className="font-bold text-base leading-none mt-1">{formatUGX(drawer.wallet.float_balance || 0)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/60 p-3">
+                          <p className="text-[10px] text-muted-foreground">Advance owed</p>
+                          <p className="font-bold text-base leading-none mt-1 text-amber-600">{formatUGX(drawer.wallet.advance_balance || 0)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/60 p-3">
+                          <p className="text-[10px] text-muted-foreground">Total balance</p>
+                          <p className="font-bold text-base leading-none mt-1">{formatUGX(drawer.wallet.balance || 0)}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No wallet found for this invitee.</p>
+                    )}
+                  </div>
+
+                  {/* Your recruiter override earnings from this invitee */}
+                  <div className="rounded-xl border border-orange-500/20 bg-orange-500/[0.06] p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium flex items-center gap-1.5">
+                        <Coins className="h-3.5 w-3.5 text-orange-500" />
+                        Your total override earned
+                      </span>
+                      <span className="text-sm font-bold text-orange-600">{formatUGX(selected.override.total)}</span>
+                    </div>
+                  </div>
+
+                  {/* Verification bonus ledger entries (UGX 3,000 each) */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <ReceiptText className="h-3.5 w-3.5" /> Verification override entries
+                    </p>
+                    {drawer.events.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No verification override entries yet.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {drawer.events.map((e) => (
+                          <div key={e.id} className="flex items-center gap-2 rounded-lg border border-border/60 p-2.5">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium leading-tight truncate">{prettyEventType(e.event_type)}</p>
+                              {e.label && <p className="text-[10px] text-muted-foreground truncate">{e.label}</p>}
+                              <p className="text-[10px] text-muted-foreground">{format(new Date(e.created_at), 'd MMM yyyy, HH:mm')}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-xs font-bold text-orange-600">{formatUGX(e.amount)}</p>
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 capitalize">{e.status}</Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2% rent-collection override splits */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <TrendingUp className="h-3.5 w-3.5" /> Rent collection overrides (2%)
+                    </p>
+                    {drawer.splits.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No rent-collection overrides yet.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {drawer.splits.map((s) => (
+                          <div key={s.trace_id} className="flex items-center gap-2 rounded-lg border border-border/60 p-2.5">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium leading-tight truncate">{s.tenant_name || 'Tenant collection'}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                On {formatUGX(s.amount)} · {format(new Date(s.created_at), 'd MMM yyyy')}
+                              </p>
+                            </div>
+                            <p className="text-xs font-bold text-orange-600 shrink-0">+{formatUGX(s.recruiter_override)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
