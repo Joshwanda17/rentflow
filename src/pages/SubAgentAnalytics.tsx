@@ -648,7 +648,7 @@ export default function SubAgentAnalytics() {
           )}
           
           <Button 
-            onClick={() => { hapticTap(); setRegisterDialogOpen(true); }} 
+            onClick={() => { hapticTap(); setInviteSheetOpen(true); }} 
             size="sm" 
             className="gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25"
           >
@@ -695,9 +695,9 @@ export default function SubAgentAnalytics() {
               <p className="text-muted-foreground text-sm mb-4">
                 Build your team by registering sub-agents. You'll earn 2% of all their tenants' repayments!
               </p>
-              <Button onClick={() => setRegisterDialogOpen(true)} className="gap-2">
+              <Button onClick={() => setInviteSheetOpen(true)} className="gap-2">
                 <UserPlus className="h-4 w-4" />
-                Register Your First Sub-Agent
+                Invite Your First Sub-Agent
               </Button>
             </CardContent>
           </Card>
@@ -829,7 +829,7 @@ export default function SubAgentAnalytics() {
             {/* Invite Banner — always visible to encourage growth */}
             <div 
               id="subagent-invite"
-              onClick={() => { hapticTap(); setRegisterDialogOpen(true); }}
+              onClick={() => { hapticTap(); setInviteSheetOpen(true); }}
               className="scroll-mt-24 relative overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-background p-4 cursor-pointer active:scale-[0.99] transition-transform"
             >
               <div className="flex items-start gap-3">
