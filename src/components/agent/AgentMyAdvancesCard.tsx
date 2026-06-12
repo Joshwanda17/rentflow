@@ -38,6 +38,8 @@ const STATUS_META: Record<string, { label: string; variant: 'default' | 'seconda
  */
 export function AgentMyAdvancesCard() {
   const { user } = useAuth();
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const { data: advances = [], isLoading } = useQuery({
     queryKey: ['my-issued-advances', user?.id],
@@ -45,7 +47,7 @@ export function AgentMyAdvancesCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agent_advances')
-        .select('id, principal, outstanding_balance, status, issued_at, expires_at')
+        .select('id, principal, outstanding_balance, status, issued_at, expires_at, created_at')
         .eq('agent_id', user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -53,17 +55,30 @@ export function AgentMyAdvancesCard() {
     },
   });
 
+  // Filter by date range (issued_at / created_at)
+  const filteredAdvances = advances.filter((adv: any) => {
+    const dateStr = adv.issued_at || adv.created_at;
+    if (!dateStr) return true;
+    const d = new Date(dateStr);
+    if (dateFrom && isBefore(d, startOfDay(dateFrom))) return false;
+    if (dateTo && isAfter(d, endOfDay(dateTo))) return false;
+    return true;
+  });
+
   // Hide entirely when the agent has no advances at all.
   if (!isLoading && advances.length === 0) return null;
 
-  const totalOutstanding = advances
+  const totalOutstanding = filteredAdvances
     .filter((a: any) => a.status !== 'completed')
     .reduce((s: number, a: any) => s + Number(a.outstanding_balance || 0), 0);
 
+  const hasActiveFilter = !!(dateFrom || dateTo);
+  const clearFilters = () => { setDateFrom(undefined); setDateTo(undefined); };
+
   // Build a normalised row set (derived daily / days-left / access fee) shared
   // by both the PDF and Excel exporters so downloads match the on-screen card.
-  const buildRows = (): AdvanceStatementRow[] =>
-    advances.map((adv: any) => {
+  const buildRows = (source: any[]): AdvanceStatementRow[] =>
+    source.map((adv: any) => {
       const daysLeft = Math.max(0, differenceInDays(new Date(adv.expires_at), new Date()));
       const interest = Math.max(0, Number(adv.outstanding_balance) - Number(adv.principal));
       const dailyDeduction = adv.status !== 'completed'
@@ -75,7 +90,7 @@ export function AgentMyAdvancesCard() {
         status: adv.status,
         issued_at: adv.issued_at,
         expires_at: adv.expires_at,
-        created_at: adv.issued_at,
+        created_at: adv.issued_at || adv.created_at,
         daily_deduction: dailyDeduction,
         days_left: daysLeft,
         access_fee: interest,
@@ -86,13 +101,21 @@ export function AgentMyAdvancesCard() {
   const ownerPhone = (user?.user_metadata?.phone as string) || null;
   const stamp = new Date().toISOString().slice(0, 10);
 
+  const periodLabel = () => {
+    if (!dateFrom && !dateTo) return '';
+    const from = dateFrom ? format(dateFrom, 'dd MMM yyyy') : 'Start';
+    const to = dateTo ? format(dateTo, 'dd MMM yyyy') : 'Today';
+    return `Period: ${from} – ${to}`;
+  };
+
   const handlePdf = async () => {
     try {
       const blob = await generateAdvanceStatementPdf({
         ownerName,
         ownerPhone,
         totalOutstanding,
-        rows: buildRows(),
+        rows: buildRows(filteredAdvances),
+        periodLabel: periodLabel() || undefined,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -109,7 +132,7 @@ export function AgentMyAdvancesCard() {
 
   const handleExcel = async () => {
     try {
-      const rows = buildRows();
+      const rows = buildRows(filteredAdvances);
       await downloadXlsx(
         `advance-statement-${stamp}.xlsx`,
         ['Principal (UGX)', 'Outstanding (UGX)', 'Status', 'Daily (UGX)', 'Days left', 'Access fee (UGX)', 'Issued'],
@@ -169,11 +192,53 @@ export function AgentMyAdvancesCard() {
           </div>
         </div>
 
+        {/* Date range filters */}
+        {!isLoading && advances.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-8 gap-1.5 text-xs justify-start", !dateFrom && "text-muted-foreground")}>
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {dateFrom ? format(dateFrom, 'dd MMM yyyy') : 'From date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-8 gap-1.5 text-xs justify-start", !dateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {dateTo ? format(dateTo, 'dd MMM yyyy') : 'To date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            {hasActiveFilter && (
+              <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
+                <X className="h-3.5 w-3.5" /> Clear
+              </Button>
+            )}
+            {hasActiveFilter && (
+              <span className="text-[11px] text-muted-foreground ml-auto">
+                {filteredAdvances.length} of {advances.length}
+              </span>
+            )}
+          </div>
+        )}
+
         {isLoading ? (
           <p className="text-xs text-muted-foreground py-2">Loading your advances…</p>
+        ) : filteredAdvances.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-2">
+            No advances match the selected period.
+          </p>
         ) : (
           <div className="space-y-2">
-            {advances.map((adv: any) => {
+            {filteredAdvances.map((adv: any) => {
               const meta = STATUS_META[adv.status] || STATUS_META.active;
               const Icon = meta.icon;
               const daysLeft = Math.max(0, differenceInDays(new Date(adv.expires_at), new Date()));
