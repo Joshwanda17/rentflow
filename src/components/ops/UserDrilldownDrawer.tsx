@@ -1613,6 +1613,9 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord, onSelectU
       {/* Recent wallet statements (last 25 entries, user-facing filter) */}
       <AgentWalletStatements agentId={agentId} />
 
+      {/* Per-advance detail — principal, outstanding, status, daily, days left */}
+      <AgentAdvancesDetail agentId={agentId} />
+
       {/* User-to-user transfers — who sent/received money */}
       <UserTransfersList userId={agentId} onSelectUser={onSelectUser} />
 
