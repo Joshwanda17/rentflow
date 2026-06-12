@@ -1518,10 +1518,28 @@ export default function SubAgentAnalytics() {
           className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
           onClick={closeDetail}
         >
-          <div 
-            className="fixed bottom-0 left-0 right-0 bg-background border-t rounded-t-3xl max-h-[85vh] overflow-y-auto"
+          <div
+            ref={detailScrollRef}
+            className="fixed bottom-0 left-0 right-0 bg-background border-t rounded-t-3xl max-h-[85vh] overflow-y-auto overscroll-y-contain"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Pull-to-refresh indicator */}
+            <div
+              className="flex justify-center items-center transition-all duration-200 pointer-events-none"
+              style={{
+                height: `${Math.max(0, visualPullProgress * 50)}px`,
+                opacity: visualPullProgress > 0.1 ? 1 : 0,
+              }}
+            >
+              {isRefreshing ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              ) : (
+                <RefreshCw
+                  className="h-5 w-5 text-muted-foreground transition-transform"
+                  style={{ transform: `rotate(${visualPullProgress * 180}deg)` }}
+                />
+              )}
+            </div>
             <div className="sticky top-0 bg-background p-4 border-b">
               <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-3" />
               <div className="flex items-center gap-3">
