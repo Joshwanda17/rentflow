@@ -440,6 +440,52 @@ export default function SubAgentAnalytics() {
     return () => observer.disconnect();
   }, [selectedSubAgent, housesPage]);
 
+  // Pull-to-refresh on the sub-agent detail sheet
+  useEffect(() => {
+    const el = detailScrollRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (el.scrollTop <= 0) {
+        pullStartYRef.current = e.touches[0].clientY;
+        isPullingRef.current = true;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isPullingRef.current) return;
+      const diff = e.touches[0].clientY - pullStartYRef.current;
+      if (diff > 0 && el.scrollTop <= 0) {
+        e.preventDefault();
+        const progress = Math.min(diff / 150, 1);
+        pullProgressRef.current = progress;
+        setVisualPullProgress(progress);
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (pullProgressRef.current >= 1) {
+        setIsRefreshing(true);
+        fetchSubAgentAnalytics({ silent: true }).finally(() => {
+          setIsRefreshing(false);
+        });
+      }
+      isPullingRef.current = false;
+      pullProgressRef.current = 0;
+      setVisualPullProgress(0);
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, []);
+
   // Scroll-spy: highlight the bottom-nav section currently in view
   useEffect(() => {
     if (loading || subAgents.length === 0) return;
