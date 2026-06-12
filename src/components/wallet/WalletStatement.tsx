@@ -247,7 +247,7 @@ export function WalletStatement() {
       allEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       // ── Enrich agent credits with the sub-agent who triggered them ──
-      if (role === 'agent' || role === 'proxy_agent') {
+      if (role === 'agent') {
         try {
           const subList = await buildSubAgentEarnings(user.id, allEntries);
           setSubAgentEarnings(subList);
