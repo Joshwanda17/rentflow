@@ -330,6 +330,31 @@ export default function SubAgentAnalytics() {
     if (match) setSelectedSubAgent(match);
   }, [searchParams, subAgents]);
 
+  // Load the linked tenant for the open house detail
+  useEffect(() => {
+    if (!selectedHouse?.tenant_id) {
+      setHouseTenant(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setHouseTenantLoading(true);
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, phone')
+          .eq('id', selectedHouse.tenant_id)
+          .maybeSingle();
+        if (!cancelled) setHouseTenant(data ? { full_name: data.full_name, phone: data.phone ?? null } : null);
+      } catch {
+        if (!cancelled) setHouseTenant(null);
+      } finally {
+        if (!cancelled) setHouseTenantLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedHouse?.tenant_id]);
+
   // Load per-transaction recruiter splits (8% sub-agent vs 2% recruiter) for the open sub-agent
   useEffect(() => {
     if (!selectedSubAgent) {
