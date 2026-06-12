@@ -4,9 +4,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/UserAvatar';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { CheckCircle2, Clock, Coins, ShieldCheck, Users, Loader2, XCircle } from 'lucide-react';
+import {
+  CheckCircle2, Clock, Coins, ShieldCheck, Users, Loader2, XCircle,
+  ChevronRight, Wallet, ReceiptText, TrendingUp,
+} from 'lucide-react';
 
 interface OverrideAgg {
   total: number;
