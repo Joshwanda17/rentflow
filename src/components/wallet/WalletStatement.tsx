@@ -884,11 +884,6 @@ export function WalletStatement() {
               </section>
             )}
 
-            {/* ── Income Breakdown (collapsed by default) ── */}
-            {breakdownItems.length > 0 && (
-              <></>
-            )}
-
             {/* ── Earnings from your sub-agents ── */}
             {subAgentEarnings.length > 0 && (
               <section aria-labelledby="ws-subagent" className="mb-4 overflow-hidden rounded-2xl border bg-card">
