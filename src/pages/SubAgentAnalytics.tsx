@@ -656,6 +656,31 @@ export default function SubAgentAnalytics() {
         </div>
       </div>
 
+      {/* Quick Jump Navigation */}
+      {subAgents.length > 0 && (
+        <div className="sticky top-[73px] z-20 bg-background/95 backdrop-blur border-b px-4 py-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {[
+              { id: 'subagent-overview', label: 'Summary', icon: BarChart3 },
+              { id: 'subagent-invite', label: 'Invites', icon: Sparkles },
+              { id: 'subagent-team', label: 'Team', icon: Users },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  hapticTap();
+                  document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="flex items-center gap-1.5 shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted active:scale-95 transition-colors"
+              >
+                <item.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <main className="p-4 space-y-5">
         {subAgents.length === 0 ? (
           <Card className="border-dashed">
