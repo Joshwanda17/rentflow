@@ -4559,7 +4559,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             </div>
           )}
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 px-5 py-4 border-t border-border">
+        <div className="flex flex-col sm:flex-row gap-2 px-4 py-3 sm:px-5 sm:py-4 border-t border-border shrink-0">
           {isMobile && (
             <Button
               type="button"
