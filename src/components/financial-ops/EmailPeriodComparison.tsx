@@ -574,6 +574,7 @@ export function EmailPeriodComparison() {
           </div>
         )}
       </CardContent>
+    )}
 
       <Sheet open={drill !== null} onOpenChange={(o) => !o && setDrill(null)}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col">
