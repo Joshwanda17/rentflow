@@ -459,11 +459,6 @@ export default function SubAgentAnalytics() {
     }
   };
 
-  const handleExportCSV = () => {
-    // placeholder anchor (kept for diff context)
-    return _handleExportCSV();
-  };
-
   const handleResendInvite = async (subAgent: SubAgent) => {
     setResendingId(subAgent.sub_agent_id);
     try {
@@ -483,7 +478,7 @@ export default function SubAgentAnalytics() {
     }
   };
 
-  const _handleExportCSV = () => {
+  const handleExportCSV = () => {
     if (subAgents.length === 0) {
       toast({ title: 'No data to export', variant: 'destructive' });
       return;
