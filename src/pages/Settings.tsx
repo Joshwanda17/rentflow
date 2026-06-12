@@ -10,6 +10,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { useCurrency, currencies as ALL_CURRENCIES } from '@/hooks/useCurrency';
 import { Language, languageNames, languageFlags } from '@/i18n/translations';
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
+import { useReducedMotion, reducedMotionOptions } from '@/hooks/useCombinedSettings';
 import { hapticSelection } from '@/lib/haptics';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
