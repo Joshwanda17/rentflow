@@ -1280,6 +1280,15 @@ export default function SubAgentAnalytics() {
         )}
       </main>
 
+      {/* Mobile bottom navigation */}
+      {subAgents.length > 0 && (
+        <SubAgentBottomNav
+          active={activeSection}
+          onNavigate={scrollToSection}
+          onInvite={() => setInviteSheetOpen(true)}
+        />
+      )}
+
       {/* Sub-Agent Detail Modal */}
       {selectedSubAgent && (
         <div 
