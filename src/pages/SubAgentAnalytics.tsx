@@ -490,7 +490,7 @@ export default function SubAgentAnalytics() {
   // Scroll-spy: highlight the bottom-nav section currently in view
   useEffect(() => {
     if (loading || subAgents.length === 0) return;
-    const ids: SubAgentSection[] = ['subagent-overview', 'subagent-invite', 'subagent-team'];
+    const ids: SubAgentSection[] = ['subagent-overview', 'subagent-invite', 'subagent-team', 'subagent-audit'];
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
