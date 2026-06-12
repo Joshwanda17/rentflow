@@ -17,7 +17,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Landmark, Loader2, CheckCircle2, Phone, ArrowRight,
-  Clock, User2, Home, ShieldCheck, RefreshCw, AlertTriangle
+  Clock, User2, Home, ShieldCheck, RefreshCw, AlertTriangle, Timer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -672,6 +672,18 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                   {landlordOtp.otpError && (
                     <p className="text-[11px] text-destructive text-center">{landlordOtp.otpError}</p>
                   )}
+                  <div className="flex items-center justify-center">
+                    {resendCooldown > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground">
+                        <Timer className="h-3 w-3" />
+                        You can request a new OTP in {Math.floor(resendCooldown / 60)}:{String(resendCooldown % 60).padStart(2, '0')}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">
+                        Didn't get the code? You can request a new one now.
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center justify-between text-[11px]">
                     <button
                       type="button"
