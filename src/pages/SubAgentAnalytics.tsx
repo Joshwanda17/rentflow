@@ -154,6 +154,15 @@ export default function SubAgentAnalytics() {
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [expandedTimelines, setExpandedTimelines] = useState<Set<string>>(new Set());
+
+  const toggleTimeline = (id: string) => {
+    setExpandedTimelines(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [currentGoal, setCurrentGoal] = useState<TeamGoal | null>(null);
   const [currentMonthRegistrations, setCurrentMonthRegistrations] = useState(0);
