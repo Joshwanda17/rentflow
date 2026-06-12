@@ -161,6 +161,8 @@ Deno.serve(async (req) => {
 
     let effectiveToken = acceptanceToken;
 
+    let linkRowId: string | null = existingLink?.id ?? null;
+
     if (existingLink) {
       if (existingLink.parent_agent_id === user.id && existingLink.status === "verified") {
         return json({ ok: true, alreadyLinked: true, name: targetProfile.full_name });
@@ -183,7 +185,7 @@ Deno.serve(async (req) => {
         .eq("id", existingLink.id);
       if (updErr) return json({ error: updErr.message }, 500);
     } else {
-      const { error: insErr } = await adminClient
+      const { data: insRow, error: insErr } = await adminClient
         .from("agent_subagents")
         .insert({
           parent_agent_id: user.id,
@@ -192,8 +194,11 @@ Deno.serve(async (req) => {
           status: "pending_acceptance",
           acceptance_token: acceptanceToken,
           expires_at: inviteExpiresAt,
-        });
+        })
+        .select("id")
+        .maybeSingle();
       if (insErr) return json({ error: insErr.message }, 500);
+      linkRowId = insRow?.id ?? null;
     }
 
     // Notify the new sub-agent with the acceptance link (best-effort).
@@ -227,6 +232,22 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error("[add-existing-subagent] email invoke failed:", e);
       }
+    }
+
+    // Persist the invite delivery status so the agent can see whether the
+    // SMS/email reached the sub-agent and resend if it failed.
+    if (linkRowId) {
+      await adminClient
+        .from("agent_subagents")
+        .update({
+          invite_sms_status: targetProfile.phone ? (smsSent ? "sent" : "failed") : "not_sent",
+          invite_email_status:
+            targetProfile.email && !targetProfile.email.endsWith("@welile.user")
+              ? (emailSent ? "sent" : "failed")
+              : "not_sent",
+          invite_sent_at: new Date().toISOString(),
+        })
+        .eq("id", linkRowId);
     }
 
     return json({ ok: true, pending: true, name: targetProfile.full_name, smsSent, emailSent });
