@@ -345,57 +345,72 @@ export function EmailPeriodComparison() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-primary" />
             Period Comparison
-            {mode === 'rolling' && ` · ${GRAN[granularity].over}`}
+            {!collapsed && mode === 'rolling' && ` · ${GRAN[granularity].over}`}
           </CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-md border overflow-hidden">
-              <Button
-                size="sm"
-                variant={mode === 'rolling' ? 'default' : 'ghost'}
-                className="h-7 rounded-none px-2.5 text-xs"
-                onClick={() => setMode('rolling')}
-              >
-                Rolling
-              </Button>
-              <Button
-                size="sm"
-                variant={mode === 'custom' ? 'default' : 'ghost'}
-                className="h-7 rounded-none px-2.5 text-xs"
-                onClick={() => setMode('custom')}
-              >
-                Custom Range
-              </Button>
-            </div>
-            {mode === 'rolling' && (
-              <div className="flex flex-wrap gap-1.5">
-                {(Object.keys(GRAN) as Granularity[]).map((g) => (
-                  <Button
-                    key={g}
-                    size="sm"
-                    variant={granularity === g ? 'default' : 'outline'}
-                    className="h-7 px-2.5 text-xs"
-                    onClick={() => setGranularity(g)}
-                  >
-                    {GRAN[g].label}
-                  </Button>
-                ))}
-              </div>
-            )}
-          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? 'Expand period comparison' : 'Collapse period comparison'}
+          >
+            {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </Button>
         </div>
 
-        {mode === 'custom' && (
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg border bg-muted/20">
-            <DateRangePicker label="Period A" range={rangeA} onChange={setRangeA} maxDate={today} />
-            <DateRangePicker label="Period B" range={rangeB} onChange={setRangeB} maxDate={today} />
-          </div>
+        {!collapsed && (
+          <>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <div className="flex rounded-md border overflow-hidden">
+                <Button
+                  size="sm"
+                  variant={mode === 'rolling' ? 'default' : 'ghost'}
+                  className="h-7 rounded-none px-2.5 text-xs"
+                  onClick={() => setMode('rolling')}
+                >
+                  Rolling
+                </Button>
+                <Button
+                  size="sm"
+                  variant={mode === 'custom' ? 'default' : 'ghost'}
+                  className="h-7 rounded-none px-2.5 text-xs"
+                  onClick={() => setMode('custom')}
+                >
+                  Custom Range
+                </Button>
+              </div>
+              {mode === 'rolling' && (
+                <div className="flex flex-wrap gap-1.5">
+                  {(Object.keys(GRAN) as Granularity[]).map((g) => (
+                    <Button
+                      key={g}
+                      size="sm"
+                      variant={granularity === g ? 'default' : 'outline'}
+                      className="h-7 px-2.5 text-xs"
+                      onClick={() => setGranularity(g)}
+                    >
+                      {GRAN[g].label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {mode === 'custom' && (
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg border bg-muted/20">
+                <DateRangePicker label="Period A" range={rangeA} onChange={setRangeA} maxDate={today} />
+                <DateRangePicker label="Period B" range={rangeB} onChange={setRangeB} maxDate={today} />
+              </div>
+            )}
+          </>
         )}
       </CardHeader>
-      <CardContent>
+      {!collapsed && (
+        <CardContent>
         {loading ? (
           <div className="flex justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
