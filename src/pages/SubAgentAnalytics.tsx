@@ -25,7 +25,13 @@ import {
   BarChart3,
   Download,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Phone,
+  Mail,
+  MapPin,
+  Wallet,
+  IdCard,
+  Briefcase
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -57,11 +63,24 @@ interface SubAgent {
     full_name: string;
     phone: string;
     avatar_url: string | null;
+    email?: string | null;
+    national_id?: string | null;
+    district?: string | null;
+    region?: string | null;
+    occupation?: string | null;
+    joined_at?: string | null;
+  };
+  wallet?: {
+    balance: number;
+    withdrawable_balance: number;
+    float_balance: number;
+    advance_balance: number;
+    locked_balance: number;
   };
   totalEarnings: number;
   tenantsCount: number;
   monthlyEarnings: { month: string; amount: number }[];
-  tenants: { id: string; name: string; totalRepaid: number }[];
+  tenants: { id: string; name: string; phone: string | null; totalRepaid: number }[];
   facilitatedRentVolume: number;
   accessedFunds: number;
   platformRewards: number;
@@ -203,8 +222,14 @@ export default function SubAgentAnalytics() {
       // Fetch profiles
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, avatar_url')
+        .select('id, full_name, phone, avatar_url, email, national_id, district, region, occupation, created_at')
         .in('id', subAgentIds);
+
+      // Fetch sub-agents' wallets
+      const { data: wallets } = await supabase
+        .from('wallets')
+        .select('user_id, balance, withdrawable_balance, float_balance, advance_balance, locked_balance')
+        .in('user_id', subAgentIds);
 
       // Fetch all earnings from sub-agent commissions
       const { data: allEarnings } = await supabase
@@ -228,7 +253,7 @@ export default function SubAgentAnalytics() {
         .in('status', ['active', 'completed', 'cfo_disbursed']);
 
       // Fetch tenants per sub-agent
-      const tenantsData: Record<string, { id: string; name: string; totalRepaid: number }[]> = {};
+      const tenantsData: Record<string, { id: string; name: string; phone: string | null; totalRepaid: number }[]> = {};
       const earningsPerSubAgent: Record<string, number> = {};
       const monthlyEarningsPerSubAgent: Record<string, Record<string, number>> = {};
       const rentVolumePerSubAgent: Record<string, number> = {};
@@ -251,7 +276,7 @@ export default function SubAgentAnalytics() {
           // Get tenant profiles
           const { data: tenantProfiles } = await supabase
             .from('profiles')
-            .select('id, full_name')
+            .select('id, full_name, phone')
             .in('id', tenantIds);
 
           // repayments table removed - use empty array
@@ -265,6 +290,7 @@ export default function SubAgentAnalytics() {
           tenantsData[subAgentId] = tenantProfiles?.map(tp => ({
             id: tp.id,
             name: tp.full_name,
+            phone: tp.phone ?? null,
             totalRepaid: tenantRepayments[tp.id] || 0,
           })) || [];
         } else {
@@ -321,7 +347,32 @@ export default function SubAgentAnalytics() {
 
         return {
           ...sa,
-          profile: profiles?.find(p => p.id === sa.sub_agent_id),
+          profile: (() => {
+            const p = profiles?.find(pr => pr.id === sa.sub_agent_id);
+            if (!p) return undefined;
+            return {
+              full_name: p.full_name,
+              phone: p.phone,
+              avatar_url: p.avatar_url,
+              email: p.email,
+              national_id: p.national_id,
+              district: p.district,
+              region: p.region,
+              occupation: p.occupation,
+              joined_at: p.created_at,
+            };
+          })(),
+          wallet: (() => {
+            const w = wallets?.find(wt => wt.user_id === sa.sub_agent_id);
+            if (!w) return undefined;
+            return {
+              balance: Number(w.balance || 0),
+              withdrawable_balance: Number(w.withdrawable_balance || 0),
+              float_balance: Number(w.float_balance || 0),
+              advance_balance: Number(w.advance_balance || 0),
+              locked_balance: Number(w.locked_balance || 0),
+            };
+          })(),
           totalEarnings: earningsPerSubAgent[sa.sub_agent_id] || 0,
           tenantsCount: tenantsData[sa.sub_agent_id]?.length || 0,
           monthlyEarnings,
@@ -755,6 +806,134 @@ export default function SubAgentAnalytics() {
             </div>
 
             <div className="p-4 space-y-4">
+              {/* Quick contact actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <a
+                  href={selectedSubAgent.profile?.phone ? `tel:${selectedSubAgent.profile.phone}` : undefined}
+                  className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium border transition-colors ${
+                    selectedSubAgent.profile?.phone
+                      ? 'bg-success/10 text-success border-success/20 active:bg-success/20'
+                      : 'bg-muted text-muted-foreground border-border pointer-events-none opacity-60'
+                  }`}
+                >
+                  <Phone className="h-4 w-4" />
+                  Call
+                </a>
+                <a
+                  href={selectedSubAgent.profile?.phone ? `https://wa.me/${selectedSubAgent.profile.phone.replace(/[^0-9]/g, '')}` : undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium border transition-colors ${
+                    selectedSubAgent.profile?.phone
+                      ? 'bg-primary/10 text-primary border-primary/20 active:bg-primary/20'
+                      : 'bg-muted text-muted-foreground border-border pointer-events-none opacity-60'
+                  }`}
+                >
+                  <Mail className="h-4 w-4" />
+                  WhatsApp
+                </a>
+              </div>
+
+              {/* Profile Details */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <IdCard className="h-4 w-4 text-orange-500" />
+                    Profile Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2.5">
+                  <div className="flex items-start gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Phone</p>
+                      <p className="font-medium break-all">{selectedSubAgent.profile?.phone || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Email</p>
+                      <p className="font-medium break-all">{selectedSubAgent.profile?.email || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <IdCard className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">National ID</p>
+                      <p className="font-medium break-all">{selectedSubAgent.profile?.national_id || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Location</p>
+                      <p className="font-medium">
+                        {[selectedSubAgent.profile?.district, selectedSubAgent.profile?.region]
+                          .filter(Boolean)
+                          .join(', ') || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <Briefcase className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Occupation</p>
+                      <p className="font-medium">{selectedSubAgent.profile?.occupation || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Joined</p>
+                      <p className="font-medium">
+                        {selectedSubAgent.profile?.joined_at
+                          ? format(new Date(selectedSubAgent.profile.joined_at), 'MMM d, yyyy')
+                          : format(new Date(selectedSubAgent.created_at), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Wallet Details */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-success" />
+                    Wallet Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {selectedSubAgent.wallet ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-success/10 rounded-xl p-3 border border-success/20 col-span-2 text-center">
+                        <p className="text-[11px] text-muted-foreground">Withdrawable Balance</p>
+                        <p className="font-bold text-success text-xl mt-0.5">
+                          {formatUGX(selectedSubAgent.wallet.withdrawable_balance)}
+                        </p>
+                      </div>
+                      <div className="bg-muted/50 rounded-xl p-3 text-center border border-border">
+                        <p className="text-[11px] text-muted-foreground">Float Balance</p>
+                        <p className="font-bold text-foreground text-base mt-0.5">
+                          {formatUGX(selectedSubAgent.wallet.float_balance)}
+                        </p>
+                      </div>
+                      <div className="bg-warning/10 rounded-xl p-3 text-center border border-warning/20">
+                        <p className="text-[11px] text-muted-foreground">Advance (owed)</p>
+                        <p className="font-bold text-warning text-base mt-0.5">
+                          {formatUGX(selectedSubAgent.wallet.advance_balance)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No wallet found for this sub-agent
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Primary KPI — Parent earnings from this sub-agent */}
               <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-2xl p-5 text-center">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
@@ -933,11 +1112,35 @@ export default function SubAgentAnalytics() {
                   ) : (
                     <div className="space-y-2">
                       {selectedSubAgent.tenants.map((tenant) => (
-                        <div key={tenant.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-                          <span className="text-sm font-medium">{tenant.name}</span>
-                          <div className="text-right">
-                            <p className="text-xs font-medium">{formatUGX(tenant.totalRepaid)}</p>
-                            <p className="text-[10px] text-muted-foreground">total repaid</p>
+                        <div key={tenant.id} className="flex items-center justify-between gap-2 p-2.5 bg-muted/50 rounded-lg">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{tenant.name}</p>
+                            {tenant.phone ? (
+                              <a
+                                href={`tel:${tenant.phone}`}
+                                className="inline-flex items-center gap-1 text-xs text-primary mt-0.5"
+                              >
+                                <Phone className="h-3 w-3" />
+                                {tenant.phone}
+                              </a>
+                            ) : (
+                              <p className="text-[11px] text-muted-foreground mt-0.5">No phone</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="text-right">
+                              <p className="text-xs font-medium">{formatUGX(tenant.totalRepaid)}</p>
+                              <p className="text-[10px] text-muted-foreground">total repaid</p>
+                            </div>
+                            {tenant.phone && (
+                              <a
+                                href={`tel:${tenant.phone}`}
+                                className="flex items-center justify-center h-9 w-9 rounded-full bg-success/10 text-success active:bg-success/20"
+                                aria-label={`Call ${tenant.name}`}
+                              >
+                                <Phone className="h-4 w-4" />
+                              </a>
+                            )}
                           </div>
                         </div>
                       ))}
