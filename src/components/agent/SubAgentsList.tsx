@@ -462,14 +462,24 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
           {filtered.map(sub => (
             <div
               key={sub.sub_agent_id}
-              className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted transition-colors"
+              className={`flex items-center justify-between p-3 rounded-xl transition-colors ${
+                sub.status === 'verified'
+                  ? 'bg-success/5 border border-success/20 hover:bg-success/10'
+                  : 'bg-muted/40 hover:bg-muted'
+              }`}
             >
               <button
                 onClick={() => navigate(`/sub-agents?id=${sub.sub_agent_id}`)}
                 className="flex items-center gap-3 flex-1 min-w-0 text-left"
               >
-                <div className="relative w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
-                  <Users className="h-5 w-5 text-orange-500" />
+                <div className={`relative w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                  sub.status === 'verified'
+                    ? 'bg-success/20 ring-2 ring-success/40'
+                    : 'bg-orange-500/20'
+                }`}>
+                  <Users className={`h-5 w-5 ${
+                    sub.status === 'verified' ? 'text-success' : 'text-orange-500'
+                  }`} />
                   {sub.active_today && (
                     <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-success ring-2 ring-background" />
                   )}
