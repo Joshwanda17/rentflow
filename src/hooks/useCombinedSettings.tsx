@@ -44,6 +44,15 @@ export function getIntensityMultiplier(intensity: HapticIntensity): number {
   }
 }
 
+// ============= Reduced Motion =============
+export type ReducedMotion = 'system' | 'reduce' | 'no-preference';
+
+export const reducedMotionOptions = [
+  { value: 'system' as const, label: 'Follow system', description: 'Match your device settings' },
+  { value: 'reduce' as const, label: 'Reduce motion', description: 'Disable animations' },
+  { value: 'no-preference' as const, label: 'Allow motion', description: 'Enable animations' },
+];
+
 // ============= Combined Context =============
 interface CombinedSettingsContextType {
   // Font Size
@@ -58,6 +67,10 @@ interface CombinedSettingsContextType {
   hapticIntensity: HapticIntensity;
   setHapticIntensity: (intensity: HapticIntensity) => void;
   isHapticEnabled: boolean;
+  // Reduced Motion
+  reducedMotion: ReducedMotion;
+  setReducedMotion: (value: ReducedMotion) => void;
+  prefersReducedMotion: boolean;
 }
 
 const CombinedSettingsContext = createContext<CombinedSettingsContextType | undefined>(undefined);
