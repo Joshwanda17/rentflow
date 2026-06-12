@@ -1940,14 +1940,15 @@ export default function SubAgentAnalytics() {
                               </p>
                             )}
                             {hasMore && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full h-10 text-xs"
-                                onClick={() => { hapticTap(); setHousesPage(p => p + 1); }}
-                              >
-                                Load more houses
-                              </Button>
+                              <div ref={housesSentinelRef} className="flex justify-center py-3">
+                                {housesLoadingMore ? (
+                                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                ) : (
+                                  <span className="text-[11px] text-muted-foreground">
+                                    Scroll for more
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </>
                         );
