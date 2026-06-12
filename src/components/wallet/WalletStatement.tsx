@@ -171,6 +171,7 @@ export function WalletStatement() {
   const [totals, setTotals] = useState({ totalIn: 0, totalOut: 0 });
   const [breakdown, setBreakdown] = useState<Record<string, number>>({});
   const [userName, setUserName] = useState('');
+  const [subAgentEarnings, setSubAgentEarnings] = useState<SubAgentEarningRow[]>([]);
   // Filters
   const [directionFilter, setDirectionFilter] = useState<'all' | 'credit' | 'debit'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
