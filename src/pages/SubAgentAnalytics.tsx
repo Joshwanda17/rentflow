@@ -445,6 +445,49 @@ export default function SubAgentAnalytics() {
         .in('agent_id', subAgentIds)
         .in('status', ['active', 'completed', 'cfo_disbursed']);
 
+      // Fetch houses listed by each sub-agent
+      const { data: houseRows } = await supabase
+        .from('house_listings')
+        .select('id, agent_id, title, status, monthly_rent, verified, tenant_id, region, district, created_at')
+        .in('agent_id', subAgentIds)
+        .order('created_at', { ascending: false });
+
+      // Fetch the parent's recruiter-override earnings on those sub-agents'
+      // house listings (e.g. 3,000 when a sub-agent's listing gets verified).
+      const { data: overrideRows } = await supabase
+        .from('recruiter_override_events')
+        .select('sub_agent_id, source_table, source_id, amount, status')
+        .eq('recruiter_id', user.id)
+        .eq('source_table', 'house_listings')
+        .in('sub_agent_id', subAgentIds);
+
+      // Map override earnings by house listing id (only successful/credited ones)
+      const overrideByHouse: Record<string, number> = {};
+      const houseOverrideBySubAgent: Record<string, number> = {};
+      (overrideRows || []).forEach(o => {
+        if (o.status && o.status !== 'credited' && o.status !== 'success' && o.status !== 'paid') return;
+        const amt = Number(o.amount || 0);
+        if (o.source_id) overrideByHouse[o.source_id] = (overrideByHouse[o.source_id] || 0) + amt;
+        if (o.sub_agent_id) houseOverrideBySubAgent[o.sub_agent_id] = (houseOverrideBySubAgent[o.sub_agent_id] || 0) + amt;
+      });
+
+      const housesBySubAgent: Record<string, SubAgentHouse[]> = {};
+      (houseRows || []).forEach(h => {
+        const list = housesBySubAgent[h.agent_id] || (housesBySubAgent[h.agent_id] = []);
+        list.push({
+          id: h.id,
+          title: h.title,
+          status: h.status,
+          monthly_rent: Number(h.monthly_rent || 0),
+          verified: !!h.verified,
+          tenant_id: h.tenant_id,
+          region: h.region,
+          district: h.district,
+          created_at: h.created_at,
+          overrideEarned: overrideByHouse[h.id] || 0,
+        });
+      });
+
       // Fetch tenants per sub-agent
       const tenantsData: Record<string, { id: string; name: string; phone: string | null; totalRepaid: number }[]> = {};
       const earningsPerSubAgent: Record<string, number> = {};
