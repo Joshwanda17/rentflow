@@ -236,6 +236,25 @@ export default function AgentFloatBreakdown() {
   const totalIn = filteredRows.filter(r => r.signed_amount > 0).reduce((s, r) => s + Number(r.signed_amount), 0);
   const totalOut = filteredRows.filter(r => r.signed_amount < 0).reduce((s, r) => s + Number(r.signed_amount), 0);
 
+  const filteredAllocations = useMemo(() => {
+    if (!allocations) return [];
+    const fromMs = allocFromDate ? new Date(allocFromDate + 'T00:00:00').getTime() : -Infinity;
+    const toMs = allocToDate ? new Date(allocToDate + 'T23:59:59.999').getTime() : Infinity;
+    const q = allocSearch.trim().toLowerCase();
+    return allocations.filter((a) => {
+      const t = new Date(a.occurred_at).getTime();
+      if (t < fromMs || t > toMs) return false;
+      if (!q) return true;
+      return (
+        (a.tenant_name ?? '').toLowerCase().includes(q) ||
+        (a.tenant_phone ?? '').toLowerCase().includes(q) ||
+        (a.description ?? '').toLowerCase().includes(q) ||
+        (a.reference_id ?? '').toLowerCase().includes(q) ||
+        (a.category ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [allocations, allocFromDate, allocToDate, allocSearch]);
+
   function rangeSuffix(): string {
     if (fromDate && toDate) return `${fromDate}_to_${toDate}`;
     if (fromDate) return `from_${fromDate}`;
