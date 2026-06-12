@@ -534,6 +534,7 @@ function QueuedSubmitBanner({ status }: { status: 'idle' | 'queued' | 'cancellin
 
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount, prefillDraft, draftId, preselectHouse }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const capIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
   const { data: capMap, isLoading: capLoading } = useAgentCapacityMap(capIds);
   const myCap = user?.id ? capMap?.get(user.id) : undefined;
