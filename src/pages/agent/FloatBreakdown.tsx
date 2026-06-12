@@ -178,6 +178,30 @@ export default function AgentFloatBreakdown() {
     return () => { cancelled = true; };
   }, [selected, user?.id]);
 
+  // For float deposits (cash_in), load the tenant rent transactions this
+  // specific deposit funded via FIFO matching.
+  useEffect(() => {
+    if (!selected || !user?.id || selected.signed_amount <= 0) {
+      setAllocations(null);
+      return;
+    }
+    let cancelled = false;
+    setAllocLoading(true);
+    setAllocErr(null);
+    setAllocations(null);
+    (async () => {
+      const { data, error } = await supabase.rpc('get_float_deposit_allocations', {
+        p_user_id: user.id,
+        p_entry_id: selected.entry_id,
+      });
+      if (cancelled) return;
+      if (error) setAllocErr(error.message);
+      else setAllocations((data ?? []) as FloatAllocation[]);
+      setAllocLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [selected, user?.id]);
+
   async function copyToClipboard(value: string, key: string) {
     try {
       await navigator.clipboard.writeText(value);
