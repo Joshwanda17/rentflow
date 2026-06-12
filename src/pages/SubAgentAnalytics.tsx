@@ -1751,6 +1751,76 @@ export default function SubAgentAnalytics() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Houses Listed by this sub-agent */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Home className="h-4 w-4 text-orange-500" />
+                      Houses Listed ({selectedSubAgent.houses.length})
+                    </CardTitle>
+                    {selectedSubAgent.houseOverrideEarnings > 0 && (
+                      <span className="text-xs font-bold text-orange-600">
+                        +{formatUGX(selectedSubAgent.houseOverrideEarnings)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Your override earnings when their listings get verified
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {selectedSubAgent.houses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No houses listed yet
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedSubAgent.houses.map((house) => (
+                        <div key={house.id} className="flex items-start justify-between gap-2 p-2.5 bg-muted/50 rounded-lg">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {house.title || 'Untitled listing'}
+                            </p>
+                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5 truncate">
+                              <MapPin className="h-3 w-3 shrink-0" />
+                              <span className="truncate">
+                                {[house.district, house.region].filter(Boolean).join(', ') || 'No location'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              {house.verified ? (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
+                                  <CheckCircle2 className="h-2.5 w-2.5" /> Verified
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                                  <Clock className="h-2.5 w-2.5" /> Pending
+                                </span>
+                              )}
+                              {house.tenant_id && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                  <Users className="h-2.5 w-2.5" /> Occupied
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs font-medium">{formatUGX(house.monthly_rent)}</p>
+                            <p className="text-[10px] text-muted-foreground">/month</p>
+                            {house.overrideEarned > 0 && (
+                              <p className="text-[11px] font-bold text-orange-600 mt-1">
+                                +{formatUGX(house.overrideEarned)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
