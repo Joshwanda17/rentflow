@@ -45,7 +45,8 @@ import {
   Clock,
   ChevronDown,
   History,
-  XCircle
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import { Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
