@@ -2423,6 +2423,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
   }, [fieldFormBlob, fieldFormFileName, user, downloadFieldForm]);
 
+  // On phones the embedded PDF iframe is cramped / often blank (iOS Safari).
+  // Let the agent pop it open full-screen in a new tab instead.
+  const openFieldFormFullScreen = useCallback(() => {
+    if (!fieldFormPreviewUrl) return;
+    const win = window.open(fieldFormPreviewUrl, '_blank');
+    if (!win) {
+      downloadFieldForm();
+      toast.info('PDF downloaded. Open it from your downloads to view full screen.');
+    }
+  }, [fieldFormPreviewUrl, downloadFieldForm]);
+
   return (
     <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
