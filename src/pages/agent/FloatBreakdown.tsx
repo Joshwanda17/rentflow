@@ -7,6 +7,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { hapticTap } from '@/lib/haptics';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { TenantProfileView } from '@/components/agent/TenantProfileView';
 
 interface FloatRow {
   entry_id: string;
