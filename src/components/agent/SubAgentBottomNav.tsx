@@ -1,15 +1,16 @@
 import { createPortal } from 'react-dom';
-import { BarChart3, Sparkles, Users, UserPlus } from 'lucide-react';
+import { BarChart3, Sparkles, Users, UserPlus, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { useReducedMotion } from '@/hooks/useCombinedSettings';
 
-export type SubAgentSection = 'subagent-overview' | 'subagent-invite' | 'subagent-team';
+export type SubAgentSection = 'subagent-overview' | 'subagent-invite' | 'subagent-team' | 'subagent-audit';
 
 const ITEMS: { id: SubAgentSection; label: string; icon: typeof BarChart3 }[] = [
   { id: 'subagent-overview', label: 'Summary', icon: BarChart3 },
   { id: 'subagent-invite', label: 'Invites', icon: Sparkles },
   { id: 'subagent-team', label: 'Team', icon: Users },
+  { id: 'subagent-audit', label: 'Audit', icon: ShieldCheck },
 ];
 
 interface SubAgentBottomNavProps {
@@ -27,7 +28,7 @@ export function SubAgentBottomNav({ active, onNavigate, onInvite }: SubAgentBott
       aria-label="Sub-agent sections"
       className="fixed bottom-0 inset-x-0 z-[60] bg-background/95 backdrop-blur-xl border-t border-border/60 pb-[env(safe-area-inset-bottom,0px)]"
     >
-      <div className="grid grid-cols-4 max-w-lg mx-auto pt-1">
+      <div className="grid grid-cols-5 max-w-lg mx-auto pt-1">
         {ITEMS.map((item) => {
           const isActive = active === item.id;
           return (

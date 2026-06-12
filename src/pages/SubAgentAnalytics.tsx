@@ -64,6 +64,7 @@ import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { SubAgentBottomNav, type SubAgentSection } from '@/components/agent/SubAgentBottomNav';
+import { SubAgentPayoutAudit } from '@/components/agent/SubAgentPayoutAudit';
 import {
   BarChart,
   Bar,
@@ -489,7 +490,7 @@ export default function SubAgentAnalytics() {
   // Scroll-spy: highlight the bottom-nav section currently in view
   useEffect(() => {
     if (loading || subAgents.length === 0) return;
-    const ids: SubAgentSection[] = ['subagent-overview', 'subagent-invite', 'subagent-team'];
+    const ids: SubAgentSection[] = ['subagent-overview', 'subagent-invite', 'subagent-team', 'subagent-audit'];
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
@@ -1499,6 +1500,9 @@ export default function SubAgentAnalytics() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Payout audit: earning leg ↔ withdrawable wallet credit */}
+            <SubAgentPayoutAudit />
           </div>
         )}
       </main>
