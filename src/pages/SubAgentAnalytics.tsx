@@ -38,7 +38,11 @@ import {
   Filter,
   ArrowUpDown,
   Sparkles,
-  Plus
+  Plus,
+  CheckCircle2,
+  AlertCircle,
+  Send,
+  Clock
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
