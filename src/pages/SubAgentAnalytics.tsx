@@ -247,7 +247,7 @@ export default function SubAgentAnalytics() {
         .in('status', ['active', 'completed', 'cfo_disbursed']);
 
       // Fetch tenants per sub-agent
-      const tenantsData: Record<string, { id: string; name: string; totalRepaid: number }[]> = {};
+      const tenantsData: Record<string, { id: string; name: string; phone: string | null; totalRepaid: number }[]> = {};
       const earningsPerSubAgent: Record<string, number> = {};
       const monthlyEarningsPerSubAgent: Record<string, Record<string, number>> = {};
       const rentVolumePerSubAgent: Record<string, number> = {};
@@ -270,7 +270,7 @@ export default function SubAgentAnalytics() {
           // Get tenant profiles
           const { data: tenantProfiles } = await supabase
             .from('profiles')
-            .select('id, full_name')
+            .select('id, full_name, phone')
             .in('id', tenantIds);
 
           // repayments table removed - use empty array
@@ -284,6 +284,7 @@ export default function SubAgentAnalytics() {
           tenantsData[subAgentId] = tenantProfiles?.map(tp => ({
             id: tp.id,
             name: tp.full_name,
+            phone: tp.phone ?? null,
             totalRepaid: tenantRepayments[tp.id] || 0,
           })) || [];
         } else {
