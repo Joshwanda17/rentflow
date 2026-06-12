@@ -1125,6 +1125,7 @@ export function WalletStatement() {
                         const isCredit = entry.type === 'credit';
                         const showDescription = entry.description && entry.description !== label;
                         const partyNote =
+                          entry.subAgentName ? `Sub-agent: ${entry.subAgentName}` :
                           entry.linked_party && entry.category === 'tenant_default_charge' ? `Tenant: ${entry.linked_party}` :
                           entry.linked_party && entry.linked_party !== 'platform' && entry.category === 'agent_commission' ? `From: ${entry.linked_party}` :
                           entry.linked_party && entry.linked_party !== 'platform' ? `→ ${entry.linked_party}` :
@@ -1160,7 +1161,14 @@ export function WalletStatement() {
                               </div>
                             </summary>
                             <div className="border-t bg-muted/20 px-3 py-3 text-[11px] leading-relaxed text-muted-foreground">
-                              <p>{plainExplanation}</p>
+                              {entry.subAgentName ? (
+                                <p className="text-foreground/80">
+                                  <span className="font-semibold text-foreground">{entry.subAgentName}</span>
+                                  {entry.subAgentAction ? ` — ${entry.subAgentAction}` : ''}
+                                </p>
+                              ) : (
+                                <p>{plainExplanation}</p>
+                              )}
                               {showDescription && (
                                 <p className="mt-1.5 italic text-foreground/70">"{entry.description}"</p>
                               )}
