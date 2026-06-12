@@ -36,7 +36,9 @@ import {
   Search,
   X,
   Filter,
-  ArrowUpDown
+  ArrowUpDown,
+  Sparkles,
+  Plus
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -45,6 +47,8 @@ import { SetTeamGoalDialog } from '@/components/agent/SetTeamGoalDialog';
 import { TeamGoalProgress } from '@/components/agent/TeamGoalProgress';
 import { exportToCSV, exportToPDF, formatNumberForExport, formatDateForExport } from '@/lib/exportUtils';
 import { useToast } from '@/hooks/use-toast';
+import { hapticTap } from '@/lib/haptics';
+import { FloatingActionButton } from '@/components/FloatingActionButton';
 import {
   BarChart,
   Bar,
@@ -640,9 +644,14 @@ export default function SubAgentAnalytics() {
             </DropdownMenu>
           )}
           
-          <Button onClick={() => setRegisterDialogOpen(true)} size="sm" className="gap-1">
+          <Button 
+            onClick={() => { hapticTap(); setRegisterDialogOpen(true); }} 
+            size="sm" 
+            className="gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25"
+          >
             <UserPlus className="h-4 w-4" />
-            Add
+            <span className="hidden sm:inline">Invite Sub-Agent</span>
+            <span className="sm:hidden">Invite</span>
           </Button>
         </div>
       </div>
@@ -786,6 +795,29 @@ export default function SubAgentAnalytics() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Invite Banner — always visible to encourage growth */}
+            <div 
+              onClick={() => { hapticTap(); setRegisterDialogOpen(true); }}
+              className="relative overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-background p-4 cursor-pointer active:scale-[0.99] transition-transform"
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 p-2 rounded-xl bg-orange-500/15 shrink-0">
+                  <Sparkles className="h-5 w-5 text-orange-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm">Grow Your Team</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Invite more sub-agents and earn <span className="font-semibold text-orange-500">2%</span> from every tenant they register. More agents = more passive income.
+                  </p>
+                </div>
+                <div className="shrink-0 self-center">
+                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-orange-500 text-white shadow-lg shadow-orange-500/25">
+                    <Plus className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Sub-Agents List */}
             <Card>
@@ -1348,6 +1380,17 @@ export default function SubAgentAnalytics() {
           fetchSubAgentAnalytics();
         }}
         existingGoal={currentGoal}
+      />
+      <FloatingActionButton
+        actions={[
+          {
+            icon: UserPlus,
+            label: 'Invite Sub-Agent',
+            onClick: () => { hapticTap(); setRegisterDialogOpen(true); },
+            variant: 'default',
+          },
+        ]}
+        position="bottom-right"
       />
     </div>
   );
