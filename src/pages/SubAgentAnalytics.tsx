@@ -57,6 +57,7 @@ import { TeamGoalProgress } from '@/components/agent/TeamGoalProgress';
 import { exportToCSV, exportToPDF, formatNumberForExport, formatDateForExport } from '@/lib/exportUtils';
 import { useToast } from '@/hooks/use-toast';
 import { hapticTap } from '@/lib/haptics';
+import { useReducedMotion } from '@/hooks/useCombinedSettings';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
@@ -246,8 +247,13 @@ export default function SubAgentAnalytics() {
   const [expandedTimelines, setExpandedTimelines] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<SubAgentSection>('subagent-overview');
 
+  const { prefersReducedMotion } = useReducedMotion();
+
   const scrollToSection = (id: SubAgentSection) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById(id)?.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'start',
+    });
   };
 
   const toggleTimeline = (id: string) => {
