@@ -140,6 +140,91 @@ interface RecruiterSplit {
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))', 'hsl(142, 76%, 36%)', 'hsl(221, 83%, 53%)'];
 
+type TimelineTone = 'success' | 'destructive' | 'info' | 'muted';
+interface TimelineEvent {
+  key: string;
+  label: string;
+  detail?: string;
+  at: string | null;
+  icon: typeof Send;
+  tone: TimelineTone;
+}
+
+function buildInviteTimeline(sa: SubAgent): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  // 1. Invite created
+  events.push({
+    key: 'created',
+    label: 'Invite created',
+    detail: sa.source ? `Source: ${sa.source}` : undefined,
+    at: sa.created_at,
+    icon: UserPlus,
+    tone: 'muted',
+  });
+
+  // 2. SMS delivery
+  if (sa.invite_sms_status) {
+    const failed = sa.invite_sms_status === 'failed';
+    events.push({
+      key: 'sms',
+      label: failed ? 'SMS delivery failed' : 'SMS invite sent',
+      detail: `Status: ${sa.invite_sms_status}`,
+      at: sa.invite_sent_at || sa.created_at,
+      icon: failed ? XCircle : Send,
+      tone: failed ? 'destructive' : 'info',
+    });
+  }
+
+  // 3. Email delivery
+  if (sa.invite_email_status) {
+    const failed = sa.invite_email_status === 'failed';
+    events.push({
+      key: 'email',
+      label: failed ? 'Email delivery failed' : 'Email invite sent',
+      detail: `Status: ${sa.invite_email_status}`,
+      at: sa.invite_sent_at || sa.created_at,
+      icon: failed ? XCircle : Mail,
+      tone: failed ? 'destructive' : 'info',
+    });
+  }
+
+  // 4. Acceptance
+  const acceptedAt = sa.accepted_at || (sa.status === 'verified' ? sa.verified_at : null);
+  if (acceptedAt || sa.status === 'verified') {
+    events.push({
+      key: 'accepted',
+      label: 'Invitation accepted',
+      detail: 'User joined your team',
+      at: acceptedAt || null,
+      icon: CheckCircle2,
+      tone: 'success',
+    });
+  } else if (sa.status === 'rejected') {
+    events.push({
+      key: 'rejected',
+      label: 'Invitation declined',
+      detail: sa.rejection_reason || undefined,
+      at: sa.verified_at || null,
+      icon: XCircle,
+      tone: 'destructive',
+    });
+  }
+
+  return events.sort((a, b) => {
+    const ta = a.at ? new Date(a.at).getTime() : 0;
+    const tb = b.at ? new Date(b.at).getTime() : 0;
+    return ta - tb;
+  });
+}
+
+const TIMELINE_TONE: Record<TimelineTone, string> = {
+  success: 'bg-success/10 text-success',
+  destructive: 'bg-destructive/10 text-destructive',
+  info: 'bg-blue-500/10 text-blue-600',
+  muted: 'bg-muted text-muted-foreground',
+};
+
 export default function SubAgentAnalytics() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
