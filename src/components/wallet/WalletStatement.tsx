@@ -162,6 +162,128 @@ function formatAmount(amount: number): string {
   return `UGX ${amount.toLocaleString()}`;
 }
 
+const SUBAGENT_EARNING_TYPES = ['subagent_commission', 'subagent_override', 'subagent_registration'];
+
+/**
+ * Fetches every sub-agent-driven earning leg (recruiter overrides + sub-agent
+ * commissions), resolves the sub-agent's name, and matches each leg to its
+ * withdrawable wallet credit in the ledger. Mutates `entries` in place to attach
+ * sub-agent name + plain-English action, and returns a flat list for the summary.
+ */
+async function buildSubAgentEarnings(userId: string, entries: LedgerEntry[]): Promise<SubAgentEarningRow[]> {
+  const [overridesRes, earningsRes, legsRes] = await Promise.all([
+    supabase
+      .from('recruiter_override_events')
+      .select('id, sub_agent_id, label, amount, source_id, occurred_at, event_type')
+      .eq('recruiter_id', userId)
+      .order('occurred_at', { ascending: false })
+      .limit(300),
+    supabase
+      .from('agent_earnings')
+      .select('id, amount, earning_type, description, source_user_id, created_at')
+      .eq('agent_id', userId)
+      .in('earning_type', SUBAGENT_EARNING_TYPES)
+      .order('created_at', { ascending: false })
+      .limit(300),
+    supabase
+      .from('general_ledger')
+      .select('id, amount, source_id, transaction_date, recipient_type, ledger_scope, wallet_bucket')
+      .eq('user_id', userId)
+      .eq('category', 'agent_commission')
+      .eq('ledger_scope', 'wallet')
+      .neq('classification', 'admin_correction')
+      .order('transaction_date', { ascending: false })
+      .limit(800),
+  ]);
+
+  const overrides = overridesRes.data || [];
+  const earnings = earningsRes.data || [];
+  const legs = (legsRes.data || []).map((l) => ({
+    id: l.id as string,
+    amount: Number(l.amount),
+    source_id: l.source_id ? String(l.source_id) : null,
+    date: l.transaction_date as string,
+    bucket:
+      (l.wallet_bucket as string | null) ||
+      (l.recipient_type === 'user' && l.ledger_scope === 'wallet' ? 'withdrawable' : (l.ledger_scope as string | null)),
+  }));
+
+  // Resolve sub-agent names.
+  const ids = [
+    ...new Set([
+      ...overrides.filter((o) => o.sub_agent_id).map((o) => o.sub_agent_id as string),
+      ...earnings.filter((e) => e.source_user_id).map((e) => e.source_user_id as string),
+    ]),
+  ];
+  const nameMap: Record<string, string> = {};
+  if (ids.length > 0) {
+    const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+    (profiles || []).forEach((p) => { nameMap[p.id] = p.full_name || 'Unknown sub-agent'; });
+  }
+
+  type Leg = {
+    key: string;
+    subAgentName: string;
+    action: string;
+    amount: number;
+    date: string;
+    sourceId: string | null;
+  };
+  const earningLegs: Leg[] = [
+    ...overrides.map((o) => ({
+      key: `roe-${o.id}`,
+      subAgentName: o.sub_agent_id ? (nameMap[o.sub_agent_id] || 'Unknown sub-agent') : 'A sub-agent',
+      action: describeSubAgentAction({ eventType: o.event_type, label: o.label }),
+      amount: Number(o.amount),
+      date: o.occurred_at as string,
+      sourceId: o.source_id ? String(o.source_id) : null,
+    })),
+    ...earnings.map((e) => ({
+      key: `ae-${e.id}`,
+      subAgentName: e.source_user_id ? (nameMap[e.source_user_id] || 'Unknown sub-agent') : 'A sub-agent',
+      action: describeSubAgentAction({ earningType: e.earning_type, description: e.description }),
+      amount: Number(e.amount),
+      date: e.created_at as string,
+      sourceId: null,
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Match each earning leg to a wallet credit (source_id first, then amount + time window).
+  const used = new Set<string>();
+  const result: SubAgentEarningRow[] = earningLegs.map((leg) => {
+    let pick: (typeof legs)[number] | null = null;
+    const avail = legs.filter((w) => !used.has(w.id));
+    if (leg.sourceId) {
+      pick = avail.find((w) => w.source_id === leg.sourceId && Math.abs(w.amount - leg.amount) < 1) || null;
+    }
+    if (!pick) {
+      const t = new Date(leg.date).getTime();
+      pick = avail
+        .filter((w) => Math.abs(w.amount - leg.amount) < 1 && Math.abs(new Date(w.date).getTime() - t) < 5 * 60 * 1000)
+        .sort((a, b) => Math.abs(new Date(a.date).getTime() - t) - Math.abs(new Date(b.date).getTime() - t))[0] || null;
+    }
+    if (pick) {
+      used.add(pick.id);
+      // Attach context to the matching wallet entry in the statement timeline.
+      const entry = entries.find((en) => en.id === pick!.id);
+      if (entry) {
+        entry.subAgentName = leg.subAgentName;
+        entry.subAgentAction = leg.action;
+      }
+    }
+    return {
+      key: leg.key,
+      subAgentName: leg.subAgentName,
+      action: leg.action,
+      amount: leg.amount,
+      date: leg.date,
+      landed: pick ? pick.bucket === 'withdrawable' : false,
+    };
+  });
+
+  return result;
+}
+
 export function WalletStatement() {
   const { user, role } = useAuth();
   const [open, setOpen] = useState(false);
