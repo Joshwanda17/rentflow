@@ -1019,6 +1019,8 @@ export default function AgentFloatBreakdown() {
               </>
             )}
           </div>
+        </>
+      )}
         </SheetContent>
       </Sheet>
     </div>
