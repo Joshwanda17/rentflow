@@ -886,6 +886,58 @@ export function WalletStatement() {
 
             {/* ── Income Breakdown (collapsed by default) ── */}
             {breakdownItems.length > 0 && (
+              <></>
+            )}
+
+            {/* ── Earnings from your sub-agents ── */}
+            {subAgentEarnings.length > 0 && (
+              <section aria-labelledby="ws-subagent" className="mb-4 overflow-hidden rounded-2xl border bg-card">
+                <div className="flex items-start justify-between gap-3 border-b bg-primary/5 px-4 py-3">
+                  <div className="min-w-0">
+                    <h3 id="ws-subagent" className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                      <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                      Earnings from your sub-agents
+                    </h3>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Who earned you money, what they did, and how much.
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold text-success tabular-nums">
+                      +{formatUGX(subAgentEarnings.reduce((s, r) => s + r.amount, 0))}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{subAgentEarnings.length} {subAgentEarnings.length === 1 ? 'earning' : 'earnings'}</p>
+                  </div>
+                </div>
+                <ul className="divide-y divide-border/60 list-none p-0 m-0">
+                  {subAgentEarnings.map((row) => (
+                    <li key={row.key} className="flex items-center gap-3 px-4 py-3">
+                      <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 text-primary flex items-center justify-center" aria-hidden="true">
+                        <Users className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">{row.subAgentName}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">{row.action}</p>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground/80">{format(new Date(row.date), 'MMM d, yyyy · h:mm a')}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-bold text-success tabular-nums">+{formatUGX(row.amount)}</p>
+                        {row.landed ? (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-success">
+                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> Withdrawable
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">Pending credit</span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {/* ── Income Breakdown (collapsed by default) ── */}
+            {breakdownItems.length > 0 && (
               <div className="mb-4 overflow-hidden rounded-xl border">
                 <button
                   type="button"
