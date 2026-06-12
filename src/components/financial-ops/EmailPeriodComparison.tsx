@@ -2,10 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, TrendingUp, TrendingDown, Minus, CalendarRange } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Minus, CalendarRange, Calendar as CalendarIcon } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid } from 'recharts';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format, startOfDay, endOfDay, isAfter, isBefore } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type Granularity = 'day' | 'week' | 'month' | 'quarter' | 'year';
+type Mode = 'rolling' | 'custom';
+
+interface DateRangeVal {
+  from?: Date;
+  to?: Date;
+}
 
 const GRAN: Record<Granularity, { label: string; over: string; periods: number }> = {
   day: { label: 'Day', over: 'Day over day', periods: 14 },
@@ -94,24 +104,116 @@ function DeltaBadge({ value }: { value: number | null }) {
   );
 }
 
+function inRange(ts: string | null, range: DateRangeVal): boolean {
+  if (!ts || !range.from) return false;
+  const d = new Date(ts);
+  const from = startOfDay(range.from);
+  if (isBefore(d, from)) return false;
+  if (range.to) {
+    const to = endOfDay(range.to);
+    if (isAfter(d, to)) return false;
+  }
+  return true;
+}
+
+function DateRangePicker({
+  label,
+  range,
+  onChange,
+  maxDate,
+}: {
+  label: string;
+  range: DateRangeVal;
+  onChange: (r: DateRangeVal) => void;
+  maxDate?: Date;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn('h-8 justify-start text-left text-xs font-normal', !range.from && 'text-muted-foreground')}
+            >
+              <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+              {range.from ? format(range.from, 'yyyy-MM-dd') : 'From'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+            <Calendar
+              mode="single"
+              selected={range.from}
+              onSelect={(d) => onChange({ ...range, from: d })}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+              disabled={maxDate ? { after: maxDate } : undefined}
+            />
+          </PopoverContent>
+        </Popover>
+        <span className="text-muted-foreground text-xs">→</span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn('h-8 justify-start text-left text-xs font-normal', !range.to && 'text-muted-foreground')}
+            >
+              <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+              {range.to ? format(range.to, 'yyyy-MM-dd') : 'To'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+            <Calendar
+              mode="single"
+              selected={range.to}
+              onSelect={(d) => onChange({ ...range, to: d })}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+              disabled={maxDate ? { after: maxDate } : undefined}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  );
+}
+
 export function EmailPeriodComparison() {
+  const [mode, setMode] = useState<Mode>('rolling');
   const [granularity, setGranularity] = useState<Granularity>('day');
   const [rows, setRows] = useState<TxLite[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Custom range state
+  const today = useMemo(() => new Date(), []);
+  const [rangeA, setRangeA] = useState<DateRangeVal>({ from: undefined, to: undefined });
+  const [rangeB, setRangeB] = useState<DateRangeVal>({ from: undefined, to: undefined });
+
+  const customReady = !!rangeA.from && !!rangeB.from;
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      // Window large enough to cover the periods we compare, plus one for "previous".
-      const ms = {
-        day: 20 * 86_400_000,
-        week: 16 * 7 * 86_400_000,
-        month: 14 * 31 * 86_400_000,
-        quarter: 10 * 92 * 86_400_000,
-        year: 6 * 366 * 86_400_000,
-      }[granularity];
-      const sinceIso = new Date(Date.now() - ms).toISOString();
+      let sinceIso: string;
+      if (mode === 'rolling') {
+        const ms = {
+          day: 20 * 86_400_000,
+          week: 16 * 7 * 86_400_000,
+          month: 14 * 31 * 86_400_000,
+          quarter: 10 * 92 * 86_400_000,
+          year: 6 * 366 * 86_400_000,
+        }[granularity];
+        sinceIso = new Date(Date.now() - ms).toISOString();
+      } else {
+        // Custom: use the earliest 'from' of the two ranges
+        const candidates = [rangeA.from, rangeB.from].filter(Boolean) as Date[];
+        if (candidates.length === 0) { setLoading(false); return; }
+        sinceIso = startOfDay(candidates.reduce((a, b) => (a < b ? a : b))).toISOString();
+      }
       const { data, error } = await (supabase.from('gmail_transactions') as any)
         .select('amount,direction,internal_date')
         .gte('internal_date', sinceIso)
@@ -123,9 +225,9 @@ export function EmailPeriodComparison() {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [granularity]);
+  }, [mode, granularity, rangeA.from, rangeB.from]);
 
-  const buckets = useMemo<Bucket[]>(() => {
+  const rollingBuckets = useMemo<Bucket[]>(() => {
     const map = new Map<string, Bucket>();
     for (const r of rows) {
       if (!r.internal_date) continue;
@@ -146,10 +248,10 @@ export function EmailPeriodComparison() {
     return arr.slice(-GRAN[granularity].periods);
   }, [rows, granularity]);
 
-  const curr = buckets[buckets.length - 1];
-  const prev = buckets[buckets.length - 2];
+  const curr = rollingBuckets[rollingBuckets.length - 1];
+  const prev = rollingBuckets[rollingBuckets.length - 2];
 
-  const metrics = useMemo(() => {
+  const rollingMetrics = useMemo(() => {
     if (!curr) return [];
     const p = prev ?? { in: 0, out: 0, net: 0, count: 0 };
     return [
@@ -161,9 +263,50 @@ export function EmailPeriodComparison() {
   }, [curr, prev]);
 
   const chartData = useMemo(
-    () => buckets.map((b) => ({ label: b.label, In: Math.round(b.in), Out: Math.round(b.out) })),
-    [buckets],
+    () => rollingBuckets.map((b) => ({ label: b.label, In: Math.round(b.in), Out: Math.round(b.out) })),
+    [rollingBuckets],
   );
+
+  // Custom range aggregation
+  const customAgg = useMemo(() => {
+    if (mode !== 'custom' || !customReady) return null;
+    const a = { in: 0, out: 0, net: 0, count: 0 };
+    const b = { in: 0, out: 0, net: 0, count: 0 };
+    for (const r of rows) {
+      if (!r.internal_date) continue;
+      const inA = inRange(r.internal_date, rangeA);
+      const inB = inRange(r.internal_date, rangeB);
+      if (!inA && !inB) continue;
+      const amt = Number(r.amount) || 0;
+      const target = inA ? a : b;
+      if (amt > 0) {
+        if (r.direction === 'in') target.in += amt;
+        else if (r.direction === 'out') target.out += amt;
+      }
+      target.count += 1;
+    }
+    a.net = a.in - a.out;
+    b.net = b.in - b.out;
+    return { a, b };
+  }, [mode, customReady, rows, rangeA, rangeB]);
+
+  const customMetrics = useMemo(() => {
+    if (!customAgg) return [];
+    const { a, b } = customAgg;
+    return [
+      { label: 'Money in', curr: a.in, prev: b.in, fmt: fmtUgx },
+      { label: 'Money out', curr: a.out, prev: b.out, fmt: fmtUgx },
+      { label: 'Net', curr: a.net, prev: b.net, fmt: fmtUgx },
+      { label: 'Emails', curr: a.count, prev: b.count, fmt: (n: number) => n.toLocaleString() },
+    ];
+  }, [customAgg]);
+
+  const periodALabel = rangeA.from
+    ? `${format(rangeA.from, 'yyyy-MM-dd')}${rangeA.to ? ` → ${format(rangeA.to, 'yyyy-MM-dd')}` : ''}`
+    : 'Period A';
+  const periodBLabel = rangeB.from
+    ? `${format(rangeB.from, 'yyyy-MM-dd')}${rangeB.to ? ` → ${format(rangeB.to, 'yyyy-MM-dd')}` : ''}`
+    : 'Period B';
 
   return (
     <Card>
@@ -171,52 +314,162 @@ export function EmailPeriodComparison() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-primary" />
-            Period Comparison · {GRAN[granularity].over}
+            Period Comparison
+            {mode === 'rolling' && ` · ${GRAN[granularity].over}`}
           </CardTitle>
-          <div className="flex flex-wrap gap-1.5">
-            {(Object.keys(GRAN) as Granularity[]).map((g) => (
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-md border overflow-hidden">
               <Button
-                key={g}
                 size="sm"
-                variant={granularity === g ? 'default' : 'outline'}
-                className="h-7 px-2.5 text-xs"
-                onClick={() => setGranularity(g)}
+                variant={mode === 'rolling' ? 'default' : 'ghost'}
+                className="h-7 rounded-none px-2.5 text-xs"
+                onClick={() => setMode('rolling')}
               >
-                {GRAN[g].label}
+                Rolling
               </Button>
-            ))}
+              <Button
+                size="sm"
+                variant={mode === 'custom' ? 'default' : 'ghost'}
+                className="h-7 rounded-none px-2.5 text-xs"
+                onClick={() => setMode('custom')}
+              >
+                Custom Range
+              </Button>
+            </div>
+            {mode === 'rolling' && (
+              <div className="flex flex-wrap gap-1.5">
+                {(Object.keys(GRAN) as Granularity[]).map((g) => (
+                  <Button
+                    key={g}
+                    size="sm"
+                    variant={granularity === g ? 'default' : 'outline'}
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setGranularity(g)}
+                  >
+                    {GRAN[g].label}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+
+        {mode === 'custom' && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg border bg-muted/20">
+            <DateRangePicker label="Period A" range={rangeA} onChange={setRangeA} maxDate={today} />
+            <DateRangePicker label="Period B" range={rangeB} onChange={setRangeB} maxDate={today} />
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {loading ? (
           <div className="flex justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : !curr ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">No email transactions in this window yet.</p>
+        ) : mode === 'rolling' ? (
+          !curr ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">No email transactions in this window yet.</p>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-[11px] text-muted-foreground -mt-1">
+                Comparing <span className="font-medium text-foreground">{curr.label}</span>
+                {prev ? <> vs previous <span className="font-medium text-foreground">{prev.label}</span></> : ' (no prior period)'} · timezone {TZ}
+              </p>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {rollingMetrics.map((m) => (
+                  <div key={m.label} className="rounded-lg border bg-muted/30 p-3">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{m.label}</p>
+                    <p className="mt-1 text-base font-bold tabular-nums">{m.fmt(m.curr)}</p>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <DeltaBadge value={pctChange(m.curr, m.prev)} />
+                      <span className="text-[10px] text-muted-foreground">prev {m.fmt(m.prev)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <RTooltip
+                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))' }}
+                      formatter={(v: number, n: string) => [fmtUgx(v), n]}
+                    />
+                    <Bar dataKey="In" fill="hsl(var(--success, 142 71% 45%))" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="Out" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b">
+                      <th className="py-1.5 pr-2 font-medium">{GRAN[granularity].label}</th>
+                      <th className="py-1.5 px-2 font-medium text-right">In</th>
+                      <th className="py-1.5 px-2 font-medium text-right">Out</th>
+                      <th className="py-1.5 px-2 font-medium text-right">Net</th>
+                      <th className="py-1.5 px-2 font-medium text-right">Emails</th>
+                      <th className="py-1.5 pl-2 font-medium text-right">Net Δ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rollingBuckets.slice().reverse().map((b, i, arr) => {
+                      const older = arr[i + 1];
+                      return (
+                        <tr key={b.key} className="border-b border-border/50 last:border-0">
+                          <td className="py-1.5 pr-2 font-medium">{b.label}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-emerald-500">{fmtUgx(b.in)}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-rose-500">{fmtUgx(b.out)}</td>
+                          <td className={`py-1.5 px-2 text-right tabular-nums ${b.net >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{fmtUgx(b.net)}</td>
+                          <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{b.count.toLocaleString()}</td>
+                          <td className="py-1.5 pl-2 text-right">{older ? <DeltaBadge value={pctChange(b.net, older.net)} /> : <span className="text-[11px] text-muted-foreground">—</span>}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        ) : !customReady ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">Pick both date ranges to compare.</p>
+        ) : !customAgg || (customAgg.a.count === 0 && customAgg.b.count === 0) ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">No email transactions found in the selected ranges.</p>
         ) : (
           <div className="space-y-4">
             <p className="text-[11px] text-muted-foreground -mt-1">
-              Comparing <span className="font-medium text-foreground">{curr.label}</span>
-              {prev ? <> vs previous <span className="font-medium text-foreground">{prev.label}</span></> : ' (no prior period)'} · timezone {TZ}
+              Comparing <span className="font-medium text-foreground">{periodALabel}</span>
+              {' vs '}
+              <span className="font-medium text-foreground">{periodBLabel}</span>
+              {' · timezone '}{TZ}
             </p>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {metrics.map((m) => (
+              {customMetrics.map((m) => (
                 <div key={m.label} className="rounded-lg border bg-muted/30 p-3">
                   <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{m.label}</p>
                   <p className="mt-1 text-base font-bold tabular-nums">{m.fmt(m.curr)}</p>
                   <div className="mt-1 flex items-center justify-between gap-2">
                     <DeltaBadge value={pctChange(m.curr, m.prev)} />
-                    <span className="text-[10px] text-muted-foreground">prev {m.fmt(m.prev)}</span>
+                    <span className="text-[10px] text-muted-foreground">{periodBLabel.slice(0, 20)}… {m.fmt(m.prev)}</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="h-56 w-full">
+            {/* Simple bar chart of just the two periods */}
+            <div className="h-40 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
+                <BarChart
+                  data={[
+                    { label: 'Period A', In: Math.round(customAgg.a.in), Out: Math.round(customAgg.a.out) },
+                    { label: 'Period B', In: Math.round(customAgg.b.in), Out: Math.round(customAgg.b.out) },
+                  ]}
+                  margin={{ top: 6, right: 8, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
@@ -234,28 +487,28 @@ export function EmailPeriodComparison() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-left text-muted-foreground border-b">
-                    <th className="py-1.5 pr-2 font-medium">{GRAN[granularity].label}</th>
+                    <th className="py-1.5 pr-2 font-medium">Period</th>
                     <th className="py-1.5 px-2 font-medium text-right">In</th>
                     <th className="py-1.5 px-2 font-medium text-right">Out</th>
                     <th className="py-1.5 px-2 font-medium text-right">Net</th>
                     <th className="py-1.5 px-2 font-medium text-right">Emails</th>
-                    <th className="py-1.5 pl-2 font-medium text-right">Net Δ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {buckets.slice().reverse().map((b, i, arr) => {
-                    const older = arr[i + 1];
-                    return (
-                      <tr key={b.key} className="border-b border-border/50 last:border-0">
-                        <td className="py-1.5 pr-2 font-medium">{b.label}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-emerald-500">{fmtUgx(b.in)}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-rose-500">{fmtUgx(b.out)}</td>
-                        <td className={`py-1.5 px-2 text-right tabular-nums ${b.net >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{fmtUgx(b.net)}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{b.count.toLocaleString()}</td>
-                        <td className="py-1.5 pl-2 text-right">{older ? <DeltaBadge value={pctChange(b.net, older.net)} /> : <span className="text-[11px] text-muted-foreground">—</span>}</td>
-                      </tr>
-                    );
-                  })}
+                  <tr className="border-b border-border/50">
+                    <td className="py-1.5 pr-2 font-medium">{periodALabel}</td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-emerald-500">{fmtUgx(customAgg.a.in)}</td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-rose-500">{fmtUgx(customAgg.a.out)}</td>
+                    <td className={`py-1.5 px-2 text-right tabular-nums ${customAgg.a.net >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{fmtUgx(customAgg.a.net)}</td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{customAgg.a.count.toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-2 font-medium">{periodBLabel}</td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-emerald-500">{fmtUgx(customAgg.b.in)}</td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-rose-500">{fmtUgx(customAgg.b.out)}</td>
+                    <td className={`py-1.5 px-2 text-right tabular-nums ${customAgg.b.net >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{fmtUgx(customAgg.b.net)}</td>
+                    <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground">{customAgg.b.count.toLocaleString()}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
