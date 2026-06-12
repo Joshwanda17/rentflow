@@ -25,7 +25,13 @@ import {
   BarChart3,
   Download,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Phone,
+  Mail,
+  MapPin,
+  Wallet,
+  IdCard,
+  Briefcase
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
