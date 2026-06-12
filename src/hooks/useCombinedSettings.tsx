@@ -53,6 +53,17 @@ export const reducedMotionOptions = [
   { value: 'no-preference' as const, label: 'Allow motion', description: 'Enable animations' },
 ];
 
+function getSystemPrefersReducedMotion(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function resolvePrefersReducedMotion(setting: ReducedMotion): boolean {
+  if (setting === 'reduce') return true;
+  if (setting === 'no-preference') return false;
+  return getSystemPrefersReducedMotion();
+}
+
 // ============= Combined Context =============
 interface CombinedSettingsContextType {
   // Font Size
@@ -79,6 +90,7 @@ const CombinedSettingsContext = createContext<CombinedSettingsContextType | unde
 const FONT_SIZE_KEY = 'welile-font-size';
 const HIGH_CONTRAST_KEY = 'welile_high_contrast';
 const HAPTIC_KEY = 'haptic-intensity';
+const REDUCED_MOTION_KEY = 'welile-reduced-motion';
 
 export function CombinedSettingsProvider({ children }: { children: ReactNode }) {
   // Font Size State
@@ -107,6 +119,20 @@ export function CombinedSettingsProvider({ children }: { children: ReactNode }) 
     return (stored as HapticIntensity) || 'medium';
   });
 
+  // Reduced Motion State
+  const [reducedMotion, setReducedMotionState] = useState<ReducedMotion>(() => {
+    if (typeof window === 'undefined') return 'system';
+    const stored = localStorage.getItem(REDUCED_MOTION_KEY);
+    if (stored && ['system', 'reduce', 'no-preference'].includes(stored)) {
+      return stored as ReducedMotion;
+    }
+    return 'system';
+  });
+
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() =>
+    resolvePrefersReducedMotion(reducedMotion)
+  );
+
   // Font Size Effects
   useEffect(() => {
     document.documentElement.style.fontSize = fontSizePixels[fontSize];
@@ -130,6 +156,21 @@ export function CombinedSettingsProvider({ children }: { children: ReactNode }) 
     localStorage.setItem(HAPTIC_KEY, hapticIntensity);
   }, [hapticIntensity]);
 
+  // Reduced Motion Effects
+  useEffect(() => {
+    localStorage.setItem(REDUCED_MOTION_KEY, reducedMotion);
+    setPrefersReducedMotion(resolvePrefersReducedMotion(reducedMotion));
+  }, [reducedMotion]);
+
+  // Listen to system preference changes when in "system" mode
+  useEffect(() => {
+    if (typeof window === 'undefined' || reducedMotion !== 'system') return;
+    const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, [reducedMotion]);
+
   // Memoized context value
   const value = useMemo(() => ({
     // Font Size
@@ -144,7 +185,11 @@ export function CombinedSettingsProvider({ children }: { children: ReactNode }) 
     hapticIntensity,
     setHapticIntensity: (intensity: HapticIntensity) => setHapticIntensityState(intensity),
     isHapticEnabled: hapticIntensity !== 'off',
-  }), [fontSize, highContrast, hapticIntensity]);
+    // Reduced Motion
+    reducedMotion,
+    setReducedMotion: (value: ReducedMotion) => setReducedMotionState(value),
+    prefersReducedMotion,
+  }), [fontSize, highContrast, hapticIntensity, reducedMotion, prefersReducedMotion]);
 
   return (
     <CombinedSettingsContext.Provider value={value}>
@@ -164,6 +209,9 @@ const defaultContextValue: CombinedSettingsContextType = {
   hapticIntensity: 'medium',
   setHapticIntensity: () => {},
   isHapticEnabled: true,
+  reducedMotion: 'system',
+  setReducedMotion: () => {},
+  prefersReducedMotion: false,
 };
 
 export function useCombinedSettings() {
@@ -200,4 +248,9 @@ export function useHapticSettings() {
     setIntensity: setHapticIntensity, 
     isEnabled: isHapticEnabled 
   };
+}
+
+export function useReducedMotion() {
+  const { reducedMotion, setReducedMotion, prefersReducedMotion } = useCombinedSettings();
+  return { reducedMotion, setReducedMotion, prefersReducedMotion };
 }
