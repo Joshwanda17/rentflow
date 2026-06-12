@@ -3118,6 +3118,9 @@ export type Database = {
           created_at: string
           expires_at: string | null
           id: string
+          invite_email_status: string | null
+          invite_sent_at: string | null
+          invite_sms_status: string | null
           parent_agent_id: string
           rejection_reason: string | null
           source: string
@@ -3132,6 +3135,9 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          invite_email_status?: string | null
+          invite_sent_at?: string | null
+          invite_sms_status?: string | null
           parent_agent_id: string
           rejection_reason?: string | null
           source?: string
@@ -3146,6 +3152,9 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          invite_email_status?: string | null
+          invite_sent_at?: string | null
+          invite_sms_status?: string | null
           parent_agent_id?: string
           rejection_reason?: string | null
           source?: string
