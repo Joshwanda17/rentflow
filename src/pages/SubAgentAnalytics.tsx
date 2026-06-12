@@ -313,6 +313,14 @@ export default function SubAgentAnalytics() {
   const housesSentinelRef = useRef<HTMLDivElement>(null);
   const HOUSES_PER_PAGE = 10;
 
+  // Pull-to-refresh state for detail sheet
+  const detailScrollRef = useRef<HTMLDivElement>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [visualPullProgress, setVisualPullProgress] = useState(0);
+  const pullStartYRef = useRef(0);
+  const isPullingRef = useRef(false);
+  const pullProgressRef = useRef(0);
+
   // Search & filter state
   const [subAgentSearch, setSubAgentSearch] = useState('');
   const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
