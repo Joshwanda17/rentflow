@@ -42,7 +42,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Send,
-  Clock
+  Clock,
+  ChevronDown,
+  History,
+  XCircle,
+  Mail as MailIcon
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -81,6 +85,7 @@ interface SubAgent {
   invite_email_status?: string | null;
   invite_sent_at?: string | null;
   accepted_at?: string | null;
+  verified_at?: string | null;
   profile?: {
     full_name: string;
     phone: string;
