@@ -44,12 +44,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { 
   User, 
   MapPin,
@@ -563,6 +557,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [submitQueued, setSubmitQueued] = useState(false);
   const [queueStatus, setQueueStatus] = useState<'idle' | 'queued' | 'cancelling' | 'ready'>('idle');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // In-dialog preview of the blank field-form PDF before download/share.
+  const [fieldFormPreviewOpen, setFieldFormPreviewOpen] = useState(false);
+  const [fieldFormPreviewUrl, setFieldFormPreviewUrl] = useState<string | null>(null);
+  const [fieldFormBlob, setFieldFormBlob] = useState<Blob | null>(null);
+  const [fieldFormGenerating, setFieldFormGenerating] = useState(false);
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
@@ -2349,7 +2348,80 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // FIX #5: Outstanding min = 50,000 (matches regular flow)
   const outstandingMinAmount = 50000;
 
+  // ---- Blank field-form PDF: preview, then download / share ----
+  const fieldFormFileName = `rent-request-field-form-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+
+  const buildFieldFormBlob = useCallback(async () => {
+    return generateRentRequestFormPdf({
+      agentName:
+        (user?.user_metadata as any)?.full_name ||
+        (user?.user_metadata as any)?.name ||
+        null,
+      agentPhone: (user?.user_metadata as any)?.phone || user?.phone || null,
+    });
+  }, [user]);
+
+  const openFieldFormPreview = useCallback(async () => {
+    setFieldFormGenerating(true);
+    try {
+      const blob = await buildFieldFormBlob();
+      const url = URL.createObjectURL(blob);
+      setFieldFormBlob(blob);
+      setFieldFormPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+      setFieldFormPreviewOpen(true);
+    } catch {
+      toast.error('Could not generate the form. Please try again.');
+    } finally {
+      setFieldFormGenerating(false);
+    }
+  }, [buildFieldFormBlob]);
+
+  const closeFieldFormPreview = useCallback(() => {
+    setFieldFormPreviewOpen(false);
+    setFieldFormPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFieldFormBlob(null);
+  }, []);
+
+  const downloadFieldForm = useCallback(() => {
+    if (!fieldFormBlob) return;
+    const url = URL.createObjectURL(fieldFormBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fieldFormFileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [fieldFormBlob, fieldFormFileName]);
+
+  const shareFieldForm = useCallback(async () => {
+    if (!fieldFormBlob) return;
+    try {
+      const file = new File([fieldFormBlob], fieldFormFileName, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Rent Request Field Form',
+          text: `Field form for ${(user?.user_metadata as any)?.full_name || 'agent'} — print, fill in the field, then post in the app.`,
+        });
+      } else {
+        downloadFieldForm();
+        toast.info('PDF downloaded. Open your file manager and share it to WhatsApp.');
+      }
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return;
+      toast.error('Could not share the form. Please try again.');
+    }
+  }, [fieldFormBlob, fieldFormFileName, user, downloadFieldForm]);
+
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md max-h-[88vh] overflow-x-hidden overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+96px)] sm:pb-6 overscroll-contain">
         <DialogHeader>
@@ -2362,86 +2434,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           <DialogDescription className="text-sm">
             Submit a rent request on behalf of a tenant who doesn't have the app
           </DialogDescription>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2 w-full gap-2"
-              >
-                <FileText className="h-4 w-4" />
-                Print / download blank field form
-                <ChevronDown className="h-3 w-3 ml-auto opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
-              <DropdownMenuItem
-                onClick={async () => {
-                  try {
-                    const blob = await generateRentRequestFormPdf({
-                      agentName:
-                        (user?.user_metadata as any)?.full_name ||
-                        (user?.user_metadata as any)?.name ||
-                        null,
-                      agentPhone: (user?.user_metadata as any)?.phone || user?.phone || null,
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `rent-request-field-form-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    setTimeout(() => URL.revokeObjectURL(url), 1000);
-                  } catch (e) {
-                    toast.error('Could not generate the form. Please try again.');
-                  }
-                }}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Download PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  try {
-                    const blob = await generateRentRequestFormPdf({
-                      agentName:
-                        (user?.user_metadata as any)?.full_name ||
-                        (user?.user_metadata as any)?.name ||
-                        null,
-                      agentPhone: (user?.user_metadata as any)?.phone || user?.phone || null,
-                    });
-                    const file = new File([blob], `rent-request-field-form-${format(new Date(), 'yyyy-MM-dd')}.pdf`, { type: 'application/pdf' });
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                      await navigator.share({
-                        files: [file],
-                        title: 'Rent Request Field Form',
-                        text: `Field form for ${(user?.user_metadata as any)?.full_name || 'agent'} — print, fill in the field, then post in the app.`,
-                      });
-                    } else {
-                      // Fallback: download and prompt user to share manually
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = file.name;
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      setTimeout(() => URL.revokeObjectURL(url), 1000);
-                      toast.info('PDF downloaded. Open your file manager and share it to WhatsApp.');
-                    }
-                  } catch (e: any) {
-                    if (e.name === 'AbortError') return; // user cancelled share sheet
-                    toast.error('Could not share the form. Please try again.');
-                  }
-                }}
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                Share PDF (WhatsApp)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full gap-2"
+            disabled={fieldFormGenerating}
+            onClick={openFieldFormPreview}
+          >
+            {fieldFormGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4" />
+            )}
+            Preview blank field form
+          </Button>
         </DialogHeader>
 
         <RequestStateBanner state={requestState} />
@@ -4494,5 +4501,59 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
+
+    <Dialog
+      open={fieldFormPreviewOpen}
+      onOpenChange={(o) => {
+        if (!o) closeFieldFormPreview();
+      }}
+    >
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="px-5 pt-5">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-5 w-5 text-primary" />
+            Field form preview
+          </DialogTitle>
+          <DialogDescription className="text-sm">
+            Review the blank form, then download or share it.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 px-5">
+          {fieldFormPreviewUrl ? (
+            <iframe
+              src={fieldFormPreviewUrl}
+              title="Rent request field form preview"
+              className="w-full h-[55vh] rounded-lg border border-border bg-muted"
+            />
+          ) : (
+            <div className="flex h-[55vh] items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2 px-5 py-4 border-t border-border">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 gap-2"
+            onClick={downloadFieldForm}
+            disabled={!fieldFormBlob}
+          >
+            <FileText className="h-4 w-4" />
+            Download PDF
+          </Button>
+          <Button
+            type="button"
+            className="flex-1 gap-2"
+            onClick={shareFieldForm}
+            disabled={!fieldFormBlob}
+          >
+            <Share2 className="h-4 w-4" />
+            Share PDF (WhatsApp)
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
