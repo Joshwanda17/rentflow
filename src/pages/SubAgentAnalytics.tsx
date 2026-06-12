@@ -812,8 +812,8 @@ export default function SubAgentAnalytics() {
 
       {/* Quick Jump Navigation */}
       {subAgents.length > 0 && (
-        <div className="sticky top-[73px] z-20 bg-background/95 backdrop-blur border-b px-4 py-2">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div className="sticky top-[57px] z-20 bg-background/80 backdrop-blur-xl border-b border-border/60 px-3 py-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             {[
               { id: 'subagent-overview', label: 'Summary', icon: BarChart3 },
               { id: 'subagent-invite', label: 'Invites', icon: Sparkles },
@@ -825,9 +825,9 @@ export default function SubAgentAnalytics() {
                   hapticTap();
                   document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
-                className="flex items-center gap-1.5 shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted active:scale-95 transition-colors"
+                className="flex items-center gap-1.5 shrink-0 rounded-full bg-muted/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition-all"
               >
-                <item.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                <item.icon className="h-3.5 w-3.5" />
                 {item.label}
               </button>
             ))}
