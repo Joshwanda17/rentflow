@@ -285,12 +285,12 @@ function LedgerRowItem({ row: r }: { row: LedgerRow }) {
 }
 
 /* ── Wallet-bucket ledger statement (withdrawable / float / advance) ── */
-function BucketStatement({ userId, bucket }: { userId: string; bucket: BucketKey }) {
+function BucketStatement({ userId, bucket, fromDate, toDate }: { userId: string; bucket: BucketKey; fromDate: string; toDate: string }) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['finops-user-bucket-ledger', userId, bucket],
+    queryKey: ['finops-user-bucket-ledger', userId, bucket, fromDate, toDate],
     staleTime: 30_000,
     queryFn: async () => {
-      const { data: rows, error } = await supabase
+      let query = supabase
         .from('general_ledger')
         .select('id, transaction_date, direction, category, description, amount, wallet_bucket, ledger_scope, source_table, source_id, classification, currency')
         .eq('user_id', userId)
@@ -298,6 +298,9 @@ function BucketStatement({ userId, bucket }: { userId: string; bucket: BucketKey
         .eq('wallet_bucket', bucket)
         .order('transaction_date', { ascending: false })
         .limit(300);
+      if (fromDate) query = query.gte('transaction_date', fromDate);
+      if (toDate) query = query.lte('transaction_date', toDate + 'T23:59:59.999Z');
+      const { data: rows, error } = await query;
       if (error) throw error;
       return (rows ?? []) as LedgerRow[];
     },
