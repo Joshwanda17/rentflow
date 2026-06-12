@@ -25,7 +25,7 @@ export function SubAgentBottomNav({ active, onNavigate, onInvite }: SubAgentBott
       aria-label="Sub-agent sections"
       className="fixed bottom-0 inset-x-0 z-[60] bg-background/95 backdrop-blur-xl border-t border-border/60 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-2px_12px_hsl(var(--foreground)/0.06)]"
     >
-      <div className="grid grid-cols-4 max-w-lg mx-auto pt-safe">
+      <div className="grid grid-cols-4 max-w-lg mx-auto pt-1">
         {ITEMS.map((item) => {
           const isActive = active === item.id;
           return (
