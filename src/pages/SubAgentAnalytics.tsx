@@ -65,6 +65,7 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { SubAgentBottomNav, type SubAgentSection } from '@/components/agent/SubAgentBottomNav';
 import { SubAgentPayoutAudit } from '@/components/agent/SubAgentPayoutAudit';
+import { SubAgentStatusBoard } from '@/components/agent/SubAgentStatusBoard';
 import {
   BarChart,
   Bar,
