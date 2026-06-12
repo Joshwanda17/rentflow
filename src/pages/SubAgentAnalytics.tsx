@@ -57,11 +57,24 @@ interface SubAgent {
     full_name: string;
     phone: string;
     avatar_url: string | null;
+    email?: string | null;
+    national_id?: string | null;
+    district?: string | null;
+    region?: string | null;
+    occupation?: string | null;
+    joined_at?: string | null;
+  };
+  wallet?: {
+    balance: number;
+    withdrawable_balance: number;
+    float_balance: number;
+    advance_balance: number;
+    locked_balance: number;
   };
   totalEarnings: number;
   tenantsCount: number;
   monthlyEarnings: { month: string; amount: number }[];
-  tenants: { id: string; name: string; totalRepaid: number }[];
+  tenants: { id: string; name: string; phone: string | null; totalRepaid: number }[];
   facilitatedRentVolume: number;
   accessedFunds: number;
   platformRewards: number;
