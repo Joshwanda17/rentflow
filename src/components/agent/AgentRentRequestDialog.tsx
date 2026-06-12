@@ -74,6 +74,7 @@ import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
 import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
+import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
 
 interface AgentRentRequestDialogProps {
   open: boolean;
@@ -2355,6 +2356,36 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           <DialogDescription className="text-sm">
             Submit a rent request on behalf of a tenant who doesn't have the app
           </DialogDescription>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full gap-2"
+            onClick={async () => {
+              try {
+                const blob = await generateRentRequestFormPdf({
+                  agentName:
+                    (user?.user_metadata as any)?.full_name ||
+                    (user?.user_metadata as any)?.name ||
+                    null,
+                  agentPhone: (user?.user_metadata as any)?.phone || user?.phone || null,
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `rent-request-field-form-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+              } catch (e) {
+                toast.error('Could not generate the form. Please try again.');
+              }
+            }}
+          >
+            <FileText className="h-4 w-4" />
+            Print / download blank field form
+          </Button>
         </DialogHeader>
 
         <RequestStateBanner state={requestState} />
