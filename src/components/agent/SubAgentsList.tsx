@@ -194,8 +194,16 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
         };
       });
 
-      // Sort: active today first, then by tenant count desc
+      // Sort: accepted first, then pending, then others; then by tenant count desc
       enriched.sort((a, b) => {
+        const score = (s: SubAgent) => {
+          if (s.status === 'verified') return 3;
+          if (s.status === 'pending_acceptance') return 2;
+          if (s.status === 'rejected') return 1;
+          return 0;
+        };
+        const scoreDiff = score(b) - score(a);
+        if (scoreDiff !== 0) return scoreDiff;
         if (a.active_today !== b.active_today) return a.active_today ? -1 : 1;
         return (b.tenants_count || 0) - (a.tenants_count || 0);
       });
@@ -335,6 +343,8 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   );
 
   const activeToday = subAgents.filter(s => s.active_today).length;
+  const acceptedCount = subAgents.filter(s => s.status === 'verified').length;
+  const pendingCount = subAgents.filter(s => s.status === 'pending_acceptance').length;
 
   return (
     <Card>
@@ -369,20 +379,22 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Quick stats */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl bg-success/10 p-3">
-            <p className="text-[11px] text-muted-foreground">Active today</p>
+            <p className="text-[11px] text-muted-foreground">Accepted</p>
             <p className="font-bold text-success text-lg leading-none mt-1">
-              {activeToday}
-              <span className="text-xs text-muted-foreground font-normal">
-                {' '}
-                / {subAgents.length}
-              </span>
+              {acceptedCount}
+            </p>
+          </div>
+          <div className="rounded-xl bg-amber-500/10 p-3">
+            <p className="text-[11px] text-muted-foreground">Pending</p>
+            <p className="font-bold text-amber-600 text-lg leading-none mt-1">
+              {pendingCount}
             </p>
           </div>
           <div className="rounded-xl bg-orange-500/10 p-3">
             <p className="text-[11px] text-muted-foreground">
-              Your sub-agent earnings
+              Your earnings
             </p>
             <p className="font-bold text-orange-600 text-base leading-none mt-1">
               {formatUGX(totalSubAgentEarnings)}
@@ -450,14 +462,24 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
           {filtered.map(sub => (
             <div
               key={sub.sub_agent_id}
-              className="flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted transition-colors"
+              className={`flex items-center justify-between p-3 rounded-xl transition-colors ${
+                sub.status === 'verified'
+                  ? 'bg-success/5 border border-success/20 hover:bg-success/10'
+                  : 'bg-muted/40 hover:bg-muted'
+              }`}
             >
               <button
                 onClick={() => navigate(`/sub-agents?id=${sub.sub_agent_id}`)}
                 className="flex items-center gap-3 flex-1 min-w-0 text-left"
               >
-                <div className="relative w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
-                  <Users className="h-5 w-5 text-orange-500" />
+                <div className={`relative w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                  sub.status === 'verified'
+                    ? 'bg-success/20 ring-2 ring-success/40'
+                    : 'bg-orange-500/20'
+                }`}>
+                  <Users className={`h-5 w-5 ${
+                    sub.status === 'verified' ? 'text-success' : 'text-orange-500'
+                  }`} />
                   {sub.active_today && (
                     <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-success ring-2 ring-background" />
                   )}
@@ -475,21 +497,28 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                     <p className="text-[11px] text-muted-foreground truncate">
                       {sub.tenants_count} tenants
                     </p>
-                    {sub.status === 'pending_acceptance' ? (
+                    {sub.status === 'verified' && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
+                        <CheckCircle className="h-2.5 w-2.5" />
+                        Accepted
+                      </span>
+                    )}
+                    {sub.status === 'pending_acceptance' && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
                         <Clock className="h-2.5 w-2.5" />
                         Invite pending
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
-                        <CheckCircle className="h-2.5 w-2.5" />
-                        Active
                       </span>
                     )}
                     {sub.status === 'rejected' && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
                         <XCircle className="h-2.5 w-2.5" />
                         Rejected
+                      </span>
+                    )}
+                    {sub.status === 'released' && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                        <UserMinus className="h-2.5 w-2.5" />
+                        Released
                       </span>
                     )}
                   </div>
@@ -537,7 +566,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                     your 2%
                   </p>
                 </div>
-                {sub.status !== 'rejected' && (
+                {sub.status !== 'rejected' && sub.status !== 'released' && (
                   <Button
                     size="icon"
                     variant="ghost"
