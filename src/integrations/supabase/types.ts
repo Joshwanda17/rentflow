@@ -20774,6 +20774,7 @@ export type Database = {
           released_count: number
         }[]
       }
+      release_sub_agent: { Args: { p_sub_agent_id: string }; Returns: Json }
       relink_stuck_pending_deposits: {
         Args: { p_max_age_days?: number; p_min_age_minutes?: number }
         Returns: Json

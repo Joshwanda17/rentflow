@@ -9,6 +9,16 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Users,
   TrendingUp,
   Loader2,
@@ -23,6 +33,7 @@ import {
   Calendar,
   X,
   Mail,
+  UserMinus,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -56,6 +67,8 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [releaseTarget, setReleaseTarget] = useState<SubAgent | null>(null);
+  const [releasingId, setReleasingId] = useState<string | null>(null);
 
   const fetchSubAgents = useCallback(async () => {
     if (!user) return;
@@ -283,6 +296,25 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
     });
   };
 
+  const handleReleaseSubAgent = async () => {
+    if (!releaseTarget) return;
+    const target = releaseTarget;
+    setReleasingId(target.sub_agent_id);
+    const { error } = await supabase.rpc('release_sub_agent', {
+      p_sub_agent_id: target.sub_agent_id,
+    });
+    setReleasingId(null);
+    if (error) {
+      toast.error('Could not release sub-agent', { description: error.message });
+      return;
+    }
+    setReleaseTarget(null);
+    toast.success(`${target.full_name} released`, {
+      description: 'They are no longer your sub-agent. Override commission and benefits have stopped.',
+    });
+    await fetchSubAgents();
+  };
+
   if (loading) {
     return (
       <Card>
@@ -505,6 +537,26 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                     your 2%
                   </p>
                 </div>
+                {sub.status !== 'rejected' && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setReleaseTarget(sub);
+                    }}
+                    disabled={releasingId === sub.sub_agent_id}
+                    title={`Release ${sub.full_name}`}
+                    aria-label={`Release ${sub.full_name}`}
+                  >
+                    {releasingId === sub.sub_agent_id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <UserMinus className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                )}
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
@@ -526,6 +578,44 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
           View Full Team Analytics
         </Button>
       </CardContent>
+
+      <AlertDialog
+        open={!!releaseTarget}
+        onOpenChange={open => {
+          if (!open && !releasingId) setReleaseTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Release {releaseTarget?.full_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They will no longer be your sub-agent. All parent benefits stop
+              immediately — you will no longer earn the 2% override on their
+              collections and they will leave your team. This does not remove
+              their own agent account or their tenants.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!releasingId}>Keep sub-agent</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={e => {
+                e.preventDefault();
+                handleReleaseSubAgent();
+              }}
+              disabled={!!releasingId}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {releasingId ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Releasing…
+                </>
+              ) : (
+                'Release sub-agent'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
