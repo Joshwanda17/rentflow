@@ -382,6 +382,28 @@ export function EmailPeriodComparison() {
           </Button>
         </div>
 
+        {collapsed && !loading && (
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {mode === 'rolling' && curr ? (
+              <>
+                <span className="text-[11px] text-muted-foreground">In <strong className="text-emerald-500 tabular-nums">{fmtUgx(curr.in)}</strong></span>
+                <span className="text-[11px] text-muted-foreground">Out <strong className="text-rose-500 tabular-nums">{fmtUgx(curr.out)}</strong></span>
+                <span className="text-[11px] text-muted-foreground">Net <strong className={curr.net >= 0 ? 'text-foreground' : 'text-rose-500'}>{fmtUgx(curr.net)}</strong></span>
+                <span className="text-[11px] text-muted-foreground">Emails <strong className="text-foreground tabular-nums">{curr.count.toLocaleString()}</strong></span>
+              </>
+            ) : mode === 'custom' && customAgg ? (
+              <>
+                <span className="text-[11px] text-muted-foreground">A In <strong className="text-emerald-500 tabular-nums">{fmtUgx(customAgg.a.in)}</strong></span>
+                <span className="text-[11px] text-muted-foreground">A Out <strong className="text-rose-500 tabular-nums">{fmtUgx(customAgg.a.out)}</strong></span>
+                <span className="text-[11px] text-muted-foreground">A Net <strong className={customAgg.a.net >= 0 ? 'text-foreground' : 'text-rose-500'}>{fmtUgx(customAgg.a.net)}</strong></span>
+                <span className="text-[11px] text-muted-foreground">Emails <strong className="text-foreground tabular-nums">{(customAgg.a.count + customAgg.b.count).toLocaleString()}</strong></span>
+              </>
+            ) : (
+              <span className="text-[11px] text-muted-foreground">Loading…</span>
+            )}
+          </div>
+        )}
+
         {!collapsed && (
           <>
             <div className="flex flex-wrap items-center gap-2 mt-3">
