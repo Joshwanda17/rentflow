@@ -982,7 +982,6 @@ export default function SubAgentAnalytics() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {filteredSubAgents.map((subAgent) => (
                     {filteredSubAgents.map((subAgent) => {
                       const accepted = subAgent.status === 'verified' || !!subAgent.accepted_at;
                       const smsStatus = subAgent.invite_sms_status;
