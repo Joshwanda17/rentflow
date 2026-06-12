@@ -685,7 +685,8 @@ export default function SubAgentAnalytics() {
             />
 
             {/* Overview Stats */}
-            <div className="grid grid-cols-3 gap-3">
+            <div id="subagent-overview" className="scroll-mt-24">
+              <div className="grid grid-cols-3 gap-3">
               <Card className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20">
                 <CardContent className="p-4 text-center">
                   <Users className="h-5 w-5 mx-auto text-orange-500 mb-1" />
