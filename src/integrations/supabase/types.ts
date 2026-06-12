@@ -19632,6 +19632,21 @@ export type Database = {
           tenant_phone: string
         }[]
       }
+      get_float_deposit_allocations: {
+        Args: { p_entry_id: string; p_user_id: string }
+        Returns: {
+          allocated_amount: number
+          category: string
+          description: string
+          occurred_at: string
+          reference_id: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
+          use_amount: number
+          use_entry_id: string
+        }[]
+      }
       get_float_entry_detail: {
         Args: { p_entry_id: string; p_user_id: string }
         Returns: Json
