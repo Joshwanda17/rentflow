@@ -1613,6 +1613,9 @@ function AgentPane({ agentId, isOps, onSelectTenant, onSelectLandlord, onSelectU
       {/* Recent wallet statements (last 25 entries, user-facing filter) */}
       <AgentWalletStatements agentId={agentId} />
 
+      {/* Per-advance detail — principal, outstanding, status, daily, days left */}
+      <AgentAdvancesDetail agentId={agentId} />
+
       {/* User-to-user transfers — who sent/received money */}
       <UserTransfersList userId={agentId} onSelectUser={onSelectUser} />
 
@@ -2598,6 +2601,120 @@ function LandlordSmartphoneToggle({
 /* agent sees on their own wallet dashboard).                          */
 /* ------------------------------------------------------------------ */
 function AgentWalletStatements({ agentId }: { agentId: string }) {
+  return <AgentWalletStatementsInner agentId={agentId} />;
+}
+
+/* ------------------------------------------------------------------ */
+/* Per-advance detail for an agent — principal, outstanding, status,  */
+/* daily deduction and days remaining for every advance on file.      */
+/* ------------------------------------------------------------------ */
+const ADVANCE_STATUS_META: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
+  active: { label: 'Active', variant: 'default' },
+  outstanding: { label: 'Outstanding', variant: 'default' },
+  approved: { label: 'Approved', variant: 'default' },
+  disbursed: { label: 'Disbursed', variant: 'default' },
+  overdue: { label: 'Overdue', variant: 'destructive' },
+  completed: { label: 'Completed', variant: 'secondary' },
+};
+
+function AgentAdvancesDetail({ agentId }: { agentId: string }) {
+  const { data: advances = [], isLoading } = useQuery({
+    queryKey: ['drilldown-agent-advances', agentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_advances')
+        .select('id, principal, outstanding_balance, status, issued_at, expires_at, created_at')
+        .eq('agent_id', agentId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <Card className="p-3">
+        <Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
+      </Card>
+    );
+  }
+
+  if (advances.length === 0) {
+    return (
+      <Card className="p-3">
+        <div className="flex items-center gap-2 text-sm font-medium mb-1">
+          <TrendingUp className="h-4 w-4 text-amber-600" /> Advances
+        </div>
+        <p className="text-xs text-muted-foreground">No advances on file for this agent.</p>
+      </Card>
+    );
+  }
+
+  const totalOutstanding = advances
+    .filter((a: any) => a.status !== 'completed')
+    .reduce((s: number, a: any) => s + Number(a.outstanding_balance || 0), 0);
+
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <TrendingUp className="h-4 w-4 text-amber-600" /> Advances ({advances.length})
+        </div>
+        {totalOutstanding > 0 && (
+          <span className="text-[11px] text-amber-700 font-semibold">
+            {fmtUGX(totalOutstanding)} outstanding
+          </span>
+        )}
+      </div>
+      <div className="space-y-2">
+        {advances.map((adv: any) => {
+          const meta = ADVANCE_STATUS_META[adv.status] || ADVANCE_STATUS_META.active;
+          const daysLeft = adv.expires_at
+            ? Math.max(0, Math.ceil((new Date(adv.expires_at).getTime() - Date.now()) / 86400000))
+            : 0;
+          const interest = Math.max(0, Number(adv.outstanding_balance || 0) - Number(adv.principal || 0));
+          const dailyDeduction = adv.status === 'completed'
+            ? 0
+            : daysLeft > 0
+              ? Math.round(Number(adv.outstanding_balance || 0) / daysLeft)
+              : Number(adv.outstanding_balance || 0);
+          return (
+            <div key={adv.id} className="rounded-md bg-muted/40 p-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold">{fmtUGX(adv.principal)}</span>
+                <Badge variant={meta.variant} className="text-[10px]">{meta.label}</Badge>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                <div>
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Owed</p>
+                  <p className="font-semibold">{fmtUGX(adv.outstanding_balance)}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Daily</p>
+                  <p className="font-semibold text-red-600">{adv.status === 'completed' ? '—' : fmtUGX(dailyDeduction)}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Days left</p>
+                  <p className="font-semibold">{adv.status === 'completed' ? '—' : `${daysLeft}d`}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>
+                  Issued {adv.issued_at ? new Date(adv.issued_at).toLocaleDateString() : '—'}
+                </span>
+                {interest > 0 && adv.status !== 'completed' && (
+                  <span>Incl. {fmtUGX(interest)} access fee</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function AgentWalletStatementsInner({ agentId }: { agentId: string }) {
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['drilldown-agent-statements', agentId],
     queryFn: async () => {
