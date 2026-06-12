@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { Search, Loader2, UserPlus, UsersRound, CheckCircle2 } from 'lucide-react';
+import { Search, Loader2, UserPlus, UsersRound, CheckCircle2, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface UserResult {
@@ -17,6 +17,13 @@ interface UserResult {
   full_name: string | null;
   phone: string | null;
   email: string | null;
+}
+
+interface ExistingLink {
+  sub_agent_id: string;
+  parent_agent_id: string;
+  parent_name: string | null;
+  status: string | null;
 }
 
 interface AddSubAgentSearchProps {
@@ -51,6 +58,47 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
       const { data, error } = await q;
       if (error) throw error;
       return (data || []).filter((p) => p.id !== user?.id);
+    },
+  });
+
+  const resultIds = (results || []).map((r) => r.id);
+
+  // Find which of the searched users are already sub-agents of ANOTHER agent
+  const { data: existingLinks } = useQuery({
+    queryKey: ['add-subagent-existing-links', resultIds, user?.id],
+    enabled: resultIds.length > 0 && !!user?.id,
+    staleTime: 10_000,
+    queryFn: async (): Promise<Record<string, ExistingLink>> => {
+      const { data, error } = await supabase
+        .from('agent_subagents')
+        .select('sub_agent_id, parent_agent_id, status')
+        .in('sub_agent_id', resultIds)
+        .neq('parent_agent_id', user!.id)
+        .not('status', 'in', '("rejected","cancelled")');
+      if (error) throw error;
+      const rows = data || [];
+      const parentIds = Array.from(new Set(rows.map((r) => r.parent_agent_id)));
+      let names: Record<string, string | null> = {};
+      if (parentIds.length > 0) {
+        const { data: parents } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', parentIds);
+        names = Object.fromEntries((parents || []).map((p) => [p.id, p.full_name]));
+      }
+      const map: Record<string, ExistingLink> = {};
+      for (const r of rows) {
+        // keep the first/strongest link per sub-agent
+        if (!map[r.sub_agent_id]) {
+          map[r.sub_agent_id] = {
+            sub_agent_id: r.sub_agent_id,
+            parent_agent_id: r.parent_agent_id,
+            parent_name: names[r.parent_agent_id] ?? null,
+            status: r.status,
+          };
+        }
+      }
+      return map;
     },
   });
 
@@ -133,6 +181,15 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
                     {u.phone || u.email || u.id.slice(0, 8)}
                   </div>
                 </div>
+                {existingLinks?.[u.id] && (
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px]"
+                  >
+                    <UserCheck className="h-3 w-3 mr-1" />
+                    {existingLinks[u.id].status === 'verified' ? "Another agent's sub-agent" : 'Invite pending'}
+                  </Badge>
+                )}
               </button>
             ))}
           </div>
@@ -140,6 +197,19 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
 
         {selected && (
           <div className="space-y-3">
+            {existingLinks?.[selected.id] && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-300">
+                <UserCheck className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  This user is already
+                  {existingLinks[selected.id].status === 'verified' ? ' a sub-agent of ' : ' invited by '}
+                  <span className="font-semibold">
+                    {existingLinks[selected.id].parent_name || 'another agent'}
+                  </span>
+                  . You can still send your invitation — they choose which agent to join.
+                </span>
+              </div>
+            )}
             <div className={cn('flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm')}>
               <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
               <div className="min-w-0 flex-1">
