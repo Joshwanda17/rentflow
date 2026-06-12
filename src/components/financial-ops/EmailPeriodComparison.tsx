@@ -201,6 +201,9 @@ export function EmailPeriodComparison() {
 
   const customReady = !!rangeA.from && !!rangeB.from;
 
+  // Drilldown: which period's transactions are being viewed
+  const [drill, setDrill] = useState<'a' | 'b' | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
