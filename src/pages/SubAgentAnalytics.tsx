@@ -899,11 +899,11 @@ export default function SubAgentAnalytics() {
             </div>
 
             {/* Monthly Earnings Chart */}
-            <Card>
+            <Card className="border-border/60 shadow-none">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-success" />
-                  Monthly Earnings (2% from Sub-Agents)
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-success" />
+                  Monthly Earnings
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -930,10 +930,10 @@ export default function SubAgentAnalytics() {
 
             {/* Earnings Distribution Pie Chart */}
             {pieData.length > 0 && (
-              <Card>
+              <Card className="border-border/60 shadow-none">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-orange-500" />
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-orange-500" />
                     Earnings by Sub-Agent
                   </CardTitle>
                 </CardHeader>
