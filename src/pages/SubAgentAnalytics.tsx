@@ -65,6 +65,7 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { SubAgentBottomNav, type SubAgentSection } from '@/components/agent/SubAgentBottomNav';
 import { SubAgentPayoutAudit } from '@/components/agent/SubAgentPayoutAudit';
+import { SubAgentStatusBoard } from '@/components/agent/SubAgentStatusBoard';
 import {
   BarChart,
   Bar,
@@ -1500,6 +1501,9 @@ export default function SubAgentAnalytics() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Sub-agent status & recruiter override earnings board */}
+            <SubAgentStatusBoard />
 
             {/* Payout audit: earning leg ↔ withdrawable wallet credit */}
             <SubAgentPayoutAudit />
