@@ -138,6 +138,11 @@ export default function SubAgentAnalytics() {
   const reportRef = useRef<HTMLDivElement>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
 
+  // Search & filter state
+  const [subAgentSearch, setSubAgentSearch] = useState('');
+  const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
+  const [tenantSearch, setTenantSearch] = useState('');
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
