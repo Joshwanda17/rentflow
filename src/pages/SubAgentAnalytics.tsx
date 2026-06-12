@@ -761,26 +761,25 @@ export default function SubAgentAnalytics() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="flex items-center gap-3 p-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border/60">
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex-1">
-            <h1 className="font-bold text-lg">Sub-Agent Analytics</h1>
-            <p className="text-xs text-muted-foreground">Track your team performance</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-semibold text-base tracking-tight truncate">Sub-Agents</h1>
+            <p className="text-[11px] text-muted-foreground truncate">Your team performance</p>
           </div>
-          
+
           {subAgents.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1" disabled={exporting}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" disabled={exporting}>
                   {exporting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Download className="h-4 w-4" />
+                    <Download className="h-[18px] w-[18px]" />
                   )}
-                  Export
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -799,23 +798,22 @@ export default function SubAgentAnalytics() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          
-          <Button 
-            onClick={() => { hapticTap(); setInviteSheetOpen(true); }} 
-            size="sm" 
-            className="gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25"
+
+          <Button
+            onClick={() => { hapticTap(); setInviteSheetOpen(true); }}
+            size="sm"
+            className="h-9 gap-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white shrink-0"
           >
             <UserPlus className="h-4 w-4" />
-            <span className="hidden sm:inline">Invite Sub-Agent</span>
-            <span className="sm:hidden">Invite</span>
+            <span className="font-medium">Invite</span>
           </Button>
         </div>
       </div>
 
       {/* Quick Jump Navigation */}
       {subAgents.length > 0 && (
-        <div className="sticky top-[73px] z-20 bg-background/95 backdrop-blur border-b px-4 py-2">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div className="sticky top-[57px] z-20 bg-background/80 backdrop-blur-xl border-b border-border/60 px-3 py-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             {[
               { id: 'subagent-overview', label: 'Summary', icon: BarChart3 },
               { id: 'subagent-invite', label: 'Invites', icon: Sparkles },
@@ -827,9 +825,9 @@ export default function SubAgentAnalytics() {
                   hapticTap();
                   document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
-                className="flex items-center gap-1.5 shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted active:scale-95 transition-colors"
+                className="flex items-center gap-1.5 shrink-0 rounded-full bg-muted/60 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground active:scale-95 transition-all"
               >
-                <item.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                <item.icon className="h-3.5 w-3.5" />
                 {item.label}
               </button>
             ))}
@@ -837,14 +835,14 @@ export default function SubAgentAnalytics() {
         </div>
       )}
 
-      <main className="p-4 space-y-5">
+      <main className="px-3 py-4 space-y-4">
         {subAgents.length === 0 ? (
-          <Card className="border-dashed">
+          <Card className="border-dashed border-border/60 shadow-none">
             <CardContent className="p-8 text-center">
               <div className="mx-auto w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mb-4">
                 <Users className="h-8 w-8 text-orange-500" />
               </div>
-              <h3 className="font-bold text-lg mb-2">No Sub-Agents Yet</h3>
+              <h3 className="font-semibold text-lg mb-2">No Sub-Agents Yet</h3>
               <p className="text-muted-foreground text-sm mb-4">
                 Build your team by registering sub-agents. You'll earn 2% of all their tenants' repayments!
               </p>
@@ -866,40 +864,46 @@ export default function SubAgentAnalytics() {
             />
 
             {/* Overview Stats */}
-            <div id="subagent-overview" className="scroll-mt-24">
-              <div className="grid grid-cols-3 gap-3">
-              <Card className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20">
-                <CardContent className="p-4 text-center">
-                  <Users className="h-5 w-5 mx-auto text-orange-500 mb-1" />
-                  <p className="font-bold text-2xl">{subAgents.length}</p>
-                  <p className="text-xs text-muted-foreground">Sub-Agents</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-success/10 to-emerald-500/10 border-success/20">
-                <CardContent className="p-4 text-center">
-                  <Coins className="h-5 w-5 mx-auto text-success mb-1" />
-                  <p className="font-bold text-lg">{formatUGX(totalEarningsFromSubAgents)}</p>
-                  <p className="text-xs text-muted-foreground">Total Earned</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-primary/10 to-blue-500/10 border-primary/20">
-                <CardContent className="p-4 text-center">
-                  <Target className="h-5 w-5 mx-auto text-primary mb-1" />
-                  <p className="font-bold text-2xl">
-                    {subAgents.reduce((sum, sa) => sum + sa.tenantsCount, 0)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Team Tenants</p>
-                </CardContent>
-              </Card>
-            </div>
+            <div id="subagent-overview" className="scroll-mt-28">
+              <div className="grid grid-cols-3 gap-2.5">
+                <Card className="border-border/60 shadow-none">
+                  <CardContent className="p-3.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/10 mb-2">
+                      <Users className="h-4 w-4 text-orange-500" />
+                    </div>
+                    <p className="font-semibold text-xl tracking-tight leading-none">{subAgents.length}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">Sub-Agents</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 shadow-none">
+                  <CardContent className="p-3.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-success/10 mb-2">
+                      <Coins className="h-4 w-4 text-success" />
+                    </div>
+                    <p className="font-semibold text-base tracking-tight leading-none truncate">{formatUGX(totalEarningsFromSubAgents)}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">Total Earned</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 shadow-none">
+                  <CardContent className="p-3.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 mb-2">
+                      <Target className="h-4 w-4 text-primary" />
+                    </div>
+                    <p className="font-semibold text-xl tracking-tight leading-none">
+                      {subAgents.reduce((sum, sa) => sum + sa.tenantsCount, 0)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">Team Tenants</p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Monthly Earnings Chart */}
-            <Card>
+            <Card className="border-border/60 shadow-none">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-success" />
-                  Monthly Earnings (2% from Sub-Agents)
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-success" />
+                  Monthly Earnings
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -926,10 +930,10 @@ export default function SubAgentAnalytics() {
 
             {/* Earnings Distribution Pie Chart */}
             {pieData.length > 0 && (
-              <Card>
+              <Card className="border-border/60 shadow-none">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-orange-500" />
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-orange-500" />
                     Earnings by Sub-Agent
                   </CardTitle>
                 </CardHeader>
@@ -983,20 +987,20 @@ export default function SubAgentAnalytics() {
             <div 
               id="subagent-invite"
               onClick={() => { hapticTap(); setInviteSheetOpen(true); }}
-              className="scroll-mt-24 relative overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-background p-4 cursor-pointer active:scale-[0.99] transition-transform"
+              className="scroll-mt-28 relative overflow-hidden rounded-2xl border border-orange-500/15 bg-orange-500/[0.06] p-4 cursor-pointer active:scale-[0.99] transition-transform"
             >
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 p-2 rounded-xl bg-orange-500/15 shrink-0">
+                <div className="mt-0.5 p-2 rounded-xl bg-orange-500/10 shrink-0">
                   <Sparkles className="h-5 w-5 text-orange-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm">Grow Your Team</p>
+                  <p className="font-semibold text-sm">Grow Your Team</p>
                   <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                     Invite more sub-agents and earn <span className="font-semibold text-orange-500">2%</span> from every tenant they register. More agents = more passive income.
                   </p>
                 </div>
                 <div className="shrink-0 self-center">
-                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-orange-500 text-white shadow-lg shadow-orange-500/25">
+                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-orange-500 text-white">
                     <Plus className="h-5 w-5" />
                   </div>
                 </div>
@@ -1004,11 +1008,11 @@ export default function SubAgentAnalytics() {
             </div>
 
             {/* Sub-Agents List */}
-            <Card id="subagent-team" className="scroll-mt-24">
+            <Card id="subagent-team" className="scroll-mt-28 border-border/60 shadow-none">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Users className="h-5 w-5 text-orange-500" />
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Users className="h-4 w-4 text-orange-500" />
                     Your Sub-Agents
                   </CardTitle>
                   <Badge variant="secondary" className="text-xs">
