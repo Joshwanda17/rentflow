@@ -465,7 +465,7 @@ export default function SubAgentAnalytics() {
       // Fetch houses listed by each sub-agent
       const { data: houseRows } = await supabase
         .from('house_listings')
-        .select('id, agent_id, title, status, monthly_rent, verified, tenant_id, region, district, created_at')
+        .select('id, agent_id, title, status, monthly_rent, total_monthly_cost, verified, tenant_id, region, district, sub_county, village, address, house_category, number_of_rooms, created_at')
         .in('agent_id', subAgentIds)
         .order('created_at', { ascending: false });
 
@@ -473,19 +473,32 @@ export default function SubAgentAnalytics() {
       // house listings (e.g. 3,000 when a sub-agent's listing gets verified).
       const { data: overrideRows } = await supabase
         .from('recruiter_override_events')
-        .select('sub_agent_id, source_table, source_id, amount, status')
+        .select('id, sub_agent_id, source_table, source_id, amount, status, event_type, label, occurred_at')
         .eq('recruiter_id', user.id)
         .eq('source_table', 'house_listings')
-        .in('sub_agent_id', subAgentIds);
+        .in('sub_agent_id', subAgentIds)
+        .order('occurred_at', { ascending: false });
 
       // Map override earnings by house listing id (only successful/credited ones)
       const overrideByHouse: Record<string, number> = {};
       const houseOverrideBySubAgent: Record<string, number> = {};
+      const txByHouse: Record<string, HouseTransaction[]> = {};
       (overrideRows || []).forEach(o => {
         if (o.status && o.status !== 'credited' && o.status !== 'success' && o.status !== 'paid') return;
         const amt = Number(o.amount || 0);
         if (o.source_id) overrideByHouse[o.source_id] = (overrideByHouse[o.source_id] || 0) + amt;
         if (o.sub_agent_id) houseOverrideBySubAgent[o.sub_agent_id] = (houseOverrideBySubAgent[o.sub_agent_id] || 0) + amt;
+        if (o.source_id) {
+          const list = txByHouse[o.source_id] || (txByHouse[o.source_id] = []);
+          list.push({
+            id: o.id,
+            label: o.label || 'Override earning',
+            event_type: o.event_type || 'override',
+            amount: amt,
+            status: o.status,
+            occurred_at: o.occurred_at || '',
+          });
+        }
       });
 
       const housesBySubAgent: Record<string, SubAgentHouse[]> = {};
@@ -496,12 +509,19 @@ export default function SubAgentAnalytics() {
           title: h.title,
           status: h.status,
           monthly_rent: Number(h.monthly_rent || 0),
+          total_monthly_cost: Number(h.total_monthly_cost || 0),
           verified: !!h.verified,
           tenant_id: h.tenant_id,
           region: h.region,
           district: h.district,
+          sub_county: h.sub_county,
+          village: h.village,
+          address: h.address,
+          house_category: h.house_category,
+          number_of_rooms: h.number_of_rooms,
           created_at: h.created_at,
           overrideEarned: overrideByHouse[h.id] || 0,
+          transactions: txByHouse[h.id] || [],
         });
       });
 
