@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,12 +11,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Banknote, TrendingDown, Clock, CheckCircle2, AlertTriangle, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Banknote, TrendingDown, Clock, CheckCircle2, AlertTriangle,
+  Download, FileText, FileSpreadsheet, CalendarIcon, X,
+} from 'lucide-react';
 import { formatUGX } from '@/lib/agentAdvanceCalculations';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, format, isAfter, isBefore, isEqual, startOfDay, endOfDay } from 'date-fns';
 import { toast } from 'sonner';
 import { generateAdvanceStatementPdf, type AdvanceStatementRow } from '@/lib/advanceStatementPdf';
 import { downloadXlsx } from '@/lib/xlsxExport';
+import { cn } from '@/lib/utils';
 
 const STATUS_META: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive'; icon: any }> = {
   active: { label: 'Active', variant: 'default', icon: Clock },
