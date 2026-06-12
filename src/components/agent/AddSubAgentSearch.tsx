@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { Search, Loader2, UserPlus, UsersRound, CheckCircle2 } from 'lucide-react';
+import { Search, Loader2, UserPlus, UsersRound, CheckCircle2, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface UserResult {
