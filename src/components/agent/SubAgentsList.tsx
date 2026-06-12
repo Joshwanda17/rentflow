@@ -566,7 +566,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                     your 2%
                   </p>
                 </div>
-                {sub.status !== 'rejected' && (
+                {sub.status !== 'rejected' && sub.status !== 'released' && (
                   <Button
                     size="icon"
                     variant="ghost"
