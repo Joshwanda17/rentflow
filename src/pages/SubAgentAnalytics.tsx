@@ -711,6 +711,7 @@ export default function SubAgentAnalytics() {
                 </CardContent>
               </Card>
             </div>
+            </div>
 
             {/* Monthly Earnings Chart */}
             <Card>
