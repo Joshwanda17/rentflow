@@ -1403,6 +1403,47 @@ export default function SubAgentAnalytics() {
         onSuccess={fetchSubAgentAnalytics}
       />
 
+      {/* Invite an existing user as a sub-agent — searches any user and
+          auto-sends an SMS + email invite they must accept. */}
+      <Sheet open={inviteSheetOpen} onOpenChange={setInviteSheetOpen}>
+        <SheetContent side="bottom" className="h-[88vh] rounded-t-3xl overflow-y-auto pb-8">
+          <SheetHeader className="pb-4">
+            <SheetTitle className="flex items-center gap-2 text-xl">
+              <UserPlus className="h-6 w-6 text-orange-500" />
+              Invite a Sub-Agent
+            </SheetTitle>
+            <SheetDescription>
+              Search any registered user by name, phone, or email. They'll get an
+              SMS (and email) inviting them to accept becoming your sub-agent.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-4">
+            <AddSubAgentSearch
+              onAdded={() => {
+                fetchSubAgentAnalytics();
+                setInviteSheetOpen(false);
+              }}
+            />
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full h-12 gap-2 rounded-xl"
+              onClick={() => { hapticTap(); setInviteSheetOpen(false); setRegisterDialogOpen(true); }}
+            >
+              <Sparkles className="h-4 w-4 text-orange-500" />
+              Create a brand-new sub-agent account
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <SetTeamGoalDialog
         open={goalDialogOpen}
         onOpenChange={setGoalDialogOpen}
