@@ -16,9 +16,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { downloadCsv } from '@/lib/csvExport';
 import {
-  ArrowUpCircle, Search, X, CalendarIcon, FileText, FileSpreadsheet, Loader2, RefreshCw,
+  ArrowUpCircle, Search, X, CalendarIcon, FileText, FileSpreadsheet, Loader2, RefreshCw, CheckCircle2, Undo2,
 } from 'lucide-react';
 
 type StatusGroup = 'pending' | 'applied';
