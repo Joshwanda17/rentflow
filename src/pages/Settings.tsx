@@ -526,6 +526,12 @@ export default function Settings() {
                     </RadioGroup>
                   </div>
                   <div className="space-y-3">
+                    <div className="flex items-center gap-2"><Wind className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Motion</p></div>
+                    <RadioGroup value={reducedMotion} onValueChange={(v) => { setReducedMotion(v as any); toast.success(v === 'reduce' ? 'Animations reduced' : v === 'no-preference' ? 'Animations on' : 'Following system'); }} className="grid grid-cols-1 gap-2">
+                      {reducedMotionOptions.map((opt) => (<Label key={opt.value} htmlFor={`motion-${opt.value}`} className={cn("flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm", reducedMotion === opt.value ? 'border-primary bg-primary/10' : 'border-border/50')}><RadioGroupItem value={opt.value} id={`motion-${opt.value}`} /><div><p className="font-medium text-xs">{opt.label}</p><p className="text-[10px] text-muted-foreground">{opt.description}</p></div></Label>))}
+                    </RadioGroup>
+                  </div>
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Volume2 className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Alert Sounds</p></div><Switch checked={preferences.notificationSounds} onCheckedChange={(c) => { updatePreference('notificationSounds', c); if (c) playNotificationSound(preferences.notificationSoundType); toast.success(c ? 'Sounds on' : 'Sounds off'); }} /></div>
                     {preferences.notificationSounds && (
                       <div className="space-y-3 pl-6 border-l-2 border-primary/20">
