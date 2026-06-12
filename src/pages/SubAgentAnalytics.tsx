@@ -644,9 +644,14 @@ export default function SubAgentAnalytics() {
             </DropdownMenu>
           )}
           
-          <Button onClick={() => setRegisterDialogOpen(true)} size="sm" className="gap-1">
+          <Button 
+            onClick={() => { hapticTap(); setRegisterDialogOpen(true); }} 
+            size="sm" 
+            className="gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25"
+          >
             <UserPlus className="h-4 w-4" />
-            Add
+            <span className="hidden sm:inline">Invite Sub-Agent</span>
+            <span className="sm:hidden">Invite</span>
           </Button>
         </div>
       </div>
