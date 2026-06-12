@@ -4,9 +4,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/UserAvatar';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { CheckCircle2, Clock, Coins, ShieldCheck, Users, Loader2, XCircle } from 'lucide-react';
+import {
+  CheckCircle2, Clock, Coins, ShieldCheck, Users, Loader2, XCircle,
+  ChevronRight, Wallet, ReceiptText, TrendingUp,
+} from 'lucide-react';
 
 interface OverrideAgg {
   total: number;
@@ -28,6 +32,47 @@ interface StatusRow {
 const ACCEPTED_STATES = ['verified', 'accepted', 'approved'];
 const DECLINED_STATES = ['declined', 'rejected'];
 
+interface OverrideEvent {
+  id: string;
+  event_type: string;
+  label: string | null;
+  amount: number;
+  status: string;
+  created_at: string;
+}
+
+interface RecruiterSplit {
+  trace_id: string;
+  created_at: string;
+  tenant_name: string;
+  amount: number;
+  recruiter_override: number;
+}
+
+interface WalletSnapshot {
+  balance: number;
+  withdrawable_balance: number;
+  float_balance: number;
+  advance_balance: number;
+}
+
+interface DrawerData {
+  loading: boolean;
+  wallet: WalletSnapshot | null;
+  events: OverrideEvent[];
+  splits: RecruiterSplit[];
+}
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  house_listed_verified: 'House listing verified',
+  landlord_verified: 'Landlord verified',
+  lc1_verified: 'LC1 chairperson verified',
+};
+
+function prettyEventType(t: string): string {
+  return EVENT_TYPE_LABELS[t] || t.replace(/_/g, ' ');
+}
+
 function acceptanceLabel(status: string): { label: string; tone: 'accepted' | 'pending' | 'declined' } {
   if (ACCEPTED_STATES.includes(status)) return { label: 'Accepted', tone: 'accepted' };
   if (DECLINED_STATES.includes(status)) return { label: 'Declined', tone: 'declined' };
@@ -43,6 +88,45 @@ export function SubAgentStatusBoard() {
   const { user } = useAuth();
   const [rows, setRows] = useState<StatusRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<StatusRow | null>(null);
+  const [drawer, setDrawer] = useState<DrawerData>({ loading: false, wallet: null, events: [], splits: [] });
+
+  // Load wallet + override breakdown when a row is opened
+  useEffect(() => {
+    if (!selected || !user) return;
+    let cancelled = false;
+    (async () => {
+      setDrawer({ loading: true, wallet: null, events: [], splits: [] });
+      try {
+        const [walletRes, eventsRes, splitsRes] = await Promise.all([
+          supabase
+            .from('wallets')
+            .select('balance, withdrawable_balance, float_balance, advance_balance')
+            .eq('user_id', selected.sub_agent_id)
+            .maybeSingle(),
+          supabase
+            .from('recruiter_override_events')
+            .select('id, event_type, label, amount, status, created_at')
+            .eq('recruiter_id', user.id)
+            .eq('sub_agent_id', selected.sub_agent_id)
+            .order('created_at', { ascending: false }),
+          supabase.rpc('get_subagent_recruiter_splits', { p_sub_agent_id: selected.sub_agent_id }),
+        ]);
+
+        if (cancelled) return;
+        setDrawer({
+          loading: false,
+          wallet: (walletRes.data as WalletSnapshot) || null,
+          events: (eventsRes.data as OverrideEvent[]) || [],
+          splits: ((splitsRes.data as RecruiterSplit[]) || []).filter((s) => Number(s.recruiter_override) > 0),
+        });
+      } catch (err) {
+        console.error('Error loading invitee breakdown:', err);
+        if (!cancelled) setDrawer({ loading: false, wallet: null, events: [], splits: [] });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selected, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -174,9 +258,11 @@ export function SubAgentStatusBoard() {
                 const earningActive = r.override.total > 0;
 
                 return (
-                  <div
+                  <button
                     key={r.id}
-                    className="flex items-center gap-3 rounded-xl border border-border/60 p-3"
+                    type="button"
+                    onClick={() => setSelected(r)}
+                    className="w-full text-left flex items-center gap-3 rounded-xl border border-border/60 p-3 transition-colors hover:bg-muted/50 active:scale-[0.99]"
                   >
                     <UserAvatar avatarUrl={r.avatar_url} fullName={r.name} size="sm" />
                     <div className="flex-1 min-w-0">
@@ -227,13 +313,131 @@ export function SubAgentStatusBoard() {
                         </Badge>
                       )}
                     </div>
-                  </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/60 shrink-0" />
+                  </button>
                 );
               })}
             </div>
           </div>
         )}
       </CardContent>
+
+      {/* Click-through breakdown drawer */}
+      <Sheet open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}>
+        <SheetContent side="bottom" className="h-[88vh] rounded-t-2xl overflow-y-auto pb-10">
+          {selected && (
+            <>
+              <SheetHeader className="pb-3 border-b border-border mb-4">
+                <SheetTitle className="flex items-center gap-3 text-left">
+                  <UserAvatar avatarUrl={selected.avatar_url} fullName={selected.name} size="md" />
+                  <div className="min-w-0">
+                    <p className="font-bold text-base leading-tight truncate">{selected.name}</p>
+                    {selected.phone && <p className="text-xs text-muted-foreground font-normal">{selected.phone}</p>}
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
+
+              {drawer.loading ? (
+                <div className="flex items-center justify-center py-16 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Wallet snapshot */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <Wallet className="h-3.5 w-3.5" /> Wallet breakdown
+                    </p>
+                    {drawer.wallet ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-muted/60 p-3">
+                          <p className="text-[10px] text-muted-foreground">Withdrawable</p>
+                          <p className="font-bold text-base leading-none mt-1 text-emerald-600">{formatUGX(drawer.wallet.withdrawable_balance || 0)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/60 p-3">
+                          <p className="text-[10px] text-muted-foreground">Float</p>
+                          <p className="font-bold text-base leading-none mt-1">{formatUGX(drawer.wallet.float_balance || 0)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/60 p-3">
+                          <p className="text-[10px] text-muted-foreground">Advance owed</p>
+                          <p className="font-bold text-base leading-none mt-1 text-amber-600">{formatUGX(drawer.wallet.advance_balance || 0)}</p>
+                        </div>
+                        <div className="rounded-xl bg-muted/60 p-3">
+                          <p className="text-[10px] text-muted-foreground">Total balance</p>
+                          <p className="font-bold text-base leading-none mt-1">{formatUGX(drawer.wallet.balance || 0)}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No wallet found for this invitee.</p>
+                    )}
+                  </div>
+
+                  {/* Your recruiter override earnings from this invitee */}
+                  <div className="rounded-xl border border-orange-500/20 bg-orange-500/[0.06] p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium flex items-center gap-1.5">
+                        <Coins className="h-3.5 w-3.5 text-orange-500" />
+                        Your total override earned
+                      </span>
+                      <span className="text-sm font-bold text-orange-600">{formatUGX(selected.override.total)}</span>
+                    </div>
+                  </div>
+
+                  {/* Verification bonus ledger entries (UGX 3,000 each) */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <ReceiptText className="h-3.5 w-3.5" /> Verification override entries
+                    </p>
+                    {drawer.events.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No verification override entries yet.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {drawer.events.map((e) => (
+                          <div key={e.id} className="flex items-center gap-2 rounded-lg border border-border/60 p-2.5">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium leading-tight truncate">{prettyEventType(e.event_type)}</p>
+                              {e.label && <p className="text-[10px] text-muted-foreground truncate">{e.label}</p>}
+                              <p className="text-[10px] text-muted-foreground">{format(new Date(e.created_at), 'd MMM yyyy, HH:mm')}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-xs font-bold text-orange-600">{formatUGX(e.amount)}</p>
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 capitalize">{e.status}</Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2% rent-collection override splits */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <TrendingUp className="h-3.5 w-3.5" /> Rent collection overrides (2%)
+                    </p>
+                    {drawer.splits.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No rent-collection overrides yet.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {drawer.splits.map((s) => (
+                          <div key={s.trace_id} className="flex items-center gap-2 rounded-lg border border-border/60 p-2.5">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium leading-tight truncate">{s.tenant_name || 'Tenant collection'}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                On {formatUGX(s.amount)} · {format(new Date(s.created_at), 'd MMM yyyy')}
+                              </p>
+                            </div>
+                            <p className="text-xs font-bold text-orange-600 shrink-0">+{formatUGX(s.recruiter_override)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
