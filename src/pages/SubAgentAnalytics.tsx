@@ -845,6 +845,40 @@ export default function SubAgentAnalytics() {
                     >
                       No Tenants
                     </Button>
+
+                    {/* Sort Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs shrink-0 h-8 gap-1 ml-auto"
+                        >
+                          <ArrowUpDown className="h-3.5 w-3.5" />
+                          Sort
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuItem
+                          onClick={() => setSubAgentSort('newest')}
+                          className={subAgentSort === 'newest' ? 'bg-muted font-medium' : ''}
+                        >
+                          Newest First
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setSubAgentSort('name_asc')}
+                          className={subAgentSort === 'name_asc' ? 'bg-muted font-medium' : ''}
+                        >
+                          Name (A–Z)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setSubAgentSort('withdrawable_desc')}
+                          className={subAgentSort === 'withdrawable_desc' ? 'bg-muted font-medium' : ''}
+                        >
+                          Highest Withdrawable
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
 
