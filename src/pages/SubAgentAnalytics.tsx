@@ -244,6 +244,11 @@ export default function SubAgentAnalytics() {
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [expandedTimelines, setExpandedTimelines] = useState<Set<string>>(new Set());
+  const [activeSection, setActiveSection] = useState<SubAgentSection>('subagent-overview');
+
+  const scrollToSection = (id: SubAgentSection) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const toggleTimeline = (id: string) => {
     setExpandedTimelines(prev => {
