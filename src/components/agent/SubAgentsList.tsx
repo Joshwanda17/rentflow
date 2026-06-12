@@ -296,6 +296,25 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
     });
   };
 
+  const handleReleaseSubAgent = async () => {
+    if (!releaseTarget) return;
+    const target = releaseTarget;
+    setReleasingId(target.sub_agent_id);
+    const { error } = await supabase.rpc('release_sub_agent', {
+      p_sub_agent_id: target.sub_agent_id,
+    });
+    setReleasingId(null);
+    if (error) {
+      toast.error('Could not release sub-agent', { description: error.message });
+      return;
+    }
+    setReleaseTarget(null);
+    toast.success(`${target.full_name} released`, {
+      description: 'They are no longer your sub-agent. Override commission and benefits have stopped.',
+    });
+    await fetchSubAgents();
+  };
+
   if (loading) {
     return (
       <Card>
