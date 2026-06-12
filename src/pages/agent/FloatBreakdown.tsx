@@ -212,6 +212,7 @@ export default function AgentFloatBreakdown() {
     setAllocSearch('');
     setAllocFromDate('');
     setAllocToDate('');
+    setViewingTenantId(null);
   }, [selected?.entry_id]);
 
   async function copyToClipboard(value: string, key: string) {
