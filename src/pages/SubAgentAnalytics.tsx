@@ -143,6 +143,7 @@ export default function SubAgentAnalytics() {
   const [subAgentSearch, setSubAgentSearch] = useState('');
   const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
   const [tenantSearch, setTenantSearch] = useState('');
+  const [subAgentSort, setSubAgentSort] = useState<'newest' | 'name_asc' | 'withdrawable_desc'>('newest');
 
   useEffect(() => {
     if (!authLoading && !user) {
