@@ -118,6 +118,19 @@ interface SubAgent {
   hasOtherParent?: boolean;
 }
 
+interface SubAgentHouse {
+  id: string;
+  title: string | null;
+  status: string | null;
+  monthly_rent: number;
+  verified: boolean;
+  tenant_id: string | null;
+  region: string | null;
+  district: string | null;
+  created_at: string;
+  overrideEarned: number;
+}
+
 interface MonthlyData {
   month: string;
   earnings: number;
