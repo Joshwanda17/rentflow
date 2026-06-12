@@ -835,7 +835,7 @@ export default function SubAgentAnalytics() {
         </div>
       )}
 
-      <main className="p-4 space-y-5">
+      <main className="px-3 py-4 space-y-4">
         {subAgents.length === 0 ? (
           <Card className="border-dashed border-border/60 shadow-none">
             <CardContent className="p-8 text-center">
