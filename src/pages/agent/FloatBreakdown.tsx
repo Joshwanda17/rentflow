@@ -205,6 +205,13 @@ export default function AgentFloatBreakdown() {
     return () => { cancelled = true; };
   }, [selected, user?.id]);
 
+  // Clear allocation filters when a different row is selected
+  useEffect(() => {
+    setAllocSearch('');
+    setAllocFromDate('');
+    setAllocToDate('');
+  }, [selected?.entry_id]);
+
   async function copyToClipboard(value: string, key: string) {
     try {
       await navigator.clipboard.writeText(value);
