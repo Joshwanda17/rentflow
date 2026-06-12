@@ -161,6 +161,37 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
   const searchRef = useRef<HTMLInputElement>(null);
+  const [actionTarget, setActionTarget] = useState<{ row: TopUpRow; action: 'apply' | 'reverse' } | null>(null);
+  const [reasonText, setReasonText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const runAction = async () => {
+    if (!actionTarget) return;
+    if (reasonText.trim().length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('portfolio-topup-row-action', {
+        body: { op_id: actionTarget.row.id, action: actionTarget.action, reason: reasonText.trim() },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(
+        actionTarget.action === 'apply'
+          ? `Applied ${formatUGX(actionTarget.row.amount)} into capital`
+          : `Reversed ${formatUGX(actionTarget.row.amount)} — top-up re-parked`,
+      );
+      setActionTarget(null);
+      setReasonText('');
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'Action failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
