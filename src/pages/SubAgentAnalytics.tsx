@@ -35,7 +35,8 @@ import {
   Briefcase,
   Search,
   X,
-  Filter
+  Filter,
+  ArrowUpDown
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -142,6 +143,7 @@ export default function SubAgentAnalytics() {
   const [subAgentSearch, setSubAgentSearch] = useState('');
   const [subAgentStatusFilter, setSubAgentStatusFilter] = useState<'all' | 'with_tenants' | 'no_tenants'>('all');
   const [tenantSearch, setTenantSearch] = useState('');
+  const [subAgentSort, setSubAgentSort] = useState<'newest' | 'name_asc' | 'withdrawable_desc'>('newest');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -543,7 +545,7 @@ export default function SubAgentAnalytics() {
     }
   };
 
-  // Filtered sub-agents
+  // Filtered & sorted sub-agents
   const filteredSubAgents = useMemo(() => {
     let result = subAgents;
     const q = subAgentSearch.trim().toLowerCase();
@@ -558,8 +560,18 @@ export default function SubAgentAnalytics() {
     } else if (subAgentStatusFilter === 'no_tenants') {
       result = result.filter(sa => sa.tenantsCount === 0);
     }
-    return result;
-  }, [subAgents, subAgentSearch, subAgentStatusFilter]);
+
+    // Sort
+    const sorted = [...result];
+    if (subAgentSort === 'newest') {
+      sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (subAgentSort === 'name_asc') {
+      sorted.sort((a, b) => (a.profile?.full_name || '').localeCompare(b.profile?.full_name || '', undefined, { sensitivity: 'base' }));
+    } else if (subAgentSort === 'withdrawable_desc') {
+      sorted.sort((a, b) => (b.wallet?.withdrawable_balance || 0) - (a.wallet?.withdrawable_balance || 0));
+    }
+    return sorted;
+  }, [subAgents, subAgentSearch, subAgentStatusFilter, subAgentSort]);
 
   // Filtered tenants (inside detail modal)
   const filteredTenants = useMemo(() => {
@@ -833,6 +845,40 @@ export default function SubAgentAnalytics() {
                     >
                       No Tenants
                     </Button>
+
+                    {/* Sort Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs shrink-0 h-8 gap-1 ml-auto"
+                        >
+                          <ArrowUpDown className="h-3.5 w-3.5" />
+                          Sort
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuItem
+                          onClick={() => setSubAgentSort('newest')}
+                          className={subAgentSort === 'newest' ? 'bg-muted font-medium' : ''}
+                        >
+                          Newest First
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setSubAgentSort('name_asc')}
+                          className={subAgentSort === 'name_asc' ? 'bg-muted font-medium' : ''}
+                        >
+                          Name (A–Z)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setSubAgentSort('withdrawable_desc')}
+                          className={subAgentSort === 'withdrawable_desc' ? 'bg-muted font-medium' : ''}
+                        >
+                          Highest Withdrawable
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
 
