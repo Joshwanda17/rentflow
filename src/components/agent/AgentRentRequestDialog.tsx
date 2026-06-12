@@ -4522,8 +4522,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         if (!o) closeFieldFormPreview();
       }}
     >
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-0">
-        <DialogHeader className="px-5 pt-5">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-2xl max-h-[92dvh] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="px-4 pt-4 sm:px-5 sm:pt-5 shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base">
             <FileText className="h-5 w-5 text-primary" />
             Field form preview
@@ -4532,13 +4532,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             Review the blank form, then download or share it.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 min-h-0 px-5">
+        <div className="flex-1 min-h-0 px-4 sm:px-5">
           {fieldFormPreviewUrl ? (
             isMobile ? (
               <button
                 type="button"
                 onClick={openFieldFormFullScreen}
-                className="flex w-full h-[58vh] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/50 px-4 text-center"
+                className="flex w-full h-full min-h-[12rem] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/50 px-4 text-center"
               >
                 <FileText className="h-10 w-10 text-primary" />
                 <span className="text-sm font-medium">Tap to open the form full screen</span>
@@ -4550,16 +4550,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               <iframe
                 src={fieldFormPreviewUrl}
                 title="Rent request field form preview"
-                className="w-full h-[60vh] rounded-lg border border-border bg-muted"
+                className="w-full h-full min-h-[12rem] rounded-lg border border-border bg-muted"
               />
             )
           ) : (
-            <div className="flex h-[58vh] items-center justify-center">
+            <div className="flex h-full min-h-[12rem] items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           )}
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 px-5 py-4 border-t border-border">
+        <div className="flex flex-col sm:flex-row gap-2 px-4 py-3 sm:px-5 sm:py-4 border-t border-border shrink-0">
           {isMobile && (
             <Button
               type="button"
