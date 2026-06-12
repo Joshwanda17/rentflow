@@ -6,6 +6,7 @@ import { Loader2, TrendingUp, TrendingDown, Minus, CalendarRange, Calendar as Ca
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, CartesianGrid } from 'recharts';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { format, startOfDay, endOfDay, isAfter, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +34,12 @@ interface TxLite {
   amount: number | null;
   direction: string | null;
   internal_date: string | null;
+  id?: string;
+  subject?: string | null;
+  counterparty?: string | null;
+  channel?: string | null;
+  transaction_id?: string | null;
+  from_name?: string | null;
 }
 
 interface Bucket {
