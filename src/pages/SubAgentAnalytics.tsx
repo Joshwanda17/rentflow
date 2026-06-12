@@ -1381,6 +1381,17 @@ export default function SubAgentAnalytics() {
         }}
         existingGoal={currentGoal}
       />
+      <FloatingActionButton
+        actions={[
+          {
+            icon: UserPlus,
+            label: 'Invite Sub-Agent',
+            onClick: () => { hapticTap(); setRegisterDialogOpen(true); },
+            variant: 'default',
+          },
+        ]}
+        position="bottom-right"
+      />
     </div>
   );
 }
