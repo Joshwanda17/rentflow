@@ -132,6 +132,22 @@ interface SubAgentHouse {
   district: string | null;
   created_at: string;
   overrideEarned: number;
+  address: string | null;
+  sub_county: string | null;
+  village: string | null;
+  house_category: string | null;
+  number_of_rooms: number | null;
+  total_monthly_cost: number;
+  transactions: HouseTransaction[];
+}
+
+interface HouseTransaction {
+  id: string;
+  label: string;
+  event_type: string;
+  amount: number;
+  status: string | null;
+  occurred_at: string;
 }
 
 interface MonthlyData {
