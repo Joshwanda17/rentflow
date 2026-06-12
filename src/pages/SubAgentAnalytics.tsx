@@ -545,7 +545,7 @@ export default function SubAgentAnalytics() {
     }
   };
 
-  // Filtered sub-agents
+  // Filtered & sorted sub-agents
   const filteredSubAgents = useMemo(() => {
     let result = subAgents;
     const q = subAgentSearch.trim().toLowerCase();
@@ -560,8 +560,18 @@ export default function SubAgentAnalytics() {
     } else if (subAgentStatusFilter === 'no_tenants') {
       result = result.filter(sa => sa.tenantsCount === 0);
     }
-    return result;
-  }, [subAgents, subAgentSearch, subAgentStatusFilter]);
+
+    // Sort
+    const sorted = [...result];
+    if (subAgentSort === 'newest') {
+      sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (subAgentSort === 'name_asc') {
+      sorted.sort((a, b) => (a.profile?.full_name || '').localeCompare(b.profile?.full_name || '', undefined, { sensitivity: 'base' }));
+    } else if (subAgentSort === 'withdrawable_desc') {
+      sorted.sort((a, b) => (b.wallet?.withdrawable_balance || 0) - (a.wallet?.withdrawable_balance || 0));
+    }
+    return sorted;
+  }, [subAgents, subAgentSearch, subAgentStatusFilter, subAgentSort]);
 
   // Filtered tenants (inside detail modal)
   const filteredTenants = useMemo(() => {
