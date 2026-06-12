@@ -460,6 +460,30 @@ export default function SubAgentAnalytics() {
   };
 
   const handleExportCSV = () => {
+    // placeholder anchor (kept for diff context)
+    return _handleExportCSV();
+  };
+
+  const handleResendInvite = async (subAgent: SubAgent) => {
+    setResendingId(subAgent.sub_agent_id);
+    try {
+      const { error } = await invokeEdgeFunction('add-existing-subagent', {
+        body: { subAgentId: subAgent.sub_agent_id, origin: getPublicOrigin() },
+        errorTitle: 'Resend failed',
+        fallbackMessage: 'Could not resend the invite. Please try again.',
+      });
+      if (error) return;
+      toast({
+        title: 'Invite resent',
+        description: `A fresh SMS invite was sent to ${subAgent.profile?.full_name || 'the user'}.`,
+      });
+      fetchSubAgentAnalytics();
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  const _handleExportCSV = () => {
     if (subAgents.length === 0) {
       toast({ title: 'No data to export', variant: 'destructive' });
       return;
