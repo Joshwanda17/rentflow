@@ -631,13 +631,17 @@ export function UserWalletStatementsPanel() {
           </div>
 
           {/* Statements */}
-          <Tabs defaultValue="withdrawable" className="w-full">
-            <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full h-auto">
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="grid grid-cols-3 sm:grid-cols-5 w-full h-auto">
+              <TabsTrigger value="all" className="text-xs py-2">All Activity</TabsTrigger>
               <TabsTrigger value="withdrawable" className="text-xs py-2">Withdrawable</TabsTrigger>
               <TabsTrigger value="float" className="text-xs py-2">Op. Float</TabsTrigger>
               <TabsTrigger value="landlord" className="text-xs py-2">Landlord Float</TabsTrigger>
               <TabsTrigger value="advance" className="text-xs py-2">Advance</TabsTrigger>
             </TabsList>
+            <TabsContent value="all" className="pt-4">
+              <AllActivityStatement userId={selected.id} />
+            </TabsContent>
             <TabsContent value="withdrawable" className="pt-4">
               <BucketStatement userId={selected.id} bucket="withdrawable" />
             </TabsContent>
