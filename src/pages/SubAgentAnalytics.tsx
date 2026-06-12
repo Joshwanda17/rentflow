@@ -1500,6 +1500,9 @@ export default function SubAgentAnalytics() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Payout audit: earning leg ↔ withdrawable wallet credit */}
+            <SubAgentPayoutAudit />
           </div>
         )}
       </main>
