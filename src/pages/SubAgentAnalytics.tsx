@@ -43,6 +43,8 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
+import { AddSubAgentSearch } from '@/components/agent/AddSubAgentSearch';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { SetTeamGoalDialog } from '@/components/agent/SetTeamGoalDialog';
 import { TeamGoalProgress } from '@/components/agent/TeamGoalProgress';
 import { exportToCSV, exportToPDF, formatNumberForExport, formatDateForExport } from '@/lib/exportUtils';
@@ -135,6 +137,7 @@ export default function SubAgentAnalytics() {
   const [recruiterSplits, setRecruiterSplits] = useState<RecruiterSplit[]>([]);
   const [splitsLoading, setSplitsLoading] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [currentGoal, setCurrentGoal] = useState<TeamGoal | null>(null);
   const [currentMonthRegistrations, setCurrentMonthRegistrations] = useState(0);
@@ -645,7 +648,7 @@ export default function SubAgentAnalytics() {
           )}
           
           <Button 
-            onClick={() => { hapticTap(); setRegisterDialogOpen(true); }} 
+            onClick={() => { hapticTap(); setInviteSheetOpen(true); }} 
             size="sm" 
             className="gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25"
           >
@@ -692,9 +695,9 @@ export default function SubAgentAnalytics() {
               <p className="text-muted-foreground text-sm mb-4">
                 Build your team by registering sub-agents. You'll earn 2% of all their tenants' repayments!
               </p>
-              <Button onClick={() => setRegisterDialogOpen(true)} className="gap-2">
+              <Button onClick={() => setInviteSheetOpen(true)} className="gap-2">
                 <UserPlus className="h-4 w-4" />
-                Register Your First Sub-Agent
+                Invite Your First Sub-Agent
               </Button>
             </CardContent>
           </Card>
@@ -826,7 +829,7 @@ export default function SubAgentAnalytics() {
             {/* Invite Banner — always visible to encourage growth */}
             <div 
               id="subagent-invite"
-              onClick={() => { hapticTap(); setRegisterDialogOpen(true); }}
+              onClick={() => { hapticTap(); setInviteSheetOpen(true); }}
               className="scroll-mt-24 relative overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-background p-4 cursor-pointer active:scale-[0.99] transition-transform"
             >
               <div className="flex items-start gap-3">
@@ -1400,6 +1403,47 @@ export default function SubAgentAnalytics() {
         onSuccess={fetchSubAgentAnalytics}
       />
 
+      {/* Invite an existing user as a sub-agent — searches any user and
+          auto-sends an SMS + email invite they must accept. */}
+      <Sheet open={inviteSheetOpen} onOpenChange={setInviteSheetOpen}>
+        <SheetContent side="bottom" className="h-[88vh] rounded-t-3xl overflow-y-auto pb-8">
+          <SheetHeader className="pb-4">
+            <SheetTitle className="flex items-center gap-2 text-xl">
+              <UserPlus className="h-6 w-6 text-orange-500" />
+              Invite a Sub-Agent
+            </SheetTitle>
+            <SheetDescription>
+              Search any registered user by name, phone, or email. They'll get an
+              SMS (and email) inviting them to accept becoming your sub-agent.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-4">
+            <AddSubAgentSearch
+              onAdded={() => {
+                fetchSubAgentAnalytics();
+                setInviteSheetOpen(false);
+              }}
+            />
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full h-12 gap-2 rounded-xl"
+              onClick={() => { hapticTap(); setInviteSheetOpen(false); setRegisterDialogOpen(true); }}
+            >
+              <Sparkles className="h-4 w-4 text-orange-500" />
+              Create a brand-new sub-agent account
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <SetTeamGoalDialog
         open={goalDialogOpen}
         onOpenChange={setGoalDialogOpen}
@@ -1414,7 +1458,7 @@ export default function SubAgentAnalytics() {
           {
             icon: UserPlus,
             label: 'Invite Sub-Agent',
-            onClick: () => { hapticTap(); setRegisterDialogOpen(true); },
+            onClick: () => { hapticTap(); setInviteSheetOpen(true); },
             variant: 'default',
           },
         ]}
