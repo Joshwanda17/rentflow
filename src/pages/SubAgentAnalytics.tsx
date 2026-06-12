@@ -473,9 +473,9 @@ export default function SubAgentAnalytics() {
     }
   };
 
-  const fetchSubAgentAnalytics = async () => {
+  const fetchSubAgentAnalytics = async (opts?: { silent?: boolean }) => {
     if (!user) return;
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
 
     try {
       // Fetch sub-agents
