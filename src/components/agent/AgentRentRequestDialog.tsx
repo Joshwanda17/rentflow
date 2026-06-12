@@ -563,6 +563,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [submitQueued, setSubmitQueued] = useState(false);
   const [queueStatus, setQueueStatus] = useState<'idle' | 'queued' | 'cancelling' | 'ready'>('idle');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // In-dialog preview of the blank field-form PDF before download/share.
+  const [fieldFormPreviewOpen, setFieldFormPreviewOpen] = useState(false);
+  const [fieldFormPreviewUrl, setFieldFormPreviewUrl] = useState<string | null>(null);
+  const [fieldFormBlob, setFieldFormBlob] = useState<Blob | null>(null);
+  const [fieldFormGenerating, setFieldFormGenerating] = useState(false);
   // Whether the landlord linked to this request was already verified at submit
   // time. Drives the "Landlord verification pending" status on the success screen.
   const [landlordVerifiedAtSubmit, setLandlordVerifiedAtSubmit] = useState(false);
