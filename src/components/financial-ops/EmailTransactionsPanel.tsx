@@ -2497,6 +2497,8 @@ export function EmailTransactionsPanel() {
 
       <GmailReconnectAuditPanel />
 
+      <EmailPeriodComparison />
+
       <div className="sm:hidden">
         <Button
           variant="outline"
