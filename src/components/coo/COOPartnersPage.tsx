@@ -2548,9 +2548,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 </div>
                               )}
                               {pendingTopUps[p.id] && (
-                                <p className="text-[9px] text-muted-foreground mb-1.5 pl-0.5">
-                                  Auto-clears daily — merges into capital at next Returns payout (no Financial Ops)
-                                </p>
+                                 <p className="text-[9px] text-muted-foreground mb-1.5 pl-0.5">
+                                   Auto-clears daily — merges into capital only after the next Returns payout is approved (cron runs 7:00 PM EAT)
+                                 </p>
                               )}
                               {awaitingVerification[p.id] && (
                                 <div className="flex items-center gap-1.5 mb-2.5">
@@ -2562,7 +2562,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                               {approvedTopUps[p.id] && (
                                 <div className="flex items-center gap-1.5 mb-2.5">
                                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-amber-500/40 text-amber-600 bg-amber-500/5">
-                                     ⏳ {approvedTopUps[p.id].count} pending principal addition{approvedTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(approvedTopUps[p.id].total)} — merges at next ROI cycle
+                                     ⏳ {approvedTopUps[p.id].count} pending principal addition{approvedTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(approvedTopUps[p.id].total)} — merges after next approved payout (7:00 PM EAT cron)
                                    </Badge>
                                 </div>
                               )}
