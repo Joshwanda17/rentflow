@@ -837,12 +837,12 @@ export default function SubAgentAnalytics() {
 
       <main className="p-4 space-y-5">
         {subAgents.length === 0 ? (
-          <Card className="border-dashed">
+          <Card className="border-dashed border-border/60 shadow-none">
             <CardContent className="p-8 text-center">
               <div className="mx-auto w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mb-4">
                 <Users className="h-8 w-8 text-orange-500" />
               </div>
-              <h3 className="font-bold text-lg mb-2">No Sub-Agents Yet</h3>
+              <h3 className="font-semibold text-lg mb-2">No Sub-Agents Yet</h3>
               <p className="text-muted-foreground text-sm mb-4">
                 Build your team by registering sub-agents. You'll earn 2% of all their tenants' repayments!
               </p>
