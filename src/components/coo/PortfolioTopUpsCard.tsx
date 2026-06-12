@@ -253,6 +253,7 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
         <DialogHeader>
@@ -400,5 +401,47 @@ function TopUpsDialog({ open, onOpenChange, rows, loading, onRefresh }: {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Apply / Reverse confirmation with mandatory reason */}
+    <Dialog open={!!actionTarget} onOpenChange={(v) => { if (!v && !submitting) { setActionTarget(null); setReasonText(''); } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {actionTarget?.action === 'reverse'
+              ? (<><Undo2 className="h-5 w-5 text-red-600" /> Reverse Top-Up Merge</>)
+              : (<><CheckCircle2 className="h-5 w-5 text-emerald-600" /> Apply Top-Up</>)}
+          </DialogTitle>
+          <DialogDescription>
+            {actionTarget && (
+              actionTarget.action === 'reverse'
+                ? `Remove ${formatUGX(actionTarget.row.amount)} from "${actionTarget.row.portfolioName}" and re-park this top-up (use if the cron mis-applied the merge).`
+                : `Merge ${formatUGX(actionTarget.row.amount)} into "${actionTarget.row.portfolioName}" now (use if the merge cron failed to run).`
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <textarea
+          value={reasonText}
+          onChange={(e) => setReasonText(e.target.value)}
+          placeholder="Reason (min 10 characters)…"
+          rows={3}
+          className="w-full rounded-lg border border-border bg-background p-2.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground">{reasonText.trim().length}/10 min</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" disabled={submitting} onClick={() => { setActionTarget(null); setReasonText(''); }}>Cancel</Button>
+            <Button
+              size="sm"
+              disabled={submitting || reasonText.trim().length < 10}
+              className={actionTarget?.action === 'reverse' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}
+              onClick={runAction}
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : (actionTarget?.action === 'reverse' ? 'Reverse' : 'Apply')}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
