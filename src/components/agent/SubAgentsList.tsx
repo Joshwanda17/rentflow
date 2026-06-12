@@ -63,6 +63,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending_acceptance' | 'rejected' | 'released'>('all');
   const [totalSubAgentEarnings, setTotalSubAgentEarnings] = useState(0);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
@@ -337,9 +338,10 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
 
   const filtered = subAgents.filter(
     s =>
-      !search ||
-      s.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      s.phone.includes(search),
+      (!search ||
+        s.full_name.toLowerCase().includes(search.toLowerCase()) ||
+        s.phone.includes(search)) &&
+      (statusFilter === 'all' || s.status === statusFilter),
   );
 
   const activeToday = subAgents.filter(s => s.active_today).length;
@@ -456,6 +458,37 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
             />
           </div>
         )}
+
+        {/* Status filter chips */}
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              { key: 'all', label: 'All' },
+              { key: 'verified', label: 'Accepted' },
+              { key: 'pending_acceptance', label: 'Pending' },
+              { key: 'rejected', label: 'Rejected' },
+              { key: 'released', label: 'Released' },
+            ] as { key: typeof statusFilter; label: string }[]
+          ).map(chip => {
+            const active = statusFilter === chip.key;
+            return (
+              <button
+                key={chip.key}
+                onClick={() => setStatusFilter(chip.key)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  active
+                    ? 'bg-orange-500 text-white border-orange-500'
+                    : 'bg-muted/60 text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                {chip.label}
+                <span className={`ml-1 text-[10px] ${active ? 'text-white/80' : 'text-muted-foreground'}`}>
+                  {subAgents.filter(s => s.status === chip.key || chip.key === 'all').length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
         {/* List */}
         <div className="space-y-2">
