@@ -242,7 +242,7 @@ export function PartnerSMSBroadcast() {
           <AlertDialogHeader>
             <AlertDialogTitle>Send SMS to all partners?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will send <b>{segments}</b> SMS segment{segments === 1 ? '' : 's'} to <b>{recipientCount ?? 0}</b> partner phone{(recipientCount ?? 0) === 1 ? '' : 's'} via Africa's Talking. This action is logged and cannot be recalled.
+              This will send <b>{segments}</b> SMS segment{segments === 1 ? '' : 's'} to <b>{recipientCount ?? 0}</b> partner phone{(recipientCount ?? 0) === 1 ? '' : 's'} via Yoola. This action is logged and cannot be recalled.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
