@@ -136,60 +136,23 @@ async function notifyOne(
     console.error("[notify-expired] in-app notification insert failed", e);
   }
 
-  const { email, name } = await resolveDepositor(admin, row.user_id);
-  if (!email) {
-    console.error("[notify-expired] no email on file for user", row.user_id);
-    // Record the idempotency event so the cron sweep doesn't re-insert the
-    // in-app notification every cycle for users without an email on file.
-    try {
-      await admin.from("cash_deposit_verification_events").insert({
-        deposit_request_id: depositId,
-        user_id: row.user_id,
-        event_type: "expiry_notice_emailed",
-        amount: row.amount,
-        detail: "Expiry/auto-rejection in-app notice delivered; no email on file.",
-        metadata: { emailed_to: null, in_app: true, expires_at: row.expires_at ?? null },
-      } as any);
-    } catch (e) {
-      console.error("[notify-expired] audit insert failed (no_email path)", e);
-    }
-    return "notified_in_app_no_email";
-  }
-
-  const subject = `Your Welile cash deposit was cancelled — code expired (${fmtUGX(row.amount)})`;
-  const body = [
-    `Hi ${name},`,
-    "",
-    "Your cash deposit could not be completed because the 4-digit receipt code",
-    "expired before it was entered, so the deposit was automatically rejected.",
-    "",
-    `Amount:   ${fmtUGX(row.amount)}`,
-    `Status:   Rejected (code expired)`,
-    "",
-    "No money was credited to your wallet for this attempt. If you still want to",
-    "make this deposit, simply start a new cash deposit in the app to receive a",
-    "fresh code.",
-    "",
-    "If you did not start this deposit, you can safely ignore this email.",
-    "",
-    "— Welile",
-  ].join("\n");
-
-  await sendGmail(email, subject, body);
-
+  // EMAIL DISABLED (per product decision): we no longer email depositors when a
+  // cash deposit code expires. The in-app notification above is the sole channel.
+  // We still record the idempotency event so the cron sweep never re-inserts the
+  // in-app notification every cycle.
   try {
     await admin.from("cash_deposit_verification_events").insert({
       deposit_request_id: depositId,
       user_id: row.user_id,
       event_type: "expiry_notice_emailed",
       amount: row.amount,
-      detail: "Expiry/auto-rejection notice emailed to the depositor.",
-      metadata: { emailed_to: email, in_app: true, expires_at: row.expires_at ?? null },
+      detail: "Expiry/auto-rejection in-app notice delivered; email channel disabled.",
+      metadata: { emailed_to: null, in_app: true, email_disabled: true, expires_at: row.expires_at ?? null },
     } as any);
   } catch (e) {
     console.error("[notify-expired] audit insert failed", e);
   }
-  return "emailed";
+  return "notified_in_app";
 }
 
 Deno.serve(async (req) => {
