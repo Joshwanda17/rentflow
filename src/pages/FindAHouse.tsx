@@ -48,45 +48,44 @@ function HouseImageCarousel({ images, title, onImageClick }: { images: string[] 
   const [idx, setIdx] = useState(0);
   if (!images || images.length === 0) {
     return (
-      <div className="w-full aspect-[4/3] rounded-xl bg-muted flex items-center justify-center">
+      <div className="w-full aspect-[5/4] bg-muted flex items-center justify-center">
         <Home className="h-12 w-12 text-muted-foreground/20" />
       </div>
     );
   }
   return (
-    <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-muted">
+    <div className="relative w-full aspect-[5/4] overflow-hidden bg-muted group">
       <img
         src={images[idx]}
         alt={title}
-        className="w-full h-full object-cover cursor-pointer"
+        className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-105"
         loading="lazy"
         decoding="async"
         onClick={() => onImageClick?.(idx)}
       />
-      {/* Tap-to-view overlay hint */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+      {/* Subtle gradient for badge legibility */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/15 pointer-events-none" />
+      {/* Compact full-screen hint, bottom-right */}
       <button
         type="button"
         onClick={() => onImageClick?.(idx)}
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 text-black text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg active:scale-95 transition-transform min-h-[40px]"
+        aria-label="View photos full screen"
+        className="absolute bottom-4 right-4 bg-black/45 backdrop-blur-md text-white p-3 rounded-2xl shadow-lg active:scale-95 transition-transform"
       >
-        <ZoomIn className="h-4 w-4" />
-        Tap to view full screen
+        <ZoomIn className="h-5 w-5" />
       </button>
       {images.length > 1 && (
         <>
           <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-2 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 transition-transform">
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/45 backdrop-blur-md text-white rounded-full p-2 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 transition-transform">
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-2 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 transition-transform">
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/45 backdrop-blur-md text-white rounded-full p-2 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 transition-transform">
             <ChevronRight className="h-5 w-5" />
           </button>
-          <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full font-bold">
-            {idx + 1}/{images.length}
-          </div>
-          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute top-1/2 right-16 -translate-y-1/2 hidden" aria-hidden="true" />
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
             {images.map((_, i) => (
               <span key={i} className={`h-2 rounded-full transition-all ${i === idx ? 'bg-white w-5' : 'bg-white/50 w-2'}`} />
             ))}
