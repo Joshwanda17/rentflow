@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { useSearchParams } from 'react-router-dom';
@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 const REGIONS = [
   'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
@@ -44,6 +45,10 @@ const CATEGORIES = [
 ];
 
 const SITE_URL = 'https://welilereceipts.com';
+
+/** How many cards to render per "page". Each card mounts a map iframe + images,
+ * so rendering them incrementally keeps the marketplace fast with many houses. */
+const PAGE_SIZE = 8;
 
 type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
 
