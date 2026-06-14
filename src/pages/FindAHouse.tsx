@@ -24,6 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 
 const REGIONS = [
   'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
@@ -45,10 +46,6 @@ const CATEGORIES = [
 ];
 
 const SITE_URL = 'https://welilereceipts.com';
-
-/** How many cards to render per "page". Each card mounts a map iframe + images,
- * so rendering them incrementally keeps the marketplace fast with many houses. */
-const PAGE_SIZE = 8;
 
 type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
 
@@ -295,6 +292,46 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
   );
 }
 
+/**
+ * Window-scroll virtualized list of house cards. Only the cards in (or near) the
+ * viewport are mounted, so the page stays fast even with hundreds of listings —
+ * crucial because each card mounts a Google Map iframe + multiple images.
+ * Heights are measured dynamically since cards vary (amenities, description, thumbnails).
+ */
+function VirtualHouseList({ listings }: { listings: HouseListing[] }) {
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  const virtualizer = useWindowVirtualizer({
+    count: listings.length,
+    estimateSize: () => 760,
+    overscan: 3,
+    gap: 12,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
+    getItemKey: (index) => listings[index].id,
+  });
+
+  const items = virtualizer.getVirtualItems();
+
+  return (
+    <div ref={listRef} className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+      {items.map((vi) => {
+        const listing = listings[vi.index];
+        return (
+          <div
+            key={vi.key}
+            data-index={vi.index}
+            ref={virtualizer.measureElement}
+            className="absolute left-0 top-0 w-full"
+            style={{ transform: `translateY(${vi.start - virtualizer.options.scrollMargin}px)` }}
+          >
+            <PublicHouseCard listing={listing} isFirst={vi.index === 0} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function FindAHouse() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -310,7 +347,6 @@ export default function FindAHouse() {
   const [maxDaily, setMaxDaily] = useState<string>('all');
   const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const debouncedSearch = useDebouncedValue(searchText, 250);
 
   const toggleAmenity = (key: AmenityKey) =>
@@ -381,32 +417,6 @@ export default function FindAHouse() {
     }
     return result;
   }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey]);
-
-  // Reset pagination whenever the result set changes (filters/sort/search/data).
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, selectedRegion, selectedCategory, listings.length]);
-
-  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-  const hasMore = visibleCount < filtered.length;
-
-  // Infinite scroll: load the next page when the sentinel scrolls into view.
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length));
-        }
-      },
-      { rootMargin: '600px 0px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasMore, filtered.length]);
 
   const activeFilterCount =
     (verifiedOnly ? 1 : 0) +
@@ -675,27 +685,9 @@ export default function FindAHouse() {
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                Showing {visible.length} of {filtered.length} house{filtered.length !== 1 ? 's' : ''} · {sortLabel.toLowerCase()}
+                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
               </p>
-              {visible.map((listing, i) => (
-                <PublicHouseCard key={listing.id} listing={listing} isFirst={i === 0} />
-              ))}
-              {hasMore && (
-                <>
-                  {/* Sentinel for infinite scroll */}
-                  <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
-                  <div className="flex flex-col items-center gap-2 py-4">
-                    <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length))}
-                    >
-                      Load more houses
-                    </Button>
-                  </div>
-                </>
-              )}
+              <VirtualHouseList listings={filtered} />
             </>
           )}
         </main>
