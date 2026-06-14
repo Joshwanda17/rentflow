@@ -629,12 +629,17 @@ export default function FindAHouse() {
             <div className="text-center py-20 space-y-3">
               <Home className="h-12 w-12 text-muted-foreground/30 mx-auto" />
               <p className="text-muted-foreground font-medium">No houses found</p>
-              <p className="text-xs text-muted-foreground">Try a different region or category</p>
+              <p className="text-xs text-muted-foreground">Try a different region, price, or fewer filters</p>
+              {activeFilterCount > 0 && (
+                <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1.5">
+                  <X className="h-4 w-4" /> Clear filters
+                </Button>
+              )}
             </div>
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · sorted by lowest price
+                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
               </p>
               {filtered.map((listing, i) => (
                 <PublicHouseCard key={listing.id} listing={listing} isFirst={i === 0} />
