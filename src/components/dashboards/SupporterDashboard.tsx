@@ -50,6 +50,7 @@ import { VirtualHousesFeed } from '@/components/supporter/VirtualHousesFeed';
 import { VirtualHouse } from '@/components/supporter/VirtualHouseCard';
 import { VirtualHouseDetailsSheet } from '@/components/supporter/VirtualHouseDetailsSheet';
 import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCategoryFeed';
+import { PublicHousesPreview } from '@/components/landing/PublicHousesPreview';
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 // FundingPoolCard removed from direct import
