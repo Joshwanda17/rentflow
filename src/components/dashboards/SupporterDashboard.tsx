@@ -50,6 +50,7 @@ import { VirtualHousesFeed } from '@/components/supporter/VirtualHousesFeed';
 import { VirtualHouse } from '@/components/supporter/VirtualHouseCard';
 import { VirtualHouseDetailsSheet } from '@/components/supporter/VirtualHouseDetailsSheet';
 import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCategoryFeed';
+import { PublicHousesPreview } from '@/components/landing/PublicHousesPreview';
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 // FundingPoolCard removed from direct import
@@ -607,6 +608,16 @@ export default function SupporterDashboard({
             </div>
           )}
 
+          {/* ═══ HOUSES ON WELILE — visibility into live inventory ═══ */}
+          <div id="houses-on-welile" className="space-y-3 scroll-mt-4">
+            <div className="flex items-center gap-2 px-1">
+              <div className="w-1 h-5 rounded-full bg-primary" />
+              <h2 className="text-sm font-black text-foreground tracking-tight">Houses on Welile</h2>
+            </div>
+            <WidgetErrorBoundary label="Houses on Welile">
+              <PublicHousesPreview />
+            </WidgetErrorBoundary>
+          </div>
 
         </main>
       </div>

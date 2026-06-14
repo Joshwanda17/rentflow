@@ -773,6 +773,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </button>
           )}
 
+          {/* Available houses — surfaced near the top of home so tenants find them first */}
+          <div className="space-y-3">
+            <WidgetErrorBoundary label="Find a house">
+              <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
+            </WidgetErrorBoundary>
+            <WidgetErrorBoundary label="Suggested houses">
+              <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
+            </WidgetErrorBoundary>
+          </div>
+
           {/* Apply your Rent Fees discount to rent — horizontally scrollable rentals */}
           <div ref={rentCarouselRef} id="rent-discount-carousel">
             <RentDiscountCarousel
@@ -835,16 +845,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </ul>
             </div>
           )}
-
-          {/* Available houses — surfaced directly on home so tenants don't have to dig through the menu */}
-          <div className="space-y-3">
-            <WidgetErrorBoundary label="Find a house">
-              <FindAHouseCTA onClick={() => { hapticTap(); openHousesSheet(); }} />
-            </WidgetErrorBoundary>
-            <WidgetErrorBoundary label="Suggested houses">
-              <SuggestedHousesCard userId={user.id} onViewAll={() => { openHousesSheet(); }} />
-            </WidgetErrorBoundary>
-          </div>
 
           {/* Single Menu button */}
           <button

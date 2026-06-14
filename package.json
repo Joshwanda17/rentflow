@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "predev": "bunx tsx scripts/generate-sitemap.ts",
+    "prebuild": "bunx tsx scripts/generate-sitemap.ts",
     "build": "node scripts/guard-frontend-ledger-writes.mjs && node scripts/guard-deposit-purpose.mjs && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
