@@ -345,8 +345,8 @@ export default function FindAHouse() {
 
   const filtered = useMemo(() => {
     let result = [...listings];
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(l =>
         l.region.toLowerCase().includes(q) ||
         l.address.toLowerCase().includes(q) ||
@@ -380,7 +380,33 @@ export default function FindAHouse() {
         break;
     }
     return result;
-  }, [listings, searchText, verifiedOnly, maxDaily, activeAmenities, sortKey]);
+  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey]);
+
+  // Reset pagination whenever the result set changes (filters/sort/search/data).
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, selectedRegion, selectedCategory, listings.length]);
+
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = visibleCount < filtered.length;
+
+  // Infinite scroll: load the next page when the sentinel scrolls into view.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length));
+        }
+      },
+      { rootMargin: '600px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, filtered.length]);
 
   const activeFilterCount =
     (verifiedOnly ? 1 : 0) +
