@@ -154,8 +154,14 @@ function LocationMap({ lat, lng, title, anchorId }: { lat: number | null; lng: n
       {mapVisible ? (
         <iframe src={mapUrl} className="w-full h-full pointer-events-none" title={`Map: ${title}`} loading="lazy" style={{ border: 0 }} />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-muted" aria-hidden="true">
-          <MapPin className="h-6 w-6 text-muted-foreground/40" />
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-muted" aria-hidden="true">
+          <Skeleton className="absolute inset-0 w-full h-full rounded-xl" />
+          <div className="relative z-10 flex flex-col items-center gap-2">
+            <div className="h-10 w-10 rounded-full bg-muted-foreground/10 flex items-center justify-center animate-pulse">
+              <MapPin className="h-5 w-5 text-muted-foreground/60" />
+            </div>
+            <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">Loading map…</span>
+          </div>
         </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none" />
