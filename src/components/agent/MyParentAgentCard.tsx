@@ -1,8 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/UserAvatar';
-import { UsersRound, Clock, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { UsersRound, Clock, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface MyParentAgentCardProps {
   agentId: string;
@@ -47,13 +51,16 @@ function statusBadgeClass(status: InviteStatus) {
  * Renders nothing if the current agent was not invited by anyone.
  */
 export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [accepting, setAccepting] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ['my-parent-agent', agentId],
     enabled: !!agentId,
     queryFn: async () => {
       const { data: link } = await supabase
         .from('agent_subagents')
-        .select('parent_agent_id, status, accepted_at, created_at, expires_at')
+        .select('parent_agent_id, status, accepted_at, created_at, expires_at, acceptance_token')
         .eq('sub_agent_id', agentId)
         .order('created_at', { ascending: true })
         .limit(1)
@@ -73,6 +80,7 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
         acceptedAt: link.accepted_at as string | null,
         createdAt: link.created_at as string | null,
         expiresAt: link.expires_at as string | null,
+        acceptanceToken: link.acceptance_token as string | null,
         fullName: (profile?.full_name as string) || 'Your agent',
         avatarUrl: (profile?.avatar_url as string) || null,
         phone: (profile?.phone as string) || null,
@@ -86,10 +94,46 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
   const expiresDateLabel = fmtInviteDate(data.expiresAt);
   const inviteStatus = classifyInviteStatus(data.status, data.expiresAt);
   const isExpired = inviteStatus === 'expired';
+  const isPending = inviteStatus === 'pending';
+
+  const handleAccept = async () => {
+    if (!data.acceptanceToken) {
+      toast({
+        title: 'Cannot accept here',
+        description: 'This invitation is missing its acceptance code. Please use the link your agent sent you.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setAccepting(true);
+    try {
+      const response = await supabase.functions.invoke('accept-subagent-invite', {
+        body: { acceptanceToken: data.acceptanceToken },
+      });
+      if (response.error || response.data?.error) {
+        const msg = await extractEdgeFunctionError(response, 'Could not accept the invitation.');
+        throw new Error(msg);
+      }
+      toast({
+        title: '🎉 Invitation accepted',
+        description: `You're now a sub-agent of ${data.fullName}. Welcome aboard!`,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['my-parent-agent', agentId] });
+    } catch (err: any) {
+      toast({
+        title: 'Could not accept',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAccepting(false);
+    }
+  };
 
   return (
     <Card className={`border ${isExpired ? 'border-red-300 bg-red-50/[0.03]' : 'border-primary/20 bg-primary/[0.03]'}`}>
-      <CardContent className="p-4 flex items-center gap-3">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
         <UserAvatar
           fullName={data.fullName}
           avatarUrl={data.avatarUrl}
@@ -128,6 +172,36 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
         >
           {inviteStatus}
         </span>
+        </div>
+
+        {isPending && (
+          <div className="mt-3 pt-3 border-t border-border/60">
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Accept to join {data.fullName}'s team and start earning together.
+            </p>
+            <Button
+              className="w-full h-10 gap-2"
+              onClick={handleAccept}
+              disabled={accepting}
+            >
+              {accepting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              {accepting ? 'Accepting…' : 'Accept invitation'}
+            </Button>
+          </div>
+        )}
+
+        {inviteStatus === 'accepted' && (
+          <div className="mt-3 pt-3 border-t border-border/60 flex items-center gap-2 text-emerald-600">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <p className="text-[11px] font-medium">
+              You're an active sub-agent of {data.fullName}.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
