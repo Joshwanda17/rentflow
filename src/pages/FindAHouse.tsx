@@ -310,6 +310,8 @@ export default function FindAHouse() {
   const [maxDaily, setMaxDaily] = useState<string>('all');
   const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const debouncedSearch = useDebouncedValue(searchText, 250);
 
   const toggleAmenity = (key: AmenityKey) =>
     setActiveAmenities(prev =>
