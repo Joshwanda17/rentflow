@@ -120,15 +120,44 @@ function HouseImageCarousel({ images, title, onImageClick }: { images: string[] 
 
 function LocationMap({ lat, lng, title, anchorId }: { lat: number | null; lng: number | null; title: string; anchorId?: string }) {
   const announce = useMapLinkAnnouncer();
+  const containerRef = useRef<HTMLAnchorElement | null>(null);
+  const [mapVisible, setMapVisible] = useState(false);
+
+  // Only mount the (heavy) Google Maps iframe once the card actually enters the
+  // viewport. The virtualizer keeps a few off-screen rows mounted for smooth
+  // scrolling; this avoids those rows loading map iframes until truly visible.
+  useEffect(() => {
+    if (mapVisible) return; // already mounted — keep it mounted to avoid reload flicker
+    const el = containerRef.current;
+    if (!el || !lat || !lng) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setMapVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [lat, lng, mapVisible]);
+
   if (!lat || !lng) return null;
   const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
   const linkUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   return (
-    <a href={linkUrl} id={anchorId} target="_blank" rel="noopener noreferrer"
+    <a ref={containerRef} href={linkUrl} id={anchorId} target="_blank" rel="noopener noreferrer"
       onClick={() => announce(title)}
       aria-label={`Open ${title} location in Google Maps (opens in a new tab)`}
       className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-      <iframe src={mapUrl} className="w-full h-full pointer-events-none" title={`Map: ${title}`} loading="lazy" style={{ border: 0 }} />
+      {mapVisible ? (
+        <iframe src={mapUrl} className="w-full h-full pointer-events-none" title={`Map: ${title}`} loading="lazy" style={{ border: 0 }} />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-muted" aria-hidden="true">
+          <MapPin className="h-6 w-6 text-muted-foreground/40" />
+        </div>
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none" />
       <div className="absolute bottom-2 left-2 right-2 mx-auto w-fit min-h-[44px] bg-primary text-primary-foreground text-sm font-bold px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl touch-manipulation">
         <Navigation className="h-4 w-4" /> Tap to open in Google Maps
