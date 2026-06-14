@@ -528,6 +528,94 @@ export default function FindAHouse() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Sort + filter toggle row */}
+            <div className="flex gap-2">
+              <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+                <SelectTrigger className="flex-1 h-9 text-xs gap-1.5">
+                  <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant={showFilters || activeFilterCount > 0 ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowFilters(s => !s)}
+                className="h-9 gap-1.5 shrink-0"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-background/30 text-[10px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+            </div>
+
+            {/* Expandable filter panel */}
+            {showFilters && (
+              <div className="space-y-3 pt-1">
+                {/* Verified + price cap */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVerifiedOnly(v => !v)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      verifiedOnly
+                        ? 'bg-success text-success-foreground border-success'
+                        : 'bg-muted/60 text-muted-foreground border-border'
+                    }`}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" /> Verified only
+                  </button>
+                  <Select value={maxDaily} onValueChange={setMaxDaily}>
+                    <SelectTrigger className="h-8 w-auto text-xs gap-1.5 rounded-full px-3">
+                      <SelectValue placeholder="Max daily" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any price</SelectItem>
+                      <SelectItem value="5000">Under {formatUGX(5000)}/day</SelectItem>
+                      <SelectItem value="10000">Under {formatUGX(10000)}/day</SelectItem>
+                      <SelectItem value="20000">Under {formatUGX(20000)}/day</SelectItem>
+                      <SelectItem value="50000">Under {formatUGX(50000)}/day</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Amenity chips */}
+                <div className="flex flex-wrap gap-2">
+                  {AMENITY_FILTERS.map(({ key, label, icon: Icon }) => {
+                    const active = activeAmenities.includes(key);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleAmenity(key)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                          active
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-muted/60 text-muted-foreground border-border'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" /> {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" /> Clear all filters
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
