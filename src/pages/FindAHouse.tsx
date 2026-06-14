@@ -147,31 +147,59 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
     setLightboxOpen(true);
   }, []);
 
+  // "New" badge for listings created within the last 14 days.
+  const isNew = useMemo(() => {
+    if (!listing.created_at) return false;
+    return Date.now() - new Date(listing.created_at).getTime() < 14 * 86400000;
+  }, [listing.created_at]);
+
+  const amenities = [
+    listing.has_water && { label: 'Water', dot: 'bg-blue-500' },
+    listing.has_electricity && { label: 'Power', dot: 'bg-amber-400' },
+    listing.has_security && { label: 'Security', dot: 'bg-success' },
+    listing.has_parking && { label: 'Parking', dot: 'bg-violet-500' },
+    listing.is_furnished && { label: 'Furnished', dot: 'bg-rose-400' },
+  ].filter(Boolean) as { label: string; dot: string }[];
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
+      className="rounded-3xl border border-border/60 bg-card overflow-hidden shadow-xl shadow-foreground/5"
       itemScope itemType="https://schema.org/Accommodation"
     >
       <div className="relative">
         <HouseImageCarousel images={listing.image_urls} title={listing.title} onImageClick={openLightbox} />
-        {dist !== undefined && dist < 9999 && (
-          <span className="absolute top-2 left-2 text-[10px] font-medium text-white bg-primary/80 px-2 py-0.5 rounded-full">
-            ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
-          </span>
-        )}
-        <Badge variant="secondary" className="absolute top-2 right-2 text-[10px]">{categoryLabel}</Badge>
-        <HouseRatingBadge houseId={listing.id} houseLat={listing.latitude} houseLng={listing.longitude} className="absolute bottom-2 left-2" />
+
+        {/* Top-left floating badges */}
+        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+          {isNew && (
+            <span className="bg-primary text-primary-foreground text-[10px] font-extrabold uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">New</span>
+          )}
+          <span className="bg-background/85 backdrop-blur-md text-foreground text-[10px] font-extrabold uppercase tracking-widest px-3 py-1.5 rounded-full shadow-sm">{categoryLabel}</span>
+          {dist !== undefined && dist < 9999 && (
+            <span className="bg-background/85 backdrop-blur-md text-foreground text-[10px] font-bold px-3 py-1.5 rounded-full shadow-sm">
+              ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`} away
+            </span>
+          )}
+        </div>
+
+        {/* Floating daily price card, bottom-left */}
+        <div className="absolute bottom-4 left-4 bg-success text-success-foreground px-4 py-3 rounded-2xl shadow-xl shadow-success/30 backdrop-blur-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wide opacity-80 mb-0.5">Daily Stay</p>
+          <p className="text-2xl font-black leading-none" itemProp="price">{formatUGX(listing.daily_rate)}</p>
+        </div>
+
+        <HouseRatingBadge houseId={listing.id} houseLat={listing.latitude} houseLng={listing.longitude} className="absolute top-4 right-4" />
       </div>
 
-      <div className="p-4 space-y-3">
+      <div className="p-5 space-y-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-base truncate" itemProp="name">{listing.title}</h2>
-            <div className="flex items-center gap-1 mt-0.5" itemProp="address">
+            <h2 className="font-bold text-lg tracking-tight leading-tight truncate" itemProp="name">{listing.title}</h2>
+            <div className="flex items-center gap-1 mt-1" itemProp="address">
               <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground font-medium truncate">
                 {listing.address}, {listing.region}
                 {listing.district ? `, ${listing.district}` : ''}
               </p>
@@ -180,11 +208,17 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
           <VerificationBadge verified={listing.verified} status={listing.status} />
         </div>
 
-        <div className="p-4 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30">
-          <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Daily Rent</p>
-          <p className="text-3xl font-black text-success leading-none mb-1" itemProp="price">{formatUGX(listing.daily_rate)}</p>
-          <p className="text-xs text-muted-foreground font-medium">per day · pay as you stay</p>
-        </div>
+        {/* Amenity indicator grid */}
+        {amenities.length > 0 && (
+          <div className="grid grid-cols-3 gap-2.5">
+            {amenities.slice(0, 6).map((a) => (
+              <div key={a.label} className="bg-muted/60 rounded-2xl p-3 border border-border/60 flex flex-col items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${a.dot}`} />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">{a.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Thumbnail strip — tap any to open fullscreen */}
         {lightboxImages.length > 1 && (
@@ -201,18 +235,18 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
           </div>
         )}
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs">
-            <DoorOpen className="h-3 w-3" /> {listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}
-          </span>
-          {listing.has_water && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs"><Droplets className="h-3 w-3" /> Water</span>}
-          {listing.has_electricity && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs"><Zap className="h-3 w-3" /> Power</span>}
-          {listing.has_security && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 text-success text-xs"><ShieldCheck className="h-3 w-3" /> Security</span>}
-          {listing.has_parking && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs"><Car className="h-3 w-3" /> Parking</span>}
-          {listing.is_furnished && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs"><Sofa className="h-3 w-3" /> Furnished</span>}
-        </div>
-
         {listing.description && <p className="text-xs text-muted-foreground line-clamp-2" itemProp="description">{listing.description}</p>}
+
+        {/* Price + rooms summary row */}
+        <div className="flex items-center justify-between pt-3 border-t border-border/60">
+          <div>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Monthly</p>
+            <p className="text-base font-black text-foreground tracking-tight">{formatUGX(listing.monthly_rent)}</p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+            <DoorOpen className="h-3.5 w-3.5" /> {listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}
+          </span>
+        </div>
 
         <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} anchorId={isFirst ? 'first-map-cta' : undefined} />
 
