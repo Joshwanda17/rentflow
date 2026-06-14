@@ -675,11 +675,27 @@ export default function FindAHouse() {
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
+                Showing {visible.length} of {filtered.length} house{filtered.length !== 1 ? 's' : ''} · {sortLabel.toLowerCase()}
               </p>
-              {filtered.map((listing, i) => (
+              {visible.map((listing, i) => (
                 <PublicHouseCard key={listing.id} listing={listing} isFirst={i === 0} />
               ))}
+              {hasMore && (
+                <>
+                  {/* Sentinel for infinite scroll */}
+                  <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length))}
+                    >
+                      Load more houses
+                    </Button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </main>
