@@ -300,6 +300,23 @@ export default function FindAHouse() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('price_asc');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [maxDaily, setMaxDaily] = useState<string>('all');
+  const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const toggleAmenity = (key: AmenityKey) =>
+    setActiveAmenities(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+
+  const clearFilters = () => {
+    setVerifiedOnly(false);
+    setMaxDaily('all');
+    setActiveAmenities([]);
+    setSelectedCategory('all');
+  };
 
   useEffect(() => {
     if (!geoDefaultApplied && geo.city && !geo.loading) {
@@ -330,10 +347,41 @@ export default function FindAHouse() {
         l.title.toLowerCase().includes(q)
       );
     }
-    // Sort by lowest daily rate first
-    result.sort((a, b) => a.daily_rate - b.daily_rate);
+    if (verifiedOnly) {
+      result = result.filter(l => l.verified && l.status !== 'pending');
+    }
+    if (maxDaily !== 'all') {
+      const cap = Number(maxDaily);
+      result = result.filter(l => l.daily_rate <= cap);
+    }
+    if (activeAmenities.length > 0) {
+      result = result.filter(l => activeAmenities.every(k => Boolean((l as any)[k])));
+    }
+    switch (sortKey) {
+      case 'price_desc':
+        result.sort((a, b) => b.daily_rate - a.daily_rate);
+        break;
+      case 'newest':
+        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+      case 'nearest':
+        result.sort((a, b) => (a.distance_km ?? 99999) - (b.distance_km ?? 99999));
+        break;
+      case 'price_asc':
+      default:
+        result.sort((a, b) => a.daily_rate - b.daily_rate);
+        break;
+    }
     return result;
-  }, [listings, searchText]);
+  }, [listings, searchText, verifiedOnly, maxDaily, activeAmenities, sortKey]);
+
+  const activeFilterCount =
+    (verifiedOnly ? 1 : 0) +
+    (maxDaily !== 'all' ? 1 : 0) +
+    activeAmenities.length +
+    (selectedCategory !== 'all' ? 1 : 0);
+
+  const sortLabel = SORT_OPTIONS.find(s => s.value === sortKey)?.label ?? '';
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
