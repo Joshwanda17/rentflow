@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -87,6 +87,28 @@ export function MyParentAgentCard({ agentId }: MyParentAgentCardProps) {
       };
     },
   });
+
+  // Realtime: instantly reflect acceptance no matter where it happened
+  // (this dashboard, the emailed /sub-agent-invite link, or staff action).
+  useEffect(() => {
+    if (!agentId) return;
+    const channel = supabase
+      .channel(`my-parent-agent-${agentId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agent_subagents',
+          filter: `sub_agent_id=eq.${agentId}`,
+        },
+        () => queryClient.invalidateQueries({ queryKey: ['my-parent-agent', agentId] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [agentId, queryClient]);
 
   if (isLoading || !data) return null;
 
