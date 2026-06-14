@@ -608,7 +608,7 @@ export default function SupporterDashboard({
             </div>
           )}
 
-
+        </main>
         </main>
       </div>
       <SupporterMenuDrawer
