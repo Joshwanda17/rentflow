@@ -9,7 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
-  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation
+  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
+  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -43,6 +44,25 @@ const CATEGORIES = [
 ];
 
 const SITE_URL = 'https://welilereceipts.com';
+
+type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'price_asc', label: 'Price: Low to High' },
+  { value: 'price_desc', label: 'Price: High to Low' },
+  { value: 'newest', label: 'Newest first' },
+  { value: 'nearest', label: 'Nearest first' },
+];
+
+const AMENITY_FILTERS = [
+  { key: 'has_water', label: 'Water', icon: Droplets },
+  { key: 'has_electricity', label: 'Power', icon: Zap },
+  { key: 'has_security', label: 'Security', icon: Lock },
+  { key: 'has_parking', label: 'Parking', icon: Car },
+  { key: 'is_furnished', label: 'Furnished', icon: Sofa },
+] as const;
+
+type AmenityKey = typeof AMENITY_FILTERS[number]['key'];
 
 function HouseImageCarousel({ images, title, onImageClick }: { images: string[] | null; title: string; onImageClick?: (index: number) => void }) {
   const [idx, setIdx] = useState(0);
@@ -280,6 +300,23 @@ export default function FindAHouse() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('price_asc');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [maxDaily, setMaxDaily] = useState<string>('all');
+  const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const toggleAmenity = (key: AmenityKey) =>
+    setActiveAmenities(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+
+  const clearFilters = () => {
+    setVerifiedOnly(false);
+    setMaxDaily('all');
+    setActiveAmenities([]);
+    setSelectedCategory('all');
+  };
 
   useEffect(() => {
     if (!geoDefaultApplied && geo.city && !geo.loading) {
@@ -310,10 +347,41 @@ export default function FindAHouse() {
         l.title.toLowerCase().includes(q)
       );
     }
-    // Sort by lowest daily rate first
-    result.sort((a, b) => a.daily_rate - b.daily_rate);
+    if (verifiedOnly) {
+      result = result.filter(l => l.verified && l.status !== 'pending');
+    }
+    if (maxDaily !== 'all') {
+      const cap = Number(maxDaily);
+      result = result.filter(l => l.daily_rate <= cap);
+    }
+    if (activeAmenities.length > 0) {
+      result = result.filter(l => activeAmenities.every(k => Boolean((l as any)[k])));
+    }
+    switch (sortKey) {
+      case 'price_desc':
+        result.sort((a, b) => b.daily_rate - a.daily_rate);
+        break;
+      case 'newest':
+        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+      case 'nearest':
+        result.sort((a, b) => (a.distance_km ?? 99999) - (b.distance_km ?? 99999));
+        break;
+      case 'price_asc':
+      default:
+        result.sort((a, b) => a.daily_rate - b.daily_rate);
+        break;
+    }
     return result;
-  }, [listings, searchText]);
+  }, [listings, searchText, verifiedOnly, maxDaily, activeAmenities, sortKey]);
+
+  const activeFilterCount =
+    (verifiedOnly ? 1 : 0) +
+    (maxDaily !== 'all' ? 1 : 0) +
+    activeAmenities.length +
+    (selectedCategory !== 'all' ? 1 : 0);
+
+  const sortLabel = SORT_OPTIONS.find(s => s.value === sortKey)?.label ?? '';
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
@@ -460,6 +528,94 @@ export default function FindAHouse() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Sort + filter toggle row */}
+            <div className="flex gap-2">
+              <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+                <SelectTrigger className="flex-1 h-9 text-xs gap-1.5">
+                  <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant={showFilters || activeFilterCount > 0 ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowFilters(s => !s)}
+                className="h-9 gap-1.5 shrink-0"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-background/30 text-[10px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+            </div>
+
+            {/* Expandable filter panel */}
+            {showFilters && (
+              <div className="space-y-3 pt-1">
+                {/* Verified + price cap */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVerifiedOnly(v => !v)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                      verifiedOnly
+                        ? 'bg-success text-success-foreground border-success'
+                        : 'bg-muted/60 text-muted-foreground border-border'
+                    }`}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" /> Verified only
+                  </button>
+                  <Select value={maxDaily} onValueChange={setMaxDaily}>
+                    <SelectTrigger className="h-8 w-auto text-xs gap-1.5 rounded-full px-3">
+                      <SelectValue placeholder="Max daily" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any price</SelectItem>
+                      <SelectItem value="5000">Under {formatUGX(5000)}/day</SelectItem>
+                      <SelectItem value="10000">Under {formatUGX(10000)}/day</SelectItem>
+                      <SelectItem value="20000">Under {formatUGX(20000)}/day</SelectItem>
+                      <SelectItem value="50000">Under {formatUGX(50000)}/day</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Amenity chips */}
+                <div className="flex flex-wrap gap-2">
+                  {AMENITY_FILTERS.map(({ key, label, icon: Icon }) => {
+                    const active = activeAmenities.includes(key);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleAmenity(key)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                          active
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-muted/60 text-muted-foreground border-border'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" /> {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" /> Clear all filters
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -473,12 +629,17 @@ export default function FindAHouse() {
             <div className="text-center py-20 space-y-3">
               <Home className="h-12 w-12 text-muted-foreground/30 mx-auto" />
               <p className="text-muted-foreground font-medium">No houses found</p>
-              <p className="text-xs text-muted-foreground">Try a different region or category</p>
+              <p className="text-xs text-muted-foreground">Try a different region, price, or fewer filters</p>
+              {activeFilterCount > 0 && (
+                <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1.5">
+                  <X className="h-4 w-4" /> Clear filters
+                </Button>
+              )}
             </div>
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · sorted by lowest price
+                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
               </p>
               {filtered.map((listing, i) => (
                 <PublicHouseCard key={listing.id} listing={listing} isFirst={i === 0} />
