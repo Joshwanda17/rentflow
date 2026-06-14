@@ -296,6 +296,46 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
   );
 }
 
+/**
+ * Window-scroll virtualized list of house cards. Only the cards in (or near) the
+ * viewport are mounted, so the page stays fast even with hundreds of listings —
+ * crucial because each card mounts a Google Map iframe + multiple images.
+ * Heights are measured dynamically since cards vary (amenities, description, thumbnails).
+ */
+function VirtualHouseList({ listings }: { listings: HouseListing[] }) {
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  const virtualizer = useWindowVirtualizer({
+    count: listings.length,
+    estimateSize: () => 760,
+    overscan: 3,
+    gap: 12,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
+    getItemKey: (index) => listings[index].id,
+  });
+
+  const items = virtualizer.getVirtualItems();
+
+  return (
+    <div ref={listRef} className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+      {items.map((vi) => {
+        const listing = listings[vi.index];
+        return (
+          <div
+            key={vi.key}
+            data-index={vi.index}
+            ref={virtualizer.measureElement}
+            className="absolute left-0 top-0 w-full"
+            style={{ transform: `translateY(${vi.start - virtualizer.options.scrollMargin}px)` }}
+          >
+            <PublicHouseCard listing={listing} isFirst={vi.index === 0} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function FindAHouse() {
   const { toast } = useToast();
   const { user } = useAuth();
