@@ -544,8 +544,11 @@ export default function FindAHouse() {
                 placeholder="Search by region, district, or address..."
                 value={searchText}
                 onChange={e => setSearchText(e.target.value)}
-                className="pl-10"
+                className="pl-10 pr-9"
               />
+              {searchText !== debouncedSearch && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+              )}
             </div>
             <div className="flex gap-2">
               <Select value={selectedRegion} onValueChange={setSelectedRegion}>
