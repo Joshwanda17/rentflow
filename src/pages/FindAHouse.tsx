@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { useSearchParams } from 'react-router-dom';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
-  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp
+  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 const REGIONS = [
   'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
@@ -44,6 +45,10 @@ const CATEGORIES = [
 ];
 
 const SITE_URL = 'https://welilereceipts.com';
+
+/** How many cards to render per "page". Each card mounts a map iframe + images,
+ * so rendering them incrementally keeps the marketplace fast with many houses. */
+const PAGE_SIZE = 8;
 
 type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
 
@@ -305,6 +310,8 @@ export default function FindAHouse() {
   const [maxDaily, setMaxDaily] = useState<string>('all');
   const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const debouncedSearch = useDebouncedValue(searchText, 250);
 
   const toggleAmenity = (key: AmenityKey) =>
     setActiveAmenities(prev =>
@@ -338,8 +345,8 @@ export default function FindAHouse() {
 
   const filtered = useMemo(() => {
     let result = [...listings];
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(l =>
         l.region.toLowerCase().includes(q) ||
         l.address.toLowerCase().includes(q) ||
@@ -373,7 +380,33 @@ export default function FindAHouse() {
         break;
     }
     return result;
-  }, [listings, searchText, verifiedOnly, maxDaily, activeAmenities, sortKey]);
+  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey]);
+
+  // Reset pagination whenever the result set changes (filters/sort/search/data).
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, selectedRegion, selectedCategory, listings.length]);
+
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = visibleCount < filtered.length;
+
+  // Infinite scroll: load the next page when the sentinel scrolls into view.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length));
+        }
+      },
+      { rootMargin: '600px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, filtered.length]);
 
   const activeFilterCount =
     (verifiedOnly ? 1 : 0) +
@@ -511,8 +544,11 @@ export default function FindAHouse() {
                 placeholder="Search by region, district, or address..."
                 value={searchText}
                 onChange={e => setSearchText(e.target.value)}
-                className="pl-10"
+                className="pl-10 pr-9"
               />
+              {searchText !== debouncedSearch && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+              )}
             </div>
             <div className="flex gap-2">
               <Select value={selectedRegion} onValueChange={setSelectedRegion}>
@@ -639,11 +675,27 @@ export default function FindAHouse() {
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
+                Showing {visible.length} of {filtered.length} house{filtered.length !== 1 ? 's' : ''} · {sortLabel.toLowerCase()}
               </p>
-              {filtered.map((listing, i) => (
+              {visible.map((listing, i) => (
                 <PublicHouseCard key={listing.id} listing={listing} isFirst={i === 0} />
               ))}
+              {hasMore && (
+                <>
+                  {/* Sentinel for infinite scroll */}
+                  <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, filtered.length))}
+                    >
+                      Load more houses
+                    </Button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </main>
