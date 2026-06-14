@@ -9,7 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
-  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation
+  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
+  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -43,6 +44,25 @@ const CATEGORIES = [
 ];
 
 const SITE_URL = 'https://welilereceipts.com';
+
+type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'price_asc', label: 'Price: Low to High' },
+  { value: 'price_desc', label: 'Price: High to Low' },
+  { value: 'newest', label: 'Newest first' },
+  { value: 'nearest', label: 'Nearest first' },
+];
+
+const AMENITY_FILTERS = [
+  { key: 'has_water', label: 'Water', icon: Droplets },
+  { key: 'has_electricity', label: 'Power', icon: Zap },
+  { key: 'has_security', label: 'Security', icon: Lock },
+  { key: 'has_parking', label: 'Parking', icon: Car },
+  { key: 'is_furnished', label: 'Furnished', icon: Sofa },
+] as const;
+
+type AmenityKey = typeof AMENITY_FILTERS[number]['key'];
 
 function HouseImageCarousel({ images, title, onImageClick }: { images: string[] | null; title: string; onImageClick?: (index: number) => void }) {
   const [idx, setIdx] = useState(0);
