@@ -47,10 +47,6 @@ const CATEGORIES = [
 
 const SITE_URL = 'https://welilereceipts.com';
 
-/** How many cards to render per "page". Each card mounts a map iframe + images,
- * so rendering them incrementally keeps the marketplace fast with many houses. */
-const PAGE_SIZE = 8;
-
 type SortKey = 'price_asc' | 'price_desc' | 'newest' | 'nearest';
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
