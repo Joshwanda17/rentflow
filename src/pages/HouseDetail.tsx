@@ -234,6 +234,7 @@ export default function HouseDetail() {
       <Helmet>
         <title>{ogTitle}</title>
         <meta name="description" content={ogDescription} />
+        <link rel="canonical" href={shareUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={shareUrl} />
         <meta property="og:title" content={ogTitle} />
@@ -246,6 +247,12 @@ export default function HouseDetail() {
         <meta name="twitter:title" content={ogTitle} />
         <meta name="twitter:description" content={ogDescription} />
         <meta name="twitter:image" content={ogImage} />
+        {houseJsonLd && (
+          <script type="application/ld+json">{JSON.stringify(houseJsonLd)}</script>
+        )}
+        {breadcrumbJsonLd && (
+          <script type="application/ld+json">{JSON.stringify(breadcrumbJsonLd)}</script>
+        )}
       </Helmet>
       <div className="min-h-screen bg-background pb-28">
         {/* ── Full-bleed Hero Image Gallery ── */}
