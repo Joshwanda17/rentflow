@@ -24,6 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 
 const REGIONS = [
   'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
