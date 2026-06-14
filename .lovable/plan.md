@@ -1,37 +1,40 @@
-## Goal
-On the agent **Tenants** tab ("My Tenants"), show the **Submissions** pipeline stacked directly above the existing tenant list — no toggle, both visible by scrolling.
+# Make listed houses more visible
 
-## Current behavior
-- `src/components/dashboards/AgentDashboard.tsx` → `activeTab === 'tenants'` renders: header ("My Tenants" + Add Tenant), `AgentDailyCardEmailPrompt`, `AgentCapacityShareInline`, then `AgentTenantInlineList`.
-- The Submissions pipeline (`AgentRequestPipelineView`: submitted / approved / rejected / landlords) currently only opens inside the full-screen `AgentTenantsSheet`.
+Three goals, all selected: (1) Google/SEO discoverable, (2) more prominent in-app, (3) better-looking cards — for tenants, supporters, and the public.
 
-## Changes (frontend only)
+## 1. Google / SEO discoverability (highest leverage)
 
-In `src/components/dashboards/AgentDashboard.tsx`, inside the `activeTab === 'tenants'` block:
+Right now Google can find `/find-a-house` but not the individual `/house/:id` pages, so no single house ranks or gets a rich result.
 
-1. Add a **"Submissions"** section directly under the header (above `AgentTenantInlineList`):
-   - A small section heading ("Submissions") so the two areas read as distinct.
-   - Render `<AgentRequestPipelineView initialTab="submitted" />` inline.
-2. Keep the existing **"My Tenants"** list below it (add a matching "My Tenants" sub-heading above `AgentTenantInlineList` so the stacked layout is clearly labelled).
-3. Import `AgentRequestPipelineView` from `@/components/agent/AgentRequestPipelineView` at the top of the file.
+- **Dynamic sitemap of every live house.** Add a sitemap generator (`scripts/generate-sitemap.ts`, wired to `predev`/`prebuild`) that keeps the static routes AND appends one `<loc>` per available, non-hidden, photographed listing (`/house/{short_code|id}`). This is what actually gets houses crawled. Uses the read-only public listing query (same filters as `PublicHousesPreview`).
+- **Structured data on `/house/:id`.** Add JSON-LD (`Accommodation`/`Product` + `offers` with price in UGX, `BreadcrumbList`) inside the existing `<Helmet>`. Enables price + photo rich snippets in search.
+- **Self-referencing canonical** on `/house/:id` and `/find-a-house` (currently missing canonical).
+- Confirm `robots.txt` allows `/house/` and `/find-a-house` (it does today; will verify).
 
-The existing `AgentTenantsSheet` (and its pipeline view, deep-link events, highlight handling) stays untouched as a fallback / detail surface.
+Note: social-preview crawlers (WhatsApp/Facebook) don't run JS, so per-house OG images only show for Google-class crawlers — full per-house social previews would need SSR (out of scope; called out honestly).
 
-```text
-Tenants tab
-├─ Header: "My Tenants"  [Add Tenant]
-├─ AgentDailyCardEmailPrompt
-├─ AgentCapacityShareInline
-├─ "Submissions"  ← new heading
-│   └─ AgentRequestPipelineView (submitted/approved/rejected/landlords)
-└─ "My Tenants"   ← new sub-heading
-    └─ AgentTenantInlineList
-```
+## 2. More prominent in-app
+
+- **Tenant dashboard:** move the "Find a house" / available-houses entry above the lower-priority cards so it's one of the first things a tenant sees, with a live count ("128 houses available near you").
+- **Supporter/Funder dashboard:** add a compact "Houses available to fund" preview strip linking into the browse sheet (supporters currently have no direct browse entry).
+- Keep the existing `AvailableHousesSheet` as the shared destination.
+
+## 3. Better-looking cards
+
+Refresh `PublicHouseCard` (find-a-house) and the dashboard house cards:
+- Stronger photo treatment, clear price (daily + monthly), location, key amenity chips (water/power/security), and a "New" badge for recently listed.
+- Consistent card style across landing, find-a-house, and dashboards.
+
+Since this is a visual-taste change, I'll show 3 rendered card design directions first and build the one you pick, rather than guessing.
 
 ## Technical notes
-- `AgentRequestPipelineView` is self-contained (fetches its own data via React Query, has its own search/sort/tabs and detail drawer), so it embeds cleanly with no new props or backend work.
-- Pure presentation/layout change in one file plus one import — no business logic, RPC, or schema changes.
+- Sitemap generator reuses the public listing filters; safe because listings are already public via RLS.
+- No backend/schema changes. No financial or wallet code touched.
+- JSON-LD price uses UGX per project currency standard.
 
-## Verification
-- Build/typecheck passes.
-- On the Tenants tab, the Submissions pipeline appears first, the tenant list below; both scroll within the tab.
+## Suggested order
+1. SEO (sitemap + structured data + canonical) — biggest discoverability win, fully deterministic.
+2. In-app prominence (dashboard reordering + supporter strip).
+3. Card redesign (after you pick a direction).
+
+Want me to start with all three, or SEO first?
