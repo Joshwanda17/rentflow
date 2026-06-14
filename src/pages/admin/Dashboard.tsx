@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 import RentAccessLimitParamsPanel from '@/components/admin/RentAccessLimitParamsPanel';
+import RunGscVerifyButton from '@/components/admin/RunGscVerifyButton';
 
 interface DashboardCard {
   label: string;
@@ -214,6 +215,9 @@ export default function AdminDashboardPage() {
           <div className="space-y-4">
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">System</p>
             {(role === 'manager' || role === 'cto') && <RunBackupNowButton />}
+            {(role === 'manager' || role === 'cto' || role === 'ceo' || role === 'super_admin') && (
+              <RunGscVerifyButton />
+            )}
             {(role === 'manager' || role === 'cfo' || role === 'ceo' || role === 'super_admin') && (
               <RentAccessLimitParamsPanel />
             )}
