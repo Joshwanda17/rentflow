@@ -139,6 +139,55 @@ export default function HouseDetail() {
     : 'Find affordable daily-rent houses on Welile.';
   const ogImage = listing?.image_urls?.[0] || `${SITE_URL}/og-image.png`;
 
+  // Structured data so individual houses get rich results (price, photo) in Google.
+  const houseJsonLd = listing
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'Accommodation',
+        name: listing.title,
+        description: ogDescription,
+        url: shareUrl,
+        numberOfRooms: listing.number_of_rooms,
+        ...(listing.image_urls?.length ? { image: listing.image_urls } : {}),
+        address: {
+          '@type': 'PostalAddress',
+          addressLocality: listing.region,
+          addressRegion: listing.district || listing.region,
+          addressCountry: 'UG',
+          streetAddress: listing.address,
+        },
+        ...(listing.latitude && listing.longitude
+          ? { geo: { '@type': 'GeoCoordinates', latitude: listing.latitude, longitude: listing.longitude } }
+          : {}),
+        amenityFeature: [
+          listing.has_water && { '@type': 'LocationFeatureSpecification', name: 'Running Water', value: true },
+          listing.has_electricity && { '@type': 'LocationFeatureSpecification', name: 'Electricity', value: true },
+          listing.has_security && { '@type': 'LocationFeatureSpecification', name: 'Security', value: true },
+          listing.has_parking && { '@type': 'LocationFeatureSpecification', name: 'Parking', value: true },
+          listing.is_furnished && { '@type': 'LocationFeatureSpecification', name: 'Furnished', value: true },
+        ].filter(Boolean),
+        offers: {
+          '@type': 'Offer',
+          price: listing.daily_rate,
+          priceCurrency: 'UGX',
+          availability: 'https://schema.org/InStock',
+          priceValidUntil: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+          url: shareUrl,
+        },
+      }
+    : null;
+
+  const breadcrumbJsonLd = listing
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Find a House', item: `${SITE_URL}/find-a-house` },
+          { '@type': 'ListItem', position: 2, name: listing.title, item: shareUrl },
+        ],
+      }
+    : null;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
