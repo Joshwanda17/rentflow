@@ -133,9 +133,14 @@ export default function HouseDetail() {
     }
   };
 
-  const ogTitle = listing ? `${listing.title} — ${formatUGX(listing.daily_rate)}/day | Welile` : 'House for Rent | Welile';
+  const ogLocation = listing
+    ? [listing.region, listing.district].filter(Boolean).join(', ')
+    : '';
+  const ogTitle = listing
+    ? `${listing.title} in ${listing.region} — ${formatUGX(listing.daily_rate)}/day | Welile`
+    : 'House for Rent | Welile';
   const ogDescription = listing
-    ? `${listing.house_category?.replace(/_/g, ' ')} • ${listing.number_of_rooms} rooms in ${listing.region}. ${formatUGX(listing.daily_rate)}/day. Pay as you stay with Welile!`
+    ? `${listing.title} — ${listing.house_category?.replace(/_/g, ' ')}, ${listing.number_of_rooms} room${listing.number_of_rooms === 1 ? '' : 's'} in ${ogLocation}. ${formatUGX(listing.daily_rate)}/day. Pay as you stay with Welile!`
     : 'Find affordable daily-rent houses on Welile.';
   const ogImage = listing?.image_urls?.[0] || `${SITE_URL}/og-image.png`;
 
