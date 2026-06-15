@@ -218,7 +218,13 @@ export default function AgentPartners() {
 
   const handleInviteFunder = async () => {
     hapticTap();
-    const url = `${window.location.origin}/become-supporter?ref=${user?.id}`;
+    if (!user?.id) return;
+    let url = `${getPublicOrigin()}/funder-onboarding?ref=${user.id}`;
+    try {
+      url = await createShortLink(user.id, '/funder-onboarding', { ref: user.id });
+    } catch {
+      // fall back to long link
+    }
     const message = `🤝 Join me on Welile as a partner investor!\n\nEarn monthly returns on your investment.\n\n${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
