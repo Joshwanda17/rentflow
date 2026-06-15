@@ -29,28 +29,49 @@ function formatUGX(n: number): string {
   return `UGX ${v.toLocaleString("en-UG")}`;
 }
 
-async function sendSMS(phone: string, message: string): Promise<boolean> {
-  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
-  const username = Deno.env.get("AFRICASTALKING_USERNAME");
-  if (!apiKey || !username) {
-    console.error("[send-rent-access-sms] Missing AT credentials");
+// Digits-only phone with country code, no leading "+" (e.g. "256704487563").
+// Shape used by both Yoola and LANA.
+function formatPhoneDigits(phone: string): string {
+  return formatPhoneInternational(phone).replace(/^\+/, "");
+}
+
+// ── SMS provider chain: Yoola (primary) → Africa's Talking → LANA ──
+// Each provider is tried only if the previous is unconfigured or rejects.
+async function sendViaYoola(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
+  if (!apiKey) return false;
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: formatPhoneDigits(phone), message, api_key: apiKey }),
+    });
+    const text = await res.text();
+    console.log(`[send-rent-access-sms] Yoola (${res.status}):`, text);
+    let data: any = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const status = String(data?.status ?? "").toLowerCase();
+    if (res.ok && (status === "success" || status === "ok" || status === "sent" || status === "queued")) return true;
+    if (res.ok && !data?.error && status === "") return true;
+    return false;
+  } catch (err) {
+    console.error("[send-rent-access-sms] Yoola failed:", err);
     return false;
   }
+}
+
+async function sendViaAfricasTalking(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) return false;
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
     ? "https://api.sandbox.africastalking.com/version1/messaging"
     : "https://api.africastalking.com/version1/messaging";
-
   const to = formatPhoneInternational(phone);
   if (!to) return false;
-
   try {
-    const body = new URLSearchParams({
-      username,
-      to,
-      message,
-      from: "WELILE",
-    });
+    const body = new URLSearchParams({ username, to, message, from: "WELILE" });
     const res = await fetch(baseUrl, {
       method: "POST",
       headers: {
@@ -67,17 +88,50 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
       return false;
     }
     const recipients = data?.SMSMessageData?.Recipients || [];
-    const ok = recipients.some(
-      (r: any) => r.statusCode === 100 || r.statusCode === 101,
-    );
-    console.log(
-      `[send-rent-access-sms] to=${to} ok=${ok} status=${res.status} recipients=${JSON.stringify(recipients)}`,
-    );
+    const ok = recipients.some((r: any) => r.statusCode === 100 || r.statusCode === 101);
+    console.log(`[send-rent-access-sms] AT to=${to} ok=${ok} recipients=${JSON.stringify(recipients)}`);
     return ok;
   } catch (err) {
-    console.error("[send-rent-access-sms] send failed:", err);
+    console.error("[send-rent-access-sms] AT send failed:", err);
     return false;
   }
+}
+
+async function sendViaLana(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
+  if (!apiKey) return false;
+  try {
+    const res = await fetch("https://api.lanasms.com/v1/send", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ phone: formatPhoneDigits(phone), message }),
+    });
+    const text = await res.text();
+    console.log(`[send-rent-access-sms] LANA (${res.status}):`, text);
+    let data: any = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const status = String(data?.status ?? "").toLowerCase();
+    return res.ok && (data?.status === true || status === "success" || status === "true" || status === "ok" || status === "sent" || status === "queued");
+  } catch (err) {
+    console.error("[send-rent-access-sms] LANA failed:", err);
+    return false;
+  }
+}
+
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  const to = formatPhoneInternational(phone);
+  if (!to) return false;
+  if (await sendViaYoola(phone, message)) return true;
+  console.warn("[send-rent-access-sms] Yoola not accepted; trying Africa's Talking");
+  if (await sendViaAfricasTalking(phone, message)) return true;
+  console.warn("[send-rent-access-sms] AT not accepted; trying LANA");
+  if (await sendViaLana(phone, message)) return true;
+  console.error("[send-rent-access-sms] all providers failed");
+  return false;
 }
 
 Deno.serve(async (req) => {
@@ -145,37 +199,21 @@ Deno.serve(async (req) => {
 
     let message: string;
     if (mode === "allocation" && paidNum > 0) {
-      // New branded copy for agent float allocations / tenant payments.
-      const lines = [
-        "WELILE — Rent Money You Can Get",
-        "",
-        `Hello ${firstName},`,
-        "",
-        hasRemaining
-          ? `You have paid ${formatUGX(paidNum)} toward your rent. Your remaining balance is ${formatUGX(remainingNum)}.`
-          : `You have paid ${formatUGX(paidNum)} toward your rent.`,
-        "",
-        "Continue paying your rent on time to qualify for future rent support of up to UGX 3,000,000.",
-      ];
-      if (share_url) {
-        lines.push("", "View your rent card here:", share_url);
-      }
-      lines.push("", "Pay on time, your rent limit increases daily!");
-      message = lines.join("\n");
+      // Short branded copy for agent float allocations / tenant payments.
+      const parts = [
+        `WELILE: Hi ${firstName}, paid ${formatUGX(paidNum)}.`,
+        hasRemaining ? `Balance ${formatUGX(remainingNum)}.` : null,
+        share_url ? `Card: ${share_url}` : null,
+      ].filter(Boolean);
+      message = parts.join(" ");
     } else {
-      // Manual share — keep the original short card-link copy.
-      const lines: string[] = [
-        "WELILE — Rent Money You Can Get",
-        `Hi ${firstName},`,
-      ];
-      if (limitText) {
-        lines.push(`You can get up to ${limitText} for rent today.`);
-      } else {
-        lines.push("See how much rent money you can get today.");
-      }
-      if (share_url) lines.push(`View your card: ${share_url}`);
-      lines.push("Pay on time — your limit grows daily.");
-      message = lines.join("\n");
+      // Manual share — short card-link copy.
+      const parts = [
+        `WELILE: Hi ${firstName},`,
+        limitText ? `get up to ${limitText} for rent.` : `see your rent money.`,
+        share_url ? `Card: ${share_url}` : null,
+      ].filter(Boolean);
+      message = parts.join(" ");
     }
 
     const ok = await sendSMS(tenant_phone, message);
