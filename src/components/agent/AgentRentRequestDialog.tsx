@@ -3950,28 +3950,41 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         See who is already living in a house, which houses are empty, and which are
                         listed but not yet verified before posting this tenant&apos;s rent request.
                       </p>
-                      {/* Search / filter houses */}
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                        <Input
-                          value={houseSearchQuery}
-                          onChange={(e) => setHouseSearchQuery(e.target.value)}
-                          placeholder="Search by house name, address, or landlord phone…"
-                          className="h-9 pl-8 pr-8 text-sm rounded-xl bg-background border-border"
-                        />
-                        {houseSearchQuery && (
-                          <button
-                            type="button"
-                            onClick={() => setHouseSearchQuery('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        )}
+                      {/* Search / filter + sort houses */}
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            value={houseSearchQuery}
+                            onChange={(e) => setHouseSearchQuery(e.target.value)}
+                            placeholder="Search by house name, address, or landlord phone…"
+                            className="h-9 pl-8 pr-8 text-sm rounded-xl bg-background border-border"
+                          />
+                          {houseSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setHouseSearchQuery('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        <Select value={houseSort} onValueChange={(v) => setHouseSort(v as typeof houseSort)}>
+                          <SelectTrigger className="h-9 w-auto min-w-[140px] rounded-xl text-xs px-3 border-border bg-background shrink-0">
+                            <SelectValue placeholder="Sort by" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="recent">Most recent</SelectItem>
+                            <SelectItem value="occupied">Occupied first</SelectItem>
+                            <SelectItem value="empty">Empty first</SelectItem>
+                            <SelectItem value="unverified">Not verified first</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       {(() => {
                         const q = houseSearchQuery.trim().toLowerCase();
-                        const filtered = q
+                        const base = q
                           ? landlordHouses.filter((h) => {
                               const hay = [
                                 h.title,
@@ -3985,7 +3998,39 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                                 .toLowerCase();
                               return hay.includes(q);
                             })
-                          : landlordHouses;
+                          : [...landlordHouses];
+                        // status sort helper
+                        const statusRank = (h: LandlordHouse) => {
+                          const occupied = !!h.tenant_id || h.status === 'occupied';
+                          const verified = h.verified === true && h.status !== 'rejected';
+                          if (occupied) return 0;
+                          if (!verified) return 1;
+                          return 2;
+                        };
+                        const filtered = base.sort((a, b) => {
+                          if (houseSort === 'recent') {
+                            const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+                            const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+                            return tb - ta;
+                          }
+                          const ra = statusRank(a);
+                          const rb = statusRank(b);
+                          if (houseSort === 'occupied') {
+                            if (ra !== rb) return ra - rb;
+                          } else if (houseSort === 'empty') {
+                            // reverse: empty (2) first, then unverified (1), then occupied (0)
+                            if (ra !== rb) return rb - ra;
+                          } else if (houseSort === 'unverified') {
+                            // unverified (1) first, then empty (2), then occupied (0)
+                            const ua = ra === 1 ? 0 : ra === 2 ? 1 : 2;
+                            const ub = rb === 1 ? 0 : rb === 2 ? 1 : 2;
+                            if (ua !== ub) return ua - ub;
+                          }
+                          // tie-breaker: most recent update
+                          const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+                          const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+                          return tb - ta;
+                        });
                         if (q && filtered.length === 0) {
                           return (
                             <div className="text-center py-4 text-sm text-muted-foreground">
