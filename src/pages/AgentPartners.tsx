@@ -9,6 +9,8 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { format } from 'date-fns';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { createShortLink } from '@/lib/createShortLink';
 import {
   ArrowLeft, Users, UserCheck, Activity, Search,
   Share2, FileText, Heart, Briefcase, PiggyBank, HandCoins,
