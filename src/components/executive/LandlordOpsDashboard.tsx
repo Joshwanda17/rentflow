@@ -1035,11 +1035,11 @@ export function LandlordOpsDashboard() {
     queryKey: ['landlord-ops-full-lc1'],
     queryFn: async () => {
       // 1. Fetch all LC1 chairpersons
-      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string }[] = [];
+      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null }[] = [];
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
-        const { data } = await supabase.from('lc1_chairpersons').select('id, name, phone, village, created_at')
+        const { data } = await supabase.from('lc1_chairpersons').select('id, name, phone, village, created_at, verified')
           .order('name').range(offset, offset + 999);
         if (data && data.length > 0) { allLC1.push(...data); offset += 1000; hasMore = data.length === 1000; }
         else hasMore = false;
