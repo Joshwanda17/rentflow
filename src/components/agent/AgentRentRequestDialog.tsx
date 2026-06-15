@@ -3980,6 +3980,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                     <FieldError message={vPhone(lc1Phone)} />
+                    {isValidUgPhone(lc1Phone.replace(/\s/g, '')) && (
+                      lc1Check === 'checking' ? (
+                        <p className="text-[11px] text-muted-foreground font-medium">Confirming LC1 verification…</p>
+                      ) : lc1Check === 'verified' ? (
+                        <p className="text-[11px] text-success font-medium">✓ Verified LC1 chairperson</p>
+                      ) : lc1Check === 'missing' ? (
+                        <p className="text-[11px] text-destructive font-medium">✗ Not registered — register this LC1, then they must be verified before posting</p>
+                      ) : lc1Check === 'unverified' ? (
+                        <p className="text-[11px] text-destructive font-medium">✗ Registered but not yet verified — must be verified before posting</p>
+                      ) : null
+                    )}
                     {lc1Phone.replace(/\s/g, '').length >= 10 &&
                       tenantPhone.replace(/\s/g, '').length >= 10 &&
                       lc1Phone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
