@@ -3993,6 +3993,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           </SelectContent>
                         </Select>
                       </div>
+                      {/* Status counts */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground border border-border">
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                          Occupied {houseStatusCounts.occupied}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-success/15 text-success border border-success/30">
+                          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                          Empty {houseStatusCounts.empty}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          Not verified {houseStatusCounts.unverified}
+                        </span>
+                      </div>
                       {(() => {
                         const q = houseSearchQuery.trim().toLowerCase();
                         const base = q
