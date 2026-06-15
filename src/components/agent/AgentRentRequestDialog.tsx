@@ -947,6 +947,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Live LC1 chairperson verification — keyed on the typed LC1 phone. A rent
   // request can only be posted when the LC1 is both registered AND verified.
   const [lc1Check, setLc1Check] = useState<'idle' | 'checking' | 'verified' | 'unverified' | 'missing'>('idle');
+  // ===== Landlord's existing houses overview =====
+  // When a landlord is already in the system, show the agent every house on
+  // file for that landlord: who is already living there (occupied), which are
+  // listed but still empty, and which are listed but not yet verified. This
+  // helps the agent avoid double-requesting an occupied unit and quickly pick
+  // a vacant/verified house for the new tenant.
+  type LandlordHouse = {
+    id: string;
+    title: string | null;
+    address: string | null;
+    region: string | null;
+    monthly_rent: number | null;
+    status: string | null;
+    verified: boolean | null;
+    tenant_id: string | null;
+    tenant_name: string | null;
+  };
+  const [landlordHouses, setLandlordHouses] = useState<LandlordHouse[]>([]);
+  const [landlordHousesLoading, setLandlordHousesLoading] = useState(false);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
@@ -1040,6 +1059,74 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         setLandlordCheck(!data ? 'missing' : data.verified ? 'registered' : 'unverified');
       } catch {
         if (!cancelled) setLandlordCheck('idle');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
+
+  // ===== Load the resolved landlord's existing houses =====
+  // Fetches every (non-hidden) house on file for this landlord plus the names
+  // of any tenants already living in them, so the agent can see at a glance:
+  //  • occupied — "<Tenant> already lives here"
+  //  • empty    — listed & verified but vacant (ready for the new tenant)
+  //  • unverified — listed but not yet verified (cannot be used yet)
+  useEffect(() => {
+    const landlordId = selectedLandlord?.id ?? selectedHouse?.landlord_id ?? null;
+    if (!landlordId) {
+      setLandlordHouses([]);
+      return;
+    }
+    let cancelled = false;
+    setLandlordHousesLoading(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('house_listings')
+          .select('id, title, address, region, monthly_rent, status, verified, tenant_id')
+          .eq('landlord_id', landlordId)
+          .eq('is_hidden', false)
+          .order('created_at', { ascending: false })
+          .limit(40);
+        if (cancelled) return;
+        if (error) {
+          setLandlordHouses([]);
+          return;
+        }
+        const rows = (data || []) as any[];
+        // Resolve tenant names for occupied houses in one batch.
+        const tenantIds = Array.from(
+          new Set(rows.map((r) => r.tenant_id).filter(Boolean)),
+        );
+        const tenantMap: Record<string, string | null> = {};
+        if (tenantIds.length) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', tenantIds);
+          for (const p of profs || []) {
+            tenantMap[(p as any).id] = (p as any).full_name ?? null;
+          }
+        }
+        if (cancelled) return;
+        setLandlordHouses(
+          rows.map((r) => ({
+            id: r.id,
+            title: r.title ?? null,
+            address: r.address ?? null,
+            region: r.region ?? null,
+            monthly_rent: r.monthly_rent ?? null,
+            status: r.status ?? null,
+            verified: r.verified ?? null,
+            tenant_id: r.tenant_id ?? null,
+            tenant_name: r.tenant_id ? tenantMap[r.tenant_id] ?? null : null,
+          })),
+        );
+      } catch {
+        if (!cancelled) setLandlordHouses([]);
+      } finally {
+        if (!cancelled) setLandlordHousesLoading(false);
       }
     })();
     return () => {
@@ -3835,6 +3922,95 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </div>
                   )}
                 </div>
+
+                {/* ── Landlord's existing houses (only when a landlord is resolved) ── */}
+                {(selectedLandlord?.id || selectedHouse?.landlord_id) && (
+                  landlordHousesLoading ? (
+                    <div className="rounded-2xl border border-border bg-muted/30 p-3 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      Checking this landlord&apos;s houses…
+                    </div>
+                  ) : landlordHouses.length > 0 ? (
+                    <div className="rounded-2xl border border-border bg-card p-3 space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <Home className="h-4 w-4 text-primary shrink-0" />
+                        <p className="text-sm font-bold text-foreground">
+                          This landlord already has {landlordHouses.length}{' '}
+                          {landlordHouses.length === 1 ? 'house' : 'houses'} on file
+                        </p>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        See who is already living in a house, which houses are empty, and which are
+                        listed but not yet verified before posting this tenant&apos;s rent request.
+                      </p>
+                      <ul className="space-y-2">
+                        {landlordHouses.map((h) => {
+                          const occupied = !!h.tenant_id || h.status === 'occupied';
+                          const verified = h.verified === true && h.status !== 'rejected';
+                          let badgeText: string;
+                          let badgeClass: string;
+                          let detail: string;
+                          if (occupied) {
+                            badgeText = 'Occupied';
+                            badgeClass = 'bg-muted text-muted-foreground border border-border';
+                            detail = h.tenant_name
+                              ? `${h.tenant_name} already lives here`
+                              : 'A tenant already lives here';
+                          } else if (!verified) {
+                            badgeText = 'Not verified';
+                            badgeClass = 'bg-amber-500/15 text-amber-600 border border-amber-500/30';
+                            detail = 'Listed but not yet verified — cannot be used yet';
+                          } else {
+                            badgeText = 'Empty';
+                            badgeClass = 'bg-success/15 text-success border border-success/30';
+                            detail = 'Listed & verified — empty, ready for this tenant';
+                          }
+                          return (
+                            <li
+                              key={h.id}
+                              className="rounded-xl border border-border/70 bg-background p-2.5 flex items-start gap-2.5"
+                            >
+                              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                <Home className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-sm font-semibold text-foreground truncate">
+                                    {h.title || h.address || h.region || 'House'}
+                                  </p>
+                                  <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeClass}`}
+                                  >
+                                    {badgeText}
+                                  </span>
+                                </div>
+                                {(h.address || h.region) && (
+                                  <p className="text-[11px] text-muted-foreground truncate">
+                                    {h.address || h.region}
+                                  </p>
+                                )}
+                                <p
+                                  className={`text-[11px] mt-0.5 leading-snug ${
+                                    occupied
+                                      ? 'text-muted-foreground'
+                                      : verified
+                                        ? 'text-success'
+                                        : 'text-amber-600'
+                                  }`}
+                                >
+                                  {detail}
+                                  {h.monthly_rent
+                                    ? ` · ${formatUGX(h.monthly_rent)}/mo`
+                                    : ''}
+                                </p>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : null
+                )}
 
                 {selectedLandlord ? null : landlordMode === 'search' ? (
                   /* ── Search existing landlord ── */
