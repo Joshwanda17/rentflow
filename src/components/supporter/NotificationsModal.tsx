@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Check, TrendingUp, Gift, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -44,8 +45,18 @@ export function NotificationsModal({
   unreadCount,
 }: NotificationsModalProps) {
   const [page, setPage] = useState(0);
+  const navigate = useNavigate();
   const totalPages = Math.ceil(notifications.length / PAGE_SIZE);
   const paged = notifications.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const handleClick = (n: Notification) => {
+    if (!n.is_read) onMarkAsRead(n.id);
+    const meta = (n.metadata ?? {}) as Record<string, unknown>;
+    if (meta.kind === 'landlord_verification_request' && meta.request_id) {
+      onOpenChange(false);
+      navigate(`/verification-request/${meta.request_id}`);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -70,7 +81,7 @@ export function NotificationsModal({
               return (
                 <button
                   key={n.id}
-                  onClick={() => !n.is_read && onMarkAsRead(n.id)}
+                  onClick={() => handleClick(n)}
                   className={cn(
                     "w-full text-left px-3 py-3 rounded-xl border transition-colors touch-manipulation",
                     n.is_read
