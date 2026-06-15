@@ -12,7 +12,6 @@ const ALLOWED_ROLES = ["coo", "ceo", "cto", "cmo", "super_admin", "manager"];
 // Daily marketing message to every landlord.
 const WHATSAPP = "+256748747134";
 const LIST_LINK = "https://welilereceipts.com/landlord-signup";
-const HQ = "Palm Lane Kabaale, Entebbe (P.O. Box 167564, Kampala)";
 const STOP_LINK = "https://welilereceipts.com/stop-sms";
 // Kept to a single SMS part (<=160 chars) to cut SMS credit cost.
 const MESSAGE =
