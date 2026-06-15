@@ -441,6 +441,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       }
       setVerifyReqState('sent');
       setVerifyDbStatus('pending');
+      setVerifyRequestId(inserted?.id ?? null);
       toast.success('Verification request sent', {
         description: `Landlord Operations will review ${llName || 'this landlord'} shortly.`,
       });
@@ -518,15 +519,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     if (prev === 'pending' && verifyDbStatus === 'verified') {
       toast.success('Landlord verified!', {
         description: `${selectedLandlord?.name || 'The landlord'} is now verified — you can list this house.`,
+        action: verifyRequestId
+          ? {
+              label: 'View details',
+              onClick: () => navigate(`/verification-request/${verifyRequestId}`),
+            }
+          : undefined,
       });
     }
     if (prev === 'pending' && verifyDbStatus === 'rejected') {
       toast.error('Verification rejected', {
         description: `Landlord Ops rejected the verification request.${verifyDbComment ? ` Reason: ${verifyDbComment}` : ''}`,
+        action: verifyRequestId
+          ? {
+              label: 'View details',
+              onClick: () => navigate(`/verification-request/${verifyRequestId}`),
+            }
+          : undefined,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verifyDbStatus, open, selectedLandlord?.name, verifyDbComment]);
+  }, [verifyDbStatus, open, selectedLandlord?.name, verifyDbComment, verifyRequestId, navigate]);
 
   // Pre-fill any EMPTY house fields from an existing landlord's stored
   // estimations (rent / location). Never overwrites what the agent already
