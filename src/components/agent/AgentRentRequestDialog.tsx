@@ -943,7 +943,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // landlord is not (or no longer) registered in the system. A transient
   // lookup failure falls back to 'idle' so the stricter submit-time check still
   // runs rather than blocking the agent on a flaky connection.
-  const [landlordCheck, setLandlordCheck] = useState<'idle' | 'checking' | 'registered' | 'missing'>('idle');
+  const [landlordCheck, setLandlordCheck] = useState<'idle' | 'checking' | 'registered' | 'unverified' | 'missing'>('idle');
+  // Live LC1 chairperson verification — keyed on the typed LC1 phone. A rent
+  // request can only be posted when the LC1 is both registered AND verified.
+  const [lc1Check, setLc1Check] = useState<'idle' | 'checking' | 'verified' | 'unverified' | 'missing'>('idle');
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
