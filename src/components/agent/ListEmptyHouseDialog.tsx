@@ -378,6 +378,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setSelectedLandlord(hit);
     setManualLandlord(false);
     setVerifyReqState('idle');
+    setVerifyDbStatus(null);
+    setVerifyDbComment(null);
     setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: normalizeUgandaPhone(hit.phone) }));
     setLandlordPhoneError('');
     // Pull any recorded estimations onto the (editable) house fields so the
@@ -388,6 +390,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const clearLandlordSelection = () => {
     setSelectedLandlord(null);
     setVerifyReqState('idle');
+    setVerifyDbStatus(null);
+    setVerifyDbComment(null);
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
     setLandlordPhoneError('');
   };
@@ -431,6 +435,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         throw error;
       }
       setVerifyReqState('sent');
+      setVerifyDbStatus('pending');
       toast.success('Verification request sent', {
         description: `Landlord Operations will review ${llName || 'this landlord'} shortly.`,
       });
@@ -444,6 +449,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       });
     } catch (err: any) {
       setVerifyReqState('idle');
+      setVerifyDbStatus(null);
       toast.error('Could not send request', { description: err?.message || 'Please try again.' });
     }
   };
@@ -490,6 +496,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     });
     setManualLandlord(false);
     setVerifyReqState('idle');
+    setVerifyDbStatus(null);
+    setVerifyDbComment(null);
     setForm((f) => ({ ...f, landlord_name: m.name, landlord_phone: normalized }));
     applyLandlordEstimations(m.id);
     setPhoneMatch(null);
