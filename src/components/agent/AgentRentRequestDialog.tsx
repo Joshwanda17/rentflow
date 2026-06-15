@@ -1045,6 +1045,40 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     };
   }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
 
+  // ===== Live LC1 chairperson verification =====
+  // The typed LC1 phone is looked up in `lc1_chairpersons`. The agent can only
+  // post a rent request when a matching LC1 record exists AND is verified.
+  useEffect(() => {
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+    if (!cleanLc1Phone || !isValidUgPhone(cleanLc1Phone)) {
+      setLc1Check('idle');
+      return;
+    }
+    let cancelled = false;
+    setLc1Check('checking');
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('lc1_chairpersons')
+          .select('id, verified')
+          .eq('phone', cleanLc1Phone)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error) {
+          // Transient lookup failure — don't hard-block; submit-time re-checks.
+          setLc1Check('idle');
+          return;
+        }
+        setLc1Check(!data ? 'missing' : data.verified ? 'verified' : 'unverified');
+      } catch {
+        if (!cancelled) setLc1Check('idle');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lc1Phone]);
+
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
     if (open) {
