@@ -4057,9 +4057,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       ) : lc1Check === 'verified' ? (
                         <p className="text-[11px] text-success font-medium">✓ Verified LC1 chairperson</p>
                       ) : lc1Check === 'missing' ? (
-                        <p className="text-[11px] text-destructive font-medium">✗ Not registered — register this LC1, then they must be verified before posting</p>
+                        <FieldError message="LC1 chairperson not registered — register them first, then they must be verified before posting" />
                       ) : lc1Check === 'unverified' ? (
-                        <p className="text-[11px] text-destructive font-medium">✗ Registered but not yet verified — must be verified before posting</p>
+                        <FieldError message="LC1 chairperson is registered but not yet verified — must be verified before you can post a rent request" />
                       ) : null
                     )}
                     {lc1Phone.replace(/\s/g, '').length >= 10 &&
