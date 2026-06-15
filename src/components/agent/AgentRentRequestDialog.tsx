@@ -2856,7 +2856,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </p>
                         {statusRow('Landlord', landlordState as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
                         {statusRow('LC1 chairperson', lc1State as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
-                      </div>
+                       {!bothOk && (landlordState === 'missing' || lc1State === 'missing' || landlordState === 'unverified' || lc1State === 'unverified') && (
+                         <div className="pt-1.5 border-t border-amber-500/30 space-y-2">
+                           <p className="text-[11px] text-foreground/70 leading-snug">
+                             {landlordState === 'missing' || lc1State === 'missing'
+                               ? 'The landlord and/or LC1 chairperson are not in the system yet. List the house to register them — they’ll be verified before you can post.'
+                               : 'The landlord and/or LC1 chairperson are registered but not yet verified. They must be verified before you can post this rent request.'}
+                           </p>
+                           {(landlordState === 'missing' || lc1State === 'missing') && (
+                             <Button
+                               type="button"
+                               size="sm"
+                               className="h-8 w-full text-xs"
+                               onClick={() => setShowListHouse(true)}
+                             >
+                               <Home className="h-3.5 w-3.5 mr-1" />
+                               List the house to register them
+                             </Button>
+                           )}
+                         </div>
+                       )}
+                       </div>
                     );
                   })()}
                 </div>
