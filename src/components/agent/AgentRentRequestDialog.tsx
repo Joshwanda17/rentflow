@@ -1025,7 +1025,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       try {
         const { data, error } = await supabase
           .from('landlords')
-          .select('id')
+          .select('id, verified')
           .eq('id', landlordId)
           .maybeSingle();
         if (cancelled) return;
@@ -1035,7 +1035,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           setLandlordCheck('idle');
           return;
         }
-        setLandlordCheck(data ? 'registered' : 'missing');
+        setLandlordCheck(!data ? 'missing' : data.verified ? 'registered' : 'unverified');
       } catch {
         if (!cancelled) setLandlordCheck('idle');
       }
