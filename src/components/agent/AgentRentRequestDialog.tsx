@@ -954,6 +954,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   });
   const landlordNameInputRef = useRef<HTMLInputElement>(null);
   const registerBtnRef = useRef<HTMLButtonElement>(null);
+  const landlordSectionRef = useRef<HTMLDivElement>(null);
+  const lc1SectionRef = useRef<HTMLDivElement>(null);
   const setLandlordMode = useCallback((mode: 'search' | 'register') => {
     setLandlordModeState(mode);
     try { sessionStorage.setItem(LL_MODE_KEY, mode); } catch { /* ignore */ }
