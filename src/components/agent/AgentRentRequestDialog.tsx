@@ -4183,9 +4183,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                                 </li>
                               );
                             })}
-                          </ul>
-                        );
-                      })()}
+                           </ul>
+                         </>;
+                       })()}
                     </div>
                   ) : null
                 )}
