@@ -4609,7 +4609,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <li>
                         <button
                           type="button"
-                          onClick={() => { setDetailStep(2); scrollDialogTop(); }}
+                          onClick={() => {
+                            setDetailStep(2);
+                            requestAnimationFrame(() => {
+                              landlordSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            });
+                          }}
                           className="flex w-full items-start gap-2 rounded-lg p-1.5 text-left text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 active:scale-[0.98]"
                         >
                           <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold">2</span>
