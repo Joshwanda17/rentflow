@@ -199,37 +199,21 @@ Deno.serve(async (req) => {
 
     let message: string;
     if (mode === "allocation" && paidNum > 0) {
-      // New branded copy for agent float allocations / tenant payments.
-      const lines = [
-        "WELILE — Rent Money You Can Get",
-        "",
-        `Hello ${firstName},`,
-        "",
-        hasRemaining
-          ? `You have paid ${formatUGX(paidNum)} toward your rent. Your remaining balance is ${formatUGX(remainingNum)}.`
-          : `You have paid ${formatUGX(paidNum)} toward your rent.`,
-        "",
-        "Continue paying your rent on time to qualify for future rent support of up to UGX 3,000,000.",
-      ];
-      if (share_url) {
-        lines.push("", "View your rent card here:", share_url);
-      }
-      lines.push("", "Pay on time, your rent limit increases daily!");
-      message = lines.join("\n");
+      // Short branded copy for agent float allocations / tenant payments.
+      const parts = [
+        `WELILE: Hi ${firstName}, paid ${formatUGX(paidNum)}.`,
+        hasRemaining ? `Balance ${formatUGX(remainingNum)}.` : null,
+        share_url ? `Card: ${share_url}` : null,
+      ].filter(Boolean);
+      message = parts.join(" ");
     } else {
-      // Manual share — keep the original short card-link copy.
-      const lines: string[] = [
-        "WELILE — Rent Money You Can Get",
-        `Hi ${firstName},`,
-      ];
-      if (limitText) {
-        lines.push(`You can get up to ${limitText} for rent today.`);
-      } else {
-        lines.push("See how much rent money you can get today.");
-      }
-      if (share_url) lines.push(`View your card: ${share_url}`);
-      lines.push("Pay on time — your limit grows daily.");
-      message = lines.join("\n");
+      // Manual share — short card-link copy.
+      const parts = [
+        `WELILE: Hi ${firstName},`,
+        limitText ? `get up to ${limitText} for rent.` : `see your rent money.`,
+        share_url ? `Card: ${share_url}` : null,
+      ].filter(Boolean);
+      message = parts.join(" ");
     }
 
     const ok = await sendSMS(tenant_phone, message);
