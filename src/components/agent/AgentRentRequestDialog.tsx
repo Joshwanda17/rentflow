@@ -3995,9 +3995,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </Select>
                       </div>
                       {/* Status counts */}
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Filter houses by status">
                         <button
                           type="button"
+                          aria-pressed={houseStatusFilter === 'occupied'}
+                          aria-label={houseStatusFilter === 'occupied' ? `Clear occupied filter, showing ${houseStatusCounts.occupied} houses` : `Filter by occupied houses, ${houseStatusCounts.occupied} results`}
                           onClick={() => setHouseStatusFilter((prev) => (prev === 'occupied' ? 'all' : 'occupied'))}
                           className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${
                             houseStatusFilter === 'occupied'
@@ -4010,6 +4012,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </button>
                         <button
                           type="button"
+                          aria-pressed={houseStatusFilter === 'empty'}
+                          aria-label={houseStatusFilter === 'empty' ? `Clear empty filter, showing ${houseStatusCounts.empty} houses` : `Filter by empty houses, ${houseStatusCounts.empty} results`}
                           onClick={() => setHouseStatusFilter((prev) => (prev === 'empty' ? 'all' : 'empty'))}
                           className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${
                             houseStatusFilter === 'empty'
@@ -4022,6 +4026,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </button>
                         <button
                           type="button"
+                          aria-pressed={houseStatusFilter === 'unverified'}
+                          aria-label={houseStatusFilter === 'unverified' ? `Clear not verified filter, showing ${houseStatusCounts.unverified} houses` : `Filter by not verified houses, ${houseStatusCounts.unverified} results`}
                           onClick={() => setHouseStatusFilter((prev) => (prev === 'unverified' ? 'all' : 'unverified'))}
                           className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${
                             houseStatusFilter === 'unverified'
