@@ -20,6 +20,8 @@ import FieldError from '@/components/shared/FieldError';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import VerificationRequestDetailSheet from './VerificationRequestDetailSheet';
+import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
+import type { LandlordOption } from './LandlordSearchSelect';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
