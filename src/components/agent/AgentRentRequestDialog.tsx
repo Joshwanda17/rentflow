@@ -7,7 +7,6 @@ import { optimizeImage } from '@/lib/imageOptimizer';
 import { archiveToDrive } from '@/lib/archiveToDrive';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
-import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { listingHasRealPhoto } from '@/hooks/useHouseListings';

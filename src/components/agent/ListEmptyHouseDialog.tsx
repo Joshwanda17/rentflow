@@ -20,6 +20,8 @@ import FieldError from '@/components/shared/FieldError';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import VerificationRequestDetailSheet from './VerificationRequestDetailSheet';
+import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
+import type { LandlordOption } from './LandlordSearchSelect';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -1474,11 +1476,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 <div className="grid grid-cols-1 gap-3">
                   <div>
                     <Label className="text-sm font-medium">Landlord Name</Label>
-                    <Input
-                      placeholder="Name"
+                    <LandlordAutocompleteInput
+                      field="name"
+                      placeholder="Name — type to find an existing landlord"
                       className="h-12 text-base"
                       value={form.landlord_name}
-                      onChange={e => setForm(f => ({ ...f, landlord_name: e.target.value }))}
+                      onChange={(v) => setForm(f => ({ ...f, landlord_name: v }))}
+                      onSelect={(l: LandlordOption) => selectLandlord({
+                        id: l.id,
+                        name: l.name,
+                        phone: l.phone || '',
+                        verified: !!l.verified,
+                        verifiedHouses: 0,
+                      })}
                     />
                   </div>
                   <div>

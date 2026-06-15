@@ -18,11 +18,13 @@ import {
   Building2, Phone, MapPin, Loader2, CheckCircle2,
   Navigation, AlertTriangle, Share2, Eye, EyeOff,
   RefreshCw, Copy, User, Hash, Zap, Droplets, ListChecks,
-  Wallet, ShieldCheck, ShieldAlert, XCircle, Home, ChevronDown, ChevronUp,
+  Wallet, ShieldCheck, XCircle, Home, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { hapticTap, hapticWarning } from '@/lib/haptics';
 import FormStepHeader from '@/components/shared/FormStepHeader';
+import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
+import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
 
 const HOUSE_CATEGORIES = [
   'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
@@ -233,73 +235,16 @@ export default function LandlordRegistrationForm({
   }, [minimal]);
 
   // ── Tap-to-reuse existing landlords ──────────────────────────────────────
-  // As the agent types the name or phone, surface landlords already in the
-  // system so they can simply tap one instead of registering a duplicate.
-  // A verified landlord reused this way never has to be verified again.
-  type ExistingLandlordMatch = {
-    id: string;
-    name: string;
-    phone: string;
-    property_address: string | null;
-    district: string | null;
-    town_council: string | null;
-    county: string | null;
-    village: string | null;
-    house_category: string | null;
-    monthly_rent: number | null;
-    latitude: number | null;
-    longitude: number | null;
-    verified: boolean | null;
-  };
-  const [existingMatches, setExistingMatches] = useState<ExistingLandlordMatch[]>([]);
-  const [matchLoading, setMatchLoading] = useState(false);
-
-  useEffect(() => {
-    // Reuse is only relevant for the agent/tenant registration flows, not the
-    // minimal Outstanding-Balance flow (which must also capture LC1 details).
-    if (minimal) { setExistingMatches([]); return; }
-    const name = landlordName.trim();
-    const digits = toUgandaLocalDigits(landlordPhone);
-    if (name.length < 2 && digits.length < 4) {
-      setExistingMatches([]);
-      setMatchLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setMatchLoading(true);
-    const t = setTimeout(async () => {
-      try {
-        const orParts: string[] = [];
-        if (name.length >= 2) orParts.push(`name.ilike.%${name}%`);
-        if (digits.length >= 4) orParts.push(`phone.ilike.%${digits}%`);
-        if (orParts.length === 0) {
-          if (!cancelled) { setExistingMatches([]); setMatchLoading(false); }
-          return;
-        }
-        const { data, error } = await supabase
-          .from('landlords')
-          .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude, verified')
-          .or(orParts.join(','))
-          .limit(8);
-        if (error) throw error;
-        if (cancelled) return;
-        const rows = (data ?? []) as ExistingLandlordMatch[];
-        // Verified landlords first so the agent reuses a trusted record.
-        rows.sort((a, b) => (a.verified === b.verified ? 0 : a.verified ? -1 : 1));
-        setExistingMatches(rows);
-      } catch {
-        if (!cancelled) setExistingMatches([]);
-      } finally {
-        if (!cancelled) setMatchLoading(false);
-      }
-    }, 250);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [landlordName, landlordPhone, minimal]);
+  // The shared `LandlordAutocompleteInput` typeahead (used across every
+  // rent-request and listing form) surfaces matching landlords directly inside
+  // the name/phone fields as the agent types. Tapping one reuses that record
+  // instead of registering a duplicate — a verified landlord reused this way
+  // never has to be verified again.
 
   // Reuse an existing landlord instead of registering a duplicate. A verified
   // landlord passed back this way is selected immediately by the caller (e.g.
   // the rent request flow) and never needs re-verification.
-  const useExistingLandlord = (l: ExistingLandlordMatch) => {
+  const useExistingLandlord = (l: LandlordOption) => {
     hapticTap();
     toastFn({
       title: l.verified ? 'Verified landlord selected' : 'Landlord selected',
@@ -311,17 +256,31 @@ export default function LandlordRegistrationForm({
       id: l.id,
       name: l.name,
       phone: l.phone,
-      property_address: l.property_address,
-      district: l.district,
-      town_council: l.town_council,
-      county: l.county,
-      village: l.village,
-      house_category: l.house_category,
-      monthly_rent: l.monthly_rent,
-      latitude: l.latitude,
-      longitude: l.longitude,
+      property_address: l.property_address ?? null,
+      district: l.district ?? null,
+      town_council: l.town_council ?? null,
+      county: l.county ?? null,
+      village: l.village ?? null,
+      house_category: l.house_category ?? null,
+      monthly_rent: l.monthly_rent ?? null,
+      latitude: l.latitude ?? null,
+      longitude: l.longitude ?? null,
     });
     onClose();
+  };
+
+  // Single tap-target used by the shared typeahead in both name and phone
+  // fields. In the minimal Outstanding-Balance flow we only autofill (LC1
+  // capture must still happen), otherwise we reuse the existing record.
+  const handleLandlordPick = (l: LandlordOption) => {
+    if (minimal) {
+      setLandlordName(l.name || '');
+      setLandlordPhone(formatUgandaPhone(l.phone || ''));
+      clearError('landlordName');
+      clearError('landlordPhone');
+      return;
+    }
+    useExistingLandlord(l);
   };
 
   // Name matching logic
@@ -827,10 +786,12 @@ export default function LandlordRegistrationForm({
             <Label className="text-sm font-semibold flex items-center gap-1.5">
               <User className="h-4 w-4" /> Landlord Name *
             </Label>
-            <Input
+            <LandlordAutocompleteInput
+              field="name"
               value={landlordName}
-              onChange={(e) => { setLandlordName(e.target.value); clearError('landlordName'); clearSubmitError(); }}
+              onChange={(v) => { setLandlordName(v); clearError('landlordName'); clearSubmitError(); }}
               onBlur={(e) => validateField('landlordName', e.target.value)}
+              onSelect={handleLandlordPick}
               placeholder="e.g. John Bosco Ssentamu — as on National ID"
               className={`h-12 text-base ${errors.landlordName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
@@ -847,12 +808,14 @@ export default function LandlordRegistrationForm({
             <Label className="text-sm font-semibold flex items-center gap-1.5">
               <Phone className="h-4 w-4" /> Phone Number *
             </Label>
-            <Input
+            <LandlordAutocompleteInput
+              field="phone"
               type="tel"
               inputMode="tel"
               value={landlordPhone}
-              onChange={(e) => { setLandlordPhone(formatUgandaPhone(e.target.value)); clearError('landlordPhone'); clearSubmitError(); setPhoneVerified(false); }}
+              onChange={(v) => { setLandlordPhone(formatUgandaPhone(v)); clearError('landlordPhone'); clearSubmitError(); setPhoneVerified(false); }}
               onBlur={(e) => { void checkPhoneAvailable(e.target.value); }}
+              onSelect={handleLandlordPick}
               placeholder="07XX XXX XXX — 10 digits"
               className={`h-12 text-base ${errors.landlordPhone ? 'border-destructive focus-visible:ring-destructive' : ''}`}
               required
@@ -873,53 +836,6 @@ export default function LandlordRegistrationForm({
               </p>
             )}
           </div>
-
-          {/* Tap-to-reuse existing landlords — surfaced as the agent types the
-              name or phone. A verified landlord reused here never needs to be
-              registered or verified again. */}
-          {!minimal && (existingMatches.length > 0 || matchLoading) && (
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-                {matchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Building2 className="h-3.5 w-3.5" />}
-                {matchLoading ? 'Searching the system…' : 'Already in the system — tap to use'}
-              </p>
-              {existingMatches.length > 0 && (
-                <div className="rounded-xl border-2 border-primary/20 overflow-hidden divide-y">
-                  {existingMatches.map((l) => (
-                    <button
-                      key={l.id}
-                      type="button"
-                      onClick={() => useExistingLandlord(l)}
-                      className="w-full flex items-center gap-3 px-3 py-3 text-left bg-background hover:bg-accent active:bg-accent transition-colors"
-                    >
-                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <Building2 className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold truncate">{l.name}</p>
-                          {l.verified ? (
-                            <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success">
-                              <ShieldCheck className="h-3 w-3" /> Verified
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
-                              <ShieldAlert className="h-3 w-3" /> Needs Ops
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                          <Phone className="h-3 w-3 shrink-0" /> {l.phone}
-                          {l.property_address ? ` • ${l.property_address}` : ''}
-                        </p>
-                      </div>
-                      <span className="text-[11px] font-semibold text-primary shrink-0">Tap to use</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Minimal-mode LC1 fields (Outstanding Balance flow) */}
           {minimal && (

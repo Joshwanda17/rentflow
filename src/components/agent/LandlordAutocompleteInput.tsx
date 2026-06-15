@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, forwardRef, type Ref } from 'react';
+import { useEffect, useRef, useState, forwardRef, type Ref, type FocusEvent, type HTMLAttributes } from 'react';
 import { Building2, Loader2, Phone, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,15 @@ interface LandlordAutocompleteInputProps {
   placeholder?: string;
   className?: string;
   maxLength?: number;
+  /** Native blur handler (validation, normalisation, etc.). */
+  onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
+  /** Input type — e.g. `tel` for the phone field. */
+  type?: string;
+  inputMode?: HTMLAttributes<HTMLInputElement>['inputMode'];
+  required?: boolean;
+  disabled?: boolean;
+  id?: string;
+  autoFocus?: boolean;
 }
 
 /**
@@ -32,6 +41,13 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
     placeholder,
     className,
     maxLength,
+    onBlur,
+    type,
+    inputMode,
+    required,
+    disabled,
+    id,
+    autoFocus,
   }: LandlordAutocompleteInputProps,
   ref: Ref<HTMLInputElement>
 ) {
@@ -74,7 +90,10 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
           .limit(8);
         if (error) throw error;
         if (myId === reqIdRef.current) {
-          setResults((data ?? []) as LandlordOption[]);
+          const rows = (data ?? []) as LandlordOption[];
+          // Verified landlords first so the agent reuses a trusted record.
+          rows.sort((a, b) => (Boolean(a.verified) === Boolean(b.verified) ? 0 : a.verified ? -1 : 1));
+          setResults(rows);
         }
       } catch (err) {
         if (myId === reqIdRef.current) {
@@ -93,10 +112,17 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
     <div className="relative">
       <Input
         ref={ref}
+        id={id}
+        type={type}
+        inputMode={inputMode}
+        required={required}
+        disabled={disabled}
+        autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
-        onBlur={() => {
+        onBlur={(e) => {
+          onBlur?.(e);
           // Delay so a tap on a suggestion registers before we close.
           blurTimer.current = setTimeout(() => setFocused(false), 150);
         }}
