@@ -874,6 +874,53 @@ export default function LandlordRegistrationForm({
             )}
           </div>
 
+          {/* Tap-to-reuse existing landlords — surfaced as the agent types the
+              name or phone. A verified landlord reused here never needs to be
+              registered or verified again. */}
+          {!minimal && (existingMatches.length > 0 || matchLoading) && (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                {matchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Building2 className="h-3.5 w-3.5" />}
+                {matchLoading ? 'Searching the system…' : 'Already in the system — tap to use'}
+              </p>
+              {existingMatches.length > 0 && (
+                <div className="rounded-xl border-2 border-primary/20 overflow-hidden divide-y">
+                  {existingMatches.map((l) => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => useExistingLandlord(l)}
+                      className="w-full flex items-center gap-3 px-3 py-3 text-left bg-background hover:bg-accent active:bg-accent transition-colors"
+                    >
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Building2 className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold truncate">{l.name}</p>
+                          {l.verified ? (
+                            <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+                              <ShieldCheck className="h-3 w-3" /> Verified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+                              <ShieldAlert className="h-3 w-3" /> Needs Ops
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                          <Phone className="h-3 w-3 shrink-0" /> {l.phone}
+                          {l.property_address ? ` • ${l.property_address}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-[11px] font-semibold text-primary shrink-0">Tap to use</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Minimal-mode LC1 fields (Outstanding Balance flow) */}
           {minimal && (
             <div className="space-y-2 p-2.5 rounded-lg border bg-muted/30">
