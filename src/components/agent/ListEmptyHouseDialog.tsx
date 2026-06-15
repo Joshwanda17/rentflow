@@ -383,6 +383,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setVerifyReqState('idle');
     setVerifyDbStatus(null);
     setVerifyDbComment(null);
+    setVerifyRequestId(null);
     setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: normalizeUgandaPhone(hit.phone) }));
     setLandlordPhoneError('');
     // Pull any recorded estimations onto the (editable) house fields so the
@@ -395,6 +396,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setVerifyReqState('idle');
     setVerifyDbStatus(null);
     setVerifyDbComment(null);
+    setVerifyRequestId(null);
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
     setLandlordPhoneError('');
   };
