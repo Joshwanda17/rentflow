@@ -6,9 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
-import { motion } from 'framer-motion';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
-import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 
 interface SuggestedHousesCardProps {
@@ -88,7 +86,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
   if (isLoading || !suggestions?.length) return null;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-base flex items-center gap-1.5">
           <Sparkles className="h-4 w-4 text-primary" />
@@ -136,6 +134,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                   aria-label={`Browse listed houses like ${house.title}`}
                   className="flex-1 min-w-0 space-y-1 text-left cursor-pointer rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
+                  <MoveInOfferBadge />
                   <p className="font-semibold text-sm truncate">{house.title}</p>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="h-3 w-3 shrink-0" />
@@ -146,18 +145,19 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                     <Badge variant="outline" className="text-[9px] h-4 px-1">{house.number_of_rooms} rooms</Badge>
                   </div>
                   <div
-                    className="flex items-center justify-between pt-0.5"
+                    className="flex items-center justify-between pt-1"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <p className="text-sm font-black text-success">{formatUGX(house.daily_rate)}<span className="text-[10px] font-normal text-muted-foreground">/day</span></p>
-                    <div className="flex items-center gap-1">
-                      <ShareHouseButton listingId={house.id} title={house.title} region={house.region} dailyRate={house.daily_rate} shortCode={house.short_code} mode="share" address={house.address} monthlyRent={house.monthly_rent} rooms={house.number_of_rooms} category={house.house_category} />
-                      {house.agent_phone && (
-                        <WhatsAppAgentButton phone={house.agent_phone} agentName={house.agent_name} houseTitle={house.title} />
-                      )}
-                    </div>
+                    {house.agent_phone && (
+                      <WhatsAppAgentButton
+                        phone={house.agent_phone}
+                        agentName={house.agent_name}
+                        houseTitle={house.title}
+                        compact
+                      />
+                    )}
+                    <p className="text-sm font-black text-success shrink-0 ml-2">{formatUGX(house.daily_rate)}<span className="text-[10px] font-normal text-muted-foreground">/day</span></p>
                   </div>
-                  <MoveInOfferBadge />
                 </div>
               </div>
             </CardContent>
@@ -173,6 +173,6 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
           memoryKey={`house:${lightbox.houseId}`}
         />
       )}
-    </motion.div>
+    </div>
   );
 }
