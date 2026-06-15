@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft, Sparkles, SlidersHorizontal, Ban } from 'lucide-react';
+import { Check, ChevronsUpDown, Building2, Loader2, Search, AlertTriangle, UserPlus, X, MapPin, Phone, CornerDownLeft, Sparkles, SlidersHorizontal, Ban, ShieldCheck, ShieldAlert } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -25,6 +25,8 @@ export interface LandlordOption {
   monthly_rent?: number | null;
   latitude?: number | null;
   longitude?: number | null;
+  /** Whether the landlord has been verified by Landlord Ops. */
+  verified?: boolean | null;
   /** Fuzzy-search ranking metadata (present only on search results). */
   match_score?: number | null;
   match_kind?: 'all' | 'name_exact' | 'phone' | 'fuzzy' | string | null;
@@ -340,7 +342,7 @@ export function LandlordSearchSelect({
         try {
           let q = supabase
             .from('landlords')
-            .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude')
+            .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude, verified')
             .order('name', { ascending: true })
             .limit(20);
           if (debounced.length > 0) {
@@ -787,6 +789,15 @@ export function LandlordSearchSelect({
                           )}
                         >
                           {ctx.label}
+                        </span>
+                      )}
+                      {l.verified ? (
+                        <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+                          <ShieldCheck className="h-3 w-3" /> Verified
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+                          <ShieldAlert className="h-3 w-3" /> Needs Ops
                         </span>
                       )}
                     </div>
