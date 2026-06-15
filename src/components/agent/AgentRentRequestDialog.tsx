@@ -3825,6 +3825,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </button>
                 )}
 
+                {/* Inline landlord verification errors */}
+                {!selectedLandlord && !selectedHouse?.landlord_id && (
+                  <FieldError message="Select a registered landlord before posting — search existing or tap 'Add new'" />
+                )}
+                {selectedLandlord && landlordCheck === 'missing' && (
+                  <FieldError message="This landlord is not registered in the system — pick another or register them again" />
+                )}
+                {selectedLandlord && landlordCheck === 'unverified' && (
+                  <FieldError message="This landlord is registered but not yet verified — they must be verified before you can post a rent request" />
+                )}
+                {selectedLandlord && landlordCheck === 'checking' && (
+                  <FieldError message="Confirming the landlord is registered — please wait a moment before submitting" />
+                )}
+
                 <div className="space-y-1.5">
                   <Label className="text-sm font-semibold flex items-center gap-1">
                     <MapPin className="h-4 w-4 text-primary" /> Where is the house?
