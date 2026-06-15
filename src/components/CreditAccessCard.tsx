@@ -158,6 +158,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                 </p>
               </div>
           </div>
+          </div>
 
           {/* Progress Bar */}
           <div className="space-y-1.5">
