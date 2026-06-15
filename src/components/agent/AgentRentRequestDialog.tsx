@@ -1088,7 +1088,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       try {
         const { data, error } = await supabase
           .from('house_listings')
-          .select('id, title, address, region, monthly_rent, status, verified, tenant_id')
+          .select('id, title, address, region, monthly_rent, status, verified, tenant_id, updated_at')
           .eq('landlord_id', landlordId)
           .eq('is_hidden', false)
           .order('created_at', { ascending: false })
