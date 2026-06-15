@@ -101,6 +101,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   type VerifyDbStatus = 'pending' | 'verified' | 'rejected' | null;
   const [verifyDbStatus, setVerifyDbStatus] = useState<VerifyDbStatus>(null);
   const [verifyDbComment, setVerifyDbComment] = useState<string | null>(null);
+  const [verifyRequestId, setVerifyRequestId] = useState<string | null>(null);
+  const navigate = useNavigate();
   // Auto-fill: the agent's most recently used landlord (remembered locally) and
   // a flag noting that location/area was pre-filled from the agent profile.
   const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
