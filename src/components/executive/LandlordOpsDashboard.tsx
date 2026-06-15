@@ -427,6 +427,10 @@ export function LandlordOpsDashboard() {
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
   const [pendingFilter, setPendingFilter] = useState<PendingFilter>('all');
 
+  // ─── LC1 Verification Filter ───
+  type LC1VerifyFilter = 'all' | 'verified' | 'unverified';
+  const [lc1VerifyFilter, setLc1VerifyFilter] = useState<LC1VerifyFilter>('all');
+
   // ─── Sorting ───
   type SortOption = 'newest' | 'oldest' | 'highest_rent';
   const [verifySort, setVerifySort] = useState<SortOption>(() => {
