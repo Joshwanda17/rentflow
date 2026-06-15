@@ -2802,6 +2802,63 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       style={{ width: `${((detailStep + 1) / DETAIL_STEPS.length) * 100}%` }}
                     />
                   </div>
+
+                  {/* Prominent verification requirement banner — keeps agents
+                      aware, as they fill the request, that BOTH the landlord and
+                      the LC1 chairperson must be registered AND verified before a
+                      rent request can be posted. Live status updates as they go. */}
+                  {(() => {
+                    const landlordOk = landlordCheck === 'registered';
+                    const lc1Ok = lc1Check === 'verified';
+                    const bothOk = landlordOk && lc1Ok;
+                    const statusRow = (
+                      label: string,
+                      state: 'idle' | 'checking' | 'ok' | 'unverified' | 'missing',
+                    ) => {
+                      const map = {
+                        idle: { cls: 'text-muted-foreground', icon: <ShieldCheck className="h-4 w-4 flex-shrink-0 opacity-50" />, text: 'Enter details to check' },
+                        checking: { cls: 'text-primary', icon: <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin" />, text: 'Checking…' },
+                        ok: { cls: 'text-success', icon: <CheckCircle2 className="h-4 w-4 flex-shrink-0" />, text: 'Registered & verified' },
+                        unverified: { cls: 'text-amber-600', icon: <ShieldCheck className="h-4 w-4 flex-shrink-0" />, text: 'Registered — not yet verified' },
+                        missing: { cls: 'text-destructive', icon: <ShieldCheck className="h-4 w-4 flex-shrink-0" />, text: 'Not registered' },
+                      } as const;
+                      const m = map[state];
+                      return (
+                        <div className={`flex items-center justify-between gap-2 text-xs font-semibold ${m.cls}`}>
+                          <span className="text-foreground/80">{label}</span>
+                          <span className="flex items-center gap-1.5">{m.icon}{m.text}</span>
+                        </div>
+                      );
+                    };
+                    const landlordState =
+                      landlordCheck === 'registered' ? 'ok'
+                      : landlordCheck === 'unverified' ? 'unverified'
+                      : landlordCheck === 'missing' ? 'missing'
+                      : landlordCheck === 'checking' ? 'checking' : 'idle';
+                    const lc1State =
+                      lc1Check === 'verified' ? 'ok'
+                      : lc1Check === 'unverified' ? 'unverified'
+                      : lc1Check === 'missing' ? 'missing'
+                      : lc1Check === 'checking' ? 'checking' : 'idle';
+                    return (
+                      <div
+                        className={`rounded-xl border p-3 space-y-2 ${
+                          bothOk
+                            ? 'border-success/40 bg-success/5'
+                            : 'border-amber-500/40 bg-amber-500/5'
+                        }`}
+                      >
+                        <p className="flex items-center gap-1.5 text-[13px] font-bold text-foreground">
+                          <ShieldCheck className="h-4 w-4 flex-shrink-0 text-primary" />
+                          {bothOk
+                            ? 'Landlord & LC1 verified — you can post'
+                            : 'Landlord & LC1 must be verified to post'}
+                        </p>
+                        {statusRow('Landlord', landlordState as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
+                        {statusRow('LC1 chairperson', lc1State as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
