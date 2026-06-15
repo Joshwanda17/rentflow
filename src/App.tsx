@@ -316,6 +316,7 @@ function AppRoutes() {
           <Route path="/dashboard/funder" element={<Dashboard />} />
           <Route path="/dashboard/manager" element={<Dashboard />} />
           <Route path="/dashboard/*" element={<DashboardRedirect />} />
+          <Route path="/verification-request/:id" element={<VerificationRequestDetailPage />} />
           {/* Dev-only Playwright harnesses — stripped from production builds. */}
           {import.meta.env.DEV && (
             <Route
