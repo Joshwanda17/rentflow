@@ -1516,8 +1516,29 @@ export function LandlordOpsDashboard() {
           { label: 'Monthly rent', value: `UGX ${fmt(l.monthly_rent || 0)}` },
           { label: 'Verified', value: l.verified ? 'Yes' : 'No' },
           { label: 'Address', value: l.property_address || '—' },
+          { label: 'Agent', value: l.agent_name || '—' },
+          { label: 'District', value: l.district || '—' },
+          { label: 'Region', value: l.region || '—' },
         ]}
       >
+        {l.phone && (
+          <div className="rounded-lg bg-sky-500/10 p-2.5 space-y-1.5">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Contact Landlord</p>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium truncate">{l.name}</span>
+              <PhoneLinks phone={l.phone} name={l.name} />
+            </div>
+          </div>
+        )}
+        {l.agent_name && (
+          <div className="rounded-lg bg-indigo-500/10 p-2.5 space-y-1.5">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Linked Agent</p>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium truncate">{l.agent_name}</span>
+              {l.agent_phone && <PhoneLinks phone={l.agent_phone} name={l.agent_name} />}
+            </div>
+          </div>
+        )}
         {tenants.length > 0 && (
           <div className="space-y-1">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tenants</p>
@@ -1712,7 +1733,13 @@ export function LandlordOpsDashboard() {
                     <tr className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="px-3 py-2.5">
                         <div className="space-y-0.5">
-                          <span className="font-bold text-sm text-foreground block">{landlord.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => openEntity('landlord', landlord)}
+                            className="font-bold text-sm text-sky-700 hover:underline text-left block"
+                          >
+                            {landlord.name}
+                          </button>
                           <div className="flex items-center gap-1.5">
                             <PhoneLinks phone={landlord.phone} name={landlord.name} />
                           </div>
@@ -1842,6 +1869,7 @@ export function LandlordOpsDashboard() {
         onClose={() => setBulkImportLandlordsOpen(false)}
         onImported={refetchAll}
       />
+      {renderEntityDetail()}
       </>
     );
   }
