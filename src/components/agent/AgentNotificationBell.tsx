@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Bell, Check, Info, AlertTriangle, CheckCircle2, XCircle, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string 
 export function AgentNotificationBell({ userId }: { userId: string }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
@@ -68,6 +70,15 @@ export function AgentNotificationBell({ userId }: { userId: string }) {
     if (unreadCount === 0) return;
     await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+  };
+
+  const handleClick = (n: Notification) => {
+    if (!n.is_read) markAsRead(n.id);
+    const meta = (n.metadata ?? {}) as Record<string, unknown>;
+    if (meta.kind === 'landlord_verification_request' && meta.request_id) {
+      setOpen(false);
+      navigate(`/verification-request/${meta.request_id}`);
+    }
   };
 
   return (
@@ -112,7 +123,7 @@ export function AgentNotificationBell({ userId }: { userId: string }) {
               return (
                 <button
                   key={n.id}
-                  onClick={() => !n.is_read && markAsRead(n.id)}
+                  onClick={() => handleClick(n)}
                   className={cn(
                     "w-full text-left px-3 py-2.5 rounded-xl transition-colors touch-manipulation hover:bg-accent/60",
                     n.is_read ? "opacity-60" : "bg-accent/40"

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Bell, Check, TrendingUp, Gift, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ export function NotificationBell({ userId }: { userId: string }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const fetchNotifications = useCallback(async () => {
     const { data } = await supabase
@@ -74,6 +76,15 @@ export function NotificationBell({ userId }: { userId: string }) {
     if (unreadCount === 0) return;
     await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+  };
+
+  const handleClick = (n: Notification) => {
+    if (!n.is_read) markAsRead(n.id);
+    const meta = (n.metadata ?? {}) as Record<string, unknown>;
+    if (meta.kind === 'landlord_verification_request' && meta.request_id) {
+      setPopoverOpen(false);
+      navigate(`/verification-request/${meta.request_id}`);
+    }
   };
 
   return (
@@ -118,7 +129,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                 return (
                   <button
                     key={n.id}
-                    onClick={() => !n.is_read && markAsRead(n.id)}
+                    onClick={() => handleClick(n)}
                     className={cn(
                       "w-full text-left px-3 py-2.5 rounded-xl transition-colors touch-manipulation",
                       n.is_read ? "opacity-60" : "bg-accent/40"
