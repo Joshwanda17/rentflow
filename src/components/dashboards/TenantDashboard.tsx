@@ -57,7 +57,6 @@ import { SuggestedHousesCard } from '@/components/tenant/SuggestedHousesCard';
 import RentHistoryRecordCTA from '@/components/tenant/RentHistoryRecordCTA';
 import { TrustBoostBanner } from '@/components/ai-id/TrustBoostBanner';
 
-import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import breadHero from '@/assets/tenant-bread-hero.jpg';
