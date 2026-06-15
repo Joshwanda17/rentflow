@@ -181,7 +181,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
         p_investor_id: selectedInvestor.investor_id,
         p_action: actionType,
         p_reason: actionReason.trim(),
-        p_new_shares: actionType === 'edit' ? editShares : null,
+        p_new_shares: actionType === 'edit' ? (parseFloat(editShares) || 0) : null,
       });
       if (error) throw error;
 
