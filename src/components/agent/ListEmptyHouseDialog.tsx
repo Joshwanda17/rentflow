@@ -28,6 +28,10 @@ interface ListEmptyHouseDialogProps {
   /** Pre-fill the landlord fields (e.g. when opened from the landlord registration form). */
   initialLandlordName?: string;
   initialLandlordPhone?: string;
+  /** Pre-fill the LC1 chairperson fields (e.g. when opened from the rent-request verification gate). */
+  initialLc1Name?: string;
+  initialLc1Phone?: string;
+  initialLc1Village?: string;
   /** When true, shows promotional campaign badge and applies promo defaults (opened from the agent dashboard banner). */
   fromPromoBanner?: boolean;
 }
@@ -52,7 +56,7 @@ const REGIONS = [
 
 import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
 
-export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
+export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, initialLc1Name, initialLc1Phone, initialLc1Village, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   // Guided wizard step (1-4) so agents who struggle with long forms only see
   // one simple question at a time.
@@ -161,6 +165,21 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialLandlordName, initialLandlordPhone]);
+
+  // Pre-fill LC1 chairperson details when opened from the rent-request
+  // verification gate, so the agent re-uses what they already typed instead of
+  // re-keying it — listing the house then registers the missing LC1 too.
+  useEffect(() => {
+    if (open && (initialLc1Name || initialLc1Phone || initialLc1Village)) {
+      setForm((f) => ({
+        ...f,
+        lc1_name: initialLc1Name ?? f.lc1_name,
+        lc1_phone: initialLc1Phone ?? f.lc1_phone,
+        lc1_village: initialLc1Village ?? f.lc1_village,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialLc1Name, initialLc1Phone, initialLc1Village]);
 
   // Promo banner mode: pre-apply empty-house defaults and show campaign badge.
   useEffect(() => {

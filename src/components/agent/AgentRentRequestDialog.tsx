@@ -4643,6 +4643,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         onOpenChange={setShowListHouse}
         initialLandlordName={landlordName || undefined}
         initialLandlordPhone={landlordPhone || undefined}
+        initialLc1Name={lc1Name || undefined}
+        initialLc1Phone={lc1Phone || undefined}
+        initialLc1Village={lc1Village || undefined}
         onSuccess={() => {
           setShowListHouse(false);
           // The new house is available instantly — refresh the picker so the
@@ -4652,7 +4655,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           // Listing a house also registers its landlord — refresh the
           // outstanding-flow landlord picker so it's immediately selectable.
           setLandlordPickerKey((k) => k + 1);
-          toast.success('House listed and available — search to select it now.');
+          toast.success('House listed — landlord & LC1 registered. They must be verified before you can post.');
         }}
       />
       <AlertDialog open={confirmCloseDialog} onOpenChange={setConfirmCloseDialog}>
