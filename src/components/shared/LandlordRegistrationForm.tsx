@@ -235,73 +235,16 @@ export default function LandlordRegistrationForm({
   }, [minimal]);
 
   // ── Tap-to-reuse existing landlords ──────────────────────────────────────
-  // As the agent types the name or phone, surface landlords already in the
-  // system so they can simply tap one instead of registering a duplicate.
-  // A verified landlord reused this way never has to be verified again.
-  type ExistingLandlordMatch = {
-    id: string;
-    name: string;
-    phone: string;
-    property_address: string | null;
-    district: string | null;
-    town_council: string | null;
-    county: string | null;
-    village: string | null;
-    house_category: string | null;
-    monthly_rent: number | null;
-    latitude: number | null;
-    longitude: number | null;
-    verified: boolean | null;
-  };
-  const [existingMatches, setExistingMatches] = useState<ExistingLandlordMatch[]>([]);
-  const [matchLoading, setMatchLoading] = useState(false);
-
-  useEffect(() => {
-    // Reuse is only relevant for the agent/tenant registration flows, not the
-    // minimal Outstanding-Balance flow (which must also capture LC1 details).
-    if (minimal) { setExistingMatches([]); return; }
-    const name = landlordName.trim();
-    const digits = toUgandaLocalDigits(landlordPhone);
-    if (name.length < 2 && digits.length < 4) {
-      setExistingMatches([]);
-      setMatchLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setMatchLoading(true);
-    const t = setTimeout(async () => {
-      try {
-        const orParts: string[] = [];
-        if (name.length >= 2) orParts.push(`name.ilike.%${name}%`);
-        if (digits.length >= 4) orParts.push(`phone.ilike.%${digits}%`);
-        if (orParts.length === 0) {
-          if (!cancelled) { setExistingMatches([]); setMatchLoading(false); }
-          return;
-        }
-        const { data, error } = await supabase
-          .from('landlords')
-          .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude, verified')
-          .or(orParts.join(','))
-          .limit(8);
-        if (error) throw error;
-        if (cancelled) return;
-        const rows = (data ?? []) as ExistingLandlordMatch[];
-        // Verified landlords first so the agent reuses a trusted record.
-        rows.sort((a, b) => (a.verified === b.verified ? 0 : a.verified ? -1 : 1));
-        setExistingMatches(rows);
-      } catch {
-        if (!cancelled) setExistingMatches([]);
-      } finally {
-        if (!cancelled) setMatchLoading(false);
-      }
-    }, 250);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [landlordName, landlordPhone, minimal]);
+  // The shared `LandlordAutocompleteInput` typeahead (used across every
+  // rent-request and listing form) surfaces matching landlords directly inside
+  // the name/phone fields as the agent types. Tapping one reuses that record
+  // instead of registering a duplicate — a verified landlord reused this way
+  // never has to be verified again.
 
   // Reuse an existing landlord instead of registering a duplicate. A verified
   // landlord passed back this way is selected immediately by the caller (e.g.
   // the rent request flow) and never needs re-verification.
-  const useExistingLandlord = (l: ExistingLandlordMatch) => {
+  const useExistingLandlord = (l: LandlordOption) => {
     hapticTap();
     toastFn({
       title: l.verified ? 'Verified landlord selected' : 'Landlord selected',
@@ -313,15 +256,15 @@ export default function LandlordRegistrationForm({
       id: l.id,
       name: l.name,
       phone: l.phone,
-      property_address: l.property_address,
-      district: l.district,
-      town_council: l.town_council,
-      county: l.county,
-      village: l.village,
-      house_category: l.house_category,
-      monthly_rent: l.monthly_rent,
-      latitude: l.latitude,
-      longitude: l.longitude,
+      property_address: l.property_address ?? null,
+      district: l.district ?? null,
+      town_council: l.town_council ?? null,
+      county: l.county ?? null,
+      village: l.village ?? null,
+      house_category: l.house_category ?? null,
+      monthly_rent: l.monthly_rent ?? null,
+      latitude: l.latitude ?? null,
+      longitude: l.longitude ?? null,
     });
     onClose();
   };
