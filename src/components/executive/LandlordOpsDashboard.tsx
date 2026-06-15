@@ -61,6 +61,8 @@ import { BulkImportLandlordsDialog } from './landlord-ops/BulkImportLandlordsDia
 import { AssignPersonDialog } from './landlord-ops/AssignPersonDialog';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { ChevronLeft } from 'lucide-react';
+import { VerifyLc1Button } from '@/components/verification/VerifyLc1Button';
+import { VerifyLandlordButton } from '@/components/verification/VerifyLandlordButton';
 import { LandlordsPaidView } from './landlord-ops/LandlordsPaidView';
 import { LandlordsWithTenantsView } from './landlord-ops/LandlordsWithTenantsView';
 import { LandlordHousesPanel } from './landlord-ops/LandlordHousesPanel';
@@ -1033,11 +1035,11 @@ export function LandlordOpsDashboard() {
     queryKey: ['landlord-ops-full-lc1'],
     queryFn: async () => {
       // 1. Fetch all LC1 chairpersons
-      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string }[] = [];
+      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null }[] = [];
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
-        const { data } = await supabase.from('lc1_chairpersons').select('id, name, phone, village, created_at')
+        const { data } = await supabase.from('lc1_chairpersons').select('id, name, phone, village, created_at, verified')
           .order('name').range(offset, offset + 999);
         if (data && data.length > 0) { allLC1.push(...data); offset += 1000; hasMore = data.length === 1000; }
         else hasMore = false;
@@ -2093,6 +2095,16 @@ export function LandlordOpsDashboard() {
                 </div>
               </div>
               {lc1.phone && <PhoneLinks phone={lc1.phone} name={lc1.name} />}
+              {/* LC1 chairperson verification — required before agents can post rent requests */}
+              <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">LC1 verification</span>
+                <VerifyLc1Button
+                  lc1Id={lc1.id}
+                  lc1Name={lc1.name}
+                  verified={lc1.verified}
+                  onVerified={() => { refetchLC1(); refetchAll(); }}
+                />
+              </div>
               {/* Landlords under this LC1 */}
               {lc1.landlords.length > 0 && (
                 <div className="mt-2 pl-3 border-l-2 border-primary/20 space-y-1.5">
@@ -2104,7 +2116,12 @@ export function LandlordOpsDashboard() {
                         {ll.property_address && <p className="text-[10px] text-muted-foreground truncate">{ll.property_address}</p>}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {ll.verified && <Badge className="bg-emerald-500/20 text-emerald-700 border-0 text-[9px] h-4 px-1">Verified</Badge>}
+                        <VerifyLandlordButton
+                          landlordId={ll.id}
+                          landlordName={ll.name}
+                          verified={!!ll.verified}
+                          onVerified={() => { refetchLC1(); refetchAll(); }}
+                        />
                         <PhoneLinks phone={ll.phone} name={ll.name} />
                       </div>
                     </div>
