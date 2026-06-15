@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -501,6 +501,25 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, selectedLandlord?.id]);
+
+  // Toast the agent whenever the polled verification status flips to verified/rejected.
+  const prevVerifyDbStatus = useRef<VerifyDbStatus>(null);
+  useEffect(() => {
+    if (!open) return;
+    const prev = prevVerifyDbStatus.current;
+    prevVerifyDbStatus.current = verifyDbStatus;
+    if (prev === 'pending' && verifyDbStatus === 'verified') {
+      toast.success('Landlord verified!', {
+        description: `${selectedLandlord?.name || 'The landlord'} is now verified — you can list this house.`,
+      });
+    }
+    if (prev === 'pending' && verifyDbStatus === 'rejected') {
+      toast.error('Verification rejected', {
+        description: `Landlord Ops rejected the verification request.${verifyDbComment ? ` Reason: ${verifyDbComment}` : ''}`,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyDbStatus, open, selectedLandlord?.name, verifyDbComment]);
 
   // Pre-fill any EMPTY house fields from an existing landlord's stored
   // estimations (rent / location). Never overwrites what the agent already
