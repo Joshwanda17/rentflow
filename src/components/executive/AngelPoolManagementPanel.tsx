@@ -47,7 +47,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
   const [actionType, setActionType] = useState<'delete' | 'suspend' | 'edit' | 'view' | null>(null);
   const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
   const [actionReason, setActionReason] = useState('');
-  const [editShares, setEditShares] = useState(0);
+  const [editShares, setEditShares] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [profileData, setProfileData] = useState<any | null>(null);
   const [profileTxns, setProfileTxns] = useState<any[]>([]);
@@ -127,7 +127,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
     setActionType(type);
     setSelectedInvestor(inv);
     setActionReason('');
-    setEditShares(inv.total_shares);
+    setEditShares(String(inv.total_shares));
     if (type === 'view') {
       setProfileLoading(true);
       setProfileData(null);
@@ -171,7 +171,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      if (actionType === 'edit' && editShares === selectedInvestor.total_shares) {
+      if (actionType === 'edit' && (parseFloat(editShares) || 0) === selectedInvestor.total_shares) {
         toast.info('No changes to save');
         setActionLoading(false);
         return;
@@ -181,7 +181,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
         p_investor_id: selectedInvestor.investor_id,
         p_action: actionType,
         p_reason: actionReason.trim(),
-        p_new_shares: actionType === 'edit' ? editShares : null,
+        p_new_shares: actionType === 'edit' ? (parseFloat(editShares) || 0) : null,
       });
       if (error) throw error;
 
@@ -466,9 +466,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
             {actionType === 'edit' && (
               <div>
                 <Label>New Total Shares</Label>
-                <Input type="number" min={0} step="0.0001" value={editShares} onChange={e => setEditShares(Number(e.target.value))} />
+                <Input type="number" min={0} step="0.0001" value={editShares} onChange={e => setEditShares(e.target.value)} />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Current: {fmtShares(selectedInvestor?.total_shares ?? 0)} shares · New amount: UGX {Math.round(editShares * config.price_per_share).toLocaleString()}
+                  Current: {fmtShares(selectedInvestor?.total_shares ?? 0)} shares · New amount: UGX {Math.round((parseFloat(editShares) || 0) * config.price_per_share).toLocaleString()}
                 </p>
               </div>
             )}
