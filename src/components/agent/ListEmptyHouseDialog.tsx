@@ -1290,6 +1290,36 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     <X className="h-3.5 w-3.5 mr-1" /> Change
                   </Button>
                 </div>
+                {!selectedLandlord.verified && (
+                  <div className="pt-1.5 border-t border-amber-500/30 space-y-2">
+                    <p className="text-[11px] text-amber-700 flex items-start gap-1.5 leading-snug">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                      This landlord is registered but not yet verified. Ask Landlord Operations to verify them so this house can go live.
+                    </p>
+                    {verifyReqState === 'sent' || verifyReqState === 'exists' ? (
+                      <p className="text-[11px] font-medium text-success flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        Verification request sent to Landlord Operations.
+                      </p>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-9 w-full gap-1.5 rounded-xl border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                        disabled={verifyReqState === 'sending'}
+                        onClick={requestLandlordVerification}
+                      >
+                        {verifyReqState === 'sending' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                        )}
+                        Ping Landlord Ops to verify
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
