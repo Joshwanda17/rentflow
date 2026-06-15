@@ -944,6 +944,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // lookup failure falls back to 'idle' so the stricter submit-time check still
   // runs rather than blocking the agent on a flaky connection.
   const [landlordCheck, setLandlordCheck] = useState<'idle' | 'checking' | 'registered' | 'unverified' | 'missing'>('idle');
+  // Agent-initiated request asking Landlord Ops to verify an unverified landlord.
+  const [verifyReqState, setVerifyReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
   // Live LC1 chairperson verification — keyed on the typed LC1 phone. A rent
   // request can only be posted when the LC1 is both registered AND verified.
   const [lc1Check, setLc1Check] = useState<'idle' | 'checking' | 'verified' | 'unverified' | 'missing'>('idle');
