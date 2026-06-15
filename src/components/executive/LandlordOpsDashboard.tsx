@@ -3108,6 +3108,8 @@ export function LandlordOpsDashboard() {
         </h2>
         <SectionSwitcher />
       </div>
+      {/* PROMINENT: Agent-initiated landlord verification requests — top priority */}
+      <AgentVerificationRequestsPanel onResolved={refetchAll} />
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(unverifiedListings.length > 0 || unverifiedLandlords.length > 0) && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
