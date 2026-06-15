@@ -466,9 +466,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
             {actionType === 'edit' && (
               <div>
                 <Label>New Total Shares</Label>
-                <Input type="number" min={0} step="0.0001" value={editShares} onChange={e => setEditShares(Number(e.target.value))} />
+                <Input type="number" min={0} step="0.0001" value={editShares} onChange={e => setEditShares(e.target.value)} />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Current: {fmtShares(selectedInvestor?.total_shares ?? 0)} shares · New amount: UGX {Math.round(editShares * config.price_per_share).toLocaleString()}
+                  Current: {fmtShares(selectedInvestor?.total_shares ?? 0)} shares · New amount: UGX {Math.round((parseFloat(editShares) || 0) * config.price_per_share).toLocaleString()}
                 </p>
               </div>
             )}
