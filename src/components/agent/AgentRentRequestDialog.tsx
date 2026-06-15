@@ -1289,15 +1289,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       // free-typed names are never auto-created any more.
       const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
       if (!landlordRegistered) {
-        errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
+        errors.push('Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.');
       } else if (landlordCheck === 'missing') {
-        errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
+        errors.push('Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.');
       } else if (landlordCheck === 'unverified') {
-        errors.push('This landlord is registered but not yet verified — they must be verified before you can post a rent request');
+        errors.push('Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.');
       } else if (landlordCheck === 'checking') {
-        errors.push('Confirming the landlord is registered — please wait a moment');
+        errors.push('Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.');
       } else if (landlordCheck !== 'registered') {
-        errors.push('Landlord must be registered and verified before you can post a rent request');
+        errors.push('Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.');
       }
       // The landlord's listed house MUST show photos. Block rent requests on
       // any selected listing that has no photos on record.
@@ -1312,11 +1312,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
       else if (!isValidUgPhone(cleanLc1Phone)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
-      else if (lc1Check === 'missing') errors.push('This LC1 chairperson is not registered yet — register them first, then they must be verified');
-      else if (lc1Check === 'unverified') errors.push('This LC1 chairperson is registered but not yet verified — they must be verified before you can post a rent request');
-      else if (lc1Check === 'checking') errors.push('Confirming the LC1 chairperson is verified — please wait a moment');
+      else if (lc1Check === 'missing') errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson is not registered yet. Register them first, then they must be verified.');
+      else if (lc1Check === 'unverified') errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson is registered but not yet verified. They must be verified before you can post a rent request.');
+      else if (lc1Check === 'checking') errors.push('Step 3 — LC1 chairperson verified: Confirming the LC1 chairperson is verified — please wait a moment before posting.');
       else if (lc1Check !== 'verified') {
-        errors.push('LC1 chairperson must be verified before you can post a rent request');
+        errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson must be verified before you can post a rent request.');
       }
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
