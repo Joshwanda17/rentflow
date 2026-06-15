@@ -1292,6 +1292,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
       } else if (landlordCheck === 'missing') {
         errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
+      } else if (landlordCheck === 'unverified') {
+        errors.push('This landlord is registered but not yet verified — they must be verified before you can post a rent request');
       } else if (landlordCheck === 'checking') {
         errors.push('Confirming the landlord is registered — please wait a moment');
       }
@@ -1308,6 +1310,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
       else if (!isValidUgPhone(cleanLc1Phone)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
+      else if (lc1Check === 'missing') errors.push('This LC1 chairperson is not registered yet — register them first, then they must be verified');
+      else if (lc1Check === 'unverified') errors.push('This LC1 chairperson is registered but not yet verified — they must be verified before you can post a rent request');
+      else if (lc1Check === 'checking') errors.push('Confirming the LC1 chairperson is verified — please wait a moment');
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
       const tOk = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
