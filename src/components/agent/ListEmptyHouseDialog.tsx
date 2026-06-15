@@ -373,6 +373,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const selectLandlord = (hit: LandlordHit) => {
     setSelectedLandlord(hit);
     setManualLandlord(false);
+    setVerifyReqState('idle');
     setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: normalizeUgandaPhone(hit.phone) }));
     setLandlordPhoneError('');
     // Pull any recorded estimations onto the (editable) house fields so the
@@ -382,8 +383,65 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
   const clearLandlordSelection = () => {
     setSelectedLandlord(null);
+    setVerifyReqState('idle');
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
     setLandlordPhoneError('');
+  };
+
+  // Ask Landlord Operations to verify an already-registered (but unverified)
+  // landlord so the agent can get this house live. Fire-and-forget notify.
+  const requestLandlordVerification = async () => {
+    if (!selectedLandlord?.id) return;
+    setVerifyReqState('sending');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setVerifyReqState('idle'); return; }
+      const agentName =
+        (user.user_metadata as any)?.full_name ||
+        (user.user_metadata as any)?.name ||
+        'Agent';
+      const agentPhone = (user.user_metadata as any)?.phone || user.phone || null;
+      const llName = selectedLandlord.name || null;
+      const llPhone = (form.landlord_phone || selectedLandlord.phone || '').toString().trim() || null;
+      const { data: inserted, error } = await supabase
+        .from('landlord_verification_requests')
+        .insert({
+          landlord_id: selectedLandlord.id,
+          landlord_name: llName,
+          landlord_phone: llPhone,
+          requested_by: user.id,
+          agent_name: agentName,
+          agent_phone: agentPhone,
+          status: 'pending',
+        })
+        .select('id')
+        .single();
+      if (error) {
+        if ((error as any).code === '23505') {
+          setVerifyReqState('exists');
+          toast.info('Verification already requested', {
+            description: 'Landlord Operations already has a pending request for this landlord.',
+          });
+          return;
+        }
+        throw error;
+      }
+      setVerifyReqState('sent');
+      toast.success('Verification request sent', {
+        description: `Landlord Operations will review ${llName || 'this landlord'} shortly.`,
+      });
+      void notifyVerificationCreated({
+        agentId: user.id,
+        agentName,
+        landlordId: selectedLandlord.id,
+        landlordName: llName,
+        landlordPhone: llPhone,
+        requestId: inserted?.id ?? null,
+      });
+    } catch (err: any) {
+      setVerifyReqState('idle');
+      toast.error('Could not send request', { description: err?.message || 'Please try again.' });
+    }
   };
 
   // Pre-fill any EMPTY house fields from an existing landlord's stored
@@ -427,6 +485,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       verifiedHouses: 0,
     });
     setManualLandlord(false);
+    setVerifyReqState('idle');
     setForm((f) => ({ ...f, landlord_name: m.name, landlord_phone: normalized }));
     applyLandlordEstimations(m.id);
     setPhoneMatch(null);
