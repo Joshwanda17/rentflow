@@ -96,6 +96,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // Verification ping: when the linked landlord exists but isn't verified yet,
   // the agent can ping Landlord Ops to verify so the house can go live.
   const [verifyReqState, setVerifyReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
+  // Real DB status of the latest verification request (polls while dialog open).
+  type VerifyDbStatus = 'pending' | 'verified' | 'rejected' | null;
+  const [verifyDbStatus, setVerifyDbStatus] = useState<VerifyDbStatus>(null);
+  const [verifyDbComment, setVerifyDbComment] = useState<string | null>(null);
   // Auto-fill: the agent's most recently used landlord (remembered locally) and
   // a flag noting that location/area was pre-filled from the agent profile.
   const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
