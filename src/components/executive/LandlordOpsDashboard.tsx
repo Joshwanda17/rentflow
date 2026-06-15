@@ -279,15 +279,16 @@ export function LandlordOpsDashboard() {
     | { type: 'city'; data: any }
     | { type: 'no-landlord'; data: any }
     | { type: 'landlord'; data: any }
+    | { type: 'tenant'; data: any }
     | null
   >(null);
   // Deep-link params for shareable entity detail links (?entity=…&eid=…)
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const entityId = (type: 'city' | 'no-landlord' | 'landlord', data: any): string =>
+  const entityId = (type: 'city' | 'no-landlord' | 'landlord' | 'tenant', data: any): string =>
     type === 'city' ? data.city : data.id;
 
-  const openEntity = (type: 'city' | 'no-landlord' | 'landlord', data: any) => {
+  const openEntity = (type: 'city' | 'no-landlord' | 'landlord' | 'tenant', data: any) => {
     setEntityDetail({ type, data });
     const next = new URLSearchParams(searchParams);
     next.set('entity', type);
