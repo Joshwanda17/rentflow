@@ -4622,7 +4622,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     onClick={submitQueued ? promptCancelQueued : requestSubmit}
                     className="flex-1"
                     variant={submitQueued ? 'secondary' : 'default'}
-                    disabled={loading || !amount || amount < 50000}
+                    disabled={loading || !amount || amount < 50000 || landlordCheck !== 'registered' || lc1Check !== 'verified'}
                   >
                     {loading ? (
                       <>
