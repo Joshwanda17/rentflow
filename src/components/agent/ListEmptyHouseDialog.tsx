@@ -17,6 +17,7 @@ import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaP
 import FormStepHeader from '@/components/shared/FormStepHeader';
 import FieldError from '@/components/shared/FieldError';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
+import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -92,6 +93,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [searchedOnce, setSearchedOnce] = useState(false);
   const [selectedLandlord, setSelectedLandlord] = useState<LandlordHit | null>(null);
   const [manualLandlord, setManualLandlord] = useState(false);
+  // Verification ping: when the linked landlord exists but isn't verified yet,
+  // the agent can ping Landlord Ops to verify so the house can go live.
+  const [verifyReqState, setVerifyReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
   // Auto-fill: the agent's most recently used landlord (remembered locally) and
   // a flag noting that location/area was pre-filled from the agent profile.
   const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
@@ -369,6 +373,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const selectLandlord = (hit: LandlordHit) => {
     setSelectedLandlord(hit);
     setManualLandlord(false);
+    setVerifyReqState('idle');
     setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: normalizeUgandaPhone(hit.phone) }));
     setLandlordPhoneError('');
     // Pull any recorded estimations onto the (editable) house fields so the
@@ -378,8 +383,65 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
 
   const clearLandlordSelection = () => {
     setSelectedLandlord(null);
+    setVerifyReqState('idle');
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
     setLandlordPhoneError('');
+  };
+
+  // Ask Landlord Operations to verify an already-registered (but unverified)
+  // landlord so the agent can get this house live. Fire-and-forget notify.
+  const requestLandlordVerification = async () => {
+    if (!selectedLandlord?.id) return;
+    setVerifyReqState('sending');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setVerifyReqState('idle'); return; }
+      const agentName =
+        (user.user_metadata as any)?.full_name ||
+        (user.user_metadata as any)?.name ||
+        'Agent';
+      const agentPhone = (user.user_metadata as any)?.phone || user.phone || null;
+      const llName = selectedLandlord.name || null;
+      const llPhone = (form.landlord_phone || selectedLandlord.phone || '').toString().trim() || null;
+      const { data: inserted, error } = await supabase
+        .from('landlord_verification_requests')
+        .insert({
+          landlord_id: selectedLandlord.id,
+          landlord_name: llName,
+          landlord_phone: llPhone,
+          requested_by: user.id,
+          agent_name: agentName,
+          agent_phone: agentPhone,
+          status: 'pending',
+        })
+        .select('id')
+        .single();
+      if (error) {
+        if ((error as any).code === '23505') {
+          setVerifyReqState('exists');
+          toast.info('Verification already requested', {
+            description: 'Landlord Operations already has a pending request for this landlord.',
+          });
+          return;
+        }
+        throw error;
+      }
+      setVerifyReqState('sent');
+      toast.success('Verification request sent', {
+        description: `Landlord Operations will review ${llName || 'this landlord'} shortly.`,
+      });
+      void notifyVerificationCreated({
+        agentId: user.id,
+        agentName,
+        landlordId: selectedLandlord.id,
+        landlordName: llName,
+        landlordPhone: llPhone,
+        requestId: inserted?.id ?? null,
+      });
+    } catch (err: any) {
+      setVerifyReqState('idle');
+      toast.error('Could not send request', { description: err?.message || 'Please try again.' });
+    }
   };
 
   // Pre-fill any EMPTY house fields from an existing landlord's stored
@@ -423,6 +485,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       verifiedHouses: 0,
     });
     setManualLandlord(false);
+    setVerifyReqState('idle');
     setForm((f) => ({ ...f, landlord_name: m.name, landlord_phone: normalized }));
     applyLandlordEstimations(m.id);
     setPhoneMatch(null);
@@ -1227,6 +1290,36 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     <X className="h-3.5 w-3.5 mr-1" /> Change
                   </Button>
                 </div>
+                {!selectedLandlord.verified && (
+                  <div className="pt-1.5 border-t border-amber-500/30 space-y-2">
+                    <p className="text-[11px] text-amber-700 flex items-start gap-1.5 leading-snug">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                      This landlord is registered but not yet verified. Ask Landlord Operations to verify them so this house can go live.
+                    </p>
+                    {verifyReqState === 'sent' || verifyReqState === 'exists' ? (
+                      <p className="text-[11px] font-medium text-success flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        Verification request sent to Landlord Operations.
+                      </p>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-9 w-full gap-1.5 rounded-xl border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                        disabled={verifyReqState === 'sending'}
+                        onClick={requestLandlordVerification}
+                      >
+                        {verifyReqState === 'sending' ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                        )}
+                        Ping Landlord Ops to verify
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
