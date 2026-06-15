@@ -1848,6 +1848,7 @@ export function LandlordOpsDashboard() {
         onClose={() => setBulkImportLandlordsOpen(false)}
         onImported={refetchAll}
       />
+      {renderEntityDetail()}
       </>
     );
   }
