@@ -1112,6 +1112,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           }
         }
         if (cancelled) return;
+        const llPhone = selectedLandlord?.phone ?? selectedHouse?.landlord_phone ?? null;
         setLandlordHouses(
           rows.map((r) => ({
             id: r.id,
@@ -1123,6 +1124,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             verified: r.verified ?? null,
             tenant_id: r.tenant_id ?? null,
             tenant_name: r.tenant_id ? tenantMap[r.tenant_id] ?? null : null,
+            landlord_phone: llPhone,
           })),
         );
       } catch {
