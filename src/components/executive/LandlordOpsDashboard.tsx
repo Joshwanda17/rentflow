@@ -1585,41 +1585,11 @@ export function LandlordOpsDashboard() {
           </div>
         )}
         {tenants.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                Tenants Summary
-              </p>
-              <Badge variant="outline" className="text-[10px]">{tenants.length} total</Badge>
-            </div>
-            {Object.keys(statusCounts).length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {Object.entries(statusCounts).map(([status, count]) => (
-                  <Badge key={status} variant="secondary" className="text-[10px] capitalize">
-                    {status.replace(/_/g, ' ')}: {count}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            <div className="space-y-1">
-              {tenants.map((tn, idx) => (
-                <button
-                  key={tn.id || idx}
-                  type="button"
-                  onClick={() => openEntity('tenant', { ...tn, landlord_name: l.name })}
-                  className="flex w-full items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5 text-left transition-colors hover:bg-green-500/20 active:scale-[0.99] touch-manipulation"
-                >
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs font-medium truncate">{tn.name}</span>
-                    <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize shrink-0">
-                      {(tn.status || 'listed').replace(/_/g, ' ')}
-                    </Badge>
-                  </span>
-                  <span className="text-[10px] font-semibold text-green-700 shrink-0">View</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <TenantStatusFilter
+            tenants={tenants}
+            landlordName={l.name}
+            onOpenTenant={openEntity}
+          />
         )}
       </EntityDetailSheet>
     );
