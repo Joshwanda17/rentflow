@@ -56,7 +56,7 @@ const REGIONS = [
 
 import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
 
-export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
+export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, initialLc1Name, initialLc1Phone, initialLc1Village, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   // Guided wizard step (1-4) so agents who struggle with long forms only see
   // one simple question at a time.
