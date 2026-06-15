@@ -279,15 +279,16 @@ export function LandlordOpsDashboard() {
     | { type: 'city'; data: any }
     | { type: 'no-landlord'; data: any }
     | { type: 'landlord'; data: any }
+    | { type: 'tenant'; data: any }
     | null
   >(null);
   // Deep-link params for shareable entity detail links (?entity=…&eid=…)
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const entityId = (type: 'city' | 'no-landlord' | 'landlord', data: any): string =>
+  const entityId = (type: 'city' | 'no-landlord' | 'landlord' | 'tenant', data: any): string =>
     type === 'city' ? data.city : data.id;
 
-  const openEntity = (type: 'city' | 'no-landlord' | 'landlord', data: any) => {
+  const openEntity = (type: 'city' | 'no-landlord' | 'landlord' | 'tenant', data: any) => {
     setEntityDetail({ type, data });
     const next = new URLSearchParams(searchParams);
     next.set('entity', type);
@@ -686,13 +687,19 @@ export function LandlordOpsDashboard() {
       }
 
       // Also fetch tenant-landlord links from rent_requests (primary linkage)
+      const tenantStatusMap = new Map<string, string>();
       for (let i = 0; i < landlordIds.length; i += 50) {
         const { data: rrData } = await supabase
           .from('rent_requests')
-          .select('landlord_id, tenant_id')
+          .select('landlord_id, tenant_id, status')
           .in('landlord_id', landlordIds.slice(i, i + 50))
           .not('tenant_id', 'is', null);
-        if (rrData) landlordTenantsRaw.push(...(rrData as any[]));
+        if (rrData) {
+          (rrData as any[]).forEach(r => {
+            landlordTenantsRaw.push({ landlord_id: r.landlord_id, tenant_id: r.tenant_id });
+            if (r.tenant_id && r.status) tenantStatusMap.set(r.tenant_id, r.status);
+          });
+        }
       }
 
       // Build landlord -> tenant_ids map
@@ -724,17 +731,17 @@ export function LandlordOpsDashboard() {
       return allData.map(l => {
         // Get all tenants from house_listings for this landlord
         const tenantIdSet = landlordTenantIdsMap.get(l.id);
-        const tenants: { name: string; phone: string | null }[] = [];
+        const tenants: { id: string; name: string; phone: string | null; status: string }[] = [];
         if (tenantIdSet) {
           tenantIdSet.forEach(tid => {
             const p = profileMap.get(tid);
-            tenants.push({ name: p?.full_name || 'Unknown', phone: p?.phone || null });
+            tenants.push({ id: tid, name: p?.full_name || 'Unknown', phone: p?.phone || null, status: tenantStatusMap.get(tid) || 'listed' });
           });
         }
         // Fallback: if no house_listings tenants but landlord has tenant_id
         if (tenants.length === 0 && l.tenant_id) {
           const p = profileMap.get(l.tenant_id);
-          if (p) tenants.push({ name: p.full_name || 'Unknown', phone: p.phone || null });
+          if (p) tenants.push({ id: l.tenant_id, name: p.full_name || 'Unknown', phone: p.phone || null, status: tenantStatusMap.get(l.tenant_id) || 'listed' });
         }
 
         return {
@@ -884,7 +891,7 @@ export function LandlordOpsDashboard() {
   }, [rows, noLandlordList]);
 
   // Restore an entity detail sheet from a shared deep link (?entity=…&eid=…).
-  const entityParam = searchParams.get('entity') as 'city' | 'no-landlord' | 'landlord' | null;
+  const entityParam = searchParams.get('entity') as 'city' | 'no-landlord' | 'landlord' | 'tenant' | null;
   const eidParam = searchParams.get('eid');
   useEffect(() => {
     if (!entityParam || !eidParam) return;
@@ -900,6 +907,11 @@ export function LandlordOpsDashboard() {
       if (l) {
         setView(l.tenants && l.tenants.length > 0 ? 'occupied' : 'empty');
         setEntityDetail({ type: 'landlord', data: l });
+      }
+    } else if (entityParam === 'tenant') {
+      for (const l of landlordsList) {
+        const tn = (l.tenants || []).find((t: any) => t.id === eidParam);
+        if (tn) { setEntityDetail({ type: 'tenant', data: { ...tn, landlord_name: l.name } }); break; }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1497,10 +1509,43 @@ export function LandlordOpsDashboard() {
       );
     }
 
+    if (entityDetail.type === 'tenant') {
+      const tn = entityDetail.data;
+      return (
+        <EntityDetailSheet
+          open
+          onClose={close}
+          shareUrl={buildShareUrl('tenant', tn.id)}
+          title={tn.name}
+          subtitle={tn.landlord_name ? `Tenant of ${tn.landlord_name}` : 'Tenant'}
+          icon={<Users className="h-5 w-5 text-green-600" />}
+          fields={[
+            { label: 'Status', value: <span className="capitalize">{(tn.status || 'listed').replace(/_/g, ' ')}</span> },
+            { label: 'Phone', value: tn.phone || '—' },
+          ]}
+        >
+          {tn.phone && (
+            <div className="rounded-lg bg-green-500/10 p-2.5 space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Contact Tenant</p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium truncate">{tn.name}</span>
+                <PhoneLinks phone={tn.phone} name={tn.name} />
+              </div>
+            </div>
+          )}
+        </EntityDetailSheet>
+      );
+    }
+
     // landlord (empty / occupied views)
     const l = entityDetail.data;
     const houseCount = landlordHouseCounts.get(l.id) || l.number_of_houses || 0;
-    const tenants = (l.tenants || []) as { name: string; phone: string | null }[];
+    const tenants = (l.tenants || []) as { id: string; name: string; phone: string | null; status: string }[];
+    const statusCounts = tenants.reduce<Record<string, number>>((acc, t) => {
+      const s = (t.status || 'listed').toLowerCase();
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    }, {});
     return (
       <EntityDetailSheet
         open
@@ -1540,14 +1585,40 @@ export function LandlordOpsDashboard() {
           </div>
         )}
         {tenants.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tenants</p>
-            {tenants.map((tn, idx) => (
-              <div key={idx} className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
-                <span className="text-xs font-medium truncate">{tn.name}</span>
-                {tn.phone && <span className="text-[10px] text-muted-foreground">{tn.phone}</span>}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                Tenants Summary
+              </p>
+              <Badge variant="outline" className="text-[10px]">{tenants.length} total</Badge>
+            </div>
+            {Object.keys(statusCounts).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(statusCounts).map(([status, count]) => (
+                  <Badge key={status} variant="secondary" className="text-[10px] capitalize">
+                    {status.replace(/_/g, ' ')}: {count}
+                  </Badge>
+                ))}
               </div>
-            ))}
+            )}
+            <div className="space-y-1">
+              {tenants.map((tn, idx) => (
+                <button
+                  key={tn.id || idx}
+                  type="button"
+                  onClick={() => openEntity('tenant', { ...tn, landlord_name: l.name })}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5 text-left transition-colors hover:bg-green-500/20 active:scale-[0.99] touch-manipulation"
+                >
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-medium truncate">{tn.name}</span>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize shrink-0">
+                      {(tn.status || 'listed').replace(/_/g, ' ')}
+                    </Badge>
+                  </span>
+                  <span className="text-[10px] font-semibold text-green-700 shrink-0">View</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </EntityDetailSheet>
