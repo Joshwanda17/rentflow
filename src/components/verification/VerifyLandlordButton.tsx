@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building, CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
+import { Building, CheckCircle2, Loader2, ShieldCheck, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { hapticTap } from '@/lib/haptics';
+import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import {
   Dialog,
   DialogContent,
@@ -34,7 +34,10 @@ export function VerifyLandlordButton({
   const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [action, setAction] = useState<'verify' | 'ready'>('verify');
+  const [pressProgress, setPressProgress] = useState(0);
 
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const isManager = role === 'manager';
 
   const handleVerify = async () => {
@@ -117,6 +120,33 @@ export function VerifyLandlordButton({
     );
   }
 
+  const LONG_PRESS_MS = 1200;
+
+  const clearPressTimers = useCallback(() => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+    if (progressTimer.current) clearInterval(progressTimer.current);
+    pressTimer.current = null;
+    progressTimer.current = null;
+    setPressProgress(0);
+  }, []);
+
+  const startLongPress = useCallback((targetAction: 'verify' | 'ready') => {
+    clearPressTimers();
+    setPressProgress(0);
+    const start = Date.now();
+    progressTimer.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const pct = Math.min(elapsed / LONG_PRESS_MS, 1);
+      setPressProgress(pct);
+    }, 30);
+    pressTimer.current = setTimeout(() => {
+      clearPressTimers();
+      hapticSuccess();
+      setAction(targetAction);
+      setConfirmDialog(true);
+    }, LONG_PRESS_MS);
+  }, [clearPressTimers]);
+
   // Manager view with action buttons
   if (readyToReceive) {
     return (
@@ -134,27 +164,39 @@ export function VerifyLandlordButton({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              setAction('verify');
-              setConfirmDialog(true);
-            }}
-            className="gap-1.5"
+            className="gap-1.5 relative overflow-hidden select-none touch-none"
+            onPointerDown={() => startLongPress('verify')}
+            onPointerUp={clearPressTimers}
+            onPointerLeave={clearPressTimers}
+            onPointerCancel={clearPressTimers}
+            onContextMenu={(e) => e.preventDefault()}
           >
-            <CheckCircle2 className="h-4 w-4" />
-            Verify
+            <span
+              className="absolute inset-0 bg-primary/10 origin-left transition-none"
+              style={{ transform: `scaleX(${pressProgress})` }}
+            />
+            <Lock className="h-3.5 w-3.5 relative z-10" />
+            <span className="relative z-10">Hold to Verify</span>
           </Button>
         )}
         <Button
           size="sm"
           variant="success"
-          onClick={() => {
-            setAction('ready');
-            setConfirmDialog(true);
-          }}
-          className="gap-1.5"
+          className="gap-1.5 relative overflow-hidden select-none touch-none"
+          onPointerDown={() => startLongPress('ready')}
+          onPointerUp={clearPressTimers}
+          onPointerLeave={clearPressTimers}
+          onPointerCancel={clearPressTimers}
+          onContextMenu={(e) => e.preventDefault()}
         >
-          <ShieldCheck className="h-4 w-4" />
-          {verified ? 'Mark Ready' : 'Verify & Ready'}
+          <span
+            className="absolute inset-0 bg-success/20 origin-left transition-none"
+            style={{ transform: `scaleX(${pressProgress})` }}
+          />
+          <ShieldCheck className="h-4 w-4 relative z-10" />
+          <span className="relative z-10">
+            {verified ? 'Hold to Mark Ready' : 'Hold to Verify & Ready'}
+          </span>
         </Button>
       </div>
 
