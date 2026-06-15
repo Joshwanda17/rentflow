@@ -21,7 +21,7 @@ const MIN_LIMIT = 30_000;
 
 export function CreditAccessCard({ userId, showBreakdown = true, compact = false }: CreditAccessCardProps) {
   const { limit, loading } = useCreditAccessLimit(userId);
-  const [currency, setCurrency] = useState('UGX');
+  const [currency] = useState('UGX');
   const [expanded, setExpanded] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
