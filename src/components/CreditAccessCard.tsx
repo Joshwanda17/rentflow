@@ -47,8 +47,6 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
     );
   }
 
-  const currencyOptions = ['UGX', 'USD', 'EUR', 'GBP'];
-
   if (compact) {
     const unlockPercent = Math.round(progressPercentage);
     const remainingToMax = MAX_LIMIT - limit.totalLimit;
