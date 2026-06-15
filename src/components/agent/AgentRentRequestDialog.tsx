@@ -3996,18 +3996,42 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </div>
                       {/* Status counts */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground border border-border">
-                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                        <button
+                          type="button"
+                          onClick={() => setHouseStatusFilter((prev) => (prev === 'occupied' ? 'all' : 'occupied'))}
+                          className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${
+                            houseStatusFilter === 'occupied'
+                              ? 'bg-muted-foreground text-background border-muted-foreground'
+                              : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
+                          }`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${houseStatusFilter === 'occupied' ? 'bg-background' : 'bg-muted-foreground'}`} />
                           Occupied {houseStatusCounts.occupied}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-success/15 text-success border border-success/30">
-                          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHouseStatusFilter((prev) => (prev === 'empty' ? 'all' : 'empty'))}
+                          className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${
+                            houseStatusFilter === 'empty'
+                              ? 'bg-success text-background border-success'
+                              : 'bg-success/15 text-success border-success/30 hover:bg-success/25'
+                          }`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${houseStatusFilter === 'empty' ? 'bg-background' : 'bg-success'}`} />
                           Empty {houseStatusCounts.empty}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHouseStatusFilter((prev) => (prev === 'unverified' ? 'all' : 'unverified'))}
+                          className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full border transition-colors ${
+                            houseStatusFilter === 'unverified'
+                              ? 'bg-amber-500 text-background border-amber-500'
+                              : 'bg-amber-500/15 text-amber-600 border-amber-500/30 hover:bg-amber-500/25'
+                          }`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${houseStatusFilter === 'unverified' ? 'bg-background' : 'bg-amber-500'}`} />
                           Not verified {houseStatusCounts.unverified}
-                        </span>
+                        </button>
                       </div>
                       {(() => {
                         const q = houseSearchQuery.trim().toLowerCase();
