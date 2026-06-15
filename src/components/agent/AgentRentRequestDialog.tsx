@@ -967,6 +967,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
   const [landlordHouses, setLandlordHouses] = useState<LandlordHouse[]>([]);
   const [landlordHousesLoading, setLandlordHousesLoading] = useState(false);
+  const [houseSearchQuery, setHouseSearchQuery] = useState('');
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
