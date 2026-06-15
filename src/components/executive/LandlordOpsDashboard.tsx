@@ -2337,7 +2337,7 @@ export function LandlordOpsDashboard() {
         <BackButton />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter}</Badge>
+          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
         </div>
 
         {/* Thumb-friendly status filter chips */}
@@ -2346,6 +2346,7 @@ export function LandlordOpsDashboard() {
             { value: 'pending' as HouseStatusFilter, label: 'Pending', count: unverifiedListings.length, color: 'amber' },
             { value: 'verified' as HouseStatusFilter, label: 'Verified', count: verifiedListings.length, color: 'emerald' },
             { value: 'hidden' as HouseStatusFilter, label: 'Hidden', count: hiddenListings.length, color: 'slate' },
+            { value: 'rejected' as HouseStatusFilter, label: 'Rejected', count: rejectedListings.length, color: 'rose' },
             { value: 'all' as HouseStatusFilter, label: 'All houses', count: rows.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id)).length, color: 'primary' },
           ]).map(s => {
             const active = houseStatusFilter === s.value;
