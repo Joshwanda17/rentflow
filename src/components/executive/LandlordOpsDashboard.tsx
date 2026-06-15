@@ -891,7 +891,7 @@ export function LandlordOpsDashboard() {
   }, [rows, noLandlordList]);
 
   // Restore an entity detail sheet from a shared deep link (?entity=…&eid=…).
-  const entityParam = searchParams.get('entity') as 'city' | 'no-landlord' | 'landlord' | null;
+  const entityParam = searchParams.get('entity') as 'city' | 'no-landlord' | 'landlord' | 'tenant' | null;
   const eidParam = searchParams.get('eid');
   useEffect(() => {
     if (!entityParam || !eidParam) return;
@@ -907,6 +907,11 @@ export function LandlordOpsDashboard() {
       if (l) {
         setView(l.tenants && l.tenants.length > 0 ? 'occupied' : 'empty');
         setEntityDetail({ type: 'landlord', data: l });
+      }
+    } else if (entityParam === 'tenant') {
+      for (const l of landlordsList) {
+        const tn = (l.tenants || []).find((t: any) => t.id === eidParam);
+        if (tn) { setEntityDetail({ type: 'tenant', data: { ...tn, landlord_name: l.name } }); break; }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
