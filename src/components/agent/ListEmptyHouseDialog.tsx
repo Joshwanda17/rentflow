@@ -570,6 +570,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setVerifyReqState('idle');
     setVerifyDbStatus(null);
     setVerifyDbComment(null);
+    setVerifyRequestId(null);
     setForm((f) => ({ ...f, landlord_name: m.name, landlord_phone: normalized }));
     applyLandlordEstimations(m.id);
     setPhoneMatch(null);
