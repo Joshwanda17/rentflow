@@ -373,29 +373,21 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       <div className="flex-1 overflow-y-auto pb-nav">
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto flex flex-col min-h-full">
           {/* Offline Notice */}
-          <AnimatePresence>
-            {!isOnline && (
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
-                  <WifiOff className="h-3.5 w-3.5 text-warning shrink-0" />
-                  <p className="text-xs text-warning flex-1">You're offline — data may be outdated</p>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.location.reload()}>
-                    <RefreshCw className="h-3 w-3" />
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {!isOnline && (
+            <div className="animate-fade-in flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
+              <WifiOff className="h-3.5 w-3.5 text-warning shrink-0" />
+              <p className="text-xs text-warning flex-1">You're offline — data may be outdated</p>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.location.reload()}>
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
 
           {/* Terms Acceptance Notice */}
           <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
 
           {/* Profile Row */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3"
-          >
+          <div className="animate-fade-in flex items-center gap-3">
             <button onClick={() => navigate('/settings')} className="shrink-0">
               <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
             </button>
@@ -411,7 +403,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </h1>
             </div>
             <AiIdButton variant="compact" />
-          </motion.div>
+          </div>
 
           {/* Prominent live tracker for any in-flight / active Business Advance */}
           <BusinessAdvanceStatusHero />
