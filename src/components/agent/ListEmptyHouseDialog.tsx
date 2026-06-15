@@ -454,6 +454,54 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
   };
 
+  // ─── Poll the real verification status from the DB ───
+  const fetchVerificationStatus = async (landlordId: string) => {
+    try {
+      // 1) Check if the landlord record itself was verified directly.
+      const { data: ll } = await supabase
+        .from('landlords')
+        .select('verified')
+        .eq('id', landlordId)
+        .maybeSingle();
+      if (ll?.verified) {
+        setVerifyDbStatus('verified');
+        setSelectedLandlord((prev) => (prev ? { ...prev, verified: true } : prev));
+        return;
+      }
+      // 2) Check the latest verification request for this landlord.
+      const { data: req } = await supabase
+        .from('landlord_verification_requests')
+        .select('status, reject_comment')
+        .eq('landlord_id', landlordId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (req) {
+        setVerifyDbStatus(req.status as VerifyDbStatus);
+        setVerifyDbComment(req.reject_comment || null);
+        if (req.status === 'verified') {
+          setSelectedLandlord((prev) => (prev ? { ...prev, verified: true } : prev));
+        }
+      } else {
+        setVerifyDbStatus(null);
+        setVerifyDbComment(null);
+      }
+    } catch {
+      /* non-critical — never block listing */
+    }
+  };
+
+  // Poll the DB status every 8 s while a landlord is selected and the dialog is open.
+  useEffect(() => {
+    if (!open || !selectedLandlord?.id) return;
+    fetchVerificationStatus(selectedLandlord.id);
+    const interval = setInterval(() => {
+      if (selectedLandlord?.id) fetchVerificationStatus(selectedLandlord.id);
+    }, 8000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedLandlord?.id]);
+
   // Pre-fill any EMPTY house fields from an existing landlord's stored
   // estimations (rent / location). Never overwrites what the agent already
   // typed — everything stays fully editable.
@@ -1302,33 +1350,72 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     <X className="h-3.5 w-3.5 mr-1" /> Change
                   </Button>
                 </div>
-                {!selectedLandlord.verified && (
+                {!selectedLandlord.verified && verifyDbStatus !== 'verified' && (
                   <div className="pt-1.5 border-t border-amber-500/30 space-y-2">
-                    <p className="text-[11px] text-amber-700 flex items-start gap-1.5 leading-snug">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
-                      This landlord is registered but not yet verified. Ask Landlord Operations to verify them so this house can go live.
-                    </p>
-                    {verifyReqState === 'sent' || verifyReqState === 'exists' ? (
+                    {verifyDbStatus === 'pending' ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-500/10 px-2 py-1.5 rounded-lg">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                          Verification pending — Landlord Ops is reviewing
+                        </div>
+                        <p className="text-[11px] text-amber-700 leading-snug">
+                          You’ll get a notification once they approve or reject. You can close this dialog and come back later.
+                        </p>
+                      </div>
+                    ) : verifyDbStatus === 'rejected' ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-destructive bg-destructive/10 px-2 py-1.5 rounded-lg">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Verification rejected
+                        </div>
+                        {verifyDbComment && (
+                          <p className="text-[11px] text-destructive/80 leading-snug">
+                            Reason: {verifyDbComment}
+                          </p>
+                        )}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-9 w-full gap-1.5 rounded-xl border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                          disabled={verifyReqState === 'sending'}
+                          onClick={requestLandlordVerification}
+                        >
+                          {verifyReqState === 'sending' ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                          )}
+                          Request verification again
+                        </Button>
+                      </div>
+                    ) : verifyReqState === 'sent' || verifyReqState === 'exists' ? (
                       <p className="text-[11px] font-medium text-success flex items-center gap-1">
                         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                         Verification request sent to Landlord Operations.
                       </p>
                     ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-9 w-full gap-1.5 rounded-xl border-amber-500/40 text-amber-700 hover:bg-amber-50"
-                        disabled={verifyReqState === 'sending'}
-                        onClick={requestLandlordVerification}
-                      >
-                        {verifyReqState === 'sending' ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <ShieldCheck className="h-3.5 w-3.5" />
-                        )}
-                        Ping Landlord Ops to verify
-                      </Button>
+                      <>
+                        <p className="text-[11px] text-amber-700 flex items-start gap-1.5 leading-snug">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
+                          This landlord is registered but not yet verified. Ask Landlord Operations to verify them so this house can go live.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-9 w-full gap-1.5 rounded-xl border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                          disabled={verifyReqState === 'sending'}
+                          onClick={requestLandlordVerification}
+                        >
+                          {verifyReqState === 'sending' ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                          )}
+                          Ping Landlord Ops to verify
+                        </Button>
+                      </>
                     )}
                   </div>
                 )}
