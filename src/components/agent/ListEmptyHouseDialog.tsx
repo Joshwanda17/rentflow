@@ -2189,5 +2189,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         )}
       </DialogContent>
     </Dialog>
+    <VerificationRequestDetailSheet
+      requestId={detailRequestId}
+      open={detailSheetOpen}
+      onOpenChange={setDetailSheetOpen}
+    />
+    </>
   );
 }
