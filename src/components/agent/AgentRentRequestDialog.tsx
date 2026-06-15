@@ -947,6 +947,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Live LC1 chairperson verification — keyed on the typed LC1 phone. A rent
   // request can only be posted when the LC1 is both registered AND verified.
   const [lc1Check, setLc1Check] = useState<'idle' | 'checking' | 'verified' | 'unverified' | 'missing'>('idle');
+  // ===== Landlord's existing houses overview =====
+  // When a landlord is already in the system, show the agent every house on
+  // file for that landlord: who is already living there (occupied), which are
+  // listed but still empty, and which are listed but not yet verified. This
+  // helps the agent avoid double-requesting an occupied unit and quickly pick
+  // a vacant/verified house for the new tenant.
+  type LandlordHouse = {
+    id: string;
+    title: string | null;
+    address: string | null;
+    region: string | null;
+    monthly_rent: number | null;
+    status: string | null;
+    verified: boolean | null;
+    tenant_id: string | null;
+    tenant_name: string | null;
+  };
+  const [landlordHouses, setLandlordHouses] = useState<LandlordHouse[]>([]);
+  const [landlordHousesLoading, setLandlordHousesLoading] = useState(false);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
