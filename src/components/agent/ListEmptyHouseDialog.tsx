@@ -19,6 +19,7 @@ import FormStepHeader from '@/components/shared/FormStepHeader';
 import FieldError from '@/components/shared/FieldError';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
+import VerificationRequestDetailSheet from './VerificationRequestDetailSheet';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -102,6 +103,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [verifyDbStatus, setVerifyDbStatus] = useState<VerifyDbStatus>(null);
   const [verifyDbComment, setVerifyDbComment] = useState<string | null>(null);
   const [verifyRequestId, setVerifyRequestId] = useState<string | null>(null);
+  // Side panel: shows verification request details in-place via the toast action,
+  // keeping this dialog's state intact (no navigation away).
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
   const navigate = useNavigate();
   // Auto-fill: the agent's most recently used landlord (remembered locally) and
   // a flag noting that location/area was pre-filled from the agent profile.
@@ -522,7 +527,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         action: verifyRequestId
           ? {
               label: 'View details',
-              onClick: () => navigate(`/verification-request/${verifyRequestId}`),
+              onClick: () => { setDetailRequestId(verifyRequestId); setDetailSheetOpen(true); },
             }
           : undefined,
       });
@@ -533,7 +538,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         action: verifyRequestId
           ? {
               label: 'View details',
-              onClick: () => navigate(`/verification-request/${verifyRequestId}`),
+              onClick: () => { setDetailRequestId(verifyRequestId); setDetailSheetOpen(true); },
             }
           : undefined,
       });
