@@ -1963,9 +1963,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           setDetailStep(2);
           return;
         }
-        // Determine whether the linked landlord is already verified — drives the
-        // "Landlord verification pending" status shown on the success screen.
-        setLandlordVerifiedAtSubmit(!!landlordRow.verified);
+        // Hard gate: the landlord must be VERIFIED before a rent request can be
+        // posted. An unverified (newly registered) landlord must be verified by
+        // ops first.
+        if (!landlordRow.verified) {
+          const msg = 'This landlord is registered but not yet verified. They must be verified before you can post a rent request.';
+          setSubmissionError(msg);
+          toast.error('Landlord not verified', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          setDetailStep(2);
+          return;
+        }
+        setLandlordVerifiedAtSubmit(true);
       } catch (lookupErr) {
         // A failed lookup (e.g. transient network) shouldn't silently pass the
         // registration gate. Stop and let the agent retry.
@@ -1982,29 +1993,48 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       let lc1Id: string | null = null;
       const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
       if (!isOutstanding) {
-        const { data: existingLc1 } = await supabase
-          .from('lc1_chairpersons')
-          .select('id')
-          .eq('phone', cleanLc1Phone)
-          .limit(1)
-          .maybeSingle();
-
-        if (existingLc1) {
-          lc1Id = existingLc1.id;
-        } else {
-          const { data: lc1, error: lc1Error } = await supabase
+        // Hard gate: the LC1 chairperson must already be registered AND verified.
+        // We never silently create an unverified LC1 from free-typed text any more.
+        let existingLc1: { id: string; verified: boolean | null } | null = null;
+        try {
+          const { data, error: lc1LookupError } = await supabase
             .from('lc1_chairpersons')
-            .insert({
-              name: lc1Name.trim() || 'N/A',
-              phone: cleanLc1Phone || 'N/A',
-              village: lc1Village.trim() || 'N/A',
-            })
-            .select('id')
-            .single();
-
-          if (lc1Error) throw lc1Error;
-          lc1Id = lc1.id;
+            .select('id, verified')
+            .eq('phone', cleanLc1Phone)
+            .limit(1)
+            .maybeSingle();
+          if (lc1LookupError) throw lc1LookupError;
+          existingLc1 = data as any;
+        } catch (lc1Err) {
+          const msg = "Couldn't confirm the LC1 chairperson is verified. Check your connection and try again.";
+          setSubmissionError(msg);
+          toast.error('LC1 check failed', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          return;
         }
+        if (!existingLc1) {
+          const msg = 'This LC1 chairperson is not registered yet. Register them first — they must be verified before you can post a rent request.';
+          setSubmissionError(msg);
+          toast.error('LC1 not registered', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          setDetailStep(3);
+          return;
+        }
+        if (!existingLc1.verified) {
+          const msg = 'This LC1 chairperson is registered but not yet verified. They must be verified before you can post a rent request.';
+          setSubmissionError(msg);
+          toast.error('LC1 not verified', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          setDetailStep(3);
+          return;
+        }
+        lc1Id = existingLc1.id;
       }
 
       // Register tenant via edge function (handles both existing and new users)
