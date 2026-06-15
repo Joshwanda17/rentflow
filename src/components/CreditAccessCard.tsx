@@ -100,23 +100,6 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                   </div>
                 </div>
 
-                {/* Currency switcher */}
-                <div className="flex gap-1">
-                  {currencyOptions.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setCurrency(c)}
-                      className={`text-[8px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${
-                        currency === c 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-
                 {/* How to increase */}
                 <p className="text-[10px] font-semibold text-foreground">🚀 Pay on time → Unlock more rent fees</p>
                 <div className="space-y-1.5">
