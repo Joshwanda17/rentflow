@@ -157,23 +157,6 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                   {formatCreditAmount(limit.totalLimit, currency)}
                 </p>
               </div>
-            </div>
-            {/* Currency Switcher */}
-            <div className="flex flex-wrap gap-1 max-w-[120px] justify-end">
-              {currencyOptions.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  className={`text-[10px] px-2 py-1 rounded-full font-semibold transition-colors ${
-                    currency === c 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted text-muted-foreground hover:bg-accent'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Progress Bar */}
