@@ -943,7 +943,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // landlord is not (or no longer) registered in the system. A transient
   // lookup failure falls back to 'idle' so the stricter submit-time check still
   // runs rather than blocking the agent on a flaky connection.
-  const [landlordCheck, setLandlordCheck] = useState<'idle' | 'checking' | 'registered' | 'missing'>('idle');
+  const [landlordCheck, setLandlordCheck] = useState<'idle' | 'checking' | 'registered' | 'unverified' | 'missing'>('idle');
+  // Live LC1 chairperson verification — keyed on the typed LC1 phone. A rent
+  // request can only be posted when the LC1 is both registered AND verified.
+  const [lc1Check, setLc1Check] = useState<'idle' | 'checking' | 'verified' | 'unverified' | 'missing'>('idle');
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
@@ -1022,7 +1025,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       try {
         const { data, error } = await supabase
           .from('landlords')
-          .select('id')
+          .select('id, verified')
           .eq('id', landlordId)
           .maybeSingle();
         if (cancelled) return;
@@ -1032,7 +1035,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           setLandlordCheck('idle');
           return;
         }
-        setLandlordCheck(data ? 'registered' : 'missing');
+        setLandlordCheck(!data ? 'missing' : data.verified ? 'registered' : 'unverified');
       } catch {
         if (!cancelled) setLandlordCheck('idle');
       }
@@ -1041,6 +1044,40 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       cancelled = true;
     };
   }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
+
+  // ===== Live LC1 chairperson verification =====
+  // The typed LC1 phone is looked up in `lc1_chairpersons`. The agent can only
+  // post a rent request when a matching LC1 record exists AND is verified.
+  useEffect(() => {
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+    if (!cleanLc1Phone || !isValidUgPhone(cleanLc1Phone)) {
+      setLc1Check('idle');
+      return;
+    }
+    let cancelled = false;
+    setLc1Check('checking');
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('lc1_chairpersons')
+          .select('id, verified')
+          .eq('phone', cleanLc1Phone)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error) {
+          // Transient lookup failure — don't hard-block; submit-time re-checks.
+          setLc1Check('idle');
+          return;
+        }
+        setLc1Check(!data ? 'missing' : data.verified ? 'verified' : 'unverified');
+      } catch {
+        if (!cancelled) setLc1Check('idle');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lc1Phone]);
 
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
@@ -1255,6 +1292,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
       } else if (landlordCheck === 'missing') {
         errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
+      } else if (landlordCheck === 'unverified') {
+        errors.push('This landlord is registered but not yet verified — they must be verified before you can post a rent request');
       } else if (landlordCheck === 'checking') {
         errors.push('Confirming the landlord is registered — please wait a moment');
       }
@@ -1271,6 +1310,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
       else if (!isValidUgPhone(cleanLc1Phone)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
+      else if (lc1Check === 'missing') errors.push('This LC1 chairperson is not registered yet — register them first, then they must be verified');
+      else if (lc1Check === 'unverified') errors.push('This LC1 chairperson is registered but not yet verified — they must be verified before you can post a rent request');
+      else if (lc1Check === 'checking') errors.push('Confirming the LC1 chairperson is verified — please wait a moment');
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
       const tOk = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
@@ -1680,6 +1722,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (isOutstanding) {
       if (!selectedLandlord) errors.push('Pick the landlord from the list');
       else if (landlordCheck === 'missing') errors.push('The selected landlord is no longer registered in the system — pick a registered landlord');
+      else if (landlordCheck === 'unverified') errors.push('This landlord is registered but not yet verified — they must be verified before you can post a rent request');
       else if (landlordCheck === 'checking') errors.push('Confirming the landlord is registered — please wait a moment');
       if (!outstandingRentAmount || parseInt(outstandingRentAmount.replace(/,/g, '')) <= 0) {
         errors.push('Type the rent amount');
@@ -1699,6 +1742,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
       } else if (landlordCheck === 'missing') {
         errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
+      } else if (landlordCheck === 'unverified') {
+        errors.push('This landlord is registered but not yet verified — they must be verified before you can post a rent request');
       } else if (landlordCheck === 'checking') {
         errors.push('Confirming the landlord is registered — please wait a moment');
       }
@@ -1708,6 +1753,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       else {
         const cleanLc1 = lc1Phone.replace(/\s/g, '');
         if (!isValidUgPhone(cleanLc1)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
+        else if (lc1Check === 'missing') errors.push('This LC1 chairperson is not registered yet — register them first, then they must be verified');
+        else if (lc1Check === 'unverified') errors.push('This LC1 chairperson is registered but not yet verified — they must be verified before you can post a rent request');
+        else if (lc1Check === 'checking') errors.push('Confirming the LC1 chairperson is verified — please wait a moment');
       }
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
@@ -1915,9 +1963,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           setDetailStep(2);
           return;
         }
-        // Determine whether the linked landlord is already verified — drives the
-        // "Landlord verification pending" status shown on the success screen.
-        setLandlordVerifiedAtSubmit(!!landlordRow.verified);
+        // Hard gate: the landlord must be VERIFIED before a rent request can be
+        // posted. An unverified (newly registered) landlord must be verified by
+        // ops first.
+        if (!landlordRow.verified) {
+          const msg = 'This landlord is registered but not yet verified. They must be verified before you can post a rent request.';
+          setSubmissionError(msg);
+          toast.error('Landlord not verified', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          setDetailStep(2);
+          return;
+        }
+        setLandlordVerifiedAtSubmit(true);
       } catch (lookupErr) {
         // A failed lookup (e.g. transient network) shouldn't silently pass the
         // registration gate. Stop and let the agent retry.
@@ -1934,29 +1993,48 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       let lc1Id: string | null = null;
       const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
       if (!isOutstanding) {
-        const { data: existingLc1 } = await supabase
-          .from('lc1_chairpersons')
-          .select('id')
-          .eq('phone', cleanLc1Phone)
-          .limit(1)
-          .maybeSingle();
-
-        if (existingLc1) {
-          lc1Id = existingLc1.id;
-        } else {
-          const { data: lc1, error: lc1Error } = await supabase
+        // Hard gate: the LC1 chairperson must already be registered AND verified.
+        // We never silently create an unverified LC1 from free-typed text any more.
+        let existingLc1: { id: string; verified: boolean | null } | null = null;
+        try {
+          const { data, error: lc1LookupError } = await supabase
             .from('lc1_chairpersons')
-            .insert({
-              name: lc1Name.trim() || 'N/A',
-              phone: cleanLc1Phone || 'N/A',
-              village: lc1Village.trim() || 'N/A',
-            })
-            .select('id')
-            .single();
-
-          if (lc1Error) throw lc1Error;
-          lc1Id = lc1.id;
+            .select('id, verified')
+            .eq('phone', cleanLc1Phone)
+            .limit(1)
+            .maybeSingle();
+          if (lc1LookupError) throw lc1LookupError;
+          existingLc1 = data as any;
+        } catch (lc1Err) {
+          const msg = "Couldn't confirm the LC1 chairperson is verified. Check your connection and try again.";
+          setSubmissionError(msg);
+          toast.error('LC1 check failed', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          return;
         }
+        if (!existingLc1) {
+          const msg = 'This LC1 chairperson is not registered yet. Register them first — they must be verified before you can post a rent request.';
+          setSubmissionError(msg);
+          toast.error('LC1 not registered', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          setDetailStep(3);
+          return;
+        }
+        if (!existingLc1.verified) {
+          const msg = 'This LC1 chairperson is registered but not yet verified. They must be verified before you can post a rent request.';
+          setSubmissionError(msg);
+          toast.error('LC1 not verified', { description: msg });
+          setLoading(false);
+          setRequestState('idle');
+          submitLockRef.current = false;
+          setDetailStep(3);
+          return;
+        }
+        lc1Id = existingLc1.id;
       }
 
       // Register tenant via edge function (handles both existing and new users)
@@ -3583,6 +3661,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                             <p className="text-xs text-muted-foreground font-medium mt-1">Confirming registration…</p>
                           ) : landlordCheck === 'missing' ? (
                             <p className="text-xs text-destructive font-medium mt-1">✗ This landlord is not registered — pick another or register them again</p>
+                          ) : landlordCheck === 'unverified' ? (
+                            <p className="text-xs text-destructive font-medium mt-1">✗ Registered but not yet verified — must be verified before you can post a rent request</p>
                           ) : (
                             <p className="text-xs text-success font-medium mt-1">✓ Registered in the system — details filled in for you</p>
                           )}
@@ -3900,6 +3980,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                     <FieldError message={vPhone(lc1Phone)} />
+                    {isValidUgPhone(lc1Phone.replace(/\s/g, '')) && (
+                      lc1Check === 'checking' ? (
+                        <p className="text-[11px] text-muted-foreground font-medium">Confirming LC1 verification…</p>
+                      ) : lc1Check === 'verified' ? (
+                        <p className="text-[11px] text-success font-medium">✓ Verified LC1 chairperson</p>
+                      ) : lc1Check === 'missing' ? (
+                        <p className="text-[11px] text-destructive font-medium">✗ Not registered — register this LC1, then they must be verified before posting</p>
+                      ) : lc1Check === 'unverified' ? (
+                        <p className="text-[11px] text-destructive font-medium">✗ Registered but not yet verified — must be verified before posting</p>
+                      ) : null
+                    )}
                     {lc1Phone.replace(/\s/g, '').length >= 10 &&
                       tenantPhone.replace(/\s/g, '').length >= 10 &&
                       lc1Phone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
