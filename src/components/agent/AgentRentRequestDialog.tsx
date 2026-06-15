@@ -1127,6 +1127,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             tenant_id: r.tenant_id ?? null,
             tenant_name: r.tenant_id ? tenantMap[r.tenant_id] ?? null : null,
             landlord_phone: llPhone,
+            updated_at: r.updated_at ?? null,
           })),
         );
       } catch {
