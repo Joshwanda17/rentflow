@@ -944,6 +944,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // lookup failure falls back to 'idle' so the stricter submit-time check still
   // runs rather than blocking the agent on a flaky connection.
   const [landlordCheck, setLandlordCheck] = useState<'idle' | 'checking' | 'registered' | 'unverified' | 'missing'>('idle');
+  // Agent-initiated request asking Landlord Ops to verify an unverified landlord.
+  const [verifyReqState, setVerifyReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
   // Live LC1 chairperson verification — keyed on the typed LC1 phone. A rent
   // request can only be posted when the LC1 is both registered AND verified.
   const [lc1Check, setLc1Check] = useState<'idle' | 'checking' | 'verified' | 'unverified' | 'missing'>('idle');
@@ -1081,6 +1083,58 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       cancelled = true;
     };
   }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
+
+  // Reset the "request verification" state whenever the resolved landlord changes.
+  useEffect(() => {
+    setVerifyReqState('idle');
+  }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
+
+  // ===== Agent requests Landlord Ops to verify an unverified landlord =====
+  // Sends a very-visible request to the Landlord Operations dashboard with the
+  // landlord's name and the requesting agent, so Ops can verify or reject it.
+  const requestLandlordVerification = useCallback(async () => {
+    const landlordId = selectedLandlord?.id ?? selectedHouse?.landlord_id ?? null;
+    if (!landlordId || !user) return;
+    setVerifyReqState('sending');
+    const llName = selectedLandlord?.name ?? landlordName ?? null;
+    const llPhone = (landlordPhone || selectedLandlord?.phone || selectedHouse?.landlord_phone || '').toString().trim() || null;
+    const agentName =
+      (user?.user_metadata as any)?.full_name ||
+      (user?.user_metadata as any)?.name ||
+      'Agent';
+    const agentPhone = (user?.user_metadata as any)?.phone || user?.phone || null;
+    try {
+      const { error } = await supabase.from('landlord_verification_requests').insert({
+        landlord_id: landlordId,
+        landlord_name: llName,
+        landlord_phone: llPhone,
+        requested_by: user.id,
+        agent_name: agentName,
+        agent_phone: agentPhone,
+        status: 'pending',
+      });
+      if (error) {
+        // A pending request already exists for this landlord (unique index).
+        if ((error as any).code === '23505') {
+          setVerifyReqState('exists');
+          toast.info('Verification already requested', {
+            description: 'Landlord Operations already has a pending request for this landlord.',
+          });
+          return;
+        }
+        throw error;
+      }
+      setVerifyReqState('sent');
+      toast.success('Verification request sent', {
+        description: `Landlord Operations will review ${llName || 'this landlord'} shortly.`,
+      });
+    } catch (err: any) {
+      setVerifyReqState('idle');
+      toast.error('Could not send request', {
+        description: err?.message || 'Please try again.',
+      });
+    }
+  }, [selectedLandlord?.id, selectedLandlord?.name, selectedLandlord?.phone, selectedHouse?.landlord_id, selectedHouse?.landlord_phone, landlordName, landlordPhone, user]);
 
   // ===== Load the resolved landlord's existing houses =====
   // Fetches every (non-hidden) house on file for this landlord plus the names
@@ -3918,7 +3972,31 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           ) : landlordCheck === 'missing' ? (
                             <FieldError message="This landlord is not registered in the system — pick another or register them again" />
                           ) : landlordCheck === 'unverified' ? (
-                            <FieldError message="This landlord is registered but not yet verified — they must be verified before you can post a rent request" />
+                            <div className="mt-1 space-y-2">
+                              <FieldError message="This landlord is registered but not yet verified — they must be verified before you can post a rent request" />
+                              {verifyReqState === 'sent' || verifyReqState === 'exists' ? (
+                                <p className="text-xs font-medium text-success flex items-center gap-1">
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                                  Verification request sent to Landlord Operations — you’ll be able to post once they verify this landlord.
+                                </p>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 w-full gap-1.5 rounded-xl border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                                  disabled={verifyReqState === 'sending'}
+                                  onClick={requestLandlordVerification}
+                                >
+                                  {verifyReqState === 'sending' ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <ShieldCheck className="h-3.5 w-3.5" />
+                                  )}
+                                  Request verification from Landlord Ops
+                                </Button>
+                              )}
+                            </div>
                           ) : (
                             <p className="text-xs text-success font-medium mt-1">✓ Registered in the system — details filled in for you</p>
                           )}

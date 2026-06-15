@@ -9104,6 +9104,65 @@ export type Database = {
           },
         ]
       }
+      landlord_verification_requests: {
+        Row: {
+          agent_name: string | null
+          agent_phone: string | null
+          created_at: string
+          id: string
+          landlord_id: string
+          landlord_name: string | null
+          landlord_phone: string | null
+          note: string | null
+          reject_comment: string | null
+          requested_by: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_name?: string | null
+          agent_phone?: string | null
+          created_at?: string
+          id?: string
+          landlord_id: string
+          landlord_name?: string | null
+          landlord_phone?: string | null
+          note?: string | null
+          reject_comment?: string | null
+          requested_by: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_name?: string | null
+          agent_phone?: string | null
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          landlord_name?: string | null
+          landlord_phone?: string | null
+          note?: string | null
+          reject_comment?: string | null
+          requested_by?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_verification_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landlords: {
         Row: {
           account_number: string | null
