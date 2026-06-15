@@ -970,6 +970,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [landlordHousesLoading, setLandlordHousesLoading] = useState(false);
   const [houseSearchQuery, setHouseSearchQuery] = useState('');
   const [houseSort, setHouseSort] = useState<'recent' | 'occupied' | 'empty' | 'unverified'>('recent');
+  const [houseStatusFilter, setHouseStatusFilter] = useState<'all' | 'occupied' | 'empty' | 'unverified'>('all');
   const houseStatusCounts = useMemo(() => {
     let occupied = 0, empty = 0, unverified = 0;
     for (const h of landlordHouses) {
