@@ -307,11 +307,11 @@ export function LandlordOpsDashboard() {
   const [verifySearch, setVerifySearch] = useState('');
   type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1';
   const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
-  // Scope: pending | verified | hidden | all — thumb-friendly status chips
-  type HouseStatusFilter = 'pending' | 'verified' | 'hidden' | 'all';
+  // Scope: pending | verified | hidden | rejected | all — thumb-friendly status chips
+  type HouseStatusFilter = 'pending' | 'verified' | 'hidden' | 'rejected' | 'all';
   const [houseStatusFilter, setHouseStatusFilter] = useState<HouseStatusFilter>(() => {
     const saved = localStorage.getItem('landlordOpsHouseFilter');
-    if (saved === 'pending' || saved === 'verified' || saved === 'hidden' || saved === 'all') return saved;
+    if (saved === 'pending' || saved === 'verified' || saved === 'hidden' || saved === 'rejected' || saved === 'all') return saved;
     return 'pending';
   });
   useEffect(() => {
