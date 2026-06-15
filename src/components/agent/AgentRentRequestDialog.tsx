@@ -3717,9 +3717,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           {landlordCheck === 'checking' ? (
                             <p className="text-xs text-muted-foreground font-medium mt-1">Confirming registration…</p>
                           ) : landlordCheck === 'missing' ? (
-                            <p className="text-xs text-destructive font-medium mt-1">✗ This landlord is not registered — pick another or register them again</p>
+                            <FieldError message="This landlord is not registered in the system — pick another or register them again" />
                           ) : landlordCheck === 'unverified' ? (
-                            <p className="text-xs text-destructive font-medium mt-1">✗ Registered but not yet verified — must be verified before you can post a rent request</p>
+                            <FieldError message="This landlord is registered but not yet verified — they must be verified before you can post a rent request" />
                           ) : (
                             <p className="text-xs text-success font-medium mt-1">✓ Registered in the system — details filled in for you</p>
                           )}
