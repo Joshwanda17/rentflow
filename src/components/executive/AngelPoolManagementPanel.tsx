@@ -127,7 +127,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
     setActionType(type);
     setSelectedInvestor(inv);
     setActionReason('');
-    setEditShares(inv.total_shares);
+    setEditShares(String(inv.total_shares));
     if (type === 'view') {
       setProfileLoading(true);
       setProfileData(null);
