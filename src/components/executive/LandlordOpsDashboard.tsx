@@ -1712,7 +1712,13 @@ export function LandlordOpsDashboard() {
                     <tr className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="px-3 py-2.5">
                         <div className="space-y-0.5">
-                          <span className="font-bold text-sm text-foreground block">{landlord.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => openEntity('landlord', landlord)}
+                            className="font-bold text-sm text-sky-700 hover:underline text-left block"
+                          >
+                            {landlord.name}
+                          </button>
                           <div className="flex items-center gap-1.5">
                             <PhoneLinks phone={landlord.phone} name={landlord.name} />
                           </div>
