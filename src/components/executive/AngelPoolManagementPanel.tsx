@@ -47,7 +47,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
   const [actionType, setActionType] = useState<'delete' | 'suspend' | 'edit' | 'view' | null>(null);
   const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
   const [actionReason, setActionReason] = useState('');
-  const [editShares, setEditShares] = useState(0);
+  const [editShares, setEditShares] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [profileData, setProfileData] = useState<any | null>(null);
   const [profileTxns, setProfileTxns] = useState<any[]>([]);
