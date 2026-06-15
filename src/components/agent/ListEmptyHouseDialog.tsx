@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   type VerifyDbStatus = 'pending' | 'verified' | 'rejected' | null;
   const [verifyDbStatus, setVerifyDbStatus] = useState<VerifyDbStatus>(null);
   const [verifyDbComment, setVerifyDbComment] = useState<string | null>(null);
+  const [verifyRequestId, setVerifyRequestId] = useState<string | null>(null);
+  const navigate = useNavigate();
   // Auto-fill: the agent's most recently used landlord (remembered locally) and
   // a flag noting that location/area was pre-filled from the agent profile.
   const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
@@ -380,6 +383,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setVerifyReqState('idle');
     setVerifyDbStatus(null);
     setVerifyDbComment(null);
+    setVerifyRequestId(null);
     setForm((f) => ({ ...f, landlord_name: hit.name, landlord_phone: normalizeUgandaPhone(hit.phone) }));
     setLandlordPhoneError('');
     // Pull any recorded estimations onto the (editable) house fields so the
@@ -392,6 +396,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setVerifyReqState('idle');
     setVerifyDbStatus(null);
     setVerifyDbComment(null);
+    setVerifyRequestId(null);
     setForm((f) => ({ ...f, landlord_name: '', landlord_phone: '' }));
     setLandlordPhoneError('');
   };
@@ -436,6 +441,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       }
       setVerifyReqState('sent');
       setVerifyDbStatus('pending');
+      setVerifyRequestId(inserted?.id ?? null);
       toast.success('Verification request sent', {
         description: `Landlord Operations will review ${llName || 'this landlord'} shortly.`,
       });
@@ -471,7 +477,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       // 2) Check the latest verification request for this landlord.
       const { data: req } = await supabase
         .from('landlord_verification_requests')
-        .select('status, reject_comment')
+        .select('id, status, reject_comment')
         .eq('landlord_id', landlordId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -479,12 +485,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       if (req) {
         setVerifyDbStatus(req.status as VerifyDbStatus);
         setVerifyDbComment(req.reject_comment || null);
+        setVerifyRequestId(req.id);
         if (req.status === 'verified') {
           setSelectedLandlord((prev) => (prev ? { ...prev, verified: true } : prev));
         }
       } else {
         setVerifyDbStatus(null);
         setVerifyDbComment(null);
+        setVerifyRequestId(null);
       }
     } catch {
       /* non-critical — never block listing */
@@ -511,15 +519,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     if (prev === 'pending' && verifyDbStatus === 'verified') {
       toast.success('Landlord verified!', {
         description: `${selectedLandlord?.name || 'The landlord'} is now verified — you can list this house.`,
+        action: verifyRequestId
+          ? {
+              label: 'View details',
+              onClick: () => navigate(`/verification-request/${verifyRequestId}`),
+            }
+          : undefined,
       });
     }
     if (prev === 'pending' && verifyDbStatus === 'rejected') {
       toast.error('Verification rejected', {
         description: `Landlord Ops rejected the verification request.${verifyDbComment ? ` Reason: ${verifyDbComment}` : ''}`,
+        action: verifyRequestId
+          ? {
+              label: 'View details',
+              onClick: () => navigate(`/verification-request/${verifyRequestId}`),
+            }
+          : undefined,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verifyDbStatus, open, selectedLandlord?.name, verifyDbComment]);
+  }, [verifyDbStatus, open, selectedLandlord?.name, verifyDbComment, verifyRequestId, navigate]);
 
   // Pre-fill any EMPTY house fields from an existing landlord's stored
   // estimations (rent / location). Never overwrites what the agent already
@@ -565,6 +585,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setVerifyReqState('idle');
     setVerifyDbStatus(null);
     setVerifyDbComment(null);
+    setVerifyRequestId(null);
     setForm((f) => ({ ...f, landlord_name: m.name, landlord_phone: normalized }));
     applyLandlordEstimations(m.id);
     setPhoneMatch(null);
