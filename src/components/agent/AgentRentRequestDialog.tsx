@@ -72,6 +72,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
 import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
@@ -1127,6 +1128,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       setVerifyReqState('sent');
       toast.success('Verification request sent', {
         description: `Landlord Operations will review ${llName || 'this landlord'} shortly.`,
+      });
+      // Fire-and-forget in-app notifications to the agent (and landlord if they
+      // have an account). Never block the main flow on this.
+      void notifyVerificationCreated({
+        agentId: user.id,
+        agentName,
+        landlordId,
+        landlordName: llName,
+        landlordPhone: llPhone,
       });
     } catch (err: any) {
       setVerifyReqState('idle');

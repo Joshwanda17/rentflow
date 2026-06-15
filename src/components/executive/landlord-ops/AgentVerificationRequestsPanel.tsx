@@ -6,12 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle } from 'lucide-react';
+import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
 
 interface VerificationRequest {
   id: string;
   landlord_id: string;
   landlord_name: string | null;
   landlord_phone: string | null;
+  requested_by: string;
   agent_name: string | null;
   agent_phone: string | null;
   note: string | null;
@@ -40,7 +42,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('landlord_verification_requests')
-      .select('id, landlord_id, landlord_name, landlord_phone, agent_name, agent_phone, note, created_at')
+      .select('id, landlord_id, landlord_name, landlord_phone, requested_by, agent_name, agent_phone, note, created_at')
       .eq('status', 'pending')
       .order('created_at', { ascending: true });
     if (!error) setRequests((data ?? []) as VerificationRequest[]);
@@ -89,6 +91,13 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
       });
       toast({ title: '✅ Landlord verified', description: `${req.landlord_name || 'Landlord'} is now verified.` });
       setRequests(prev => prev.filter(r => r.id !== req.id));
+      void notifyVerificationResolved({
+        status: 'verified',
+        agentId: req.requested_by,
+        landlordId: req.landlord_id,
+        landlordName: req.landlord_name,
+        landlordPhone: req.landlord_phone,
+      });
       onResolved?.();
     } catch (err: any) {
       toast({ title: 'Verify failed', description: err?.message || 'Could not verify landlord', variant: 'destructive' });
@@ -122,6 +131,14 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
       setRequests(prev => prev.filter(r => r.id !== req.id));
       setRejectingId(null);
       setRejectComment('');
+      void notifyVerificationResolved({
+        status: 'rejected',
+        agentId: req.requested_by,
+        landlordId: req.landlord_id,
+        landlordName: req.landlord_name,
+        landlordPhone: req.landlord_phone,
+        comment,
+      });
       onResolved?.();
     } catch (err: any) {
       toast({ title: 'Reject failed', description: err?.message || 'Could not reject request', variant: 'destructive' });
