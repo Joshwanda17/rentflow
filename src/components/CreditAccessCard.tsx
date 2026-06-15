@@ -21,7 +21,7 @@ const MIN_LIMIT = 30_000;
 
 export function CreditAccessCard({ userId, showBreakdown = true, compact = false }: CreditAccessCardProps) {
   const { limit, loading } = useCreditAccessLimit(userId);
-  const [currency, setCurrency] = useState('UGX');
+  const [currency] = useState('UGX');
   const [expanded, setExpanded] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -46,8 +46,6 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
       </Card>
     );
   }
-
-  const currencyOptions = ['UGX', 'USD', 'EUR', 'GBP'];
 
   if (compact) {
     const unlockPercent = Math.round(progressPercentage);
@@ -100,23 +98,6 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                       transition={{ duration: 0.8, ease: 'easeOut' }}
                     />
                   </div>
-                </div>
-
-                {/* Currency switcher */}
-                <div className="flex gap-1">
-                  {currencyOptions.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setCurrency(c)}
-                      className={`text-[8px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${
-                        currency === c 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
                 </div>
 
                 {/* How to increase */}
@@ -176,23 +157,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                   {formatCreditAmount(limit.totalLimit, currency)}
                 </p>
               </div>
-            </div>
-            {/* Currency Switcher */}
-            <div className="flex flex-wrap gap-1 max-w-[120px] justify-end">
-              {currencyOptions.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  className={`text-[10px] px-2 py-1 rounded-full font-semibold transition-colors ${
-                    currency === c 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted text-muted-foreground hover:bg-accent'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
+          </div>
           </div>
 
           {/* Progress Bar */}

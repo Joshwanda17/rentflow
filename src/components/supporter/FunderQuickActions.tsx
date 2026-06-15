@@ -49,8 +49,11 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
   };
 
   const isHero = variant === 'hero';
+  // On the dark purple wallet hero, force a clearly-visible frosted chip with
+  // explicit white text/icons so labels never wash out on mobile (where the
+  // ghost variant's faint fill made white-on-white text invisible).
   const btnClass = isHero
-    ? 'gap-2 h-11 rounded-xl bg-primary-foreground/10 hover:bg-primary-foreground/15 backdrop-blur-sm border border-primary-foreground/15 text-primary-foreground'
+    ? 'gap-2 h-11 rounded-xl bg-white/20 hover:bg-white/30 active:bg-white/30 backdrop-blur-sm border border-white/30 !text-white shadow-sm'
     : 'gap-2 h-11';
   const btnVariant = isHero ? 'ghost' as const : 'outline' as const;
   const depositHighlightClass = highlightDeposit
