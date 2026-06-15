@@ -13,6 +13,7 @@ interface VerificationRequest {
   landlord_id: string;
   landlord_name: string | null;
   landlord_phone: string | null;
+  requested_by: string;
   agent_name: string | null;
   agent_phone: string | null;
   note: string | null;
@@ -41,7 +42,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('landlord_verification_requests')
-      .select('id, landlord_id, landlord_name, landlord_phone, agent_name, agent_phone, note, created_at')
+      .select('id, landlord_id, landlord_name, landlord_phone, requested_by, agent_name, agent_phone, note, created_at')
       .eq('status', 'pending')
       .order('created_at', { ascending: true });
     if (!error) setRequests((data ?? []) as VerificationRequest[]);
