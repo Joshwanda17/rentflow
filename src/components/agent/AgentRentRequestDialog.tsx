@@ -1105,15 +1105,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       'Agent';
     const agentPhone = (user?.user_metadata as any)?.phone || user?.phone || null;
     try {
-      const { error } = await supabase.from('landlord_verification_requests').insert({
-        landlord_id: landlordId,
-        landlord_name: llName,
-        landlord_phone: llPhone,
-        requested_by: user.id,
-        agent_name: agentName,
-        agent_phone: agentPhone,
-        status: 'pending',
-      });
+      const { data: inserted, error } = await supabase
+        .from('landlord_verification_requests')
+        .insert({
+          landlord_id: landlordId,
+          landlord_name: llName,
+          landlord_phone: llPhone,
+          requested_by: user.id,
+          agent_name: agentName,
+          agent_phone: agentPhone,
+          status: 'pending',
+        })
+        .select('id')
+        .single();
       if (error) {
         // A pending request already exists for this landlord (unique index).
         if ((error as any).code === '23505') {
@@ -1137,6 +1141,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         landlordId,
         landlordName: llName,
         landlordPhone: llPhone,
+        requestId: inserted?.id ?? null,
       });
     } catch (err: any) {
       setVerifyReqState('idle');
