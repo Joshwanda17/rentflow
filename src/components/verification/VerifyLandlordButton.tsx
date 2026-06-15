@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building, CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
+import { Building, CheckCircle2, Loader2, ShieldCheck, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { hapticTap } from '@/lib/haptics';
+import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import {
   Dialog,
   DialogContent,
