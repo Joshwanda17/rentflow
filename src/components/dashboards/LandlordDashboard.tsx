@@ -14,6 +14,7 @@ import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import AiIdButton from '@/components/ai-id/AiIdButton';
+import { AgentNotificationBell } from '@/components/agent/AgentNotificationBell';
 
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -78,6 +79,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         onRoleChange={onRoleChange}
         onSignOut={signOut}
         menuItems={menuItems}
+        headerActions={<AgentNotificationBell userId={user.id} />}
       />
 
       <div className="flex-1 overflow-y-auto pb-nav">
