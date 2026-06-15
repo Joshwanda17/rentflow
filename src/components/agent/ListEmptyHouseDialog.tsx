@@ -28,6 +28,10 @@ interface ListEmptyHouseDialogProps {
   /** Pre-fill the landlord fields (e.g. when opened from the landlord registration form). */
   initialLandlordName?: string;
   initialLandlordPhone?: string;
+  /** Pre-fill the LC1 chairperson fields (e.g. when opened from the rent-request verification gate). */
+  initialLc1Name?: string;
+  initialLc1Phone?: string;
+  initialLc1Village?: string;
   /** When true, shows promotional campaign badge and applies promo defaults (opened from the agent dashboard banner). */
   fromPromoBanner?: boolean;
 }
