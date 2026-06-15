@@ -91,6 +91,13 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
       });
       toast({ title: '✅ Landlord verified', description: `${req.landlord_name || 'Landlord'} is now verified.` });
       setRequests(prev => prev.filter(r => r.id !== req.id));
+      void notifyVerificationResolved({
+        status: 'verified',
+        agentId: req.requested_by,
+        landlordId: req.landlord_id,
+        landlordName: req.landlord_name,
+        landlordPhone: req.landlord_phone,
+      });
       onResolved?.();
     } catch (err: any) {
       toast({ title: 'Verify failed', description: err?.message || 'Could not verify landlord', variant: 'destructive' });
