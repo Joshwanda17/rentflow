@@ -171,7 +171,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      if (actionType === 'edit' && editShares === selectedInvestor.total_shares) {
+      if (actionType === 'edit' && (parseFloat(editShares) || 0) === selectedInvestor.total_shares) {
         toast.info('No changes to save');
         setActionLoading(false);
         return;
