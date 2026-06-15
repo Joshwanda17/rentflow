@@ -3745,7 +3745,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               <Separator />
 
               {/* ===== 4. LANDLORD — search-first, big & clear ===== */}
-              <div className="space-y-4">
+              <div ref={landlordSectionRef} className="space-y-4">
                 {/* Friendly section title — large, no jargon */}
                 <div className="flex items-center gap-2">
                   <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
