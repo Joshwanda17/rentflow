@@ -686,13 +686,19 @@ export function LandlordOpsDashboard() {
       }
 
       // Also fetch tenant-landlord links from rent_requests (primary linkage)
+      const tenantStatusMap = new Map<string, string>();
       for (let i = 0; i < landlordIds.length; i += 50) {
         const { data: rrData } = await supabase
           .from('rent_requests')
-          .select('landlord_id, tenant_id')
+          .select('landlord_id, tenant_id, status')
           .in('landlord_id', landlordIds.slice(i, i + 50))
           .not('tenant_id', 'is', null);
-        if (rrData) landlordTenantsRaw.push(...(rrData as any[]));
+        if (rrData) {
+          (rrData as any[]).forEach(r => {
+            landlordTenantsRaw.push({ landlord_id: r.landlord_id, tenant_id: r.tenant_id });
+            if (r.tenant_id && r.status) tenantStatusMap.set(r.tenant_id, r.status);
+          });
+        }
       }
 
       // Build landlord -> tenant_ids map
@@ -724,17 +730,17 @@ export function LandlordOpsDashboard() {
       return allData.map(l => {
         // Get all tenants from house_listings for this landlord
         const tenantIdSet = landlordTenantIdsMap.get(l.id);
-        const tenants: { name: string; phone: string | null }[] = [];
+        const tenants: { id: string; name: string; phone: string | null; status: string }[] = [];
         if (tenantIdSet) {
           tenantIdSet.forEach(tid => {
             const p = profileMap.get(tid);
-            tenants.push({ name: p?.full_name || 'Unknown', phone: p?.phone || null });
+            tenants.push({ id: tid, name: p?.full_name || 'Unknown', phone: p?.phone || null, status: tenantStatusMap.get(tid) || 'listed' });
           });
         }
         // Fallback: if no house_listings tenants but landlord has tenant_id
         if (tenants.length === 0 && l.tenant_id) {
           const p = profileMap.get(l.tenant_id);
-          if (p) tenants.push({ name: p.full_name || 'Unknown', phone: p.phone || null });
+          if (p) tenants.push({ id: l.tenant_id, name: p.full_name || 'Unknown', phone: p.phone || null, status: tenantStatusMap.get(l.tenant_id) || 'listed' });
         }
 
         return {
