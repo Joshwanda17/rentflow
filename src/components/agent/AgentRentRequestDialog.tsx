@@ -4594,6 +4594,34 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 );
               })()}
 
+              {/* Inline roadmap-step blocker — shows on the Review step so the
+                  agent knows exactly which verification step is preventing post. */}
+              {detailStep === DETAIL_STEPS.length - 1 && (landlordCheck !== 'registered' || lc1Check !== 'verified') && (
+                <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 space-y-2.5">
+                  <p className="text-sm font-extrabold text-amber-700 flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                    Can&apos;t post yet — roadmap steps still pending
+                  </p>
+                  <ul className="space-y-1.5">
+                    {landlordCheck !== 'registered' && (
+                      <li className="flex items-start gap-2 text-sm font-semibold text-amber-800">
+                        <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold">2</span>
+                        <span>Landlord verified — {landlordCheck === 'missing' ? 'Landlord is not registered. List the house or register them first.' : landlordCheck === 'unverified' ? 'Landlord is registered but awaiting verification.' : landlordCheck === 'checking' ? 'Checking landlord status… please wait.' : 'Landlord must be registered and verified.'}</span>
+                      </li>
+                    )}
+                    {lc1Check !== 'verified' && (
+                      <li className="flex items-start gap-2 text-sm font-semibold text-amber-800">
+                        <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold">3</span>
+                        <span>LC1 chairperson verified — {lc1Check === 'missing' ? 'LC1 is not registered. List the house or register them first.' : lc1Check === 'unverified' ? 'LC1 is registered but awaiting verification.' : lc1Check === 'checking' ? 'Checking LC1 status… please wait.' : 'LC1 chairperson must be verified.'}</span>
+                      </li>
+                    )}
+                  </ul>
+                  <p className="text-[11px] text-amber-700/80 leading-snug">
+                    Return to the earlier steps or list the house to complete registration and verification.
+                  </p>
+                </div>
+              )}
+
               {/* Wizard navigation */}
               <div className="flex gap-3 pt-2">
                 <Button
