@@ -4035,7 +4035,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </div>
                       {(() => {
                         const q = houseSearchQuery.trim().toLowerCase();
-                        const base = q
+                        let base = q
                           ? landlordHouses.filter((h) => {
                               const hay = [
                                 h.title,
@@ -4050,6 +4050,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               return hay.includes(q);
                             })
                           : [...landlordHouses];
+                        if (houseStatusFilter !== 'all') {
+                          base = base.filter((h) => {
+                            const isOccupied = !!h.tenant_id || h.status === 'occupied';
+                            const isVerified = h.verified === true && h.status !== 'rejected';
+                            if (houseStatusFilter === 'occupied') return isOccupied;
+                            if (houseStatusFilter === 'unverified') return !isVerified && !isOccupied;
+                            if (houseStatusFilter === 'empty') return isVerified && !isOccupied;
+                            return true;
+                          });
+                        }
                         // status sort helper
                         const statusRank = (h: LandlordHouse) => {
                           const occupied = !!h.tenant_id || h.status === 'occupied';
