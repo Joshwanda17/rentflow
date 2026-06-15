@@ -954,6 +954,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   });
   const landlordNameInputRef = useRef<HTMLInputElement>(null);
   const registerBtnRef = useRef<HTMLButtonElement>(null);
+  const landlordSectionRef = useRef<HTMLDivElement>(null);
+  const lc1SectionRef = useRef<HTMLDivElement>(null);
   const setLandlordMode = useCallback((mode: 'search' | 'register') => {
     setLandlordModeState(mode);
     try { sessionStorage.setItem(LL_MODE_KEY, mode); } catch { /* ignore */ }
@@ -3743,7 +3745,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               <Separator />
 
               {/* ===== 4. LANDLORD — search-first, big & clear ===== */}
-              <div className="space-y-4">
+              <div ref={landlordSectionRef} className="space-y-4">
                 {/* Friendly section title — large, no jargon */}
                 <div className="flex items-center gap-2">
                   <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -4110,7 +4112,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               {detailStep === 3 && (
               <>
               {/* ===== 5. LC1 DETAILS ===== */}
-              <div className="space-y-3">
+              <div ref={lc1SectionRef} className="space-y-3">
                 <h4 className="text-base font-bold text-foreground flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   LC1 Chairperson Details
@@ -4607,7 +4609,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <li>
                         <button
                           type="button"
-                          onClick={() => { setDetailStep(2); scrollDialogTop(); }}
+                          onClick={() => {
+                            setDetailStep(2);
+                            requestAnimationFrame(() => {
+                              landlordSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            });
+                          }}
                           className="flex w-full items-start gap-2 rounded-lg p-1.5 text-left text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 active:scale-[0.98]"
                         >
                           <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold">2</span>
@@ -4620,7 +4627,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <li>
                         <button
                           type="button"
-                          onClick={() => { setDetailStep(3); scrollDialogTop(); }}
+                          onClick={() => {
+                            setDetailStep(3);
+                            requestAnimationFrame(() => {
+                              lc1SectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            });
+                          }}
                           className="flex w-full items-start gap-2 rounded-lg p-1.5 text-left text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 active:scale-[0.98]"
                         >
                           <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold">3</span>
