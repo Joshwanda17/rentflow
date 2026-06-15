@@ -248,6 +248,99 @@ const navItems: { id: View; label: string; icon: typeof Building2; color: string
   { id: 'advance-requests', label: 'Agent Advances', icon: Banknote, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Review advance requests' },
 ];
 
+function TenantStatusFilter({
+  tenants,
+  landlordName,
+  onOpenTenant,
+}: {
+  tenants: { id: string; name: string; phone: string | null; status: string }[];
+  landlordName: string;
+  onOpenTenant: (type: 'tenant', data: Record<string, unknown>) => void;
+}) {
+  const [activeStatus, setActiveStatus] = useState<string | null>(null);
+  const statusCounts = tenants.reduce<Record<string, number>>((acc, t) => {
+    const s = (t.status || 'listed').toLowerCase();
+    acc[s] = (acc[s] || 0) + 1;
+    return acc;
+  }, {});
+
+  const filtered = activeStatus
+    ? tenants.filter(t => (t.status || 'listed').toLowerCase() === activeStatus)
+    : tenants;
+
+  const statusColorMap: Record<string, string> = {
+    pending: 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200',
+    verified: 'bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200',
+    listed: 'bg-sky-100 text-sky-700 border-sky-300 hover:bg-sky-200',
+    hidden: 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200',
+    rejected: 'bg-rose-100 text-rose-700 border-rose-300 hover:bg-rose-200',
+    default: 'bg-muted text-muted-foreground border-border hover:bg-accent',
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          Tenants Summary
+        </p>
+        <Badge variant="outline" className="text-[10px]">{filtered.length} / {tenants.length}</Badge>
+      </div>
+      {Object.keys(statusCounts).length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(statusCounts).map(([status, count]) => {
+            const active = activeStatus === status;
+            const colorClass = statusColorMap[status] || statusColorMap.default;
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setActiveStatus(active ? null : status)}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold capitalize transition-all ${
+                  active ? 'ring-1 ring-offset-1 ' + colorClass : colorClass
+                }`}
+                aria-pressed={active}
+                title={active ? 'Click to clear filter' : `Show only ${status} tenants`}
+              >
+                {status.replace(/_/g, ' ')}
+                <span className={`text-[9px] font-bold px-1 py-0 rounded-full ${active ? 'bg-white/40' : 'bg-black/5'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+          {activeStatus && (
+            <button
+              type="button"
+              onClick={() => setActiveStatus(null)}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted transition-all"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      )}
+      <div className="space-y-1">
+        {filtered.map((tn, idx) => (
+          <button
+            key={tn.id || idx}
+            type="button"
+            onClick={() => onOpenTenant('tenant', { ...tn, landlord_name: landlordName })}
+            className="flex w-full items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5 text-left transition-colors hover:bg-green-500/20 active:scale-[0.99] touch-manipulation"
+          >
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xs font-medium truncate">{tn.name}</span>
+              <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize shrink-0">
+                {(tn.status || 'listed').replace(/_/g, ' ')}
+              </Badge>
+            </span>
+            <span className="text-[10px] font-semibold text-green-700 shrink-0">View</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function LandlordOpsDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
