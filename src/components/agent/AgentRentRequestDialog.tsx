@@ -3947,71 +3947,117 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         See who is already living in a house, which houses are empty, and which are
                         listed but not yet verified before posting this tenant&apos;s rent request.
                       </p>
-                      <ul className="space-y-2">
-                        {landlordHouses.map((h) => {
-                          const occupied = !!h.tenant_id || h.status === 'occupied';
-                          const verified = h.verified === true && h.status !== 'rejected';
-                          let badgeText: string;
-                          let badgeClass: string;
-                          let detail: string;
-                          if (occupied) {
-                            badgeText = 'Occupied';
-                            badgeClass = 'bg-muted text-muted-foreground border border-border';
-                            detail = h.tenant_name
-                              ? `${h.tenant_name} already lives here`
-                              : 'A tenant already lives here';
-                          } else if (!verified) {
-                            badgeText = 'Not verified';
-                            badgeClass = 'bg-amber-500/15 text-amber-600 border border-amber-500/30';
-                            detail = 'Listed but not yet verified — cannot be used yet';
-                          } else {
-                            badgeText = 'Empty';
-                            badgeClass = 'bg-success/15 text-success border border-success/30';
-                            detail = 'Listed & verified — empty, ready for this tenant';
-                          }
+                      {/* Search / filter houses */}
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          value={houseSearchQuery}
+                          onChange={(e) => setHouseSearchQuery(e.target.value)}
+                          placeholder="Search by house name, address, or landlord phone…"
+                          className="h-9 pl-8 pr-8 text-sm rounded-xl bg-background border-border"
+                        />
+                        {houseSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setHouseSearchQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      {(() => {
+                        const q = houseSearchQuery.trim().toLowerCase();
+                        const filtered = q
+                          ? landlordHouses.filter((h) => {
+                              const hay = [
+                                h.title,
+                                h.address,
+                                h.region,
+                                h.landlord_phone,
+                                h.tenant_name,
+                              ]
+                                .filter(Boolean)
+                                .join(' ')
+                                .toLowerCase();
+                              return hay.includes(q);
+                            })
+                          : landlordHouses;
+                        if (q && filtered.length === 0) {
                           return (
-                            <li
-                              key={h.id}
-                              className="rounded-xl border border-border/70 bg-background p-2.5 flex items-start gap-2.5"
-                            >
-                              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                                <Home className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-sm font-semibold text-foreground truncate">
-                                    {h.title || h.address || h.region || 'House'}
-                                  </p>
-                                  <span
-                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeClass}`}
-                                  >
-                                    {badgeText}
-                                  </span>
-                                </div>
-                                {(h.address || h.region) && (
-                                  <p className="text-[11px] text-muted-foreground truncate">
-                                    {h.address || h.region}
-                                  </p>
-                                )}
-                                <p
-                                  className={`text-[11px] mt-0.5 leading-snug ${
-                                    occupied
-                                      ? 'text-muted-foreground'
-                                      : verified
-                                        ? 'text-success'
-                                        : 'text-amber-600'
-                                  }`}
-                                >
-                                  {detail}
-                                  {h.monthly_rent
-                                    ? ` · ${formatUGX(h.monthly_rent)}/mo`
-                                    : ''}
-                                </p>
-                              </div>
-                            </li>
+                            <div className="text-center py-4 text-sm text-muted-foreground">
+                              No houses match &quot;{houseSearchQuery}&quot;
+                            </div>
                           );
-                        })}
-                      </ul>
+                        }
+                        return (
+                          <ul className="space-y-2">
+                            {filtered.map((h) => {
+                              const occupied = !!h.tenant_id || h.status === 'occupied';
+                              const verified = h.verified === true && h.status !== 'rejected';
+                              let badgeText: string;
+                              let badgeClass: string;
+                              let detail: string;
+                              if (occupied) {
+                                badgeText = 'Occupied';
+                                badgeClass = 'bg-muted text-muted-foreground border border-border';
+                                detail = h.tenant_name
+                                  ? `${h.tenant_name} already lives here`
+                                  : 'A tenant already lives here';
+                              } else if (!verified) {
+                                badgeText = 'Not verified';
+                                badgeClass = 'bg-amber-500/15 text-amber-600 border border-amber-500/30';
+                                detail = 'Listed but not yet verified — cannot be used yet';
+                              } else {
+                                badgeText = 'Empty';
+                                badgeClass = 'bg-success/15 text-success border border-success/30';
+                                detail = 'Listed & verified — empty, ready for this tenant';
+                              }
+                              return (
+                                <li
+                                  key={h.id}
+                                  className="rounded-xl border border-border/70 bg-background p-2.5 flex items-start gap-2.5"
+                                >
+                                  <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                    <Home className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="text-sm font-semibold text-foreground truncate">
+                                        {h.title || h.address || h.region || 'House'}
+                                      </p>
+                                      <span
+                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeClass}`}
+                                      >
+                                        {badgeText}
+                                      </span>
+                                    </div>
+                                    {(h.address || h.region) && (
+                                      <p className="text-[11px] text-muted-foreground truncate">
+                                        {h.address || h.region}
+                                      </p>
+                                    )}
+                                    <p
+                                      className={`text-[11px] mt-0.5 leading-snug ${
+                                        occupied
+                                          ? 'text-muted-foreground'
+                                          : verified
+                                            ? 'text-success'
+                                            : 'text-amber-600'
+                                      }`}
+                                    >
+                                      {detail}
+                                      {h.monthly_rent
+                                        ? ` · ${formatUGX(h.monthly_rent)}/mo`
+                                        : ''}
+                                    </p>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        );
+                      })()}
                     </div>
                   ) : null
                 )}
