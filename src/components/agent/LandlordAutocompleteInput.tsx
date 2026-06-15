@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, forwardRef, type Ref } from 'react';
+import { useEffect, useRef, useState, forwardRef, type Ref, type FocusEvent, type HTMLAttributes } from 'react';
 import { Building2, Loader2, Phone, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -16,10 +16,10 @@ interface LandlordAutocompleteInputProps {
   className?: string;
   maxLength?: number;
   /** Native blur handler (validation, normalisation, etc.). */
-  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
   /** Input type — e.g. `tel` for the phone field. */
   type?: string;
-  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+  inputMode?: HTMLAttributes<HTMLInputElement>['inputMode'];
   required?: boolean;
   disabled?: boolean;
   id?: string;
