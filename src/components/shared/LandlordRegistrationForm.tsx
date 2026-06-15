@@ -269,6 +269,20 @@ export default function LandlordRegistrationForm({
     onClose();
   };
 
+  // Single tap-target used by the shared typeahead in both name and phone
+  // fields. In the minimal Outstanding-Balance flow we only autofill (LC1
+  // capture must still happen), otherwise we reuse the existing record.
+  const handleLandlordPick = (l: LandlordOption) => {
+    if (minimal) {
+      setLandlordName(l.name || '');
+      setLandlordPhone(formatUgandaPhone(l.phone || ''));
+      clearError('landlordName');
+      clearError('landlordPhone');
+      return;
+    }
+    useExistingLandlord(l);
+  };
+
   // Name matching logic
   const nameMatchScore = useMemo(() => {
     if (!landlordName.trim() || !momoName.trim()) return null;
