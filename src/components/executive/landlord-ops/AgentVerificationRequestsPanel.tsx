@@ -97,6 +97,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
         landlordId: req.landlord_id,
         landlordName: req.landlord_name,
         landlordPhone: req.landlord_phone,
+        requestId: req.id,
       });
       onResolved?.();
     } catch (err: any) {
@@ -138,6 +139,7 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
         landlordName: req.landlord_name,
         landlordPhone: req.landlord_phone,
         comment,
+        requestId: req.id,
       });
       onResolved?.();
     } catch (err: any) {
