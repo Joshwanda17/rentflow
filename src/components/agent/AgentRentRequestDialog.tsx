@@ -1722,6 +1722,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (isOutstanding) {
       if (!selectedLandlord) errors.push('Pick the landlord from the list');
       else if (landlordCheck === 'missing') errors.push('The selected landlord is no longer registered in the system — pick a registered landlord');
+      else if (landlordCheck === 'unverified') errors.push('This landlord is registered but not yet verified — they must be verified before you can post a rent request');
       else if (landlordCheck === 'checking') errors.push('Confirming the landlord is registered — please wait a moment');
       if (!outstandingRentAmount || parseInt(outstandingRentAmount.replace(/,/g, '')) <= 0) {
         errors.push('Type the rent amount');
@@ -1741,6 +1742,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         errors.push('Register the landlord first — search to pick an existing landlord, or tap "Add new" to register them');
       } else if (landlordCheck === 'missing') {
         errors.push('The selected landlord is no longer registered in the system — pick a registered landlord or register them again');
+      } else if (landlordCheck === 'unverified') {
+        errors.push('This landlord is registered but not yet verified — they must be verified before you can post a rent request');
       } else if (landlordCheck === 'checking') {
         errors.push('Confirming the landlord is registered — please wait a moment');
       }
@@ -1750,6 +1753,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       else {
         const cleanLc1 = lc1Phone.replace(/\s/g, '');
         if (!isValidUgPhone(cleanLc1)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
+        else if (lc1Check === 'missing') errors.push('This LC1 chairperson is not registered yet — register them first, then they must be verified');
+        else if (lc1Check === 'unverified') errors.push('This LC1 chairperson is registered but not yet verified — they must be verified before you can post a rent request');
+        else if (lc1Check === 'checking') errors.push('Confirming the LC1 chairperson is verified — please wait a moment');
       }
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
