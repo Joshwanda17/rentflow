@@ -131,6 +131,14 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
       setRequests(prev => prev.filter(r => r.id !== req.id));
       setRejectingId(null);
       setRejectComment('');
+      void notifyVerificationResolved({
+        status: 'rejected',
+        agentId: req.requested_by,
+        landlordId: req.landlord_id,
+        landlordName: req.landlord_name,
+        landlordPhone: req.landlord_phone,
+        comment,
+      });
       onResolved?.();
     } catch (err: any) {
       toast({ title: 'Reject failed', description: err?.message || 'Could not reject request', variant: 'destructive' });
