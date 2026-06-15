@@ -4092,10 +4092,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
                           return tb - ta;
                         });
-                        if (q && filtered.length === 0) {
+                        if (filtered.length === 0) {
+                          const reason = houseStatusFilter !== 'all'
+                            ? `No ${houseStatusFilter.replace('unverified', 'not verified')} houses${q ? ` match "${houseSearchQuery}"` : ''}`
+                            : q
+                              ? `No houses match "${houseSearchQuery}"`
+                              : '';
                           return (
                             <div className="text-center py-4 text-sm text-muted-foreground">
-                              No houses match &quot;{houseSearchQuery}&quot;
+                              {reason || 'No houses found'}
                             </div>
                           );
                         }
