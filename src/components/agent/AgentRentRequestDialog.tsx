@@ -970,6 +970,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [landlordHousesLoading, setLandlordHousesLoading] = useState(false);
   const [houseSearchQuery, setHouseSearchQuery] = useState('');
   const [houseSort, setHouseSort] = useState<'recent' | 'occupied' | 'empty' | 'unverified'>('recent');
+  const houseStatusCounts = useMemo(() => {
+    let occupied = 0, empty = 0, unverified = 0;
+    for (const h of landlordHouses) {
+      const isOccupied = !!h.tenant_id || h.status === 'occupied';
+      const isVerified = h.verified === true && h.status !== 'rejected';
+      if (isOccupied) occupied++;
+      else if (!isVerified) unverified++;
+      else empty++;
+    }
+    return { occupied, empty, unverified };
+  }, [landlordHouses]);
   const LL_MODE_KEY = `welile:rentReq:landlordMode:${user?.id || 'anon'}`;
   const [landlordMode, setLandlordModeState] = useState<'search' | 'register'>(() => {
     try { return (sessionStorage.getItem(LL_MODE_KEY) as 'search' | 'register') || 'search'; }
@@ -3981,6 +3992,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                             <SelectItem value="unverified">Not verified first</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                      {/* Status counts */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground border border-border">
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                          Occupied {houseStatusCounts.occupied}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-success/15 text-success border border-success/30">
+                          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                          Empty {houseStatusCounts.empty}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          Not verified {houseStatusCounts.unverified}
+                        </span>
                       </div>
                       {(() => {
                         const q = houseSearchQuery.trim().toLowerCase();
