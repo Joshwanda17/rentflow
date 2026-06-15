@@ -18,7 +18,7 @@ import {
   Building2, Phone, MapPin, Loader2, CheckCircle2,
   Navigation, AlertTriangle, Share2, Eye, EyeOff,
   RefreshCw, Copy, User, Hash, Zap, Droplets, ListChecks,
-  Wallet, ShieldCheck, ShieldAlert, XCircle, Home, ChevronDown, ChevronUp,
+  Wallet, ShieldCheck, XCircle, Home, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { hapticTap, hapticWarning } from '@/lib/haptics';
