@@ -427,6 +427,10 @@ export function LandlordOpsDashboard() {
   type PendingFilter = 'all' | 'has_address' | 'has_phone' | 'has_smartphone' | 'has_bank' | 'has_momo';
   const [pendingFilter, setPendingFilter] = useState<PendingFilter>('all');
 
+  // ─── LC1 Verification Filter ───
+  type LC1VerifyFilter = 'all' | 'verified' | 'unverified';
+  const [lc1VerifyFilter, setLc1VerifyFilter] = useState<LC1VerifyFilter>('all');
+
   // ─── Sorting ───
   type SortOption = 'newest' | 'oldest' | 'highest_rent';
   const [verifySort, setVerifySort] = useState<SortOption>(() => {
@@ -2057,15 +2061,20 @@ export function LandlordOpsDashboard() {
 
   // ─── LC1 VIEW ───
   if (view === 'lc1') {
-    const filtered = search
+    let filtered = search
       ? lc1Groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()) || g.village?.toLowerCase().includes(search.toLowerCase()) || g.phone?.includes(search))
-      : lc1Groups;
+      : [...lc1Groups];
+    if (lc1VerifyFilter === 'verified') filtered = filtered.filter(g => g.verified);
+    else if (lc1VerifyFilter === 'unverified') filtered = filtered.filter(g => !g.verified);
+
+    const unverifiedCount = lc1Groups.filter(g => !g.verified).length;
+    const verifiedCount = lc1Groups.filter(g => g.verified).length;
     return (
       <>
       <div className="space-y-3">
         <BackButton />
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({lc1Groups.length})</h2>
+          <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({filtered.length}{filtered.length !== lc1Groups.length ? ` / ${lc1Groups.length}` : ''})</h2>
           <Button size="sm" onClick={() => setBulkImportOpen(true)} className="h-9">
             <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
           </Button>
@@ -2074,6 +2083,37 @@ export function LandlordOpsDashboard() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by name, village, or phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
+        </div>
+        {/* LC1 Verification quick filter chips */}
+        <div className="flex flex-wrap gap-1.5">
+          {([
+            { value: 'all' as LC1VerifyFilter, label: 'All', count: lc1Groups.length },
+            { value: 'verified' as LC1VerifyFilter, label: 'Verified', count: verifiedCount },
+            { value: 'unverified' as LC1VerifyFilter, label: 'Needs Verification', count: unverifiedCount },
+          ]).map(f => {
+            const active = lc1VerifyFilter === f.value;
+            return (
+              <button
+                key={f.value}
+                onClick={() => setLc1VerifyFilter(f.value)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                  active
+                    ? f.value === 'unverified'
+                      ? 'bg-rose-100 text-rose-700 border-rose-300 shadow-sm'
+                      : f.value === 'verified'
+                        ? 'bg-emerald-100 text-emerald-700 border-emerald-300 shadow-sm'
+                        : 'bg-amber-100 text-amber-700 border-amber-300 shadow-sm'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                }`}
+                title={active ? 'Active filter' : `Show ${f.label.toLowerCase()} LC1 chairpersons`}
+              >
+                {f.label}
+                <span className={`text-[9px] font-bold px-1 py-0 rounded-full ${active ? 'bg-white/40' : 'bg-black/5'}`}>
+                  {f.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <div className="space-y-2">
           {filtered.map((lc1) => (
