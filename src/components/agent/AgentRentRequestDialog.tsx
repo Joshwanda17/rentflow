@@ -1084,6 +1084,58 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     };
   }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
 
+  // Reset the "request verification" state whenever the resolved landlord changes.
+  useEffect(() => {
+    setVerifyReqState('idle');
+  }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
+
+  // ===== Agent requests Landlord Ops to verify an unverified landlord =====
+  // Sends a very-visible request to the Landlord Operations dashboard with the
+  // landlord's name and the requesting agent, so Ops can verify or reject it.
+  const requestLandlordVerification = useCallback(async () => {
+    const landlordId = selectedLandlord?.id ?? selectedHouse?.landlord_id ?? null;
+    if (!landlordId || !user) return;
+    setVerifyReqState('sending');
+    const llName = selectedLandlord?.name ?? landlordName ?? null;
+    const llPhone = (landlordPhone || selectedLandlord?.phone || selectedHouse?.landlord_phone || '').toString().trim() || null;
+    const agentName =
+      (user?.user_metadata as any)?.full_name ||
+      (user?.user_metadata as any)?.name ||
+      'Agent';
+    const agentPhone = (user?.user_metadata as any)?.phone || user?.phone || null;
+    try {
+      const { error } = await supabase.from('landlord_verification_requests').insert({
+        landlord_id: landlordId,
+        landlord_name: llName,
+        landlord_phone: llPhone,
+        requested_by: user.id,
+        agent_name: agentName,
+        agent_phone: agentPhone,
+        status: 'pending',
+      });
+      if (error) {
+        // A pending request already exists for this landlord (unique index).
+        if ((error as any).code === '23505') {
+          setVerifyReqState('exists');
+          toast.info('Verification already requested', {
+            description: 'Landlord Operations already has a pending request for this landlord.',
+          });
+          return;
+        }
+        throw error;
+      }
+      setVerifyReqState('sent');
+      toast.success('Verification request sent', {
+        description: `Landlord Operations will review ${llName || 'this landlord'} shortly.`,
+      });
+    } catch (err: any) {
+      setVerifyReqState('idle');
+      toast.error('Could not send request', {
+        description: err?.message || 'Please try again.',
+      });
+    }
+  }, [selectedLandlord?.id, selectedLandlord?.name, selectedLandlord?.phone, selectedHouse?.landlord_id, selectedHouse?.landlord_phone, landlordName, landlordPhone, user]);
+
   // ===== Load the resolved landlord's existing houses =====
   // Fetches every (non-hidden) house on file for this landlord plus the names
   // of any tenants already living in them, so the agent can see at a glance:
