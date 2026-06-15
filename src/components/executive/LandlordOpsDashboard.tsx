@@ -2354,6 +2354,7 @@ export function LandlordOpsDashboard() {
               amber: active ? 'bg-amber-500 text-white border-amber-500' : 'bg-background text-amber-700 border-amber-300 hover:bg-amber-50',
               emerald: active ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-background text-emerald-700 border-emerald-300 hover:bg-emerald-50',
               slate: active ? 'bg-slate-500 text-white border-slate-500' : 'bg-background text-slate-700 border-slate-300 hover:bg-slate-50',
+              rose: active ? 'bg-rose-500 text-white border-rose-500' : 'bg-background text-rose-700 border-rose-300 hover:bg-rose-50',
               primary: active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-primary border-primary/30 hover:bg-primary/5',
             };
             return (
