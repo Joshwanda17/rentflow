@@ -101,63 +101,68 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
         {suggestions.slice(0, 3).map(house => (
           <Card key={house.id} className="overflow-hidden border-border/60">
             <CardContent className="p-0">
-              <div className="flex gap-3 p-3">
-                {/* Thumbnail */}
-                <button
-                  type="button"
-                  onClick={() => house.image_urls?.length && setLightbox({ images: house.image_urls, title: house.title, houseId: house.id })}
-                  className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted group"
-                  aria-label="View photos"
-                >
-                  {house.image_urls?.[0] ? (
-                    <>
-                      <img src={house.image_urls[0]} alt={house.title} className="w-full h-full object-cover" loading="lazy" />
-                      <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded-full p-1">
-                        <ZoomIn className="h-2.5 w-2.5" />
-                      </span>
-                    </>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <DoorOpen className="h-6 w-6 text-muted-foreground/30" />
-                    </div>
-                  )}
-                </button>
-
-                {/* Details */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={onViewAll}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onViewAll(); }
-                  }}
-                  aria-label={`Browse listed houses like ${house.title}`}
-                  className="flex-1 min-w-0 space-y-1 text-left cursor-pointer rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                >
-                  <MoveInOfferBadge />
-                  <p className="font-semibold text-sm truncate">{house.title}</p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{house.region}{house.district ? `, ${house.district}` : ''}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[9px] h-4 px-1">{house.house_category}</Badge>
-                    <Badge variant="outline" className="text-[9px] h-4 px-1">{house.number_of_rooms} rooms</Badge>
-                  </div>
-                  <div
-                    className="flex items-center justify-between pt-1"
-                    onClick={(e) => e.stopPropagation()}
+              <div className="flex flex-col gap-2 p-3">
+                <div className="flex gap-3">
+                  {/* Thumbnail */}
+                  <button
+                    type="button"
+                    onClick={() => house.image_urls?.length && setLightbox({ images: house.image_urls, title: house.title, houseId: house.id })}
+                    className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted group"
+                    aria-label="View photos"
                   >
-                    {house.agent_phone && (
-                      <WhatsAppAgentButton
-                        phone={house.agent_phone}
-                        agentName={house.agent_name}
-                        houseTitle={house.title}
-                        compact
-                      />
+                    {house.image_urls?.[0] ? (
+                      <>
+                        <img src={house.image_urls[0]} alt={house.title} className="w-full h-full object-cover" loading="lazy" />
+                        <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded-full p-1">
+                          <ZoomIn className="h-2.5 w-2.5" />
+                        </span>
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <DoorOpen className="h-6 w-6 text-muted-foreground/30" />
+                      </div>
                     )}
-                    <p className="text-sm font-black text-success shrink-0 ml-2">{formatUGX(house.daily_rate)}<span className="text-[10px] font-normal text-muted-foreground">/day</span></p>
+                  </button>
+
+                  {/* Details */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={onViewAll}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onViewAll(); }
+                    }}
+                    aria-label={`Browse listed houses like ${house.title}`}
+                    className="flex-1 min-w-0 space-y-1 text-left cursor-pointer rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    <div className="flex justify-end">
+                      <MoveInOfferBadge />
+                    </div>
+                    <p className="font-semibold text-sm truncate">{house.title}</p>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{house.region}{house.district ? `, ${house.district}` : ''}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[9px] h-4 px-1">{house.house_category}</Badge>
+                      <Badge variant="outline" className="text-[9px] h-4 px-1">{house.number_of_rooms} rooms</Badge>
+                    </div>
                   </div>
+                </div>
+
+                {/* Action row — full width, outside clickable parent */}
+                <div className="flex flex-row-reverse items-center justify-between w-full pt-1">
+                  {house.agent_phone ? (
+                    <WhatsAppAgentButton
+                      phone={house.agent_phone}
+                      agentName={house.agent_name}
+                      houseTitle={house.title}
+                      compact
+                    />
+                  ) : (
+                    <span className="w-0 shrink-0" />
+                  )}
+                  <p className="text-sm font-black text-success shrink-0">{formatUGX(house.daily_rate)}<span className="text-[10px] font-normal text-muted-foreground">/day</span></p>
                 </div>
               </div>
             </CardContent>
