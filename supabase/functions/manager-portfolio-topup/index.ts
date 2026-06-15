@@ -108,10 +108,15 @@ Deno.serve(async (req) => {
     // ── MANAGED-PROXY HARD GUARDRAIL ──
     // If the partner is managed by a proxy agent, force funds to come from
     // the proxy agent's wallet — server-side override, no client bypass.
-    // EXCEPTION: when the operator explicitly funds from an arbitrary user's
-    // wallet (`user_wallet`), they have deliberately chosen the source, so the
-    // managed-proxy override is skipped.
-    const managedProxyTopup = payment_method === "user_wallet"
+    // EXCEPTIONS (operator explicitly chose the source, so the override is skipped):
+    //   1. `user_wallet` — operator searched + picked an arbitrary user's wallet.
+    //   2. Partner Wallet + Personal Deposit — operator explicitly selected the
+    //      partner's own wallet ("wallet") deploying from the withdrawable bucket
+    //      ("Personal Deposit"). This must deduct from the PARTNER wallet, never
+    //      the proxy agent wallet.
+    const operatorChosePartnerPersonalDeposit =
+      payment_method === "wallet" && fundSource === "withdrawable";
+    const managedProxyTopup = (payment_method === "user_wallet" || operatorChosePartnerPersonalDeposit)
       ? null
       : await resolveManagedProxy(supabase, partnerId);
     if (managedProxyTopup) {
