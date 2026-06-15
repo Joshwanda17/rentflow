@@ -22,7 +22,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
   const { limit, loading } = useCreditAccessLimit(userId);
   const [currency] = useState('UGX');
   const [expanded, setExpanded] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const progressPercentage = Math.min((limit.totalLimit / MAX_LIMIT) * 100, 100);
