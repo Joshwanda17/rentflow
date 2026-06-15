@@ -4112,7 +4112,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               {detailStep === 3 && (
               <>
               {/* ===== 5. LC1 DETAILS ===== */}
-              <div className="space-y-3">
+              <div ref={lc1SectionRef} className="space-y-3">
                 <h4 className="text-base font-bold text-foreground flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   LC1 Chairperson Details
