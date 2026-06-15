@@ -166,6 +166,21 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialLandlordName, initialLandlordPhone]);
 
+  // Pre-fill LC1 chairperson details when opened from the rent-request
+  // verification gate, so the agent re-uses what they already typed instead of
+  // re-keying it — listing the house then registers the missing LC1 too.
+  useEffect(() => {
+    if (open && (initialLc1Name || initialLc1Phone || initialLc1Village)) {
+      setForm((f) => ({
+        ...f,
+        lc1_name: initialLc1Name ?? f.lc1_name,
+        lc1_phone: initialLc1Phone ?? f.lc1_phone,
+        lc1_village: initialLc1Village ?? f.lc1_village,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialLc1Name, initialLc1Phone, initialLc1Village]);
+
   // Promo banner mode: pre-apply empty-house defaults and show campaign badge.
   useEffect(() => {
     if (open && fromPromoBanner) {
