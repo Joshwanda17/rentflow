@@ -307,11 +307,11 @@ export function LandlordOpsDashboard() {
   const [verifySearch, setVerifySearch] = useState('');
   type VerifyFilter = 'all' | 'has_landlord' | 'no_landlord' | 'has_images' | 'has_gps' | 'has_lc1';
   const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
-  // Scope: pending | verified | hidden | all — thumb-friendly status chips
-  type HouseStatusFilter = 'pending' | 'verified' | 'hidden' | 'all';
+  // Scope: pending | verified | hidden | rejected | all — thumb-friendly status chips
+  type HouseStatusFilter = 'pending' | 'verified' | 'hidden' | 'rejected' | 'all';
   const [houseStatusFilter, setHouseStatusFilter] = useState<HouseStatusFilter>(() => {
     const saved = localStorage.getItem('landlordOpsHouseFilter');
-    if (saved === 'pending' || saved === 'verified' || saved === 'hidden' || saved === 'all') return saved;
+    if (saved === 'pending' || saved === 'verified' || saved === 'hidden' || saved === 'rejected' || saved === 'all') return saved;
     return 'pending';
   });
   useEffect(() => {
@@ -818,6 +818,7 @@ export function LandlordOpsDashboard() {
   );
   const verifiedListings = rows.filter(l => l.verified);
   const hiddenListings = rows.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted');
+  const rejectedListings = rows.filter(l => l.status === 'rejected');
   const withImages = rows.filter(l => l.image_urls && l.image_urls.length > 0);
   const withGPS = rows.filter(l => l.latitude && l.longitude);
   const emptyHouses = rows.filter(l => l.status === 'available' && !l.tenant_id);
@@ -2284,7 +2285,7 @@ export function LandlordOpsDashboard() {
       { value: 'has_lc1', label: 'Has LC1' },
     ];
 
-    // Status scope: pending | verified | hidden | all
+    // Status scope: pending | verified | hidden | rejected | all
     const scopeListings =
       houseStatusFilter === 'all'
         ? rows.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id))
@@ -2292,6 +2293,8 @@ export function LandlordOpsDashboard() {
         ? rows.filter(l => l.verified && l.status !== 'rejected' && l.status !== 'delisted')
         : houseStatusFilter === 'hidden'
         ? rows.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted')
+        : houseStatusFilter === 'rejected'
+        ? rejectedListings
         : unverifiedListings;
     let filteredHouses = scopeListings;
 
@@ -2334,7 +2337,7 @@ export function LandlordOpsDashboard() {
         <BackButton />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue</h2>
-          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter}</Badge>
+          <Badge variant="outline" className="text-sm font-bold px-3 py-1 bg-amber-100 text-amber-700 border-amber-300">{filteredHouses.length} {houseStatusFilter === 'all' ? 'houses' : houseStatusFilter === 'rejected' ? 'rejected' : houseStatusFilter}</Badge>
         </div>
 
         {/* Thumb-friendly status filter chips */}
@@ -2343,6 +2346,7 @@ export function LandlordOpsDashboard() {
             { value: 'pending' as HouseStatusFilter, label: 'Pending', count: unverifiedListings.length, color: 'amber' },
             { value: 'verified' as HouseStatusFilter, label: 'Verified', count: verifiedListings.length, color: 'emerald' },
             { value: 'hidden' as HouseStatusFilter, label: 'Hidden', count: hiddenListings.length, color: 'slate' },
+            { value: 'rejected' as HouseStatusFilter, label: 'Rejected', count: rejectedListings.length, color: 'rose' },
             { value: 'all' as HouseStatusFilter, label: 'All houses', count: rows.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id)).length, color: 'primary' },
           ]).map(s => {
             const active = houseStatusFilter === s.value;
@@ -2350,6 +2354,7 @@ export function LandlordOpsDashboard() {
               amber: active ? 'bg-amber-500 text-white border-amber-500' : 'bg-background text-amber-700 border-amber-300 hover:bg-amber-50',
               emerald: active ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-background text-emerald-700 border-emerald-300 hover:bg-emerald-50',
               slate: active ? 'bg-slate-500 text-white border-slate-500' : 'bg-background text-slate-700 border-slate-300 hover:bg-slate-50',
+              rose: active ? 'bg-rose-500 text-white border-rose-500' : 'bg-background text-rose-700 border-rose-300 hover:bg-rose-50',
               primary: active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-primary border-primary/30 hover:bg-primary/5',
             };
             return (
