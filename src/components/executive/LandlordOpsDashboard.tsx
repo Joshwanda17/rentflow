@@ -64,6 +64,7 @@ import { ChevronLeft } from 'lucide-react';
 import { LandlordsPaidView } from './landlord-ops/LandlordsPaidView';
 import { LandlordsWithTenantsView } from './landlord-ops/LandlordsWithTenantsView';
 import { LandlordHousesPanel } from './landlord-ops/LandlordHousesPanel';
+import { AgentVerificationRequestsPanel } from './landlord-ops/AgentVerificationRequestsPanel';
 
 
 interface ListingWithLandlord {
