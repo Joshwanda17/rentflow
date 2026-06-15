@@ -476,7 +476,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       // 2) Check the latest verification request for this landlord.
       const { data: req } = await supabase
         .from('landlord_verification_requests')
-        .select('status, reject_comment')
+        .select('id, status, reject_comment')
         .eq('landlord_id', landlordId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -484,12 +484,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       if (req) {
         setVerifyDbStatus(req.status as VerifyDbStatus);
         setVerifyDbComment(req.reject_comment || null);
+        setVerifyRequestId(req.id);
         if (req.status === 'verified') {
           setSelectedLandlord((prev) => (prev ? { ...prev, verified: true } : prev));
         }
       } else {
         setVerifyDbStatus(null);
         setVerifyDbComment(null);
+        setVerifyRequestId(null);
       }
     } catch {
       /* non-critical — never block listing */
