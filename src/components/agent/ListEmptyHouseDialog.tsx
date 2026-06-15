@@ -17,6 +17,7 @@ import { isValidPhoneNumberGlobal, normalizeUgandaPhone, displayNormalizeUgandaP
 import FormStepHeader from '@/components/shared/FormStepHeader';
 import FieldError from '@/components/shared/FieldError';
 import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
+import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 
 const APP_URL = 'https://welilereceipts.com';
 const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
@@ -92,6 +93,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [searchedOnce, setSearchedOnce] = useState(false);
   const [selectedLandlord, setSelectedLandlord] = useState<LandlordHit | null>(null);
   const [manualLandlord, setManualLandlord] = useState(false);
+  // Verification ping: when the linked landlord exists but isn't verified yet,
+  // the agent can ping Landlord Ops to verify so the house can go live.
+  const [verifyReqState, setVerifyReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
   // Auto-fill: the agent's most recently used landlord (remembered locally) and
   // a flag noting that location/area was pre-filled from the agent profile.
   const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
