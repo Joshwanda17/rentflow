@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, forwardRef, type Ref } from 'react';
-import { Building2, Loader2, Phone } from 'lucide-react';
+import { Building2, Loader2, Phone, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,7 +68,7 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
         }
         const { data, error } = await supabase
           .from('landlords')
-          .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude')
+          .select('id, name, phone, property_address, district, town_council, county, village, house_category, monthly_rent, latitude, longitude, verified')
           .or(orParts.join(','))
           .order('name', { ascending: true })
           .limit(8);
@@ -134,8 +134,19 @@ export const LandlordAutocompleteInput = forwardRef<HTMLInputElement, LandlordAu
                 <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <Building2 className="h-5 w-5 text-primary" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold truncate">{l.name}</p>
+              <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold truncate">{l.name}</p>
+                    {l.verified ? (
+                      <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+                        <ShieldCheck className="h-3 w-3" /> Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+                        <ShieldAlert className="h-3 w-3" /> Needs Ops
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
                     <Phone className="h-3 w-3 shrink-0" /> {l.phone}
                     {l.property_address ? ` • ${l.property_address}` : ''}
