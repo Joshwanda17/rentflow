@@ -2285,7 +2285,7 @@ export function LandlordOpsDashboard() {
       { value: 'has_lc1', label: 'Has LC1' },
     ];
 
-    // Status scope: pending | verified | hidden | all
+    // Status scope: pending | verified | hidden | rejected | all
     const scopeListings =
       houseStatusFilter === 'all'
         ? rows.filter(l => l.status !== 'rejected' && l.status !== 'delisted' && !optimisticallyVerifiedIds.has(l.id))
@@ -2293,6 +2293,8 @@ export function LandlordOpsDashboard() {
         ? rows.filter(l => l.verified && l.status !== 'rejected' && l.status !== 'delisted')
         : houseStatusFilter === 'hidden'
         ? rows.filter(l => l.is_hidden && l.status !== 'rejected' && l.status !== 'delisted')
+        : houseStatusFilter === 'rejected'
+        ? rejectedListings
         : unverifiedListings;
     let filteredHouses = scopeListings;
 
