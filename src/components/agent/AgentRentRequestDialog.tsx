@@ -4098,6 +4098,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
                           return tb - ta;
                         });
+                        const liveText = houseStatusFilter === 'all'
+                          ? `Showing all ${filtered.length} houses`
+                          : `Showing ${filtered.length} ${houseStatusFilter.replace('unverified', 'not verified')} houses`;
                         if (filtered.length === 0) {
                           const reason = houseStatusFilter !== 'all'
                             ? `No ${houseStatusFilter.replace('unverified', 'not verified')} houses${q ? ` match "${houseSearchQuery}"` : ''}`
@@ -4105,13 +4108,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               ? `No houses match "${houseSearchQuery}"`
                               : '';
                           return (
-                            <div className="text-center py-4 text-sm text-muted-foreground">
-                              {reason || 'No houses found'}
-                            </div>
+                            <>
+                              <div className="sr-only" aria-live="polite">{liveText}</div>
+                              <div className="text-center py-4 text-sm text-muted-foreground">
+                                {reason || 'No houses found'}
+                              </div>
+                            </>
                           );
                         }
                         return (
-                          <ul className="space-y-2">
+                          <>
+                            <div className="sr-only" aria-live="polite">{liveText}</div>
+                            <ul className="space-y-2">
                             {filtered.map((h) => {
                               const occupied = !!h.tenant_id || h.status === 'occupied';
                               const verified = h.verified === true && h.status !== 'rejected';
