@@ -964,6 +964,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     tenant_id: string | null;
     tenant_name: string | null;
     landlord_phone: string | null;
+    updated_at: string | null;
   };
   const [landlordHouses, setLandlordHouses] = useState<LandlordHouse[]>([]);
   const [landlordHousesLoading, setLandlordHousesLoading] = useState(false);
