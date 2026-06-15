@@ -50,10 +50,11 @@ async function insertNotifications(rows: NotifPayload[]) {
   }
 }
 
-const META = (status: string, landlordId: string) => ({
+const META = (status: string, landlordId: string, requestId?: string | null) => ({
   kind: 'landlord_verification_request',
   status,
   landlord_id: landlordId,
+  request_id: requestId ?? null,
 });
 
 /** Agent submitted a request to verify an unverified landlord. */
@@ -63,6 +64,7 @@ export async function notifyVerificationCreated(opts: {
   landlordId: string;
   landlordName?: string | null;
   landlordPhone?: string | null;
+  requestId?: string | null;
 }) {
   const name = opts.landlordName || 'the landlord';
   const rows: NotifPayload[] = [
@@ -71,7 +73,7 @@ export async function notifyVerificationCreated(opts: {
       title: 'Verification request sent',
       message: `Landlord Operations will review ${name}. You'll be alerted once they decide.`,
       type: 'info',
-      metadata: META('pending', opts.landlordId),
+      metadata: META('pending', opts.landlordId, opts.requestId),
     },
   ];
   const landlordUserId = await resolveLandlordUserId(opts.landlordPhone);
@@ -81,7 +83,7 @@ export async function notifyVerificationCreated(opts: {
       title: 'Verification requested',
       message: `${opts.agentName || 'An agent'} asked Welile to verify your landlord account.`,
       type: 'info',
-      metadata: META('pending', opts.landlordId),
+      metadata: META('pending', opts.landlordId, opts.requestId),
     });
   }
   await insertNotifications(rows);
@@ -95,6 +97,7 @@ export async function notifyVerificationResolved(opts: {
   landlordName?: string | null;
   landlordPhone?: string | null;
   comment?: string | null;
+  requestId?: string | null;
 }) {
   const name = opts.landlordName || 'the landlord';
   const verified = opts.status === 'verified';
@@ -106,7 +109,7 @@ export async function notifyVerificationResolved(opts: {
         ? `${name} is now verified — you can post the rent request.`
         : `Your request to verify ${name} was rejected.${opts.comment ? ` Reason: ${opts.comment}` : ''}`,
       type: verified ? 'success' : 'error',
-      metadata: META(opts.status, opts.landlordId),
+      metadata: META(opts.status, opts.landlordId, opts.requestId),
     },
   ];
   const landlordUserId = await resolveLandlordUserId(opts.landlordPhone);
@@ -118,7 +121,7 @@ export async function notifyVerificationResolved(opts: {
         ? 'Your landlord account has been verified by Welile.'
         : `Your landlord verification was not approved.${opts.comment ? ` Reason: ${opts.comment}` : ''}`,
       type: verified ? 'success' : 'warning',
-      metadata: META(opts.status, opts.landlordId),
+      metadata: META(opts.status, opts.landlordId, opts.requestId),
     });
   }
   await insertNotifications(rows);
