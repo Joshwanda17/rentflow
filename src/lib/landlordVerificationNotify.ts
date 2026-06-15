@@ -42,7 +42,7 @@ async function insertNotifications(rows: NotifPayload[]) {
         title: r.title,
         message: r.message,
         type: r.type,
-        metadata: r.metadata ?? {},
+        metadata: (r.metadata ?? {}) as never,
       })),
     );
   } catch {
