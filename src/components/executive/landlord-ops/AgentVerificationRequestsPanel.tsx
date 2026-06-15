@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle } from 'lucide-react';
+import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
 
 interface VerificationRequest {
   id: string;
