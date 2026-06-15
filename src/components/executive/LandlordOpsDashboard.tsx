@@ -1504,10 +1504,43 @@ export function LandlordOpsDashboard() {
       );
     }
 
+    if (entityDetail.type === 'tenant') {
+      const tn = entityDetail.data;
+      return (
+        <EntityDetailSheet
+          open
+          onClose={close}
+          shareUrl={buildShareUrl('tenant', tn.id)}
+          title={tn.name}
+          subtitle={tn.landlord_name ? `Tenant of ${tn.landlord_name}` : 'Tenant'}
+          icon={<Users className="h-5 w-5 text-green-600" />}
+          fields={[
+            { label: 'Status', value: <span className="capitalize">{(tn.status || 'listed').replace(/_/g, ' ')}</span> },
+            { label: 'Phone', value: tn.phone || '—' },
+          ]}
+        >
+          {tn.phone && (
+            <div className="rounded-lg bg-green-500/10 p-2.5 space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Contact Tenant</p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium truncate">{tn.name}</span>
+                <PhoneLinks phone={tn.phone} name={tn.name} />
+              </div>
+            </div>
+          )}
+        </EntityDetailSheet>
+      );
+    }
+
     // landlord (empty / occupied views)
     const l = entityDetail.data;
     const houseCount = landlordHouseCounts.get(l.id) || l.number_of_houses || 0;
-    const tenants = (l.tenants || []) as { name: string; phone: string | null }[];
+    const tenants = (l.tenants || []) as { id: string; name: string; phone: string | null; status: string }[];
+    const statusCounts = tenants.reduce<Record<string, number>>((acc, t) => {
+      const s = (t.status || 'listed').toLowerCase();
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    }, {});
     return (
       <EntityDetailSheet
         open
@@ -1547,14 +1580,40 @@ export function LandlordOpsDashboard() {
           </div>
         )}
         {tenants.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tenants</p>
-            {tenants.map((tn, idx) => (
-              <div key={idx} className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
-                <span className="text-xs font-medium truncate">{tn.name}</span>
-                {tn.phone && <span className="text-[10px] text-muted-foreground">{tn.phone}</span>}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                Tenants Summary
+              </p>
+              <Badge variant="outline" className="text-[10px]">{tenants.length} total</Badge>
+            </div>
+            {Object.keys(statusCounts).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(statusCounts).map(([status, count]) => (
+                  <Badge key={status} variant="secondary" className="text-[10px] capitalize">
+                    {status.replace(/_/g, ' ')}: {count}
+                  </Badge>
+                ))}
               </div>
-            ))}
+            )}
+            <div className="space-y-1">
+              {tenants.map((tn, idx) => (
+                <button
+                  key={tn.id || idx}
+                  type="button"
+                  onClick={() => openEntity('tenant', { ...tn, landlord_name: l.name })}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5 text-left transition-colors hover:bg-green-500/20 active:scale-[0.99] touch-manipulation"
+                >
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-medium truncate">{tn.name}</span>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize shrink-0">
+                      {(tn.status || 'listed').replace(/_/g, ' ')}
+                    </Badge>
+                  </span>
+                  <span className="text-[10px] font-semibold text-green-700 shrink-0">View</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </EntityDetailSheet>
