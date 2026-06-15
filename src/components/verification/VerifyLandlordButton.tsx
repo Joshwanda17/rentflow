@@ -34,7 +34,10 @@ export function VerifyLandlordButton({
   const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [action, setAction] = useState<'verify' | 'ready'>('verify');
+  const [pressProgress, setPressProgress] = useState(0);
 
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const isManager = role === 'manager';
 
   const handleVerify = async () => {
