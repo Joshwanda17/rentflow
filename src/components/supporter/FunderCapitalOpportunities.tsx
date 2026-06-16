@@ -392,7 +392,8 @@ export function FunderCapitalOpportunities() {
                 </div>
                 <AmountInput amount={angelAmount} onAmountChange={handleAngelAmountChange}
                   onSliderChange={setAngelAmount} walletBalance={walletBalance} formatAmountCompact={formatAmountCompact}
-                  exceedsBalance={walletBalance > 0 && angelAmount > walletBalance} />
+                  exceedsBalance={walletBalance > 0 && angelAmount > walletBalance}
+                  currencyCode={currency.code} convertFromUGX={convertFromUGX} />
                 <AngelPreview amount={angelAmount} formatAmountCompact={formatAmountCompact} />
                 <Button type="button" onClick={handleAngelInvest}
                   disabled={investLoading || angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
