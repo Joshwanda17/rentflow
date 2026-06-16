@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Eye, EyeOff } from 'lucide-react';
 import { LayoutGrid } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
@@ -229,7 +230,7 @@ function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]
   );
 }
 
-type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord';
+type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord';
 
 // ─── Navigation Items ───
 const navItems: { id: View; label: string; icon: typeof Building2; color: string; description: string; priority?: boolean }[] = [
@@ -240,6 +241,7 @@ const navItems: { id: View; label: string; icon: typeof Building2; color: string
   { id: 'all-requests', label: 'All Requests', icon: Table2, color: 'bg-slate-500/10 text-slate-600 border-slate-500/30', description: 'Full table of every rent request (landlord lens)', priority: true },
   { id: 'locations', label: 'Locations', icon: MapPin, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Regions, districts & house counts', priority: true },
   { id: 'lc1', label: 'LC1 Chairpersons', icon: ShieldCheck, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'LC1 contacts per village', priority: true },
+  { id: 'lc1-duplicates', label: 'LC1 Duplicates', icon: Layers, color: 'bg-rose-500/10 text-rose-600 border-rose-500/30', description: 'Review & merge duplicate LC1 phone rows' },
   { id: 'cities', label: 'Cities We Operate In', icon: Globe, color: 'bg-teal-500/10 text-teal-600 border-teal-500/30', description: 'All cities with tenants & properties', priority: true },
   { id: 'no-landlord', label: 'No Landlord Listed', icon: UserX, color: 'bg-orange-500/10 text-orange-600 border-orange-500/30', description: 'Tenants without landlord — contact to list & earn 5K', priority: true },
   { id: 'empty', label: 'Empty Houses', icon: DoorOpen, color: 'bg-red-500/10 text-red-600 border-red-500/30', description: 'Vacant properties losing revenue' },
@@ -1041,11 +1043,11 @@ export function LandlordOpsDashboard() {
     queryKey: ['landlord-ops-full-lc1'],
     queryFn: async () => {
       // 1. Fetch all LC1 chairpersons
-      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null }[] = [];
+      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null; registered_by: string | null }[] = [];
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
-        const { data } = await supabase.from('lc1_chairpersons').select('id, name, phone, village, created_at, verified')
+        const { data } = await supabase.from('lc1_chairpersons').select('id, name, phone, village, created_at, verified, registered_by')
           .order('name').range(offset, offset + 999);
         if (data && data.length > 0) { allLC1.push(...data); offset += 1000; hasMore = data.length === 1000; }
         else hasMore = false;
@@ -1088,6 +1090,16 @@ export function LandlordOpsDashboard() {
         if (ll) ll.forEach(l => landlordMap.set(l.id, l));
       }
 
+      // 4b. Fetch registering agent (name + phone) so ops can call them for unverified LC1s
+      const agentIds = [...new Set(allLC1.map(l => l.registered_by).filter(Boolean) as string[])];
+      const agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
+      for (let i = 0; i < agentIds.length; i += 50) {
+        const { data: ag } = await supabase.from('profiles')
+          .select('id, full_name, phone')
+          .in('id', agentIds.slice(i, i + 50));
+        if (ag) ag.forEach((a: any) => agentMap.set(a.id, { full_name: a.full_name, phone: a.phone }));
+      }
+
       // 5. Build final data
       return allLC1.map(lc1 => {
         const landlordIds = landlordIdsByLC1.get(lc1.id);
@@ -1096,11 +1108,12 @@ export function LandlordOpsDashboard() {
           : [];
         // Also get listingIds from house_listings for edit dialog
         const listingIds = rows.filter(r => r.lc1_chairperson_phone === lc1.phone).map(r => r.id);
-        return { ...lc1, landlords, listingIds };
+        const agent = lc1.registered_by ? agentMap.get(lc1.registered_by) : undefined;
+        return { ...lc1, landlords, listingIds, agentName: agent?.full_name || null, agentPhone: agent?.phone || null };
       });
     },
     staleTime: 60000,
-    enabled: view === 'lc1' || view === 'home',
+    enabled: view === 'lc1' || view === 'lc1-duplicates' || view === 'home',
   });
 
   // ─── Paid Landlords Count (for nav badge) ───
@@ -2119,8 +2132,6 @@ export function LandlordOpsDashboard() {
             );
           })}
         </div>
-        {/* Duplicate LC1 chairpersons — review & merge */}
-        <Lc1DuplicatesPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
         <div className="space-y-2">
           {filtered.map((lc1) => (
             <div key={lc1.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
@@ -2141,6 +2152,16 @@ export function LandlordOpsDashboard() {
                 </div>
               </div>
               {lc1.phone && <PhoneLinks phone={lc1.phone} name={lc1.name} />}
+              {/* Registering agent contact — so ops can call them to complete verification */}
+              {!lc1.verified && (lc1.agentName || lc1.agentPhone) && (
+                <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-2 space-y-1">
+                  <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1">
+                    <Users className="h-3 w-3" /> Registering agent
+                  </p>
+                  <p className="text-xs font-medium">{lc1.agentName || 'Unknown agent'}</p>
+                  {lc1.agentPhone && <PhoneLinks phone={lc1.agentPhone} name={lc1.agentName || 'Agent'} />}
+                </div>
+              )}
               {/* LC1 chairperson verification — required before agents can post rent requests */}
               <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">LC1 verification</span>
@@ -2198,6 +2219,20 @@ export function LandlordOpsDashboard() {
         onImported={refetchAll}
       />
       </>
+    );
+  }
+
+  // ─── LC1 DUPLICATES VIEW (dedicated section) ───
+  if (view === 'lc1-duplicates') {
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><Layers className="h-5 w-5 text-rose-600" /> LC1 Duplicates</h2>
+        <p className="text-sm text-muted-foreground">
+          Review duplicate LC1 chairperson phone rows and merge them into a single canonical record.
+        </p>
+        <Lc1DuplicatesPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
+      </div>
     );
   }
 
