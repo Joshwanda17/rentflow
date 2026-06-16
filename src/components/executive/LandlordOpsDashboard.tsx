@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Eye, EyeOff } from 'lucide-react';
 import { LayoutGrid } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
