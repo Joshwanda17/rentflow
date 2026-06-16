@@ -1548,7 +1548,12 @@ export function LandlordOpsDashboard() {
     </div>
   );
 
-  const refetchAll = () => { refetch(); refetchLandlords(); refetchLC1(); };
+  const refetchAll = () => {
+    refetch();
+    refetchLandlords();
+    refetchLC1();
+    queryClient.invalidateQueries({ queryKey: ['landlord-ops-pending-verification-count'] });
+  };
 
   // Shared dialogs renderer — must be present in every sub-view that uses
   // setActionDialog / setPreviewImages / setAssignPerson / etc. Otherwise
