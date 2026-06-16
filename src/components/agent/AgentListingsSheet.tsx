@@ -740,6 +740,14 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                           <Plus className="h-4 w-4" /> List a house
                         </Button>
                       )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRegisterLandlordOpen(true)}
+                        className="gap-1"
+                      >
+                        <Building2 className="h-4 w-4" /> Register landlord
+                      </Button>
                     </div>
                   </div>
                 );
