@@ -1250,6 +1250,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           return;
         }
         setLc1Check(!data ? 'missing' : data.verified ? 'verified' : 'unverified');
+        setLc1Id(data?.id ?? null);
       } catch {
         if (!cancelled) setLc1Check('idle');
       }
@@ -1258,6 +1259,56 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       cancelled = true;
     };
   }, [lc1Phone]);
+
+  // Reset the LC1 "request verification" state whenever the typed LC1 changes.
+  useEffect(() => {
+    setLc1VerifyReqState('idle');
+  }, [lc1Id]);
+
+  // ===== Agent requests Landlord Ops to verify an unverified LC1 chairperson =====
+  const requestLc1Verification = useCallback(async () => {
+    if (!lc1Id || !user) return;
+    setLc1VerifyReqState('sending');
+    const agentName =
+      (user?.user_metadata as any)?.full_name ||
+      (user?.user_metadata as any)?.name ||
+      'Agent';
+    const agentPhone = (user?.user_metadata as any)?.phone || user?.phone || null;
+    try {
+      const { error } = await supabase
+        .from('lc1_verification_requests')
+        .insert({
+          lc1_id: lc1Id,
+          lc1_name: lc1Name || null,
+          lc1_phone: lc1Phone.replace(/\s/g, '') || null,
+          lc1_village: lc1Village || null,
+          requested_by: user.id,
+          agent_name: agentName,
+          agent_phone: agentPhone,
+          status: 'pending',
+        });
+      if (error) {
+        // A pending request already exists for this LC1 (unique index).
+        if ((error as any).code === '23505') {
+          setLc1VerifyReqState('exists');
+          toast.info('Verification already requested', {
+            description: 'Landlord Operations already has a pending request for this LC1 chairperson.',
+          });
+          return;
+        }
+        throw error;
+      }
+      setLc1VerifyReqState('sent');
+      toast.success('Verification request sent', {
+        description: `Landlord Operations will review ${lc1Name || 'this LC1 chairperson'} shortly.`,
+      });
+    } catch (err: any) {
+      setLc1VerifyReqState('idle');
+      toast.error('Could not send request', {
+        description: err?.message || 'Please try again.',
+      });
+    }
+  }, [lc1Id, lc1Name, lc1Phone, lc1Village, user]);
 
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
