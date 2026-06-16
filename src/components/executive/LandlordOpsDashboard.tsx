@@ -2132,8 +2132,6 @@ export function LandlordOpsDashboard() {
             );
           })}
         </div>
-        {/* Duplicate LC1 chairpersons — review & merge */}
-        <Lc1DuplicatesPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
         <div className="space-y-2">
           {filtered.map((lc1) => (
             <div key={lc1.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
