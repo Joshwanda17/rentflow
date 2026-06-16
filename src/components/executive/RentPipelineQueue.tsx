@@ -988,10 +988,10 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             )}
           </div>
         )}
-        <div className="flex flex-col sm:flex-row gap-2 mt-2 items-start">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 mt-2 items-stretch sm:items-start">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
-              <SelectTrigger className="h-9 text-sm sm:w-[260px]">
+              <SelectTrigger className="h-9 text-sm w-full sm:w-[260px]">
                 <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Choose a tenant to fund" />
               </SelectTrigger>
