@@ -1608,12 +1608,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
       else if (!isValidUgPhone(cleanLc1Phone)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
-      else if (lc1Check === 'missing') errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson is not registered yet. Register them first, then they must be verified.');
-      else if (lc1Check === 'unverified') errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson is registered but not yet verified. They must be verified before you can post a rent request.');
-      else if (lc1Check === 'checking') errors.push('Step 3 — LC1 chairperson verified: Confirming the LC1 chairperson is verified — please wait a moment before posting.');
-      else if (lc1Check !== 'verified') {
-        errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson must be verified before you can post a rent request.');
-      }
+      // LC1 verification no longer blocks posting — the request can be posted
+      // with a registered or free-typed LC1 chairperson. The LC1 must be
+      // verified before the request is APPROVED, not before it is posted.
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
       const tOk = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
