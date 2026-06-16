@@ -1964,7 +1964,7 @@ export function LandlordOpsDashboard() {
                             className="h-7 text-xs"
                             onClick={() => setEditLandlord({ ...landlord })}
                           >
-                            View
+                            Edit
                           </Button>
                         </div>
                       </td>
