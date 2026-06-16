@@ -1285,8 +1285,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
 
   // ===== Live LC1 chairperson verification =====
-  // The typed LC1 phone is looked up in `lc1_chairpersons`. The agent can only
-  // post a rent request when a matching LC1 record exists AND is verified.
+  // The typed LC1 phone is looked up in `lc1_chairpersons`. This is informational
+  // only — posting is NOT blocked by LC1 status. A registered/free-typed LC1 can
+  // be posted; it must be VERIFIED before the request is approved.
   useEffect(() => {
     const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
     if (!cleanLc1Phone || !isValidUgPhone(cleanLc1Phone)) {
