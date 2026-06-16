@@ -33,14 +33,18 @@ interface VerifyLc1ButtonProps {
  * Non-managers see a read-only status badge.
  */
 export function VerifyLc1Button({ lc1Id, lc1Name, verified, onVerified }: VerifyLc1ButtonProps) {
-  const { user, role } = useAuth();
+  const { user, role, roles } = useAuth();
   const [loading, setLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [pressProgress, setPressProgress] = useState(0);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isManager = role === 'manager';
+  // Landlord Operations (and managers/super admins/COO) may verify LC1 chairpersons.
+  const OPS_ROLES = ['manager', 'super_admin', 'coo', 'operations'] as const;
+  const isManager =
+    OPS_ROLES.includes(role as (typeof OPS_ROLES)[number]) ||
+    (roles ?? []).some((r) => OPS_ROLES.includes(r as (typeof OPS_ROLES)[number]));
 
   const LONG_PRESS_MS = 1200;
 

@@ -9,6 +9,8 @@ UPDATE (2026-06-16b): **Agent self-service "ping ops to verify" for BOTH landlor
 - Landlord path (pre-existing): inserts into `landlord_verification_requests`; surfaced in `AgentVerificationRequestsPanel` on the Landlord Ops dashboard.
 - LC1 path (new): inserts into `lc1_verification_requests` (table mirrors landlord one: `lc1_id`, `lc1_name/phone/village`, `requested_by`, `agent_name/phone`, `status`, `reject_comment`, `resolved_by/at`; UNIQUE pending index per `lc1_id`; RLS: agent creates/views own, `is_ops_role` views+updates all; realtime-enabled). Surfaced in `Lc1VerificationRequestsPanel` on the Landlord Ops dashboard, where ops Verify (flips `lc1_chairpersons.verified`) or Reject (10-char comment). State machine on both buttons: `idle|sending|sent|exists`. Both write `audit_logs`.
 
+UPDATE (2026-06-16c): **Landlord Operations can verify LC1 chairpersons directly (not just managers).** `lc1_chairpersons` UPDATE + SELECT RLS now use `is_ops_role(auth.uid())` (manager/super_admin/coo/operations) instead of manager-only. `VerifyLc1Button` (LC1 view → "Needs Verification" filter chip in `LandlordOpsDashboard`) now enables the Hold-to-Verify control for any ops role via `useAuth().roles`, not just `role === 'manager'`. The "Needs Verification" chip lists all unverified LC1 rows so ops can clear the backlog.
+
 Rule (introduced 2026-06-15):
 - An agent may NOT post a rent request unless BOTH:
   - the linked **landlord** exists in `landlords` AND `landlords.verified = true`, and
