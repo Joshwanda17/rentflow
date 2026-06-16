@@ -151,11 +151,25 @@ Deno.serve(async (req) => {
 
     if (landlordErr) { console.error("Landlord create error:", landlordErr); return err("Failed to save landlord details", 500); }
 
-    // --- Create LC1 ---
-    const { data: lc1, error: lc1Err } = await supabaseAdmin
-      .from("lc1_chairpersons").insert({ name: lc1_name, phone: lc1_phone, village: lc1_village }).select("id").single();
-
-    if (lc1Err) { console.error("LC1 create error:", lc1Err); return err("Failed to save LC1 details", 500); }
+    // --- Reuse-or-create LC1 (a phone uniquely identifies one chairperson) ---
+    let lc1: { id: string } | null = null;
+    {
+      const { data: existingLc1 } = await supabaseAdmin
+        .from("lc1_chairpersons")
+        .select("id")
+        .eq("phone", lc1_phone)
+        .order("verified", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingLc1) {
+        lc1 = existingLc1;
+      } else {
+        const { data: newLc1, error: lc1Err } = await supabaseAdmin
+          .from("lc1_chairpersons").insert({ name: lc1_name, phone: lc1_phone, village: lc1_village }).select("id").single();
+        if (lc1Err || !newLc1) { console.error("LC1 create error:", lc1Err); return err("Failed to save LC1 details", 500); }
+        lc1 = newLc1;
+      }
+    }
 
     // --- Create rent request ---
     const { data: rentReq, error: rentErr } = await supabaseAdmin
