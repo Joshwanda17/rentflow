@@ -436,7 +436,7 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   // Get USD rate for display (1 USD = X UGX)
-  const usdRate = liveRates.USD ? 1 / liveRates.USD : 3700;
+  const usdRate = liveRates.USD ? 1 / liveRates.USD : 3650;
 
   const value: CurrencyContextType = {
     currency: {
