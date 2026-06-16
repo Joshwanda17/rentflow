@@ -136,20 +136,21 @@ export async function generateLandlordRegistrationFormPdf(
     pdf.setTextColor(0);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7.5);
-    let cx = margin;
-    const cy = y + 5;
-    options.forEach((opt) => {
+    // Fixed 4-column grid so labels never overlap when the row wraps.
+    const cols = 4;
+    const colW = cw / cols;
+    options.forEach((opt, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cx = margin + col * colW;
+      const cy = y + 5 + row * 6;
       pdf.setDrawColor(120);
       pdf.setLineWidth(0.3);
       pdf.rect(cx, cy - 3, 3.2, 3.2);
-      pdf.text(opt, cx + 4.5, cy - 0.3);
-      cx += 4.5 + pdf.getTextWidth(opt) + 7;
-      if (cx > pw - margin - 30) {
-        cx = margin;
-        y += 6;
-      }
+      pdf.text(opt, cx + 4.8, cy - 0.3);
     });
-    y += 11;
+    const rows = Math.ceil(options.length / cols);
+    y += 5 + rows * 6 + 2;
   };
 
   // ── Section: Landlord details ──
