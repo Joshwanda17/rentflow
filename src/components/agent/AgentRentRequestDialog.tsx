@@ -4840,14 +4840,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       ) : lc1Check === 'verified' ? (
                         <p className="text-[11px] text-success font-medium">✓ Verified LC1 chairperson</p>
                       ) : lc1Check === 'missing' ? (
-                        <FieldError message="LC1 chairperson not registered — register them first, then they must be verified before posting" />
+                        <p className="text-[11px] text-amber-700 font-medium">
+                          LC1 chairperson not registered yet — you can still post now. They’ll be registered from these details and must be verified before the request is approved.
+                        </p>
                       ) : lc1Check === 'unverified' ? (
                         <div className="mt-1 space-y-2">
-                          <FieldError message="LC1 chairperson is registered but not yet verified — must be verified before you can post a rent request" />
+                          <p className="text-[11px] text-amber-700 font-medium">
+                            LC1 chairperson is registered but not yet verified — you can post now, but the request won’t be approved until the LC1 is verified.
+                          </p>
                           {lc1VerifyReqState === 'sent' || lc1VerifyReqState === 'exists' ? (
                             <p className="text-xs font-medium text-success flex items-center gap-1">
                               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                              Verification request sent to Landlord Operations — you’ll be able to post once they verify this LC1 chairperson.
+                              Verification request sent to Landlord Operations — the request will be approved once they verify this LC1 chairperson.
                             </p>
                           ) : (
                             <Button
