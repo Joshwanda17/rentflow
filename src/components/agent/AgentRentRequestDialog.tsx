@@ -1285,8 +1285,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   }, [selectedLandlord?.id, selectedHouse?.landlord_id]);
 
   // ===== Live LC1 chairperson verification =====
-  // The typed LC1 phone is looked up in `lc1_chairpersons`. The agent can only
-  // post a rent request when a matching LC1 record exists AND is verified.
+  // The typed LC1 phone is looked up in `lc1_chairpersons`. This is informational
+  // only — posting is NOT blocked by LC1 status. A registered/free-typed LC1 can
+  // be posted; it must be VERIFIED before the request is approved.
   useEffect(() => {
     const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
     if (!cleanLc1Phone || !isValidUgPhone(cleanLc1Phone)) {
@@ -1608,12 +1609,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!lc1Name.trim()) errors.push("Type the LC1 chairperson's name");
       if (!lc1Phone.trim()) errors.push('Type the LC1 phone number');
       else if (!isValidUgPhone(cleanLc1Phone)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
-      else if (lc1Check === 'missing') errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson is not registered yet. Register them first, then they must be verified.');
-      else if (lc1Check === 'unverified') errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson is registered but not yet verified. They must be verified before you can post a rent request.');
-      else if (lc1Check === 'checking') errors.push('Step 3 — LC1 chairperson verified: Confirming the LC1 chairperson is verified — please wait a moment before posting.');
-      else if (lc1Check !== 'verified') {
-        errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson must be verified before you can post a rent request.');
-      }
+      // LC1 verification no longer blocks posting — the request can be posted
+      // with a registered or free-typed LC1 chairperson. The LC1 must be
+      // verified before the request is APPROVED, not before it is posted.
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
       const tOk = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
@@ -2061,12 +2059,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       else {
         const cleanLc1 = lc1Phone.replace(/\s/g, '');
         if (!isValidUgPhone(cleanLc1)) errors.push('LC1 phone looks wrong — use a valid Ugandan number');
-        else if (lc1Check === 'missing') errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson is not registered yet. Register them first, then they must be verified.');
-        else if (lc1Check === 'unverified') errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson is registered but not yet verified. They must be verified before you can post a rent request.');
-        else if (lc1Check === 'checking') errors.push('Step 3 — LC1 chairperson verified: Confirming the LC1 chairperson is verified — please wait a moment before posting.');
-        else if (lc1Check !== 'verified') {
-          errors.push('Step 3 — LC1 chairperson verified: The LC1 chairperson must be verified before you can post a rent request.');
-        }
+        // LC1 verification no longer blocks posting — verification is required
+        // before the request is APPROVED, not before it is posted.
       }
       if (!lc1Village.trim()) errors.push('Type the LC1 village');
       if (!propertyCity.trim()) errors.push('Type the town / city');
@@ -2304,12 +2298,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       let lc1Id: string | null = null;
       const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
       if (!isOutstanding) {
-        // Hard gate: the LC1 chairperson must already be registered AND verified.
-        // We never silently create an unverified LC1 from free-typed text any more.
+        // Posting is allowed regardless of LC1 verification status. We reuse an
+        // existing LC1 record by phone (preferring a verified one) so duplicates
+        // are never created; if none exists we register a new unverified LC1
+        // from the free-typed details. The LC1 must be VERIFIED before the
+        // request is APPROVED — that gate lives in the approval flow, not here.
         let existingLc1: { id: string; verified: boolean | null } | null = null;
         try {
-          // Duplicate phone rows can exist — fetch all and prefer a verified
-          // record so a verified LC1 is never blocked by a stray duplicate.
           const { data, error: lc1LookupError } = await supabase
             .from('lc1_chairpersons')
             .select('id, verified')
@@ -2318,35 +2313,53 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           if (lc1LookupError) throw lc1LookupError;
           existingLc1 = ((data ?? [])[0] as any) ?? null;
         } catch (lc1Err) {
-          const msg = "Couldn't confirm the LC1 chairperson is verified. Check your connection and try again.";
+          const msg = "Couldn't look up the LC1 chairperson. Check your connection and try again.";
           setSubmissionError(msg);
-          toast.error('LC1 check failed', { description: msg });
+          toast.error('LC1 lookup failed', { description: msg });
           setLoading(false);
           setRequestState('idle');
           submitLockRef.current = false;
           return;
         }
-        if (!existingLc1) {
-          const msg = 'This LC1 chairperson is not registered yet. Register them first — they must be verified before you can post a rent request.';
-          setSubmissionError(msg);
-          toast.error('LC1 not registered', { description: msg });
-          setLoading(false);
-          setRequestState('idle');
-          submitLockRef.current = false;
-          setDetailStep(3);
-          return;
+        if (existingLc1) {
+          lc1Id = existingLc1.id;
+        } else {
+          // Register a new unverified LC1 chairperson from the typed details.
+          const { data: createdLc1, error: lc1InsertError } = await supabase
+            .from('lc1_chairpersons')
+            .insert({
+              name: lc1Name.trim(),
+              phone: cleanLc1Phone,
+              village: lc1Village.trim(),
+              registered_by: user?.id ?? null,
+            })
+            .select('id')
+            .maybeSingle();
+          if (lc1InsertError) {
+            // A concurrent insert / duplicate-phone guard (23505) means the LC1
+            // now exists — re-fetch and reuse it instead of failing.
+            if ((lc1InsertError as any)?.code === '23505') {
+              const { data: reLookup } = await supabase
+                .from('lc1_chairpersons')
+                .select('id, verified')
+                .eq('phone', cleanLc1Phone)
+                .order('verified', { ascending: false, nullsFirst: false });
+              lc1Id = ((reLookup ?? [])[0] as any)?.id ?? null;
+            }
+            if (!lc1Id) {
+              const msg = "Couldn't register the LC1 chairperson. Check the details and try again.";
+              setSubmissionError(msg);
+              toast.error('LC1 registration failed', { description: msg });
+              setLoading(false);
+              setRequestState('idle');
+              submitLockRef.current = false;
+              setDetailStep(3);
+              return;
+            }
+          } else {
+            lc1Id = createdLc1?.id ?? null;
+          }
         }
-        if (!existingLc1.verified) {
-          const msg = 'This LC1 chairperson is registered but not yet verified. They must be verified before you can post a rent request.';
-          setSubmissionError(msg);
-          toast.error('LC1 not verified', { description: msg });
-          setLoading(false);
-          setRequestState('idle');
-          submitLockRef.current = false;
-          setDetailStep(3);
-          return;
-        }
-        lc1Id = existingLc1.id;
       }
 
       // Register tenant via edge function (handles both existing and new users)
@@ -3115,13 +3128,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     />
                   </div>
 
-                  {/* Prominent verification requirement banner — keeps agents
-                      aware, as they fill the request, that BOTH the landlord and
-                      the LC1 chairperson must be registered AND verified before a
-                      rent request can be posted. Live status updates as they go. */}
+                  {/* Prominent verification requirement banner. Posting only
+                      requires a VERIFIED landlord. The LC1 chairperson can be
+                      registered or free-typed at posting time, but must be
+                      verified before the request is APPROVED. Live status updates
+                      as the agent fills the form. */}
                   {(() => {
                     const landlordOk = landlordCheck === 'registered';
                     const lc1Ok = lc1Check === 'verified';
+                    // Posting is gated on the landlord only; LC1 verification is
+                    // an approval-time requirement, not a posting one.
+                    const canPost = landlordOk;
                     const bothOk = landlordOk && lc1Ok;
                     const statusRow = (
                       label: string,
@@ -3155,16 +3172,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     return (
                       <div
                         className={`rounded-xl border p-3 space-y-2 ${
-                          bothOk
+                          canPost
                             ? 'border-success/40 bg-success/5'
                             : 'border-amber-500/40 bg-amber-500/5'
                         }`}
                       >
                         <p className="flex items-center gap-1.5 text-[13px] font-bold text-foreground">
                           <ShieldCheck className="h-4 w-4 flex-shrink-0 text-primary" />
-                          {bothOk
-                            ? 'Landlord & LC1 verified — you can post'
-                            : 'Landlord & LC1 must be verified to post'}
+                          {canPost
+                            ? (lc1Ok
+                                ? 'Landlord & LC1 verified — you can post'
+                                : 'Landlord verified — you can post (LC1 verified before approval)')
+                            : 'Landlord must be verified to post'}
                         </p>
                         {/* Step-by-step roadmap from listing the house to posting,
                             so the agent always knows exactly what's left to do. */}
@@ -3192,14 +3211,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           const s3: StepState = lc1State === 'ok' ? 'done' : bothRegistered ? 'current' : 'todo';
                           steps.push({
                             label: 'LC1 chairperson verified',
-                            hint: lc1State === 'ok' ? 'Verified' : lc1State === 'unverified' ? 'Awaiting verification' : 'Pending registration',
+                            hint: lc1State === 'ok' ? 'Verified' : 'Needed before approval (not for posting)',
                             state: s3,
                           });
                           // 4. Post the rent request
                           steps.push({
                             label: 'Post the rent request',
-                            hint: bothOk ? 'Ready to post' : 'Unlocks once verified',
-                            state: bothOk ? 'current' : 'todo',
+                            hint: canPost ? 'Ready to post' : 'Unlocks once the landlord is verified',
+                            state: canPost ? 'current' : 'todo',
                           });
                           return (
                             <ol className="space-y-2 pt-1">
@@ -3229,12 +3248,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         })()}
                         {statusRow('Landlord', landlordState as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
                         {statusRow('LC1 chairperson', lc1State as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
-                       {!bothOk && (landlordState === 'missing' || lc1State === 'missing' || landlordState === 'unverified' || lc1State === 'unverified') && (
+                       {(landlordState === 'missing' || lc1State === 'missing' || landlordState === 'unverified' || lc1State === 'unverified') && (
                          <div className="pt-1.5 border-t border-amber-500/30 space-y-2">
                            <p className="text-[11px] text-foreground/70 leading-snug">
-                             {landlordState === 'missing' || lc1State === 'missing'
-                               ? 'The landlord and/or LC1 chairperson are not in the system yet. List the house to register them — they’ll be verified before you can post.'
-                               : 'The landlord and/or LC1 chairperson are registered but not yet verified. They must be verified before you can post this rent request.'}
+                             {landlordState !== 'ok'
+                               ? 'The landlord must be registered AND verified before you can post this rent request.'
+                               : 'The LC1 chairperson still needs to be verified — you can post now, but the request won’t be approved until the LC1 is verified.'}
                            </p>
                            {(landlordState === 'missing' || lc1State === 'missing') && (
                              <Button
@@ -4822,14 +4841,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       ) : lc1Check === 'verified' ? (
                         <p className="text-[11px] text-success font-medium">✓ Verified LC1 chairperson</p>
                       ) : lc1Check === 'missing' ? (
-                        <FieldError message="LC1 chairperson not registered — register them first, then they must be verified before posting" />
+                        <p className="text-[11px] text-amber-700 font-medium">
+                          LC1 chairperson not registered yet — you can still post now. They’ll be registered from these details and must be verified before the request is approved.
+                        </p>
                       ) : lc1Check === 'unverified' ? (
                         <div className="mt-1 space-y-2">
-                          <FieldError message="LC1 chairperson is registered but not yet verified — must be verified before you can post a rent request" />
+                          <p className="text-[11px] text-amber-700 font-medium">
+                            LC1 chairperson is registered but not yet verified — you can post now, but the request won’t be approved until the LC1 is verified.
+                          </p>
                           {lc1VerifyReqState === 'sent' || lc1VerifyReqState === 'exists' ? (
                             <p className="text-xs font-medium text-success flex items-center gap-1">
                               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                              Verification request sent to Landlord Operations — you’ll be able to post once they verify this LC1 chairperson.
+                              Verification request sent to Landlord Operations — the request will be approved once they verify this LC1 chairperson.
                             </p>
                           ) : (
                             <Button
@@ -5281,12 +5304,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               })()}
 
               {/* Inline roadmap-step blocker — shows on the Review step so the
-                  agent knows exactly which verification step is preventing post. */}
+                  agent knows exactly which step is preventing post. Only the
+                  landlord blocks posting; LC1 verification is required before
+                  approval and is surfaced as an informational note instead. */}
               {detailStep === DETAIL_STEPS.length - 1 && (landlordCheck !== 'registered' || lc1Check !== 'verified') && (
                 <div className="rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4 space-y-2.5">
                   <p className="text-sm font-extrabold text-amber-700 flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-                    Can&apos;t post yet — roadmap steps still pending
+                    {landlordCheck !== 'registered'
+                      ? "Can't post yet — landlord not verified"
+                      : 'You can post — LC1 still needs verification before approval'}
                   </p>
                   <ul className="space-y-1.5">
                     {landlordCheck !== 'registered' && (
@@ -5320,14 +5347,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           className="flex w-full items-start gap-2 rounded-lg p-1.5 text-left text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 active:scale-[0.98]"
                         >
                           <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold">3</span>
-                          <span className="flex-1">LC1 chairperson verified — {lc1Check === 'missing' ? 'LC1 is not registered. List the house or register them first.' : lc1Check === 'unverified' ? 'LC1 is registered but awaiting verification.' : lc1Check === 'checking' ? 'Checking LC1 status… please wait.' : 'LC1 chairperson must be verified.'}</span>
+                          <span className="flex-1">LC1 verified before approval — {lc1Check === 'missing' ? 'LC1 will be registered from your details; verify before approval.' : lc1Check === 'unverified' ? 'LC1 is registered but awaiting verification — request it now.' : lc1Check === 'checking' ? 'Checking LC1 status… please wait.' : 'LC1 must be verified before this request is approved.'} You can still post now.</span>
                           <span className="text-[11px] font-bold text-amber-600 underline decoration-amber-500/50 underline-offset-2 flex-shrink-0">Go to step</span>
                         </button>
                       </li>
                     )}
                   </ul>
                   <p className="text-[11px] text-amber-700/80 leading-snug">
-                    Tap a step above to jump straight to it, or list the house to complete registration and verification.
+                    Tap a step above to jump straight to it. The landlord must be verified to post; the LC1 chairperson must be verified before the request is approved.
                   </p>
                 </div>
               )}
@@ -5365,7 +5392,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     onClick={submitQueued ? promptCancelQueued : requestSubmit}
                     className="flex-1"
                     variant={submitQueued ? 'secondary' : 'default'}
-                    disabled={loading || !amount || amount < 50000 || landlordCheck !== 'registered' || lc1Check !== 'verified'}
+                    disabled={loading || !amount || amount < 50000 || landlordCheck !== 'registered'}
                   >
                     {loading ? (
                       <>
