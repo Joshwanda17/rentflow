@@ -3247,12 +3247,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         })()}
                         {statusRow('Landlord', landlordState as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
                         {statusRow('LC1 chairperson', lc1State as 'idle' | 'checking' | 'ok' | 'unverified' | 'missing')}
-                       {!bothOk && (landlordState === 'missing' || lc1State === 'missing' || landlordState === 'unverified' || lc1State === 'unverified') && (
+                       {(landlordState === 'missing' || lc1State === 'missing' || landlordState === 'unverified' || lc1State === 'unverified') && (
                          <div className="pt-1.5 border-t border-amber-500/30 space-y-2">
                            <p className="text-[11px] text-foreground/70 leading-snug">
-                             {landlordState === 'missing' || lc1State === 'missing'
-                               ? 'The landlord and/or LC1 chairperson are not in the system yet. List the house to register them — they’ll be verified before you can post.'
-                               : 'The landlord and/or LC1 chairperson are registered but not yet verified. They must be verified before you can post this rent request.'}
+                             {landlordState !== 'ok'
+                               ? 'The landlord must be registered AND verified before you can post this rent request.'
+                               : 'The LC1 chairperson still needs to be verified — you can post now, but the request won’t be approved until the LC1 is verified.'}
                            </p>
                            {(landlordState === 'missing' || lc1State === 'missing') && (
                              <Button
