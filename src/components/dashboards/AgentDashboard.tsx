@@ -536,8 +536,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       const { toast } = await import('sonner');
       toast.info('Preparing landlord form...');
       const blob = await generateLandlordRegistrationFormPdf();
-      // Native share sheet (WhatsApp on mobile); auto-downloads on desktop.
-      await shareLandlordRegistrationFormPdf(blob);
+      // Native share sheet attaches the PDF (WhatsApp on mobile); otherwise the
+      // file downloads and a WhatsApp deep link opens for manual attach.
+      const result = await shareLandlordRegistrationFormPdf(blob);
+      if (result === 'deeplink') {
+        toast.success('Form downloaded — attach it in WhatsApp');
+      }
     } catch {
       const { toast } = await import('sonner');
       toast.error('Could not generate form');
@@ -551,8 +555,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       const { toast } = await import('sonner');
       toast.info('Preparing tenant form...');
       const blob = await generateTenantRegistrationFormPdf();
-      // Native share sheet (WhatsApp on mobile); auto-downloads on desktop.
-      await shareTenantRegistrationFormPdf(blob);
+      // Native share sheet attaches the PDF (WhatsApp on mobile); otherwise the
+      // file downloads and a WhatsApp deep link opens for manual attach.
+      const result = await shareTenantRegistrationFormPdf(blob);
+      if (result === 'deeplink') {
+        toast.success('Form downloaded — attach it in WhatsApp');
+      }
     } catch {
       const { toast } = await import('sonner');
       toast.error('Could not generate form');
