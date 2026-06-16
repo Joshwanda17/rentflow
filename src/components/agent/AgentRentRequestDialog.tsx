@@ -953,6 +953,65 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // request asking Landlord Ops to verify an unverified LC1 chairperson.
   const [lc1Id, setLc1Id] = useState<string | null>(null);
   const [lc1VerifyReqState, setLc1VerifyReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
+  // ===== LC1 chairperson search-first picker =====
+  // The agent searches for an LC1 already in the system (by name or phone). If
+  // none matches they switch to "register" mode and type the details manually.
+  type Lc1Hit = { id: string; name: string; phone: string; village: string | null; district: string | null; region: string | null; verified: boolean };
+  const [lc1Mode, setLc1Mode] = useState<'search' | 'register'>('search');
+  const [lc1Selected, setLc1Selected] = useState(false);
+  const [lc1Query, setLc1Query] = useState('');
+  const [lc1Results, setLc1Results] = useState<Lc1Hit[]>([]);
+  const [lc1Searching, setLc1Searching] = useState(false);
+  const [lc1SearchedOnce, setLc1SearchedOnce] = useState(false);
+  const searchLc1 = useCallback(async () => {
+    const q = lc1Query.trim();
+    if (q.length < 2) {
+      toast.error('Type at least 2 letters of the LC1 name or a phone number');
+      return;
+    }
+    setLc1Searching(true);
+    setLc1SearchedOnce(true);
+    try {
+      const isPhone = /^[0-9+]/.test(q);
+      let builder = supabase
+        .from('lc1_chairpersons')
+        .select('id, name, phone, village, district, region, verified')
+        .order('verified', { ascending: false })
+        .limit(10);
+      builder = isPhone ? builder.ilike('phone', `%${q}%`) : builder.ilike('name', `%${q}%`);
+      const { data, error } = await builder;
+      if (error) throw error;
+      setLc1Results((data || []) as Lc1Hit[]);
+    } catch (err) {
+      console.error('[AgentRentRequestDialog] LC1 search failed:', err);
+      toast.error('Could not search LC1 chairpersons');
+    } finally {
+      setLc1Searching(false);
+    }
+  }, [lc1Query]);
+  const selectLc1Hit = useCallback((hit: Lc1Hit) => {
+    setLc1Name(hit.name);
+    setLc1Phone(hit.phone);
+    if (hit.village) setLc1Village(hit.village);
+    setLc1Selected(true);
+    setLc1Results([]);
+  }, []);
+  const clearLc1Selection = useCallback(() => {
+    setLc1Selected(false);
+    setLc1Name('');
+    setLc1Phone('');
+    setLc1Village('');
+    setLc1Mode('search');
+    setLc1SearchedOnce(false);
+    setLc1Results([]);
+  }, []);
+  const startRegisterLc1 = useCallback(() => {
+    // Carry a typed name (not a phone) into the manual form for convenience.
+    const q = lc1Query.trim();
+    if (q && !/^[0-9+]/.test(q)) setLc1Name(formatNameInput(q));
+    setLc1Mode('register');
+    setLc1Selected(false);
+  }, [lc1Query]);
   // ===== Landlord's existing houses overview =====
   // When a landlord is already in the system, show the agent every house on
   // file for that landlord: who is already living there (occupied), which are
@@ -1372,6 +1431,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (p.lc1Phone) setLc1Phone(p.lc1Phone);
     if (p.lc1Village) setLc1Village(p.lc1Village);
     if (p.propertyCity) setPropertyCity(p.propertyCity);
+    if (p.lc1Phone || p.lc1Name) { setLc1Mode('register'); setLc1Selected(false); }
     if (p.propertyDistrict) setPropertyDistrict(p.propertyDistrict);
     if (p.houseCategory) setHouseCategory(p.houseCategory);
     if (p.landlordPayoutDay) setLandlordPayoutDay(p.landlordPayoutDay);
@@ -1450,6 +1510,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (p.lc1Phone) setLc1Phone(p.lc1Phone);
       if (p.lc1Village) setLc1Village(p.lc1Village);
       if (p.propertyCity) setPropertyCity(p.propertyCity);
+      if (p.lc1Phone || p.lc1Name) { setLc1Mode('register'); setLc1Selected(false); }
       if (p.propertyDistrict) setPropertyDistrict(p.propertyDistrict);
       if (p.houseCategory) setHouseCategory(p.houseCategory);
       if (p.landlordPayoutDay) setLandlordPayoutDay(p.landlordPayoutDay);
@@ -1789,6 +1850,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Village('');
     setPropertyCity('');
     setPropertyDistrict('');
+    setLc1Mode('search');
+    setLc1Selected(false);
+    setLc1Query('');
+    setLc1Results([]);
+    setLc1SearchedOnce(false);
     setHouseCategory('');
     setOutstandingHouseCategory('');
     setSelectedLandlord(null);
@@ -4625,6 +4691,85 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   LC1 Chairperson Details
                 </h4>
                 <div className="space-y-3">
+                  {/* ===== Search-first: find an LC1 already in the system ===== */}
+                  {!lc1Selected && lc1Mode === 'search' && (
+                    <div className="space-y-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        Search for the LC1 chairperson already in the system. If they're not there yet, register them.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="LC1 name or phone"
+                          value={lc1Query}
+                          onChange={(e) => setLc1Query(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); searchLc1(); } }}
+                        />
+                        <Button type="button" variant="secondary" onClick={searchLc1} disabled={lc1Searching}>
+                          {lc1Searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      {lc1Results.length > 0 && (
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                          {lc1Results.map((hit) => (
+                            <button
+                              type="button"
+                              key={hit.id}
+                              onClick={() => selectLc1Hit(hit)}
+                              className="w-full text-left p-2.5 rounded-lg border border-border bg-background hover:bg-accent/40 transition-colors"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-medium text-sm truncate">{hit.name}</span>
+                                {hit.verified ? (
+                                  <span className="flex items-center gap-1 text-[10px] font-semibold text-success shrink-0">
+                                    <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground shrink-0">Pending</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{hit.phone}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {[hit.village, hit.district, hit.region].filter(Boolean).join(' · ') || 'No location on file'}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {lc1SearchedOnce && !lc1Searching && lc1Results.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No LC1 chairperson found for that search — register them below.</p>
+                      )}
+                      <Button type="button" variant="outline" className="h-9 text-xs w-full" onClick={startRegisterLc1}>
+                        <UserPlus className="h-4 w-4 mr-1.5" />
+                        Register a new LC1 chairperson
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* ===== Selected existing LC1 ===== */}
+                  {lc1Selected && (
+                    <div className="p-3 rounded-xl border border-success/40 bg-success/5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{lc1Name}</p>
+                          <p className="text-xs text-muted-foreground">{lc1Phone}</p>
+                          {lc1Village && <p className="text-[11px] text-muted-foreground">{lc1Village}</p>}
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" className="h-8 text-xs shrink-0" onClick={clearLc1Selection}>
+                          <X className="h-3.5 w-3.5 mr-1" /> Change
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ===== Register new LC1 (manual entry) ===== */}
+                  {lc1Mode === 'register' && !lc1Selected && (
+                  <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-primary">New LC1 chairperson</p>
+                    <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={clearLc1Selection}>
+                      ← Back to search
+                    </Button>
+                  </div>
                   <div className="space-y-1">
                     <Label >Name *</Label>
                     <p className="text-xs text-muted-foreground leading-snug">The local council (LC1) chairperson for that area.</p>
@@ -4651,6 +4796,26 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       required
                     />
                     <FieldError message={vPhone(lc1Phone)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label >Village *</Label>
+                    <p className="text-xs text-muted-foreground leading-snug">The village or zone the LC1 looks after.</p>
+                    <p className="text-[11px] text-muted-foreground">e.g. Kira Zone A</p>
+                    <Input
+                      value={lc1Village}
+                      onChange={(e) => setLc1Village(formatNameInput(e.target.value))}
+                      placeholder="Village"
+                     
+                      required
+                    />
+                    <FieldError message={vPlace(lc1Village, 'Kira Zone A')} />
+                  </div>
+                  </div>
+                  )}
+
+                  {/* ===== Shared LC1 verification status (selected OR manual) ===== */}
+                  {(lc1Selected || lc1Mode === 'register') && (
+                  <div className="space-y-1">
                     {isValidUgPhone(lc1Phone.replace(/\s/g, '')) && (
                       lc1Check === 'checking' ? (
                         <p className="text-[11px] text-muted-foreground font-medium">Confirming LC1 verification…</p>
@@ -4697,19 +4862,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <p className="text-[10px] text-destructive">Cannot be the same as Landlord phone</p>
                       )}
                   </div>
-                  <div className="space-y-1">
-                    <Label >Village *</Label>
-                    <p className="text-xs text-muted-foreground leading-snug">The village or zone the LC1 looks after.</p>
-                    <p className="text-[11px] text-muted-foreground">e.g. Kira Zone A</p>
-                    <Input
-                      value={lc1Village}
-                      onChange={(e) => setLc1Village(formatNameInput(e.target.value))}
-                      placeholder="Village"
-                     
-                      required
-                    />
-                    <FieldError message={vPlace(lc1Village, 'Kira Zone A')} />
-                  </div>
+                  )}
                 </div>
 
                 {/* Town/City + District — keeps tenant rolled up under a real
