@@ -2926,6 +2926,38 @@ export function LandlordOpsDashboard() {
                     <MapPinned className="h-3.5 w-3.5" /> View exact location on Google Maps
                   </a>
                 )}
+
+                {/* ── Listing metadata for approval review ── */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 mt-1 border-t border-border">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Category</p>
+                    <p className="text-[11px] font-medium">{house.house_category || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Rooms</p>
+                    <p className="text-[11px] font-medium">{house.number_of_rooms ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Monthly rent</p>
+                    <p className="text-[11px] font-medium">UGX {Number(house.monthly_rent || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Daily rate</p>
+                    <p className="text-[11px] font-medium">{house.daily_rate ? `UGX ${Number(house.daily_rate).toLocaleString()}` : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Listed</p>
+                    <p className="text-[11px] font-medium">{house.created_at ? new Date(house.created_at).toLocaleDateString() : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Status</p>
+                    <p className="text-[11px] font-medium capitalize">{house.status || '—'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Listing ID</p>
+                    <p className="text-[10px] font-mono text-muted-foreground break-all">{house.id}</p>
+                  </div>
+                </div>
               </div>
 
               {/* ── Moderation Actions ── */}
