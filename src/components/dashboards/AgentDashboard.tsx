@@ -158,6 +158,14 @@ import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNote
 import { AgentAdvanceRequestForm } from '@/components/agent/AgentAdvanceRequestForm';
 import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 
+// PDF form generators
+import {
+  generateLandlordRegistrationFormPdf,
+} from '@/lib/landlordRegistrationFormPdf';
+import {
+  generateTenantRegistrationFormPdf,
+} from '@/lib/tenantRegistrationFormPdf';
+
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
 import { AgentCashDepositCodesPanel } from '@/components/agent/AgentCashDepositCodesPanel';
