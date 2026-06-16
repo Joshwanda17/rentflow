@@ -3210,14 +3210,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           const s3: StepState = lc1State === 'ok' ? 'done' : bothRegistered ? 'current' : 'todo';
                           steps.push({
                             label: 'LC1 chairperson verified',
-                            hint: lc1State === 'ok' ? 'Verified' : lc1State === 'unverified' ? 'Awaiting verification' : 'Pending registration',
+                            hint: lc1State === 'ok' ? 'Verified' : 'Needed before approval (not for posting)',
                             state: s3,
                           });
                           // 4. Post the rent request
                           steps.push({
                             label: 'Post the rent request',
-                            hint: bothOk ? 'Ready to post' : 'Unlocks once verified',
-                            state: bothOk ? 'current' : 'todo',
+                            hint: canPost ? 'Ready to post' : 'Unlocks once the landlord is verified',
+                            state: canPost ? 'current' : 'todo',
                           });
                           return (
                             <ol className="space-y-2 pt-1">
