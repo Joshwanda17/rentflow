@@ -1041,11 +1041,11 @@ export function LandlordOpsDashboard() {
     queryKey: ['landlord-ops-full-lc1'],
     queryFn: async () => {
       // 1. Fetch all LC1 chairpersons
-      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null }[] = [];
+      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string; verified: boolean | null; registered_by: string | null }[] = [];
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
-        const { data } = await supabase.from('lc1_chairpersons').select('id, name, phone, village, created_at, verified')
+        const { data } = await supabase.from('lc1_chairpersons').select('id, name, phone, village, created_at, verified, registered_by')
           .order('name').range(offset, offset + 999);
         if (data && data.length > 0) { allLC1.push(...data); offset += 1000; hasMore = data.length === 1000; }
         else hasMore = false;
@@ -1088,6 +1088,16 @@ export function LandlordOpsDashboard() {
         if (ll) ll.forEach(l => landlordMap.set(l.id, l));
       }
 
+      // 4b. Fetch registering agent (name + phone) so ops can call them for unverified LC1s
+      const agentIds = [...new Set(allLC1.map(l => l.registered_by).filter(Boolean) as string[])];
+      const agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
+      for (let i = 0; i < agentIds.length; i += 50) {
+        const { data: ag } = await supabase.from('profiles')
+          .select('id, full_name, phone')
+          .in('id', agentIds.slice(i, i + 50));
+        if (ag) ag.forEach((a: any) => agentMap.set(a.id, { full_name: a.full_name, phone: a.phone }));
+      }
+
       // 5. Build final data
       return allLC1.map(lc1 => {
         const landlordIds = landlordIdsByLC1.get(lc1.id);
@@ -1096,11 +1106,12 @@ export function LandlordOpsDashboard() {
           : [];
         // Also get listingIds from house_listings for edit dialog
         const listingIds = rows.filter(r => r.lc1_chairperson_phone === lc1.phone).map(r => r.id);
-        return { ...lc1, landlords, listingIds };
+        const agent = lc1.registered_by ? agentMap.get(lc1.registered_by) : undefined;
+        return { ...lc1, landlords, listingIds, agentName: agent?.full_name || null, agentPhone: agent?.phone || null };
       });
     },
     staleTime: 60000,
-    enabled: view === 'lc1' || view === 'home',
+    enabled: view === 'lc1' || view === 'lc1-duplicates' || view === 'home',
   });
 
   // ─── Paid Landlords Count (for nav badge) ───
