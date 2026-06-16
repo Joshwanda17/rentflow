@@ -2297,12 +2297,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       let lc1Id: string | null = null;
       const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
       if (!isOutstanding) {
-        // Hard gate: the LC1 chairperson must already be registered AND verified.
-        // We never silently create an unverified LC1 from free-typed text any more.
+        // Posting is allowed regardless of LC1 verification status. We reuse an
+        // existing LC1 record by phone (preferring a verified one) so duplicates
+        // are never created; if none exists we register a new unverified LC1
+        // from the free-typed details. The LC1 must be VERIFIED before the
+        // request is APPROVED — that gate lives in the approval flow, not here.
         let existingLc1: { id: string; verified: boolean | null } | null = null;
         try {
-          // Duplicate phone rows can exist — fetch all and prefer a verified
-          // record so a verified LC1 is never blocked by a stray duplicate.
           const { data, error: lc1LookupError } = await supabase
             .from('lc1_chairpersons')
             .select('id, verified')
@@ -2311,35 +2312,53 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           if (lc1LookupError) throw lc1LookupError;
           existingLc1 = ((data ?? [])[0] as any) ?? null;
         } catch (lc1Err) {
-          const msg = "Couldn't confirm the LC1 chairperson is verified. Check your connection and try again.";
+          const msg = "Couldn't look up the LC1 chairperson. Check your connection and try again.";
           setSubmissionError(msg);
-          toast.error('LC1 check failed', { description: msg });
+          toast.error('LC1 lookup failed', { description: msg });
           setLoading(false);
           setRequestState('idle');
           submitLockRef.current = false;
           return;
         }
-        if (!existingLc1) {
-          const msg = 'This LC1 chairperson is not registered yet. Register them first — they must be verified before you can post a rent request.';
-          setSubmissionError(msg);
-          toast.error('LC1 not registered', { description: msg });
-          setLoading(false);
-          setRequestState('idle');
-          submitLockRef.current = false;
-          setDetailStep(3);
-          return;
+        if (existingLc1) {
+          lc1Id = existingLc1.id;
+        } else {
+          // Register a new unverified LC1 chairperson from the typed details.
+          const { data: createdLc1, error: lc1InsertError } = await supabase
+            .from('lc1_chairpersons')
+            .insert({
+              name: lc1Name.trim(),
+              phone: cleanLc1Phone,
+              village: lc1Village.trim(),
+              registered_by: user?.id ?? null,
+            })
+            .select('id')
+            .maybeSingle();
+          if (lc1InsertError) {
+            // A concurrent insert / duplicate-phone guard (23505) means the LC1
+            // now exists — re-fetch and reuse it instead of failing.
+            if ((lc1InsertError as any)?.code === '23505') {
+              const { data: reLookup } = await supabase
+                .from('lc1_chairpersons')
+                .select('id, verified')
+                .eq('phone', cleanLc1Phone)
+                .order('verified', { ascending: false, nullsFirst: false });
+              lc1Id = ((reLookup ?? [])[0] as any)?.id ?? null;
+            }
+            if (!lc1Id) {
+              const msg = "Couldn't register the LC1 chairperson. Check the details and try again.";
+              setSubmissionError(msg);
+              toast.error('LC1 registration failed', { description: msg });
+              setLoading(false);
+              setRequestState('idle');
+              submitLockRef.current = false;
+              setDetailStep(3);
+              return;
+            }
+          } else {
+            lc1Id = createdLc1?.id ?? null;
+          }
         }
-        if (!existingLc1.verified) {
-          const msg = 'This LC1 chairperson is registered but not yet verified. They must be verified before you can post a rent request.';
-          setSubmissionError(msg);
-          toast.error('LC1 not verified', { description: msg });
-          setLoading(false);
-          setRequestState('idle');
-          submitLockRef.current = false;
-          setDetailStep(3);
-          return;
-        }
-        lc1Id = existingLc1.id;
       }
 
       // Register tenant via edge function (handles both existing and new users)
