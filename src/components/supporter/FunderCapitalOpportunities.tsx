@@ -29,10 +29,13 @@ type ViewState = 'default' | 'investing' | 'committed';
 // ─── Amount Input ───
 function AmountInput({
   amount, onAmountChange, onSliderChange, walletBalance, formatAmountCompact, exceedsBalance,
+  currencyCode, convertFromUGX,
 }: {
   amount: number; onAmountChange: (val: string) => void; onSliderChange: (val: number) => void;
   walletBalance: number; formatAmountCompact: (n: number) => string; exceedsBalance: boolean;
+  currencyCode: string; convertFromUGX: (n: number) => number;
 }) {
+  const displayAmount = amount > 0 ? Math.round(convertFromUGX(amount)) : 0;
   return (
     <div className="space-y-2">
       <div className="rounded-xl bg-muted/40 px-3 py-2 flex items-center justify-between">
@@ -41,12 +44,12 @@ function AmountInput({
         </span>
         <span className="text-sm font-black text-foreground">{formatAmountCompact(walletBalance)}</span>
       </div>
-      <label className="text-xs text-muted-foreground font-semibold block">Amount (UGX)</label>
+      <label className="text-xs text-muted-foreground font-semibold block">Amount ({currencyCode})</label>
       <Input
         type="text" inputMode="numeric"
-        value={amount > 0 ? amount.toLocaleString() : ''}
+        value={displayAmount > 0 ? displayAmount.toLocaleString() : ''}
         onChange={(e) => onAmountChange(e.target.value)}
-        placeholder={`Min ${PRICE_PER_SHARE.toLocaleString()}`}
+        placeholder={`Min ${formatAmountCompact(PRICE_PER_SHARE)}`}
         className="text-lg font-bold h-12"
       />
       <Slider value={[amount]} onValueChange={([v]) => onSliderChange(v)} min={0}
