@@ -1850,6 +1850,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Village('');
     setPropertyCity('');
     setPropertyDistrict('');
+    setLc1Mode('search');
+    setLc1Selected(false);
+    setLc1Query('');
+    setLc1Results([]);
+    setLc1SearchedOnce(false);
     setHouseCategory('');
     setOutstandingHouseCategory('');
     setSelectedLandlord(null);
