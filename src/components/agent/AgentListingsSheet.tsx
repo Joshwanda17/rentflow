@@ -28,6 +28,7 @@ import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { HouseDetailSheet } from './HouseDetailSheet';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
+import RegisterLandlordDialog from './RegisterLandlordDialog';
 
 interface AgentListingsSheetProps {
   open: boolean;
