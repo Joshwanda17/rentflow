@@ -371,7 +371,7 @@ export function FunderCapitalOpportunities() {
                 {/* Footer */}
                 <div className="text-center space-y-1.5">
                   <p className="text-[10px] text-muted-foreground">
-                    <Clock className="h-3 w-3 inline mr-1" />Avg. cycle: 30 days · Min: UGX {PRICE_PER_SHARE.toLocaleString()}
+                    <Clock className="h-3 w-3 inline mr-1" />Avg. cycle: 30 days · Min: {formatAmountCompact(PRICE_PER_SHARE)}
                   </p>
                   <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
                     Returns are projected based on historical performance. Capital is deployed into verified rent facilitation agreements managed by Welile with reserve protection.
@@ -488,7 +488,8 @@ export function FunderCapitalOpportunities() {
               </div>
               <AmountInput amount={angelAmount} onAmountChange={handleAngelAmountChange}
                 onSliderChange={setAngelAmount} walletBalance={walletBalance} formatAmountCompact={formatAmountCompact}
-                exceedsBalance={walletBalance > 0 && angelAmount > walletBalance} />
+                exceedsBalance={walletBalance > 0 && angelAmount > walletBalance}
+                currencyCode={currency.code} convertFromUGX={convertFromUGX} />
               <AngelPreview amount={angelAmount} formatAmountCompact={formatAmountCompact} />
               <Button type="button" onClick={handleAngelInvest}
                 disabled={investLoading || angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
