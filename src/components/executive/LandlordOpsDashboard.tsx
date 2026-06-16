@@ -17,7 +17,7 @@ import {
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
-  Table2, Printer, CalendarIcon, Loader2, Upload, RotateCcw,
+  Table2, Printer, CalendarIcon, Loader2, Upload, RotateCcw, Mail, Clock,
 } from 'lucide-react';
 import { Eye, EyeOff } from 'lucide-react';
 import { LayoutGrid } from 'lucide-react';
