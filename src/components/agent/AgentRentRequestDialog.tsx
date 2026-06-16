@@ -4180,7 +4180,31 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               )}
                             </div>
                           ) : (
-                            <p className="text-xs text-success font-medium mt-1">✓ Registered in the system — details filled in for you</p>
+                            <div className="mt-1 space-y-2">
+                              <p className="text-xs text-success font-medium">✓ Verified landlord — details filled in for you</p>
+                              {verifyReqState === 'sent' || verifyReqState === 'exists' ? (
+                                <p className="text-xs font-medium text-success flex items-center gap-1">
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                                  Landlord Operations have been notified.
+                                </p>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 w-full gap-1.5 rounded-xl"
+                                  disabled={verifyReqState === 'sending'}
+                                  onClick={requestLandlordVerification}
+                                >
+                                  {verifyReqState === 'sending' ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <ShieldCheck className="h-3.5 w-3.5" />
+                                  )}
+                                  Notify Landlord Ops
+                                </Button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
