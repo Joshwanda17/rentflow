@@ -120,6 +120,7 @@ interface ListingWithLandlord {
   } | null;
   agent_name?: string;
   agent_phone?: string;
+  agent_email?: string | null;
   tenant_name?: string;
   tenant_phone?: string;
 }
