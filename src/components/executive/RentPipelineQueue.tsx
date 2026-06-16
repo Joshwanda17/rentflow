@@ -988,10 +988,10 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             )}
           </div>
         )}
-        <div className="flex flex-col sm:flex-row gap-2 mt-2 items-start">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 mt-2 items-stretch sm:items-start">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
-              <SelectTrigger className="h-9 text-sm sm:w-[260px]">
+              <SelectTrigger className="h-9 text-sm w-full sm:w-[260px]">
                 <User className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
                 <SelectValue placeholder="Choose a tenant to fund" />
               </SelectTrigger>
@@ -1063,7 +1063,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                 key={req.id}
                 className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors"
               >
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 {/* COO bulk select checkbox */}
                 {isCooStage && (
                   <Checkbox
@@ -1074,7 +1074,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                 )}
                 <button
                   onClick={() => openRequestDetail(req)}
-                  className="min-w-0 flex-1 text-left"
+                  className="min-w-0 w-full sm:flex-1 text-left"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 space-y-1">
@@ -1148,7 +1148,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   </div>
                 </button>
                 {/* Quick Actions */}
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center justify-end gap-1 shrink-0 self-end sm:self-auto">
                   <Button
                     size="sm"
                     variant="ghost"
