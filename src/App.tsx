@@ -17,15 +17,15 @@ const lazy = lazyWithRetry;
 // Critical providers — loaded eagerly for instant auth/routing
 import { AuthProvider } from "@/hooks/useAuth";
 import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
+import { CurrencyProvider } from "@/hooks/useCurrency";
 
 // Dev-only e2e harness (lazy + tree-shaken in prod via the import.meta.env.DEV guard below).
 const BusinessAdvanceHarness = lazyWithRetry(
   () => import("@/pages/__e2e/BusinessAdvanceHarness"),
 );
 
-// Deferred language/currency — not needed for first paint
+// Deferred language — not needed for first paint
 const LanguageProvider = lazyWithRetry(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
-const CurrencyProvider = lazyWithRetry(() => import("@/hooks/useCurrency").then(m => ({ default: m.CurrencyProvider })));
 
 // Auth providers — deferred since they're not needed for first paint
 const PinAuthProvider = lazyWithRetry(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
