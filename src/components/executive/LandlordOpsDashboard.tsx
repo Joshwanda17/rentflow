@@ -1949,13 +1949,13 @@ export function LandlordOpsDashboard() {
                     </tr>
                     {isExpanded && !landlord.verified && (
                       <tr className="border-b border-border last:border-0 bg-muted/20">
-                        <td colSpan={6} className="px-3 py-3">
-                          <p className="text-xs font-bold mb-2 flex items-center gap-1.5">
+                        <td colSpan={6} className="px-3 py-3 space-y-3">
+                          <p className="text-xs font-bold flex items-center gap-1.5">
                             <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
                             Verify {landlord.name}
                           </p>
-                          <div className="rounded-lg bg-sky-500/5 p-2.5 mb-3 border border-sky-200/40">
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Contact</p>
+                          <div className="rounded-lg bg-sky-500/5 p-2.5 border border-sky-200/40">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Landlord Contact</p>
                             <PhoneLinks phone={landlord.phone} name={landlord.name} />
                             {landlord.property_address && (
                               <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
@@ -1963,6 +1963,16 @@ export function LandlordOpsDashboard() {
                               </p>
                             )}
                           </div>
+                          {/* Registering agent contact — ops can call to complete verification */}
+                          {(landlord.agent_name || landlord.agent_phone) && (
+                            <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-2 space-y-1">
+                              <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1">
+                                <Users className="h-3 w-3" /> Registering agent
+                              </p>
+                              <p className="text-xs font-medium">{landlord.agent_name || 'Unknown agent'}</p>
+                              {landlord.agent_phone && <PhoneLinks phone={landlord.agent_phone} name={landlord.agent_name || 'Agent'} />}
+                            </div>
+                          )}
                           <InlineModerationActions
                             approveLabel="Approve"
                             rejectLabel="Reject"
