@@ -2153,9 +2153,9 @@ export function LandlordOpsDashboard() {
               </div>
               {lc1.phone && <PhoneLinks phone={lc1.phone} name={lc1.name} />}
               {/* Registering agent contact — so ops can call them to complete verification */}
-              {!lc1.verified && (lc1.agentName || lc1.agentPhone) && (
-                <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-2 space-y-1">
-                  <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1">
+              {(lc1.agentName || lc1.agentPhone) && (
+                <div className={`rounded-lg border px-2.5 py-2 space-y-1 ${!lc1.verified ? 'border-amber-300/60 bg-amber-50 dark:bg-amber-500/10' : 'border-border bg-muted/30'}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1 ${!lc1.verified ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'}`}>
                     <Users className="h-3 w-3" /> Registering agent
                   </p>
                   <p className="text-xs font-medium">{lc1.agentName || 'Unknown agent'}</p>
