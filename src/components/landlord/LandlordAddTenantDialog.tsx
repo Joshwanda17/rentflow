@@ -181,20 +181,26 @@ export default function LandlordAddTenantDialog({
         return;
       }
 
-      // Save LC1 chairperson if provided
+      // Save LC1 chairperson if provided — a phone uniquely identifies one
+      // chairperson, so reuse the existing record instead of creating a duplicate.
       if (lc1Name.trim() && lc1Phone.trim() && lc1Village.trim()) {
         const { data: existingLc1 } = await supabase
           .from('lc1_chairpersons')
           .select('id')
-          .eq('village', lc1Village.trim())
+          .eq('phone', lc1Phone.trim())
+          .limit(1)
           .maybeSingle();
 
         if (!existingLc1) {
-          await supabase.from('lc1_chairpersons').insert({
+          const { error: lc1InsertError } = await supabase.from('lc1_chairpersons').insert({
             name: lc1Name.trim(),
             phone: lc1Phone.trim(),
             village: lc1Village.trim(),
           });
+          // 23505 = phone already exists (a concurrent/normalized-format duplicate). Safe to ignore.
+          if (lc1InsertError && lc1InsertError.code !== '23505') {
+            console.error('LC1 save error:', lc1InsertError);
+          }
         }
       }
 
