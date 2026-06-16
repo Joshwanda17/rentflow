@@ -429,7 +429,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border">
           <SheetTitle className="flex items-center gap-2">
             <Home className="h-5 w-5 text-primary" />
-            My Listed Houses
+            List empty house or register new landlord
           </SheetTitle>
           {vacantOnly && (
             <div className="mt-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 flex items-start gap-2">
