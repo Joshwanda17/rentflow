@@ -1,7 +1,13 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Building2 } from 'lucide-react';
+import { Building2, Share2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import LandlordRegistrationForm from '@/components/shared/LandlordRegistrationForm';
+import {
+  generateLandlordRegistrationFormPdf,
+  shareLandlordRegistrationFormPdf,
+} from '@/lib/landlordRegistrationFormPdf';
 
 interface RegisterLandlordDialogProps {
   open: boolean;
@@ -19,6 +25,22 @@ interface RegisterLandlordDialogProps {
 }
 
 export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess, minimal }: RegisterLandlordDialogProps) {
+  const [sharing, setSharing] = useState(false);
+
+  const handleSharePrintableForm = async () => {
+    setSharing(true);
+    try {
+      const blob = await generateLandlordRegistrationFormPdf();
+      await shareLandlordRegistrationFormPdf(blob);
+    } catch {
+      toast.error('Could not create the form', {
+        description: 'Please try again in a moment.',
+      });
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -31,6 +53,19 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess, 
             Register a property owner for your portfolio
           </DialogDescription>
         </DialogHeader>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleSharePrintableForm}
+          disabled={sharing}
+          className="w-full h-11 gap-2 border-primary/30 text-primary hover:bg-primary/5 touch-manipulation select-none"
+        >
+          {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+          {sharing ? 'Preparing form…' : 'Share printable form (WhatsApp)'}
+        </Button>
+        <p className="text-[11px] text-muted-foreground -mt-2">
+          Print, have the landlord fill it in, then register them here.
+        </p>
         <LandlordRegistrationForm
           registeredByRole="agent"
           onSuccess={onSuccess}
