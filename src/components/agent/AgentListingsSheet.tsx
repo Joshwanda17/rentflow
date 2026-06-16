@@ -70,6 +70,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     image_urls: string[] | null;
   } | null>(null);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
+  const [registerLandlordOpen, setRegisterLandlordOpen] = useState(false);
   const emptyPrimaryRef = useRef<HTMLButtonElement>(null);
   const emptySecondaryRef = useRef<HTMLButtonElement>(null);
   // Remember the element that had focus before the sheet opened so we can
