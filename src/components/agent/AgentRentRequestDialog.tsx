@@ -3127,13 +3127,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     />
                   </div>
 
-                  {/* Prominent verification requirement banner — keeps agents
-                      aware, as they fill the request, that BOTH the landlord and
-                      the LC1 chairperson must be registered AND verified before a
-                      rent request can be posted. Live status updates as they go. */}
+                  {/* Prominent verification requirement banner. Posting only
+                      requires a VERIFIED landlord. The LC1 chairperson can be
+                      registered or free-typed at posting time, but must be
+                      verified before the request is APPROVED. Live status updates
+                      as the agent fills the form. */}
                   {(() => {
                     const landlordOk = landlordCheck === 'registered';
                     const lc1Ok = lc1Check === 'verified';
+                    // Posting is gated on the landlord only; LC1 verification is
+                    // an approval-time requirement, not a posting one.
+                    const canPost = landlordOk;
                     const bothOk = landlordOk && lc1Ok;
                     const statusRow = (
                       label: string,
@@ -3167,16 +3171,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     return (
                       <div
                         className={`rounded-xl border p-3 space-y-2 ${
-                          bothOk
+                          canPost
                             ? 'border-success/40 bg-success/5'
                             : 'border-amber-500/40 bg-amber-500/5'
                         }`}
                       >
                         <p className="flex items-center gap-1.5 text-[13px] font-bold text-foreground">
                           <ShieldCheck className="h-4 w-4 flex-shrink-0 text-primary" />
-                          {bothOk
-                            ? 'Landlord & LC1 verified — you can post'
-                            : 'Landlord & LC1 must be verified to post'}
+                          {canPost
+                            ? (lc1Ok
+                                ? 'Landlord & LC1 verified — you can post'
+                                : 'Landlord verified — you can post (LC1 verified before approval)')
+                            : 'Landlord must be verified to post'}
                         </p>
                         {/* Step-by-step roadmap from listing the house to posting,
                             so the agent always knows exactly what's left to do. */}
