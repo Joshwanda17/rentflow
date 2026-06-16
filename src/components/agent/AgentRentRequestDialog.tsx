@@ -1239,19 +1239,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Check('checking');
     (async () => {
       try {
+        // A phone can have duplicate LC1 rows. Fetch all matches and prefer a
+        // verified record so duplicates never falsely block a verified LC1.
         const { data, error } = await supabase
           .from('lc1_chairpersons')
           .select('id, verified')
           .eq('phone', cleanLc1Phone)
-          .maybeSingle();
+          .order('verified', { ascending: false, nullsFirst: false });
         if (cancelled) return;
         if (error) {
           // Transient lookup failure — don't hard-block; submit-time re-checks.
           setLc1Check('idle');
           return;
         }
-        setLc1Check(!data ? 'missing' : data.verified ? 'verified' : 'unverified');
-        setLc1Id(data?.id ?? null);
+        const match = (data ?? [])[0] ?? null;
+        setLc1Check(!match ? 'missing' : match.verified ? 'verified' : 'unverified');
+        setLc1Id(match?.id ?? null);
       } catch {
         if (!cancelled) setLc1Check('idle');
       }
@@ -2239,14 +2242,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         // We never silently create an unverified LC1 from free-typed text any more.
         let existingLc1: { id: string; verified: boolean | null } | null = null;
         try {
+          // Duplicate phone rows can exist — fetch all and prefer a verified
+          // record so a verified LC1 is never blocked by a stray duplicate.
           const { data, error: lc1LookupError } = await supabase
             .from('lc1_chairpersons')
             .select('id, verified')
             .eq('phone', cleanLc1Phone)
-            .limit(1)
-            .maybeSingle();
+            .order('verified', { ascending: false, nullsFirst: false });
           if (lc1LookupError) throw lc1LookupError;
-          existingLc1 = data as any;
+          existingLc1 = ((data ?? [])[0] as any) ?? null;
         } catch (lc1Err) {
           const msg = "Couldn't confirm the LC1 chairperson is verified. Check your connection and try again.";
           setSubmissionError(msg);
