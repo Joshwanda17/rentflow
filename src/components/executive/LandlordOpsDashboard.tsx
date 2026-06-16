@@ -1131,6 +1131,23 @@ export function LandlordOpsDashboard() {
     staleTime: 60_000,
   });
 
+  // ─── Landlords actually awaiting verification (pending verification requests) ───
+  // The home card must reflect ONLY landlords with an open verification request,
+  // not every auto-registered unverified landlord.
+  const { data: pendingVerificationCount = 0 } = useQuery({
+    queryKey: ['landlord-ops-pending-verification-count'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('landlord_verification_requests')
+        .select('landlord_id')
+        .eq('status', 'pending');
+      const set = new Set<string>();
+      (data || []).forEach((r: any) => { if (r.landlord_id) set.add(r.landlord_id); });
+      return set.size;
+    },
+    staleTime: 30_000,
+  });
+
   const lc1Groups = fullLC1Data || [];
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
