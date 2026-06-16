@@ -2065,15 +2065,13 @@ export function LandlordOpsDashboard() {
     let filtered = search
       ? lc1Groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()) || g.village?.toLowerCase().includes(search.toLowerCase()) || g.phone?.includes(search))
       : [...lc1Groups];
-    // A group "needs verification" if the LC1 chairperson itself is unverified
-    // OR any landlord linked under that LC1 is still unverified.
-    const groupNeedsVerification = (g: typeof lc1Groups[number]) =>
-      !g.verified || g.landlords.some(ll => !ll.verified);
-    if (lc1VerifyFilter === 'verified') filtered = filtered.filter(g => !groupNeedsVerification(g));
-    else if (lc1VerifyFilter === 'unverified') filtered = filtered.filter(g => groupNeedsVerification(g));
+    // "Needs Verification" keys ONLY on the LC1 chairperson's own verified flag,
+    // NOT on the landlords linked under them.
+    if (lc1VerifyFilter === 'verified') filtered = filtered.filter(g => g.verified);
+    else if (lc1VerifyFilter === 'unverified') filtered = filtered.filter(g => !g.verified);
 
-    const unverifiedCount = lc1Groups.filter(groupNeedsVerification).length;
-    const verifiedCount = lc1Groups.filter(g => !groupNeedsVerification(g)).length;
+    const unverifiedCount = lc1Groups.filter(g => !g.verified).length;
+    const verifiedCount = lc1Groups.filter(g => g.verified).length;
     return (
       <>
       <div className="space-y-3">
