@@ -1137,13 +1137,11 @@ export function LandlordOpsDashboard() {
   const { data: pendingVerificationCount = 0 } = useQuery({
     queryKey: ['landlord-ops-pending-verification-count'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('landlord_verification_requests')
-        .select('landlord_id')
-        .eq('status', 'pending');
-      const set = new Set<string>();
-      (data || []).forEach((r: any) => { if (r.landlord_id) set.add(r.landlord_id); });
-      return set.size;
+      const { count } = await supabase
+        .from('landlords')
+        .select('id', { count: 'exact', head: true })
+        .or('verified.is.null,verified.eq.false');
+      return count || 0;
     },
     staleTime: 30_000,
   });
