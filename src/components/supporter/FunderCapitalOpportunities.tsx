@@ -197,7 +197,7 @@ function DefaultEntryCard({
 
 // ═══ MAIN COMPONENT ═══
 export function FunderCapitalOpportunities() {
-  const { formatAmountCompact } = useCurrency();
+  const { formatAmountCompact, currency, convertFromUGX, convertToUGX } = useCurrency();
   const { wallet } = useWallet();
   const walletBalance = wallet?.balance ?? 0;
   const { portfolioCount, totalInvested, opportunitySummary, loading } = useCapitalOpportunities();
@@ -224,8 +224,10 @@ export function FunderCapitalOpportunities() {
 
   const handleAngelAmountChange = (val: string) => {
     const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
+    if (isNaN(num)) { setAngelAmount(0); return; }
+    const ugx = Math.round(convertToUGX(num));
     const max = walletBalance > 0 ? walletBalance : 500_000_000;
-    setAngelAmount(!isNaN(num) ? Math.min(num, max) : 0);
+    setAngelAmount(Math.min(ugx, max));
   };
 
   const [investLoading, setInvestLoading] = useState(false);
