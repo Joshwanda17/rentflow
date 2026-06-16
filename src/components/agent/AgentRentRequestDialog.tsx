@@ -953,6 +953,65 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // request asking Landlord Ops to verify an unverified LC1 chairperson.
   const [lc1Id, setLc1Id] = useState<string | null>(null);
   const [lc1VerifyReqState, setLc1VerifyReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
+  // ===== LC1 chairperson search-first picker =====
+  // The agent searches for an LC1 already in the system (by name or phone). If
+  // none matches they switch to "register" mode and type the details manually.
+  type Lc1Hit = { id: string; name: string; phone: string; village: string | null; district: string | null; region: string | null; verified: boolean };
+  const [lc1Mode, setLc1Mode] = useState<'search' | 'register'>('search');
+  const [lc1Selected, setLc1Selected] = useState(false);
+  const [lc1Query, setLc1Query] = useState('');
+  const [lc1Results, setLc1Results] = useState<Lc1Hit[]>([]);
+  const [lc1Searching, setLc1Searching] = useState(false);
+  const [lc1SearchedOnce, setLc1SearchedOnce] = useState(false);
+  const searchLc1 = useCallback(async () => {
+    const q = lc1Query.trim();
+    if (q.length < 2) {
+      toast.error('Type at least 2 letters of the LC1 name or a phone number');
+      return;
+    }
+    setLc1Searching(true);
+    setLc1SearchedOnce(true);
+    try {
+      const isPhone = /^[0-9+]/.test(q);
+      let builder = supabase
+        .from('lc1_chairpersons')
+        .select('id, name, phone, village, district, region, verified')
+        .order('verified', { ascending: false })
+        .limit(10);
+      builder = isPhone ? builder.ilike('phone', `%${q}%`) : builder.ilike('name', `%${q}%`);
+      const { data, error } = await builder;
+      if (error) throw error;
+      setLc1Results((data || []) as Lc1Hit[]);
+    } catch (err) {
+      console.error('[AgentRentRequestDialog] LC1 search failed:', err);
+      toast.error('Could not search LC1 chairpersons');
+    } finally {
+      setLc1Searching(false);
+    }
+  }, [lc1Query]);
+  const selectLc1Hit = useCallback((hit: Lc1Hit) => {
+    setLc1Name(hit.name);
+    setLc1Phone(hit.phone);
+    if (hit.village) setLc1Village(hit.village);
+    setLc1Selected(true);
+    setLc1Results([]);
+  }, []);
+  const clearLc1Selection = useCallback(() => {
+    setLc1Selected(false);
+    setLc1Name('');
+    setLc1Phone('');
+    setLc1Village('');
+    setLc1Mode('search');
+    setLc1SearchedOnce(false);
+    setLc1Results([]);
+  }, []);
+  const startRegisterLc1 = useCallback(() => {
+    // Carry a typed name (not a phone) into the manual form for convenience.
+    const q = lc1Query.trim();
+    if (q && !/^[0-9+]/.test(q)) setLc1Name(formatNameInput(q));
+    setLc1Mode('register');
+    setLc1Selected(false);
+  }, [lc1Query]);
   // ===== Landlord's existing houses overview =====
   // When a landlord is already in the system, show the agent every house on
   // file for that landlord: who is already living there (occupied), which are
