@@ -1431,6 +1431,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (p.lc1Phone) setLc1Phone(p.lc1Phone);
     if (p.lc1Village) setLc1Village(p.lc1Village);
     if (p.propertyCity) setPropertyCity(p.propertyCity);
+    if (p.lc1Phone || p.lc1Name) { setLc1Mode('register'); setLc1Selected(false); }
     if (p.propertyDistrict) setPropertyDistrict(p.propertyDistrict);
     if (p.houseCategory) setHouseCategory(p.houseCategory);
     if (p.landlordPayoutDay) setLandlordPayoutDay(p.landlordPayoutDay);
