@@ -2119,6 +2119,8 @@ export function LandlordOpsDashboard() {
             );
           })}
         </div>
+        {/* Duplicate LC1 chairpersons — review & merge */}
+        <Lc1DuplicatesPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
         <div className="space-y-2">
           {filtered.map((lc1) => (
             <div key={lc1.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
@@ -3173,8 +3175,6 @@ export function LandlordOpsDashboard() {
       <AgentVerificationRequestsPanel onResolved={refetchAll} />
       {/* PROMINENT: Agent-initiated LC1 chairperson verification requests */}
       <Lc1VerificationRequestsPanel onResolved={refetchAll} />
-      {/* PROMINENT: Duplicate LC1 chairpersons — review & merge */}
-      <Lc1DuplicatesPanel onResolved={refetchAll} />
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(unverifiedListings.length > 0 || unverifiedLandlords.length > 0) && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
