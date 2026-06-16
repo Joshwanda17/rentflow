@@ -13,7 +13,7 @@ const RATES_KEY = 'welile-live-rates';
 // Must stay in sync with src/hooks/useCurrency.tsx fallbackRates
 const fallbackRates: Record<string, number> = {
   UGX: 1, KES: 0.029, TZS: 0.69, RWF: 0.35, ETB: 0.015, NGN: 0.42, GHS: 0.0035,
-  ZAR: 0.0048, EGP: 0.013, MAD: 0.0027, XOF: 0.16, XAF: 0.16, USD: 0.00027,
+  ZAR: 0.0048, EGP: 0.013, MAD: 0.0027, XOF: 0.16, XAF: 0.16, USD: 1 / 3650,
   CAD: 0.00037, MXN: 0.0046, BRL: 0.0013, ARS: 0.24, COP: 1.1, EUR: 0.00025,
   GBP: 0.00021, CHF: 0.00024, SEK: 0.0028, NOK: 0.0029, PLN: 0.0011, TRY: 0.0092,
   RUB: 0.024, UAH: 0.011, CNY: 0.0019, JPY: 0.041, INR: 0.023, PKR: 0.075,
