@@ -5,7 +5,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle } from 'lucide-react';
+import {
+  ShieldQuestion, CheckCircle2, XCircle, Phone, Loader2, UserCircle,
+  MapPin, Home, Banknote, Smartphone, Calendar, Search, Building2,
+} from 'lucide-react';
 import { notifyVerificationResolved } from '@/lib/landlordVerificationNotify';
 
 interface VerificationRequest {
@@ -24,6 +27,49 @@ interface Props {
   onResolved?: () => void;
 }
 
+interface LandlordDetail {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  property_address: string | null;
+  region: string | null;
+  district: string | null;
+  county: string | null;
+  sub_county: string | null;
+  town_council: string | null;
+  village: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  number_of_houses: number | null;
+  house_category: string | null;
+  monthly_rent: number | null;
+  bank_name: string | null;
+  account_number: string | null;
+  mobile_money_number: string | null;
+  mobile_money_name: string | null;
+  has_smartphone: boolean | null;
+  caretaker_name: string | null;
+  caretaker_phone: string | null;
+  created_at: string | null;
+}
+
+interface HouseRow {
+  id: string;
+  title: string | null;
+  region: string | null;
+  district: string | null;
+  monthly_rent: number | null;
+  status: string | null;
+}
+
+interface DetailBundle {
+  landlord: LandlordDetail | null;
+  houses: HouseRow[];
+}
+
+const fmtUgx = (n?: number | null) =>
+  n == null ? '—' : `UGX ${Number(n).toLocaleString()}`;
+
 /**
  * Agent-initiated landlord verification requests.
  * Shown very prominently on the Landlord Ops dashboard so operators can
@@ -38,6 +84,9 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [details, setDetails] = useState<Record<string, DetailBundle>>({});
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -63,6 +112,42 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
       supabase.removeChannel(channel);
     };
   }, [load]);
+
+  // Load full landlord context (location, houses, finance, agent) so Ops can
+  // verify authenticity BEFORE approving — never a blind one-click approve.
+  const openDetails = useCallback(async (req: VerificationRequest) => {
+    if (expandedId === req.id) { setExpandedId(null); return; }
+    setExpandedId(req.id);
+    setRejectingId(null);
+    if (details[req.landlord_id]) return; // cached
+    setDetailLoading(true);
+    try {
+      const [{ data: landlord }, { data: houses }] = await Promise.all([
+        supabase
+          .from('landlords')
+          .select('id, name, phone, property_address, region, district, county, sub_county, town_council, village, latitude, longitude, number_of_houses, house_category, monthly_rent, bank_name, account_number, mobile_money_number, mobile_money_name, has_smartphone, caretaker_name, caretaker_phone, created_at')
+          .eq('id', req.landlord_id)
+          .maybeSingle(),
+        supabase
+          .from('house_listings')
+          .select('id, title, region, district, monthly_rent, status')
+          .eq('landlord_id', req.landlord_id)
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ]);
+      setDetails(prev => ({
+        ...prev,
+        [req.landlord_id]: {
+          landlord: (landlord ?? null) as LandlordDetail | null,
+          houses: (houses ?? []) as HouseRow[],
+        },
+      }));
+    } catch {
+      setDetails(prev => ({ ...prev, [req.landlord_id]: { landlord: null, houses: [] } }));
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [expandedId, details]);
 
   const handleVerify = async (req: VerificationRequest) => {
     if (!user) return;
