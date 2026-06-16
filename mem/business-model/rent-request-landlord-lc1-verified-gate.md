@@ -1,8 +1,10 @@
 ---
 name: Rent Request Landlord + LC1 Verified Gate
-description: Agents cannot post a rent request unless BOTH the landlord and the LC1 chairperson are registered AND verified
+description: Agents need a registered+verified LANDLORD to POST a rent request; the LC1 chairperson can be registered or free-typed at post time but must be verified before APPROVAL
 type: feature
 ---
+UPDATE (2026-06-16e, RELAXES LC1 POSTING GATE): **LC1 verification no longer blocks POSTING — it blocks APPROVAL only.** In `AgentRentRequestDialog`, the landlord remains a hard POST gate (must be registered AND verified), but the LC1 chairperson does NOT. An agent can post with a registered LC1 (verified or not) OR a free-typed LC1. At submit, `handleSubmit` reuses an existing `lc1_chairpersons` row by phone (preferring verified, handling 23505 duplicate guard) or INSERTs a new `verified=false` LC1 from the typed details, then stamps `rent_requests.lc1_id`. The LC1 blocking errors were removed from `getStepErrors` (step 3) and `collectValidationErrors`; the submit button disable no longer includes `lc1Check !== 'verified'` (landlord-only). UI now frames LC1 as "verified before approval (not for posting)" — amber info note + "Request verification from Landlord Ops" button instead of a red FieldError. The LC1 must still be verified by ops before the request is approved downstream.
+
 UPDATE (2026-06-16d, REVERSES 2026-06-16 auto-verify): **LC1 chairpersons require MANUAL Landlord-Ops verification again.** The auto-verify trigger `trg_auto_verify_lc1_chairperson` and function `public.auto_verify_lc1_chairperson()` were DROPPED. New `lc1_chairpersons` rows insert with `verified=false` (column default) and must be manually verified by ops. The 603 rows auto-verified during the brief auto-verify window were left verified (not reset). The LC1 verified gate below is therefore enforced again, and the "Needs Verification" filter in the LandlordOpsDashboard LC1 view populates with unverified rows.
 
 UPDATE (2026-06-16b): **Agent self-service "ping ops to verify" for BOTH landlord and LC1.** When the rent-request gate finds an unverified landlord OR an unverified LC1 chairperson, the agent sees a "Request verification from Landlord Ops" button in `AgentRentRequestDialog`.
