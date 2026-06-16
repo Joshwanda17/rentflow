@@ -949,6 +949,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Live LC1 chairperson verification — keyed on the typed LC1 phone. A rent
   // request can only be posted when the LC1 is both registered AND verified.
   const [lc1Check, setLc1Check] = useState<'idle' | 'checking' | 'verified' | 'unverified' | 'missing'>('idle');
+  // Resolved LC1 chairperson id (from the live phone lookup) + the agent's
+  // request asking Landlord Ops to verify an unverified LC1 chairperson.
+  const [lc1Id, setLc1Id] = useState<string | null>(null);
+  const [lc1VerifyReqState, setLc1VerifyReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
   // ===== Landlord's existing houses overview =====
   // When a landlord is already in the system, show the agent every house on
   // file for that landlord: who is already living there (occupied), which are
