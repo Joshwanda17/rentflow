@@ -1078,9 +1078,9 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                         <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="font-semibold text-sm truncate">{req.tenant_name}</span>
+                        <span className="font-semibold text-sm break-words leading-tight">{req.tenant_name}</span>
                         {req.registration_type === 'outstanding_balance' && (
                           <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 shrink-0">
                             <AlertCircle className="h-2.5 w-2.5" />
@@ -1088,7 +1088,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                      <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground flex-wrap min-w-0">
                         {req.landlord_id ? (
                           <span
                             role="button"
@@ -1133,7 +1133,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                         )}
                       </div>
                       {/* WhatsApp quick contacts */}
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1 sm:gap-2 flex-wrap min-w-0">
                         <WhatsAppButton phone={req.tenant_phone} name={req.tenant_name} label="Tenant" />
                         <WhatsAppButton phone={req.landlord_phone} name={req.landlord_name} label="Landlord" />
                         <WhatsAppButton phone={req.agent_phone} name={req.assigned_agent_name || req.agent_name} label="Agent" />
@@ -1148,7 +1148,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                   </div>
                 </button>
                 {/* Quick Actions */}
-                <div className="flex items-center justify-end gap-1 shrink-0 self-end sm:self-auto">
+                <div className="flex items-center justify-end gap-1 shrink-0 w-full sm:w-auto">
                   <Button
                     size="sm"
                     variant="ghost"
