@@ -1691,7 +1691,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     { key: 'right', label: 'Right side', hint: 'Right exterior wall' },
   ] as const;
 
-  const handlePhotoAddAt = useCallback((index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoAddAt = useCallback(async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (e.target) e.target.value = '';
     if (!file) return;
@@ -1700,10 +1700,23 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       toast.error(error);
       return;
     }
+    // Downscale + compress the captured photo immediately (Canvas → 1200px WebP).
+    // Holding full-resolution camera files in memory across all 4 house photos
+    // makes mobile WebViews reclaim memory and reload the page after capture —
+    // optimizing first keeps memory low so the page never refreshes.
+    let stored = file;
+    let previewUrl: string;
+    try {
+      const optimized = await optimizeImage(file);
+      stored = optimized.file;
+      previewUrl = optimized.previewUrl;
+    } catch {
+      previewUrl = URL.createObjectURL(file);
+    }
     setHousePhotos(prev => {
       const next = [...prev];
       if (next[index]) URL.revokeObjectURL(next[index].preview);
-      next[index] = { file, preview: URL.createObjectURL(file) };
+      next[index] = { file: stored, preview: previewUrl };
       return next;
     });
   }, []);
@@ -1717,20 +1730,30 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     });
   }, []);
 
-  const handleTenantPhoto = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTenantPhoto = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (e.target) e.target.value = '';
     if (!file) return;
     const error = validateImageFile(file);
     if (error) {
       toast.error(error);
-      if (e.target) e.target.value = '';
       return;
+    }
+    // Optimize on capture (Canvas → 1200px WebP) to keep memory low and prevent
+    // mobile WebViews from reloading the page after the native camera closes.
+    let stored = file;
+    let previewUrl: string;
+    try {
+      const optimized = await optimizeImage(file);
+      stored = optimized.file;
+      previewUrl = optimized.previewUrl;
+    } catch {
+      previewUrl = URL.createObjectURL(file);
     }
     setTenantPhoto(prev => {
       if (prev) URL.revokeObjectURL(prev.preview);
-      return { file, preview: URL.createObjectURL(file) };
+      return { file: stored, preview: previewUrl };
     });
-    if (e.target) e.target.value = '';
   }, []);
 
   const removeTenantPhoto = useCallback(() => {
