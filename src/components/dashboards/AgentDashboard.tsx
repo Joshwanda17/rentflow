@@ -1344,6 +1344,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setMenuOpen(false);
           setAdvanceRequestOpen(true);
         }}
+        onDownloadLandlordForm={handleDownloadLandlordForm}
+        onDownloadTenantForm={handleDownloadTenantForm}
       />
 
       {/* Existing Dialogs */}
