@@ -1232,6 +1232,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
     if (!cleanLc1Phone || !isValidUgPhone(cleanLc1Phone)) {
       setLc1Check('idle');
+      setLc1Id(null);
       return;
     }
     let cancelled = false;
