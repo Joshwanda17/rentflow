@@ -459,6 +459,33 @@ Deno.serve(async (req) => {
       return json({ error: insErr?.message ?? "Could not create challenge" }, 500);
     }
 
+    // Persist the (possibly edited) landlord phone back to the landlord record so
+    // the corrected mobile money number is saved for future payouts. The agent
+    // edits this number on the form; we update it here (frontend stays "dumb").
+    // Non-critical: a failure here must not block the OTP send.
+    try {
+      const { data: existingLandlord } = await admin
+        .from("landlords")
+        .select("mobile_money_number, phone")
+        .eq("id", landlord_id)
+        .maybeSingle();
+      const currentMoMo = existingLandlord?.mobile_money_number ?? null;
+      if (existingLandlord && currentMoMo !== landlord_phone) {
+        const update: Record<string, unknown> = { mobile_money_number: landlord_phone };
+        // If the landlord has no primary phone on record, seed it too.
+        if (!existingLandlord.phone) update.phone = landlord_phone;
+        const { error: updErr } = await admin
+          .from("landlords")
+          .update(update)
+          .eq("id", landlord_id);
+        if (updErr) {
+          console.warn("[issue-landlord-payout-otp] landlord phone update failed (non-critical):", updErr.message);
+        }
+      }
+    } catch (e) {
+      console.warn("[issue-landlord-payout-otp] landlord phone persist error (non-critical):", e);
+    }
+
     const phone = normalizePhone(landlord_phone);
     const sent = await sendOtpWithFallback(
       phone,
