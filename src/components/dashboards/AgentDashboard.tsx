@@ -158,6 +158,14 @@ import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNote
 import { AgentAdvanceRequestForm } from '@/components/agent/AgentAdvanceRequestForm';
 import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 
+// PDF form generators
+import {
+  generateLandlordRegistrationFormPdf,
+} from '@/lib/landlordRegistrationFormPdf';
+import {
+  generateTenantRegistrationFormPdf,
+} from '@/lib/tenantRegistrationFormPdf';
+
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
 import { AgentCashDepositCodesPanel } from '@/components/agent/AgentCashDepositCodesPanel';
@@ -517,6 +525,52 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   // confirmation gate inside the form.
   const handleDeposit = () => { hapticTap(); setShowQuickDeposit(true); };
   const handleInviteSubAgent = () => { hapticTap(); setInviteSubAgentOpen(true); };
+
+  // Downloadable PDF form handlers
+  const handleDownloadLandlordForm = async () => {
+    hapticTap();
+    setMenuOpen(false);
+    try {
+      const { toast } = await import('sonner');
+      toast.info('Generating landlord form...');
+      const blob = await generateLandlordRegistrationFormPdf();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Welile-Landlord-Registration-Form.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast.success('Landlord form downloaded');
+    } catch {
+      const { toast } = await import('sonner');
+      toast.error('Could not generate form');
+    }
+  };
+
+  const handleDownloadTenantForm = async () => {
+    hapticTap();
+    setMenuOpen(false);
+    try {
+      const { toast } = await import('sonner');
+      toast.info('Generating tenant form...');
+      const blob = await generateTenantRegistrationFormPdf();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Welile-Tenant-Registration-Form.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast.success('Tenant form downloaded');
+    } catch {
+      const { toast } = await import('sonner');
+      toast.error('Could not generate form');
+    }
+  };
+
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
   const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
 
@@ -1290,6 +1344,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setMenuOpen(false);
           setAdvanceRequestOpen(true);
         }}
+        onDownloadLandlordForm={handleDownloadLandlordForm}
+        onDownloadTenantForm={handleDownloadTenantForm}
       />
 
       {/* Existing Dialogs */}

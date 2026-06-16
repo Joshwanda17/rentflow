@@ -41,6 +41,7 @@ import {
   Heart,
   BookOpen,
   LucideIcon,
+  FileDown,
 } from 'lucide-react';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { GlossaryButton } from '@/components/shared/GlossaryButton';
@@ -81,6 +82,8 @@ interface AgentMenuDrawerProps {
   onRequestAdvance?: () => void;
   onViewCreditAccess?: () => void;
   onViewSavedDrafts?: () => void;
+  onDownloadLandlordForm?: () => void;
+  onDownloadTenantForm?: () => void;
   isFinancialAgent?: boolean;
 }
 
@@ -137,6 +140,8 @@ export function AgentMenuDrawer({
   onRequestAdvance,
   onViewCreditAccess,
   onViewSavedDrafts,
+  onDownloadLandlordForm,
+  onDownloadTenantForm,
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
@@ -235,6 +240,15 @@ export function AgentMenuDrawer({
         { icon: PiggyBank, label: 'Withdrawals', description: 'Commission payouts', path: '/earnings', accent: 'success' },
         { icon: Users, label: 'Referrals', description: 'Users you brought in', path: '/referrals', accent: 'purple-500' },
       ],
+    },
+    {
+      id: 'pdfs',
+      icon: FileDown,
+      label: '📄 Downloadable PDFs',
+      items: [
+        { icon: Building2, label: 'Landlord Reg Form', description: 'Printable registration form', onClick: onDownloadLandlordForm, accent: 'emerald-600', badge: '📄' },
+        { icon: UserPlus, label: 'Tenant Reg Form', description: 'Printable registration form', onClick: onDownloadTenantForm, accent: 'blue-600', badge: '📄' },
+      ].filter(i => i.onClick !== undefined),
     },
     {
       id: 'tools',
