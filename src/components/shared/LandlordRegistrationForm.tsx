@@ -310,6 +310,46 @@ export default function LandlordRegistrationForm({
     return Math.min(score, max);
   }, [landlordName, landlordPhone, propertyAddress, numberOfRentals, houseCategory, locationCaptured, momoName, momoNumber, nameMatchScore, nwscMeter, uedclMeter]);
 
+  // Live required-field checklist so the agent sees exactly what's still
+  // missing or invalid BEFORE tapping Next/Register. `computeFieldError` is
+  // pure, so this is safe to derive during render.
+  const requiredChecklist = useMemo(() => {
+    const items: { name: string; label: string; ok: boolean; error: string }[] = [
+      {
+        name: 'landlordName',
+        label: 'Landlord name',
+        error: computeFieldError('landlordName', landlordName),
+        ok: !computeFieldError('landlordName', landlordName),
+      },
+      {
+        name: 'landlordPhone',
+        label: 'Phone number',
+        error: computeFieldError('landlordPhone', landlordPhone),
+        ok: !computeFieldError('landlordPhone', landlordPhone),
+      },
+    ];
+    if (minimal) {
+      items.push(
+        {
+          name: 'lc1Name',
+          label: 'LC1 chairperson name',
+          error: computeFieldError('lc1Name', lc1Name),
+          ok: !computeFieldError('lc1Name', lc1Name),
+        },
+        {
+          name: 'lc1Phone',
+          label: 'LC1 chairperson phone',
+          error: computeFieldError('lc1Phone', lc1Phone),
+          ok: !computeFieldError('lc1Phone', lc1Phone),
+        },
+      );
+    }
+    return items;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [landlordName, landlordPhone, lc1Name, lc1Phone, minimal]);
+
+  const missingCount = requiredChecklist.filter((i) => !i.ok).length;
+
   const resetForm = () => {
     setLandlordName(''); setLandlordPhone(''); setPropertyAddress('');
     setNumberOfRentals(''); setHouseCategory('');
