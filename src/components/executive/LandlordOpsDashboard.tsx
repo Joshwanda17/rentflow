@@ -3266,15 +3266,15 @@ export function LandlordOpsDashboard() {
             </button>
             <button
               onClick={() => { setView('landlords'); setLandlordCategory('pending'); }}
-              disabled={unverifiedLandlords.length === 0}
+              disabled={pendingVerificationCount === 0}
               className="rounded-xl border border-border bg-background p-3 text-left min-h-[60px] touch-manipulation active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
             >
               <div className="flex items-center gap-1.5">
                 <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Landlords</span>
               </div>
-              <p className="text-2xl font-semibold tracking-tight leading-tight mt-1">{unverifiedLandlords.length}</p>
-              <p className="text-[10px] text-muted-foreground leading-snug">registered · awaiting review</p>
+              <p className="text-2xl font-semibold tracking-tight leading-tight mt-1">{pendingVerificationCount}</p>
+              <p className="text-[10px] text-muted-foreground leading-snug">pending verification · awaiting review</p>
             </button>
           </div>
         </div>
