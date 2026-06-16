@@ -9529,6 +9529,13 @@ export type Database = {
             referencedRelation: "lc1_chairpersons"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lc1_verification_requests_lc1_id_fkey"
+            columns: ["lc1_id"]
+            isOneToOne: false
+            referencedRelation: "v_lc1_phone_duplicates"
+            referencedColumns: ["id"]
+          },
         ]
       }
       leave_balances: {
@@ -14181,6 +14188,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "rent_requests_lc1_id_fkey"
+            columns: ["lc1_id"]
+            isOneToOne: false
+            referencedRelation: "v_lc1_phone_duplicates"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "rent_requests_manager_verified_by_fkey"
             columns: ["manager_verified_by"]
             isOneToOne: false
@@ -18540,6 +18554,20 @@ export type Database = {
         }
         Relationships: []
       }
+      v_lc1_phone_duplicates: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          name: string | null
+          normalized_phone: string | null
+          phone: string | null
+          rent_request_count: number | null
+          verified: boolean | null
+          verified_at: string | null
+          village: string | null
+        }
+        Relationships: []
+      }
       v_operational_float_tid_duplicates: {
         Row: {
           amounts: number[] | null
@@ -20415,6 +20443,10 @@ export type Database = {
           phone: string
         }[]
       }
+      merge_lc1_duplicates: {
+        Args: { p_canonical_id: string; p_duplicate_ids: string[] }
+        Returns: Json
+      }
       merge_paidout_topups: { Args: never; Returns: Json }
       move_to_dlq: {
         Args: {
@@ -20426,6 +20458,7 @@ export type Database = {
         Returns: number
       }
       normalize_momo_tid: { Args: { p_tid: string }; Returns: string }
+      normalize_phone: { Args: { p: string }; Returns: string }
       normalize_phone_last9: { Args: { phone: string }; Returns: string }
       normalize_uganda_district: { Args: { p_raw: string }; Returns: string }
       normalize_uganda_region: { Args: { p_raw: string }; Returns: string }

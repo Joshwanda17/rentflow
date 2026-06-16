@@ -330,14 +330,18 @@ Deno.serve(async (req) => {
       }
       rollback.landlordId = landlordRow.id;
 
-      // LC1 (optional): reuse existing village row, otherwise create.
+      // LC1 (optional): a phone uniquely identifies one chairperson — reuse the
+      // existing row (prefer a verified one) when present, otherwise create.
       let lc1Id: string | null = null;
       if (lc1Payload && lc1Payload.name && lc1Payload.phone && lc1Payload.village) {
         const village = String(lc1Payload.village).trim();
+        const phone = String(lc1Payload.phone).trim();
         const { data: existingLc1 } = await supabaseAdmin
           .from('lc1_chairpersons')
           .select('id')
-          .eq('village', village)
+          .eq('phone', phone)
+          .order('verified', { ascending: false, nullsFirst: false })
+          .limit(1)
           .maybeSingle();
         if (existingLc1) {
           lc1Id = existingLc1.id;
@@ -346,7 +350,7 @@ Deno.serve(async (req) => {
             .from('lc1_chairpersons')
             .insert({
               name: String(lc1Payload.name).trim(),
-              phone: String(lc1Payload.phone).trim(),
+              phone,
               village,
             })
             .select('id')

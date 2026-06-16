@@ -171,16 +171,30 @@ export function BulkImportLC1Dialog({ open, onClose, onImported }: Props) {
         phone: normalizePhone(r.phone),
         village: r.village.trim(),
       }));
-      const { data, error } = await supabase.from('lc1_chairpersons').insert(payload).select('id');
-      if (error) throw error;
-      const inserted = data?.length || 0;
+      // Insert row-by-row so a duplicate phone (blocked by the DB guard) skips
+      // that single row instead of aborting the whole batch.
+      let inserted = 0;
+      let firstId: string | null = null;
+      for (const row of payload) {
+        const { data: ins, error: rowErr } = await supabase
+          .from('lc1_chairpersons')
+          .insert(row)
+          .select('id')
+          .maybeSingle();
+        if (rowErr) {
+          if (rowErr.code === '23505') continue; // already exists — skip
+          throw rowErr;
+        }
+        inserted += 1;
+        if (!firstId && ins?.id) firstId = ins.id;
+      }
       const skipped = rows.length - inserted;
 
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'lc1_bulk_import',
         table_name: 'lc1_chairpersons',
-        record_id: data?.[0]?.id || null,
+        record_id: firstId,
         metadata: {
           total_rows: rows.length,
           inserted,

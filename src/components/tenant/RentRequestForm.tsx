@@ -353,17 +353,35 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
       return;
     }
 
-    // Create LC1
-    const { data: lc1, error: lc1Error } = await supabase
+    // Reuse-or-create LC1 (a phone uniquely identifies one chairperson)
+    let lc1: { id: string } | null = null;
+    const { data: existingLc1 } = await supabase
       .from('lc1_chairpersons')
-      .insert({ name: lc1Name, phone: lc1Phone, village: lc1Village })
       .select('id')
-      .single();
-
-    if (lc1Error) {
-      toast({ title: 'Error', description: lc1Error.message, variant: 'destructive' });
-      setLoading(false);
-      return;
+      .eq('phone', lc1Phone)
+      .order('verified', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingLc1) {
+      lc1 = existingLc1;
+    } else {
+      const { data: newLc1, error: lc1Error } = await supabase
+        .from('lc1_chairpersons')
+        .insert({ name: lc1Name, phone: lc1Phone, village: lc1Village })
+        .select('id')
+        .single();
+      if (lc1Error) {
+        toast({
+          title: lc1Error.code === '23505' ? 'LC1 chairperson already exists' : 'Error',
+          description: lc1Error.code === '23505'
+            ? 'An LC1 chairperson with this phone number is already registered.'
+            : lc1Error.message,
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+      lc1 = newLc1;
     }
 
     // Get referral agent ID from localStorage
