@@ -1239,19 +1239,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Check('checking');
     (async () => {
       try {
+        // A phone can have duplicate LC1 rows. Fetch all matches and prefer a
+        // verified record so duplicates never falsely block a verified LC1.
         const { data, error } = await supabase
           .from('lc1_chairpersons')
           .select('id, verified')
           .eq('phone', cleanLc1Phone)
-          .maybeSingle();
+          .order('verified', { ascending: false, nullsFirst: false });
         if (cancelled) return;
         if (error) {
           // Transient lookup failure — don't hard-block; submit-time re-checks.
           setLc1Check('idle');
           return;
         }
-        setLc1Check(!data ? 'missing' : data.verified ? 'verified' : 'unverified');
-        setLc1Id(data?.id ?? null);
+        const match = (data ?? [])[0] ?? null;
+        setLc1Check(!match ? 'missing' : match.verified ? 'verified' : 'unverified');
+        setLc1Id(match?.id ?? null);
       } catch {
         if (!cancelled) setLc1Check('idle');
       }
