@@ -2888,12 +2888,19 @@ export function LandlordOpsDashboard() {
               <div className="px-4 py-3 space-y-2">
                 {/* Agent */}
                 {house.agent_name && (
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-indigo-500/5 px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Listing Agent</p>
-                      <p className="text-xs font-medium truncate">{house.agent_name}</p>
+                  <div className="rounded-lg bg-indigo-500/5 px-3 py-2 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Listing Agent</p>
+                        <p className="text-xs font-medium truncate">{house.agent_name}</p>
+                      </div>
+                      {house.agent_phone && <PhoneLinks phone={house.agent_phone} name={house.agent_name} />}
                     </div>
-                    {house.agent_phone && <PhoneLinks phone={house.agent_phone} name={house.agent_name} />}
+                    {house.agent_email && (
+                      <a href={`mailto:${house.agent_email}`} className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline break-all">
+                        <Mail className="h-3 w-3 shrink-0" /> {house.agent_email}
+                      </a>
+                    )}
                   </div>
                 )}
                 {/* LC1 */}
