@@ -254,6 +254,9 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
         newRates[code] = (rateVsUsd as number) / ugxPerUsd;
       });
 
+      // Pin USD to the agreed fixed rate: 1 USD = UGX 3,650
+      newRates.USD = 1 / 3650;
+
       setLiveRates(newRates);
       setLastUpdated(new Date());
 
