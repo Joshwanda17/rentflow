@@ -310,6 +310,46 @@ export default function LandlordRegistrationForm({
     return Math.min(score, max);
   }, [landlordName, landlordPhone, propertyAddress, numberOfRentals, houseCategory, locationCaptured, momoName, momoNumber, nameMatchScore, nwscMeter, uedclMeter]);
 
+  // Live required-field checklist so the agent sees exactly what's still
+  // missing or invalid BEFORE tapping Next/Register. `computeFieldError` is
+  // pure, so this is safe to derive during render.
+  const requiredChecklist = useMemo(() => {
+    const items: { name: string; label: string; ok: boolean; error: string }[] = [
+      {
+        name: 'landlordName',
+        label: 'Landlord name',
+        error: computeFieldError('landlordName', landlordName),
+        ok: !computeFieldError('landlordName', landlordName),
+      },
+      {
+        name: 'landlordPhone',
+        label: 'Phone number',
+        error: computeFieldError('landlordPhone', landlordPhone),
+        ok: !computeFieldError('landlordPhone', landlordPhone),
+      },
+    ];
+    if (minimal) {
+      items.push(
+        {
+          name: 'lc1Name',
+          label: 'LC1 chairperson name',
+          error: computeFieldError('lc1Name', lc1Name),
+          ok: !computeFieldError('lc1Name', lc1Name),
+        },
+        {
+          name: 'lc1Phone',
+          label: 'LC1 chairperson phone',
+          error: computeFieldError('lc1Phone', lc1Phone),
+          ok: !computeFieldError('lc1Phone', lc1Phone),
+        },
+      );
+    }
+    return items;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [landlordName, landlordPhone, lc1Name, lc1Phone, minimal]);
+
+  const missingCount = requiredChecklist.filter((i) => !i.ok).length;
+
   const resetForm = () => {
     setLandlordName(''); setLandlordPhone(''); setPropertyAddress('');
     setNumberOfRentals(''); setHouseCategory('');
@@ -889,6 +929,49 @@ export default function LandlordRegistrationForm({
 
           {/* Next-step cue — once the essentials are filled, point the agent
               straight at the Register button so they always know what to do. */}
+          {/* Required-fields checklist — shows exactly what's still missing or
+              invalid so the agent never has to guess before tapping Next. */}
+          {missingCount > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              data-field="requiredChecklist"
+              className="p-3 rounded-lg bg-warning/10 border border-warning/30 space-y-2"
+            >
+              <div className="flex items-center gap-1.5">
+                <ListChecks className="h-4 w-4 text-warning shrink-0" />
+                <p className="text-xs font-semibold text-foreground">
+                  {missingCount} {missingCount === 1 ? 'field still needs' : 'fields still need'} your attention
+                </p>
+              </div>
+              <ul className="space-y-1.5">
+                {requiredChecklist.map((item) => (
+                  <li key={item.name}>
+                    <button
+                      type="button"
+                      onClick={() => { hapticTap(); focusField(item.name); }}
+                      className="w-full flex items-start gap-2 text-left rounded-md px-1 py-0.5 transition-colors hover:bg-warning/10 active:scale-[0.99] touch-manipulation"
+                    >
+                      {item.ok ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                      )}
+                      <span className="flex-1 min-w-0">
+                        <span className={`text-[11px] font-medium ${item.ok ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                          {item.label}
+                        </span>
+                        {!item.ok && item.error && (
+                          <span className="block text-[10px] text-destructive">{item.error}</span>
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
+
           {(() => {
             const nameOk = landlordName.trim().length >= 2 && !errors.landlordName;
             const phoneOk =
