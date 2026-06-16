@@ -275,7 +275,7 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
         const cached = localStorage.getItem('welile-live-rates');
         if (cached) {
           const { rates, timestamp } = JSON.parse(cached);
-          setLiveRates(rates);
+          setLiveRates({ ...rates, USD: 1 / 3650 });
           setLastUpdated(new Date(timestamp));
         }
       } catch {
@@ -300,7 +300,7 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
         const { rates, timestamp } = JSON.parse(cached);
         const age = Date.now() - timestamp;
         if (age < 30 * 24 * 60 * 60 * 1000) {
-          setLiveRates(rates);
+          setLiveRates({ ...rates, USD: 1 / 3650 });
           setLastUpdated(new Date(timestamp));
           currencies = baseCurrencies.map(c => ({
             ...c,
