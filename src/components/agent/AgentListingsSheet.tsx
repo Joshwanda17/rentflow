@@ -665,6 +665,15 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                 )}
                 <Button
                   variant="outline"
+                  aria-describedby="empty-state-desc"
+                  onClick={() => setRegisterLandlordOpen(true)}
+                  className="w-full gap-2 h-12 text-base"
+                >
+                  <Building2 className="h-5 w-5" aria-hidden="true" />
+                  Register new landlord
+                </Button>
+                <Button
+                  variant="outline"
                   ref={emptySecondaryRef}
                   aria-describedby="empty-state-desc"
                   onClick={() => { onOpenChange(false); navigate('/find-a-house'); }}
