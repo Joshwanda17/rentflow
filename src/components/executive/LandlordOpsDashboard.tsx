@@ -1131,6 +1131,23 @@ export function LandlordOpsDashboard() {
     staleTime: 60_000,
   });
 
+  // ─── Landlords actually awaiting verification (pending verification requests) ───
+  // The home card must reflect ONLY landlords with an open verification request,
+  // not every auto-registered unverified landlord.
+  const { data: pendingVerificationCount = 0 } = useQuery({
+    queryKey: ['landlord-ops-pending-verification-count'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('landlord_verification_requests')
+        .select('landlord_id')
+        .eq('status', 'pending');
+      const set = new Set<string>();
+      (data || []).forEach((r: any) => { if (r.landlord_id) set.add(r.landlord_id); });
+      return set.size;
+    },
+    staleTime: 30_000,
+  });
+
   const lc1Groups = fullLC1Data || [];
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
@@ -1531,7 +1548,12 @@ export function LandlordOpsDashboard() {
     </div>
   );
 
-  const refetchAll = () => { refetch(); refetchLandlords(); refetchLC1(); };
+  const refetchAll = () => {
+    refetch();
+    refetchLandlords();
+    refetchLC1();
+    queryClient.invalidateQueries({ queryKey: ['landlord-ops-pending-verification-count'] });
+  };
 
   // Shared dialogs renderer — must be present in every sub-view that uses
   // setActionDialog / setPreviewImages / setAssignPerson / etc. Otherwise
@@ -3249,15 +3271,15 @@ export function LandlordOpsDashboard() {
             </button>
             <button
               onClick={() => { setView('landlords'); setLandlordCategory('pending'); }}
-              disabled={unverifiedLandlords.length === 0}
+              disabled={pendingVerificationCount === 0}
               className="rounded-xl border border-border bg-background p-3 text-left min-h-[60px] touch-manipulation active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
             >
               <div className="flex items-center gap-1.5">
                 <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Landlords</span>
               </div>
-              <p className="text-2xl font-semibold tracking-tight leading-tight mt-1">{unverifiedLandlords.length}</p>
-              <p className="text-[10px] text-muted-foreground leading-snug">registered · awaiting review</p>
+              <p className="text-2xl font-semibold tracking-tight leading-tight mt-1">{pendingVerificationCount}</p>
+              <p className="text-[10px] text-muted-foreground leading-snug">pending verification · awaiting review</p>
             </button>
           </div>
         </div>
