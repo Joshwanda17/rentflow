@@ -161,9 +161,11 @@ import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 // PDF form generators
 import {
   generateLandlordRegistrationFormPdf,
+  shareLandlordRegistrationFormPdf,
 } from '@/lib/landlordRegistrationFormPdf';
 import {
   generateTenantRegistrationFormPdf,
+  shareTenantRegistrationFormPdf,
 } from '@/lib/tenantRegistrationFormPdf';
 
 // New Phase 1 components
