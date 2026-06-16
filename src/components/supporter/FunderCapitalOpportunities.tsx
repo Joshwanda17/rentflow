@@ -29,10 +29,13 @@ type ViewState = 'default' | 'investing' | 'committed';
 // ─── Amount Input ───
 function AmountInput({
   amount, onAmountChange, onSliderChange, walletBalance, formatAmountCompact, exceedsBalance,
+  currencyCode, convertFromUGX,
 }: {
   amount: number; onAmountChange: (val: string) => void; onSliderChange: (val: number) => void;
   walletBalance: number; formatAmountCompact: (n: number) => string; exceedsBalance: boolean;
+  currencyCode: string; convertFromUGX: (n: number) => number;
 }) {
+  const displayAmount = amount > 0 ? Math.round(convertFromUGX(amount)) : 0;
   return (
     <div className="space-y-2">
       <div className="rounded-xl bg-muted/40 px-3 py-2 flex items-center justify-between">
@@ -41,12 +44,12 @@ function AmountInput({
         </span>
         <span className="text-sm font-black text-foreground">{formatAmountCompact(walletBalance)}</span>
       </div>
-      <label className="text-xs text-muted-foreground font-semibold block">Amount (UGX)</label>
+      <label className="text-xs text-muted-foreground font-semibold block">Amount ({currencyCode})</label>
       <Input
         type="text" inputMode="numeric"
-        value={amount > 0 ? amount.toLocaleString() : ''}
+        value={displayAmount > 0 ? displayAmount.toLocaleString() : ''}
         onChange={(e) => onAmountChange(e.target.value)}
-        placeholder={`Min ${PRICE_PER_SHARE.toLocaleString()}`}
+        placeholder={`Min ${formatAmountCompact(PRICE_PER_SHARE)}`}
         className="text-lg font-bold h-12"
       />
       <Slider value={[amount]} onValueChange={([v]) => onSliderChange(v)} min={0}
@@ -194,7 +197,7 @@ function DefaultEntryCard({
 
 // ═══ MAIN COMPONENT ═══
 export function FunderCapitalOpportunities() {
-  const { formatAmountCompact } = useCurrency();
+  const { formatAmountCompact, currency, convertFromUGX, convertToUGX } = useCurrency();
   const { wallet } = useWallet();
   const walletBalance = wallet?.balance ?? 0;
   const { portfolioCount, totalInvested, opportunitySummary, loading } = useCapitalOpportunities();
@@ -221,8 +224,10 @@ export function FunderCapitalOpportunities() {
 
   const handleAngelAmountChange = (val: string) => {
     const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
+    if (isNaN(num)) { setAngelAmount(0); return; }
+    const ugx = Math.round(convertToUGX(num));
     const max = walletBalance > 0 ? walletBalance : 500_000_000;
-    setAngelAmount(!isNaN(num) ? Math.min(num, max) : 0);
+    setAngelAmount(Math.min(ugx, max));
   };
 
   const [investLoading, setInvestLoading] = useState(false);
@@ -366,7 +371,7 @@ export function FunderCapitalOpportunities() {
                 {/* Footer */}
                 <div className="text-center space-y-1.5">
                   <p className="text-[10px] text-muted-foreground">
-                    <Clock className="h-3 w-3 inline mr-1" />Avg. cycle: 30 days · Min: UGX {PRICE_PER_SHARE.toLocaleString()}
+                    <Clock className="h-3 w-3 inline mr-1" />Avg. cycle: 30 days · Min: {formatAmountCompact(PRICE_PER_SHARE)}
                   </p>
                   <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
                     Returns are projected based on historical performance. Capital is deployed into verified rent facilitation agreements managed by Welile with reserve protection.
@@ -387,7 +392,8 @@ export function FunderCapitalOpportunities() {
                 </div>
                 <AmountInput amount={angelAmount} onAmountChange={handleAngelAmountChange}
                   onSliderChange={setAngelAmount} walletBalance={walletBalance} formatAmountCompact={formatAmountCompact}
-                  exceedsBalance={walletBalance > 0 && angelAmount > walletBalance} />
+                  exceedsBalance={walletBalance > 0 && angelAmount > walletBalance}
+                  currencyCode={currency.code} convertFromUGX={convertFromUGX} />
                 <AngelPreview amount={angelAmount} formatAmountCompact={formatAmountCompact} />
                 <Button type="button" onClick={handleAngelInvest}
                   disabled={investLoading || angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
@@ -482,7 +488,8 @@ export function FunderCapitalOpportunities() {
               </div>
               <AmountInput amount={angelAmount} onAmountChange={handleAngelAmountChange}
                 onSliderChange={setAngelAmount} walletBalance={walletBalance} formatAmountCompact={formatAmountCompact}
-                exceedsBalance={walletBalance > 0 && angelAmount > walletBalance} />
+                exceedsBalance={walletBalance > 0 && angelAmount > walletBalance}
+                currencyCode={currency.code} convertFromUGX={convertFromUGX} />
               <AngelPreview amount={angelAmount} formatAmountCompact={formatAmountCompact} />
               <Button type="button" onClick={handleAngelInvest}
                 disabled={investLoading || angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
