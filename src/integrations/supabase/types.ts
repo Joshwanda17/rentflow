@@ -9469,6 +9469,68 @@ export type Database = {
         }
         Relationships: []
       }
+      lc1_verification_requests: {
+        Row: {
+          agent_name: string | null
+          agent_phone: string | null
+          created_at: string
+          id: string
+          lc1_id: string
+          lc1_name: string | null
+          lc1_phone: string | null
+          lc1_village: string | null
+          note: string | null
+          reject_comment: string | null
+          requested_by: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_name?: string | null
+          agent_phone?: string | null
+          created_at?: string
+          id?: string
+          lc1_id: string
+          lc1_name?: string | null
+          lc1_phone?: string | null
+          lc1_village?: string | null
+          note?: string | null
+          reject_comment?: string | null
+          requested_by: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_name?: string | null
+          agent_phone?: string | null
+          created_at?: string
+          id?: string
+          lc1_id?: string
+          lc1_name?: string | null
+          lc1_phone?: string | null
+          lc1_village?: string | null
+          note?: string | null
+          reject_comment?: string | null
+          requested_by?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lc1_verification_requests_lc1_id_fkey"
+            columns: ["lc1_id"]
+            isOneToOne: false
+            referencedRelation: "lc1_chairpersons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_balances: {
         Row: {
           created_at: string
