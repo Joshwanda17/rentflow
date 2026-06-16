@@ -1,4 +1,5 @@
 import welileLogoUrl from '@/assets/welile-logo.png';
+import { sharePdfViaWhatsApp } from '@/lib/whatsappShare';
 
 /**
  * Branded, printable LANDLORD REGISTRATION FORM (blank, fill-by-hand).
