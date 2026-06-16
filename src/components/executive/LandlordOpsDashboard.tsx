@@ -68,6 +68,7 @@ import { LandlordsWithTenantsView } from './landlord-ops/LandlordsWithTenantsVie
 import { LandlordHousesPanel } from './landlord-ops/LandlordHousesPanel';
 import { AgentVerificationRequestsPanel } from './landlord-ops/AgentVerificationRequestsPanel';
 import { Lc1VerificationRequestsPanel } from './landlord-ops/Lc1VerificationRequestsPanel';
+import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
 
 
 interface ListingWithLandlord {
