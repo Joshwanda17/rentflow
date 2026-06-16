@@ -246,8 +246,8 @@ export function AgentMenuDrawer({
       icon: FileDown,
       label: '📄 Downloadable PDFs',
       items: [
-        { icon: Building2, label: 'Landlord Reg Form', description: 'Printable registration form', onClick: onDownloadLandlordForm, accent: 'emerald-600', badge: '📄' },
-        { icon: UserPlus, label: 'Tenant Reg Form', description: 'Printable registration form', onClick: onDownloadTenantForm, accent: 'blue-600', badge: '📄' },
+        { icon: Building2, label: 'Landlord Reg Form', description: 'Share on WhatsApp / download', onClick: onDownloadLandlordForm, accent: 'emerald-600', badge: '📲' },
+        { icon: UserPlus, label: 'Tenant Reg Form', description: 'Share on WhatsApp / download', onClick: onDownloadTenantForm, accent: 'blue-600', badge: '📲' },
       ].filter(i => i.onClick !== undefined),
     },
     {

@@ -161,9 +161,11 @@ import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 // PDF form generators
 import {
   generateLandlordRegistrationFormPdf,
+  shareLandlordRegistrationFormPdf,
 } from '@/lib/landlordRegistrationFormPdf';
 import {
   generateTenantRegistrationFormPdf,
+  shareTenantRegistrationFormPdf,
 } from '@/lib/tenantRegistrationFormPdf';
 
 // New Phase 1 components
@@ -532,17 +534,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     setMenuOpen(false);
     try {
       const { toast } = await import('sonner');
-      toast.info('Generating landlord form...');
+      toast.info('Preparing landlord form...');
       const blob = await generateLandlordRegistrationFormPdf();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Welile-Landlord-Registration-Form.pdf';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      toast.success('Landlord form downloaded');
+      // Native share sheet (WhatsApp on mobile); auto-downloads on desktop.
+      await shareLandlordRegistrationFormPdf(blob);
     } catch {
       const { toast } = await import('sonner');
       toast.error('Could not generate form');
@@ -554,17 +549,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     setMenuOpen(false);
     try {
       const { toast } = await import('sonner');
-      toast.info('Generating tenant form...');
+      toast.info('Preparing tenant form...');
       const blob = await generateTenantRegistrationFormPdf();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Welile-Tenant-Registration-Form.pdf';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      toast.success('Tenant form downloaded');
+      // Native share sheet (WhatsApp on mobile); auto-downloads on desktop.
+      await shareTenantRegistrationFormPdf(blob);
     } catch {
       const { toast } = await import('sonner');
       toast.error('Could not generate form');
