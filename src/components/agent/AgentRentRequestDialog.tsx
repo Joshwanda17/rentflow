@@ -949,6 +949,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Live LC1 chairperson verification — keyed on the typed LC1 phone. A rent
   // request can only be posted when the LC1 is both registered AND verified.
   const [lc1Check, setLc1Check] = useState<'idle' | 'checking' | 'verified' | 'unverified' | 'missing'>('idle');
+  // Resolved LC1 chairperson id (from the live phone lookup) + the agent's
+  // request asking Landlord Ops to verify an unverified LC1 chairperson.
+  const [lc1Id, setLc1Id] = useState<string | null>(null);
+  const [lc1VerifyReqState, setLc1VerifyReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
   // ===== Landlord's existing houses overview =====
   // When a landlord is already in the system, show the agent every house on
   // file for that landlord: who is already living there (occupied), which are
@@ -1228,6 +1232,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
     if (!cleanLc1Phone || !isValidUgPhone(cleanLc1Phone)) {
       setLc1Check('idle');
+      setLc1Id(null);
       return;
     }
     let cancelled = false;
@@ -1246,6 +1251,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           return;
         }
         setLc1Check(!data ? 'missing' : data.verified ? 'verified' : 'unverified');
+        setLc1Id(data?.id ?? null);
       } catch {
         if (!cancelled) setLc1Check('idle');
       }
@@ -1254,6 +1260,56 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       cancelled = true;
     };
   }, [lc1Phone]);
+
+  // Reset the LC1 "request verification" state whenever the typed LC1 changes.
+  useEffect(() => {
+    setLc1VerifyReqState('idle');
+  }, [lc1Id]);
+
+  // ===== Agent requests Landlord Ops to verify an unverified LC1 chairperson =====
+  const requestLc1Verification = useCallback(async () => {
+    if (!lc1Id || !user) return;
+    setLc1VerifyReqState('sending');
+    const agentName =
+      (user?.user_metadata as any)?.full_name ||
+      (user?.user_metadata as any)?.name ||
+      'Agent';
+    const agentPhone = (user?.user_metadata as any)?.phone || user?.phone || null;
+    try {
+      const { error } = await supabase
+        .from('lc1_verification_requests')
+        .insert({
+          lc1_id: lc1Id,
+          lc1_name: lc1Name || null,
+          lc1_phone: lc1Phone.replace(/\s/g, '') || null,
+          lc1_village: lc1Village || null,
+          requested_by: user.id,
+          agent_name: agentName,
+          agent_phone: agentPhone,
+          status: 'pending',
+        });
+      if (error) {
+        // A pending request already exists for this LC1 (unique index).
+        if ((error as any).code === '23505') {
+          setLc1VerifyReqState('exists');
+          toast.info('Verification already requested', {
+            description: 'Landlord Operations already has a pending request for this LC1 chairperson.',
+          });
+          return;
+        }
+        throw error;
+      }
+      setLc1VerifyReqState('sent');
+      toast.success('Verification request sent', {
+        description: `Landlord Operations will review ${lc1Name || 'this LC1 chairperson'} shortly.`,
+      });
+    } catch (err: any) {
+      setLc1VerifyReqState('idle');
+      toast.error('Could not send request', {
+        description: err?.message || 'Please try again.',
+      });
+    }
+  }, [lc1Id, lc1Name, lc1Phone, lc1Village, user]);
 
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
@@ -4599,7 +4655,31 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       ) : lc1Check === 'missing' ? (
                         <FieldError message="LC1 chairperson not registered — register them first, then they must be verified before posting" />
                       ) : lc1Check === 'unverified' ? (
-                        <FieldError message="LC1 chairperson is registered but not yet verified — must be verified before you can post a rent request" />
+                        <div className="mt-1 space-y-2">
+                          <FieldError message="LC1 chairperson is registered but not yet verified — must be verified before you can post a rent request" />
+                          {lc1VerifyReqState === 'sent' || lc1VerifyReqState === 'exists' ? (
+                            <p className="text-xs font-medium text-success flex items-center gap-1">
+                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                              Verification request sent to Landlord Operations — you’ll be able to post once they verify this LC1 chairperson.
+                            </p>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-9 w-full gap-1.5 rounded-xl border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                              disabled={lc1VerifyReqState === 'sending' || !lc1Id}
+                              onClick={requestLc1Verification}
+                            >
+                              {lc1VerifyReqState === 'sending' ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                              )}
+                              Request verification from Landlord Ops
+                            </Button>
+                          )}
+                        </div>
                       ) : null
                     )}
                     {lc1Phone.replace(/\s/g, '').length >= 10 &&

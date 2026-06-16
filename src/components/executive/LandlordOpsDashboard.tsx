@@ -67,6 +67,7 @@ import { LandlordsPaidView } from './landlord-ops/LandlordsPaidView';
 import { LandlordsWithTenantsView } from './landlord-ops/LandlordsWithTenantsView';
 import { LandlordHousesPanel } from './landlord-ops/LandlordHousesPanel';
 import { AgentVerificationRequestsPanel } from './landlord-ops/AgentVerificationRequestsPanel';
+import { Lc1VerificationRequestsPanel } from './landlord-ops/Lc1VerificationRequestsPanel';
 
 
 interface ListingWithLandlord {
@@ -3167,6 +3168,8 @@ export function LandlordOpsDashboard() {
       </div>
       {/* PROMINENT: Agent-initiated landlord verification requests — top priority */}
       <AgentVerificationRequestsPanel onResolved={refetchAll} />
+      {/* PROMINENT: Agent-initiated LC1 chairperson verification requests */}
+      <Lc1VerificationRequestsPanel onResolved={refetchAll} />
       {/* PROMINENT: Awaiting verification (houses + landlords) — always first */}
       {(unverifiedListings.length > 0 || unverifiedLandlords.length > 0) && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
