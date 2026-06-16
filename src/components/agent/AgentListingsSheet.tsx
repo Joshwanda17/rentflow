@@ -1130,6 +1130,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
         preselectHouse={swapHouseForLink}
       />
     )}
+    <RegisterLandlordDialog
+      open={registerLandlordOpen}
+      onOpenChange={setRegisterLandlordOpen}
+      onSuccess={() => { refresh(); }}
+    />
     </>
   );
 }
