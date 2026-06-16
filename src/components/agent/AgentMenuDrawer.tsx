@@ -82,6 +82,8 @@ interface AgentMenuDrawerProps {
   onRequestAdvance?: () => void;
   onViewCreditAccess?: () => void;
   onViewSavedDrafts?: () => void;
+  onDownloadLandlordForm?: () => void;
+  onDownloadTenantForm?: () => void;
   isFinancialAgent?: boolean;
 }
 
