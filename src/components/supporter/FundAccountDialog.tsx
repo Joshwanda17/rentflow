@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Wallet, Sparkles, AlertCircle, Plus } from 'lucide-react';
+import { Wallet, Sparkles, AlertCircle, Plus, CheckCircle2, CalendarClock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const QUICK_AMOUNTS = [50_000, 100_000, 200_000, 500_000, 1_000_000];
@@ -32,17 +32,26 @@ export function FundAccountDialog({
 }: FundAccountDialogProps) {
   const [amount, setAmount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [confirmedAmount, setConfirmedAmount] = useState<number | null>(null);
+  // Hard, synchronous lock — blocks a second tap before React paints `disabled`,
+  // preventing race-condition double top-ups / wallet double-deduction.
+  const submitLock = useRef(false);
 
   const handleFund = async () => {
     if (amount <= 0 || amount > walletBalance) return;
-    
+    if (submitLock.current || loading) return; // guard against rapid re-taps
+
+    submitLock.current = true;
     setLoading(true);
     try {
-      await onFund(accountId, amount);
+      const submitted = amount;
+      await onFund(accountId, submitted);
+      // Success — show the "applies on next payout" banner instead of closing.
+      setConfirmedAmount(submitted);
       setAmount(0);
-      onOpenChange(false);
     } finally {
       setLoading(false);
+      submitLock.current = false;
     }
   };
 
@@ -52,8 +61,16 @@ export function FundAccountDialog({
   const monthlyReturn = newPortfolioBalance * 0.15;
   const noFunds = walletBalance <= 0;
 
+  const handleClose = (v: boolean) => {
+    if (!v) {
+      setAmount(0);
+      setConfirmedAmount(null);
+    }
+    onOpenChange(v);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) setAmount(0); onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -61,7 +78,33 @@ export function FundAccountDialog({
             Top Up Investment
           </DialogTitle>
         </DialogHeader>
-        
+
+        {confirmedAmount !== null ? (
+          /* ---- Success state: top-up captured, applies on next payout ---- */
+          <div className="space-y-4 py-4">
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="h-14 w-14 rounded-full bg-success/15 flex items-center justify-center">
+                <CheckCircle2 className="h-7 w-7 text-success" />
+              </div>
+              <p className="text-lg font-black">{formatUGX(confirmedAmount)} received</p>
+              <p className="text-sm text-muted-foreground">
+                Deducted from your wallet and added to <span className="font-semibold">{accountName}</span>.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
+              <CalendarClock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <p className="text-xs text-foreground">
+                This top-up will <span className="font-bold">apply on your next payout</span>. Your projected
+                returns update automatically — no further action needed.
+              </p>
+            </div>
+
+            <Button className="w-full" onClick={() => handleClose(false)}>
+              Done
+            </Button>
+          </div>
+        ) : (
         <div className="space-y-3 py-2">
           {/* Account Info */}
           <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
@@ -204,10 +247,11 @@ export function FundAccountDialog({
             </>
           )}
         </div>
+        )}
 
-        {!noFunds && (
+        {confirmedAmount === null && !noFunds && (
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button variant="outline" onClick={() => handleClose(false)} disabled={loading}>
               Cancel
             </Button>
             <Button 
