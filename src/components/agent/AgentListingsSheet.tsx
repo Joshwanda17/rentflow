@@ -28,6 +28,7 @@ import { useFilterKeyboardShortcuts } from '@/hooks/useFilterKeyboardShortcuts';
 import { HouseDetailSheet } from './HouseDetailSheet';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
+import RegisterLandlordDialog from './RegisterLandlordDialog';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -69,6 +70,7 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
     image_urls: string[] | null;
   } | null>(null);
   const [chipsCollapsed, setChipsCollapsed] = useState(false);
+  const [registerLandlordOpen, setRegisterLandlordOpen] = useState(false);
   const emptyPrimaryRef = useRef<HTMLButtonElement>(null);
   const emptySecondaryRef = useRef<HTMLButtonElement>(null);
   // Remember the element that had focus before the sheet opened so we can
@@ -663,6 +665,15 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                 )}
                 <Button
                   variant="outline"
+                  aria-describedby="empty-state-desc"
+                  onClick={() => setRegisterLandlordOpen(true)}
+                  className="w-full gap-2 h-12 text-base"
+                >
+                  <Building2 className="h-5 w-5" aria-hidden="true" />
+                  Register new landlord
+                </Button>
+                <Button
+                  variant="outline"
                   ref={emptySecondaryRef}
                   aria-describedby="empty-state-desc"
                   onClick={() => { onOpenChange(false); navigate('/find-a-house'); }}
@@ -729,6 +740,14 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
                           <Plus className="h-4 w-4" /> List a house
                         </Button>
                       )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRegisterLandlordOpen(true)}
+                        className="gap-1"
+                      >
+                        <Building2 className="h-4 w-4" /> Register landlord
+                      </Button>
                     </div>
                   </div>
                 );
@@ -1119,6 +1138,11 @@ export function AgentListingsSheet({ open, onOpenChange, onListHouse, vacantOnly
         preselectHouse={swapHouseForLink}
       />
     )}
+    <RegisterLandlordDialog
+      open={registerLandlordOpen}
+      onOpenChange={setRegisterLandlordOpen}
+      onSuccess={() => { refresh(); }}
+    />
     </>
   );
 }
