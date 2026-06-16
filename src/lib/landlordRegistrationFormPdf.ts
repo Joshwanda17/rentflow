@@ -241,32 +241,15 @@ export async function generateLandlordRegistrationFormPdf(
 }
 
 /**
- * Native share sheet (best for WhatsApp on mobile). Falls back to download +
- * opening WhatsApp web with a short caption.
+ * Share the landlord form through WhatsApp. Uses the native share sheet to
+ * attach the PDF directly when supported, otherwise downloads the file and
+ * opens a WhatsApp deep link with a caption. Returns the path taken.
  */
 export async function shareLandlordRegistrationFormPdf(
   blob: Blob,
   filename = 'Welile-Landlord-Registration-Form.pdf',
   caption = 'Welile Landlord Registration Form — please print, fill in, and return to register the landlord. welilereceipts.com',
+  phone?: string,
 ) {
-  const file = new File([blob], filename, { type: 'application/pdf' });
-  const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
-  if (nav.canShare && nav.canShare({ files: [file] }) && navigator.share) {
-    try {
-      await navigator.share({ files: [file], title: filename, text: caption });
-      return;
-    } catch (err) {
-      if ((err as DOMException)?.name === 'AbortError') return;
-    }
-  }
-  // Fallback: download, then open WhatsApp with caption.
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-  window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, '_blank');
+  return sharePdfViaWhatsApp(blob, { filename, caption, phone });
 }
