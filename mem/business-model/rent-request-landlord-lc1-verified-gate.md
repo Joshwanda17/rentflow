@@ -3,6 +3,8 @@ name: Rent Request Landlord + LC1 Verified Gate
 description: Agents cannot post a rent request unless BOTH the landlord and the LC1 chairperson are registered AND verified
 type: feature
 ---
+UPDATE (2026-06-16): **LC1 chairpersons are now AUTO-VERIFIED on registration.** A BEFORE INSERT trigger `trg_auto_verify_lc1_chairperson` (function `public.auto_verify_lc1_chairperson`) on `lc1_chairpersons` forces `verified=true`, stamps `verified_at`, and sets `verified_by` from `registered_by`/`auth.uid()` for every new row, regardless of which form inserts it. Existing unverified rows were backfilled to verified. The LC1 verified gate below therefore always passes once the LC1 row exists — no manual landlord-ops LC1 verification step is required anymore. The landlord verified gate is unchanged (landlords still require manual verification).
+
 Rule (introduced 2026-06-15):
 - An agent may NOT post a rent request unless BOTH:
   - the linked **landlord** exists in `landlords` AND `landlords.verified = true`, and
