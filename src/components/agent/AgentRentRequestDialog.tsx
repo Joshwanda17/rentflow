@@ -4654,7 +4654,31 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       ) : lc1Check === 'missing' ? (
                         <FieldError message="LC1 chairperson not registered — register them first, then they must be verified before posting" />
                       ) : lc1Check === 'unverified' ? (
-                        <FieldError message="LC1 chairperson is registered but not yet verified — must be verified before you can post a rent request" />
+                        <div className="mt-1 space-y-2">
+                          <FieldError message="LC1 chairperson is registered but not yet verified — must be verified before you can post a rent request" />
+                          {lc1VerifyReqState === 'sent' || lc1VerifyReqState === 'exists' ? (
+                            <p className="text-xs font-medium text-success flex items-center gap-1">
+                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                              Verification request sent to Landlord Operations — you’ll be able to post once they verify this LC1 chairperson.
+                            </p>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-9 w-full gap-1.5 rounded-xl border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                              disabled={lc1VerifyReqState === 'sending' || !lc1Id}
+                              onClick={requestLc1Verification}
+                            >
+                              {lc1VerifyReqState === 'sending' ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                              )}
+                              Request verification from Landlord Ops
+                            </Button>
+                          )}
+                        </div>
                       ) : null
                     )}
                     {lc1Phone.replace(/\s/g, '').length >= 10 &&
