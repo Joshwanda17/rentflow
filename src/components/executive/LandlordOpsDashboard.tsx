@@ -17,7 +17,7 @@ import {
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
-  Table2, Printer, CalendarIcon, Loader2, Upload, RotateCcw,
+  Table2, Printer, CalendarIcon, Loader2, Upload, RotateCcw, Mail, Clock,
 } from 'lucide-react';
 import { Eye, EyeOff } from 'lucide-react';
 import { LayoutGrid } from 'lucide-react';
@@ -120,6 +120,7 @@ interface ListingWithLandlord {
   } | null;
   agent_name?: string;
   agent_phone?: string;
+  agent_email?: string | null;
   tenant_name?: string;
   tenant_phone?: string;
 }
@@ -719,13 +720,13 @@ export function LandlordOpsDashboard() {
 
       const agentIds = [...new Set((data || []).map(d => d.agent_id).filter(Boolean))];
       const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
-      let agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
+      let agentMap = new Map<string, { full_name: string | null; phone: string | null; email: string | null }>();
       let tenantMap = new Map<string, { full_name: string | null; phone: string | null }>();
 
       const profileFetches: (() => Promise<void>)[] = [];
       if (agentIds.length) {
         profileFetches.push(async () => {
-          const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', agentIds);
+          const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone, email').in('id', agentIds);
           if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
         });
       }
@@ -741,6 +742,7 @@ export function LandlordOpsDashboard() {
         ...d,
         agent_name: agentMap.get(d.agent_id)?.full_name || null,
         agent_phone: agentMap.get(d.agent_id)?.phone || null,
+        agent_email: agentMap.get(d.agent_id)?.email || null,
         tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
         tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
       })) as ListingWithLandlord[];
@@ -2886,12 +2888,19 @@ export function LandlordOpsDashboard() {
               <div className="px-4 py-3 space-y-2">
                 {/* Agent */}
                 {house.agent_name && (
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-indigo-500/5 px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Listing Agent</p>
-                      <p className="text-xs font-medium truncate">{house.agent_name}</p>
+                  <div className="rounded-lg bg-indigo-500/5 px-3 py-2 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Listing Agent</p>
+                        <p className="text-xs font-medium truncate">{house.agent_name}</p>
+                      </div>
+                      {house.agent_phone && <PhoneLinks phone={house.agent_phone} name={house.agent_name} />}
                     </div>
-                    {house.agent_phone && <PhoneLinks phone={house.agent_phone} name={house.agent_name} />}
+                    {house.agent_email && (
+                      <a href={`mailto:${house.agent_email}`} className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline break-all">
+                        <Mail className="h-3 w-3 shrink-0" /> {house.agent_email}
+                      </a>
+                    )}
                   </div>
                 )}
                 {/* LC1 */}
@@ -2917,6 +2926,38 @@ export function LandlordOpsDashboard() {
                     <MapPinned className="h-3.5 w-3.5" /> View exact location on Google Maps
                   </a>
                 )}
+
+                {/* ── Listing metadata for approval review ── */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 mt-1 border-t border-border">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Category</p>
+                    <p className="text-[11px] font-medium">{house.house_category || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Rooms</p>
+                    <p className="text-[11px] font-medium">{house.number_of_rooms ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Monthly rent</p>
+                    <p className="text-[11px] font-medium">UGX {Number(house.monthly_rent || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Daily rate</p>
+                    <p className="text-[11px] font-medium">{house.daily_rate ? `UGX ${Number(house.daily_rate).toLocaleString()}` : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Listed</p>
+                    <p className="text-[11px] font-medium">{house.created_at ? new Date(house.created_at).toLocaleDateString() : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Status</p>
+                    <p className="text-[11px] font-medium capitalize">{house.status || '—'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[9px] uppercase tracking-wide text-muted-foreground">Listing ID</p>
+                    <p className="text-[10px] font-mono text-muted-foreground break-all">{house.id}</p>
+                  </div>
+                </div>
               </div>
 
               {/* ── Moderation Actions ── */}
