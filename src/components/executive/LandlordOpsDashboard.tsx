@@ -2212,6 +2212,20 @@ export function LandlordOpsDashboard() {
     );
   }
 
+  // ─── LC1 DUPLICATES VIEW (dedicated section) ───
+  if (view === 'lc1-duplicates') {
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><Layers className="h-5 w-5 text-rose-600" /> LC1 Duplicates</h2>
+        <p className="text-sm text-muted-foreground">
+          Review duplicate LC1 chairperson phone rows and merge them into a single canonical record.
+        </p>
+        <Lc1DuplicatesPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
+      </div>
+    );
+  }
+
   // ─── CITIES VIEW ───
   if (view === 'cities') {
     const filtered = search
