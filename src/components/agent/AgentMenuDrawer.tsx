@@ -140,6 +140,8 @@ export function AgentMenuDrawer({
   onRequestAdvance,
   onViewCreditAccess,
   onViewSavedDrafts,
+  onDownloadLandlordForm,
+  onDownloadTenantForm,
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
