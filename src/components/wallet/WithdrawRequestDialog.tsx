@@ -30,6 +30,7 @@ interface WithdrawRequestDialogProps {
     bankAccountNumber?: string;
   } | null;
   linkedParty?: string;
+  lockAmount?: boolean;
 }
 
 type PayoutMode = 'mtn' | 'airtel' | 'bank' | 'cash';
@@ -167,7 +168,7 @@ function normalizeUgMomoNumber(raw: string): string {
   return s;
 }
 
-export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, prefillPayout, linkedParty }: WithdrawRequestDialogProps) {
+export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, prefillPayout, linkedParty, lockAmount = false }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -858,19 +859,25 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                         inputMode="numeric"
                         placeholder="0"
                         value={amount || ''}
-                        onChange={(e) => setAmount(Math.min(Number(e.target.value), walletBalance))}
+                        onChange={(e) => {
+                          if (!lockAmount) setAmount(Math.min(Number(e.target.value), walletBalance));
+                        }}
                         min={500}
                         max={walletBalance}
+                        readOnly={lockAmount}
                         className="h-14 pl-14 text-2xl font-black rounded-2xl bg-muted/30 border-border/50 text-center"
                       />
                     </div>
 
                     <Slider
                       value={[amount]}
-                      onValueChange={([v]) => setAmount(v)}
+                      onValueChange={([v]) => {
+                        if (!lockAmount) setAmount(v);
+                      }}
                       max={walletBalance}
                       min={500}
                       step={500}
+                      disabled={lockAmount}
                       className="py-1"
                     />
 
@@ -884,7 +891,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                             key={fraction}
                             variant={isActive ? 'default' : 'outline'}
                             size="sm"
-                            onClick={() => setAmount(quickAmount)}
+                            onClick={() => {
+                              if (!lockAmount) setAmount(quickAmount);
+                            }}
+                            disabled={lockAmount}
                             className={`h-10 rounded-xl font-bold touch-manipulation text-xs ${
                               isActive ? '' : 'border-border/50'
                             }`}
