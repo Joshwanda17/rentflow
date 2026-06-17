@@ -41,6 +41,7 @@ type: feature
 - Managed-proxy partner ROI follows proxy-custody routing: CFO/COO-approved ROI wallet legs credit the proxy agent's withdrawable wallet with `linked_party=partner_id`; the partner wallet/dashboard must not show that ROI as withdrawable.
 - Managed-proxy ROI is full-amount only. Do not split ROI into partial cash/reinvestment for managed proxy partners.
 - Proxy custody v2 cutoff still enforced; legacy `linked_party` rows pre-cutoff drained via the same edge fn branch.
+- **Amount-aware settlement filter (2026-06-17).** The frontend settlement filter selects `approval_id, amount_settled` and drops an approval ONLY when its summed `amount_settled` fully covers the approved amount (`settled >= amount - 1` dust). A PARTIALLY-settled approval (FIFO backfill consumed only part of it) stays in the queue and its displayed owed amount is reduced by the settled portion (`opsByPartner` subtracts `settledByApproval[op.id]`). The old boolean "any settlement row exists → drop" hid every residual, so a partner whose 12,954,560 ROI was only 7,520,000 settled vanished as "fully paid" while 5,434,560 was still owed. After the fix the queue ties to CFO records: `Σ CFO approved = Σ amount_settled (paid) + Σ residual (in queue)` (verified for Kabahuma Lillian on 17 Jun: 27,299,152 = 17,375,592 + 9,923,560).
 
 **Do not.**
 - Do not render per-approval cards.
