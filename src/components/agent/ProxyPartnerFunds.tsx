@@ -723,6 +723,14 @@ export function ProxyPartnerFunds() {
     // CFO-approved ROI items first. This prevents old paid approvals from being
     // revived by later balances and showing as stale proxy cards.
     const opsByPartner: Record<string, Array<{ portfolioId: string; amount: number; createdAt: string; op: PwoEntry }>> = {};
+    // Partners whose ROI lands in the AGENT's wallet rather than their own.
+    // This covers BOTH managed-proxy partners and LEGACY custody approvals
+    // (target_wallet_user_id === agent). For these the partner's own strict
+    // withdrawable is always 0, so clamping the card to it silently hides
+    // every legitimately-owed legacy partner (the bug Kabahuma reported where
+    // today's freshly-approved partners never appeared). The agent-wallet
+    // limit is still enforced at withdrawal time by the strict ledger gate.
+    const agentWalletFundedPartners = new Set<string>();
     approvedOps.forEach((op) => {
       if (!op.source_id) return;
       const portfolio = portfolioMap[op.source_id];
@@ -730,6 +738,7 @@ export function ProxyPartnerFunds() {
       const partnerId = portfolio.investor_id;
       const amount = Number(op.amount) || 0;
       if (!partnerId || partnerId === user.id || amount <= 0) return;
+      if (op.target_wallet_user_id === user.id) agentWalletFundedPartners.add(partnerId);
       if (!opsByPartner[partnerId]) opsByPartner[partnerId] = [];
       opsByPartner[partnerId].push({
         portfolioId: op.source_id,
