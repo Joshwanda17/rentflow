@@ -6,9 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { format } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X, CalendarIcon } from 'lucide-react';
+import { format, startOfDay, endOfDay, subDays, startOfMonth } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { cn } from '@/lib/utils';
 
 /**
  * Ledger-derived CFO Actions Trail.
@@ -118,19 +122,30 @@ const FILTER_GROUPS: { label: string; value: string; categories: string[] | null
 
 const PAGE_SIZE = 25;
 
+const DATE_PRESETS: { label: string; days: number | 'mtd' }[] = [
+  { label: 'Last 7 days', days: 7 },
+  { label: 'Last 30 days', days: 30 },
+  { label: 'Last 90 days', days: 90 },
+  { label: 'Month to date', days: 'mtd' },
+];
+
 export function CFOActionsLog() {
   const [filterGroup, setFilterGroup] = useState('all');
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const search = useDebouncedValue(searchInput.trim(), 350);
+
+  const fromISO = dateRange?.from ? startOfDay(dateRange.from).toISOString() : null;
+  const toISO = dateRange?.to ? endOfDay(dateRange.to).toISOString() : (dateRange?.from ? endOfDay(dateRange.from).toISOString() : null);
 
   // Reset to first page whenever the query (filter or search) changes.
   useEffect(() => {
     setPage(0);
-  }, [filterGroup, search]);
+  }, [filterGroup, search, fromISO, toISO]);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['cfo-ledger-trail', filterGroup, search, page],
+    queryKey: ['cfo-ledger-trail', filterGroup, search, page, fromISO, toISO],
     queryFn: async () => {
       const group = FILTER_GROUPS.find((g) => g.value === filterGroup);
       const categories = group?.categories ?? null;
@@ -141,8 +156,8 @@ export function CFOActionsLog() {
         p_categories: categories,
         p_classification: null,
         p_search: search || null,
-        p_from: null,
-        p_to: null,
+        p_from: fromISO,
+        p_to: toISO,
       });
       if (error) throw error;
       const result = (data || []) as TrailRow[];
@@ -257,6 +272,68 @@ export function CFOActionsLog() {
               ))}
             </SelectContent>
           </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'h-7 text-xs gap-1 justify-start font-normal',
+                  !dateRange?.from && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="h-3 w-3" />
+                {dateRange?.from ? (
+                  dateRange.to && dateRange.to.getTime() !== dateRange.from.getTime() ? (
+                    <>
+                      {format(dateRange.from, 'MMM d')} – {format(dateRange.to, 'MMM d, yyyy')}
+                    </>
+                  ) : (
+                    format(dateRange.from, 'MMM d, yyyy')
+                  )
+                ) : (
+                  <span>Date range</span>
+                )}
+                {dateRange?.from && (
+                  <X
+                    className="h-3 w-3 ml-1 hover:text-foreground"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDateRange(undefined);
+                    }}
+                  />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <div className="flex flex-wrap gap-1 border-b border-border p-2">
+                {DATE_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.label}
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      const to = new Date();
+                      const from = preset.days === 'mtd' ? startOfMonth(to) : subDays(to, preset.days - 1);
+                      setDateRange({ from, to });
+                    }}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                initialFocus
+                className={cn('p-3 pointer-events-auto')}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         {!filtered.length ? (
