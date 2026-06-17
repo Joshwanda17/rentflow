@@ -373,10 +373,10 @@ export function AgentCashPayoutsTab() {
                 withdrawal={w}
                 isClaimed
                 isClaimedByOther={false}
-                onClaim={() => claimWithdrawal.mutate(w.id)}
-                onComplete={completeWithdrawal.mutate}
-                claimingId={claimWithdrawal.isPending ? claimWithdrawal.variables ?? null : null}
-                completingId={completeWithdrawal.isPending ? completeWithdrawal.variables?.id ?? null : null}
+                onClaim={() => handleClaim(w.id)}
+                onComplete={handleComplete}
+                claimingId={claimingIds.has(w.id) ? w.id : null}
+                completingId={completingIds.has(w.id) ? w.id : null}
               />
             ))}
           </CardContent>
@@ -521,10 +521,10 @@ export function AgentCashPayoutsTab() {
                         </div>
                         <Button
                           className="w-full h-12 gap-2 font-semibold text-base"
-                          onClick={() => claimWithdrawal.mutate(w.id)}
-                          disabled={claimWithdrawal.isPending && claimWithdrawal.variables === w.id}
+                          onClick={() => handleClaim(w.id)}
+                          disabled={claimingIds.has(w.id)}
                         >
-                          {claimWithdrawal.isPending && claimWithdrawal.variables === w.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim</>}
+                          {claimingIds.has(w.id) ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim</>}
                         </Button>
                       </CardContent>
                     </Card>
