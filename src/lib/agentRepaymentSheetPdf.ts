@@ -638,10 +638,11 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
         pdf.text('—', cAlloc, y);
         pdf.setTextColor(30, 41, 59);
       }
-      let timeStr = r.times.length > 0 ? r.times.join(', ') : '—';
-      if (r.times.length > 3) timeStr = `${r.times.slice(0, 3).join(', ')} +${r.times.length - 3}`;
+      const timeStr = r.times.length > 0 ? r.times.join(', ') : '—';
+      pdf.setFontSize(r.times.length > 5 ? 6.5 : 7.5);
       pdf.setTextColor(100, 116, 139);
-      pdf.text(timeStr, cTime, y);
+      pdf.text(timeStr, cTime, y, { maxWidth: cStatus - cTime - 4 });
+      pdf.setFontSize(7.5);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(...meta.color);
       pdf.text(meta.label, cStatus, y, { align: 'right' });
