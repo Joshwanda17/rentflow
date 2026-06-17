@@ -240,6 +240,15 @@ Deno.serve(async (req) => {
       if (data.length < PAGE) break;
     }
 
+    // Pull CTO-managed exceptions for this message type ('all' or 'daily_guarantee').
+    {
+      const { data: exData } = await admin
+        .from("sms_message_exceptions")
+        .select("phone")
+        .in("message_type", ["all", "daily_guarantee"]);
+      for (const row of exData ?? []) optedOut.add(formatPhoneInternational((row as any).phone));
+    }
+
     const seen = new Set<string>();
     const recipients: { phone: string; name: string | null }[] = [];
     for (let from = 0; ; from += PAGE) {
