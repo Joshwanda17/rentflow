@@ -125,7 +125,7 @@ function startOfDay(d: string | number | Date): number {
   return dt.getTime();
 }
 
-interface DailyScheduleRow {
+export interface DailyScheduleRow {
   dateMs: number;
   expected: number;          // amount the agent was expected to allocate that day
   allocated: number;         // amount actually allocated that day
