@@ -768,7 +768,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              */}
 
             {/* 0) PROMO — prominent weekly landlord registration drive */}
-            <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setMyListingsVacantOnly(true); setMyListingsOpen(true); }} />
+            <AgentLandlordPromoBanner onRegisterLandlord={() => { hapticTap(); setListHouseFromPromo(true); setListHouseOpen(true); }} />
 
             {/* 0b) MERCHANT AGENT — highest prominence, full-bleed gradient CTA */}
             {isCashoutAgent && showMerchantOnboard && (
