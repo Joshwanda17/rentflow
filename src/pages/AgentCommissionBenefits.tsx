@@ -145,7 +145,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Rent Repayment Commission</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">10%</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Every time your tenant pays rent — you earn 10% automatically, forever!</p>
+                    <p className="text-sm text-muted-foreground">Every time your tenant pays rent — you earn 10% automatically, forever!</p>
                   </div>
                 </div>
 
@@ -156,7 +156,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Recruiter Override</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">2%</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Earn 2% from every tenant managed by agents YOU recruited</p>
+                    <p className="text-sm text-muted-foreground">Earn 2% from every tenant managed by agents YOU recruited</p>
                   </div>
                 </div>
 
@@ -167,7 +167,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Collect Rent from Tenants</p>
                       <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Float</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Go out and collect rent directly — record it in the app and build your collection streaks</p>
+                    <p className="text-sm text-muted-foreground">Go out and collect rent directly — record it in the app and build your collection streaks</p>
                   </div>
                 </div>
 
@@ -178,13 +178,13 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Investment / Funder Commission</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">2%</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Bring a funder who invests — earn 2% on their investment (plus 1% on Angel Pool investments)</p>
+                    <p className="text-sm text-muted-foreground">Bring a funder who invests — earn 2% on their investment (plus 1% on Angel Pool investments)</p>
                   </div>
                 </div>
 
                 {/* One-time bonuses */}
                 <div className="bg-muted/30 px-3 py-1.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">One-Time Cash Bonuses</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">One-Time Cash Bonuses</p>
                 </div>
 
                 <div className="px-3 py-2.5 flex items-start gap-2.5">
@@ -194,7 +194,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Set Up a Service Centre</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 25,000</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Print poster, mount it, submit photo + GPS — get paid after verification!</p>
+                    <p className="text-sm text-muted-foreground">Print poster, mount it, submit photo + GPS — get paid after verification!</p>
                   </div>
                 </div>
 
@@ -205,7 +205,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Replace a Tenant</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 20,000</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Find a new tenant for a vacated house</p>
+                    <p className="text-sm text-muted-foreground">Find a new tenant for a vacated house</p>
                   </div>
                 </div>
 
@@ -216,7 +216,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Register a New Agent</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 10,000</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Bring someone new to join as a Welile agent under you</p>
+                    <p className="text-sm text-muted-foreground">Bring someone new to join as a Welile agent under you</p>
                   </div>
                 </div>
 
@@ -227,7 +227,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Help a Tenant Apply for Rent</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Help post a rent request for a tenant who needs help</p>
+                    <p className="text-sm text-muted-foreground">Help post a rent request for a tenant who needs help</p>
                   </div>
                 </div>
 
@@ -238,7 +238,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">List an Empty House</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Find and list a vacant house for Welile</p>
+                    <p className="text-sm text-muted-foreground">Find and list a vacant house for Welile</p>
                   </div>
                 </div>
 
@@ -249,7 +249,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Tenant Placed in Your Listed House</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">When an empty house you listed gets its first tenant — automatic bonus to you</p>
+                    <p className="text-sm text-muted-foreground">When an empty house you listed gets its first tenant — automatic bonus to you</p>
                   </div>
                 </div>
 
@@ -260,7 +260,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Landlord Verified</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 4,000</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">When the landlord on your rent request is verified</p>
+                    <p className="text-sm text-muted-foreground">When the landlord on your rent request is verified</p>
                   </div>
                 </div>
 
@@ -271,7 +271,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Rent Request Posted &amp; Listed</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 1,000</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">A small bonus when your rent request is posted and listed</p>
+                    <p className="text-sm text-muted-foreground">A small bonus when your rent request is posted and listed</p>
                   </div>
                 </div>
 
@@ -282,13 +282,13 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Sub-Agent Verification Override</p>
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 3,000</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">When a house, landlord or LC1 chairperson submitted by an agent you recruited is verified</p>
+                    <p className="text-sm text-muted-foreground">When a house, landlord or LC1 chairperson submitted by an agent you recruited is verified</p>
                   </div>
                 </div>
 
                 {/* Career growth */}
                 <div className="bg-muted/30 px-3 py-1.5">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Career Growth Rewards</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Career Growth Rewards</p>
                 </div>
 
                 <div className="px-3 py-2.5 flex items-start gap-2.5">
@@ -298,7 +298,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Cash Advance Access</p>
                       <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">2+ agents</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Recruit 2+ sub-agents and become a Team Leader — unlock cash advances from Welile</p>
+                    <p className="text-sm text-muted-foreground">Recruit 2+ sub-agents and become a Team Leader — unlock cash advances from Welile</p>
                   </div>
                 </div>
 
@@ -309,7 +309,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Electric Bike Reward 🏍️</p>
                       <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">50 tenants</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Manage 50 active tenants and earn an electric bike to boost your fieldwork!</p>
+                    <p className="text-sm text-muted-foreground">Manage 50 active tenants and earn an electric bike to boost your fieldwork!</p>
                   </div>
                 </div>
 
@@ -320,7 +320,7 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                       <p className="text-sm font-semibold text-foreground">Invite a Funder</p>
                       <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Referral</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Share your referral link to bring investors who fund rent — helping you and your tenants</p>
+                    <p className="text-sm text-muted-foreground">Share your referral link to bring investors who fund rent — helping you and your tenants</p>
                   </div>
                 </div>
               </div>
@@ -653,21 +653,21 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                     <div className="w-6 h-6 rounded-md border" style={{ backgroundColor: '#7214c9' }} />
                     <div>
                       <p className="text-xs font-bold text-foreground">Purple</p>
-                      <p className="text-[10px] font-mono">#7214c9</p>
+                      <p className="text-xs font-mono">#7214c9</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-md border bg-white" />
                     <div>
                       <p className="text-xs font-bold text-foreground">White</p>
-                      <p className="text-[10px] font-mono">#FFFFFF</p>
+                      <p className="text-xs font-mono">#FFFFFF</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-md border bg-black" />
                     <div>
                       <p className="text-xs font-bold text-foreground">Black</p>
-                      <p className="text-[10px] font-mono">#000000</p>
+                      <p className="text-xs font-mono">#000000</p>
                     </div>
                   </div>
                 </div>
