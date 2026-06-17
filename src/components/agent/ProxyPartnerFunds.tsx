@@ -196,9 +196,6 @@ export function ProxyPartnerFunds() {
   // not the agent — `user_id=eq.<agent>` no longer catches them).
   const [partnerIdsForRealtime, setPartnerIdsForRealtime] = useState<string[]>([]);
   const [portfolioIdsForRealtime, setPortfolioIdsForRealtime] = useState<string[]>([]);
-  // Optimistic submit lock: partner ids whose Withdraw button has just been
-  // submitted. Prevents double-tap before realtime/settlement catches up.
-  const [submittingPartnerIds, setSubmittingPartnerIds] = useState<Set<string>>(new Set());
   // Optimistic submit lock keyed per CARD (partner+portfolio) so submitting a
   // payout for one portfolio doesn't grey out a sibling portfolio's card.
   const [submittingCardKeys, setSubmittingCardKeys] = useState<Set<string>>(new Set());
