@@ -8,6 +8,7 @@
 //  - allocation: fired automatically after a successful agent allocation
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isPhoneBlocked } from "../_shared/smsExceptions.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -216,7 +217,9 @@ Deno.serve(async (req) => {
       message = parts.join(" ");
     }
 
-    const ok = await sendSMS(tenant_phone, message);
+    // Honour CTO-managed SMS exceptions for this message type.
+    const blocked = await isPhoneBlocked(adminClient, tenant_phone, "rent_access");
+    const ok = blocked ? false : await sendSMS(tenant_phone, message);
 
     // Best-effort: log the send as a system event for auditability.
     if (tenant_id) {
