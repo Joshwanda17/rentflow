@@ -482,10 +482,10 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
                   </div>
                   <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
                 </div>
-                <div className="flex justify-between items-center px-3 py-3">
+                <div className="flex justify-between items-center px-3 py-3 bg-primary/10 border-l-4 border-primary">
                   <div>
-                    <p className="text-sm font-medium text-foreground">Landlord verified</p>
-                    <p className="text-xs text-muted-foreground">When the landlord on your rent request is verified</p>
+                    <p className="text-base font-bold text-foreground">⭐ Register a landlord</p>
+                    <p className="text-sm text-muted-foreground">Your #1 priority — earn when your landlord is verified</p>
                   </div>
                   <span className="font-bold text-primary whitespace-nowrap">UGX 4,000</span>
                 </div>
