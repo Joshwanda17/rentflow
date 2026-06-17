@@ -327,9 +327,21 @@ export function CFOActionsLog() {
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={handleExportCSV} disabled={!filtered.length}>
-              <Download className="h-3 w-3" /> CSV
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" disabled={!total || !!exporting}>
+                  {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportCSV} disabled={!!exporting} className="text-xs gap-2">
+                  <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPDF} disabled={!!exporting} className="text-xs gap-2">
+                  <FileText className="h-3.5 w-3.5" /> Export PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground mb-3">
