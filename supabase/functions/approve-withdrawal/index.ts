@@ -1335,10 +1335,20 @@ Deno.serve(async (req) => {
     // unsettled ROI approvals up to the withdrawn amount. This permanently
     // retires the approval cards from the agent's Proxy Partners list.
     try {
-      const proxyPartnerId =
-        (wr as any).proxy_partner_id ||
+      // IMPORTANT: reuse the partner already resolved by the main pipeline
+      // above (`proxyPartnerId`). The previous local recompute only looked at
+      // `proxy_partner_id` / `linked_party`, so Custody-V2 partner-owned rows
+      // (user_id = partner, no linked_party) and auto-routed partner
+      // withdrawals resolved to null here and NEVER wrote a settlement row —
+      // leaving the approval "open" forever, so paid partners kept reappearing
+      // and their card totals ballooned every ROI cycle.
+      const settlePartnerId =
+        proxyPartnerId ||
+        (beneficiaryUserId && beneficiaryUserId !== fundingUserId ? beneficiaryUserId : null) ||
+        ((wr as any).proxy_partner_id ?? null) ||
         (wr.linked_party && wr.linked_party !== wr.user_id ? wr.linked_party : null);
-      if (proxyPartnerId) {
+      if (settlePartnerId) {
+        const proxyPartnerId = settlePartnerId;
         const { data: portfolios } = await admin
           .from("investor_portfolios")
           .select("id")
