@@ -677,6 +677,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
       periodFrom: opts?.allTime ? null : (sheetFrom || null),
       periodTo: opts?.allTime ? null : (sheetTo || null),
+      scheduleStatusFilter: sheetStatusFilter,
       plans: requests.map((r) => ({
         date: r.created_at,
         disbursedAt: r.disbursed_at,
