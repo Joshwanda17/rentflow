@@ -556,11 +556,14 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
   // Shows, for every day the tenant was due, what the agent allocated (with the
   // exact time) and clearly flags days where no allocation was made.
   const schedule = buildDailySchedule(data, fromMs, toMs);
-  if (schedule.length > 0) {
-    const schedExpected = schedule.reduce((s, r) => s + r.expected, 0);
-    const schedAllocated = schedule.reduce((s, r) => s + r.allocated, 0);
-    const missedDays = schedule.filter((r) => r.status === 'missed' && r.expected > 0).length;
-    const partialDays = schedule.filter((r) => r.status === 'partial').length;
+  const filteredSchedule = data.scheduleStatusFilter
+    ? schedule.filter((r) => data.scheduleStatusFilter!.includes(r.status))
+    : schedule;
+  if (filteredSchedule.length > 0) {
+    const schedExpected = filteredSchedule.reduce((s, r) => s + r.expected, 0);
+    const schedAllocated = filteredSchedule.reduce((s, r) => s + r.allocated, 0);
+    const missedDays = filteredSchedule.filter((r) => r.status === 'missed' && r.expected > 0).length;
+    const partialDays = filteredSchedule.filter((r) => r.status === 'partial').length;
 
     // Column layout.
     const cDate = margin + 3;
