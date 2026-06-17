@@ -309,40 +309,40 @@ export function AgentCashPayoutsTab() {
   const totalPending = availableWithdrawals.length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Role identity banner */}
-      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
-        <Banknote className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-        <div className="text-[11px] text-foreground/80 leading-snug">
-          You are operating as a <span className="font-semibold text-primary">Merchant Agent</span>. You execute user withdrawal payouts via <span className="font-medium">Mobile Money, Bank, or Cash</span> — claim a request, send the money externally, then enter the proof (TID or payout code) to confirm. Financial Ops shares this queue and handles exceptions &amp; high-value payouts.
+      <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20">
+        <Banknote className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+        <div className="text-sm text-foreground/80 leading-relaxed">
+          You are a <span className="font-semibold text-primary">Merchant Agent</span>. Claim a request, send the money via <span className="font-medium">Mobile Money, Bank, or Cash</span>, then enter the proof (TID or payout code) to confirm.
         </div>
       </div>
 
       {/* Daily summary */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Today's Merchant Payouts
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent rounded-2xl">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Today's Payouts
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-3 gap-2 pt-0">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Hash className="h-3 w-3" /> Payouts completed
+        <CardContent className="grid grid-cols-3 gap-3 pt-0">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Hash className="h-3.5 w-3.5" /> Done
             </div>
-            <div className="text-lg font-bold text-foreground">{dailyStats?.codesCount ?? 0}</div>
+            <div className="text-2xl font-bold text-foreground tabular-nums">{dailyStats?.codesCount ?? 0}</div>
           </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <TrendingUp className="h-3 w-3" /> Amount paid
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <TrendingUp className="h-3.5 w-3.5" /> Paid
             </div>
-            <div className="text-lg font-bold text-primary">{formatUGX(dailyStats?.totalAmount ?? 0)}</div>
+            <div className="text-xl font-bold text-primary tabular-nums leading-tight">{formatUGX(dailyStats?.totalAmount ?? 0)}</div>
           </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Clock className="h-3 w-3" /> Avg time
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" /> Avg
             </div>
-            <div className="text-lg font-bold text-foreground">
+            <div className="text-2xl font-bold text-foreground tabular-nums">
               {dailyStats?.avgMinutes ? `${Math.round(dailyStats.avgMinutes)}m` : '—'}
             </div>
           </div>
@@ -351,49 +351,49 @@ export function AgentCashPayoutsTab() {
 
       {/* Live status banner */}
       {totalPending > 0 && (
-        <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
-          <Bell className="h-4 w-4 animate-pulse" />
-          <span className="text-xs font-medium">{totalPending} pending withdrawal{totalPending !== 1 ? 's' : ''} — Live updates</span>
+        <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
+          <Bell className="h-5 w-5 animate-pulse shrink-0" />
+          <span className="text-sm font-semibold">{totalPending} pending withdrawal{totalPending !== 1 ? 's' : ''} · live</span>
         </div>
       )}
 
       {/* Payout Code Verification — for users who came in person with a WPO code */}
-      <Card className="border-2 border-primary/30 bg-primary/5">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <QrCode className="h-4 w-4 text-primary" />
-            Verify Cash Pickup Code (optional)
+      <Card className="border-2 border-primary/30 bg-primary/5 rounded-2xl">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <QrCode className="h-5 w-5 text-primary" />
+            Verify Cash Pickup Code
           </CardTitle>
-          <p className="text-[10px] text-muted-foreground mt-1">Use this only when a user came in person with a pre-generated WPO-XXXXX cash pickup code. For Mobile Money, Bank, or coordinated cash payouts, claim from the queue below instead.</p>
+          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Only when a user arrives in person with a WPO-XXXXX code. Otherwise claim from the queue below.</p>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
             <Input
-              placeholder="Enter WPO-XXXXX code..."
+              placeholder="WPO-XXXXX"
               value={payoutCode}
               onChange={e => setPayoutCode(e.target.value.toUpperCase())}
-              className="text-lg font-mono tracking-wider h-12 text-center"
+              className="text-xl font-mono tracking-wider h-14 text-center"
               onKeyDown={e => e.key === 'Enter' && handleVerify()}
             />
-            <Button onClick={handleVerify} disabled={verifying || !payoutCode.trim()} className="h-12 px-6">
-              {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            <Button onClick={handleVerify} disabled={verifying || !payoutCode.trim()} className="h-14 px-6" aria-label="Verify code">
+              {verifying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
             </Button>
           </div>
           {verifiedPayout && (
-            <Card className="border-green-500/30 bg-green-500/5">
-              <CardContent className="p-4 space-y-3">
+            <Card className="border-green-500/30 bg-green-500/5 rounded-2xl">
+              <CardContent className="p-4 space-y-4">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  <span className="font-bold text-green-700">Code Verified</span>
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  <span className="font-bold text-lg text-green-700">Code Verified</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><p className="text-muted-foreground text-xs">Name</p><p className="font-medium">{verifiedPayout.profiles?.full_name}</p></div>
-                  <div><p className="text-muted-foreground text-xs">Phone</p><p className="font-medium">{verifiedPayout.profiles?.phone}</p></div>
-                  <div><p className="text-muted-foreground text-xs">Amount</p><p className="font-bold text-lg text-primary">{formatUGX(verifiedPayout.amount)}</p></div>
-                  <div><p className="text-muted-foreground text-xs">Expires</p><p className="font-medium">{format(new Date(verifiedPayout.expires_at), 'MMM d, HH:mm')}</p></div>
+                <div className="grid grid-cols-2 gap-3 text-base">
+                  <div><p className="text-muted-foreground text-sm">Name</p><p className="font-semibold">{verifiedPayout.profiles?.full_name}</p></div>
+                  <div><p className="text-muted-foreground text-sm">Phone</p><p className="font-semibold">{verifiedPayout.profiles?.phone}</p></div>
+                  <div><p className="text-muted-foreground text-sm">Amount</p><p className="font-bold text-xl text-primary">{formatUGX(verifiedPayout.amount)}</p></div>
+                  <div><p className="text-muted-foreground text-sm">Expires</p><p className="font-semibold">{format(new Date(verifiedPayout.expires_at), 'MMM d, HH:mm')}</p></div>
                 </div>
-                <Button className="w-full h-12 text-base font-bold" onClick={() => completePayout.mutate(verifiedPayout.id)} disabled={completePayout.isPending}>
-                  {completePayout.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Banknote className="h-5 w-5 mr-2" />}
+                <Button className="w-full h-14 text-base font-bold" onClick={() => completePayout.mutate(verifiedPayout.id)} disabled={completePayout.isPending}>
+                  {completePayout.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Banknote className="h-5 w-5 mr-2" />}
                   Confirm Cash Paid — {formatUGX(verifiedPayout.amount)}
                 </Button>
               </CardContent>
@@ -403,14 +403,14 @@ export function AgentCashPayoutsTab() {
       </Card>
 
       {myActiveClaims.length > 0 && (
-        <Card className="border-amber-500/40 bg-amber-500/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
-              <Clock className="h-3.5 w-3.5" />
+        <Card className="border-amber-500/40 bg-amber-500/5 rounded-2xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <Clock className="h-4 w-4" />
               My Active Claims · {myActiveClaims.length} · 15 min to confirm
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-2.5">
             {myActiveClaims.map((w: any) => (
               <WithdrawalPayoutCard
                 key={w.id}
@@ -429,18 +429,18 @@ export function AgentCashPayoutsTab() {
 
       {/* Withdrawal Requests by channel — UNCLAIMED only */}
       <Tabs defaultValue="all">
-        <TabsList className="w-full">
-          <TabsTrigger value="all" className="flex-1 gap-1">
-            <Wallet className="h-3.5 w-3.5" /> All
-            {totalPending > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{totalPending}</Badge>}
+        <TabsList className="w-full h-12 p-1">
+          <TabsTrigger value="all" className="flex-1 gap-1.5 text-sm h-10">
+            <Wallet className="h-4 w-4" /> All
+            {totalPending > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{totalPending}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="momo" className="flex-1 gap-1">
-            <Smartphone className="h-3.5 w-3.5" /> Mobile Money
-            {momoWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{momoWithdrawals.length}</Badge>}
+          <TabsTrigger value="momo" className="flex-1 gap-1.5 text-sm h-10">
+            <Smartphone className="h-4 w-4" /> MoMo
+            {momoWithdrawals.length > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{momoWithdrawals.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="cash" className="flex-1 gap-1">
-            <Banknote className="h-3.5 w-3.5" /> Cash
-            {cashWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{cashWithdrawals.length}</Badge>}
+          <TabsTrigger value="cash" className="flex-1 gap-1.5 text-sm h-10">
+            <Banknote className="h-4 w-4" /> Cash
+            {cashWithdrawals.length > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{cashWithdrawals.length}</Badge>}
           </TabsTrigger>
         </TabsList>
 
@@ -448,11 +448,11 @@ export function AgentCashPayoutsTab() {
           const items = tab === 'all' ? availableWithdrawals : tab === 'momo' ? momoWithdrawals : cashWithdrawals;
           const emptyMsg = tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
           return (
-            <TabsContent key={tab} value={tab} className="space-y-2 mt-3">
+            <TabsContent key={tab} value={tab} className="space-y-2.5 mt-4">
               {loadingAll ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               ) : items.length === 0 ? (
-                <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">{emptyMsg}</CardContent></Card>
+                <Card className="rounded-2xl"><CardContent className="py-12 text-center text-base text-muted-foreground">{emptyMsg}</CardContent></Card>
               ) : (
                 items.map((w: any) => {
                   const isMoMo = getPayoutChannel(w) === 'momo';
@@ -461,30 +461,30 @@ export function AgentCashPayoutsTab() {
                   const name = w.profiles?.full_name || 'Unknown';
                   const phone = getRecipientPhone(w);
                   return (
-                    <Card key={w.id}>
-                      <CardContent className="p-3 space-y-2">
-                        <div className="flex items-start justify-between gap-2">
+                    <Card key={w.id} className="rounded-2xl">
+                      <CardContent className="p-4 space-y-3.5">
+                        <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-sm truncate">{name}</p>
-                            <p className="text-xs text-muted-foreground inline-flex items-center gap-1 mt-0.5">
-                              <Phone className="h-3 w-3" />
+                            <p className="font-bold text-lg truncate leading-tight">{name}</p>
+                            <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5 mt-1">
+                              <Phone className="h-4 w-4" />
                               <span className="font-mono">{phone}</span>
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="font-bold text-base text-primary tabular-nums">{formatUGX(w.amount)}</p>
-                            <Badge variant="secondary" className="text-[9px] gap-1 h-4 px-1.5 mt-0.5">
-                              <MethodIcon className="h-2.5 w-2.5" />
+                            <p className="font-bold text-xl text-primary tabular-nums leading-tight">{formatUGX(w.amount)}</p>
+                            <Badge variant="secondary" className="text-xs gap-1 h-5 px-2 mt-1.5">
+                              <MethodIcon className="h-3 w-3" />
                               {methodLabel}
                             </Badge>
                           </div>
                         </div>
                         <Button
-                          className="w-full h-10 gap-2 font-semibold"
+                          className="w-full h-12 gap-2 font-semibold text-base"
                           onClick={() => claimWithdrawal.mutate(w.id)}
                           disabled={claimWithdrawal.isPending}
                         >
-                          {claimWithdrawal.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><UserCheck className="h-4 w-4" /> Claim</>}
+                          {claimWithdrawal.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim</>}
                         </Button>
                       </CardContent>
                     </Card>
