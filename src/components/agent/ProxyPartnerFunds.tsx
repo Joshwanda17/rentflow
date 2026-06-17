@@ -816,6 +816,19 @@ export function ProxyPartnerFunds() {
 
       let remainingOpen = liveOpen;
       let remainingInFlight = Math.min(totalInFlight, liveOpen);
+      // CONSOLIDATED: one card per PARTNER. A partner with unsettled ROI on
+      // several portfolios used to render one card per portfolio, so the same
+      // person appeared multiple times (the "x2" bug: e.g. SSENKAALI PIUS) and
+      // a single withdrawal — which the dialog books against the PARTNER (not a
+      // portfolio) and the backend settles FIFO across the partner's approvals
+      // — only cleared one of the duplicate cards, leaving the partner in the
+      // queue after being paid. Aggregating into a single per-partner card
+      // keeps the queue 1:1 with how the money actually moves.
+      let total = 0;
+      let avail = 0;
+      let inflight = 0;
+      let latestAt = '';
+      const portfolioCandidates: Array<{ id: string; createdAt: string }> = [];
       rows
         .slice()
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -826,25 +839,29 @@ export function ProxyPartnerFunds() {
           const availableAllocated = allocated - inFlightAllocated;
           remainingOpen -= allocated;
           remainingInFlight -= inFlightAllocated;
-
-          const key = `${partnerId}-${row.portfolioId}`;
-          if (!groupMap[key]) {
-            groupMap[key] = {
-              partnerId,
-              portfolioId: row.portfolioId,
-              totalAmount: 0,
-              availableAmount: 0,
-              inFlightAmount: 0,
-              latestAt: '',
-            };
-          }
-          groupMap[key].totalAmount += allocated;
-          groupMap[key].availableAmount += availableAllocated;
-          groupMap[key].inFlightAmount += inFlightAllocated;
-          if (row.createdAt && row.createdAt > groupMap[key].latestAt) {
-            groupMap[key].latestAt = row.createdAt;
-          }
+          total += allocated;
+          avail += availableAllocated;
+          inflight += inFlightAllocated;
+          if (row.createdAt && row.createdAt > latestAt) latestAt = row.createdAt;
+          if (row.portfolioId) portfolioCandidates.push({ id: row.portfolioId, createdAt: row.createdAt });
         });
+      if (total <= 0) return;
+      // Representative portfolio for payout routing / display: prefer one with
+      // a configured payment route, newest first; otherwise the newest.
+      portfolioCandidates.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const routed = portfolioCandidates.find((c) => {
+        const p = portfolioMap[c.id];
+        return p && (p.payment_method === 'mobile_money' || p.payment_method === 'bank_transfer' || p.payment_method === 'cash');
+      });
+      const repPortfolioId = routed?.id || portfolioCandidates[0]?.id || null;
+      groupMap[partnerId] = {
+        partnerId,
+        portfolioId: repPortfolioId,
+        totalAmount: total,
+        availableAmount: avail,
+        inFlightAmount: inflight,
+        latestAt,
+      };
     });
 
     return Object.entries(groupMap)

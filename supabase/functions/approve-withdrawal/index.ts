@@ -1568,7 +1568,8 @@ Deno.serve(async (req) => {
       const smsMsg =
         `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
         `APPROVED & PAID via ${payment_method}. Ref: ${refUpper}. ` +
-        `Thank you.`;
+        `You're always welcome to log in to view and manage your account ` +
+        `at https://welilereceipts.com/auth. Thank you for partnering with us.`;
       sendSMS(profile.phone, smsMsg).catch((e) =>
         console.error("[approve-withdrawal] paid SMS failed:", e),
       );
