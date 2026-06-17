@@ -488,3 +488,41 @@ export async function shareOrDownloadRepaymentSheet(data: RepaymentSheetData): P
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Open the repayment sheet PDF inline (new browser tab) so the agent can view
+ * it on screen — including the day-by-day float allocation log (amount, date &
+ * time) — without forcing a download. Falls back to a download when the browser
+ * blocks the popup (common on some mobile webviews).
+ *
+ * To survive popup blockers, callers may open a blank tab synchronously inside
+ * the click handler and pass it in as `preopened`; this helper then redirects
+ * that already-granted window to the generated blob URL.
+ */
+export async function openRepaymentSheetPdf(
+  data: RepaymentSheetData,
+  preopened?: Window | null,
+): Promise<void> {
+  const blob = await generateRepaymentSheetPdf(data);
+  const url = URL.createObjectURL(blob);
+  const fileName = `Repayment_Sheet_${data.tenantName.replace(/\s+/g, '_')}.pdf`;
+
+  const win = preopened ?? window.open('', '_blank');
+  if (win) {
+    try {
+      win.location.href = url;
+    } catch {
+      win.close?.();
+    }
+  } else {
+    // Popup blocked — fall back to a download so the agent still gets the sheet.
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+  // Revoke later so the new tab has time to load the document.
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
