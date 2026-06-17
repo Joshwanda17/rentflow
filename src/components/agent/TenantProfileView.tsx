@@ -24,7 +24,7 @@ import { ReverseAllocationDialog } from './ReverseAllocationDialog';
 import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { Undo2 } from 'lucide-react';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
-import { shareOrDownloadRepaymentSheet, type RepaymentSheetData } from '@/lib/agentRepaymentSheetPdf';
+import { shareOrDownloadRepaymentSheet, openRepaymentSheetPdf, type RepaymentSheetData } from '@/lib/agentRepaymentSheetPdf';
 import { shareOrDownloadFloatAllocations, shareFloatAllocationsWhatsApp } from '@/lib/floatAllocationsPdf';
 import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
