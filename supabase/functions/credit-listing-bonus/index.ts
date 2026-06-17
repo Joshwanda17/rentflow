@@ -94,8 +94,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Idempotent self-heal: if the bonus was already paid but the listing was
+    // never flagged verified (a stuck state that keeps it stuck in the
+    // Verification Queue forever), mark it verified now and return success.
     if (listing.listing_bonus_paid) {
-      return new Response(JSON.stringify({ message: "Bonus already paid", already_paid: true }), {
+      const healed = await ensureVerified(adminClient, listing, managerId);
+      return new Response(JSON.stringify({
+        success: true,
+        message: healed ? "Bonus already paid — listing marked verified" : "Bonus already paid",
+        already_paid: true,
+        verified_now: healed,
+      }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -115,8 +124,9 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingApproval) {
-      // Already paid → idempotent success
+      // Already paid → idempotent success (also self-heal verified flag)
       if (existingApproval.status === "paid") {
+        await ensureVerified(adminClient, listing, managerId);
         return new Response(JSON.stringify({
           success: true,
           message: "Bonus already paid (idempotent)",
