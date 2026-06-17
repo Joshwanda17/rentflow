@@ -40,6 +40,8 @@ export interface RepaymentSheetData {
   /** Optional reporting window. When set, transactions are filtered to it. */
   periodFrom?: string | null;
   periodTo?: string | null;
+  /** Optional status filter for the day-by-day allocation schedule. */
+  scheduleStatusFilter?: DailyScheduleRow['status'][];
 }
 
 async function loadLogoAsBase64(): Promise<string | null> {
@@ -125,7 +127,7 @@ function startOfDay(d: string | number | Date): number {
   return dt.getTime();
 }
 
-interface DailyScheduleRow {
+export interface DailyScheduleRow {
   dateMs: number;
   expected: number;          // amount the agent was expected to allocate that day
   allocated: number;         // amount actually allocated that day
@@ -554,11 +556,14 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
   // Shows, for every day the tenant was due, what the agent allocated (with the
   // exact time) and clearly flags days where no allocation was made.
   const schedule = buildDailySchedule(data, fromMs, toMs);
-  if (schedule.length > 0) {
-    const schedExpected = schedule.reduce((s, r) => s + r.expected, 0);
-    const schedAllocated = schedule.reduce((s, r) => s + r.allocated, 0);
-    const missedDays = schedule.filter((r) => r.status === 'missed' && r.expected > 0).length;
-    const partialDays = schedule.filter((r) => r.status === 'partial').length;
+  const filteredSchedule = data.scheduleStatusFilter
+    ? schedule.filter((r) => data.scheduleStatusFilter!.includes(r.status))
+    : schedule;
+  if (filteredSchedule.length > 0) {
+    const schedExpected = filteredSchedule.reduce((s, r) => s + r.expected, 0);
+    const schedAllocated = filteredSchedule.reduce((s, r) => s + r.allocated, 0);
+    const missedDays = filteredSchedule.filter((r) => r.status === 'missed' && r.expected > 0).length;
+    const partialDays = filteredSchedule.filter((r) => r.status === 'partial').length;
 
     // Column layout.
     const cDate = margin + 3;
@@ -610,7 +615,7 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
       extra: { label: 'Extra', color: [99, 102, 241] },
     };
 
-    schedule.forEach((r) => {
+    filteredSchedule.forEach((r) => {
       if (y > ph - 18) {
         pdf.addPage();
         y = 16;
@@ -659,7 +664,7 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(100, 116, 139);
-    pdf.text(`Days expected: ${schedule.filter((r) => r.expected > 0).length}`, margin + 3, y);
+    pdf.text(`Days expected: ${filteredSchedule.filter((r) => r.expected > 0).length}`, margin + 3, y);
     pdf.setTextColor(239, 68, 68);
     pdf.text(`Missed days: ${missedDays}`, margin + 60, y);
     pdf.setTextColor(217, 119, 6);
