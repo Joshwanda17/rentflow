@@ -1,4 +1,4 @@
-import { ArrowLeft, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star, Printer, Zap, MapPin, Bike, Wallet, HandCoins, Building2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star, Printer, Zap, MapPin, Bike, Wallet, HandCoins, Building2, UserPlus, TrendingUp, CheckCircle2, Home, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,9 +26,16 @@ Here's how it works:
 👥 *Bonus for Recruiting Other Agents*
 If you brought another agent to Welile, you get *2%* from every tenant THEY manage. It's free money!
 
+💼 *Earn from Funders You Bring*
+Bring an investor who funds rent → earn *2%* of their investment (1% on Angel Pool)!
+
 🎁 *Extra Cash Bonuses*
 • Help a tenant apply for rent → *UGX 5,000*
 • List an empty house → *UGX 5,000*
+• A tenant moves into a house you listed → *UGX 5,000*
+• Landlord on your rent request verified → *UGX 4,000*
+• Sub-agent's house/landlord/LC1 verified → *UGX 3,000*
+• Rent request posted & listed → *UGX 1,000*
 • Replace a tenant in a house → *UGX 20,000*
 • Register a new agent under you → *UGX 10,000*
 • Set up a Welile Service Centre → *UGX 25,000*
@@ -119,6 +126,17 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
                   </div>
                 </div>
 
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <TrendingUp className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Investment / Funder Commission</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">2%</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Bring a funder who invests — earn 2% on their investment (plus 1% on Angel Pool investments)</p>
+                  </div>
+                </div>
+
                 {/* One-time bonuses */}
                 <div className="bg-muted/30 px-3 py-1.5">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">One-Time Cash Bonuses</p>
@@ -176,6 +194,50 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground">Find and list a vacant house for Welile</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Home className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Tenant Placed in Your Listed House</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">When an empty house you listed gets its first tenant — automatic bonus to you</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Landlord Verified</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 4,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">When the landlord on your rent request is verified</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <FileText className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Rent Request Posted &amp; Listed</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 1,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">A small bonus when your rent request is posted and listed</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Users className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Sub-Agent Verification Override</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 3,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">When a house, landlord or LC1 chairperson submitted by an agent you recruited is verified</p>
                   </div>
                 </div>
 
@@ -368,6 +430,34 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
                   </div>
                   <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
                 </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Tenant placed in your listed house</p>
+                    <p className="text-xs text-muted-foreground">When an empty house you listed gets its first tenant</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Landlord verified</p>
+                    <p className="text-xs text-muted-foreground">When the landlord on your rent request is verified</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 4,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Sub-agent verification override</p>
+                    <p className="text-xs text-muted-foreground">A house, landlord or LC1 from an agent you recruited gets verified</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 3,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Rent request posted &amp; listed</p>
+                    <p className="text-xs text-muted-foreground">Small bonus when your rent request is posted and listed</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 1,000</span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -397,7 +487,7 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
               </div>
               <div className="rounded-xl bg-muted/40 p-3">
                 <p className="font-semibold text-foreground text-sm">🔗 Invite a Funder</p>
-                <p className="text-xs mt-1">Share your referral link with potential investors. When they fund rent for your tenants, <span className="font-bold text-foreground">everyone wins</span> — tenants get rent, you earn commissions, and the funder earns returns.</p>
+                <p className="text-xs mt-1">Share your referral link with potential investors. When a funder you bring invests, you earn a <span className="font-bold text-primary">2% commission</span> on their investment (and <span className="font-bold text-primary">1%</span> on Angel Pool investments) — tenants get rent, you get paid, and the funder earns returns.</p>
               </div>
               <div className="rounded-xl bg-muted/40 p-3">
                 <p className="font-semibold text-foreground text-sm">📈 Collection Streaks</p>
