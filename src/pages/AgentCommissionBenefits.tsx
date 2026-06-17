@@ -423,6 +423,34 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
                   </div>
                   <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
                 </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Tenant placed in your listed house</p>
+                    <p className="text-xs text-muted-foreground">When an empty house you listed gets its first tenant</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Landlord verified</p>
+                    <p className="text-xs text-muted-foreground">When the landlord on your rent request is verified</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 4,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Sub-agent verification override</p>
+                    <p className="text-xs text-muted-foreground">A house, landlord or LC1 from an agent you recruited gets verified</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 3,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Rent request posted &amp; listed</p>
+                    <p className="text-xs text-muted-foreground">Small bonus when your rent request is posted and listed</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 1,000</span>
+                </div>
               </div>
             </div>
           </CardContent>
