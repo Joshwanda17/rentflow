@@ -2089,7 +2089,11 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
               Choose period &amp; export…
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="center" className="w-[min(92vw,22rem)] p-4 space-y-3">
+          <PopoverContent
+            align="center"
+            collisionPadding={12}
+            className="w-[min(92vw,22rem)] max-h-[80vh] overflow-y-auto p-4 space-y-3"
+          >
             {!sheetConfirm ? (
               <>
                 <div>
