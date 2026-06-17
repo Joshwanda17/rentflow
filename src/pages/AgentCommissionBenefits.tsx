@@ -119,6 +119,17 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
                   </div>
                 </div>
 
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <TrendingUp className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Investment / Funder Commission</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">2%</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Bring a funder who invests — earn 2% on their investment (plus 1% on Angel Pool investments)</p>
+                  </div>
+                </div>
+
                 {/* One-time bonuses */}
                 <div className="bg-muted/30 px-3 py-1.5">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">One-Time Cash Bonuses</p>
@@ -176,6 +187,50 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
                       <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground">Find and list a vacant house for Welile</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Home className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Tenant Placed in Your Listed House</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">When an empty house you listed gets its first tenant — automatic bonus to you</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Landlord Verified</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 4,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">When the landlord on your rent request is verified</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <FileText className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Rent Request Posted &amp; Listed</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 1,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">A small bonus when your rent request is posted and listed</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Users className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Sub-Agent Verification Override</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 3,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">When a house, landlord or LC1 chairperson submitted by an agent you recruited is verified</p>
                   </div>
                 </div>
 
