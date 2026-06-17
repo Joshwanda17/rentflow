@@ -12,3 +12,5 @@
 
 - [Rent Request Landlord + LC1 Verified Gate](mem://business-model/rent-request-landlord-lc1-verified-gate) — Agents cannot post a rent request unless BOTH the linked landlord AND the LC1 chairperson (matched by typed phone) exist and have `verified=true`; enforced in AgentRentRequestDialog via live `landlordCheck`/`lc1Check` states + fresh submit-time reads; house-selected landlords no longer exempt
 - [LC1 Duplicate Merge & Phone Guard](mem://features/landlord-ops/lc1-duplicate-merge) — `v_lc1_phone_duplicates` view + `Lc1DuplicatesPanel` merge UI + ops-only `merge_lc1_duplicates` RPC; `trg_block_duplicate_lc1_phone` blocks new duplicate-phone inserts (23505); all LC1 insert paths reuse-by-phone via `normalize_phone`
+
+- [CTO SMS Exceptions](mem://features/cto/sms-exceptions) — CTO Dashboard tab + sms_message_exceptions table to block a phone from a specific SMS type; enforced via _shared/smsExceptions.ts in bulk/collection/rent-access/partner SMS functions

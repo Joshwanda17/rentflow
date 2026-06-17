@@ -38,6 +38,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'API Management', icon: Code, id: 'api' },
         { label: 'Communication', icon: Mail, id: 'communication' },
         { label: 'OTP / SMS Logs', icon: MessageSquare, id: 'sms-delivery' },
+        { label: 'SMS Exceptions', icon: ShieldCheck, id: 'sms-exceptions' },
         { label: 'Security Logs', icon: Lock, id: 'security' },
         { label: 'Developer Tools', icon: Wrench, id: 'tools' },
         { label: 'System Logs', icon: FileText, id: 'system-logs' },

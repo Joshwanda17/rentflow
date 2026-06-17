@@ -14983,6 +14983,33 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_message_exceptions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          message_type: string
+          phone: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message_type: string
+          phone: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message_type?: string
+          phone?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       sms_opt_outs: {
         Row: {
           created_at: string

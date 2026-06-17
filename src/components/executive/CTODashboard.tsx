@@ -10,6 +10,7 @@ import { InfrastructureHealthMonitor } from './InfrastructureHealthMonitor';
 import { CTOEmailsOverview } from './CTOEmailsOverview';
 import { CTOCommunicationOverview } from './CTOCommunicationOverview';
 import { SmsDeliveryLogViewer } from './SmsDeliveryLogViewer';
+import { SmsExceptionsManager } from './SmsExceptionsManager';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 import { CTOLedgerExport } from './CTOLedgerExport';
 import MaintenanceToggleCard from '@/components/cto/MaintenanceToggleCard';
@@ -22,6 +23,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   }
   if (activeTab === 'sms-delivery') {
     return <SmsDeliveryLogViewer />;
+  }
+  if (activeTab === 'sms-exceptions') {
+    return <SmsExceptionsManager />;
   }
   if (activeTab === 'emails' || activeTab === 'communication') {
     return <CTOCommunicationOverview />;

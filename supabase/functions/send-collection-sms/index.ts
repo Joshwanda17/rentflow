@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isPhoneBlocked } from "../_shared/smsExceptions.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -114,10 +115,20 @@ Deno.serve(async (req) => {
       "Thank you for using WELILE.",
     ].join("\n");
 
-    // Send SMS to both tenant and agent in parallel
+    // Honour CTO-managed SMS exceptions (skip blocked phones for this type).
+    const exAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const [tenantBlocked, agentBlocked] = await Promise.all([
+      isPhoneBlocked(exAdmin, tenant_phone, "collection_reminder"),
+      isPhoneBlocked(exAdmin, agent_phone, "collection_reminder"),
+    ]);
+
+    // Send SMS to both tenant and agent in parallel (skipping blocked phones)
     const [tenantSent, agentSent] = await Promise.all([
-      sendSMS(tenant_phone, message),
-      sendSMS(agent_phone, message),
+      tenantBlocked ? Promise.resolve(false) : sendSMS(tenant_phone, message),
+      agentBlocked ? Promise.resolve(false) : sendSMS(agent_phone, message),
     ]);
 
     // Update sms_sent flags on agent_collections
