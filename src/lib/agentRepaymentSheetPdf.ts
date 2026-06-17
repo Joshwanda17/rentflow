@@ -40,6 +40,8 @@ export interface RepaymentSheetData {
   /** Optional reporting window. When set, transactions are filtered to it. */
   periodFrom?: string | null;
   periodTo?: string | null;
+  /** Optional status filter for the day-by-day allocation schedule. */
+  scheduleStatusFilter?: DailyScheduleRow['status'][];
 }
 
 async function loadLogoAsBase64(): Promise<string | null> {
