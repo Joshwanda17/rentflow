@@ -425,17 +425,7 @@ export function CFOActionsLog() {
                 )}
               >
                 <CalendarIcon className="h-3 w-3" />
-                {dateRange?.from ? (
-                  dateRange.to && dateRange.to.getTime() !== dateRange.from.getTime() ? (
-                    <>
-                      {format(dateRange.from, 'MMM d')} – {format(dateRange.to, 'MMM d, yyyy')}
-                    </>
-                  ) : (
-                    format(dateRange.from, 'MMM d, yyyy')
-                  )
-                ) : (
-                  <span>Date range</span>
-                )}
+                {dateRangeLabel ? dateRangeLabel : <span>Date range</span>}
                 {dateRange?.from && (
                   <X
                     className="h-3 w-3 ml-1 hover:text-foreground"
