@@ -1215,16 +1215,16 @@ export function ProxyPartnerFunds() {
   };
 
   const getStatusKey = (partner: PartnerBalance) => {
-    if (partner.portfolioId) {
-      const portfolioKey = `${partner.partnerId}-${partner.portfolioId}`;
-      if (partnerWithdrawalStatus[portfolioKey]) return portfolioKey;
-    }
+    // Prefer the card-scoped (routed) status; fall back to a partner-wide
+    // (legacy/unrouted) status only when no per-portfolio status exists.
+    const cardKey = makeCardKey(partner.partnerId, partner.portfolioId);
+    if (partnerWithdrawalStatus[cardKey]) return cardKey;
     return partner.partnerId;
   };
 
   // Card key used for selection / dismissal storage
   const getCardKey = (partner: PartnerBalance) =>
-    `${partner.partnerId}-${partner.portfolioId || 'none'}`;
+    makeCardKey(partner.partnerId, partner.portfolioId);
 
   const toggleSelect = (partner: PartnerBalance) => {
     const key = getCardKey(partner);
