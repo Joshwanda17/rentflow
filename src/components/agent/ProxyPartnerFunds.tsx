@@ -1151,12 +1151,14 @@ export function ProxyPartnerFunds() {
   };
 
   const handleWithdrawSuccess = () => {
-    // Optimistic lock: instantly disable Withdraw on this partner's card so
-    // the agent can't double-submit before realtime catches up.
+    // Optimistic lock: instantly disable Withdraw on THIS portfolio's card so
+    // the agent can't double-submit before realtime catches up. Scoped to the
+    // card (partner+portfolio) so a sibling portfolio stays actionable.
+    const lockedCardKey = makeCardKey(selectedPartnerId, selectedPortfolioId);
     if (selectedPartnerId) {
-      setSubmittingPartnerIds((prev) => {
+      setSubmittingCardKeys((prev) => {
         const next = new Set(prev);
-        next.add(selectedPartnerId);
+        next.add(lockedCardKey);
         return next;
       });
     }
@@ -1169,9 +1171,9 @@ export function ProxyPartnerFunds() {
     // Release the optimistic lock after a generous window — by then DB
     // realtime + settlement insert has resolved the card.
     setTimeout(() => {
-      setSubmittingPartnerIds((prev) => {
+      setSubmittingCardKeys((prev) => {
         const next = new Set(prev);
-        if (selectedPartnerId) next.delete(selectedPartnerId);
+        next.delete(lockedCardKey);
         return next;
       });
     }, 5000);
