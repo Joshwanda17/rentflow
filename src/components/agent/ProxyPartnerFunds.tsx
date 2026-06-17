@@ -1038,12 +1038,17 @@ export function ProxyPartnerFunds() {
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
+    setSelectedPortfolioId(partner.portfolioId);
     setPrefillAmount(partner.available);
 
     const portfolioLabel = partner.portfolioCode
       ? ` (Portfolio: ${partner.accountName || partner.portfolioCode})`
       : '';
-    setPrefillReason(`Proxy payout delivery for ${partner.partnerName}${portfolioLabel}`);
+    // Stamp the exact portfolio id as a machine-readable route token so the
+    // in-flight hold AND the backend FIFO settlement scope to THIS portfolio
+    // only — paying one portfolio never clears a sibling portfolio's card.
+    const routeToken = partner.portfolioId ? ` | Route: portfolio ${partner.portfolioId}` : '';
+    setPrefillReason(`Proxy payout delivery for ${partner.partnerName}${portfolioLabel}${routeToken}`);
 
     // Auto-populate payout destination so the agent never re-keys partner
     // MoMo / bank details on a proxy withdrawal. Resolution order:
