@@ -49,6 +49,8 @@ type: feature
 - Do not bypass the settlement insert in `approve-withdrawal` for proxy withdrawals.
 - Do not delete settlement rows to "re-show" a partner — issue a fresh CFO approval instead.
 
+**Backfill chronology bug fixed (2026-06-17 v3).** The one-time FIFO backfill (migration `20260617115158`) walked a partner's unsettled approvals `ORDER BY pwo.created_at DESC` (newest-first) when closing delivered withdrawals. For partners whose OLD withdrawals had no settlement row yet, the backfill applied those OLD, already-accounted withdrawals to the partner's NEWEST approvals — including fresh current-date CFO approvals the old withdrawal could not possibly have paid. The amount-aware filter then subtracted those phantom settlements, so current approvals displayed LESS than the CFO approved (THE GREAT MARRIEDS: 5,000,000 approved today shown as 2,000,000 because a 2026-04-17 withdrawal was wrongly applied). Migration `20260617125340` deleted the 25 chronologically-impossible rows (`notes ILIKE 'Backfill: retroactive FIFO%' AND withdrawal.created_at < approval.created_at`, ~30.6M total). **Rule for any future retroactive settlement backfill: match a withdrawal only to approvals that already existed at the withdrawal's delivery time (`approval.created_at <= withdrawal.created_at`), and FIFO oldest-approval-first — never DESC. A withdrawal can never settle an approval created after it.**
+
 **Files.**
 - Migration `supabase/migrations/20260514091255_*.sql`
 - `supabase/functions/approve-withdrawal/index.ts`
