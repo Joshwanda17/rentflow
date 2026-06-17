@@ -399,19 +399,22 @@ export function ProxyPartnerFunds() {
       if (rawOps.length > 0) {
         const allIds = rawOps.map((o) => o.id);
         const CHUNK = 100;
-        const settledIds = new Set<string>();
+        const settledMap: Record<string, number> = {};
         let settlementLookupFailed = false;
         for (let i = 0; i < allIds.length; i += CHUNK) {
           const slice = allIds.slice(i, i + CHUNK);
           const { data: settledRows, error: settledErr } = await supabase
             .from('proxy_payout_settlements')
-            .select('approval_id')
+            .select('approval_id, amount_settled')
             .in('approval_id', slice);
           if (settledErr) {
             settlementLookupFailed = true;
             break;
           }
-          (settledRows || []).forEach((r: any) => settledIds.add(r.approval_id));
+          (settledRows || []).forEach((r: any) => {
+            settledMap[r.approval_id] =
+              (settledMap[r.approval_id] || 0) + (Number(r.amount_settled) || 0);
+          });
         }
         if (settlementLookupFailed) {
           // Never fall through to showing every approval as "owed" — that is
@@ -420,9 +423,20 @@ export function ProxyPartnerFunds() {
           setLoading(false);
           return;
         }
-        if (settledIds.size > 0) {
-          rawOps = rawOps.filter((o) => !settledIds.has(o.id));
-        }
+        // Amount-aware: drop an approval ONLY when its settled total fully
+        // covers the approved amount. A PARTIALLY-settled approval (FIFO
+        // backfill consumed only part of it) keeps its residual visible so the
+        // partner is not silently under-shown as fully paid.
+        setSettledByApproval(settledMap);
+        rawOps = rawOps.filter((o) => {
+          const settled = settledMap[o.id] || 0;
+          if (settled <= 0) return true;
+          const amt = Number(o.amount) || 0;
+          // keep when a meaningful residual (> 1 UGX dust) is still owed
+          return settled < amt - 1;
+        });
+      } else {
+        setSettledByApproval({});
       }
       setPortfolioIdsForRealtime(v2PortfolioIds);
 
