@@ -122,6 +122,10 @@ export function ProxyPartnerFunds() {
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
   const [strictWithdrawableByPartner, setStrictWithdrawableByPartner] = useState<Record<string, number>>({});
+  // Amount settled per approval (approval_id → total amount_settled). Used to
+  // subtract partial settlements so a residual the partner is still owed stays
+  // visible and the displayed owed amount stays correct.
+  const [settledByApproval, setSettledByApproval] = useState<Record<string, number>>({});
   // Partners whose proxy assignment is `is_managed_account=true`. Their ROI
   // is credited to the AGENT's wallet (not their own), so the ceiling clamp
   // must use the agent's strict withdrawable instead of the partner's zero.
