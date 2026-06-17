@@ -615,7 +615,7 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
       extra: { label: 'Extra', color: [99, 102, 241] },
     };
 
-    schedule.forEach((r) => {
+    filteredSchedule.forEach((r) => {
       if (y > ph - 18) {
         pdf.addPage();
         y = 16;
@@ -664,7 +664,7 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(100, 116, 139);
-    pdf.text(`Days expected: ${schedule.filter((r) => r.expected > 0).length}`, margin + 3, y);
+    pdf.text(`Days expected: ${filteredSchedule.filter((r) => r.expected > 0).length}`, margin + 3, y);
     pdf.setTextColor(239, 68, 68);
     pdf.text(`Missed days: ${missedDays}`, margin + 60, y);
     pdf.setTextColor(217, 119, 6);
