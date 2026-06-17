@@ -110,6 +110,108 @@ function expectedToDate(p: RepaymentSheetPlan, totalDue: number): number {
   return Math.round(perDay * elapsedDays);
 }
 
+/** Local YYYY-MM-DD key for grouping by calendar day. */
+function dayKey(d: string | number | Date): string {
+  const dt = new Date(d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function startOfDay(d: string | number | Date): number {
+  const dt = new Date(d);
+  dt.setHours(0, 0, 0, 0);
+  return dt.getTime();
+}
+
+interface DailyScheduleRow {
+  dateMs: number;
+  expected: number;          // amount the agent was expected to allocate that day
+  allocated: number;         // amount actually allocated that day
+  times: string[];           // exact times of each allocation that day
+  status: 'allocated' | 'partial' | 'missed' | 'extra';
+}
+
+/**
+ * Builds a calendar of every day the tenant was expected to be paying, from the
+ * earliest plan start through today (or plan end), and overlays the agent's
+ * actual float allocations on each day. Days with an expected amount but no
+ * allocation are flagged as "missed" so it is obvious which dates the agent was
+ * supposed to allocate on but did not.
+ */
+function buildDailySchedule(
+  data: RepaymentSheetData,
+  fromMs: number | null,
+  toMs: number | null,
+): DailyScheduleRow[] {
+  const allocs = data.allocations ?? [];
+  if (data.plans.length === 0 && allocs.length === 0) return [];
+
+  // Expected-per-day contribution windows from each plan.
+  const windows = data.plans
+    .filter((p) => (p.dailyRepayment ?? 0) > 0 && p.durationDays > 0)
+    .map((p) => {
+      const start = startOfDay(p.disbursedAt || p.date);
+      const end = start + p.durationDays * 86400000; // exclusive
+      return { start, end, daily: Number(p.dailyRepayment || 0) };
+    });
+
+  // Allocations grouped by calendar day.
+  const allocByDay = new Map<string, { amount: number; times: string[] }>();
+  allocs.forEach((a) => {
+    const k = dayKey(a.date);
+    const cur = allocByDay.get(k) ?? { amount: 0, times: [] };
+    cur.amount += Number(a.amount || 0);
+    cur.times.push(new Date(a.date).toLocaleTimeString('en-UG', { hour: '2-digit', minute: '2-digit' }));
+    allocByDay.set(k, cur);
+  });
+
+  // Determine the calendar span to render.
+  const todayEnd = startOfDay(Date.now());
+  let spanStart = Infinity;
+  let spanEnd = -Infinity;
+  windows.forEach((w) => {
+    spanStart = Math.min(spanStart, w.start);
+    spanEnd = Math.max(spanEnd, Math.min(w.end - 86400000, todayEnd));
+  });
+  allocs.forEach((a) => {
+    const d = startOfDay(a.date);
+    spanStart = Math.min(spanStart, d);
+    spanEnd = Math.max(spanEnd, d);
+  });
+  if (!isFinite(spanStart) || spanEnd < spanStart) return [];
+
+  // Clamp to the reporting period when one is selected.
+  if (fromMs !== null) spanStart = Math.max(spanStart, startOfDay(fromMs));
+  if (toMs !== null) spanEnd = Math.min(spanEnd, startOfDay(toMs));
+  if (spanEnd < spanStart) return [];
+
+  // Safety cap to keep the document bounded.
+  const MAX_DAYS = 400;
+  const rows: DailyScheduleRow[] = [];
+  for (let ms = spanStart, count = 0; ms <= spanEnd && count < MAX_DAYS; ms += 86400000, count++) {
+    const expected = windows.reduce((s, w) => (ms >= w.start && ms < w.end ? s + w.daily : s), 0);
+    const a = allocByDay.get(dayKey(ms));
+    const allocated = a?.amount ?? 0;
+    const times = a?.times ?? [];
+    let status: DailyScheduleRow['status'];
+    if (expected <= 0) {
+      status = allocated > 0 ? 'extra' : 'missed'; // no due that day
+    } else if (allocated <= 0) {
+      status = 'missed';
+    } else if (allocated + 1 >= expected) {
+      status = 'allocated';
+    } else {
+      status = 'partial';
+    }
+    // Skip days that have neither a due amount nor an allocation.
+    if (expected <= 0 && allocated <= 0) continue;
+    rows.push({ dateMs: ms, expected, allocated, times, status });
+  }
+  return rows;
+}
+
 export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
