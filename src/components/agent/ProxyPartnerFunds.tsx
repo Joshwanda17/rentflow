@@ -53,6 +53,7 @@ interface PwoEntry {
   description: string | null;
   metadata: Record<string, any> | null;
   created_at: string;
+  reviewed_at: string | null;
 }
 
 interface PortfolioInfo {
@@ -90,6 +91,21 @@ const COMPLETED_PROXY_WITHDRAWAL_STATUSES = [
 const TERMINAL_UNPAID_STATUSES = ['rejected', 'expired', 'cancelled'] as const;
 
 type FilterMode = 'all' | 'inflight' | 'reattempt' | 'fresh';
+
+const getKampalaPayoutDayWindow = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Kampala',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value || 0);
+  const startUtc = Date.UTC(get('year'), get('month') - 1, get('day')) - (3 * 60 * 60 * 1000);
+  return {
+    startIso: new Date(startUtc).toISOString(),
+    endIso: new Date(startUtc + 24 * 60 * 60 * 1000).toISOString(),
+  };
+};
 
 interface LastTerminal {
   status: string;
@@ -352,23 +368,28 @@ export function ProxyPartnerFunds() {
         v2PortfolioIds = (v2Portfolios || []).map((p: any) => p.id);
       }
 
+      const payoutDay = getKampalaPayoutDayWindow();
       const [legacyRes, v2Res] = await Promise.all([
         supabase
           .from('pending_wallet_operations')
-          .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at')
+          .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at, reviewed_at')
           .eq('target_wallet_user_id', user.id)
           .eq('category', 'roi_payout')
           .eq('status', 'approved')
           .in('reviewed_by', cfoIds)
+          .gte('reviewed_at', payoutDay.startIso)
+          .lt('reviewed_at', payoutDay.endIso)
           .not('metadata->coo_approved_by', 'is', null)
           .not('source_id', 'is', null)
           .order('created_at', { ascending: false }),
         v2PortfolioIds.length > 0
           ? supabase
               .from('pending_wallet_operations')
-              .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at')
+              .select('id, amount, linked_party, source_id, target_wallet_user_id, description, metadata, created_at, reviewed_at')
               .eq('category', 'roi_payout')
               .eq('status', 'approved')
+              .gte('reviewed_at', payoutDay.startIso)
+              .lt('reviewed_at', payoutDay.endIso)
               .not('metadata->coo_approved_by', 'is', null)
               .in('source_id', v2PortfolioIds)
               .order('created_at', { ascending: false })
@@ -789,6 +810,10 @@ export function ProxyPartnerFunds() {
     }> = {};
 
     Object.entries(opsByPartner).forEach(([partnerId, rows]) => {
+      // Once a proxy withdrawal has been submitted, the partner leaves the
+      // actionable queue immediately. They only reappear if the request is
+      // rejected/cancelled/expired because those statuses are not active holds.
+      if ((activeWithdrawalsByPartner[partnerId] || 0) > 50) return;
       const totalApproved = rows.reduce((sum, row) => sum + row.amount, 0);
       const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
       const historicalOpen = Math.max(0, totalApproved);
@@ -1681,6 +1706,7 @@ export function ProxyPartnerFunds() {
         prefillReason={prefillReason}
         prefillPayout={prefillPayout}
         linkedParty={selectedPartnerId}
+        lockAmount
       />
 
       <AlertDialog open={cancelConfirmOpen} onOpenChange={(open) => {
