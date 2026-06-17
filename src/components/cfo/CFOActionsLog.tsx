@@ -228,6 +228,21 @@ export function CFOActionsLog() {
 
   const isOutRow = (r: TrailRow) => r.direction === 'cash_out' || r.direction === 'debit';
 
+  // Human-readable summary of the filters currently applied. Used verbatim at
+  // the top of every export so the file is self-describing.
+  const buildFilterSummary = () => {
+    const group = FILTER_GROUPS.find((g) => g.value === filterGroup);
+    const dateRangeText =
+      dateRange?.from
+        ? `${format(dateRange.from, 'dd MMM yyyy')} – ${format(dateRange.to ?? dateRange.from, 'dd MMM yyyy')}`
+        : 'All dates';
+    return {
+      category: group?.label || 'All Movements',
+      dateRange: dateRangeText,
+      search: search || 'None',
+    };
+  };
+
   const handleExportCSV = async () => {
     if (exporting) return;
     setExporting('csv');
@@ -237,8 +252,23 @@ export function CFOActionsLog() {
         toast.info('No movements match the current filters.');
         return;
       }
+      const summary = buildFilterSummary();
+      const csvCell = (v: string) => `"${(v ?? '').replace(/"/g, '""')}"`;
+      // Filter context block at the very top of the file.
+      const meta = [
+        ['CFO Actions Trail'],
+        ['Generated', format(new Date(), 'yyyy-MM-dd HH:mm')],
+        ['Category Filter', summary.category],
+        ['Date Range', summary.dateRange],
+        ['Search Terms', summary.search],
+        ['Total Movements', String(rows.length)],
+        [],
+      ]
+        .map((cells) => cells.map(csvCell).join(','))
+        .join('\n') + '\n';
       const header = 'Date,Movement,Direction,Amount,Party,Classification,Reference,Source,Description\n';
       const csv =
+        meta +
         header +
         rows
           .map((r) => {

@@ -78,21 +78,28 @@ export async function generateCfoLedgerTrailPdf(
   // Filter summary
   let y = 40;
   doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
 
-  const filterBits: string[] = [];
-  if (meta.filterLabel && meta.filterLabel !== 'All Movements') filterBits.push(meta.filterLabel);
-  if (meta.fromDate || meta.toDate) {
-    const f = meta.fromDate ? format(meta.fromDate, 'dd MMM yyyy') : '…';
-    const t = meta.toDate ? format(meta.toDate, 'dd MMM yyyy') : '…';
-    filterBits.push(`${f} – ${t}`);
-  }
-  if (meta.search) filterBits.push(`Search: "${meta.search}"`);
-  if (filterBits.length) {
-    doc.text(filterBits.join('   •   '), margin, y);
+  // Always print the three active filters so the file is self-describing.
+  const dateRangeText =
+    meta.fromDate || meta.toDate
+      ? `${meta.fromDate ? format(meta.fromDate, 'dd MMM yyyy') : '…'} – ${meta.toDate ? format(meta.toDate, 'dd MMM yyyy') : '…'}`
+      : 'All dates';
+  const filterLines: [string, string][] = [
+    ['Category Filter', meta.filterLabel || 'All Movements'],
+    ['Date Range', dateRangeText],
+    ['Search Terms', meta.search ? `"${meta.search}"` : 'None'],
+  ];
+  doc.setFontSize(9);
+  for (const [label, value] of filterLines) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${label}:`, margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value, margin + 30, y);
     y += 5;
   }
+  y += 1;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
 
   const totalIn = rows.filter((r) => !r.isOut).reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const totalOut = rows.filter((r) => r.isOut).reduce((s, r) => s + (Number(r.amount) || 0), 0);
