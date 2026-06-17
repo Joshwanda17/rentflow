@@ -2056,6 +2056,19 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           </SectionCard>
         )}
 
+        {/* ── One-tap export: all-time repayment sheet PDF, no extra navigation ── */}
+        <Button
+          variant="default"
+          size="lg"
+          disabled={requests.length === 0 || generatingSheet}
+          onClick={handleQuickExportRepaymentSheet}
+          className="w-full h-12 rounded-xl gap-2 text-base font-semibold"
+          aria-label="Export repayment sheet PDF in one tap"
+        >
+          {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+          {generatingSheet ? 'Preparing PDF…' : 'Export Repayment Sheet (PDF)'}
+        </Button>
+
         {/* ── Repayment sheet PDF — pick a period, then generate ── */}
         <Popover
           open={sheetRangeOpen}
@@ -2066,14 +2079,14 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         >
           <PopoverTrigger asChild>
             <Button
-              variant="default"
+              variant="outline"
               size="lg"
               disabled={requests.length === 0}
-              className="w-full h-12 rounded-xl gap-2 text-base font-semibold"
-              aria-label="Generate repayment sheet PDF"
+              className="w-full h-11 rounded-xl gap-2 text-sm font-semibold"
+              aria-label="Generate repayment sheet PDF for a chosen period"
             >
-              <FileText className="h-5 w-5" />
-              Repayment Sheet (PDF)
+              <Calendar className="h-4 w-4" />
+              Choose period &amp; export…
             </Button>
           </PopoverTrigger>
           <PopoverContent align="center" className="w-[min(92vw,22rem)] p-4 space-y-3">
