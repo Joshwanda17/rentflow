@@ -2096,41 +2096,16 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   </label>
                 </div>
                 {/* Live preview of the selected window before generating */}
-                <div className="rounded-xl border border-border/60 bg-muted/40 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Preview</p>
-                    <Badge variant="outline" className="text-[10px]">
-                      {sheetPreview.isAllTime
-                        ? 'All time'
-                        : `${sheetFrom ? format(new Date(sheetFrom), 'dd MMM yyyy') : '…'} – ${sheetTo ? format(new Date(sheetTo), 'dd MMM yyyy') : '…'}`}
-                    </Badge>
-                  </div>
-                  <div className="rounded-lg bg-success/10 px-3 py-2">
-                    <p className="text-[11px] text-muted-foreground">
-                      Collected in period ({sheetPreview.periodCount} payment{sheetPreview.periodCount === 1 ? '' : 's'})
-                    </p>
-                    <p className="text-lg font-black font-mono text-success">{formatUGX(sheetPreview.collectedInPeriod)}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                    <span className="text-muted-foreground">Rent to landlords</span>
-                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalRentToLandlord)}</span>
-                    <span className="text-muted-foreground">Access fees</span>
-                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalAccess)}</span>
-                    <span className="text-muted-foreground">Registration fees</span>
-                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalReg)}</span>
-                    <span className="text-muted-foreground">Total due</span>
-                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalDue)}</span>
-                    <span className="text-muted-foreground">Total repaid</span>
-                    <span className="text-right font-semibold font-mono text-success">{formatUGX(sheetPreview.totalRepaid)}</span>
-                    <span className="text-muted-foreground">Outstanding</span>
-                    <span className={`text-right font-semibold font-mono ${sheetPreview.totalOutstanding > 0 ? 'text-destructive' : 'text-success'}`}>{formatUGX(sheetPreview.totalOutstanding)}</span>
-                    <span className="text-muted-foreground">Collection rate</span>
-                    <span className="text-right font-semibold font-mono">{sheetPreview.collectionRate}%</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground leading-snug">
-                    Fee &amp; balance totals cover all rent plans; only the “collected in period” figure and the PDF transaction log are filtered to the selected dates.
-                  </p>
-                </div>
+                <SheetPeriodPreview
+                  title="Preview"
+                  preview={sheetPreview}
+                  periodLabel={
+                    sheetPreview.isAllTime
+                      ? 'All time'
+                      : `${sheetFrom ? format(new Date(sheetFrom), 'dd MMM yyyy') : '…'} – ${sheetTo ? format(new Date(sheetTo), 'dd MMM yyyy') : '…'}`
+                  }
+                  caption="Fee & balance totals cover all rent plans; only the “collected in period” figure and the PDF transaction log are filtered to the selected dates."
+                />
                 <Button
                   variant="default"
                   size="lg"
@@ -2148,41 +2123,16 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   <CheckCircle2 className="h-5 w-5 text-success" />
                   <p className="text-sm font-bold text-foreground">Confirm Repayment Sheet</p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-muted/40 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Period</p>
-                    <Badge variant="outline" className="text-[10px]">
-                      {sheetPreview.isAllTime
-                        ? 'All time'
-                        : `${sheetFrom ? format(new Date(sheetFrom), 'dd MMM yyyy') : '…'} – ${sheetTo ? format(new Date(sheetTo), 'dd MMM yyyy') : '…'}`}
-                    </Badge>
-                  </div>
-                  <div className="rounded-lg bg-success/10 px-3 py-2">
-                    <p className="text-[11px] text-muted-foreground">
-                      Collected in period ({sheetPreview.periodCount} payment{sheetPreview.periodCount === 1 ? '' : 's'})
-                    </p>
-                    <p className="text-lg font-black font-mono text-success">{formatUGX(sheetPreview.collectedInPeriod)}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                    <span className="text-muted-foreground">Rent to landlords</span>
-                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalRentToLandlord)}</span>
-                    <span className="text-muted-foreground">Access fees</span>
-                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalAccess)}</span>
-                    <span className="text-muted-foreground">Registration fees</span>
-                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalReg)}</span>
-                    <span className="text-muted-foreground">Total due</span>
-                    <span className="text-right font-semibold font-mono">{formatUGX(sheetPreview.totalDue)}</span>
-                    <span className="text-muted-foreground">Total repaid</span>
-                    <span className="text-right font-semibold font-mono text-success">{formatUGX(sheetPreview.totalRepaid)}</span>
-                    <span className="text-muted-foreground">Outstanding</span>
-                    <span className={`text-right font-semibold font-mono ${sheetPreview.totalOutstanding > 0 ? 'text-destructive' : 'text-success'}`}>{formatUGX(sheetPreview.totalOutstanding)}</span>
-                    <span className="text-muted-foreground">Collection rate</span>
-                    <span className="text-right font-semibold font-mono">{sheetPreview.collectionRate}%</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground leading-snug">
-                    Review the figures above, then open the sheet on screen or download it. The PDF lists every day the agent allocated — with the exact amount, date &amp; time.
-                  </p>
-                </div>
+                <SheetPeriodPreview
+                  title="Period"
+                  preview={sheetPreview}
+                  periodLabel={
+                    sheetPreview.isAllTime
+                      ? 'All time'
+                      : `${sheetFrom ? format(new Date(sheetFrom), 'dd MMM yyyy') : '…'} – ${sheetTo ? format(new Date(sheetTo), 'dd MMM yyyy') : '…'}`
+                  }
+                  caption="Review the figures above, then open the sheet on screen or download it. The PDF lists every day the agent allocated — with the exact amount, date & time."
+                />
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
