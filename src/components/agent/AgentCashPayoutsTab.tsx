@@ -318,6 +318,39 @@ export function AgentCashPayoutsTab() {
         </div>
       </div>
 
+      {/* My Active Claims — pinned to the very top so a request YOU claimed is
+          always clearly separated from the rest of the queue and can't be missed. */}
+      {myActiveClaims.length > 0 && (
+        <Card className="border-2 border-amber-500/60 bg-amber-500/10 rounded-2xl shadow-lg ring-2 ring-amber-500/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold uppercase tracking-wide flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <UserCheck className="h-4 w-4" />
+              Claimed by you · {myActiveClaims.length}
+              <Badge className="ml-auto bg-amber-500 text-white hover:bg-amber-500 h-5 px-2 gap-1 text-[11px]">
+                <Clock className="h-3 w-3" /> 15 min to confirm
+              </Badge>
+            </CardTitle>
+            <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
+              These are yours to complete. Pay the recipient, then enter the proof to confirm.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2.5">
+            {myActiveClaims.map((w: any) => (
+              <WithdrawalPayoutCard
+                key={w.id}
+                withdrawal={w}
+                isClaimed
+                isClaimedByOther={false}
+                onClaim={() => claimWithdrawal.mutate(w.id)}
+                onComplete={completeWithdrawal.mutate}
+                isClaimPending={claimWithdrawal.isPending}
+                isCompletePending={completeWithdrawal.isPending}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Daily summary */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent rounded-2xl">
         <CardHeader className="pb-3">
