@@ -662,15 +662,15 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
 
   // Build the repayment-sheet payload (shared by the download + open actions).
   // Includes the agent's day-by-day float allocations with exact date & time.
-  const buildSheetData = (): RepaymentSheetData | null => {
+  const buildSheetData = (opts?: { allTime?: boolean }): RepaymentSheetData | null => {
     if (!profile) return null;
     return {
       aiId,
       tenantName: profile.full_name,
       phone: profile.phone,
       agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
-      periodFrom: sheetFrom || null,
-      periodTo: sheetTo || null,
+      periodFrom: opts?.allTime ? null : (sheetFrom || null),
+      periodTo: opts?.allTime ? null : (sheetTo || null),
       plans: requests.map((r) => ({
         date: r.created_at,
         disbursedAt: r.disbursed_at,
@@ -690,6 +690,24 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         .filter((a) => a.status === 'active')
         .map((a) => ({ date: a.date, amount: a.amount })),
     };
+  };
+
+  // One-tap export: builds the all-time repayment sheet and downloads/shares it
+  // immediately, with no period picker or confirm step.
+  const handleQuickExportRepaymentSheet = async () => {
+    const sheet = buildSheetData({ allTime: true });
+    if (!sheet) return;
+    setGeneratingSheet(true);
+    try {
+      await shareOrDownloadRepaymentSheet(sheet);
+      toast({ title: '📄 Repayment sheet ready' });
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        toast({ title: 'Failed to generate sheet', description: err?.message, variant: 'destructive' });
+      }
+    } finally {
+      setGeneratingSheet(false);
+    }
   };
 
   const handleGenerateRepaymentSheet = async () => {
