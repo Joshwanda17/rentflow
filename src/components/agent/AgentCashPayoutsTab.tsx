@@ -490,9 +490,9 @@ export function AgentCashPayoutsTab() {
                         <Button
                           className="w-full h-12 gap-2 font-semibold text-base"
                           onClick={() => claimWithdrawal.mutate(w.id)}
-                          disabled={claimWithdrawal.isPending}
+                          disabled={claimWithdrawal.isPending && claimWithdrawal.variables === w.id}
                         >
-                          {claimWithdrawal.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim</>}
+                          {claimWithdrawal.isPending && claimWithdrawal.variables === w.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim</>}
                         </Button>
                       </CardContent>
                     </Card>
