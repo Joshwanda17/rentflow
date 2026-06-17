@@ -2288,3 +2288,80 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
     </div>
   );
 }
+
+interface SheetPeriodPreviewData {
+  isAllTime: boolean;
+  periodCount: number;
+  collectedInPeriod: number;
+  totalRentToLandlord: number;
+  totalAccess: number;
+  totalReg: number;
+  totalDue: number;
+  totalRepaid: number;
+  totalOutstanding: number;
+  collectionRate: number;
+}
+
+/**
+ * Mobile-friendly repayment-sheet preview. The day-by-day allocation totals
+ * wrap their labels and the value column never gets clipped — on very narrow
+ * phones the figures table scrolls horizontally instead of overflowing.
+ */
+function SheetPeriodPreview({
+  title,
+  periodLabel,
+  caption,
+  preview,
+}: {
+  title: string;
+  periodLabel: string;
+  caption: string;
+  preview: SheetPeriodPreviewData;
+}) {
+  const rows: { label: string; value: string; className?: string }[] = [
+    { label: 'Rent to landlords', value: formatUGX(preview.totalRentToLandlord) },
+    { label: 'Access fees', value: formatUGX(preview.totalAccess) },
+    { label: 'Registration fees', value: formatUGX(preview.totalReg) },
+    { label: 'Total due', value: formatUGX(preview.totalDue) },
+    { label: 'Total repaid', value: formatUGX(preview.totalRepaid), className: 'text-success' },
+    {
+      label: 'Outstanding',
+      value: formatUGX(preview.totalOutstanding),
+      className: preview.totalOutstanding > 0 ? 'text-destructive' : 'text-success',
+    },
+    { label: 'Collection rate', value: `${preview.collectionRate}%` },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/40 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</p>
+        <Badge variant="outline" className="text-[10px] shrink-0 max-w-[60%] truncate">
+          {periodLabel}
+        </Badge>
+      </div>
+      <div className="rounded-lg bg-success/10 px-3 py-2">
+        <p className="text-[11px] text-muted-foreground">
+          Collected in period ({preview.periodCount} payment{preview.periodCount === 1 ? '' : 's'})
+        </p>
+        <p className="text-lg font-black font-mono text-success break-all">{formatUGX(preview.collectedInPeriod)}</p>
+      </div>
+      {/* Figures table — labels wrap, values stay intact, scrolls on tiny screens */}
+      <div className="-mx-1 overflow-x-auto px-1">
+        <div className="min-w-[15rem] divide-y divide-border/40">
+          {rows.map((r) => (
+            <div key={r.label} className="flex items-start justify-between gap-3 py-1.5">
+              <span className="text-xs text-muted-foreground break-words">{r.label}</span>
+              <span
+                className={`text-right text-xs font-semibold font-mono tabular-nums whitespace-nowrap ${r.className ?? ''}`}
+              >
+                {r.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="text-[10px] text-muted-foreground leading-snug">{caption}</p>
+    </div>
+  );
+}
