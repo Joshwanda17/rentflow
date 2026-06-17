@@ -107,6 +107,22 @@ const getKampalaPayoutDayWindow = (date = new Date()) => {
   };
 };
 
+// Stable card key — one card per PORTFOLIO (a partner can hold several
+// portfolios with different payout methods that each carry their own ROI
+// payout; they MUST render as separate cards).
+const makeCardKey = (partnerId: string, portfolioId: string | null) =>
+  `${partnerId}-${portfolioId || 'none'}`;
+
+// Proxy withdrawals stamp the chosen portfolio into the request reason as
+// "... | Route: portfolio <uuid>". Parsing it back lets us scope an in-flight
+// hold (and the backend FIFO settlement) to the EXACT portfolio that was
+// withdrawn, so paying one portfolio never removes a sibling portfolio's card.
+const extractRoutePortfolioId = (reason?: string | null): string | null => {
+  if (!reason) return null;
+  const m = reason.match(/Route:\s*portfolio\s+([0-9a-fA-F-]{36})/);
+  return m ? m[1] : null;
+};
+
 interface LastTerminal {
   status: string;
   reason: string | null;
@@ -135,6 +151,7 @@ export function ProxyPartnerFunds() {
   const [prefillReason, setPrefillReason] = useState('');
   const [prefillPayout, setPrefillPayout] = useState<any>(null);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
   const [strictWithdrawableByPartner, setStrictWithdrawableByPartner] = useState<Record<string, number>>({});
@@ -153,6 +170,11 @@ export function ProxyPartnerFunds() {
   // withdrawal amounts per partner. Treated as already-paid for display so the
   // card disappears from the default view the instant Caro initiates.
   const [activeWithdrawalsByPartner, setActiveWithdrawalsByPartner] = useState<Record<string, number>>({});
+  // Per-card in-flight amounts, keyed by `${partnerId}-${portfolioId}`. A
+  // routed withdrawal only hides ITS portfolio card; unrouted (legacy) holds
+  // fall back to `activeWithdrawalsByPartner` and hide every card of that
+  // partner.
+  const [activeWithdrawalsByCard, setActiveWithdrawalsByCard] = useState<Record<string, number>>({});
   const [lastTerminalByPartner, setLastTerminalByPartner] = useState<Record<string, LastTerminal>>({});
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -174,9 +196,9 @@ export function ProxyPartnerFunds() {
   // not the agent — `user_id=eq.<agent>` no longer catches them).
   const [partnerIdsForRealtime, setPartnerIdsForRealtime] = useState<string[]>([]);
   const [portfolioIdsForRealtime, setPortfolioIdsForRealtime] = useState<string[]>([]);
-  // Optimistic submit lock: partner ids whose Withdraw button has just been
-  // submitted. Prevents double-tap before realtime/settlement catches up.
-  const [submittingPartnerIds, setSubmittingPartnerIds] = useState<Set<string>>(new Set());
+  // Optimistic submit lock keyed per CARD (partner+portfolio) so submitting a
+  // payout for one portfolio doesn't grey out a sibling portfolio's card.
+  const [submittingCardKeys, setSubmittingCardKeys] = useState<Set<string>>(new Set());
   const partnerRealtimeKey = partnerIdsForRealtime.join(',');
   const portfolioRealtimeKey = portfolioIdsForRealtime.join(',');
   useEffect(() => {
@@ -311,6 +333,7 @@ export function ProxyPartnerFunds() {
         setPortfolios([]);
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
+        setActiveWithdrawalsByCard({});
         setLastTerminalByPartner({});
         setStrictWithdrawableByPartner({});
         setPartnerIdsForRealtime([]);
@@ -467,6 +490,7 @@ export function ProxyPartnerFunds() {
         setPortfolios([]);
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
+        setActiveWithdrawalsByCard({});
         setLastTerminalByPartner({});
         setStrictWithdrawableByPartner({});
         setPartnerIdsForRealtime([]);
@@ -516,6 +540,7 @@ export function ProxyPartnerFunds() {
         setCompletedWithdrawals([]);
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
+        setActiveWithdrawalsByCard({});
         setLastTerminalByPartner({});
         setStrictWithdrawableByPartner({});
         setPartnerIdsForRealtime([]);
@@ -542,6 +567,7 @@ export function ProxyPartnerFunds() {
         setCompletedWithdrawals([]);
         setPartnerWithdrawalStatus({});
         setActiveWithdrawalsByPartner({});
+        setActiveWithdrawalsByCard({});
         setLastTerminalByPartner({});
         setLoading(false);
         return;
@@ -623,38 +649,44 @@ export function ProxyPartnerFunds() {
       // Build active withdrawal status map + ID map
       const statusMap: Record<string, string> = {};
       const idMap: Record<string, string> = {};
-      // Sum of in-flight amounts per partner — used to silently hide cards from
-      // the default view once Caro has initiated a withdrawal for them.
+      // Sum of in-flight amounts. `byCard` holds routed withdrawals (we know
+      // the exact portfolio) so only that portfolio's card is hidden. `byPartner`
+      // holds UNROUTED legacy holds (no portfolio token in the reason) and is
+      // applied to every card of the partner as a safe fallback.
+      const activeAmountByCard: Record<string, number> = {};
       const activeAmountByPartner: Record<string, number> = {};
       // Track the most recent active-withdrawal timestamp per partner so we
       // can suppress stale terminal banners that have been superseded.
       const lastActiveAtByPartner: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
         const partnerKey = resolvePartnerKey(w);
-        // Preserve original portfolio key behavior (legacy uses linked_party
-        // as the per-portfolio key when present; Custody V2 has no portfolio
-        // hint so we fall back to the partner UUID).
-        const portfolioKey = w.linked_party || partnerKey;
         const wAmt = Number(w.amount) || 0;
+        // The portfolio this withdrawal targets, parsed from the stamped
+        // "Route: portfolio <uuid>" token. When present, the hold is scoped to
+        // a single card; when absent it is a partner-wide (legacy) hold.
+        const routePortfolioId = extractRoutePortfolioId(w.reason);
 
         if (partnerKey) {
           const ts = w.updated_at || w.created_at;
           if (ts && (!lastActiveAtByPartner[partnerKey] || ts > lastActiveAtByPartner[partnerKey])) {
             lastActiveAtByPartner[partnerKey] = ts;
           }
-          activeAmountByPartner[partnerKey] =
-            (activeAmountByPartner[partnerKey] || 0) + wAmt;
-          if (portfolioKey) {
-            const existing = statusMap[portfolioKey];
+          if (routePortfolioId) {
+            const cardKey = makeCardKey(partnerKey, routePortfolioId);
+            activeAmountByCard[cardKey] = (activeAmountByCard[cardKey] || 0) + wAmt;
+            const existing = statusMap[cardKey];
             if (!existing || w.status === 'pending') {
-              statusMap[portfolioKey] = w.status;
-              idMap[portfolioKey] = w.id;
+              statusMap[cardKey] = w.status;
+              idMap[cardKey] = w.id;
             }
-          }
-          const existing = statusMap[partnerKey];
-          if (!existing || w.status === 'pending') {
-            statusMap[partnerKey] = w.status;
-            idMap[partnerKey] = w.id;
+          } else {
+            activeAmountByPartner[partnerKey] =
+              (activeAmountByPartner[partnerKey] || 0) + wAmt;
+            const existing = statusMap[partnerKey];
+            if (!existing || w.status === 'pending') {
+              statusMap[partnerKey] = w.status;
+              idMap[partnerKey] = w.id;
+            }
           }
           return;
         }
@@ -662,12 +694,22 @@ export function ProxyPartnerFunds() {
           for (const pid of uniquePartnerIds) {
             const name = profileMap[pid]?.full_name;
             if (name && w.reason.includes(name)) {
-              const existing = statusMap[pid];
-              if (!existing || w.status === 'pending') {
-                statusMap[pid] = w.status;
-                idMap[pid] = w.id;
+              if (routePortfolioId) {
+                const cardKey = makeCardKey(pid, routePortfolioId);
+                activeAmountByCard[cardKey] = (activeAmountByCard[cardKey] || 0) + wAmt;
+                const existing = statusMap[cardKey];
+                if (!existing || w.status === 'pending') {
+                  statusMap[cardKey] = w.status;
+                  idMap[cardKey] = w.id;
+                }
+              } else {
+                const existing = statusMap[pid];
+                if (!existing || w.status === 'pending') {
+                  statusMap[pid] = w.status;
+                  idMap[pid] = w.id;
+                }
+                activeAmountByPartner[pid] = (activeAmountByPartner[pid] || 0) + wAmt;
               }
-              activeAmountByPartner[pid] = (activeAmountByPartner[pid] || 0) + wAmt;
               const ts = w.updated_at || w.created_at;
               if (ts && (!lastActiveAtByPartner[pid] || ts > lastActiveAtByPartner[pid])) {
                 lastActiveAtByPartner[pid] = ts;
@@ -680,6 +722,7 @@ export function ProxyPartnerFunds() {
       setPartnerWithdrawalStatus(statusMap);
       setPartnerWithdrawalIds(idMap);
       setActiveWithdrawalsByPartner(activeAmountByPartner);
+      setActiveWithdrawalsByCard(activeAmountByCard);
 
       // Track the most recent successful (delivered) withdrawal timestamp per
       // partner — a terminal event older than this means Caro already
@@ -757,11 +800,16 @@ export function ProxyPartnerFunds() {
   const partnerBalances = useMemo<PartnerBalance[]>(() => {
     if (!user?.id) return [];
 
-    // Build partner-level approved ROI history, then allocate ONLY the live
+    // Build PER-PORTFOLIO approved ROI history, then allocate ONLY the live
     // unsettled amount (strict withdrawable + in-flight holds) onto the newest
     // CFO-approved ROI items first. This prevents old paid approvals from being
     // revived by later balances and showing as stale proxy cards.
-    const opsByPartner: Record<string, Array<{ portfolioId: string; amount: number; createdAt: string; op: PwoEntry }>> = {};
+    //
+    // A partner can hold several portfolios, each with its OWN payout method and
+    // its OWN ROI payout (sometimes the exact same amount). Those are distinct
+    // payouts and MUST render as separate cards — so we key by
+    // `${partnerId}-${portfolioId}` (one card per portfolio), NOT per partner.
+    const opsByCard: Record<string, { partnerId: string; portfolioId: string; rows: Array<{ amount: number; createdAt: string; op: PwoEntry }> }> = {};
     // Partners whose ROI lands in the AGENT's wallet rather than their own.
     // This covers BOTH managed-proxy partners and LEGACY custody approvals
     // (target_wallet_user_id === agent). For these the partner's own strict
@@ -780,13 +828,11 @@ export function ProxyPartnerFunds() {
       const amount = Math.max(0, (Number(op.amount) || 0) - settled);
       if (!partnerId || partnerId === user.id || amount <= 0) return;
       if (op.target_wallet_user_id === user.id) agentWalletFundedPartners.add(partnerId);
-      if (!opsByPartner[partnerId]) opsByPartner[partnerId] = [];
-      opsByPartner[partnerId].push({
-        portfolioId: op.source_id,
-        amount,
-        createdAt: op.created_at,
-        op,
-      });
+      const cardKey = makeCardKey(partnerId, op.source_id);
+      if (!opsByCard[cardKey]) {
+        opsByCard[cardKey] = { partnerId, portfolioId: op.source_id, rows: [] };
+      }
+      opsByCard[cardKey].rows.push({ amount, createdAt: op.created_at, op });
     });
 
     // NOTE: We intentionally do NOT subtract `completedWithdrawals` from the
@@ -809,13 +855,16 @@ export function ProxyPartnerFunds() {
       latestAt: string;
     }> = {};
 
-    Object.entries(opsByPartner).forEach(([partnerId, rows]) => {
-      // Once a proxy withdrawal has been submitted, the partner leaves the
-      // actionable queue immediately. They only reappear if the request is
-      // rejected/cancelled/expired because those statuses are not active holds.
-      if ((activeWithdrawalsByPartner[partnerId] || 0) > 50) return;
+    Object.entries(opsByCard).forEach(([cardKey, { partnerId, portfolioId, rows }]) => {
+      // In-flight for THIS card: a routed hold scoped to this exact portfolio,
+      // PLUS any unrouted (legacy) partner-wide hold that can't be pinned to a
+      // portfolio. Once a withdrawal is submitted for this card it leaves the
+      // actionable queue immediately, but a sibling portfolio's card stays.
+      const cardInFlight =
+        (activeWithdrawalsByCard[cardKey] || 0) + (activeWithdrawalsByPartner[partnerId] || 0);
+      if (cardInFlight > 50) return;
       const totalApproved = rows.reduce((sum, row) => sum + row.amount, 0);
-      const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
+      const totalInFlight = cardInFlight;
       const historicalOpen = Math.max(0, totalApproved);
       // Managed partners → ROI lives in the AGENT's wallet, so the partner's
       // own strict withdrawable is always 0. The amount the partner is OWED is
@@ -841,19 +890,14 @@ export function ProxyPartnerFunds() {
 
       let remainingOpen = liveOpen;
       let remainingInFlight = Math.min(totalInFlight, liveOpen);
-      // CONSOLIDATED: one card per PARTNER. A partner with unsettled ROI on
-      // several portfolios used to render one card per portfolio, so the same
-      // person appeared multiple times (the "x2" bug: e.g. SSENKAALI PIUS) and
-      // a single withdrawal — which the dialog books against the PARTNER (not a
-      // portfolio) and the backend settles FIFO across the partner's approvals
-      // — only cleared one of the duplicate cards, leaving the partner in the
-      // queue after being paid. Aggregating into a single per-partner card
-      // keeps the queue 1:1 with how the money actually moves.
+      // One card per PORTFOLIO. The withdrawal stamps this portfolio's id into
+      // the request reason ("Route: portfolio <id>") so the in-flight hold and
+      // the backend FIFO settlement both scope to THIS portfolio only — paying
+      // one portfolio never clears (or revives) a sibling portfolio's card.
       let total = 0;
       let avail = 0;
       let inflight = 0;
       let latestAt = '';
-      const portfolioCandidates: Array<{ id: string; createdAt: string }> = [];
       rows
         .slice()
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -868,20 +912,11 @@ export function ProxyPartnerFunds() {
           avail += availableAllocated;
           inflight += inFlightAllocated;
           if (row.createdAt && row.createdAt > latestAt) latestAt = row.createdAt;
-          if (row.portfolioId) portfolioCandidates.push({ id: row.portfolioId, createdAt: row.createdAt });
         });
       if (total <= 0) return;
-      // Representative portfolio for payout routing / display: prefer one with
-      // a configured payment route, newest first; otherwise the newest.
-      portfolioCandidates.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      const routed = portfolioCandidates.find((c) => {
-        const p = portfolioMap[c.id];
-        return p && (p.payment_method === 'mobile_money' || p.payment_method === 'bank_transfer' || p.payment_method === 'cash');
-      });
-      const repPortfolioId = routed?.id || portfolioCandidates[0]?.id || null;
-      groupMap[partnerId] = {
+      groupMap[cardKey] = {
         partnerId,
-        portfolioId: repPortfolioId,
+        portfolioId,
         totalAmount: total,
         availableAmount: avail,
         inFlightAmount: inflight,
@@ -939,7 +974,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, agentStrictWithdrawable, managedPartnerIds, settledByApproval, profiles, portfolioMap, dismissalMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, activeWithdrawalsByCard, strictWithdrawableByPartner, agentStrictWithdrawable, managedPartnerIds, settledByApproval, profiles, portfolioMap, dismissalMap, user?.id]);
 
   // Share a branded WhatsApp payout card for a single partner so the proxy
   // agent can confirm name / mobile-money number / amount with the partner.
@@ -1000,12 +1035,17 @@ export function ProxyPartnerFunds() {
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
+    setSelectedPortfolioId(partner.portfolioId);
     setPrefillAmount(partner.available);
 
     const portfolioLabel = partner.portfolioCode
       ? ` (Portfolio: ${partner.accountName || partner.portfolioCode})`
       : '';
-    setPrefillReason(`Proxy payout delivery for ${partner.partnerName}${portfolioLabel}`);
+    // Stamp the exact portfolio id as a machine-readable route token so the
+    // in-flight hold AND the backend FIFO settlement scope to THIS portfolio
+    // only — paying one portfolio never clears a sibling portfolio's card.
+    const routeToken = partner.portfolioId ? ` | Route: portfolio ${partner.portfolioId}` : '';
+    setPrefillReason(`Proxy payout delivery for ${partner.partnerName}${portfolioLabel}${routeToken}`);
 
     // Auto-populate payout destination so the agent never re-keys partner
     // MoMo / bank details on a proxy withdrawal. Resolution order:
@@ -1108,12 +1148,14 @@ export function ProxyPartnerFunds() {
   };
 
   const handleWithdrawSuccess = () => {
-    // Optimistic lock: instantly disable Withdraw on this partner's card so
-    // the agent can't double-submit before realtime catches up.
+    // Optimistic lock: instantly disable Withdraw on THIS portfolio's card so
+    // the agent can't double-submit before realtime catches up. Scoped to the
+    // card (partner+portfolio) so a sibling portfolio stays actionable.
+    const lockedCardKey = makeCardKey(selectedPartnerId, selectedPortfolioId);
     if (selectedPartnerId) {
-      setSubmittingPartnerIds((prev) => {
+      setSubmittingCardKeys((prev) => {
         const next = new Set(prev);
-        next.add(selectedPartnerId);
+        next.add(lockedCardKey);
         return next;
       });
     }
@@ -1126,9 +1168,9 @@ export function ProxyPartnerFunds() {
     // Release the optimistic lock after a generous window — by then DB
     // realtime + settlement insert has resolved the card.
     setTimeout(() => {
-      setSubmittingPartnerIds((prev) => {
+      setSubmittingCardKeys((prev) => {
         const next = new Set(prev);
-        if (selectedPartnerId) next.delete(selectedPartnerId);
+        next.delete(lockedCardKey);
         return next;
       });
     }, 5000);
@@ -1177,16 +1219,16 @@ export function ProxyPartnerFunds() {
   };
 
   const getStatusKey = (partner: PartnerBalance) => {
-    if (partner.portfolioId) {
-      const portfolioKey = `${partner.partnerId}-${partner.portfolioId}`;
-      if (partnerWithdrawalStatus[portfolioKey]) return portfolioKey;
-    }
+    // Prefer the card-scoped (routed) status; fall back to a partner-wide
+    // (legacy/unrouted) status only when no per-portfolio status exists.
+    const cardKey = makeCardKey(partner.partnerId, partner.portfolioId);
+    if (partnerWithdrawalStatus[cardKey]) return cardKey;
     return partner.partnerId;
   };
 
   // Card key used for selection / dismissal storage
   const getCardKey = (partner: PartnerBalance) =>
-    `${partner.partnerId}-${partner.portfolioId || 'none'}`;
+    makeCardKey(partner.partnerId, partner.portfolioId);
 
   const toggleSelect = (partner: PartnerBalance) => {
     const key = getCardKey(partner);
@@ -1380,11 +1422,10 @@ export function ProxyPartnerFunds() {
 
   const visibleBalances = partnerBalances.filter((p) => {
     const c = classify(p);
-    // Optimistic removal: the instant Caro submits a withdrawal for a partner
-    // (before realtime / settlement catches up) drop the card from the default
-    // All view. Combined with the one-card-per-partner grouping this guarantees
-    // a paid partner never lingers — and never reappears as "x2".
-    if (filterMode === 'all' && submittingPartnerIds.has(p.partnerId)) return false;
+    // Optimistic removal: the instant Caro submits a withdrawal for THIS
+    // portfolio card (before realtime / settlement catches up) drop it from the
+    // default All view. Scoped to the card so a sibling portfolio stays.
+    if (filterMode === 'all' && submittingCardKeys.has(getCardKey(p))) return false;
     // Default All view hides in-flight/active cards — once Caro initiates a
     // withdrawal the partner is treated as paid and the card disappears.
     if (filterMode === 'all') return c.kind !== 'inflight' && c.kind !== 'active';
@@ -1500,11 +1541,11 @@ export function ProxyPartnerFunds() {
         const statusKey = getStatusKey(partner);
         const hasPending = !!partnerWithdrawalStatus[statusKey];
         const statusBadge = getStatusBadge(partner);
-        const cardKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
+        const cardKey = getCardKey(partner);
         const currentStatus = partnerWithdrawalStatus[statusKey];
         const canCancel = currentStatus ? ACTIVE_PROXY_WITHDRAWAL_STATUSES.includes(currentStatus as typeof ACTIVE_PROXY_WITHDRAWAL_STATUSES[number]) : false;
         const classification = classify(partner);
-        const isSubmitting = submittingPartnerIds.has(partner.partnerId);
+        const isSubmitting = submittingCardKeys.has(cardKey);
 
         // Registered payout destination for this partner (clear, labelled).
         const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
