@@ -480,7 +480,7 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
               </div>
               <div className="rounded-xl bg-muted/40 p-3">
                 <p className="font-semibold text-foreground text-sm">🔗 Invite a Funder</p>
-                <p className="text-xs mt-1">Share your referral link with potential investors. When they fund rent for your tenants, <span className="font-bold text-foreground">everyone wins</span> — tenants get rent, you earn commissions, and the funder earns returns.</p>
+                <p className="text-xs mt-1">Share your referral link with potential investors. When a funder you bring invests, you earn a <span className="font-bold text-primary">2% commission</span> on their investment (and <span className="font-bold text-primary">1%</span> on Angel Pool investments) — tenants get rent, you get paid, and the funder earns returns.</p>
               </div>
               <div className="rounded-xl bg-muted/40 p-3">
                 <p className="font-semibold text-foreground text-sm">📈 Collection Streaks</p>
