@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -64,6 +64,28 @@ export function AgentCashPayoutsTab() {
   const [payoutCode, setPayoutCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
+
+  // Per-request submission locks. The refs guard SYNCHRONOUSLY on tap (before any
+  // re-render) so a rapid double-tap can never fire the same mutation twice; the
+  // state mirrors them only to drive the disabled/loading UI.
+  const claimLockRef = useRef<Set<string>>(new Set());
+  const completeLockRef = useRef<Set<string>>(new Set());
+  const [claimingIds, setClaimingIds] = useState<Set<string>>(new Set());
+  const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
+
+  const handleClaim = (id: string) => {
+    if (claimLockRef.current.has(id)) return; // already submitting this request
+    claimLockRef.current.add(id);
+    setClaimingIds(new Set(claimLockRef.current));
+    claimWithdrawal.mutate(id);
+  };
+
+  const handleComplete = (data: { id: string; reference: string; method: string }) => {
+    if (completeLockRef.current.has(data.id)) return; // already submitting this request
+    completeLockRef.current.add(data.id);
+    setCompletingIds(new Set(completeLockRef.current));
+    completeWithdrawal.mutate(data);
+  };
 
   // Check if this agent is a cashout agent
   const { data: isCashoutAgent, isLoading: cashoutAgentLoading } = useQuery({
@@ -231,6 +253,10 @@ export function AgentCashPayoutsTab() {
       // Refresh so the lost-race row disappears from this agent's view immediately.
       qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
     },
+    onSettled: (_d, _e, withdrawalId) => {
+      claimLockRef.current.delete(withdrawalId);
+      setClaimingIds(new Set(claimLockRef.current));
+    },
   });
 
   // Complete withdrawal via edge function (ledger-backed)
@@ -252,6 +278,12 @@ export function AgentCashPayoutsTab() {
       qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
     },
     onError: (e: any) => toast.error(e.message),
+    onSettled: (_d, _e, vars) => {
+      if (vars?.id) {
+        completeLockRef.current.delete(vars.id);
+        setCompletingIds(new Set(completeLockRef.current));
+      }
+    },
   });
 
   // Verify payout code
@@ -341,10 +373,10 @@ export function AgentCashPayoutsTab() {
                 withdrawal={w}
                 isClaimed
                 isClaimedByOther={false}
-                onClaim={() => claimWithdrawal.mutate(w.id)}
-                onComplete={completeWithdrawal.mutate}
-                claimingId={claimWithdrawal.isPending ? claimWithdrawal.variables ?? null : null}
-                completingId={completeWithdrawal.isPending ? completeWithdrawal.variables?.id ?? null : null}
+                onClaim={() => handleClaim(w.id)}
+                onComplete={handleComplete}
+                claimingId={claimingIds.has(w.id) ? w.id : null}
+                completingId={completingIds.has(w.id) ? w.id : null}
               />
             ))}
           </CardContent>
@@ -489,10 +521,10 @@ export function AgentCashPayoutsTab() {
                         </div>
                         <Button
                           className="w-full h-12 gap-2 font-semibold text-base"
-                          onClick={() => claimWithdrawal.mutate(w.id)}
-                          disabled={claimWithdrawal.isPending && claimWithdrawal.variables === w.id}
+                          onClick={() => handleClaim(w.id)}
+                          disabled={claimingIds.has(w.id)}
                         >
-                          {claimWithdrawal.isPending && claimWithdrawal.variables === w.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim</>}
+                          {claimingIds.has(w.id) ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim</>}
                         </Button>
                       </CardContent>
                     </Card>
