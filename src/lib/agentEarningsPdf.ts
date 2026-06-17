@@ -21,11 +21,11 @@ export async function generateAgentEarningsPdf(): Promise<Blob> {
   const MARGIN = 40;
   const CONTENT_W = PAGE_W - MARGIN * 2;
 
-  // Brand palette (Welile green).
-  const GREEN: [number, number, number] = [22, 163, 74];
+  // Brand palette (Welile purple).
+  const PRIMARY: [number, number, number] = [107, 33, 168];
   const DARK: [number, number, number] = [30, 41, 59];
   const GREY: [number, number, number] = [100, 116, 139];
-  const LIGHT: [number, number, number] = [240, 253, 244];
+  const LIGHT: [number, number, number] = [245, 240, 255];
 
   let y = 0;
 
