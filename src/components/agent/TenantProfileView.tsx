@@ -2139,9 +2139,20 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                 </div>
                 {/* Status filter for the day-by-day schedule */}
                 <div className="space-y-1">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    Show days
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Show days
+                    </p>
+                    {sheetStatusFilter.length < 4 && (
+                      <button
+                        type="button"
+                        onClick={() => setSheetStatusFilter(['allocated', 'partial', 'missed', 'extra'])}
+                        className="text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {([
                       { key: 'allocated', label: 'Allocated', color: 'text-green-600' },
