@@ -2180,19 +2180,33 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                     <span className="text-right font-semibold font-mono">{sheetPreview.collectionRate}%</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground leading-snug">
-                    Review the figures above. Once confirmed, the PDF will be generated and downloaded immediately.
+                    Review the figures above, then open the sheet on screen or download it. The PDF lists every day the agent allocated — with the exact amount, date &amp; time.
                   </p>
                 </div>
-                <Button
-                  variant="default"
-                  size="lg"
-                  onClick={handleGenerateRepaymentSheet}
-                  disabled={generatingSheet}
-                  className="w-full h-11 rounded-xl gap-2 font-semibold"
-                >
-                  {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
-                  {generatingSheet ? 'Generating…' : 'Confirm &amp; Download PDF'}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={handleOpenRepaymentSheet}
+                    disabled={generatingSheet || openingSheet}
+                    className="w-full h-11 rounded-xl gap-2 font-semibold border-2 border-primary/40"
+                    aria-label="Open repayment sheet PDF on screen"
+                  >
+                    {openingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <ExternalLink className="h-5 w-5" />}
+                    {openingSheet ? 'Opening…' : 'Open / View'}
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="lg"
+                    onClick={handleGenerateRepaymentSheet}
+                    disabled={generatingSheet || openingSheet}
+                    className="w-full h-11 rounded-xl gap-2 font-semibold"
+                    aria-label="Download repayment sheet PDF"
+                  >
+                    {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+                    {generatingSheet ? 'Generating…' : 'Download'}
+                  </Button>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
