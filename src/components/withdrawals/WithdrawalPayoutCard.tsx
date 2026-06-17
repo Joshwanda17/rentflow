@@ -241,16 +241,31 @@ export function WithdrawalPayoutCard({
 
             {/* Actions */}
             {readOnly ? null : isClaimedByOther ? null : !isClaimed ? (
-              <Button
-                className="w-full h-12 gap-2 font-semibold text-base"
-                variant="outline"
-                onClick={onClaim}
-                disabled={claimingId === withdrawal.id}
-              >
-                {claimingId === withdrawal.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim This Withdrawal</>}
-              </Button>
+              <div className="space-y-2">
+                {claimingId === withdrawal.id && (
+                  <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 px-3 py-2 text-sm font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>Submitting claim… please wait</span>
+                  </div>
+                )}
+                <Button
+                  className="w-full h-12 gap-2 font-semibold text-base"
+                  variant="outline"
+                  onClick={onClaim}
+                  disabled={claimingId === withdrawal.id}
+                  title={claimingId === withdrawal.id ? 'Request is being processed…' : 'Claim this withdrawal'}
+                >
+                  {claimingId === withdrawal.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim This Withdrawal</>}
+                </Button>
+              </div>
             ) : (
               <div className="space-y-2 pt-2 border-t border-border/50">
+                {completingId === withdrawal.id && (
+                  <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 px-3 py-2 text-sm font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    <span>Confirming payment… please wait</span>
+                  </div>
+                )}
                 <div className="rounded-lg bg-warning/10 border border-warning/30 px-3 py-2.5 text-sm font-semibold text-warning flex items-start gap-1.5">
                   <Clock className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>NOT PAID YET — execute the payout via <strong>{methodLabel}</strong> first, then enter the {isBank ? 'bank reference / TID' : isMoMo ? 'MoMo Transaction ID' : 'payout code shared by the user'} and press <strong>Confirm Paid</strong>.</span>
