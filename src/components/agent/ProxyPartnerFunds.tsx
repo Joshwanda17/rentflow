@@ -754,7 +754,9 @@ export function ProxyPartnerFunds() {
       const portfolio = portfolioMap[op.source_id];
       if (!portfolio) return;
       const partnerId = portfolio.investor_id;
-      const amount = Number(op.amount) || 0;
+      // Subtract any partial settlement so the residual owed stays correct.
+      const settled = settledByApproval[op.id] || 0;
+      const amount = Math.max(0, (Number(op.amount) || 0) - settled);
       if (!partnerId || partnerId === user.id || amount <= 0) return;
       if (op.target_wallet_user_id === user.id) agentWalletFundedPartners.add(partnerId);
       if (!opsByPartner[partnerId]) opsByPartner[partnerId] = [];
