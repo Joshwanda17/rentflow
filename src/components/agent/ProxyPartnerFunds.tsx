@@ -380,12 +380,37 @@ export function ProxyPartnerFunds() {
       // Drop any approval already settled by a delivered withdrawal.
       // This is the SOLE source of truth for "this approval is closed" — no
       // more guessing from balance math.
+      //
+      // IMPORTANT: high-volume agents (e.g. 500+ approvals) overflow the
+      // PostgREST URL length when every approval_id is crammed into a single
+      // `.in(...)` filter. The request then fails, `settledRows` comes back
+      // empty, NO approvals get filtered, and hundreds of already-PAID
+      // approvals reappear in the queue. Chunk the lookup so the URL stays
+      // small, and surface any error instead of silently showing paid cards.
       if (rawOps.length > 0) {
-        const { data: settledRows } = await supabase
-          .from('proxy_payout_settlements')
-          .select('approval_id')
-          .in('approval_id', rawOps.map((o) => o.id));
-        const settledIds = new Set((settledRows || []).map((r: any) => r.approval_id));
+        const allIds = rawOps.map((o) => o.id);
+        const CHUNK = 100;
+        const settledIds = new Set<string>();
+        let settlementLookupFailed = false;
+        for (let i = 0; i < allIds.length; i += CHUNK) {
+          const slice = allIds.slice(i, i + CHUNK);
+          const { data: settledRows, error: settledErr } = await supabase
+            .from('proxy_payout_settlements')
+            .select('approval_id')
+            .in('approval_id', slice);
+          if (settledErr) {
+            settlementLookupFailed = true;
+            break;
+          }
+          (settledRows || []).forEach((r: any) => settledIds.add(r.approval_id));
+        }
+        if (settlementLookupFailed) {
+          // Never fall through to showing every approval as "owed" — that is
+          // exactly the bug where paid partners flood back into the queue.
+          toast.error('Could not verify settled payouts. Refreshing…');
+          setLoading(false);
+          return;
+        }
         if (settledIds.size > 0) {
           rawOps = rawOps.filter((o) => !settledIds.has(o.id));
         }
