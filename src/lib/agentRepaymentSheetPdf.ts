@@ -513,7 +513,7 @@ export async function openRepaymentSheetPdf(
 ): Promise<void> {
   const blob = await generateRepaymentSheetPdf(data);
   const url = URL.createObjectURL(blob);
-  const fileName = `Repayment_Sheet_${data.tenantName.replace(/\s+/g, '_')}.pdf`;
+  const fileName = buildRepaymentSheetFileName(data);
 
   const win = preopened ?? window.open('', '_blank');
   if (win) {
