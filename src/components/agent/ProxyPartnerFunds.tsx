@@ -849,6 +849,7 @@ export function ProxyPartnerFunds() {
           totalWithdrawn: 0,
           available: Math.round(group.availableAmount),
           inFlightAmount: Math.round(group.inFlightAmount),
+          latestAt: group.latestAt,
         };
       })
       // Auto-hide cards with negligible balance (rounding dust) and apply
@@ -869,6 +870,9 @@ export function ProxyPartnerFunds() {
         return true;
       })
       .sort((a, b) => {
+        // Newest CFO-approved partners first — today's approvals rise to the
+        // top of the queue, then fall back to amount and name for ties.
+        if (a.latestAt !== b.latestAt) return a.latestAt > b.latestAt ? -1 : 1;
         if (b.available !== a.available) return b.available - a.available;
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
