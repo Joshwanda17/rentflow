@@ -57,6 +57,14 @@ async function loadLogoAsBase64(): Promise<string | null> {
   }
 }
 
+function buildRepaymentSheetFileName(data: RepaymentSheetData): string {
+  const safeName = data.tenantName.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+  if (data.periodFrom && data.periodTo) {
+    return `Repayment_Sheet_${safeName}_${data.periodFrom}_to_${data.periodTo}.pdf`;
+  }
+  return `Repayment_Sheet_${safeName}_All-time.pdf`;
+}
+
 function fmtDate(d: string | null | undefined): string {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-UG', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -462,7 +470,7 @@ export async function shareOrDownloadRepaymentSheet(data: RepaymentSheetData): P
   const blob = await generateRepaymentSheetPdf(data);
   const file = new File(
     [blob],
-    `Repayment_Sheet_${data.tenantName.replace(/\s+/g, '_')}.pdf`,
+    buildRepaymentSheetFileName(data),
     { type: 'application/pdf' },
   );
 
@@ -505,7 +513,7 @@ export async function openRepaymentSheetPdf(
 ): Promise<void> {
   const blob = await generateRepaymentSheetPdf(data);
   const url = URL.createObjectURL(blob);
-  const fileName = `Repayment_Sheet_${data.tenantName.replace(/\s+/g, '_')}.pdf`;
+  const fileName = buildRepaymentSheetFileName(data);
 
   const win = preopened ?? window.open('', '_blank');
   if (win) {
