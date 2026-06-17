@@ -32,6 +32,11 @@ interface PartnerBalance {
   totalWithdrawn: number;
   available: number;
   /**
+   * ISO timestamp of the newest CFO-approved ROI item backing this card.
+   * Used to keep the most recently approved partners at the top of the queue.
+   */
+  latestAt: string;
+  /**
    * Amount the agent has already pulled into a pending/processing withdrawal
    * for this partner. When > 0 the card is treated as "in flight" — hidden
    * from the default All view but reachable via the In flight filter pill.
@@ -718,6 +723,14 @@ export function ProxyPartnerFunds() {
     // CFO-approved ROI items first. This prevents old paid approvals from being
     // revived by later balances and showing as stale proxy cards.
     const opsByPartner: Record<string, Array<{ portfolioId: string; amount: number; createdAt: string; op: PwoEntry }>> = {};
+    // Partners whose ROI lands in the AGENT's wallet rather than their own.
+    // This covers BOTH managed-proxy partners and LEGACY custody approvals
+    // (target_wallet_user_id === agent). For these the partner's own strict
+    // withdrawable is always 0, so clamping the card to it silently hides
+    // every legitimately-owed legacy partner (the bug Kabahuma reported where
+    // today's freshly-approved partners never appeared). The agent-wallet
+    // limit is still enforced at withdrawal time by the strict ledger gate.
+    const agentWalletFundedPartners = new Set<string>();
     approvedOps.forEach((op) => {
       if (!op.source_id) return;
       const portfolio = portfolioMap[op.source_id];
@@ -725,6 +738,7 @@ export function ProxyPartnerFunds() {
       const partnerId = portfolio.investor_id;
       const amount = Number(op.amount) || 0;
       if (!partnerId || partnerId === user.id || amount <= 0) return;
+      if (op.target_wallet_user_id === user.id) agentWalletFundedPartners.add(partnerId);
       if (!opsByPartner[partnerId]) opsByPartner[partnerId] = [];
       opsByPartner[partnerId].push({
         portfolioId: op.source_id,
@@ -751,6 +765,7 @@ export function ProxyPartnerFunds() {
       totalAmount: number;
       availableAmount: number;
       inFlightAmount: number;
+      latestAt: string;
     }> = {};
 
     Object.entries(opsByPartner).forEach(([partnerId, rows]) => {
@@ -770,7 +785,9 @@ export function ProxyPartnerFunds() {
       // Non-managed (Custody v2) → keep the existing partner-wallet clamp.
       const ceilingSource = managedPartnerIds.has(partnerId)
         ? historicalOpen
-        : (strictWithdrawableByPartner[partnerId] ?? historicalOpen);
+        : agentWalletFundedPartners.has(partnerId)
+          ? historicalOpen
+          : (strictWithdrawableByPartner[partnerId] ?? historicalOpen);
       const liveOpen = Math.max(
         0,
         Math.min(historicalOpen, ceilingSource + totalInFlight),
@@ -798,11 +815,15 @@ export function ProxyPartnerFunds() {
               totalAmount: 0,
               availableAmount: 0,
               inFlightAmount: 0,
+              latestAt: '',
             };
           }
           groupMap[key].totalAmount += allocated;
           groupMap[key].availableAmount += availableAllocated;
           groupMap[key].inFlightAmount += inFlightAllocated;
+          if (row.createdAt && row.createdAt > groupMap[key].latestAt) {
+            groupMap[key].latestAt = row.createdAt;
+          }
         });
     });
 
@@ -828,6 +849,7 @@ export function ProxyPartnerFunds() {
           totalWithdrawn: 0,
           available: Math.round(group.availableAmount),
           inFlightAmount: Math.round(group.inFlightAmount),
+          latestAt: group.latestAt,
         };
       })
       // Auto-hide cards with negligible balance (rounding dust) and apply
@@ -848,6 +870,9 @@ export function ProxyPartnerFunds() {
         return true;
       })
       .sort((a, b) => {
+        // Newest CFO-approved partners first — today's approvals rise to the
+        // top of the queue, then fall back to amount and name for ties.
+        if (a.latestAt !== b.latestAt) return a.latestAt > b.latestAt ? -1 : 1;
         if (b.available !== a.available) return b.available - a.available;
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
