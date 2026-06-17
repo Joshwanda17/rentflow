@@ -1,5 +1,6 @@
-import { ArrowLeft, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star, Printer, Zap, MapPin, Bike, Wallet, HandCoins, Building2, UserPlus, TrendingUp, CheckCircle2, Home, FileText, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star, Printer, Zap, MapPin, Bike, Wallet, HandCoins, Building2, UserPlus, TrendingUp, CheckCircle2, Home, FileText, ChevronDown, FileDown, Link2, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import WelileLogo from '@/assets/welile-logo.jpeg';
@@ -7,9 +8,13 @@ import WelileServiceCentrePoster from '@/assets/welile-service-centre-poster.jpe
 import { toast } from 'sonner';
 import { ServiceCentreSubmissionForm } from '@/components/agent/ServiceCentreSubmissionForm';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { sharePdfViaWhatsApp } from '@/lib/whatsappShare';
+import { generateAgentEarningsPdf, EARNINGS_SHARE_CAPTION, EARNINGS_SHARE_URL } from '@/lib/agentEarningsPdf';
 
 const AgentCommissionBenefits = () => {
   const navigate = useNavigate();
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const handleShareWhatsApp = () => {
     const shareText = `💰 *How You Earn Money as a Welile Agent*
@@ -61,6 +66,47 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
     toast.success('Sharing commission benefits');
   };
 
+  const handleSharePdf = async () => {
+    if (generatingPdf) return;
+    setGeneratingPdf(true);
+    const t = toast.loading('Preparing your PDF…');
+    try {
+      const blob = await generateAgentEarningsPdf();
+      const result = await sharePdfViaWhatsApp(blob, {
+        filename: 'Welile-How-You-Earn.pdf',
+        caption: EARNINGS_SHARE_CAPTION,
+      });
+      toast.dismiss(t);
+      if (result === 'shared') toast.success('Opening WhatsApp with your PDF');
+      else if (result === 'deeplink') toast.success('PDF saved — attach it in WhatsApp');
+      else toast.dismiss(t);
+    } catch (e) {
+      toast.dismiss(t);
+      toast.error('Could not create the PDF. Please try again.');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    const text = `${EARNINGS_SHARE_CAPTION}\n\n${EARNINGS_SHARE_URL}`;
+    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    if (nav.share) {
+      try {
+        await nav.share({ title: 'How You Earn with Welile', text: EARNINGS_SHARE_CAPTION, url: EARNINGS_SHARE_URL });
+        return;
+      } catch {
+        /* fall through to WhatsApp / copy */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(`${EARNINGS_SHARE_CAPTION}\n\n${EARNINGS_SHARE_URL}`);
+      toast.success('Link copied — paste it in WhatsApp');
+    } catch {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -75,9 +121,27 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
             className="h-9 w-9 rounded-lg object-cover bg-white p-0.5 shrink-0"
           />
           <h1 className="text-lg font-bold text-primary-foreground flex-1 leading-tight">How You Earn 💰</h1>
-          <Button variant="ghost" size="icon" onClick={handleShareWhatsApp} className="text-primary-foreground hover:bg-white/10 rounded-xl h-10 w-10">
-            <Share2 className="h-5 w-5" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-white/10 rounded-xl h-10 w-10">
+                <Share2 className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={handleSharePdf} disabled={generatingPdf}>
+                <FileDown className="h-4 w-4 mr-2 text-primary" />
+                Share as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShareLink}>
+                <Link2 className="h-4 w-4 mr-2 text-primary" />
+                Share as Link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShareWhatsApp}>
+                <MessageCircle className="h-4 w-4 mr-2 text-primary" />
+                Share text on WhatsApp
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
