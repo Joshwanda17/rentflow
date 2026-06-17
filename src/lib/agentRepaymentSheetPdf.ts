@@ -57,6 +57,14 @@ async function loadLogoAsBase64(): Promise<string | null> {
   }
 }
 
+function buildRepaymentSheetFileName(data: RepaymentSheetData): string {
+  const safeName = data.tenantName.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+  if (data.periodFrom && data.periodTo) {
+    return `Repayment_Sheet_${safeName}_${data.periodFrom}_to_${data.periodTo}.pdf`;
+  }
+  return `Repayment_Sheet_${safeName}_All-time.pdf`;
+}
+
 function fmtDate(d: string | null | undefined): string {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-UG', { year: 'numeric', month: 'short', day: 'numeric' });
