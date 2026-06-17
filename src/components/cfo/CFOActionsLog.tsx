@@ -184,6 +184,16 @@ export function CFOActionsLog() {
   const rangeStart = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const rangeEnd = Math.min(total, (page + 1) * PAGE_SIZE);
 
+  // ── Single source of truth for filter display strings ──
+  // The UI controls and the exported filter block both read these, so the
+  // export can never drift from what the dashboard shows.
+  const categoryLabel = FILTER_GROUPS.find((g) => g.value === filterGroup)?.label ?? 'All Movements';
+  const dateRangeLabel = dateRange?.from
+    ? dateRange.to && dateRange.to.getTime() !== dateRange.from.getTime()
+      ? `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`
+      : format(dateRange.from, 'MMM d, yyyy')
+    : '';
+
   const [exporting, setExporting] = useState<null | 'csv' | 'pdf'>(null);
 
   // Fetch EVERY matching row across all pages, honouring the current filters
@@ -228,20 +238,14 @@ export function CFOActionsLog() {
 
   const isOutRow = (r: TrailRow) => r.direction === 'cash_out' || r.direction === 'debit';
 
-  // Human-readable summary of the filters currently applied. Used verbatim at
-  // the top of every export so the file is self-describing.
-  const buildFilterSummary = () => {
-    const group = FILTER_GROUPS.find((g) => g.value === filterGroup);
-    const dateRangeText =
-      dateRange?.from
-        ? `${format(dateRange.from, 'dd MMM yyyy')} – ${format(dateRange.to ?? dateRange.from, 'dd MMM yyyy')}`
-        : 'All dates';
-    return {
-      category: group?.label || 'All Movements',
-      dateRange: dateRangeText,
-      search: search || 'None',
-    };
-  };
+  // Human-readable summary of the filters currently applied, derived from the
+  // exact same strings the UI renders. Used verbatim at the top of every
+  // export so the file mirrors the dashboard, including empty states.
+  const buildFilterSummary = () => ({
+    category: categoryLabel,
+    dateRange: dateRangeLabel || 'All dates',
+    search: search || 'None',
+  });
 
   const handleExportCSV = async () => {
     if (exporting) return;
@@ -304,7 +308,7 @@ export function CFOActionsLog() {
         toast.info('No movements match the current filters.');
         return;
       }
-      const group = FILTER_GROUPS.find((g) => g.value === filterGroup);
+      const summary = buildFilterSummary();
       const blob = await generateCfoLedgerTrailPdf(
         rows.map((r) => ({
           date: new Date(r.transaction_date),
@@ -317,10 +321,9 @@ export function CFOActionsLog() {
           description: r.description || undefined,
         })),
         {
-          filterLabel: group?.label,
-          search: search || undefined,
-          fromDate: dateRange?.from ?? null,
-          toDate: dateRange?.to ?? dateRange?.from ?? null,
+          categoryText: summary.category,
+          dateRangeText: summary.dateRange,
+          searchText: summary.search,
         },
       );
       downloadBlob(blob, `cfo-ledger-trail-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
@@ -421,17 +424,7 @@ export function CFOActionsLog() {
                 )}
               >
                 <CalendarIcon className="h-3 w-3" />
-                {dateRange?.from ? (
-                  dateRange.to && dateRange.to.getTime() !== dateRange.from.getTime() ? (
-                    <>
-                      {format(dateRange.from, 'MMM d')} – {format(dateRange.to, 'MMM d, yyyy')}
-                    </>
-                  ) : (
-                    format(dateRange.from, 'MMM d, yyyy')
-                  )
-                ) : (
-                  <span>Date range</span>
-                )}
+                {dateRangeLabel ? dateRangeLabel : <span>Date range</span>}
                 {dateRange?.from && (
                   <X
                     className="h-3 w-3 ml-1 hover:text-foreground"

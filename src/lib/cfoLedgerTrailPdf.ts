@@ -18,10 +18,10 @@ export interface LedgerTrailPdfRow {
 }
 
 export interface LedgerTrailPdfMeta {
-  filterLabel?: string;
-  search?: string;
-  fromDate?: Date | null;
-  toDate?: Date | null;
+  /** Preformatted display strings, identical to what the dashboard UI shows. */
+  categoryText?: string;
+  dateRangeText?: string;
+  searchText?: string;
 }
 
 const fmtUGX = (n: number) =>
@@ -80,14 +80,11 @@ export async function generateCfoLedgerTrailPdf(
   doc.setTextColor(15, 23, 42);
 
   // Always print the three active filters so the file is self-describing.
-  const dateRangeText =
-    meta.fromDate || meta.toDate
-      ? `${meta.fromDate ? format(meta.fromDate, 'dd MMM yyyy') : '…'} – ${meta.toDate ? format(meta.toDate, 'dd MMM yyyy') : '…'}`
-      : 'All dates';
+  // These strings come preformatted from the UI so they match it exactly.
   const filterLines: [string, string][] = [
-    ['Category Filter', meta.filterLabel || 'All Movements'],
-    ['Date Range', dateRangeText],
-    ['Search Terms', meta.search ? `"${meta.search}"` : 'None'],
+    ['Category Filter', meta.categoryText || 'All Movements'],
+    ['Date Range', meta.dateRangeText || 'All dates'],
+    ['Search Terms', meta.searchText || 'None'],
   ];
   doc.setFontSize(9);
   for (const [label, value] of filterLines) {
