@@ -26,9 +26,16 @@ Here's how it works:
 👥 *Bonus for Recruiting Other Agents*
 If you brought another agent to Welile, you get *2%* from every tenant THEY manage. It's free money!
 
+💼 *Earn from Funders You Bring*
+Bring an investor who funds rent → earn *2%* of their investment (1% on Angel Pool)!
+
 🎁 *Extra Cash Bonuses*
 • Help a tenant apply for rent → *UGX 5,000*
 • List an empty house → *UGX 5,000*
+• A tenant moves into a house you listed → *UGX 5,000*
+• Landlord on your rent request verified → *UGX 4,000*
+• Sub-agent's house/landlord/LC1 verified → *UGX 3,000*
+• Rent request posted & listed → *UGX 1,000*
 • Replace a tenant in a house → *UGX 20,000*
 • Register a new agent under you → *UGX 10,000*
 • Set up a Welile Service Centre → *UGX 25,000*
