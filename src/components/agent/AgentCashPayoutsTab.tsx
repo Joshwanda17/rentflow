@@ -253,6 +253,10 @@ export function AgentCashPayoutsTab() {
       // Refresh so the lost-race row disappears from this agent's view immediately.
       qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
     },
+    onSettled: (_d, _e, withdrawalId) => {
+      claimLockRef.current.delete(withdrawalId);
+      setClaimingIds(new Set(claimLockRef.current));
+    },
   });
 
   // Complete withdrawal via edge function (ledger-backed)
@@ -274,6 +278,12 @@ export function AgentCashPayoutsTab() {
       qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
     },
     onError: (e: any) => toast.error(e.message),
+    onSettled: (_d, _e, vars) => {
+      if (vars?.id) {
+        completeLockRef.current.delete(vars.id);
+        setCompletingIds(new Set(completeLockRef.current));
+      }
+    },
   });
 
   // Verify payout code
