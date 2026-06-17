@@ -2137,6 +2137,41 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                     />
                   </label>
                 </div>
+                {/* Status filter for the day-by-day schedule */}
+                <div className="space-y-1">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    Show days
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {([
+                      { key: 'allocated', label: 'Allocated', color: 'text-green-600' },
+                      { key: 'partial', label: 'Partial', color: 'text-amber-600' },
+                      { key: 'missed', label: 'Missed', color: 'text-red-600' },
+                      { key: 'extra', label: 'Extra', color: 'text-indigo-600' },
+                    ] as { key: DailyScheduleRow['status']; label: string; color: string }[]).map((s) => {
+                      const active = sheetStatusFilter.includes(s.key);
+                      return (
+                        <button
+                          key={s.key}
+                          type="button"
+                          onClick={() =>
+                            setSheetStatusFilter((prev) =>
+                              active ? prev.filter((x) => x !== s.key) : [...prev, s.key],
+                            )
+                          }
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${
+                            active
+                              ? 'bg-primary/10 border-primary/40 text-foreground'
+                              : 'bg-muted/40 border-border/40 text-muted-foreground'
+                          }`}
+                        >
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle ${s.color.replace('text-', 'bg-')}`} />
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 {/* Live preview of the selected window before generating */}
                 <SheetPeriodPreview
                   title="Preview"
