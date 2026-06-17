@@ -8,6 +8,30 @@ const corsHeaders = {
 
 const LISTING_BONUS = 4000;
 
+// Idempotently marks a listing (and its landlord) verified. Safe to call when
+// the bonus was already paid but the listing's `verified` flag was never set —
+// which otherwise leaves the listing stuck in the Verification Queue forever.
+// Returns true if it actually changed the listing from unverified → verified.
+async function ensureVerified(
+  adminClient: any,
+  listing: { id: string; verified: boolean | null; landlord_id: string | null },
+  managerId: string,
+): Promise<boolean> {
+  if (listing.verified) return false;
+  const now = new Date().toISOString();
+  await adminClient
+    .from("house_listings")
+    .update({ verified: true, verified_at: now, verified_by: managerId })
+    .eq("id", listing.id);
+  if (listing.landlord_id) {
+    await adminClient
+      .from("landlords")
+      .update({ verified: true, verified_at: now, verified_by: managerId })
+      .eq("id", listing.landlord_id);
+  }
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
