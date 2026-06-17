@@ -1351,9 +1351,35 @@ Deno.serve(async (req) => {
         const proxyPartnerId = settlePartnerId;
         const { data: portfolios } = await admin
           .from("investor_portfolios")
-          .select("id")
+          .select("id, portfolio_code")
           .eq("investor_id", proxyPartnerId);
-        const portfolioIds = (portfolios || []).map((p: any) => p.id);
+        // SCOPE TO THE ROUTED PORTFOLIO. A partner can hold several portfolios,
+        // each with its own ROI payout shown as a separate proxy card. The
+        // withdrawal stamps "Route: portfolio <id|code>" into its reason, so we
+        // settle ONLY that portfolio's approvals — settling FIFO across every
+        // portfolio would retire a sibling portfolio's still-owed approval and
+        // make that card vanish even though it was never paid.
+        let portfolioIds = (portfolios || []).map((p: any) => p.id);
+        const _routeMatch = wr.reason
+          ? wr.reason.match(/Route:\s*portfolio\s+(\S+)/i)
+          : null;
+        if (_routeMatch) {
+          const _token = _routeMatch[1];
+          const _isUuid = /^[0-9a-fA-F-]{36}$/.test(_token);
+          const _scoped = (portfolios || []).find((p: any) =>
+            _isUuid ? p.id === _token : p.portfolio_code === _token,
+          );
+          if (_scoped) {
+            portfolioIds = [_scoped.id];
+            console.log(
+              `[approve-withdrawal] proxy settlement scoped to routed portfolio ${_scoped.id}`,
+            );
+          } else {
+            console.warn(
+              `[approve-withdrawal] routed portfolio "${_token}" not found for partner ${proxyPartnerId}; settling across all portfolios`,
+            );
+          }
+        }
         if (portfolioIds.length > 0) {
           const { data: openApprovals } = await admin
             .from("pending_wallet_operations")
