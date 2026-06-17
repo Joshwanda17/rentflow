@@ -14,3 +14,4 @@
 - [LC1 Duplicate Merge & Phone Guard](mem://features/landlord-ops/lc1-duplicate-merge) — `v_lc1_phone_duplicates` view + `Lc1DuplicatesPanel` merge UI + ops-only `merge_lc1_duplicates` RPC; `trg_block_duplicate_lc1_phone` blocks new duplicate-phone inserts (23505); all LC1 insert paths reuse-by-phone via `normalize_phone`
 
 - [CTO SMS Exceptions](mem://features/cto/sms-exceptions) — CTO Dashboard tab + sms_message_exceptions table to block a phone from a specific SMS type; enforced via _shared/smsExceptions.ts in bulk/collection/rent-access/partner SMS functions
+- [Referral Signup Bonus](mem://features/referral/signup-bonus) — UGX 500 auto-credited to referrer's withdrawable wallet (from marketing_expense) when someone signs up via their shared link; trigger chain profiles→referrals→ledger; fixed broken create_ledger_transaction signature 2026-06-17
