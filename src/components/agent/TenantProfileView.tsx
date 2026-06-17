@@ -200,6 +200,12 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [sheetFrom, setSheetFrom] = useState<string>('');
   const [sheetTo, setSheetTo] = useState<string>('');
   const [sheetConfirm, setSheetConfirm] = useState(false);
+  const [sheetStatusFilter, setSheetStatusFilter] = useState<DailyScheduleRow['status'][]>([
+    'allocated',
+    'partial',
+    'missed',
+    'extra',
+  ]);
 
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [addingRole, setAddingRole] = useState(false);
