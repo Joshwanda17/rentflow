@@ -65,17 +65,62 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-primary shadow-sm">
         <div className="px-3 py-2.5 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-white/10 rounded-xl h-10 w-10">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-primary-foreground hover:bg-white/10 rounded-xl h-10 w-10">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-base font-bold text-white flex-1">How You Earn Money 💰</h1>
-          <Button variant="ghost" size="icon" onClick={handleShareWhatsApp} className="text-white hover:bg-white/10 rounded-xl h-10 w-10">
+          <img
+            src={WelileLogo}
+            alt="Welile"
+            className="h-9 w-9 rounded-lg object-cover bg-white p-0.5 shrink-0"
+          />
+          <h1 className="text-lg font-bold text-primary-foreground flex-1 leading-tight">How You Earn 💰</h1>
+          <Button variant="ghost" size="icon" onClick={handleShareWhatsApp} className="text-primary-foreground hover:bg-white/10 rounded-xl h-10 w-10">
             <Share2 className="h-5 w-5" />
           </Button>
         </div>
       </header>
 
-      <div className="p-4 space-y-4 max-w-2xl mx-auto pb-8">
+      <div className="p-4 space-y-5 max-w-2xl mx-auto pb-8">
+
+        {/* ========== PRIORITY: REGISTER A LANDLORD ========== */}
+        <Card className="border-2 border-primary bg-primary/5 shadow-lg shadow-primary/10 overflow-hidden">
+          <div className="bg-primary px-4 py-2 flex items-center gap-2">
+            <Star className="h-5 w-5 text-primary-foreground fill-current" />
+            <span className="text-sm font-extrabold text-primary-foreground uppercase tracking-wide">Your #1 Priority</span>
+          </div>
+          <CardContent className="p-4 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-3 rounded-2xl bg-primary/15 shrink-0">
+                <Building2 className="h-8 w-8 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-extrabold text-foreground leading-tight">Register a Landlord</h2>
+                <p className="text-base text-muted-foreground mt-1">This is the most important thing you can do. More landlords = more rent = more money for you. 🏆</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-primary text-primary-foreground p-4 text-center">
+              <p className="text-sm font-semibold opacity-90">You earn when your landlord is verified</p>
+              <p className="text-3xl font-extrabold mt-1">UGX 4,000</p>
+              <p className="text-sm opacity-90 mt-1">…and then 10% of every rent payment forever!</p>
+            </div>
+
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-primary shrink-0" />
+                <p className="text-base text-foreground">Find a landlord with houses to rent</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-primary shrink-0" />
+                <p className="text-base text-foreground">Register them on the app</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-primary shrink-0" />
+                <p className="text-base text-foreground">Get paid + start earning rent commission</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* ========== ALL EARNING OPPORTUNITIES AT A GLANCE ========== */}
         <Card className="border-primary/30 bg-primary/5">
