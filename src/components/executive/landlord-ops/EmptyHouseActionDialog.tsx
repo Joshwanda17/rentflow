@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import { Trash2, XCircle, AlertCircle } from 'lucide-react';
 
 interface EmptyHouseActionDialogProps {
@@ -54,6 +55,14 @@ export function EmptyHouseActionDialog({
         if (data && typeof data === 'object' && 'error' in (data as any)) {
           throw new Error((data as any).error);
         }
+
+        // Best-effort SMS so the listing agent reliably learns of the
+        // rejection + reason even when they're offline. The RPC already
+        // wrote the in-app notification; never block the flow on SMS.
+        await invokeEdgeFunction('notify-listing-rejected', {
+          body: { listing_id: listingId, reason: reason.trim() },
+          silent: true,
+        });
       } else {
         const { error } = await supabase.from('house_listings').update({ status: 'delisted' }).eq('id', listingId);
         if (error) throw error;
