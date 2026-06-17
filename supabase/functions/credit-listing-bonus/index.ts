@@ -8,6 +8,30 @@ const corsHeaders = {
 
 const LISTING_BONUS = 4000;
 
+// Idempotently marks a listing (and its landlord) verified. Safe to call when
+// the bonus was already paid but the listing's `verified` flag was never set —
+// which otherwise leaves the listing stuck in the Verification Queue forever.
+// Returns true if it actually changed the listing from unverified → verified.
+async function ensureVerified(
+  adminClient: any,
+  listing: { id: string; verified: boolean | null; landlord_id: string | null },
+  managerId: string,
+): Promise<boolean> {
+  if (listing.verified) return false;
+  const now = new Date().toISOString();
+  await adminClient
+    .from("house_listings")
+    .update({ verified: true, verified_at: now, verified_by: managerId })
+    .eq("id", listing.id);
+  if (listing.landlord_id) {
+    await adminClient
+      .from("landlords")
+      .update({ verified: true, verified_at: now, verified_by: managerId })
+      .eq("id", listing.landlord_id);
+  }
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -94,8 +118,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Idempotent self-heal: if the bonus was already paid but the listing was
+    // never flagged verified (a stuck state that keeps it stuck in the
+    // Verification Queue forever), mark it verified now and return success.
     if (listing.listing_bonus_paid) {
-      return new Response(JSON.stringify({ message: "Bonus already paid", already_paid: true }), {
+      const healed = await ensureVerified(adminClient, listing, managerId);
+      return new Response(JSON.stringify({
+        success: true,
+        message: healed ? "Bonus already paid — listing marked verified" : "Bonus already paid",
+        already_paid: true,
+        verified_now: healed,
+      }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -115,8 +148,9 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingApproval) {
-      // Already paid → idempotent success
+      // Already paid → idempotent success (also self-heal verified flag)
       if (existingApproval.status === "paid") {
+        await ensureVerified(adminClient, listing, managerId);
         return new Response(JSON.stringify({
           success: true,
           message: "Bonus already paid (idempotent)",
