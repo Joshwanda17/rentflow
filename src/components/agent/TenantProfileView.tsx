@@ -2368,27 +2368,27 @@ function SheetPeriodPreview({
   ];
 
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/40 p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</p>
-        <Badge variant="outline" className="text-[10px] shrink-0 max-w-[60%] truncate">
+    <div className="rounded-xl border border-border/60 bg-muted/40 p-2.5 sm:p-3 space-y-1.5 sm:space-y-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+        <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</p>
+        <Badge variant="outline" className="text-[10px] shrink-0 max-w-full sm:max-w-[60%] truncate">
           {periodLabel}
         </Badge>
       </div>
-      <div className="rounded-lg bg-success/10 px-3 py-2">
-        <p className="text-[11px] text-muted-foreground">
+      <div className="rounded-lg bg-success/10 px-2.5 sm:px-3 py-1.5 sm:py-2">
+        <p className="text-[10px] sm:text-[11px] text-muted-foreground">
           Collected in period ({preview.periodCount} payment{preview.periodCount === 1 ? '' : 's'})
         </p>
-        <p className="text-lg font-black font-mono text-success break-all">{formatUGX(preview.collectedInPeriod)}</p>
+        <p className="text-base sm:text-lg font-black font-mono text-success break-all">{formatUGX(preview.collectedInPeriod)}</p>
       </div>
-      {/* Figures table — labels wrap, values stay intact, scrolls on tiny screens */}
-      <div className="-mx-1 overflow-x-auto px-1">
-        <div className="min-w-[15rem] divide-y divide-border/40">
+      {/* Figures table — responsive grid so labels never collide with values on tiny screens */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[12rem] sm:min-w-[15rem] divide-y divide-border/40">
           {rows.map((r) => (
-            <div key={r.label} className="flex items-start justify-between gap-3 py-1.5">
-              <span className="text-xs text-muted-foreground break-words">{r.label}</span>
+            <div key={r.label} className="grid grid-cols-[1fr_auto] items-center gap-2 py-1 sm:py-1.5">
+              <span className="text-[10px] sm:text-xs text-muted-foreground break-words leading-snug">{r.label}</span>
               <span
-                className={`text-right text-xs font-semibold font-mono tabular-nums whitespace-nowrap ${r.className ?? ''}`}
+                className={`text-right text-[10px] sm:text-xs font-semibold font-mono tabular-nums whitespace-nowrap ${r.className ?? ''}`}
               >
                 {r.value}
               </span>
@@ -2396,7 +2396,7 @@ function SheetPeriodPreview({
           ))}
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground leading-snug">{caption}</p>
+      <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-snug">{caption}</p>
     </div>
   );
 }
