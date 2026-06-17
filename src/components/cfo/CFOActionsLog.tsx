@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Clock, Download, Search, Filter, RefreshCw } from 'lucide-react';
+import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 /**
  * Ledger-derived CFO Actions Trail.
@@ -35,6 +36,7 @@ type TrailRow = {
   source_table: string | null;
   source_id: string | null;
   leg_count: number;
+  total_count: number;
 };
 
 const fmt = (n: number) =>
@@ -114,39 +116,50 @@ const FILTER_GROUPS: { label: string; value: string; categories: string[] | null
   { label: 'Corrections', value: 'corrections', categories: ['system_balance_correction'] },
 ];
 
+const PAGE_SIZE = 25;
+
 export function CFOActionsLog() {
   const [filterGroup, setFilterGroup] = useState('all');
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [page, setPage] = useState(0);
+  const search = useDebouncedValue(searchInput.trim(), 350);
 
-  const { data: rows, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['cfo-ledger-trail', filterGroup, search],
+  // Reset to first page whenever the query (filter or search) changes.
+  useEffect(() => {
+    setPage(0);
+  }, [filterGroup, search]);
+
+  const { data, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['cfo-ledger-trail', filterGroup, search, page],
     queryFn: async () => {
       const group = FILTER_GROUPS.find((g) => g.value === filterGroup);
-      // Single-category groups can be pushed down to the RPC; multi-category
-      // groups are filtered client-side after a broad fetch.
-      const singleCategory = group?.categories?.length === 1 ? group.categories[0] : null;
+      const categories = group?.categories ?? null;
 
       const { data, error } = await supabase.rpc('get_cfo_ledger_trail', {
-        p_limit: 300,
-        p_offset: 0,
-        p_category: singleCategory,
+        p_limit: PAGE_SIZE,
+        p_offset: page * PAGE_SIZE,
+        p_categories: categories,
         p_classification: null,
-        p_search: search.trim() || null,
+        p_search: search || null,
         p_from: null,
         p_to: null,
       });
       if (error) throw error;
-      let result = (data || []) as TrailRow[];
-      if (group?.categories && group.categories.length > 1) {
-        const allowed = new Set(group.categories);
-        result = result.filter((r) => allowed.has(r.category));
-      }
-      return result;
+      const result = (data || []) as TrailRow[];
+      return {
+        rows: result,
+        total: result.length ? Number(result[0].total_count) || 0 : 0,
+      };
     },
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 
-  const filtered = rows || [];
+  const filtered = data?.rows || [];
+  const total = data?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const rangeStart = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(total, (page + 1) * PAGE_SIZE);
 
   const handleExportCSV = () => {
     if (!filtered.length) return;
@@ -195,11 +208,12 @@ export function CFOActionsLog() {
         <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             CFO Actions Trail
-            {filtered.length > 0 && (
-              <Badge variant="secondary" className="ml-2 text-[10px]">{filtered.length}</Badge>
+            {total > 0 && (
+              <Badge variant="secondary" className="ml-2 text-[10px]">{total.toLocaleString()}</Badge>
             )}
           </p>
           <div className="flex items-center gap-1">
+            {isFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
             </Button>
@@ -217,10 +231,20 @@ export function CFOActionsLog() {
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
               placeholder="Search name, description, reference…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-7 text-xs pl-7"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="h-7 text-xs pl-7 pr-7"
             />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => setSearchInput('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
           <Select value={filterGroup} onValueChange={setFilterGroup}>
             <SelectTrigger className="h-7 text-xs w-[160px]">
@@ -238,6 +262,7 @@ export function CFOActionsLog() {
         {!filtered.length ? (
           <p className="text-sm text-muted-foreground text-center py-4">No movements found.</p>
         ) : (
+          <>
           <div className="space-y-2 max-h-[500px] overflow-y-auto">
             {filtered.map((r) => {
               const amount = Number(r.amount) || 0;
@@ -292,6 +317,35 @@ export function CFOActionsLog() {
               );
             })}
           </div>
+          <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border/50">
+            <span className="text-[10px] text-muted-foreground">
+              {rangeStart}–{rangeEnd} of {total.toLocaleString()}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs gap-1"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0 || isFetching}
+              >
+                <ChevronLeft className="h-3 w-3" /> Prev
+              </Button>
+              <span className="text-[10px] text-muted-foreground tabular-nums px-1">
+                {page + 1} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs gap-1"
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1 || isFetching}
+              >
+                Next <ChevronRight className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          </>
         )}
       </CardContent>
     </Card>
