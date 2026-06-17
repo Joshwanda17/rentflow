@@ -660,36 +660,43 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const visibleRepayments = showAllRepayments ? repayments : repayments.slice(0, PAGE_SIZE);
   const visibleRequests = showAllRequests ? requests : requests.slice(0, PAGE_SIZE);
 
+  // Build the repayment-sheet payload (shared by the download + open actions).
+  // Includes the agent's day-by-day float allocations with exact date & time.
+  const buildSheetData = (): RepaymentSheetData | null => {
+    if (!profile) return null;
+    return {
+      aiId,
+      tenantName: profile.full_name,
+      phone: profile.phone,
+      agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
+      periodFrom: sheetFrom || null,
+      periodTo: sheetTo || null,
+      plans: requests.map((r) => ({
+        date: r.created_at,
+        disbursedAt: r.disbursed_at,
+        durationDays: r.duration_days,
+        status: r.status || 'unknown',
+        registrationType: r.registration_type,
+        rentAmount: r.rent_amount,
+        totalRepayment: r.total_repayment,
+        amountRepaid: r.amount_repaid,
+        dailyRepayment: r.daily_repayment,
+        initialOutstanding: r.initial_outstanding_balance,
+        landlordName: r.landlord?.name ?? null,
+        propertyAddress: r.landlord?.property_address ?? null,
+      })),
+      transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
+      allocations: floatAllocations
+        .filter((a) => a.status === 'active')
+        .map((a) => ({ date: a.date, amount: a.amount })),
+    };
+  };
+
   const handleGenerateRepaymentSheet = async () => {
-    if (!profile) return;
+    const sheet = buildSheetData();
+    if (!sheet) return;
     setGeneratingSheet(true);
     try {
-      const sheet: RepaymentSheetData = {
-        aiId,
-        tenantName: profile.full_name,
-        phone: profile.phone,
-        agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
-        periodFrom: sheetFrom || null,
-        periodTo: sheetTo || null,
-        plans: requests.map((r) => ({
-          date: r.created_at,
-          disbursedAt: r.disbursed_at,
-          durationDays: r.duration_days,
-          status: r.status || 'unknown',
-          registrationType: r.registration_type,
-          rentAmount: r.rent_amount,
-          totalRepayment: r.total_repayment,
-          amountRepaid: r.amount_repaid,
-          dailyRepayment: r.daily_repayment,
-          initialOutstanding: r.initial_outstanding_balance,
-          landlordName: r.landlord?.name ?? null,
-          propertyAddress: r.landlord?.property_address ?? null,
-        })),
-        transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
-        allocations: floatAllocations
-          .filter((a) => a.status === 'active')
-          .map((a) => ({ date: a.date, amount: a.amount })),
-      };
       await shareOrDownloadRepaymentSheet(sheet);
       setSheetRangeOpen(false);
       toast({ title: '📄 Repayment sheet ready' });
@@ -699,6 +706,27 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       }
     } finally {
       setGeneratingSheet(false);
+    }
+  };
+
+  // Open/preview the repayment sheet inline (new tab) so the agent can read the
+  // full day-by-day allocation log on screen without downloading first.
+  const handleOpenRepaymentSheet = async () => {
+    const sheet = buildSheetData();
+    if (!sheet) return;
+    // Open the tab synchronously (inside the click) to dodge popup blockers,
+    // then redirect it to the generated PDF once ready.
+    const preopened = window.open('', '_blank');
+    setOpeningSheet(true);
+    try {
+      await openRepaymentSheetPdf(sheet, preopened);
+      setSheetRangeOpen(false);
+      toast({ title: '📄 Repayment sheet opened' });
+    } catch (err: any) {
+      preopened?.close?.();
+      toast({ title: 'Failed to open sheet', description: err?.message, variant: 'destructive' });
+    } finally {
+      setOpeningSheet(false);
     }
   };
 
