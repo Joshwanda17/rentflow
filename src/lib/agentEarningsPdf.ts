@@ -21,11 +21,11 @@ export async function generateAgentEarningsPdf(): Promise<Blob> {
   const MARGIN = 40;
   const CONTENT_W = PAGE_W - MARGIN * 2;
 
-  // Brand palette (Welile green).
-  const GREEN: [number, number, number] = [22, 163, 74];
+  // Brand palette (Welile purple).
+  const PRIMARY: [number, number, number] = [107, 33, 168];
   const DARK: [number, number, number] = [30, 41, 59];
   const GREY: [number, number, number] = [100, 116, 139];
-  const LIGHT: [number, number, number] = [240, 253, 244];
+  const LIGHT: [number, number, number] = [245, 240, 255];
 
   let y = 0;
 
@@ -37,7 +37,7 @@ export async function generateAgentEarningsPdf(): Promise<Blob> {
   };
 
   // ---- Header band ----
-  doc.setFillColor(...GREEN);
+  doc.setFillColor(...PRIMARY);
   doc.rect(0, 0, PAGE_W, 90, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
@@ -51,10 +51,10 @@ export async function generateAgentEarningsPdf(): Promise<Blob> {
   // ---- Priority callout ----
   ensureSpace(86);
   doc.setFillColor(...LIGHT);
-  doc.setDrawColor(...GREEN);
+  doc.setDrawColor(...PRIMARY);
   doc.setLineWidth(1.5);
   doc.roundedRect(MARGIN, y, CONTENT_W, 80, 8, 8, 'FD');
-  doc.setTextColor(...GREEN);
+  doc.setTextColor(...PRIMARY);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('YOUR #1 PRIORITY', MARGIN + 16, y + 22);
@@ -70,7 +70,7 @@ export async function generateAgentEarningsPdf(): Promise<Blob> {
   // ---- Section helper ----
   const sectionTitle = (title: string) => {
     ensureSpace(34);
-    doc.setFillColor(...GREEN);
+    doc.setFillColor(...PRIMARY);
     doc.rect(MARGIN, y, 4, 16, 'F');
     doc.setTextColor(...DARK);
     doc.setFont('helvetica', 'bold');
@@ -89,7 +89,7 @@ export async function generateAgentEarningsPdf(): Promise<Blob> {
     doc.text(wrapped, MARGIN + 20, y + 11);
     if (amount) {
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...GREEN);
+      doc.setTextColor(...PRIMARY);
       doc.text(amount, PAGE_W - MARGIN, y + 11, { align: 'right' });
     }
     y += Math.max(wrapped.length * 13, 20);
@@ -133,7 +133,7 @@ export async function generateAgentEarningsPdf(): Promise<Blob> {
   const pageCount = doc.getNumberOfPages();
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
-    doc.setFillColor(...GREEN);
+    doc.setFillColor(...PRIMARY);
     doc.rect(0, PAGE_H - 30, PAGE_W, 30, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
