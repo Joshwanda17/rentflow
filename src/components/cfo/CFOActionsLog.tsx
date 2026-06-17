@@ -308,7 +308,7 @@ export function CFOActionsLog() {
         toast.info('No movements match the current filters.');
         return;
       }
-      const group = FILTER_GROUPS.find((g) => g.value === filterGroup);
+      const summary = buildFilterSummary();
       const blob = await generateCfoLedgerTrailPdf(
         rows.map((r) => ({
           date: new Date(r.transaction_date),
@@ -321,10 +321,9 @@ export function CFOActionsLog() {
           description: r.description || undefined,
         })),
         {
-          filterLabel: group?.label,
-          search: search || undefined,
-          fromDate: dateRange?.from ?? null,
-          toDate: dateRange?.to ?? dateRange?.from ?? null,
+          categoryText: summary.category,
+          dateRangeText: summary.dateRange,
+          searchText: summary.search,
         },
       );
       downloadBlob(blob, `cfo-ledger-trail-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
