@@ -285,9 +285,10 @@ export function WithdrawalPayoutCard({
                     className="h-12 gap-1.5 px-5 sm:w-auto w-full text-base font-semibold"
                     disabled={!reference.trim() || reference.trim().length < 3 || completingId === withdrawal.id}
                     onClick={() => onComplete?.({ id: withdrawal.id, reference, method: methodLabel })}
+                    title={completingId === withdrawal.id ? 'Request is being processed…' : 'Confirm this payout'}
                   >
                     {completingId === withdrawal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                    Confirm Paid
+                    {completingId === withdrawal.id ? 'Confirming…' : 'Confirm Paid'}
                   </Button>
                 </div>
                 <Button
@@ -295,6 +296,7 @@ export function WithdrawalPayoutCard({
                   className="w-full h-11 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
                   onClick={() => setRejectOpen(true)}
                   disabled={completingId === withdrawal.id || rejecting}
+                  title={completingId === withdrawal.id ? 'Request is being processed…' : 'Release this withdrawal back to the queue'}
                 >
                   <XCircle className="h-4 w-4" />
                   Release back to queue
