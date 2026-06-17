@@ -77,6 +77,7 @@ export function AgentCashPayoutsTab() {
     if (claimLockRef.current.has(id)) return; // already submitting this request
     claimLockRef.current.add(id);
     setClaimingIds(new Set(claimLockRef.current));
+    toast.info('Claiming withdrawal… please wait', { id: `claim-${id}`, duration: 4000 });
     claimWithdrawal.mutate(id);
   };
 
@@ -84,6 +85,7 @@ export function AgentCashPayoutsTab() {
     if (completeLockRef.current.has(data.id)) return; // already submitting this request
     completeLockRef.current.add(data.id);
     setCompletingIds(new Set(completeLockRef.current));
+    toast.info('Confirming payout… please wait', { id: `complete-${data.id}`, duration: 4000 });
     completeWithdrawal.mutate(data);
   };
 
@@ -523,8 +525,13 @@ export function AgentCashPayoutsTab() {
                           className="w-full h-12 gap-2 font-semibold text-base"
                           onClick={() => handleClaim(w.id)}
                           disabled={claimingIds.has(w.id)}
+                          title={claimingIds.has(w.id) ? 'Request is being processed…' : 'Claim this withdrawal'}
                         >
-                          {claimingIds.has(w.id) ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim</>}
+                          {claimingIds.has(w.id) ? (
+                            <><Loader2 className="h-5 w-5 animate-spin" /> Claiming…</>
+                          ) : (
+                            <><UserCheck className="h-5 w-5" /> Claim</>
+                          )}
                         </Button>
                       </CardContent>
                     </Card>
