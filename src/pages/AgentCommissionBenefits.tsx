@@ -801,13 +801,27 @@ Bring an investor who funds rent → earn *2%* of their investment (1% on Angel 
         </div>
 
         {/* Share CTA */}
-        <Button 
-          onClick={handleShareWhatsApp} 
-          className="w-full gap-2 bg-[#25D366] hover:bg-[#1da851] text-white font-semibold py-6 rounded-xl text-base"
-        >
-          <Share2 className="h-5 w-5" />
-          Share on WhatsApp
-        </Button>
+        <div className="space-y-3">
+          <p className="text-center text-sm font-semibold text-muted-foreground">Share this page with other agents 👇</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              onClick={handleSharePdf}
+              disabled={generatingPdf}
+              className="w-full gap-2 bg-[#25D366] hover:bg-[#1da851] text-white font-semibold py-6 rounded-xl text-base"
+            >
+              <FileDown className="h-5 w-5" />
+              {generatingPdf ? 'Preparing…' : 'Send PDF'}
+            </Button>
+            <Button
+              onClick={handleShareLink}
+              variant="outline"
+              className="w-full gap-2 border-2 border-primary text-primary font-semibold py-6 rounded-xl text-base"
+            >
+              <Link2 className="h-5 w-5" />
+              Send Link
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
