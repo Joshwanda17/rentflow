@@ -470,7 +470,7 @@ export async function shareOrDownloadRepaymentSheet(data: RepaymentSheetData): P
   const blob = await generateRepaymentSheetPdf(data);
   const file = new File(
     [blob],
-    `Repayment_Sheet_${data.tenantName.replace(/\s+/g, '_')}.pdf`,
+    buildRepaymentSheetFileName(data),
     { type: 'application/pdf' },
   );
 
