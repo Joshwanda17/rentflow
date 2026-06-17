@@ -525,8 +525,13 @@ export function AgentCashPayoutsTab() {
                           className="w-full h-12 gap-2 font-semibold text-base"
                           onClick={() => handleClaim(w.id)}
                           disabled={claimingIds.has(w.id)}
+                          title={claimingIds.has(w.id) ? 'Request is being processed…' : 'Claim this withdrawal'}
                         >
-                          {claimingIds.has(w.id) ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim</>}
+                          {claimingIds.has(w.id) ? (
+                            <><Loader2 className="h-5 w-5 animate-spin" /> Claiming…</>
+                          ) : (
+                            <><UserCheck className="h-5 w-5" /> Claim</>
+                          )}
                         </Button>
                       </CardContent>
                     </Card>
