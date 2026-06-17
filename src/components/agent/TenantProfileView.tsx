@@ -13,7 +13,7 @@ import {
   Loader2, ArrowLeft, Phone, Mail, MapPin, Home, User, Shield, Calendar,
   CreditCard, TrendingUp, Copy, CheckCircle2, Wallet, Banknote, History,
   UserCheck, Star, AlertTriangle, ChevronDown, ChevronUp, Navigation, Share2, Smartphone,
-  MessageCircle, Pencil, UsersRound, Zap, Bot, RefreshCw, FileText,
+  MessageCircle, Pencil, UsersRound, Zap, Bot, RefreshCw, FileText, ExternalLink,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
@@ -24,7 +24,7 @@ import { ReverseAllocationDialog } from './ReverseAllocationDialog';
 import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 import { Undo2 } from 'lucide-react';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
-import { shareOrDownloadRepaymentSheet, type RepaymentSheetData } from '@/lib/agentRepaymentSheetPdf';
+import { shareOrDownloadRepaymentSheet, openRepaymentSheetPdf, type RepaymentSheetData } from '@/lib/agentRepaymentSheetPdf';
 import { shareOrDownloadFloatAllocations, shareFloatAllocationsWhatsApp } from '@/lib/floatAllocationsPdf';
 import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
@@ -195,6 +195,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const [sharingLink, setSharingLink] = useState(false);
   const [sharingProfile, setSharingProfile] = useState(false);
   const [generatingSheet, setGeneratingSheet] = useState(false);
+  const [openingSheet, setOpeningSheet] = useState(false);
   const [sheetRangeOpen, setSheetRangeOpen] = useState(false);
   const [sheetFrom, setSheetFrom] = useState<string>('');
   const [sheetTo, setSheetTo] = useState<string>('');
@@ -659,36 +660,43 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const visibleRepayments = showAllRepayments ? repayments : repayments.slice(0, PAGE_SIZE);
   const visibleRequests = showAllRequests ? requests : requests.slice(0, PAGE_SIZE);
 
+  // Build the repayment-sheet payload (shared by the download + open actions).
+  // Includes the agent's day-by-day float allocations with exact date & time.
+  const buildSheetData = (): RepaymentSheetData | null => {
+    if (!profile) return null;
+    return {
+      aiId,
+      tenantName: profile.full_name,
+      phone: profile.phone,
+      agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
+      periodFrom: sheetFrom || null,
+      periodTo: sheetTo || null,
+      plans: requests.map((r) => ({
+        date: r.created_at,
+        disbursedAt: r.disbursed_at,
+        durationDays: r.duration_days,
+        status: r.status || 'unknown',
+        registrationType: r.registration_type,
+        rentAmount: r.rent_amount,
+        totalRepayment: r.total_repayment,
+        amountRepaid: r.amount_repaid,
+        dailyRepayment: r.daily_repayment,
+        initialOutstanding: r.initial_outstanding_balance,
+        landlordName: r.landlord?.name ?? null,
+        propertyAddress: r.landlord?.property_address ?? null,
+      })),
+      transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
+      allocations: floatAllocations
+        .filter((a) => a.status === 'active')
+        .map((a) => ({ date: a.date, amount: a.amount })),
+    };
+  };
+
   const handleGenerateRepaymentSheet = async () => {
-    if (!profile) return;
+    const sheet = buildSheetData();
+    if (!sheet) return;
     setGeneratingSheet(true);
     try {
-      const sheet: RepaymentSheetData = {
-        aiId,
-        tenantName: profile.full_name,
-        phone: profile.phone,
-        agentName: (user?.user_metadata?.full_name as string) || (user?.email as string) || 'Welile Agent',
-        periodFrom: sheetFrom || null,
-        periodTo: sheetTo || null,
-        plans: requests.map((r) => ({
-          date: r.created_at,
-          disbursedAt: r.disbursed_at,
-          durationDays: r.duration_days,
-          status: r.status || 'unknown',
-          registrationType: r.registration_type,
-          rentAmount: r.rent_amount,
-          totalRepayment: r.total_repayment,
-          amountRepaid: r.amount_repaid,
-          dailyRepayment: r.daily_repayment,
-          initialOutstanding: r.initial_outstanding_balance,
-          landlordName: r.landlord?.name ?? null,
-          propertyAddress: r.landlord?.property_address ?? null,
-        })),
-        transactions: repayments.map((rp) => ({ date: rp.created_at, amount: rp.amount })),
-        allocations: floatAllocations
-          .filter((a) => a.status === 'active')
-          .map((a) => ({ date: a.date, amount: a.amount })),
-      };
       await shareOrDownloadRepaymentSheet(sheet);
       setSheetRangeOpen(false);
       toast({ title: '📄 Repayment sheet ready' });
@@ -698,6 +706,27 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       }
     } finally {
       setGeneratingSheet(false);
+    }
+  };
+
+  // Open/preview the repayment sheet inline (new tab) so the agent can read the
+  // full day-by-day allocation log on screen without downloading first.
+  const handleOpenRepaymentSheet = async () => {
+    const sheet = buildSheetData();
+    if (!sheet) return;
+    // Open the tab synchronously (inside the click) to dodge popup blockers,
+    // then redirect it to the generated PDF once ready.
+    const preopened = window.open('', '_blank');
+    setOpeningSheet(true);
+    try {
+      await openRepaymentSheetPdf(sheet, preopened);
+      setSheetRangeOpen(false);
+      toast({ title: '📄 Repayment sheet opened' });
+    } catch (err: any) {
+      preopened?.close?.();
+      toast({ title: 'Failed to open sheet', description: err?.message, variant: 'destructive' });
+    } finally {
+      setOpeningSheet(false);
     }
   };
 
@@ -2151,19 +2180,33 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                     <span className="text-right font-semibold font-mono">{sheetPreview.collectionRate}%</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground leading-snug">
-                    Review the figures above. Once confirmed, the PDF will be generated and downloaded immediately.
+                    Review the figures above, then open the sheet on screen or download it. The PDF lists every day the agent allocated — with the exact amount, date &amp; time.
                   </p>
                 </div>
-                <Button
-                  variant="default"
-                  size="lg"
-                  onClick={handleGenerateRepaymentSheet}
-                  disabled={generatingSheet}
-                  className="w-full h-11 rounded-xl gap-2 font-semibold"
-                >
-                  {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
-                  {generatingSheet ? 'Generating…' : 'Confirm &amp; Download PDF'}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={handleOpenRepaymentSheet}
+                    disabled={generatingSheet || openingSheet}
+                    className="w-full h-11 rounded-xl gap-2 font-semibold border-2 border-primary/40"
+                    aria-label="Open repayment sheet PDF on screen"
+                  >
+                    {openingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <ExternalLink className="h-5 w-5" />}
+                    {openingSheet ? 'Opening…' : 'Open / View'}
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="lg"
+                    onClick={handleGenerateRepaymentSheet}
+                    disabled={generatingSheet || openingSheet}
+                    className="w-full h-11 rounded-xl gap-2 font-semibold"
+                    aria-label="Download repayment sheet PDF"
+                  >
+                    {generatingSheet ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
+                    {generatingSheet ? 'Generating…' : 'Download'}
+                  </Button>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
