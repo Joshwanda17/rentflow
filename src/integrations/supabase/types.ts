@@ -19756,6 +19756,35 @@ export type Database = {
           tenant_ops_reviewed_at: string
         }[]
       }
+      get_cfo_ledger_trail: {
+        Args: {
+          p_category?: string
+          p_classification?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_to?: string
+        }
+        Returns: {
+          actor_name: string
+          amount: number
+          category: string
+          classification: string
+          description: string
+          direction: string
+          group_id: string
+          ledger_scope: string
+          leg_count: number
+          linked_party: string
+          reference_id: string
+          source_id: string
+          source_table: string
+          transaction_date: string
+          user_id: string
+          wallet_bucket: string
+        }[]
+      }
       get_chain_health_summary: {
         Args: never
         Returns: {
