@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isPhoneBlocked } from '../_shared/smsExceptions.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -207,6 +208,20 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         success: true, dry_run: true, recipient_count: recipients.length,
       }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // Drop recipients blocked from partner broadcasts via CTO SMS exceptions.
+    if (!isTest) {
+      const { data: exRows } = await admin
+        .from('sms_message_exceptions')
+        .select('phone')
+        .in('message_type', ['all', 'partner_broadcast']);
+      const blocked = new Set((exRows || []).map((r: any) => formatPhoneInternational(r.phone)));
+      if (blocked.size > 0) {
+        for (let i = recipients.length - 1; i >= 0; i--) {
+          if (blocked.has(recipients[i].phone)) recipients.splice(i, 1);
+        }
+      }
     }
 
     // Send per-recipient via the Yoola-first provider chain, in parallel batches.
