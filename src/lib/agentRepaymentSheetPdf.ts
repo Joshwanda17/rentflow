@@ -550,6 +550,131 @@ export async function generateRepaymentSheetPdf(data: RepaymentSheetData): Promi
     }
   }
 
+  // ─── Day-by-day allocation schedule ───
+  // Shows, for every day the tenant was due, what the agent allocated (with the
+  // exact time) and clearly flags days where no allocation was made.
+  const schedule = buildDailySchedule(data, fromMs, toMs);
+  if (schedule.length > 0) {
+    const schedExpected = schedule.reduce((s, r) => s + r.expected, 0);
+    const schedAllocated = schedule.reduce((s, r) => s + r.allocated, 0);
+    const missedDays = schedule.filter((r) => r.status === 'missed' && r.expected > 0).length;
+    const partialDays = schedule.filter((r) => r.status === 'partial').length;
+
+    // Column layout.
+    const cDate = margin + 3;
+    const cExp = margin + 42;
+    const cAlloc = margin + 78;
+    const cTime = margin + 116;
+    const cStatus = pw - margin - 3;
+
+    const drawScheduleHeader = (withTitle: boolean) => {
+      if (withTitle) {
+        ensureSpace(28);
+        pdf.setFillColor(255, 247, 237);
+        pdf.roundedRect(margin, y - 4, cw, 8, 2, 2, 'F');
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(154, 52, 18);
+        pdf.text(
+          data.periodFrom || data.periodTo
+            ? 'DAY-BY-DAY ALLOCATION SCHEDULE (IN PERIOD)'
+            : 'DAY-BY-DAY ALLOCATION SCHEDULE',
+          margin + 3,
+          y + 1,
+        );
+        y += 9;
+      } else {
+        ensureSpace(16);
+      }
+      pdf.setFontSize(7.5);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text('Date', cDate, y);
+      pdf.text('Expected', cExp, y);
+      pdf.text('Allocated', cAlloc, y);
+      pdf.text('Time(s)', cTime, y);
+      pdf.text('Status', cStatus, y, { align: 'right' });
+      y += 2;
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setLineWidth(0.3);
+      pdf.line(margin, y, pw - margin, y);
+      y += 4;
+    };
+
+    drawScheduleHeader(true);
+
+    const statusMeta: Record<DailyScheduleRow['status'], { label: string; color: [number, number, number] }> = {
+      allocated: { label: 'Allocated', color: [34, 197, 94] },
+      partial: { label: 'Partial', color: [217, 119, 6] },
+      missed: { label: 'NO ALLOCATION', color: [239, 68, 68] },
+      extra: { label: 'Extra', color: [99, 102, 241] },
+    };
+
+    schedule.forEach((r) => {
+      if (y > ph - 18) {
+        pdf.addPage();
+        y = 16;
+        drawScheduleHeader(false);
+      }
+      const meta = statusMeta[r.status];
+      // Subtle red wash behind missed days so they stand out.
+      if (r.status === 'missed' && r.expected > 0) {
+        pdf.setFillColor(254, 242, 242);
+        pdf.rect(margin, y - 3.2, cw, 5, 'F');
+      }
+      pdf.setFontSize(7.5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(30, 41, 59);
+      pdf.text(fmtDate(new Date(r.dateMs).toISOString()), cDate, y);
+      pdf.text(r.expected > 0 ? formatUGX(r.expected) : '—', cExp, y);
+      if (r.allocated > 0) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(34, 197, 94);
+        pdf.text(formatUGX(r.allocated), cAlloc, y);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(30, 41, 59);
+      } else {
+        pdf.setTextColor(148, 163, 184);
+        pdf.text('—', cAlloc, y);
+        pdf.setTextColor(30, 41, 59);
+      }
+      let timeStr = r.times.length > 0 ? r.times.join(', ') : '—';
+      if (r.times.length > 3) timeStr = `${r.times.slice(0, 3).join(', ')} +${r.times.length - 3}`;
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(timeStr, cTime, y);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...meta.color);
+      pdf.text(meta.label, cStatus, y, { align: 'right' });
+      y += 5;
+    });
+
+    // Schedule summary.
+    ensureSpace(20);
+    y += 1;
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setLineWidth(0.3);
+    pdf.line(margin, y, pw - margin, y);
+    y += 5;
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Days expected: ${schedule.filter((r) => r.expected > 0).length}`, margin + 3, y);
+    pdf.setTextColor(239, 68, 68);
+    pdf.text(`Missed days: ${missedDays}`, margin + 60, y);
+    pdf.setTextColor(217, 119, 6);
+    pdf.text(`Partial: ${partialDays}`, margin + 105, y);
+    y += 6;
+    pdf.setTextColor(100, 116, 139);
+    pdf.text('Total expected', margin + 3, y);
+    pdf.setTextColor(30, 41, 59);
+    pdf.text(formatUGX(schedExpected), cAlloc - 4, y, { align: 'right' });
+    pdf.setTextColor(100, 116, 139);
+    pdf.text('Total allocated', cTime - 6, y);
+    pdf.setTextColor(34, 197, 94);
+    pdf.text(formatUGX(schedAllocated), pw - margin - 3, y, { align: 'right' });
+    y += 6;
+  }
+
   // ─── Footer on every page ───
   const pageCount = pdf.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
