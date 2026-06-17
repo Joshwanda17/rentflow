@@ -343,8 +343,8 @@ export function AgentCashPayoutsTab() {
                 isClaimedByOther={false}
                 onClaim={() => claimWithdrawal.mutate(w.id)}
                 onComplete={completeWithdrawal.mutate}
-                isClaimPending={claimWithdrawal.isPending}
-                isCompletePending={completeWithdrawal.isPending}
+                claimingId={claimWithdrawal.isPending ? claimWithdrawal.variables ?? null : null}
+                completingId={completeWithdrawal.isPending ? completeWithdrawal.variables?.id ?? null : null}
               />
             ))}
           </CardContent>
