@@ -897,7 +897,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, agentStrictWithdrawable, managedPartnerIds, profiles, portfolioMap, dismissalMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, strictWithdrawableByPartner, agentStrictWithdrawable, managedPartnerIds, settledByApproval, profiles, portfolioMap, dismissalMap, user?.id]);
 
   // Share a branded WhatsApp payout card for a single partner so the proxy
   // agent can confirm name / mobile-money number / amount with the partner.
