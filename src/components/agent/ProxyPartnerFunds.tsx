@@ -765,6 +765,7 @@ export function ProxyPartnerFunds() {
       totalAmount: number;
       availableAmount: number;
       inFlightAmount: number;
+      latestAt: string;
     }> = {};
 
     Object.entries(opsByPartner).forEach(([partnerId, rows]) => {
@@ -784,7 +785,9 @@ export function ProxyPartnerFunds() {
       // Non-managed (Custody v2) → keep the existing partner-wallet clamp.
       const ceilingSource = managedPartnerIds.has(partnerId)
         ? historicalOpen
-        : (strictWithdrawableByPartner[partnerId] ?? historicalOpen);
+        : agentWalletFundedPartners.has(partnerId)
+          ? historicalOpen
+          : (strictWithdrawableByPartner[partnerId] ?? historicalOpen);
       const liveOpen = Math.max(
         0,
         Math.min(historicalOpen, ceilingSource + totalInFlight),
@@ -812,11 +815,15 @@ export function ProxyPartnerFunds() {
               totalAmount: 0,
               availableAmount: 0,
               inFlightAmount: 0,
+              latestAt: '',
             };
           }
           groupMap[key].totalAmount += allocated;
           groupMap[key].availableAmount += availableAllocated;
           groupMap[key].inFlightAmount += inFlightAllocated;
+          if (row.createdAt && row.createdAt > groupMap[key].latestAt) {
+            groupMap[key].latestAt = row.createdAt;
+          }
         });
     });
 
