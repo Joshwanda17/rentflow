@@ -1544,11 +1544,11 @@ export function ProxyPartnerFunds() {
         const statusKey = getStatusKey(partner);
         const hasPending = !!partnerWithdrawalStatus[statusKey];
         const statusBadge = getStatusBadge(partner);
-        const cardKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
+        const cardKey = getCardKey(partner);
         const currentStatus = partnerWithdrawalStatus[statusKey];
         const canCancel = currentStatus ? ACTIVE_PROXY_WITHDRAWAL_STATUSES.includes(currentStatus as typeof ACTIVE_PROXY_WITHDRAWAL_STATUSES[number]) : false;
         const classification = classify(partner);
-        const isSubmitting = submittingPartnerIds.has(partner.partnerId);
+        const isSubmitting = submittingCardKeys.has(cardKey);
 
         // Registered payout destination for this partner (clear, labelled).
         const pInfo = partner.portfolioId ? portfolioMap[partner.portfolioId] : null;
