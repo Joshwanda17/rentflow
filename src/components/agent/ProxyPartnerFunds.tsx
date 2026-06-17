@@ -32,6 +32,11 @@ interface PartnerBalance {
   totalWithdrawn: number;
   available: number;
   /**
+   * ISO timestamp of the newest CFO-approved ROI item backing this card.
+   * Used to keep the most recently approved partners at the top of the queue.
+   */
+  latestAt: string;
+  /**
    * Amount the agent has already pulled into a pending/processing withdrawal
    * for this partner. When > 0 the card is treated as "in flight" — hidden
    * from the default All view but reachable via the In flight filter pill.
