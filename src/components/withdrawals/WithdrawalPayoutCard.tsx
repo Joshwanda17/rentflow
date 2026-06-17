@@ -25,8 +25,10 @@ export interface WithdrawalPayoutCardProps {
   isClaimedByOther?: boolean;
   onClaim?: () => void;
   onComplete?: (data: { id: string; reference: string; method: string }) => void;
-  isClaimPending?: boolean;
-  isCompletePending?: boolean;
+  /** ID of the withdrawal currently being claimed (for per-request loading) */
+  claimingId?: string | null;
+  /** ID of the withdrawal currently being completed (for per-request loading) */
+  completingId?: string | null;
   /** Read-only mode: hide Claim/Confirm actions (used by CFO viewer) */
   readOnly?: boolean;
 }
@@ -37,8 +39,8 @@ export function WithdrawalPayoutCard({
   isClaimedByOther = false,
   onClaim,
   onComplete,
-  isClaimPending = false,
-  isCompletePending = false,
+  claimingId = null,
+  completingId = null,
   readOnly = false,
 }: WithdrawalPayoutCardProps) {
   const [reference, setReference] = useState('');
@@ -243,9 +245,9 @@ export function WithdrawalPayoutCard({
                 className="w-full h-12 gap-2 font-semibold text-base"
                 variant="outline"
                 onClick={onClaim}
-                disabled={isClaimPending}
+                disabled={claimingId === withdrawal.id}
               >
-                {isClaimPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim This Withdrawal</>}
+                {claimingId === withdrawal.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <><UserCheck className="h-5 w-5" /> Claim This Withdrawal</>}
               </Button>
             ) : (
               <div className="space-y-2 pt-2 border-t border-border/50">
@@ -266,10 +268,10 @@ export function WithdrawalPayoutCard({
                   />
                   <Button
                     className="h-12 gap-1.5 px-5 sm:w-auto w-full text-base font-semibold"
-                    disabled={!reference.trim() || reference.trim().length < 3 || isCompletePending}
+                    disabled={!reference.trim() || reference.trim().length < 3 || completingId === withdrawal.id}
                     onClick={() => onComplete?.({ id: withdrawal.id, reference, method: methodLabel })}
                   >
-                    {isCompletePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    {completingId === withdrawal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                     Confirm Paid
                   </Button>
                 </div>
@@ -277,7 +279,7 @@ export function WithdrawalPayoutCard({
                   variant="ghost"
                   className="w-full h-11 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
                   onClick={() => setRejectOpen(true)}
-                  disabled={isCompletePending || rejecting}
+                  disabled={completingId === withdrawal.id || rejecting}
                 >
                   <XCircle className="h-4 w-4" />
                   Release back to queue
