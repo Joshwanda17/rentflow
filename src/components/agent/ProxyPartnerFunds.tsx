@@ -1355,6 +1355,11 @@ export function ProxyPartnerFunds() {
 
   const visibleBalances = partnerBalances.filter((p) => {
     const c = classify(p);
+    // Optimistic removal: the instant Caro submits a withdrawal for a partner
+    // (before realtime / settlement catches up) drop the card from the default
+    // All view. Combined with the one-card-per-partner grouping this guarantees
+    // a paid partner never lingers — and never reappears as "x2".
+    if (filterMode === 'all' && submittingPartnerIds.has(p.partnerId)) return false;
     // Default All view hides in-flight/active cards — once Caro initiates a
     // withdrawal the partner is treated as paid and the card disappears.
     if (filterMode === 'all') return c.kind !== 'inflight' && c.kind !== 'active';
