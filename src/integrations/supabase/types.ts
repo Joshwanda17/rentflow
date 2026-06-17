@@ -19758,7 +19758,7 @@ export type Database = {
       }
       get_cfo_ledger_trail: {
         Args: {
-          p_category?: string
+          p_categories?: string[]
           p_classification?: string
           p_from?: string
           p_limit?: number
@@ -19780,6 +19780,7 @@ export type Database = {
           reference_id: string
           source_id: string
           source_table: string
+          total_count: number
           transaction_date: string
           user_id: string
           wallet_bucket: string
