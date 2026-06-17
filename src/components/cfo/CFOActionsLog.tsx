@@ -8,10 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X, CalendarIcon } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Loader2, Clock, Download, Search, Filter, RefreshCw, ChevronLeft, ChevronRight, X, CalendarIcon, FileText, FileSpreadsheet } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { generateCfoLedgerTrailPdf } from '@/lib/cfoLedgerTrailPdf';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 /**
@@ -176,35 +184,122 @@ export function CFOActionsLog() {
   const rangeStart = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const rangeEnd = Math.min(total, (page + 1) * PAGE_SIZE);
 
-  const handleExportCSV = () => {
-    if (!filtered.length) return;
-    const header = 'Date,Movement,Direction,Amount,Party,Classification,Reference,Source,Description\n';
-    const csv =
-      header +
-      filtered
-        .map((r) => {
-          const cells = [
-            format(new Date(r.transaction_date), 'yyyy-MM-dd HH:mm'),
-            labelFor(r.category),
-            r.direction === 'cash_out' || r.direction === 'debit' ? 'OUT' : 'IN',
-            String(r.amount ?? ''),
-            r.actor_name || '',
-            r.classification || '',
-            r.reference_id || '',
-            r.source_table || '',
-            (r.description || '').replace(/"/g, '""'),
-          ];
-          return cells.map((c) => `"${c}"`).join(',');
-        })
-        .join('\n');
+  const [exporting, setExporting] = useState<null | 'csv' | 'pdf'>(null);
 
-    const blob = new Blob([csv], { type: 'text/csv' });
+  // Fetch EVERY matching row across all pages, honouring the current filters
+  // (category group, search, and date range). Pagination only limits the
+  // on-screen list — exports always reflect the full filtered result set.
+  const fetchAllMatching = async (): Promise<TrailRow[]> => {
+    const group = FILTER_GROUPS.find((g) => g.value === filterGroup);
+    const categories = group?.categories ?? null;
+    const BATCH = 200;
+    const all: TrailRow[] = [];
+    let offset = 0;
+    // Cap to avoid runaway loops on enormous histories.
+    for (let i = 0; i < 200; i++) {
+      const { data, error } = await supabase.rpc('get_cfo_ledger_trail', {
+        p_limit: BATCH,
+        p_offset: offset,
+        p_categories: categories,
+        p_classification: null,
+        p_search: search || null,
+        p_from: fromISO,
+        p_to: toISO,
+      });
+      if (error) throw error;
+      const batch = (data || []) as TrailRow[];
+      all.push(...batch);
+      if (batch.length < BATCH) break;
+      offset += BATCH;
+    }
+    return all;
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cfo-ledger-trail-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = filename;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  };
+
+  const isOutRow = (r: TrailRow) => r.direction === 'cash_out' || r.direction === 'debit';
+
+  const handleExportCSV = async () => {
+    if (exporting) return;
+    setExporting('csv');
+    try {
+      const rows = await fetchAllMatching();
+      if (!rows.length) {
+        toast.info('No movements match the current filters.');
+        return;
+      }
+      const header = 'Date,Movement,Direction,Amount,Party,Classification,Reference,Source,Description\n';
+      const csv =
+        header +
+        rows
+          .map((r) => {
+            const cells = [
+              format(new Date(r.transaction_date), 'yyyy-MM-dd HH:mm'),
+              labelFor(r.category),
+              isOutRow(r) ? 'OUT' : 'IN',
+              String(r.amount ?? ''),
+              r.actor_name || '',
+              r.classification || '',
+              r.reference_id || '',
+              r.source_table || '',
+              (r.description || '').replace(/"/g, '""'),
+            ];
+            return cells.map((c) => `"${c}"`).join(',');
+          })
+          .join('\n');
+      downloadBlob(new Blob([csv], { type: 'text/csv' }), `cfo-ledger-trail-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      toast.success(`Exported ${rows.length.toLocaleString()} movements to CSV.`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to export CSV.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (exporting) return;
+    setExporting('pdf');
+    try {
+      const rows = await fetchAllMatching();
+      if (!rows.length) {
+        toast.info('No movements match the current filters.');
+        return;
+      }
+      const group = FILTER_GROUPS.find((g) => g.value === filterGroup);
+      const blob = await generateCfoLedgerTrailPdf(
+        rows.map((r) => ({
+          date: new Date(r.transaction_date),
+          movement: labelFor(r.category),
+          isOut: isOutRow(r),
+          amount: Number(r.amount) || 0,
+          party: r.actor_name && r.actor_name !== 'System' ? r.actor_name : undefined,
+          reference: r.reference_id || undefined,
+          classification: r.classification || undefined,
+          description: r.description || undefined,
+        })),
+        {
+          filterLabel: group?.label,
+          search: search || undefined,
+          fromDate: dateRange?.from ?? null,
+          toDate: dateRange?.to ?? dateRange?.from ?? null,
+        },
+      );
+      downloadBlob(blob, `cfo-ledger-trail-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      toast.success(`Exported ${rows.length.toLocaleString()} movements to PDF.`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to export PDF.');
+    } finally {
+      setExporting(null);
+    }
   };
 
   if (isLoading) {
