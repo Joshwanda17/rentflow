@@ -1627,9 +1627,23 @@ Deno.serve(async (req) => {
       const partnerId = beneficiaryUserId;
       const { data: partnerProfile } = await admin
         .from("profiles")
-        .select("email, full_name")
+        .select("email, full_name, phone")
         .eq("id", partnerId)
         .maybeSingle();
+
+      // ── Proxy Partner SMS alert (paid on behalf) ─────────────────────────
+      if (isProxyPayout && fundingUserId !== partnerId && partnerProfile?.phone) {
+        const refUpper = reference.trim().toUpperCase();
+        const proxySmsMsg =
+          `Your monthly partnership return of UGX ${amount.toLocaleString()} has been successfully withdrawn and paid by your authorized proxy agent on your behalf.\n\n` +
+          `Reference: ${refUpper}\n\n` +
+          `We encourage you to log in to your Welile dashboard to monitor your partnership performance, track payouts, and manage your account directly: https://welilereceipts.com/auth\n\n` +
+          `Thank you for partnering with Welile Technologies Limited.\n\n` +
+          `"Welile is Turning Rent into an Asset."`;
+        sendSMS(partnerProfile.phone, proxySmsMsg).catch((e) =>
+          console.error("[approve-withdrawal] proxy partner SMS failed:", e),
+        );
+      }
 
       if (partnerProfile?.email) {
        sendReturnsEmail: {
