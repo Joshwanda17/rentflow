@@ -384,6 +384,16 @@ export default function FindAHouse() {
   const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(searchText, 250);
 
+  // A shared link can pin the area so whoever opens it sees houses near the
+  // sharer's location, not their own. lat/lng/region come from the share button.
+  const sharedLat = (() => { const v = Number(searchParams.get('lat')); return Number.isFinite(v) && v !== 0 ? v : null; })();
+  const sharedLng = (() => { const v = Number(searchParams.get('lng')); return Number.isFinite(v) && v !== 0 ? v : null; })();
+  const sharedRegion = searchParams.get('region');
+  const hasSharedLocation = sharedLat !== null && sharedLng !== null;
+
+  const effectiveLat = hasSharedLocation ? sharedLat : geo.latitude;
+  const effectiveLng = hasSharedLocation ? sharedLng : geo.longitude;
+
   const toggleAmenity = (key: AmenityKey) =>
     setActiveAmenities(prev =>
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
@@ -397,21 +407,26 @@ export default function FindAHouse() {
   };
 
   useEffect(() => {
+    if (!geoDefaultApplied && sharedRegion && REGIONS.includes(sharedRegion)) {
+      setSelectedRegion(sharedRegion);
+      setGeoDefaultApplied(true);
+      return;
+    }
     if (!geoDefaultApplied && geo.city && !geo.loading) {
       const matched = REGIONS.find(r => r.toLowerCase() === geo.city!.toLowerCase());
       if (matched) setSelectedRegion(matched);
       setGeoDefaultApplied(true);
     }
-  }, [geo.city, geo.loading, geoDefaultApplied]);
+  }, [geo.city, geo.loading, geoDefaultApplied, sharedRegion]);
 
   const { listings, loading } = useNearbyHouses({
-    latitude: geo.latitude,
-    longitude: geo.longitude,
+    latitude: effectiveLat,
+    longitude: effectiveLng,
     radiusKm: selectedRegion !== 'All Regions' ? 200 : 50,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
     limit: 100,
-    enabled: !geo.loading,
+    enabled: hasSharedLocation || !geo.loading,
   });
 
   const filtered = useMemo(() => {
