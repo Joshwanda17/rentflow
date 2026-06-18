@@ -473,6 +473,16 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
             <p className="font-bold text-orange-600 text-base leading-none mt-1">
               {formatUGX(totalSubAgentEarnings)}
             </p>
+            {(totalBonusEarnings > 0 || totalRentCommission > 0) && (
+              <div className="mt-1.5 space-y-0.5">
+                <p className="text-[9px] text-muted-foreground leading-tight">
+                  Bonuses {formatUGX(totalBonusEarnings)}
+                </p>
+                <p className="text-[9px] text-muted-foreground leading-tight">
+                  Rent 2% {formatUGX(totalRentCommission)}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -670,6 +680,20 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                   <p className="text-[10px] text-muted-foreground">
                     you earned
                   </p>
+                  {(sub.bonusEarnings > 0 || sub.rentCommission > 0) && (
+                    <div className="mt-0.5 space-y-0.5">
+                      {sub.bonusEarnings > 0 && (
+                        <p className="text-[9px] text-muted-foreground leading-tight">
+                          Bonus {formatUGX(sub.bonusEarnings)}
+                        </p>
+                      )}
+                      {sub.rentCommission > 0 && (
+                        <p className="text-[9px] text-muted-foreground leading-tight">
+                          Rent 2% {formatUGX(sub.rentCommission)}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {sub.status !== 'rejected' && sub.status !== 'released' && (
                   <Button
