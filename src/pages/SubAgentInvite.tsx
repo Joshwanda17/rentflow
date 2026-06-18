@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
-import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Home, Users, TrendingUp } from 'lucide-react';
+import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Users, TrendingUp } from 'lucide-react';
 
 type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login';
 
@@ -103,13 +103,44 @@ export default function SubAgentInvite() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Benefits the invited sub-agent will earn
-  const benefits = [
-    { icon: Wallet, label: 'Earn 8% commission', desc: 'On every rent collection you make.' },
-    { icon: Users, label: 'Build your own team', desc: 'Recruit sub-agents and earn from their work too.' },
-    { icon: Home, label: 'Register tenants & landlords', desc: 'Grow your income with every new signup.' },
-    { icon: TrendingUp, label: 'Instant payouts', desc: 'Commissions hit your Welile wallet in real time.' },
+  // Detailed commission breakdown for the invited sub-agent
+  const commissionStreams = [
+    {
+      icon: Wallet,
+      title: 'Rent collection commission',
+      rate: '8%',
+      example: 'UGX 8,000 on UGX 100,000 collected',
+      note: 'Paid instantly to your wallet',
+    },
+    {
+      icon: TrendingUp,
+      title: 'Investment commission',
+      rate: '2%',
+      example: 'UGX 2,000 on UGX 100,000 invested',
+      note: 'On every supporter investment you bring',
+    },
+    {
+      icon: Users,
+      title: 'Recruiter signup bonus',
+      rate: 'UGX 10,000 flat',
+      example: 'Per new sub-agent you recruit',
+      note: 'Credited when they verify their first listing',
+    },
+    {
+      icon: UsersRound,
+      title: 'Recruiter rent override',
+      rate: '2%',
+      example: 'UGX 2,000 when your recruit collects UGX 100,000',
+      note: 'Earned from your own sub-agents collections',
+    },
   ];
+
+  const monthlyExample = {
+    rent: { amount: 'UGX 500,000', yourCut: 'UGX 40,000' },
+    recruitOverride: { amount: 'UGX 300,000', yourCut: 'UGX 6,000' },
+    recruitBonus: 'UGX 20,000',
+    total: 'UGX 66,000',
+  };
 
   if (loading || (!user && phase === 'idle')) {
     return (
@@ -184,20 +215,47 @@ export default function SubAgentInvite() {
                 </div>
               )}
 
-              {/* Benefits */}
-              <div className="text-left space-y-2.5">
+              {/* Detailed commission breakdown */}
+              <div className="text-left space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">What you'll earn</p>
-                {benefits.map((b) => (
-                  <div key={b.label} className="flex items-start gap-3 p-2.5 rounded-xl bg-muted/50">
-                    <div className="mt-0.5 shrink-0 w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                      <b.icon className="h-4 w-4" />
+                {commissionStreams.map((s) => (
+                  <div key={s.title} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
+                    <div className="mt-0.5 shrink-0 w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <s.icon className="h-4 w-4" />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">{b.label}</p>
-                      <p className="text-xs text-muted-foreground">{b.desc}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold">{s.title}</p>
+                        <span className="text-xs font-bold text-primary shrink-0">{s.rate}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{s.example}</p>
+                      <p className="text-[11px] text-muted-foreground/70 mt-0.5 italic">{s.note}</p>
                     </div>
                   </div>
                 ))}
+
+                {/* Monthly scenario card */}
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/15">
+                  <p className="text-xs font-semibold text-primary text-center mb-2">Example month</p>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">You collect {monthlyExample.rent.amount} rent</span>
+                      <span className="font-semibold">{monthlyExample.rent.yourCut}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Your recruit collects {monthlyExample.recruitOverride.amount}</span>
+                      <span className="font-semibold">{monthlyExample.recruitOverride.yourCut}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">You recruit 2 new agents</span>
+                      <span className="font-semibold">{monthlyExample.recruitBonus}</span>
+                    </div>
+                    <div className="border-t border-primary/15 pt-1.5 mt-1.5 flex justify-between">
+                      <span className="font-semibold text-foreground">Total you earn</span>
+                      <span className="font-bold text-primary">{monthlyExample.total}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <Button
