@@ -15,3 +15,4 @@
 
 - [CTO SMS Exceptions](mem://features/cto/sms-exceptions) — CTO Dashboard tab + sms_message_exceptions table to block a phone from a specific SMS type; enforced via _shared/smsExceptions.ts in bulk/collection/rent-access/partner SMS functions
 - [Referral Signup Bonus](mem://features/referral/signup-bonus) — UGX 500 auto-credited to referrer's withdrawable wallet (from marketing_expense) when someone signs up via their shared link; trigger chain profiles→referrals→ledger; fixed broken create_ledger_transaction signature 2026-06-17
+- [Sub-agent invite auto-expiry + lead nudge](mem://features/agent/subagent-invite-expiry) — Daily cron `expire-subagent-invites-daily` flips week-old `pending_acceptance` agent_subagents invites to `expired` + SMS/in-app nudges the lead to resend; `resend-subagent-invite` reactivates expired links; SubAgentsList shows Expired chip/badge + resend
