@@ -5,6 +5,7 @@ import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink, ZoomIn, Navigation } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
+import { ShareNearbyHousesButton } from '@/components/tenant/ShareNearbyHousesButton';
 import HouseRatingBadge from '@/components/house/HouseRatingBadge';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
@@ -232,13 +233,28 @@ export function NearbyHousesPreview({ onViewAll, onSelectHouse }: NearbyHousesPr
             ? `Near ${nearbyCity || 'You'}`
             : 'Available Houses'}
         </h2>
-        <button
-          onClick={onViewAll}
-          className="text-xs text-primary font-medium flex items-center gap-0.5"
-        >
-          View All <ChevronRight className="h-3 w-3" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <ShareNearbyHousesButton
+            variant="icon"
+            latitude={geo.latitude}
+            longitude={geo.longitude}
+            area={nearbyCity}
+          />
+          <button
+            onClick={onViewAll}
+            className="text-xs text-primary font-medium flex items-center gap-0.5"
+          >
+            View All <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
       </div>
+
+      <ShareNearbyHousesButton
+        variant="full"
+        latitude={geo.latitude}
+        longitude={geo.longitude}
+        area={nearbyCity}
+      />
 
       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 scrollbar-hide">
         {listings.map(listing => (

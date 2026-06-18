@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
+import { ShareNearbyHousesButton } from '@/components/tenant/ShareNearbyHousesButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -343,6 +344,14 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               </button>
             </div>
           </div>
+
+          <ShareNearbyHousesButton
+            variant="full"
+            latitude={geo.latitude}
+            longitude={geo.longitude}
+            area={geo.city}
+            region={selectedRegion !== 'All Regions' ? selectedRegion : undefined}
+          />
 
           <form
             role="search"
