@@ -931,6 +931,28 @@ html.android-compositor-safe .portfolio-summary-card {
   will-change: auto !important;
 }
 
+/* The hero/wallet cards carry a heavy custom drop-shadow plus an `inset`
+   highlight. On clipped gradient surfaces that inset layer is a primary
+   source of the horizontal "rainbow tearing" band on Mali/Adreno GPUs.
+   Drop the inset entirely and soften the outer shadow so the driver never
+   allocates an oversized texture for the card. This is NOT covered by the
+   generic `.shadow-2xl/.shadow-xl` rule because the shadow is a custom
+   property on these classes. */
+html.android-compositor-safe .portfolio-hero-card,
+html.android-compositor-safe .portfolio-summary-card,
+html.no-backdrop-blur .portfolio-hero-card,
+html.no-backdrop-blur .portfolio-summary-card {
+  box-shadow: 0 8px 20px -12px hsl(271 81% 40% / 0.35) !important;
+}
+
+/* Decorative absolutely-positioned glow circles inside the hero cards add
+   extra composited layers with no informational value. Flatten them on
+   affected devices so the card paints in a single pass. */
+html.android-compositor-safe .portfolio-hero-card [class*="rounded-full"][class*="absolute"],
+html.android-compositor-safe .portfolio-summary-card [class*="rounded-full"][class*="absolute"] {
+  display: none !important;
+}
+
 /* True glass panels rely on the blur for legibility over arbitrary content,
    so they (and only they) get an opaque fallback surface. */
 html.no-backdrop-blur .glass-card {
