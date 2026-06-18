@@ -205,6 +205,33 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
         total += v;
       });
 
+      // 2% rent override. Since the April 2026 commission-engine rewrite, the
+      // recruiter's rent override is written to commission_accrual_ledger
+      // (commission_role = 'recruiter'), NOT agent_earnings.subagent_commission.
+      // Without this the per-sub-agent 2% rent earnings show as zero. Each row
+      // carries the tenant_id, so route it to its sub-agent via tenantToSub.
+      let recruiterQuery = supabase
+        .from('commission_accrual_ledger')
+        .select('amount, tenant_id, earned_at')
+        .eq('agent_id', user.id)
+        .eq('commission_role', 'recruiter');
+
+      if (dateFrom) {
+        recruiterQuery = recruiterQuery.gte('earned_at', `${dateFrom}T00:00:00Z`);
+      }
+      if (dateTo) {
+        recruiterQuery = recruiterQuery.lte('earned_at', `${dateTo}T23:59:59Z`);
+      }
+
+      const { data: recruiterCommissions } = await recruiterQuery;
+      (recruiterCommissions || []).forEach(rc => {
+        const subId = rc.tenant_id ? tenantToSub[rc.tenant_id] : undefined;
+        if (!subId) return;
+        const v = Number(rc.amount) || 0;
+        earningsBySub[subId] = (earningsBySub[subId] || 0) + v;
+        total += v;
+      });
+
       const enriched: SubAgent[] = finalIds.map(id => {
         const meta = map.get(id)!;
         const profile = profiles?.find(p => p.id === id);
@@ -623,7 +650,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                     {formatUGX(sub.earnings)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    your 2%
+                    you earned
                   </p>
                 </div>
                 {sub.status !== 'rejected' && sub.status !== 'released' && (
