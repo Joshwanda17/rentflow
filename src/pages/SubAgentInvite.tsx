@@ -4,10 +4,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
-import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn } from 'lucide-react';
+import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Home, Users, TrendingUp } from 'lucide-react';
 
 type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login';
+
+interface ParentAgent {
+  full_name: string;
+  avatar_url: string | null;
+}
+
+interface InviteInfo {
+  status: string;
+  parent: ParentAgent;
+}
 
 export default function SubAgentInvite() {
   const navigate = useNavigate();
@@ -18,6 +29,44 @@ export default function SubAgentInvite() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [message, setMessage] = useState('');
   const [parentName, setParentName] = useState('your agent');
+  const [invite, setInvite] = useState<InviteInfo | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  // Fetch invite preview (lead agent name, avatar, status) when user is known
+  useEffect(() => {
+    async function fetchInvite() {
+      if (!token || !user) return;
+      setInviteLoading(true);
+      try {
+        const { data: row, error } = await supabase
+          .from('agent_subagents')
+          .select('status, parent_agent_id')
+          .eq('acceptance_token', token)
+          .or(`sub_agent_id.eq.${user.id},parent_agent_id.eq.${user.id}`)
+          .maybeSingle();
+
+        if (error || !row) {
+          setInviteLoading(false);
+          return;
+        }
+
+        const { data: parent } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', row.parent_agent_id)
+          .maybeSingle();
+
+        if (parent) {
+          setInvite({ status: row.status, parent: parent });
+          setParentName(parent.full_name || 'your agent');
+        }
+      } finally {
+        setInviteLoading(false);
+      }
+    }
+
+    if (user && token) fetchInvite();
+  }, [token, user]);
 
   const handleAccept = async () => {
     if (!token) {
@@ -49,6 +98,18 @@ export default function SubAgentInvite() {
     }
   }, [loading, user]);
 
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  // Benefits the invited sub-agent will earn
+  const benefits = [
+    { icon: Wallet, label: 'Earn 8% commission', desc: 'On every rent collection you make.' },
+    { icon: Users, label: 'Build your own team', desc: 'Recruit sub-agents and earn from their work too.' },
+    { icon: Home, label: 'Register tenants & landlords', desc: 'Grow your income with every new signup.' },
+    { icon: TrendingUp, label: 'Instant payouts', desc: 'Commissions hit your Welile wallet in real time.' },
+  ];
+
   if (loading || (!user && phase === 'idle')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -74,9 +135,9 @@ export default function SubAgentInvite() {
           {phase === 'need-login' && (
             <>
               <div>
-                <h1 className="text-lg font-bold">Sub-agent invitation</h1>
+                <h1 className="text-lg font-bold">You've been invited to a team</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Sign in to your Welile account to accept this invitation.
+                  Sign in to see who invited you and the benefits you'll unlock.
                 </p>
               </div>
               <Button
@@ -90,15 +151,61 @@ export default function SubAgentInvite() {
 
           {(phase === 'idle' || phase === 'accepting') && user && (
             <>
-              <div>
-                <h1 className="text-lg font-bold">You've been invited as a sub-agent</h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Accept to join the team and start earning on Welile.
-                </p>
+              {/* Lead agent preview */}
+              {invite && invite.parent ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Avatar className="h-16 w-16 border-2 border-primary/20">
+                    <AvatarImage src={invite.parent.avatar_url || undefined} />
+                    <AvatarFallback className="text-lg">{getInitials(invite.parent.full_name)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h1 className="text-lg font-bold">{invite.parent.full_name || 'A Welile Agent'}</h1>
+                    <p className="text-sm text-muted-foreground">invited you to join their team</p>
+                  </div>
+                  {invite.status === 'expired' && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive bg-destructive/10 px-2 py-1 rounded-full">
+                      <AlertTriangle className="h-3 w-3" /> This invite has expired
+                    </span>
+                  )}
+                </div>
+              ) : inviteLoading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Skeleton className="h-16 w-16 rounded-full" />
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-56" />
+                </div>
+              ) : (
+                <div>
+                  <h1 className="text-lg font-bold">You've been invited as a sub-agent</h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Accept to join the team and start earning on Welile.
+                  </p>
+                </div>
+              )}
+
+              {/* Benefits */}
+              <div className="text-left space-y-2.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">What you'll earn</p>
+                {benefits.map((b) => (
+                  <div key={b.label} className="flex items-start gap-3 p-2.5 rounded-xl bg-muted/50">
+                    <div className="mt-0.5 shrink-0 w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <b.icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{b.label}</p>
+                      <p className="text-xs text-muted-foreground">{b.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <Button className="w-full h-11 gap-2" onClick={handleAccept} disabled={phase === 'accepting'}>
+
+              <Button
+                className="w-full h-11 gap-2"
+                onClick={handleAccept}
+                disabled={phase === 'accepting' || invite?.status === 'expired'}
+              >
                 {phase === 'accepting' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Accept invitation
+                {invite?.status === 'expired' ? 'Invite expired' : 'Accept invitation'}
               </Button>
             </>
           )}
@@ -133,3 +240,4 @@ export default function SubAgentInvite() {
     </div>
   );
 }
+
