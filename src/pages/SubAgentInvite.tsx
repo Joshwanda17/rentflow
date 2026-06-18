@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
-import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Home, Users, TrendingUp } from 'lucide-react';
+import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Users, TrendingUp } from 'lucide-react';
 
 type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login';
 
