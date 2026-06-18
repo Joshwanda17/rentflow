@@ -1809,7 +1809,9 @@ Deno.serve(async (req) => {
             portfolioCode: portfolio?.portfolio_code || undefined,
             payoutMethod: `${resolvedPayoutMethod} — Proxy payout for ${partnerProfile.full_name || "funder"}`,
             walletIdLast4: resolvedPayoutLast4,
-            isManagedByAgent: true,
+            // Agent gets the standard disbursement layout, NOT the
+            // partner-facing "paid on your behalf" copy.
+            isManagedByAgent: false,
             agentName,
             roiPercentage: Number((portfolio as any)?.roi_percentage) || undefined,
             principalAmount: Number((portfolio as any)?.investment_amount) || undefined,
