@@ -262,9 +262,9 @@ export function AgentVerificationRequestsPanel({ onResolved }: Props) {
                   {req.landlord_name || 'Unnamed landlord'}
                 </p>
                 {req.landlord_phone && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                  <a href={`tel:${req.landlord_phone}`} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 truncate">
                     <Phone className="h-3 w-3 shrink-0" /> {req.landlord_phone}
-                  </p>
+                  </a>
                 )}
                 <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-1 truncate">
                   <UserCircle className="h-3.5 w-3.5 shrink-0" />
