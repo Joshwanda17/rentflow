@@ -215,20 +215,47 @@ export default function SubAgentInvite() {
                 </div>
               )}
 
-              {/* Benefits */}
-              <div className="text-left space-y-2.5">
+              {/* Detailed commission breakdown */}
+              <div className="text-left space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-center">What you'll earn</p>
-                {benefits.map((b) => (
-                  <div key={b.label} className="flex items-start gap-3 p-2.5 rounded-xl bg-muted/50">
-                    <div className="mt-0.5 shrink-0 w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                      <b.icon className="h-4 w-4" />
+                {commissionStreams.map((s) => (
+                  <div key={s.title} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border border-border/50">
+                    <div className="mt-0.5 shrink-0 w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <s.icon className="h-4 w-4" />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">{b.label}</p>
-                      <p className="text-xs text-muted-foreground">{b.desc}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold">{s.title}</p>
+                        <span className="text-xs font-bold text-primary shrink-0">{s.rate}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{s.example}</p>
+                      <p className="text-[11px] text-muted-foreground/70 mt-0.5 italic">{s.note}</p>
                     </div>
                   </div>
                 ))}
+
+                {/* Monthly scenario card */}
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/15">
+                  <p className="text-xs font-semibold text-primary text-center mb-2">Example month</p>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">You collect {monthlyExample.rent.amount} rent</span>
+                      <span className="font-semibold">{monthlyExample.rent.yourCut}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Your recruit collects {monthlyExample.recruitOverride.amount}</span>
+                      <span className="font-semibold">{monthlyExample.recruitOverride.yourCut}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">You recruit 2 new agents</span>
+                      <span className="font-semibold">{monthlyExample.recruitBonus}</span>
+                    </div>
+                    <div className="border-t border-primary/15 pt-1.5 mt-1.5 flex justify-between">
+                      <span className="font-semibold text-foreground">Total you earn</span>
+                      <span className="font-bold text-primary">{monthlyExample.total}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <Button
