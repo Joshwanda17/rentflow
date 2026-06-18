@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
-import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Users, TrendingUp } from 'lucide-react';
+import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Users, TrendingUp, Info } from 'lucide-react';
 
 type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login';
 
@@ -255,6 +255,14 @@ export default function SubAgentInvite() {
                       <span className="font-bold text-primary">{monthlyExample.total}</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Regulator-safe commission disclaimer */}
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40 border border-border/40">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Commission is calculated on the rent amount you facilitate after the platform's service and access fees have been deducted. You are not lending money; you are earning a facilitation fee on rent plan collections processed through Welile.
+                  </p>
                 </div>
               </div>
 
