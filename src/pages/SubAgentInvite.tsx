@@ -103,13 +103,44 @@ export default function SubAgentInvite() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Benefits the invited sub-agent will earn
-  const benefits = [
-    { icon: Wallet, label: 'Earn 8% commission', desc: 'On every rent collection you make.' },
-    { icon: Users, label: 'Build your own team', desc: 'Recruit sub-agents and earn from their work too.' },
-    { icon: Home, label: 'Register tenants & landlords', desc: 'Grow your income with every new signup.' },
-    { icon: TrendingUp, label: 'Instant payouts', desc: 'Commissions hit your Welile wallet in real time.' },
+  // Detailed commission breakdown for the invited sub-agent
+  const commissionStreams = [
+    {
+      icon: Wallet,
+      title: 'Rent collection commission',
+      rate: '8%',
+      example: 'UGX 8,000 on UGX 100,000 collected',
+      note: 'Paid instantly to your wallet',
+    },
+    {
+      icon: TrendingUp,
+      title: 'Investment commission',
+      rate: '2%',
+      example: 'UGX 2,000 on UGX 100,000 invested',
+      note: 'On every supporter investment you bring',
+    },
+    {
+      icon: Users,
+      title: 'Recruiter signup bonus',
+      rate: 'UGX 10,000 flat',
+      example: 'Per new sub-agent you recruit',
+      note: 'Credited when they verify their first listing',
+    },
+    {
+      icon: UsersRound,
+      title: 'Recruiter rent override',
+      rate: '2%',
+      example: 'UGX 2,000 when your recruit collects UGX 100,000',
+      note: 'Earned from your own sub-agents collections',
+    },
   ];
+
+  const monthlyExample = {
+    rent: { amount: 'UGX 500,000', yourCut: 'UGX 40,000' },
+    recruitOverride: { amount: 'UGX 300,000', yourCut: 'UGX 6,000' },
+    recruitBonus: 'UGX 20,000',
+    total: 'UGX 66,000',
+  };
 
   if (loading || (!user && phase === 'idle')) {
     return (
