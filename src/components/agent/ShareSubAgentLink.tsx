@@ -101,7 +101,7 @@ Let's grow together! 🤝`;
                   <Sparkles className="h-4 w-4 text-orange-500" />
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Earn <span className="font-bold text-orange-600">UGX 500</span> for each signup!
+                  Earn <span className="font-bold text-orange-600">UGX 10,000</span> for each signup!
                 </p>
               </div>
             </div>
