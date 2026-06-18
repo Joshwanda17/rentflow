@@ -138,7 +138,9 @@ export function ReturnsDisbursementConfirmation({
                         </td>
                       </tr></tbody>
                     </table>
-                    <Heading style={heroH1}>Disbursement Confirmed</Heading>
+                    <Heading style={heroH1}>
+                      {is_managed_by_agent ? 'Monthly Partnership Return Paid' : 'Disbursement Confirmed'}
+                    </Heading>
                     <Text style={heroSub}>Dear {partner_name},</Text>
                   </td>
                 </tr>
@@ -146,9 +148,15 @@ export function ReturnsDisbursementConfirmation({
                 {/* Introduction Text */}
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '0 40px 35px 40px' }}>
-                    <Text style={introText}>
-                      Great news! Your Support returns have been successfully processed, and the funds have been dispatched to your designated account.
-                    </Text>
+                    {is_managed_by_agent ? (
+                      <Text style={introText}>
+                        Your monthly partnership return of <strong>{formattedAmount}</strong> has been successfully withdrawn and paid by your authorized proxy agent on your behalf.
+                      </Text>
+                    ) : (
+                      <Text style={introText}>
+                        Great news! Your Support returns have been successfully processed, and the funds have been dispatched to your designated account.
+                      </Text>
+                    )}
                   </td>
                 </tr>
 
@@ -248,19 +256,47 @@ export function ReturnsDisbursementConfirmation({
                 {/* Outro & Support */}
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 40px 40px', textAlign: 'center' }}>
-                    <Text style={outroText}>
-                      The funds should reflect in your receiving account shortly, depending on your provider's processing timelines.
-                    </Text>
-                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
-                      <tbody><tr>
-                        <td align="center" style={supportCell}>
-                          <Text style={supportText}>
-                            Have questions?{' '}
-                            <Link href={contact_url} style={supportLink}>Contact Support</Link>
-                          </Text>
-                        </td>
-                      </tr></tbody>
-                    </table>
+                    {is_managed_by_agent ? (
+                      <>
+                        <Text style={outroText}>
+                          <strong>Reference:</strong> {transaction_id}
+                        </Text>
+                        <Text style={outroText}>
+                          We encourage you to log in to your Welile dashboard to monitor your partnership performance, track payouts, and manage your account directly:
+                        </Text>
+                        <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ margin: '16px 0' }}>
+                          <tbody><tr>
+                            <td align="center">
+                              <Link href="https://welilereceipts.com/auth" style={supportLink}>
+                                https://welilereceipts.com/auth
+                              </Link>
+                            </td>
+                          </tr></tbody>
+                        </table>
+                        <Text style={outroText}>
+                          Thank you for partnering with Welile Technologies Limited.
+                        </Text>
+                        <Text style={{ ...outroText, fontStyle: 'italic', marginTop: '12px' }}>
+                          &ldquo;Welile is Turning Rent into an Asset.&rdquo;
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={outroText}>
+                          The funds should reflect in your receiving account shortly, depending on your provider's processing timelines.
+                        </Text>
+                        <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
+                          <tbody><tr>
+                            <td align="center" style={supportCell}>
+                              <Text style={supportText}>
+                                Have questions?{' '}
+                                <Link href={contact_url} style={supportLink}>Contact Support</Link>
+                              </Text>
+                            </td>
+                          </tr></tbody>
+                        </table>
+                      </>
+                    )}
                   </td>
                 </tr>
               </tbody>
