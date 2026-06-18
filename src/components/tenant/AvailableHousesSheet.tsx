@@ -345,6 +345,14 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </div>
           </div>
 
+          <ShareNearbyHousesButton
+            variant="full"
+            latitude={geo.latitude}
+            longitude={geo.longitude}
+            area={geo.city}
+            region={selectedRegion !== 'All Regions' ? selectedRegion : undefined}
+          />
+
           <form
             role="search"
             onSubmit={(e) => {
