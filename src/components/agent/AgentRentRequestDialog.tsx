@@ -5083,6 +5083,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </li>
                     ))}
                   </ul>
+                  {landlordCheck === 'unverified' && (
+                    <div className="pt-1">
+                      {verifyReqState === 'sent' || verifyReqState === 'exists' ? (
+                        <p className="text-xs font-medium text-success flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                          Verification request sent to Landlord Operations — you&apos;ll be able to post once they verify this landlord.
+                        </p>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-9 w-full gap-1.5 rounded-xl border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                          disabled={verifyReqState === 'sending'}
+                          onClick={requestLandlordVerification}
+                        >
+                          {verifyReqState === 'sending' ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                          )}
+                          Request verification from Landlord Ops
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <p className="text-xs text-destructive/80">Fix these, then press the button again.</p>
                 </div>
               )}
