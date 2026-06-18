@@ -94,7 +94,9 @@ Deno.serve(async (req) => {
 
     if (linkErr) return json({ error: linkErr.message }, 500);
     if (!link) return json({ error: "No sub-agent relationship found." }, 404);
-    if (link.status !== "pending_acceptance") {
+    // Allow resending invites that are still pending OR have lapsed to expired
+    // (the auto-expiry job flips week-old pending invites to 'expired').
+    if (link.status !== "pending_acceptance" && link.status !== "expired") {
       return json({ error: "This invite is no longer pending." }, 400);
     }
 
@@ -103,7 +105,7 @@ Deno.serve(async (req) => {
     const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { error: updErr } = await adminClient
       .from("agent_subagents")
-      .update({ acceptance_token: newToken, expires_at: inviteExpiresAt })
+      .update({ acceptance_token: newToken, expires_at: inviteExpiresAt, status: "pending_acceptance" })
       .eq("id", link.id);
     if (updErr) return json({ error: updErr.message }, 500);
 
