@@ -138,7 +138,9 @@ export function ReturnsDisbursementConfirmation({
                         </td>
                       </tr></tbody>
                     </table>
-                    <Heading style={heroH1}>Disbursement Confirmed</Heading>
+                    <Heading style={heroH1}>
+                      {is_managed_by_agent ? 'Monthly Partnership Return Paid' : 'Disbursement Confirmed'}
+                    </Heading>
                     <Text style={heroSub}>Dear {partner_name},</Text>
                   </td>
                 </tr>
@@ -146,9 +148,15 @@ export function ReturnsDisbursementConfirmation({
                 {/* Introduction Text */}
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '0 40px 35px 40px' }}>
-                    <Text style={introText}>
-                      Great news! Your Support returns have been successfully processed, and the funds have been dispatched to your designated account.
-                    </Text>
+                    {is_managed_by_agent ? (
+                      <Text style={introText}>
+                        Your monthly partnership return of <strong>{formattedAmount}</strong> has been successfully withdrawn and paid by your authorized proxy agent on your behalf.
+                      </Text>
+                    ) : (
+                      <Text style={introText}>
+                        Great news! Your Support returns have been successfully processed, and the funds have been dispatched to your designated account.
+                      </Text>
+                    )}
                   </td>
                 </tr>
 
