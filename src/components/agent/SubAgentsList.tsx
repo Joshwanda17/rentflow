@@ -548,6 +548,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
               { key: 'all', label: 'All' },
               { key: 'verified', label: 'Accepted' },
               { key: 'pending_acceptance', label: 'Pending' },
+              { key: 'expired', label: 'Expired' },
               { key: 'rejected', label: 'Rejected' },
               { key: 'released', label: 'Released' },
             ] as { key: typeof statusFilter; label: string }[]
