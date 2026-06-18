@@ -65,7 +65,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending_acceptance' | 'rejected' | 'released'>('verified');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending_acceptance' | 'expired' | 'rejected' | 'released'>('verified');
   const [totalSubAgentEarnings, setTotalSubAgentEarnings] = useState(0);
   const [totalBonusEarnings, setTotalBonusEarnings] = useState(0);
   const [totalRentCommission, setTotalRentCommission] = useState(0);
@@ -548,6 +548,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
               { key: 'all', label: 'All' },
               { key: 'verified', label: 'Accepted' },
               { key: 'pending_acceptance', label: 'Pending' },
+              { key: 'expired', label: 'Expired' },
               { key: 'rejected', label: 'Rejected' },
               { key: 'released', label: 'Released' },
             ] as { key: typeof statusFilter; label: string }[]
@@ -624,6 +625,12 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                         Invite pending
                       </span>
                     )}
+                    {sub.status === 'expired' && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                        <Clock className="h-2.5 w-2.5" />
+                        Invite expired
+                      </span>
+                    )}
                     {sub.status === 'rejected' && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
                         <XCircle className="h-2.5 w-2.5" />
@@ -641,7 +648,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
               </button>
 
               <div className="flex items-center gap-1.5 shrink-0">
-                {sub.status === 'pending_acceptance' && (
+                {(sub.status === 'pending_acceptance' || sub.status === 'expired') && (
                   <Button
                     size="sm"
                     variant="outline"
