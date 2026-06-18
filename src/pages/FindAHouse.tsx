@@ -476,7 +476,7 @@ export default function FindAHouse() {
 
   const sortLabel = SORT_OPTIONS.find(s => s.value === sortKey)?.label ?? '';
 
-  const hasGPS = !!(geo.latitude && geo.longitude);
+  const hasGPS = !!(effectiveLat && effectiveLng);
 
   const shareUrl = user
     ? `${SITE_URL}/find-a-house?ref=${user.id}`
