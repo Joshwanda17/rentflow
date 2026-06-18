@@ -648,7 +648,7 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
               </button>
 
               <div className="flex items-center gap-1.5 shrink-0">
-                {sub.status === 'pending_acceptance' && (
+                {(sub.status === 'pending_acceptance' || sub.status === 'expired') && (
                   <Button
                     size="sm"
                     variant="outline"
