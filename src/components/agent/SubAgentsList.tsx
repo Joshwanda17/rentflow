@@ -625,6 +625,12 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                         Invite pending
                       </span>
                     )}
+                    {sub.status === 'expired' && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                        <Clock className="h-2.5 w-2.5" />
+                        Invite expired
+                      </span>
+                    )}
                     {sub.status === 'rejected' && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
                         <XCircle className="h-2.5 w-2.5" />
