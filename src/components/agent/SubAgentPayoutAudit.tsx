@@ -48,7 +48,7 @@ interface WalletLeg {
 
 interface EarningLeg {
   key: string;
-  kind: 'Recruiter override' | 'Sub-agent earning';
+  kind: 'Recruiter override' | 'Sub-agent earning' | 'Rent override (2%)';
   label: string;
   subAgentName: string | null;
   amount: number;
@@ -97,7 +97,7 @@ export function SubAgentPayoutAudit() {
     if (!user) return;
     if (opts?.silent) setRefreshing(true); else setLoading(true);
 
-    const [overridesRes, earningsRes, ledgerRes] = await Promise.all([
+    const [overridesRes, earningsRes, recruiterRes, ledgerRes] = await Promise.all([
       supabase
         .from('recruiter_override_events')
         .select('id, sub_agent_id, label, amount, source_id, occurred_at, event_type')
@@ -111,11 +111,22 @@ export function SubAgentPayoutAudit() {
         .in('earning_type', SUBAGENT_EARNING_TYPES)
         .order('created_at', { ascending: false })
         .limit(200),
+      // 2% rent override — since the April 2026 commission-engine rewrite this
+      // is written to commission_accrual_ledger (commission_role='recruiter'),
+      // NOT agent_earnings. Without it the audit silently undercounts real
+      // 2% rent payouts that DID reach the wallet.
+      supabase
+        .from('commission_accrual_ledger')
+        .select('id, amount, tenant_id, earned_at, description')
+        .eq('agent_id', user.id)
+        .eq('commission_role', 'recruiter')
+        .order('earned_at', { ascending: false })
+        .limit(200),
       supabase
         .from('general_ledger')
         .select('id, amount, category, ledger_scope, recipient_type, wallet_bucket, source_id, transaction_date, description')
         .eq('user_id', user.id)
-        .eq('category', 'agent_commission')
+        .in('category', ['agent_commission', 'agent_commission_earned'])
         .eq('ledger_scope', 'wallet')
         .neq('classification', 'admin_correction')
         .neq('category', 'system_balance_correction')
@@ -125,6 +136,7 @@ export function SubAgentPayoutAudit() {
 
     const overrides = overridesRes.data || [];
     const earnings = earningsRes.data || [];
+    const recruiterRows = recruiterRes.data || [];
     const walletLegs: WalletLeg[] = (ledgerRes.data || []).map((l) => ({
       id: l.id,
       amount: Number(l.amount),
@@ -137,11 +149,28 @@ export function SubAgentPayoutAudit() {
       description: l.description,
     }));
 
+    // Map each recruiter rent-override tenant back to the sub-agent who manages
+    // them (commission_accrual_ledger stores tenant_id, not the sub-agent id).
+    const recruiterTenantIds = [
+      ...new Set(recruiterRows.filter((r) => r.tenant_id).map((r) => r.tenant_id as string)),
+    ];
+    const tenantToSub: Record<string, string> = {};
+    if (recruiterTenantIds.length > 0) {
+      const { data: rr } = await supabase
+        .from('rent_requests')
+        .select('tenant_id, agent_id')
+        .in('tenant_id', recruiterTenantIds);
+      (rr || []).forEach((r) => {
+        if (r.tenant_id && r.agent_id) tenantToSub[r.tenant_id] = r.agent_id;
+      });
+    }
+
     // Resolve names for sub-agents (override events + earning source users).
     const profileIds = [
       ...new Set([
         ...overrides.filter((o) => o.sub_agent_id).map((o) => o.sub_agent_id as string),
         ...earnings.filter((e) => e.source_user_id).map((e) => e.source_user_id as string),
+        ...Object.values(tenantToSub),
       ]),
     ];
     const nameMap: Record<string, string> = {};
@@ -170,6 +199,15 @@ export function SubAgentPayoutAudit() {
         subAgentName: e.source_user_id ? (nameMap[e.source_user_id] || null) : null,
         amount: Number(e.amount),
         occurredAt: e.created_at,
+        sourceId: null,
+      })),
+      ...recruiterRows.map((rc) => ({
+        key: `cal-${rc.id}`,
+        kind: 'Rent override (2%)' as const,
+        label: rc.description || 'Rent commission (2%)',
+        subAgentName: rc.tenant_id ? (nameMap[tenantToSub[rc.tenant_id]] || null) : null,
+        amount: Number(rc.amount),
+        occurredAt: rc.earned_at,
         sourceId: null,
       })),
     ].sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());

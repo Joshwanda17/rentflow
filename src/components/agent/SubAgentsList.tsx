@@ -47,6 +47,8 @@ interface SubAgent {
   phone: string;
   avatar_url: string | null;
   earnings: number;
+  bonusEarnings: number;
+  rentCommission: number;
   tenants_count: number;
   active_today: boolean;
 }
@@ -65,6 +67,8 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending_acceptance' | 'rejected' | 'released'>('verified');
   const [totalSubAgentEarnings, setTotalSubAgentEarnings] = useState(0);
+  const [totalBonusEarnings, setTotalBonusEarnings] = useState(0);
+  const [totalRentCommission, setTotalRentCommission] = useState(0);
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [resendingId, setResendingId] = useState<string | null>(null);
@@ -169,13 +173,19 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
       const { data: earnings } = await earningsQuery;
 
       const earningsBySub: Record<string, number> = {};
+      const bonusBySub: Record<string, number> = {};
+      const rentBySub: Record<string, number> = {};
       let total = 0;
+      let totalBonus = 0;
+      let totalRent = 0;
       (earnings || []).forEach(e => {
         const subId = e.source_user_id ? tenantToSub[e.source_user_id] : undefined;
         if (!subId) return;
         const v = Number(e.amount) || 0;
         earningsBySub[subId] = (earningsBySub[subId] || 0) + v;
+        rentBySub[subId] = (rentBySub[subId] || 0) + v;
         total += v;
+        totalRent += v;
       });
 
       // Recruiter override bonuses (UGX 3,000 sub-agent house/landlord/LC1
@@ -202,7 +212,9 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
         if (!subId) return;
         const v = Number(o.amount) || 0;
         earningsBySub[subId] = (earningsBySub[subId] || 0) + v;
+        bonusBySub[subId] = (bonusBySub[subId] || 0) + v;
         total += v;
+        totalBonus += v;
       });
 
       // 2% rent override. Since the April 2026 commission-engine rewrite, the
@@ -229,7 +241,9 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
         if (!subId) return;
         const v = Number(rc.amount) || 0;
         earningsBySub[subId] = (earningsBySub[subId] || 0) + v;
+        rentBySub[subId] = (rentBySub[subId] || 0) + v;
         total += v;
+        totalRent += v;
       });
 
       const enriched: SubAgent[] = finalIds.map(id => {
@@ -243,6 +257,8 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
           phone: profile?.phone || '—',
           avatar_url: profile?.avatar_url ?? null,
           earnings: earningsBySub[id] || 0,
+          bonusEarnings: bonusBySub[id] || 0,
+          rentCommission: rentBySub[id] || 0,
           tenants_count: tenantsBySub[id] || 0,
           active_today:
             (lastActiveBySub[id] || '').slice(0, 10) === todayStr,
@@ -265,6 +281,8 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
 
       setSubAgents(enriched);
       setTotalSubAgentEarnings(total);
+      setTotalBonusEarnings(totalBonus);
+      setTotalRentCommission(totalRent);
       onSummary?.({
         count: enriched.length,
         totalTenants: enriched.reduce((sum, s) => sum + (s.tenants_count || 0), 0),
@@ -455,6 +473,16 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
             <p className="font-bold text-orange-600 text-base leading-none mt-1">
               {formatUGX(totalSubAgentEarnings)}
             </p>
+            {(totalBonusEarnings > 0 || totalRentCommission > 0) && (
+              <div className="mt-1.5 space-y-0.5">
+                <p className="text-[9px] text-muted-foreground leading-tight">
+                  Bonuses {formatUGX(totalBonusEarnings)}
+                </p>
+                <p className="text-[9px] text-muted-foreground leading-tight">
+                  Rent 2% {formatUGX(totalRentCommission)}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -652,6 +680,20 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
                   <p className="text-[10px] text-muted-foreground">
                     you earned
                   </p>
+                  {(sub.bonusEarnings > 0 || sub.rentCommission > 0) && (
+                    <div className="mt-0.5 space-y-0.5">
+                      {sub.bonusEarnings > 0 && (
+                        <p className="text-[9px] text-muted-foreground leading-tight">
+                          Bonus {formatUGX(sub.bonusEarnings)}
+                        </p>
+                      )}
+                      {sub.rentCommission > 0 && (
+                        <p className="text-[9px] text-muted-foreground leading-tight">
+                          Rent 2% {formatUGX(sub.rentCommission)}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {sub.status !== 'rejected' && sub.status !== 'released' && (
                   <Button
