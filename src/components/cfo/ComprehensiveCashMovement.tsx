@@ -574,8 +574,8 @@ function TreasuryWalletFlowSummary({
         <Flow
           tone="out"
           icon={<Landmark className="h-5 w-5" />}
-          title="Wallets → Company"
-          subtitle="Every move of wallet money back to company funds — agent float allocations & settlements, Partner Ops portfolio investments, Angel Pool investments, automatic advance/debt recovery, and CFO direct debits"
+          title="Agent Float → Company Funds"
+          subtitle="Money that moved from agents' wallets into company funds — primarily when agents allocate from their operational float to cover tenant rent repayments, plus float settlements, portfolio investments, advance recovery, and CFO direct debits"
           summary={outSummary}
           partyHeading="Top allocators"
           direction="cash_out"
