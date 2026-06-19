@@ -210,6 +210,22 @@ function friendlyWalletLabel(category: string, direction: 'cash_in' | 'cash_out'
   return map[category] || prettifyCategory(category);
 }
 
+// Best-effort friendly label for a category when the direction is known
+// (e.g. from a single movement row). Falls back to prettifyCategory.
+function categoryFriendlyLabel(category: string, direction?: 'cash_in' | 'cash_out'): string {
+  if (direction) return friendlyWalletLabel(category, direction);
+  // Try outbound first (most categories are wallet→company), then inbound
+  return WALLET_FLOW_LABEL_OUT[category] || WALLET_FLOW_LABEL_IN[category] || prettifyCategory(category);
+}
+
+// Determine the dominant direction in a list of movements so the category
+// group header can pick the correct friendly label subtitle.
+function dominantDirection(items: { direction: 'cash_in' | 'cash_out' }[]): 'cash_in' | 'cash_out' {
+  let ins = 0;
+  for (const i of items) if (i.direction === 'cash_in') ins++;
+  return ins >= items.length / 2 ? 'cash_in' : 'cash_out';
+}
+
 // ─────────────────────────────────────────────────────────────
 // Wallet-impact map — explains which wallet buckets move (or don't)
 // when a Capital Inflows category posts. The Comprehensive view shows
@@ -1385,7 +1401,10 @@ function MovementTimeline({
                         className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/60 text-left"
                       >
                         <Checkbox checked={checked} className="pointer-events-none" />
-                        <span className="text-[12px] truncate">{prettifyCategory(cat)}</span>
+                        <span className="text-[12px] truncate">
+                          <span className="font-medium">{prettifyCategory(cat)}</span>
+                          <span className="text-muted-foreground ml-1">· {categoryFriendlyLabel(cat)}</span>
+                        </span>
                       </button>
                     );
                   })}
@@ -1430,7 +1449,12 @@ function MovementTimeline({
               <div className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors">
                 <CollapsibleTrigger className="flex items-center gap-2 min-w-0 flex-1 text-left">
                   <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
-                  <span className="text-[13px] font-medium truncate">{prettifyCategory(g.category)}</span>
+                  <div className="min-w-0">
+                    <span className="text-[13px] font-medium truncate block">{prettifyCategory(g.category)}</span>
+                    <span className="text-[11px] text-muted-foreground truncate block">
+                      {friendlyWalletLabel(g.category, dominantDirection(g.items))}
+                    </span>
+                  </div>
                   <Badge variant="outline" className="text-[10px] shrink-0">{g.count}</Badge>
                 </CollapsibleTrigger>
                 <div className="flex items-center gap-2 shrink-0">
@@ -1512,10 +1536,13 @@ function MovementTimeline({
               <>
                 <SheetHeader>
                   <SheetTitle className="flex items-center gap-2 flex-wrap">
-                    {prettifyCategory(detailCat)}
+                    <span className="truncate">
+                      {categoryFriendlyLabel(detailCat, matched.length > 0 ? dominantDirection(matched) : undefined)}
+                    </span>
                     <Badge variant="secondary" className="text-[10px]">{matched.length.toLocaleString()} movements</Badge>
                   </SheetTitle>
                   <SheetDescription>
+                    <span className="font-mono text-[11px] text-muted-foreground block mb-0.5">{detailCat}</span>
                     {CATEGORY_DESCRIPTIONS[detailCat] || 'Every movement in this category, with full ledger detail. Tap a row to expand every field and its double-entry legs.'}
                   </SheetDescription>
                 </SheetHeader>
@@ -1590,7 +1617,7 @@ function MovementTimeline({
                             <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
                               <DetailField label="Date" value={format(new Date(m.date), 'dd MMM yyyy HH:mm:ss')} />
                               <DetailField label="Amount" value={formatUGX(m.amount)} mono />
-                              <DetailField label="Category" value={prettifyCategory(m.category)} />
+                              <DetailField label="Category" value={categoryFriendlyLabel(m.category, m.direction)} />
                               <DetailField label="Direction" value={m.direction === 'cash_in' ? 'Cash in' : 'Cash out'} />
                               <DetailField label="Scope" value={SCOPE_LABEL[m.scope] || m.scope} />
                               <DetailField label="Classification" value={m.raw.classification || '—'} />
@@ -1618,7 +1645,7 @@ function MovementTimeline({
                                       <span className={cn('font-mono mr-1', leg.direction === 'cash_in' ? 'text-success' : 'text-destructive')}>
                                         {leg.direction === 'cash_in' ? '+' : '−'}
                                       </span>
-                                      {SCOPE_LABEL[leg.ledger_scope] || leg.ledger_scope} · {prettifyCategory(leg.category)}
+                                      {SCOPE_LABEL[leg.ledger_scope] || leg.ledger_scope} · {categoryFriendlyLabel(leg.category, leg.direction)}
                                     </span>
                                     <span className="font-mono shrink-0">{formatUGX(Number(leg.amount) || 0)}</span>
                                   </div>
