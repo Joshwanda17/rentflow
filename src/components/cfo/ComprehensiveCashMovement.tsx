@@ -3113,6 +3113,7 @@ export function ComprehensiveCashMovement() {
             </span>
             {([
               { id: 'cm-treasury',     label: 'Treasury ⇄ Wallets', emoji: '🔁' },
+              { id: 'cm-company-wallet-chart', label: 'Company → Wallets', emoji: '🏦' },
               { id: 'cm-allocation-chart', label: 'Allocation chart', emoji: '📊' },
               { id: 'cm-timeline',     label: 'Movement timeline', emoji: '🕒' },
               simpleMode ? { id: 'cm-glance',       label: 'Glance',       emoji: '👀' } : null,
