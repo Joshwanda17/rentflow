@@ -5152,10 +5152,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={propertyCity}
                       onChange={(e) => setPropertyCity(formatNameInput(e.target.value))}
                       placeholder="e.g. Entebbe, Kampala, Jinja"
-                      className={`h-10 ${hasFieldError('city') ? 'border-destructive border-2' : ''}`}
+                      className={`h-10 ${hasFieldError('propertyCity') ? 'border-destructive border-2' : ''}`}
                       required
                     />
-                    <FieldError message={vPlace(propertyCity, 'Entebbe')} />
+                    <FieldError message={vPlace(propertyCity, 'Entebbe') || getFieldError('propertyCity')} />
                   </div>
                   <div className="space-y-1">
                     <Label >District</Label>
