@@ -929,6 +929,7 @@ function AgentAllocationBreakdownChart({
 // ─────────────────────────────────────────────────────────────
 // Movement Timeline (strict CFO category order)
 // A single, scan-able ledger of every cash movement in the period,
+// (see below)
 // grouped by category in the exact CFO sequence (LOCKED_CATEGORIES).
 // Each row is a clear timeline entry: Date · Amount · Source →
 // Destination. Source/destination are derived from the double-entry
