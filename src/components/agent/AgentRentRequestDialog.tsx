@@ -3682,10 +3682,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         value={outstandingDaysRemaining}
                         onChange={(e) => setOutstandingDaysRemaining(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="Days left on current rent period"
-                       
+                        className={`${hasFieldError('outstandingDaysRemaining') ? 'border-destructive border-2' : ''}`}
                         required
                       />
-                      <FieldError message={vDays(outstandingDaysRemaining)} />
+                      <FieldError message={vDays(outstandingDaysRemaining) || getFieldError('outstandingDaysRemaining')} />
                     </div>
 
                     <div className="space-y-1">
