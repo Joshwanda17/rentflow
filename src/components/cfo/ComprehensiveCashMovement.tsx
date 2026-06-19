@@ -642,15 +642,22 @@ function TreasuryWalletFlowSummary({
     for (const legs of groups.values()) {
       const platformLegs = legs.filter(l => l.ledger_scope === 'platform');
       const walletLegs = legs.filter(l => l.ledger_scope === 'wallet');
-      if (!platformLegs.length || !walletLegs.length) continue;
+      const bridgeLegs = legs.filter(l => l.ledger_scope === 'bridge');
+      if (!walletLegs.length) continue;
+      if (!platformLegs.length && !bridgeLegs.length) continue;
       const hasPlatformOut = platformLegs.some(p => p.direction === 'cash_out');
       const hasPlatformIn = platformLegs.some(p => p.direction === 'cash_in');
+      // Rent allocations move agent float (wallet cash_out) into a rent
+      // receivable (bridge cash_in: rent_receivable_created) rather than a
+      // platform cash_in leg. Treat a bridge cash_in as "money into company"
+      // so agent rent allocations are counted in the Wallets → Company flow.
+      const hasBridgeIn = bridgeLegs.some(b => b.direction === 'cash_in');
       for (const w of walletLegs) {
         const amt = Number(w.amount) || 0;
         if (!amt) continue;
         if (w.direction === 'cash_in' && hasPlatformOut) {
           toWallets.push({ amount: amt, category: w.category, party: w.user_id ?? null, date: w.transaction_date });
-        } else if (w.direction === 'cash_out' && hasPlatformIn) {
+        } else if (w.direction === 'cash_out' && (hasPlatformIn || hasBridgeIn)) {
           // Exclude personal wallet withdrawals — they are wallet → external, not wallet → company
           if (w.category === 'wallet_withdrawal' || w.category === 'withdrawal') continue;
           toCompany.push({ amount: amt, category: w.category, party: w.user_id ?? null, date: w.transaction_date });
