@@ -210,6 +210,22 @@ function friendlyWalletLabel(category: string, direction: 'cash_in' | 'cash_out'
   return map[category] || prettifyCategory(category);
 }
 
+// Best-effort friendly label for a category when the direction is known
+// (e.g. from a single movement row). Falls back to prettifyCategory.
+function categoryFriendlyLabel(category: string, direction?: 'cash_in' | 'cash_out'): string {
+  if (direction) return friendlyWalletLabel(category, direction);
+  // Try outbound first (most categories are wallet→company), then inbound
+  return WALLET_FLOW_LABEL_OUT[category] || WALLET_FLOW_LABEL_IN[category] || prettifyCategory(category);
+}
+
+// Determine the dominant direction in a list of movements so the category
+// group header can pick the correct friendly label subtitle.
+function dominantDirection(items: { direction: 'cash_in' | 'cash_out' }[]): 'cash_in' | 'cash_out' {
+  let ins = 0;
+  for (const i of items) if (i.direction === 'cash_in') ins++;
+  return ins >= items.length / 2 ? 'cash_in' : 'cash_out';
+}
+
 // ─────────────────────────────────────────────────────────────
 // Wallet-impact map — explains which wallet buckets move (or don't)
 // when a Capital Inflows category posts. The Comprehensive view shows
