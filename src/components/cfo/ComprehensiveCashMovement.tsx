@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
@@ -944,6 +945,8 @@ function CompanyToWalletBreakdownChart({
 }) {
   const [names, setNames] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Deep drill-down: a single recipient (or whole category) → every transaction.
+  const [drill, setDrill] = useState<{ category: string; userId: string | 'ALL' } | null>(null);
 
   // ── Chart-local filters ────────────────────────────────────
   const [dateFrom, setDateFrom] = useState<string>('');
@@ -968,7 +971,7 @@ function CompanyToWalletBreakdownChart({
 
   // Build per-category totals + per-category recipient breakdown from
   // paired wallet-in / platform-out ledger legs (Company → Wallets).
-  const { catList, total, count, byCatRecipients, availableCategories } = useMemo(() => {
+  const { catList, total, count, byCatRecipients, byCatRecipientRows, byCatRows, availableCategories } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
@@ -980,6 +983,8 @@ function CompanyToWalletBreakdownChart({
     }
     const catTotals = new Map<string, { amount: number; count: number }>();
     const byCatRecipients = new Map<string, Map<string, number>>();
+    const byCatRecipientRows = new Map<string, Map<string, LedgerRow[]>>();
+    const byCatRows = new Map<string, LedgerRow[]>();
     const available = new Set<string>();
     let total = 0;
     let count = 0;
@@ -998,10 +1003,16 @@ function CompanyToWalletBreakdownChart({
         const c = catTotals.get(w.category) || { amount: 0, count: 0 };
         c.amount += amt; c.count += 1; catTotals.set(w.category, c);
         total += amt; count += 1;
+        const allRows = byCatRows.get(w.category) || [];
+        allRows.push(w); byCatRows.set(w.category, allRows);
         if (w.user_id) {
           const recs = byCatRecipients.get(w.category) || new Map<string, number>();
           recs.set(w.user_id, (recs.get(w.user_id) || 0) + amt);
           byCatRecipients.set(w.category, recs);
+          const recRows = byCatRecipientRows.get(w.category) || new Map<string, LedgerRow[]>();
+          const list = recRows.get(w.user_id) || [];
+          list.push(w); recRows.set(w.user_id, list);
+          byCatRecipientRows.set(w.category, recRows);
         }
       }
     }
@@ -1013,7 +1024,7 @@ function CompanyToWalletBreakdownChart({
         return b[1].amount - a[1].amount;
       })
       .map(([category, v]) => ({ category, amount: v.amount, count: v.count }));
-    return { catList, total, count, byCatRecipients, availableCategories: [...available].sort((a, b) => cfoCategoryRank(a) - cfoCategoryRank(b)) };
+    return { catList, total, count, byCatRecipients, byCatRecipientRows, byCatRows, availableCategories: [...available].sort((a, b) => cfoCategoryRank(a) - cfoCategoryRank(b)) };
   }, [rows, includeAdjustments, dateFrom, dateTo, categoryFilterActive, selectedCategories]);
 
   // Resolve recipient names for the currently-expanded category.
@@ -1038,6 +1049,36 @@ function CompanyToWalletBreakdownChart({
   }, [expanded, byCatRecipients]);
 
   const nameOf = (id: string) => names[id] || `${id.slice(0, 8)}…`;
+
+  // Rows powering the active drill-down (one recipient, or the whole category).
+  const drillRows = useMemo(() => {
+    if (!drill) return [] as LedgerRow[];
+    const list = drill.userId === 'ALL'
+      ? (byCatRows.get(drill.category) || [])
+      : (byCatRecipientRows.get(drill.category)?.get(drill.userId) || []);
+    return [...list].sort((a, b) => (a.transaction_date < b.transaction_date ? 1 : -1));
+  }, [drill, byCatRows, byCatRecipientRows]);
+
+  const drillTotal = useMemo(() => drillRows.reduce((s, r) => s + (Number(r.amount) || 0), 0), [drillRows]);
+
+  // Resolve any recipient names referenced by the open whole-category drill.
+  useEffect(() => {
+    if (!drill) return;
+    const ids = [...new Set(drillRows.map(r => r.user_id).filter((id): id is string => !!id && !names[id]))].slice(0, 50);
+    if (!ids.length) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as { id: string; full_name: string | null }[]) {
+        if (p.full_name) next[p.id] = p.full_name;
+      }
+      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drill, drillRows]);
 
   const chartData = useMemo(
     () => catList.map(c => ({ name: friendlyWalletLabel(c.category, 'cash_in'), category: c.category, amount: c.amount })),
@@ -1272,7 +1313,8 @@ function CompanyToWalletBreakdownChart({
             {catList.map(c => {
               const isOpen = expanded === c.category;
               const recs = byCatRecipients.get(c.category);
-              const topRecs = recs ? [...recs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6) : [];
+              const allRecs = recs ? [...recs.entries()].sort((a, b) => b[1] - a[1]) : [];
+              const topRecs = allRecs.slice(0, 6);
               return (
                 <div key={c.category}>
                   <button
@@ -1291,12 +1333,31 @@ function CompanyToWalletBreakdownChart({
                   </button>
                   {isOpen && (
                     <div className="px-3 pb-3 pt-0.5 space-y-1.5 bg-muted/20">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-1.5">Top recipients</p>
+                      <div className="flex items-center justify-between pt-1.5">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                          Top recipients{allRecs.length > topRecs.length ? ` (of ${allRecs.length})` : ''}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setDrill({ category: c.category, userId: 'ALL' })}
+                          className="text-[10px] font-semibold text-primary hover:underline"
+                        >
+                          View all {c.count.toLocaleString()} transactions →
+                        </button>
+                      </div>
                       {topRecs.length > 0 ? topRecs.map(([id, amt]) => (
-                        <div key={id} className="flex items-center justify-between gap-2 text-[12px]">
-                          <span className="truncate text-foreground/90">{nameOf(id)}</span>
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setDrill({ category: c.category, userId: id })}
+                          className="w-full flex items-center justify-between gap-2 text-[12px] rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/60 transition-colors text-left"
+                        >
+                          <span className="truncate text-foreground/90 flex items-center gap-1.5">
+                            <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                            {nameOf(id)}
+                          </span>
                           <span className="font-mono font-medium shrink-0">{formatUGX(amt)}</span>
-                        </div>
+                        </button>
                       )) : (
                         <p className="text-[12px] text-muted-foreground italic">No identified recipients for this category.</p>
                       )}
@@ -1308,6 +1369,69 @@ function CompanyToWalletBreakdownChart({
           </div>
         </>
       )}
+
+      {/* ── Deep drill-down: every transaction behind a number ──────── */}
+      <Sheet open={!!drill} onOpenChange={(o) => { if (!o) setDrill(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+          {drill && (
+            <>
+              <SheetHeader className="px-4 pt-4 pb-3 border-b">
+                <SheetTitle className="flex items-center gap-2 text-base">
+                  <ArrowLeftRight className="h-4 w-4 text-emerald-600" />
+                  {friendlyWalletLabel(drill.category, 'cash_in')}
+                </SheetTitle>
+                <SheetDescription>
+                  {drill.userId === 'ALL'
+                    ? <>Every company → wallet transfer in <span className="font-mono">{drill.category}</span></>
+                    : <>Transfers to <span className="font-semibold text-foreground">{nameOf(drill.userId)}</span> · <span className="font-mono">{drill.category}</span></>}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="px-4 py-3 border-b bg-muted/40 flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">
+                  {drillRows.length.toLocaleString()} transaction{drillRows.length === 1 ? '' : 's'}
+                </span>
+                <span className="text-sm font-bold font-mono text-emerald-600">{formatUGX(drillTotal)}</span>
+              </div>
+              <ScrollArea className="flex-1">
+                <ul className="divide-y divide-border/60">
+                  {drillRows.map((r, i) => (
+                    <li key={r.id || i} className="px-4 py-2.5 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12px] font-medium text-foreground">
+                          {format(new Date(r.transaction_date), 'd MMM yyyy, HH:mm')}
+                        </span>
+                        <span className="text-[13px] font-mono font-semibold text-emerald-600 shrink-0">{formatUGX(Number(r.amount) || 0)}</span>
+                      </div>
+                      {drill.userId === 'ALL' && r.user_id && (
+                        <p className="text-[11px] text-foreground/80 truncate">{nameOf(r.user_id)}</p>
+                      )}
+                      {r.description && (
+                        <p className="text-[11px] text-muted-foreground line-clamp-2">{r.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {r.reference_id && (
+                          <span className="text-[10px] font-mono text-muted-foreground">Ref: {r.reference_id}</span>
+                        )}
+                        {r.transaction_group_id && (
+                          <Link
+                            to={`/ledger/${r.id || r.transaction_group_id}`}
+                            className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-primary hover:underline"
+                          >
+                            Open ledger entry <ExternalLink className="h-2.5 w-2.5" />
+                          </Link>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                  {drillRows.length === 0 && (
+                    <li className="px-4 py-8 text-center text-[12px] text-muted-foreground">No transactions found.</li>
+                  )}
+                </ul>
+              </ScrollArea>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }
