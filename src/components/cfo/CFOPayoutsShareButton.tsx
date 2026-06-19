@@ -33,7 +33,7 @@ const PAYOUT_ACTIONS = [
 ];
 
 const ACTION_LABEL: Record<string, string> = {
-  cfo_direct_credit: 'Wallet Credit',
+  cfo_direct_credit: 'Send Money to Users Wallet',
   cfo_roi_payout_approved: 'ROI Payout',
   roi_payout: 'ROI Payout',
   rent_payout_approved: 'Rent Payout',
