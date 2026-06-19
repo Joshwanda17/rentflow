@@ -176,6 +176,11 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                   )}
                   <p className="text-sm font-black text-success shrink-0">{formatUGX(house.daily_rate)}<span className="text-[10px] font-normal text-muted-foreground">/day</span></p>
                 </div>
+
+                {/* Go see it yourself — turn-by-turn navigation */}
+                {house.latitude != null && house.longitude != null && (
+                  <GetDirectionsButton lat={house.latitude} lng={house.longitude} title={house.title} />
+                )}
               </div>
             </CardContent>
           </Card>
