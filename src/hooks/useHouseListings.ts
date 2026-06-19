@@ -47,6 +47,7 @@ export interface HouseListing {
   // Agent contact (enriched client-side)
   agent_phone?: string | null;
   agent_name?: string | null;
+  agent_rating?: number | null;
 }
 
 /**
@@ -65,12 +66,12 @@ async function enrichWithAgentInfo(listings: HouseListing[]): Promise<HouseListi
     p_listing_ids: listingIds,
   });
   if (!data) return listings;
-  const map = new Map<string, { full_name: string | null; phone: string | null }>(
-    (data as any[]).map((r) => [r.listing_id, { full_name: r.full_name, phone: r.phone }])
+  const map = new Map<string, { full_name: string | null; phone: string | null; avg_rating: number | null }>(
+    (data as any[]).map((r) => [r.listing_id, { full_name: r.full_name, phone: r.phone, avg_rating: r.avg_rating }])
   );
   return listings.map(l => {
     const agent = map.get(l.id);
-    return { ...l, agent_phone: agent?.phone ?? null, agent_name: agent?.full_name ?? null };
+    return { ...l, agent_phone: agent?.phone ?? null, agent_name: agent?.full_name ?? null, agent_rating: agent?.avg_rating ?? null };
   });
 }
 
