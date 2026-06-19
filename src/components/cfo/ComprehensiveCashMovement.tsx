@@ -1546,12 +1546,17 @@ function CompanyToWalletBreakdownChart({
               </SheetHeader>
               <div className="px-4 py-3 border-b bg-muted/40 flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
-                  {drillSearch
+                  {drillSearch || drillDateFrom || drillDateTo
                     ? `${drillRows.length.toLocaleString()} of ${rawDrillRows.length.toLocaleString()} match${drillRows.length === 1 ? '' : 'es'}`
                     : `${drillRows.length.toLocaleString()} transaction${drillRows.length === 1 ? '' : 's'}`}
                   {drillDirection !== 'cash_in' && (
                     <span className="ml-1 font-medium text-foreground">
                       · {drillDirection === 'cash_out' ? 'Cash Out' : 'Both directions'}
+                    </span>
+                  )}
+                  {(drillDateFrom || drillDateTo) && (
+                    <span className="ml-1 font-medium text-foreground">
+                      · {drillDateFrom || '…'} → {drillDateTo || '…'}
                     </span>
                   )}
                 </span>
