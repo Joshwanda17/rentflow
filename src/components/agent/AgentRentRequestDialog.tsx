@@ -2281,7 +2281,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   // Helper to check if a specific field has an error
   const hasFieldError = (fieldName: string): boolean => {
-    return validationErrors.some(e => e.toLowerCase().includes(fieldName.toLowerCase()));
+    return !!fieldErrors[fieldName];
+  };
+  const getFieldError = (fieldName: string): string | null => {
+    return fieldErrors[fieldName] || null;
   };
 
   const handleSubmit = async () => {
