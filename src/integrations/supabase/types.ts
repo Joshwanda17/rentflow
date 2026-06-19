@@ -2806,6 +2806,81 @@ export type Database = {
           },
         ]
       }
+      agent_listing_blocks: {
+        Row: {
+          active: boolean
+          agent_id: string
+          auto_blocked: boolean
+          blocked_by: string | null
+          blocked_until: string
+          created_at: string
+          id: string
+          reason: string
+          rejection_count: number | null
+          unblock_reason: string | null
+          unblocked_at: string | null
+          unblocked_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          agent_id: string
+          auto_blocked?: boolean
+          blocked_by?: string | null
+          blocked_until: string
+          created_at?: string
+          id?: string
+          reason: string
+          rejection_count?: number | null
+          unblock_reason?: string | null
+          unblocked_at?: string | null
+          unblocked_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          agent_id?: string
+          auto_blocked?: boolean
+          blocked_by?: string | null
+          blocked_until?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          rejection_count?: number | null
+          unblock_reason?: string | null
+          unblocked_at?: string | null
+          unblocked_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agent_listing_rejections: {
+        Row: {
+          agent_id: string
+          id: string
+          listing_id: string | null
+          reason: string
+          rejected_at: string
+          rejected_by: string | null
+        }
+        Insert: {
+          agent_id: string
+          id?: string
+          listing_id?: string | null
+          reason: string
+          rejected_at?: string
+          rejected_by?: string | null
+        }
+        Update: {
+          agent_id?: string
+          id?: string
+          listing_id?: string | null
+          reason?: string
+          rejected_at?: string
+          rejected_by?: string | null
+        }
+        Relationships: []
+      }
       agent_managed_user_actions: {
         Row: {
           action_type: string
@@ -19037,6 +19112,10 @@ export type Database = {
         Returns: string
       }
       begin_wallet_accrual_lock: { Args: never; Returns: undefined }
+      block_agent_listing: {
+        Args: { p_agent_id: string; p_days?: number; p_reason: string }
+        Returns: Json
+      }
       build_funder_reference: {
         Args: { p_created_at: string; p_user_id: string }
         Returns: string
@@ -19999,6 +20078,7 @@ export type Database = {
       }
       get_mission_leaderboard: { Args: { p_limit?: number }; Returns: Json }
       get_my_ai_id_summary: { Args: never; Returns: Json }
+      get_my_listing_block: { Args: never; Returns: Json }
       get_outstanding_agent_float: {
         Args: never
         Returns: {
@@ -20391,6 +20471,7 @@ export type Database = {
       }
       is_financial_ops_staff: { Args: { p_user: string }; Returns: boolean }
       is_funder_approved: { Args: { _user_id: string }; Returns: boolean }
+      is_landlord_ops: { Args: { _user_id: string }; Returns: boolean }
       is_ops_role: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_proxy_for: {
@@ -21273,6 +21354,10 @@ export type Database = {
       }
       try_link_gmail_for_deposit: {
         Args: { p_deposit_id: string }
+        Returns: Json
+      }
+      unblock_agent_listing: {
+        Args: { p_agent_id: string; p_reason?: string }
         Returns: Json
       }
       update_agent_collection_streak: {
