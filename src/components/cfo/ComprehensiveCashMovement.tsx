@@ -917,6 +917,15 @@ const ENDPOINT_FILTER_OPTIONS: { value: EndpointType | 'all'; label: string }[] 
   { value: 'external', label: 'External' },
 ];
 
+function DetailField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</dt>
+      <dd className={cn('text-foreground/90 truncate', mono && 'font-mono')}>{value}</dd>
+    </div>
+  );
+}
+
 function MovementTimeline({
   rows,
   includeAdjustments,
