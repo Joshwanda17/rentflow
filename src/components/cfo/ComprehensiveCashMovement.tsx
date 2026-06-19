@@ -1255,7 +1255,9 @@ function MovementTimeline({
 
       <div className="space-y-2">
         {categoryGroups.map((g) => {
-          const isOpen = !!openCats[g.category];
+          // When any filter is active, auto-expand so matches are visible
+          // (still allow manual collapse via explicit state).
+          const isOpen = openCats[g.category] ?? (filtersActive || categoryGroups.length <= 3);
           const limit = limits[g.category] ?? PER_CATEGORY_INITIAL;
           const shown = g.items.slice(0, limit);
           return (
