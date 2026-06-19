@@ -1072,7 +1072,7 @@ function CompanyToWalletBreakdownChart({
               size="sm"
               variant="ghost"
               className="h-7 text-[11px] px-2 rounded-full"
-              onClick={() => { setDateFrom(''); setDateTo(''); setSelectedCategories(new Set()); }}
+              onClick={() => { setDateFrom(''); setDateTo(''); setSelectedCategories(new Set()); setActivePreset('All'); }}
             >
               Clear filters
             </Button>
