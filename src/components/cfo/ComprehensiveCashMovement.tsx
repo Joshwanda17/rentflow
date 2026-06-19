@@ -441,6 +441,175 @@ function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
   };
 }
 
+// ─────────────────────────────────────────────────────────────
+// Filterable drilldown for the "Other (not in groups 1–3)" bucket.
+// Lets the CFO narrow the unmapped wallet-origin transactions by a
+// date range and a user/wallet search so they can trace exactly where
+// each uncategorized movement came from. Works on the raw flow items
+// (not the pre-aggregated category totals) so individual transactions
+// are visible per category.
+// ─────────────────────────────────────────────────────────────
+function OtherWalletOriginDrilldown({
+  items,
+  otherTotal,
+  direction,
+  initialNames,
+}: {
+  items: TreasuryFlowItem[];
+  otherTotal: number;
+  direction: 'cash_in' | 'cash_out';
+  initialNames: Record<string, string>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [userQuery, setUserQuery] = useState('');
+  const [names, setNames] = useState<Record<string, string>>(initialNames);
+
+  useEffect(() => {
+    setNames(prev => ({ ...initialNames, ...prev }));
+  }, [initialNames]);
+
+  // Resolve names for every party that appears in the "Other" bucket so the
+  // user/wallet search can match on full names (not just ids).
+  useEffect(() => {
+    if (!open) return;
+    const ids = Array.from(new Set(
+      items.map(i => i.party).filter((id): id is string => !!id && !names[id]),
+    ));
+    if (!ids.length) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as { id: string; full_name: string | null }[]) {
+        if (p.full_name) next[p.id] = p.full_name;
+      }
+      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, items]);
+
+  const nameOf = (id: string | null) => (id ? names[id] || `${id.slice(0, 8)}…` : 'Unknown wallet');
+
+  const filtered = useMemo(() => {
+    const q = userQuery.trim().toLowerCase();
+    return items.filter(i => {
+      const day = (i.date || '').slice(0, 10);
+      if (fromDate && day < fromDate) return false;
+      if (toDate && day > toDate) return false;
+      if (q) {
+        const id = (i.party || '').toLowerCase();
+        const nm = (i.party ? names[i.party] || '' : '').toLowerCase();
+        if (!id.includes(q) && !nm.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [items, fromDate, toDate, userQuery, names]);
+
+  const filteredTotal = filtered.reduce((s, i) => s + i.amount, 0);
+
+  // Group filtered items by category, then keep the individual contributing
+  // transactions so the CFO can see the user/wallet + date behind each.
+  const byCategory = useMemo(() => {
+    const map = new Map<string, { amount: number; items: TreasuryFlowItem[] }>();
+    for (const i of filtered) {
+      const c = map.get(i.category) || { amount: 0, items: [] };
+      c.amount += i.amount; c.items.push(i); map.set(i.category, c);
+    }
+    return [...map.entries()]
+      .map(([cat, v]) => ({
+        cat,
+        amount: v.amount,
+        items: [...v.items].sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [filtered]);
+
+  const hasFilters = !!(fromDate || toDate || userQuery.trim());
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="space-y-1">
+      <CollapsibleTrigger asChild>
+        <button type="button" className="w-full flex items-center justify-between gap-2 text-[12px] group">
+          <span className="truncate text-muted-foreground italic group-hover:text-foreground transition-colors">Other (not in groups 1–3)</span>
+          <span className="inline-flex items-center gap-1">
+            <span className="font-mono font-medium shrink-0 text-muted-foreground">{formatUGX(otherTotal)}</span>
+            <ChevronDown className="h-3 w-3 text-muted-foreground group-data-[state=open]:rotate-180 transition-transform" />
+          </span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="pl-3 space-y-2 border-l-2 border-border pt-1">
+          {/* Filters */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <label className="space-y-0.5">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">From</span>
+              <Input type="date" value={fromDate} max={toDate || undefined} onChange={e => setFromDate(e.target.value)} className="h-7 text-[11px] px-2" />
+            </label>
+            <label className="space-y-0.5">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">To</span>
+              <Input type="date" value={toDate} min={fromDate || undefined} onChange={e => setToDate(e.target.value)} className="h-7 text-[11px] px-2" />
+            </label>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input
+              value={userQuery}
+              onChange={e => setUserQuery(e.target.value)}
+              placeholder="Filter by user / wallet (name or id)"
+              className="h-7 text-[11px] pl-7 pr-2"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-muted-foreground">
+              {filtered.length.toLocaleString()} txn{filtered.length === 1 ? '' : 's'} · <span className="font-mono">{formatUGX(filteredTotal)}</span>
+            </span>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={() => { setFromDate(''); setToDate(''); setUserQuery(''); }}
+                className="text-[10px] text-primary hover:underline inline-flex items-center gap-0.5"
+              >
+                <X className="h-2.5 w-2.5" /> Clear
+              </button>
+            )}
+          </div>
+
+          {/* Per-category contributions with the individual transactions */}
+          {byCategory.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground italic">No transactions match these filters.</p>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {byCategory.map(group => (
+                <div key={group.cat} className="space-y-0.5">
+                  <div className="flex items-center justify-between gap-2 text-[11px] font-medium">
+                    <span className="truncate text-foreground/90">{friendlyWalletLabel(group.cat, direction)}</span>
+                    <span className="font-mono shrink-0">{formatUGX(group.amount)}</span>
+                  </div>
+                  <div className="pl-2 space-y-0.5 border-l border-border/60">
+                    {group.items.map((it, idx) => (
+                      <div key={`${group.cat}-${idx}`} className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                        <span className="truncate">
+                          {nameOf(it.party)}
+                          <span className="opacity-60"> · {it.date ? format(new Date(it.date), 'dd MMM yyyy') : '—'}</span>
+                        </span>
+                        <span className="font-mono shrink-0">{formatUGX(it.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 function TreasuryWalletFlowSummary({
   rows,
   includeAdjustments,
