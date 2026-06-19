@@ -1926,6 +1926,14 @@ export function ComprehensiveCashMovement() {
           }}
         />
 
+        {/* ─── Agent allocation breakdown chart ────────────────────
+            Per-agent view of the Wallets → Company flow, split by
+            category and amount as a horizontal stacked bar chart. */}
+        <AgentAllocationBreakdownChart
+          rows={rows}
+          includeAdjustments={includeAdjustments}
+        />
+
         {/* ─── Thumb-friendly filter bar ──────────────────────────
             Three large tap targets (≥56px tall) for the filters non-tech
             users reach for most: Date, Direction, and Party. Each opens a
