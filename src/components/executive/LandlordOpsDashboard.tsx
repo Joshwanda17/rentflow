@@ -3643,22 +3643,37 @@ function InlineModerationActions({
   approveLabel = 'Approve',
   rejectLabel = 'Reject',
   approveHidden = false,
+  approveChecklist,
+  checklistTitle,
+  checklistSubtitle,
 }: {
   onApprove: (note: string) => Promise<void> | void;
   onReject: (note: string) => Promise<void> | void;
   approveLabel?: string;
   rejectLabel?: string;
   approveHidden?: boolean;
+  approveChecklist?: { label: string; value?: string | null }[] | null;
+  checklistTitle?: string;
+  checklistSubtitle?: string;
 }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<null | 'approve' | 'reject'>(null);
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [checked, setChecked] = useState<Record<number, boolean>>({});
   const rejectValid = note.trim().length >= 10;
+
+  const checklistItems = approveChecklist ?? [];
+  const allChecked = checklistItems.length > 0 && checklistItems.every((_, i) => checked[i]);
 
   const run = async (kind: 'approve' | 'reject') => {
     if (busy) return;
     setBusy(kind);
     try {
       await (kind === 'approve' ? onApprove(note) : onReject(note));
+      if (kind === 'approve') {
+        setChecklistOpen(false);
+        setChecked({});
+      }
     } finally {
       setBusy(null);
     }
@@ -3691,13 +3706,81 @@ function InlineModerationActions({
           size="sm"
           className="h-11 gap-2 font-bold"
           disabled={busy !== null}
-          onClick={() => run('approve')}
+          onClick={() => {
+            if (checklistItems.length > 0) {
+              setChecked({});
+              setChecklistOpen(true);
+            } else {
+              run('approve');
+            }
+          }}
         >
           <ShieldCheck className="h-4 w-4" />
           {busy === 'approve' ? 'Approving…' : approveLabel}
         </Button>
         )}
       </div>
+
+      {checklistItems.length > 0 && (
+        <Dialog open={checklistOpen} onOpenChange={(o) => { if (!busy) setChecklistOpen(o); }}>
+          <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                {checklistTitle || 'Confirm approval details'}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                {checklistSubtitle || 'Tick every item you have confirmed. The Approve button unlocks only when all are checked.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2.5 py-1">
+              {checklistItems.map((item, i) => (
+                <label
+                  key={i}
+                  className={cn(
+                    'flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors',
+                    checked[i] ? 'border-primary/50 bg-primary/5' : 'border-border bg-card hover:bg-muted/40',
+                  )}
+                >
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={!!checked[i]}
+                    onCheckedChange={(v) => setChecked((prev) => ({ ...prev, [i]: !!v }))}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium leading-snug">{item.label}</span>
+                    {item.value != null && item.value !== '' && (
+                      <span className="block text-xs text-muted-foreground break-words mt-0.5">{item.value}</span>
+                    )}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={busy !== null}
+                onClick={() => setChecklistOpen(false)}
+              >
+                Cancel
+              </Button>
+              {allChecked && (
+                <Button
+                  className="w-full sm:w-auto gap-2 font-bold"
+                  disabled={busy !== null}
+                  onClick={() => run('approve')}
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  {busy === 'approve' ? 'Approving…' : approveLabel}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
