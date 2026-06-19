@@ -1037,12 +1037,12 @@ function TreasuryWalletFlowSummary({
 
         {summary.cats.length > 0 && (
           <div className="space-y-1.5 pt-1 border-t border-border/60">
-            {direction === 'cash_out' && summary.groups.length > 0 ? (
+            {summary.groups.length > 0 ? (
               <>
                 <div className="rounded-xl border border-border bg-card p-3 space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
-                      Money coming from wallets into company
+                      {direction === 'cash_out' ? 'Money coming from wallets into company' : 'Money sent from company into wallets'}
                     </p>
                     {/* Quick-toggle chips */}
                     <div className="inline-flex items-center gap-1 bg-muted rounded-lg p-0.5">
@@ -1064,7 +1064,7 @@ function TreasuryWalletFlowSummary({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    {WALLET_TO_COMPANY_GROUPS.map((groupMeta, idx) => {
+                    {groups.map((groupMeta, idx) => {
                       const label = groupMeta.label;
                       const found = summary.groups.find(([l]) => l === label);
                       const v = found ? found[1] : { amount: 0, count: 0 };
@@ -1113,7 +1113,7 @@ function TreasuryWalletFlowSummary({
                     const groupedTotal = summary.groups.reduce((s, [, v]) => s + v.amount, 0);
                     const other = summary.total - groupedTotal;
                     if (other <= 0) return null;
-                    const groupedCatSet = new Set(WALLET_TO_COMPANY_GROUPS.flatMap(g => [...g.categories]));
+                    const groupedCatSet = new Set(groups.flatMap(g => [...g.categories]));
                     const otherItems = rawItems.filter(i => !groupedCatSet.has(i.category));
                     return (
                       <OtherWalletOriginDrilldown
