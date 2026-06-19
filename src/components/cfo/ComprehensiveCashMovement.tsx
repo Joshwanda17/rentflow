@@ -912,7 +912,7 @@ function TreasuryWalletFlowSummary({
 }) {
   const [names, setNames] = useState<Record<string, string>>({});
   const [groupDrill, setGroupDrill] = useState<
-    { label: string; color: string; direction: 'cash_in' | 'cash_out'; items: TreasuryFlowItem[] } | null
+    { label: string; color: string; direction: 'cash_in' | 'cash_out'; items: TreasuryFlowItem[]; expectedTotal: number; expectedCount: number } | null
   >(null);
 
   const { toWallets, toCompany } = useMemo(() => {
