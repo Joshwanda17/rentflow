@@ -547,9 +547,18 @@ function AgentAllocationBreakdownChart({
   const [names, setNames] = useState<Record<string, string>>({});
   const [maxAgents, setMaxAgents] = useState<8 | 20>(8);
 
+  // ── Chart-local filters ────────────────────────────────────
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+
+  const dateActive = !!(dateFrom || dateTo);
+  const categoryActive = selectedCategories.size > 0;
+
   // Build per-agent, per-category allocation totals from paired
-  // wallet-out / platform-in ledger legs.
-  const { perAgent, categories } = useMemo(() => {
+  // wallet-out / platform-in ledger legs, respecting local filters.
+  const { perAgent, categories, allCategories } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
@@ -562,6 +571,7 @@ function AgentAllocationBreakdownChart({
     // agentId -> { total, byCat: Map<category, amount> }
     const perAgent = new Map<string, { total: number; byCat: Map<string, number> }>();
     const catTotals = new Map<string, number>();
+    const allCatTotals = new Map<string, number>();
     for (const legs of groups.values()) {
       const hasPlatformIn = legs.some(l => l.ledger_scope === 'platform' && l.direction === 'cash_in');
       if (!hasPlatformIn) continue;
@@ -569,6 +579,13 @@ function AgentAllocationBreakdownChart({
         if (w.ledger_scope !== 'wallet' || w.direction !== 'cash_out') continue;
         const amt = Number(w.amount) || 0;
         if (!amt || !w.user_id) continue;
+        // Date filter
+        const d = w.transaction_date.slice(0, 10);
+        if (dateFrom && d < dateFrom) continue;
+        if (dateTo && d > dateTo) continue;
+        // Category filter (applied after collecting allCats so UI can show unselected ones too)
+        allCatTotals.set(w.category, (allCatTotals.get(w.category) || 0) + amt);
+        if (selectedCategories.size > 0 && !selectedCategories.has(w.category)) continue;
         const entry = perAgent.get(w.user_id) || { total: 0, byCat: new Map<string, number>() };
         entry.total += amt;
         entry.byCat.set(w.category, (entry.byCat.get(w.category) || 0) + amt);
@@ -577,8 +594,9 @@ function AgentAllocationBreakdownChart({
       }
     }
     const categories = [...catTotals.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
-    return { perAgent, categories };
-  }, [rows, includeAdjustments]);
+    const allCategories = [...allCatTotals.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+    return { perAgent, categories, allCategories };
+  }, [rows, includeAdjustments, dateFrom, dateTo, selectedCategories]);
 
   const topAgents = useMemo(
     () => [...perAgent.entries()].sort((a, b) => b[1].total - a[1].total).slice(0, maxAgents),
@@ -622,7 +640,20 @@ function AgentAllocationBreakdownChart({
 
   const totalAgents = perAgent.size;
 
-  if (totalAgents === 0) {
+  const toggleCategory = (c: string) => {
+    setSelectedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c); else next.add(c);
+      return next;
+    });
+  };
+  const clearFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setSelectedCategories(new Set());
+  };
+
+  if (totalAgents === 0 && !dateActive && !categoryActive) {
     return (
       <section id="cm-allocation-chart" className="space-y-2">
         <div className="flex items-center gap-2">
@@ -646,70 +677,172 @@ function AgentAllocationBreakdownChart({
           <ArrowLeftRight className="h-4 w-4 text-primary" />
           <h4 className="text-sm font-semibold">Agent Allocation Breakdown</h4>
         </div>
-        {totalAgents > 8 && (
+        <div className="flex items-center gap-1.5">
+          {(dateActive || categoryActive) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-[11px] px-2 rounded-full"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
+          )}
           <Button
             size="sm"
-            variant="outline"
+            variant={showFilters ? 'default' : 'outline'}
             className="h-7 text-[11px] px-2.5 rounded-full"
-            onClick={() => setMaxAgents(v => (v === 8 ? 20 : 8))}
+            onClick={() => setShowFilters(v => !v)}
           >
-            {maxAgents === 8 ? `Show top 20 of ${totalAgents}` : 'Show top 8'}
+            <Filter className="h-3 w-3 mr-1" />
+            Filters
+            {(dateActive || categoryActive) && (
+              <span className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary-foreground text-[9px] font-bold text-primary">
+                {(dateActive ? 1 : 0) + (categoryActive ? 1 : 0)}
+              </span>
+            )}
           </Button>
-        )}
+          {totalAgents > 8 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-[11px] px-2.5 rounded-full"
+              onClick={() => setMaxAgents(v => (v === 8 ? 20 : 8))}
+            >
+              {maxAgents === 8 ? `Show top 20 of ${totalAgents}` : 'Show top 8'}
+            </Button>
+          )}
+        </div>
       </div>
       <p className="text-[11px] text-muted-foreground -mt-1">
         How each agent's wallet distributes money into company funds, split by category and amount.
         Each bar is one agent; each colour is a category. Hover a segment for the exact amount.
       </p>
 
-      {/* Category legend with colour swatches + totals */}
-      <div className="flex flex-wrap gap-x-3 gap-y-1">
-        {categories.map(c => (
-          <span key={c} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: colorFor[c] }} />
-            {friendlyWalletLabel(c, 'cash_out')}
-          </span>
-        ))}
-      </div>
-
-      <div className="rounded-2xl border-2 border-border/60 bg-card p-3" style={{ height: chartHeight }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-            <XAxis
-              type="number"
-              tick={{ fontSize: 10 }}
-              stroke="hsl(var(--muted-foreground))"
-              tickFormatter={(v: number) => formatUGX(v)}
-            />
-            <YAxis
-              type="category"
-              dataKey="agent"
-              width={110}
-              tick={{ fontSize: 11 }}
-              stroke="hsl(var(--muted-foreground))"
-            />
-            <RechartsTooltip
-              formatter={(v: number, name: string) => [formatUGX(v), friendlyWalletLabel(name, 'cash_out')]}
-              contentStyle={{
-                background: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-            />
-            {categories.map((c, i) => (
-              <Bar
-                key={c}
-                dataKey={c}
-                stackId="alloc"
-                fill={colorFor[c]}
-                radius={i === categories.length - 1 ? [0, 4, 4, 0] : undefined}
+      {/* ── Filter panel ── */}
+      {showFilters && (
+        <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+          {/* Date range */}
+          <div className="space-y-1.5">
+            <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Date range</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                className="h-8 rounded-md border border-border bg-background px-2 text-[12px]"
+                placeholder="From"
               />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+              <span className="text-muted-foreground text-[12px]">→</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                className="h-8 rounded-md border border-border bg-background px-2 text-[12px]"
+                placeholder="To"
+              />
+              {dateActive && (
+                <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2" onClick={() => { setDateFrom(''); setDateTo(''); }}>
+                  Reset dates
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Category toggles */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Categories</div>
+              {categoryActive && (
+                <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2" onClick={() => setSelectedCategories(new Set())}>
+                  Reset categories
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {allCategories.map(c => {
+                const active = selectedCategories.has(c);
+                return (
+                  <button
+                    key={c}
+                    onClick={() => toggleCategory(c)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors',
+                      active
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    <span
+                      className="h-2 w-2 rounded-sm shrink-0"
+                      style={{ backgroundColor: colorFor[c] || ALLOCATION_CHART_PALETTE[allCategories.indexOf(c) % ALLOCATION_CHART_PALETTE.length] }}
+                    />
+                    {friendlyWalletLabel(c, 'cash_out')}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category legend with colour swatches + totals (only when not in filter panel) */}
+      {!showFilters && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          {categories.map(c => (
+            <span key={c} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: colorFor[c] }} />
+              {friendlyWalletLabel(c, 'cash_out')}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {totalAgents === 0 ? (
+        <div className="rounded-2xl border border-border bg-muted/20 p-6 text-center text-[12px] text-muted-foreground">
+          No allocations match the current filters.
+          <button onClick={clearFilters} className="ml-1 underline text-primary">Clear filters</button>
+        </div>
+      ) : (
+        <div className="rounded-2xl border-2 border-border/60 bg-card p-3" style={{ height: chartHeight }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 10 }}
+                stroke="hsl(var(--muted-foreground))"
+                tickFormatter={(v: number) => formatUGX(v)}
+              />
+              <YAxis
+                type="category"
+                dataKey="agent"
+                width={110}
+                tick={{ fontSize: 11 }}
+                stroke="hsl(var(--muted-foreground))"
+              />
+              <RechartsTooltip
+                formatter={(v: number, name: string) => [formatUGX(v), friendlyWalletLabel(name, 'cash_out')]}
+                contentStyle={{
+                  background: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              />
+              {categories.map((c, i) => (
+                <Bar
+                  key={c}
+                  dataKey={c}
+                  stackId="alloc"
+                  fill={colorFor[c]}
+                  radius={i === categories.length - 1 ? [0, 4, 4, 0] : undefined}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </section>
   );
 }
