@@ -5171,9 +5171,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         }
                       }}
                       placeholder="e.g. Wakiso"
-                     
+                      className={`${hasFieldError('propertyDistrict') ? 'border-destructive border-2' : ''}`}
                     />
-                    <FieldError message={vPlace(propertyDistrict, 'Wakiso')} />
+                    <FieldError message={vPlace(propertyDistrict, 'Wakiso') || getFieldError('propertyDistrict')} />
                     {districtWarning(propertyDistrict) && (
                       <p className="text-[10px] text-warning leading-tight">
                         {districtWarning(propertyDistrict)}
