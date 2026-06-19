@@ -18,7 +18,20 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
-import { CATEGORY_DESCRIPTIONS } from '@/lib/ledgerConstants';
+import { CATEGORY_DESCRIPTIONS, LOCKED_CATEGORIES } from '@/lib/ledgerConstants';
+
+// ─────────────────────────────────────────────────────────────
+// Canonical CFO category ordering. The CFO reads wallet movements
+// in the same fixed order they appear on every other CFO report
+// (LOCKED_CATEGORIES). Anything not in the canonical list is pushed
+// to the end but still shown — we never silently drop a movement.
+// ─────────────────────────────────────────────────────────────
+const CFO_CATEGORY_RANK: Record<string, number> = Object.fromEntries(
+  (LOCKED_CATEGORIES as readonly string[]).map((c, i) => [c, i]),
+);
+function cfoCategoryRank(category: string): number {
+  return CFO_CATEGORY_RANK[category] ?? Number.MAX_SAFE_INTEGER;
+}
 import { downloadCsv } from '@/lib/csvExport';
 import { useAuth } from '@/hooks/useAuth';
 import jsPDF from 'jspdf';
