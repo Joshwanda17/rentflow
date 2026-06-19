@@ -968,7 +968,7 @@ function CompanyToWalletBreakdownChart({
 
   // Build per-category totals + per-category recipient breakdown from
   // paired wallet-in / platform-out ledger legs (Company → Wallets).
-  const { catList, total, count, byCatRecipients, availableCategories } = useMemo(() => {
+  const { catList, total, count, byCatRecipients, byCatRecipientRows, byCatRows, availableCategories } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
