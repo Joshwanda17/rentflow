@@ -465,36 +465,6 @@ function TreasuryWalletFlowSummary({
 
   const nameOf = (id: string) => names[id] || `${id.slice(0, 8)}…`;
 
-  // Rows powering the active drill-down (one recipient, or the whole category).
-  const drillRows = useMemo(() => {
-    if (!drill) return [] as LedgerRow[];
-    const list = drill.userId === 'ALL'
-      ? (byCatRows.get(drill.category) || [])
-      : (byCatRecipientRows.get(drill.category)?.get(drill.userId) || []);
-    return [...list].sort((a, b) => (a.transaction_date < b.transaction_date ? 1 : -1));
-  }, [drill, byCatRows, byCatRecipientRows]);
-
-  const drillTotal = useMemo(() => drillRows.reduce((s, r) => s + (Number(r.amount) || 0), 0), [drillRows]);
-
-  // Resolve any recipient names referenced by the open drill (whole-category view).
-  useEffect(() => {
-    if (!drill) return;
-    const ids = [...new Set(drillRows.map(r => r.user_id).filter((id): id is string => !!id && !names[id]))].slice(0, 50);
-    if (!ids.length) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
-      if (cancelled || !data) return;
-      const next: Record<string, string> = {};
-      for (const p of data as { id: string; full_name: string | null }[]) {
-        if (p.full_name) next[p.id] = p.full_name;
-      }
-      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drill, drillRows]);
-
   const Flow = ({
     tone,
     icon,
