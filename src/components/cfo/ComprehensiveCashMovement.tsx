@@ -679,9 +679,13 @@ function TreasuryWalletFlowSummary({
       for (const w of walletLegs) {
         const amt = Number(w.amount) || 0;
         if (!amt) continue;
+        // Rent allocations & advance recoveries are always company money,
+        // even when the group has no platform/bridge cash_in leg (e.g. a
+        // wallet-only agent float settlement). Never drop these.
+        const isAlwaysToCompany = ALWAYS_WALLET_TO_COMPANY.has(w.category);
         if (w.direction === 'cash_in' && hasPlatformOut) {
           toWallets.push({ amount: amt, category: w.category, party: w.user_id ?? null, date: w.transaction_date });
-        } else if (w.direction === 'cash_out' && (hasPlatformIn || hasBridgeIn)) {
+        } else if (w.direction === 'cash_out' && (hasPlatformIn || hasBridgeIn || isAlwaysToCompany)) {
           // Exclude personal wallet withdrawals — they are wallet → external, not wallet → company
           if (w.category === 'wallet_withdrawal' || w.category === 'withdrawal') continue;
           toCompany.push({ amount: amt, category: w.category, party: w.user_id ?? null, date: w.transaction_date });
