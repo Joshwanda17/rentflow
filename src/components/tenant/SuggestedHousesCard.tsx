@@ -29,6 +29,7 @@ interface SuggestedHouse {
   agent_id: string;
   agent_name: string | null;
   agent_phone: string | null;
+  agent_rating: number | null;
 }
 
 async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
@@ -64,12 +65,12 @@ async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
   // Tenants cannot read agents' `profiles` directly (RLS). Use the secure RPC
   // that returns only the listing agent's contact so the WhatsApp button works.
   const listingIds = withPhotos.map((h: any) => h.id).filter(Boolean);
-  let agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
+  let agentMap = new Map<string, { full_name: string | null; phone: string | null; avg_rating: number | null }>();
   if (listingIds.length) {
     const { data: contacts } = await client.rpc('get_listing_agent_contacts', { p_listing_ids: listingIds });
     if (contacts) {
       agentMap = new Map(
-        (contacts as any[]).map((r) => [r.listing_id, { full_name: r.full_name, phone: r.phone }])
+        (contacts as any[]).map((r) => [r.listing_id, { full_name: r.full_name, phone: r.phone, avg_rating: r.avg_rating }])
       );
     }
   }
@@ -78,6 +79,7 @@ async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
     ...h,
     agent_name: agentMap.get(h.id)?.full_name || null,
     agent_phone: agentMap.get(h.id)?.phone || null,
+    agent_rating: agentMap.get(h.id)?.avg_rating ?? null,
   }));
 }
 
@@ -162,6 +164,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                     <AgentContactBar
                       phone={house.agent_phone}
                       agentName={house.agent_name}
+                      agentRating={house.agent_rating}
                       houseTitle={house.title}
                       compact
                     />

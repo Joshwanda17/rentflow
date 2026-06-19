@@ -1,8 +1,9 @@
-import { MessageCircle, Phone, User } from 'lucide-react';
+import { MessageCircle, Phone, Star, User } from 'lucide-react';
 
 interface AgentContactBarProps {
   phone: string | null | undefined;
   agentName: string | null | undefined;
+  agentRating?: number | null;
   houseTitle: string;
   compact?: boolean;
 }
@@ -17,7 +18,7 @@ function formatWhatsAppNumber(phone: string): string {
   return cleaned;
 }
 
-export function AgentContactBar({ phone, agentName, houseTitle, compact }: AgentContactBarProps) {
+export function AgentContactBar({ phone, agentName, agentRating, houseTitle, compact }: AgentContactBarProps) {
   if (!phone) return null;
 
   const waNumber = formatWhatsAppNumber(phone);
@@ -29,14 +30,21 @@ export function AgentContactBar({ phone, agentName, houseTitle, compact }: Agent
 
   if (compact) {
     return (
-      <div className="flex flex-col items-end gap-1">
-        {agentName && (
-          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-            <User className="h-2.5 w-2.5" />
-            {agentName}
-          </span>
-        )}
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end text-right min-w-0">
+          {agentName && (
+            <span className="text-xs font-medium text-foreground truncate max-w-[120px] leading-tight">
+              {agentName}
+            </span>
+          )}
+          {typeof agentRating === 'number' && (
+            <span className="text-[10px] text-amber-500 flex items-center gap-0.5 leading-tight">
+              <Star className="h-2.5 w-2.5 fill-amber-500" />
+              {agentRating.toFixed(1)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
           <a
             href={telUrl}
             onClick={(e) => e.stopPropagation()}
@@ -67,6 +75,12 @@ export function AgentContactBar({ phone, agentName, houseTitle, compact }: Agent
         <span className="text-xs text-muted-foreground flex items-center gap-1 justify-center">
           <User className="h-3 w-3" />
           Listed by {agentName}
+          {typeof agentRating === 'number' && (
+            <span className="text-amber-500 flex items-center gap-0.5 ml-1">
+              <Star className="h-3 w-3 fill-amber-500" />
+              {agentRating.toFixed(1)}
+            </span>
+          )}
         </span>
       )}
       <div className="flex items-center gap-2 w-full">
