@@ -905,6 +905,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [autofillingTenant, setAutofillingTenant] = useState(false);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   // Ref to the "things still needed" banner so we can scroll the agent
