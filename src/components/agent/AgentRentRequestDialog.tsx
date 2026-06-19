@@ -1762,8 +1762,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
       else if (!isValidUgPhone(cleanLc1Phone)) map['lc1Phone'] = 'LC1 phone looks wrong — use a valid Ugandan number';
       if (!lc1Village.trim()) map['lc1Village'] = 'Type the LC1 village';
-      if (!propertyCity.trim()) map['propertyCity'] = 'Type the town / city';
+    if (!propertyCity.trim()) map['propertyCity'] = 'Type the town / city';
     }
+
+    const tenantPhoneValid = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
+    const landlordPhoneValid = !!cleanLandlordPhone && isValidUgPhone(cleanLandlordPhone);
+    const lc1PhoneValid = !!cleanLc1Phone && isValidUgPhone(cleanLc1Phone);
 
     if (tenantPhoneValid && landlordPhoneValid && cleanTenantPhone === cleanLandlordPhone) {
       map['tenantPhone'] = 'Tenant and Landlord phones must be different numbers';
