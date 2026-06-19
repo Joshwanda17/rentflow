@@ -210,7 +210,7 @@ const WALLET_FLOW_LABEL_OUT: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// Wallet → Company category groups (3 numbered buckets the CFO
+// Wallet → Company category groups (4 numbered buckets the CFO
 // reads on the "From Wallets to Company" card).
 // ─────────────────────────────────────────────────────────────
 const WALLET_TO_COMPANY_GROUP_1 = new Set([
@@ -238,10 +238,14 @@ const WALLET_TO_COMPANY_GROUP_3 = new Set([
   'salary_advance_repayment',
   'debt_recovery',
 ]);
-const WALLET_TO_COMPANY_GROUPS: { label: string; categories: Set<string> }[] = [
-  { label: '1. Rent payments for tenants (allocated by agents)', categories: WALLET_TO_COMPANY_GROUP_1 },
-  { label: '2. Partner funding, top-ups, and reinvestments', categories: WALLET_TO_COMPANY_GROUP_2 },
-  { label: '3. Advance auto-recovery from agents who took Welile advances', categories: WALLET_TO_COMPANY_GROUP_3 },
+const WALLET_TO_COMPANY_GROUP_4 = new Set([
+  'share_capital',
+]);
+const WALLET_TO_COMPANY_GROUPS: { label: string; categories: Set<string>; color: string }[] = [
+  { label: 'Rent payments for tenants (allocated by agents)', categories: WALLET_TO_COMPANY_GROUP_1, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  { label: 'Partner funding, top-ups, and reinvestments', categories: WALLET_TO_COMPANY_GROUP_2, color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  { label: 'Advance auto-recovery from agents who took Welile advances', categories: WALLET_TO_COMPANY_GROUP_3, color: 'bg-rose-500/10 text-rose-600 border-rose-500/20' },
+  { label: 'Share capital (Angel Pool contributions)', categories: WALLET_TO_COMPANY_GROUP_4, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
 ];
 function friendlyWalletLabel(category: string, direction: 'cash_in' | 'cash_out'): string {
   const map = direction === 'cash_in' ? WALLET_FLOW_LABEL_IN : WALLET_FLOW_LABEL_OUT;
@@ -442,7 +446,7 @@ function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Filterable drilldown for the "Other (not in groups 1–3)" bucket.
+// Filterable drilldown for the "Other (not in groups 1–4)" bucket.
 // Lets the CFO narrow the unmapped wallet-origin transactions by a
 // date range and a user/wallet search so they can trace exactly where
 // each uncategorized movement came from. Works on the raw flow items
@@ -534,7 +538,7 @@ function OtherWalletOriginDrilldown({
     <Collapsible open={open} onOpenChange={setOpen} className="space-y-1">
       <CollapsibleTrigger asChild>
         <button type="button" className="w-full flex items-center justify-between gap-2 text-[12px] group">
-          <span className="truncate text-muted-foreground italic group-hover:text-foreground transition-colors">Other (not in groups 1–3)</span>
+          <span className="truncate text-muted-foreground italic group-hover:text-foreground transition-colors">Other (not in groups 1–4)</span>
           <span className="inline-flex items-center gap-1">
             <span className="font-mono font-medium shrink-0 text-muted-foreground">{formatUGX(otherTotal)}</span>
             <ChevronDown className="h-3 w-3 text-muted-foreground group-data-[state=open]:rotate-180 transition-transform" />
@@ -729,16 +733,36 @@ function TreasuryWalletFlowSummary({
         <div className="space-y-1.5 pt-1 border-t border-border/60">
           {direction === 'cash_out' && summary.groups.length > 0 ? (
             <>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                By category group
-              </p>
-              <div className="space-y-1.5">
-                {summary.groups.map(([label, v]) => (
-                  <div key={label} className="flex items-center justify-between gap-2 text-[12px]">
-                    <span className="truncate text-foreground/90 font-medium">{label}</span>
-                    <span className="font-mono font-semibold shrink-0">{formatUGX(v.amount)}</span>
-                  </div>
-                ))}
+              <div className="rounded-xl border border-border bg-card p-3 space-y-2.5">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+                  Money coming from wallets into company
+                </p>
+                <div className="space-y-2">
+                  {summary.groups.map(([label, v], idx) => {
+                    const groupMeta = WALLET_TO_COMPANY_GROUPS.find(g => g.label === label);
+                    const pct = summary.total > 0 ? Math.round((v.amount / summary.total) * 100) : 0;
+                    return (
+                      <div
+                        key={label}
+                        className={cn(
+                          'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                          groupMeta?.color || 'bg-muted/50 border-border'
+                        )}
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background font-bold text-sm shadow-sm">
+                          {idx + 1}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-semibold leading-snug">{label}</p>
+                          <p className="text-[10px] opacity-80">{v.count.toLocaleString()} transaction{v.count === 1 ? '' : 's'} · {pct}% of total</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-[15px] font-bold font-mono leading-tight">{formatUGX(v.amount)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 {/* Expandable drilldown for uncategorized items */}
                 {(() => {
                   const groupedTotal = summary.groups.reduce((s, [, v]) => s + v.amount, 0);
