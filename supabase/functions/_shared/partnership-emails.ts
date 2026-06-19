@@ -184,11 +184,6 @@ export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
   };
 }
 
-export interface ReturnsDisbursementInput {
-  // placeholder anchor — see builder below
-  _?: never;
-}
-
 export interface PartnerCompoundCreationInput {
   recipientEmail: string;
   partnerName: string | null | undefined;
@@ -234,7 +229,7 @@ export function buildPartnerCompoundCreationRequest(input: PartnerCompoundCreati
   };
 }
 
-export interface ReturnsDisbursementInputLegacy {
+export interface ReturnsDisbursementInput {
   recipientEmail: string;
   partnerName: string | null | undefined;
   partnerId: string;
