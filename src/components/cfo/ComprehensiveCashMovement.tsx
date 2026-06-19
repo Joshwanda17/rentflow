@@ -229,7 +229,6 @@ const WALLET_TO_COMPANY_GROUP_2 = new Set([
   'roi_reinvestment',
   'coo_proxy_investment',
   'proxy_investment_commission',
-  'angel_pool_investment',
 ]);
 const WALLET_TO_COMPANY_GROUP_3 = new Set([
   'advance_recovery',
@@ -240,6 +239,9 @@ const WALLET_TO_COMPANY_GROUP_3 = new Set([
 ]);
 const WALLET_TO_COMPANY_GROUP_4 = new Set([
   'share_capital',
+  'angel_pool_investment',
+  'angel_pool_contribution',
+  'angel_pool_topup',
 ]);
 const WALLET_TO_COMPANY_GROUPS: { label: string; categories: Set<string>; color: string }[] = [
   { label: 'Rent payments for tenants (allocated by agents)', categories: WALLET_TO_COMPANY_GROUP_1, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
