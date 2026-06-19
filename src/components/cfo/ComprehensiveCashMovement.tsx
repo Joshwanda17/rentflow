@@ -494,7 +494,10 @@ function Highlight({ text, query }: { text: string | null | undefined; query: st
 // are intentionally excluded — they are not internal treasury transfers.
 // ─────────────────────────────────────────────────────────────
 type TreasuryFlowItem = { amount: number; category: string; party: string | null; date: string };
-function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
+function summarizeTreasuryFlow(
+  items: TreasuryFlowItem[],
+  groupDefs: { label: string; categories: Set<string>; color: string }[] = WALLET_TO_COMPANY_GROUPS,
+) {
   const total = items.reduce((s, i) => s + i.amount, 0);
   const byCat = new Map<string, { amount: number; count: number }>();
   const byParty = new Map<string, { amount: number; count: number }>();
@@ -506,8 +509,8 @@ function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
       const p = byParty.get(i.party) || { amount: 0, count: 0 };
       p.amount += i.amount; p.count += 1; byParty.set(i.party, p);
     }
-    // Bucket into the 3 Wallet → Company groups (only used for cash_out card)
-    for (const g of WALLET_TO_COMPANY_GROUPS) {
+    // Bucket into the provided numbered groups (Company → Wallets or Wallets → Company)
+    for (const g of groupDefs) {
       if (g.categories.has(i.category)) {
         const existing = byGroup.get(g.label) || { amount: 0, count: 0 };
         existing.amount += i.amount; existing.count += 1; byGroup.set(g.label, existing);
