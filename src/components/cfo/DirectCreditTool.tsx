@@ -585,9 +585,9 @@ export function DirectCreditTool() {
       toast({
         title:
           operation === 'credit'
-            ? '✅ Credit applied'
+            ? '✅ Money sent to user\'s wallet'
             : operation === 'debit'
-              ? '✅ Debit applied'
+              ? '✅ Money taken from user\'s wallet'
               : '✅ Expense withdrawal recorded',
         description: data?.message,
       });
