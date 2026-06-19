@@ -2813,7 +2813,7 @@ export function LandlordOpsDashboard() {
                     <p className="font-bold text-base leading-tight truncate">{house.title}</p>
                     <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
                       <MapPin className="h-3 w-3 shrink-0" />
-                      {house.region}{house.district ? `, ${house.district}` : ''}{house.village ? ` · ${house.village}` : ''}
+                      {house.address ? `${house.address} · ` : ''}{house.village ? `${house.village} · ` : ''}{house.region}{house.district ? `, ${house.district}` : ''}
                     </p>
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
                       <Badge variant="outline" className="text-[10px] h-5 px-1.5">{house.house_category}</Badge>
@@ -3812,7 +3812,7 @@ function HouseCardInner({ house, onImages, onAssign }: { house: ListingWithLandl
         <div className="flex-1 min-w-0 space-y-0.5">
           <p className="font-bold text-sm truncate">{house.title}</p>
           <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-            <MapPin className="h-2.5 w-2.5 shrink-0" />{house.region}{house.district ? `, ${house.district}` : ''}{house.village ? ` · ${house.village}` : ''}
+            <MapPin className="h-2.5 w-2.5 shrink-0" />{house.address ? `${house.address} · ` : ''}{house.village ? `${house.village} · ` : ''}{house.region}{house.district ? `, ${house.district}` : ''}
           </p>
           <div className="flex flex-wrap gap-1 mt-0.5">
             <Badge variant="outline" className="text-[9px] h-4 px-1">{house.house_category}</Badge>
