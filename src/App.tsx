@@ -578,6 +578,7 @@ const App = () => {
                           <FloatingToolbar />
                           <AgentNavFAB />
                           <PWAInstallPrompt />
+                          <OpenInAppBanner />
                           <Toaster />
                           <SonnerToaster />
                           <ProfileCompletionGate />
