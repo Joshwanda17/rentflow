@@ -939,6 +939,13 @@ function MovementTimeline({
   const [search, setSearch] = useState<string>('');
   const [catPopoverOpen, setCatPopoverOpen] = useState(false);
 
+  // ── Category drill-down (full detail sheet) ──
+  const [detailCat, setDetailCat] = useState<string | null>(null);
+  const [detailSearch, setDetailSearch] = useState('');
+  const [detailPage, setDetailPage] = useState(0);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const DETAIL_PAGE_SIZE = 50;
+
   const filtersActive =
     !!dateFrom || !!dateTo || selectedCategories.size > 0 ||
     sourceFilter !== 'all' || destFilter !== 'all' || !!search.trim();
