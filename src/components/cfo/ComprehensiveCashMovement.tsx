@@ -585,7 +585,7 @@ function TreasuryWalletFlowSummary({
         <span className="text-[11px] font-medium text-muted-foreground inline-flex items-center gap-1.5">
           <span className="font-mono">Company → Wallets</span>
           <ArrowRight className="h-3 w-3" />
-          <span className="font-mono">Wallets → Company</span>
+          <span className="font-mono">Agent Float → Company Funds</span>
           = Net to wallets
         </span>
         <span className={cn('text-sm font-bold font-mono', net >= 0 ? 'text-emerald-600' : 'text-amber-600')}>
