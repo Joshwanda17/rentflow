@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears, addDays, addWeeks, addMonths, differenceInCalendarDays } from 'date-fns';
+import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subYears, addDays, addWeeks, addMonths, differenceInCalendarDays } from 'date-fns';
 import { Loader2, RefreshCw, Calendar, FileSpreadsheet, FileText, ArrowUpRight, ArrowDownRight, ArrowDownLeft, ExternalLink, X, Filter, ChevronDown, ChevronUp, ChevronRight, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -53,7 +53,7 @@ type PeriodKey =
   | '1y' | 'ytd' | 'all';
 
 const PERIODS: { value: PeriodKey; label: string }[] = [
-  { value: '24h',    label: 'Last 24h' },
+  { value: '24h',    label: 'Rolling 24h' },
   { value: 'today',  label: 'Today' },
   { value: '7d',     label: '7 Days' },
   { value: '14d',    label: '14 Days' },
@@ -73,18 +73,23 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: 'monthly', label: 'Monthly' },
 ];
 
+// Every window except the explicit "Rolling 24h" option is CALENDAR-DAY
+// aligned: its start is snapped to local midnight (startOfDay) so the CFO
+// card reconciles exactly with the Tenant Ops dashboard, which counts rent
+// "collected" per calendar day. "Rolling 24h" is the one deliberate rolling
+// window and is labelled as such so it's never confused with "Today".
 function periodRange(p: PeriodKey): { from: Date | null; to: Date } {
   const now = new Date();
   switch (p) {
-    case '24h':   return { from: subDays(now, 1), to: now };
+    case '24h':   return { from: subDays(now, 1), to: now }; // rolling, intentional
     case 'today': return { from: startOfDay(now), to: now };
-    case '7d':    return { from: subDays(now, 7), to: now };
-    case '14d':   return { from: subDays(now, 14), to: now };
-    case '30d':   return { from: subDays(now, 30), to: now };
-    case '90d':   return { from: subMonths(now, 3), to: now };
-    case '120d':  return { from: subMonths(now, 4), to: now };
-    case '180d':  return { from: subMonths(now, 6), to: now };
-    case '1y':    return { from: subYears(now, 1), to: now };
+    case '7d':    return { from: startOfDay(subDays(now, 6)), to: now };
+    case '14d':   return { from: startOfDay(subDays(now, 13)), to: now };
+    case '30d':   return { from: startOfDay(subDays(now, 29)), to: now };
+    case '90d':   return { from: startOfDay(subDays(now, 89)), to: now };
+    case '120d':  return { from: startOfDay(subDays(now, 119)), to: now };
+    case '180d':  return { from: startOfDay(subDays(now, 179)), to: now };
+    case '1y':    return { from: startOfDay(subYears(now, 1)), to: now };
     case 'ytd':   return { from: startOfYear(now), to: now };
     case 'all':   return { from: null, to: now };
   }
