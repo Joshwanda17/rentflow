@@ -1710,6 +1710,24 @@ export function ComprehensiveCashMovement() {
           </div>
         </nav>
 
+        {/* ─── Treasury ⇄ Wallets headline report ──────────────────
+            The primary view the CFO asked for: how the CFO moves money
+            from company funds into wallets, and how agents allocate money
+            out of their wallets back to the company. Shown first, above
+            every other breakdown. */}
+        <TreasuryWalletFlowSummary
+          rows={rows}
+          includeAdjustments={includeAdjustments}
+          onDrill={(direction) => {
+            setScopeFilter('wallet');
+            setDirectionQuickFilter(direction);
+            setPageDrillOpen(true);
+            setTimeout(() => {
+              document.getElementById('cm-transactions')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+          }}
+        />
+
         {/* ─── Thumb-friendly filter bar ──────────────────────────
             Three large tap targets (≥56px tall) for the filters non-tech
             users reach for most: Date, Direction, and Party. Each opens a
