@@ -446,7 +446,7 @@ function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Filterable drilldown for the "Other (not in groups 1–3)" bucket.
+// Filterable drilldown for the "Other (not in groups 1–4)" bucket.
 // Lets the CFO narrow the unmapped wallet-origin transactions by a
 // date range and a user/wallet search so they can trace exactly where
 // each uncategorized movement came from. Works on the raw flow items
@@ -538,7 +538,7 @@ function OtherWalletOriginDrilldown({
     <Collapsible open={open} onOpenChange={setOpen} className="space-y-1">
       <CollapsibleTrigger asChild>
         <button type="button" className="w-full flex items-center justify-between gap-2 text-[12px] group">
-          <span className="truncate text-muted-foreground italic group-hover:text-foreground transition-colors">Other (not in groups 1–3)</span>
+          <span className="truncate text-muted-foreground italic group-hover:text-foreground transition-colors">Other (not in groups 1–4)</span>
           <span className="inline-flex items-center gap-1">
             <span className="font-mono font-medium shrink-0 text-muted-foreground">{formatUGX(otherTotal)}</span>
             <ChevronDown className="h-3 w-3 text-muted-foreground group-data-[state=open]:rotate-180 transition-transform" />
