@@ -5060,11 +5060,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Phone}
                       onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
                       placeholder="0700 123 456"
-                      className={`h-10 ${hasFieldError('lc1 phone') ? 'border-destructive border-2' : ''}`}
+                      className={`h-10 ${hasFieldError('lc1Phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
-                    <FieldError message={vPhone(lc1Phone)} />
+                    <FieldError message={vPhone(lc1Phone) || getFieldError('lc1Phone')} />
                   </div>
                   <div className="space-y-1">
                     <Label >Village *</Label>
