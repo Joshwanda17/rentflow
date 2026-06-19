@@ -159,7 +159,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                 {/* Action row — full width, outside clickable parent */}
                 <div className="flex flex-row-reverse items-center justify-between w-full pt-1">
                   {house.agent_phone ? (
-                    <WhatsAppAgentButton
+                    <AgentContactBar
                       phone={house.agent_phone}
                       agentName={house.agent_name}
                       houseTitle={house.title}
