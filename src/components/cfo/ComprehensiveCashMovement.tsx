@@ -965,6 +965,13 @@ function TreasuryWalletFlowSummary({
       if (!platformLegs.length && !bridgeLegs.length) continue;
       const hasPlatformOut = platformLegs.some(p => p.direction === 'cash_out');
       const hasPlatformIn = platformLegs.some(p => p.direction === 'cash_in');
+      // The wallet leg of a CFO manual disbursement (payroll, marketing,
+      // operational, tax, R&D, equipment...) is posted with a generic
+      // category like `wallet_deposit`, while the *economic purpose* lives on
+      // the paired platform cash_out leg. To bucket those correctly we fall
+      // back to the platform cash_out category whenever the wallet category is
+      // uninformative; otherwise the meaningful wallet category wins.
+      const platformOutCategory = platformLegs.find(p => p.direction === 'cash_out')?.category;
       // Rent allocations move agent float (wallet cash_out) into a rent
       // receivable (bridge cash_in: rent_receivable_created) rather than a
       // platform cash_in leg. Treat a bridge cash_in as "money into company"
@@ -978,7 +985,10 @@ function TreasuryWalletFlowSummary({
         // wallet-only agent float settlement). Never drop these.
         const isAlwaysToCompany = ALWAYS_WALLET_TO_COMPANY.has(w.category);
         if (w.direction === 'cash_in' && hasPlatformOut) {
-          toWallets.push({ amount: amt, category: w.category, party: w.user_id ?? null, date: w.transaction_date });
+          const bucketCategory = (GENERIC_WALLET_CATEGORIES.has(w.category) && platformOutCategory)
+            ? platformOutCategory
+            : w.category;
+          toWallets.push({ amount: amt, category: bucketCategory, party: w.user_id ?? null, date: w.transaction_date });
         } else if (w.direction === 'cash_out' && (hasPlatformIn || hasBridgeIn || isAlwaysToCompany)) {
           // Exclude personal wallet withdrawals — they are wallet → external, not wallet → company
           if (w.category === 'wallet_withdrawal' || w.category === 'withdrawal') continue;
