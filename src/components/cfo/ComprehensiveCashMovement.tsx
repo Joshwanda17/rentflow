@@ -165,11 +165,44 @@ const WALLET_FLOW_LABEL_IN: Record<string, string> = {
   system_balance_correction: 'Balance corrections (in)',
 };
 const WALLET_FLOW_LABEL_OUT: Record<string, string> = {
+  // Withdrawals / cash leaving
   withdrawal: 'Personal wallet withdrawals',
-  partner_funding: 'Float swept to company (partner)',
+  wallet_withdrawal: 'Personal wallet withdrawals',
+  proxy_partner_withdrawal: 'Proxy partner withdrawals',
+  agent_float_withdrawal: 'Agent float withdrawals',
+  // Partner Ops sweeps & portfolio investments
+  partner_funding: 'Float swept to company (Partner Ops)',
+  coo_proxy_investment: 'Partner Ops → Partner portfolio investment',
+  proxy_investment_commission: 'Proxy investment commission swept',
+  pending_portfolio_topup: 'Wallet → Partner portfolio top-up',
+  // Angel Pool
+  angel_pool_investment: 'Wallet → Angel Pool investment',
+  // Advance auto-recovery (collected automatically from agent wallets)
+  advance_recovery: 'Advance auto-recovery (from wallet)',
+  agent_repayment: 'Advance auto-recovery (agent wallet)',
+  agent_advance_repayment: 'Advance auto-recovery (agent wallet)',
+  salary_advance_repayment: 'Salary advance auto-recovery',
+  debt_recovery: 'Debt recovery (from wallet)',
+  // Float allocated / settled back to company
   agent_float_allocation: 'Float allocated to tenants/landlords',
+  agent_float_used_for_rent: 'Float allocated to tenants/landlords',
+  agent_float_settlement: 'Agent float settled to company',
+  agent_float_assignment: 'Agent float reassigned',
+  agent_float_deposit: 'Agent float moved to company',
+  // Rent repaid from wallet
   rent_repayment: 'Rent repaid from wallet',
-  advance_recovery: 'Advance auto-recovery',
+  tenant_repayment: 'Rent repaid from wallet',
+  rent_payment_for_tenant: 'Rent paid from wallet for tenant',
+  // Commission used / adjusted
+  agent_commission_used_for_rent: 'Commission used for rent',
+  agent_commission_earned: 'Agent commission adjustment',
+  // CFO direct debits / deductions
+  wallet_deduction: 'CFO direct debit / wallet deduction',
+  wallet_deduction_general_adjustment: 'CFO general adjustment debit',
+  wallet_deduction_cash_payout_retraction: 'Cash payout retraction',
+  // Transfers & deposits routed back
+  wallet_transfer: 'Wallet-to-wallet transfer',
+  wallet_deposit: 'Deposit routed to company',
   system_balance_correction: 'Balance corrections (out)',
 };
 function friendlyWalletLabel(category: string, direction: 'cash_in' | 'cash_out'): string {
@@ -523,7 +556,7 @@ function TreasuryWalletFlowSummary({
           tone="out"
           icon={<Landmark className="h-5 w-5" />}
           title="Wallets → Company"
-          subtitle="Money agents allocated out of their wallets back to what we have"
+          subtitle="Every move of wallet money back to company funds — agent float allocations & settlements, Partner Ops portfolio investments, Angel Pool investments, automatic advance/debt recovery, and CFO direct debits"
           summary={outSummary}
           partyHeading="Top allocators"
           direction="cash_out"
