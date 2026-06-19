@@ -330,7 +330,15 @@ function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
   return {
     total,
     count: items.length,
-    cats: [...byCat.entries()].sort((a, b) => b[1].amount - a[1].amount),
+    // Ordered by the canonical CFO category sequence (LOCKED_CATEGORIES),
+    // falling back to amount for any non-canonical categories so the CFO
+    // always reads movements in a predictable, familiar order.
+    cats: [...byCat.entries()].sort((a, b) => {
+      const ra = cfoCategoryRank(a[0]);
+      const rb = cfoCategoryRank(b[0]);
+      if (ra !== rb) return ra - rb;
+      return b[1].amount - a[1].amount;
+    }),
     parties: [...byParty.entries()].sort((a, b) => b[1].amount - a[1].amount),
   };
 }
