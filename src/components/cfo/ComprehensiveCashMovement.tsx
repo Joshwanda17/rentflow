@@ -1157,6 +1157,102 @@ function MovementTimeline({
     );
   };
 
+  // ── Build the currently-filtered movement list for a given category ──
+  const buildDetailRows = useCallback((cat: string): TimelineMovement[] => {
+    const all = filteredMovements
+      .filter(m => m.category === cat)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const q = detailSearch.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(m => {
+      const srcName = m.sourceParty ? (names[m.sourceParty] || m.sourceParty) : '';
+      const dstName = m.destParty ? (names[m.destParty] || m.destParty) : '';
+      return [
+        srcName, dstName, m.sourceLabel, m.destLabel,
+        m.reference || '', m.description || '', m.raw.source_table || '',
+        String(m.raw.source_id || ''),
+      ].join(' ').toLowerCase().includes(q);
+    });
+  }, [filteredMovements, detailSearch, names]);
+
+  // CSV/PDF columns include the movement row plus every double-entry leg.
+  const DETAIL_EXPORT_HEADERS = [
+    'Date', 'Category', 'Amount (UGX)', 'Direction', 'Scope', 'Classification',
+    'Source', 'Destination', 'Reference', 'Description', 'Source table', 'Source ID',
+    'Txn group', 'Leg #', 'Leg scope', 'Leg category', 'Leg direction', 'Leg amount (UGX)',
+  ];
+
+  const buildDetailExportRows = useCallback((cat: string): (string | number)[][] => {
+    const matched = buildDetailRows(cat);
+    const out: (string | number)[][] = [];
+    for (const m of matched) {
+      const base = [
+        format(new Date(m.date), 'yyyy-MM-dd HH:mm:ss'),
+        prettifyCategory(m.category),
+        Math.round(m.amount),
+        m.direction === 'cash_in' ? 'Cash in' : 'Cash out',
+        SCOPE_LABEL[m.scope] || m.scope,
+        m.raw.classification || '',
+        m.sourceParty ? partyName(m.sourceParty, m.sourceLabel) : m.sourceLabel,
+        m.destParty ? partyName(m.destParty, m.destLabel) : m.destLabel,
+        m.reference || '',
+        m.description || '',
+        m.raw.source_table || '',
+        m.raw.source_id ? String(m.raw.source_id) : '',
+        m.groupId,
+      ];
+      if (m.groupLegs.length === 0) {
+        out.push([...base, '', '', '', '', '']);
+      } else {
+        m.groupLegs.forEach((leg, i) => {
+          out.push([
+            ...base,
+            i + 1,
+            SCOPE_LABEL[leg.ledger_scope] || leg.ledger_scope,
+            prettifyCategory(leg.category),
+            leg.direction === 'cash_in' ? 'Cash in' : 'Cash out',
+            Math.round(Number(leg.amount) || 0),
+          ]);
+        });
+      }
+    }
+    return out;
+  }, [buildDetailRows, names]);
+
+  const exportDetailCsv = useCallback((cat: string) => {
+    const rows = buildDetailExportRows(cat);
+    if (rows.length === 0) { toast.error('Nothing to export'); return; }
+    downloadCsv(
+      `welile-${cat}-detail-${format(new Date(), 'yyyy-MM-dd')}.csv`,
+      DETAIL_EXPORT_HEADERS,
+      rows,
+    );
+    toast.success('CSV exported');
+  }, [buildDetailExportRows]);
+
+  const exportDetailPdf = useCallback((cat: string) => {
+    const matched = buildDetailRows(cat);
+    const rows = buildDetailExportRows(cat);
+    if (rows.length === 0) { toast.error('Nothing to export'); return; }
+    const total = matched.reduce((s, m) => s + m.amount, 0);
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+    doc.text(`Cash Movement Detail — ${prettifyCategory(cat)}`, 40, 36);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(110);
+    doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm')}  ·  Movements: ${matched.length.toLocaleString()}  ·  Total: ${formatUGX(total)}`, 40, 52);
+    autoTable(doc, {
+      startY: 64,
+      head: [DETAIL_EXPORT_HEADERS],
+      body: rows.map(r => r.map(c => (c === null || c === undefined ? '' : String(c)))),
+      styles: { fontSize: 6, cellPadding: 2, overflow: 'linebreak', valign: 'top' },
+      headStyles: { fillColor: [146, 52, 234], textColor: 255, fontStyle: 'bold', fontSize: 6 },
+      alternateRowStyles: { fillColor: [250, 250, 252] },
+      margin: { left: 20, right: 20, bottom: 30 },
+    });
+    doc.save(`welile-${cat}-detail-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast.success('PDF exported');
+  }, [buildDetailRows, buildDetailExportRows]);
+
   return (
     <section id="cm-timeline" className="scroll-mt-24 space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -1395,6 +1491,28 @@ function MovementTimeline({
                   <span className="text-[11px] text-muted-foreground">Total in view</span>
                   <span className="font-mono text-sm font-semibold">{formatUGX(total)}</span>
                 </div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <Button
+                    size="sm" variant="outline"
+                    className="h-8 flex-1 gap-1.5 text-xs"
+                    disabled={matched.length === 0}
+                    onClick={() => exportDetailCsv(detailCat)}
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5" /> Export CSV
+                  </Button>
+                  <Button
+                    size="sm" variant="outline"
+                    className="h-8 flex-1 gap-1.5 text-xs"
+                    disabled={matched.length === 0}
+                    onClick={() => exportDetailPdf(detailCat)}
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Export PDF
+                  </Button>
+                </div>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Exports every movement in view plus all double-entry ledger legs.
+                </p>
 
                 <div className="mt-3 relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
