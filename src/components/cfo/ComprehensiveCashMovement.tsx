@@ -925,6 +925,23 @@ function MovementTimeline({
   const PER_CATEGORY_INITIAL = 8;
   const PER_CATEGORY_STEP = 25;
 
+  // ── Filters (date range, CFO category, source, destination, name search) ──
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [sourceFilter, setSourceFilter] = useState<EndpointType | 'all'>('all');
+  const [destFilter, setDestFilter] = useState<EndpointType | 'all'>('all');
+  const [search, setSearch] = useState<string>('');
+  const [catPopoverOpen, setCatPopoverOpen] = useState(false);
+
+  const filtersActive =
+    !!dateFrom || !!dateTo || selectedCategories.size > 0 ||
+    sourceFilter !== 'all' || destFilter !== 'all' || !!search.trim();
+  const clearFilters = () => {
+    setDateFrom(''); setDateTo(''); setSelectedCategories(new Set());
+    setSourceFilter('all'); setDestFilter('all'); setSearch('');
+  };
+
   // Build one or more movements per transaction group from the
   // double-entry legs, deriving a human source → destination.
   const movements = useMemo(() => {
@@ -999,10 +1016,73 @@ function MovementTimeline({
     return out;
   }, [rows, includeAdjustments]);
 
+  // Categories present in the data, in strict CFO order — drives the
+  // category filter list so the CFO only sees categories that exist.
+  const availableCategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of movements) set.add(m.category);
+    return [...set].sort((a, b) => {
+      const ra = cfoCategoryRank(a), rb = cfoCategoryRank(b);
+      if (ra !== rb) return ra - rb;
+      return a.localeCompare(b);
+    });
+  }, [movements]);
+
+  // Resolve names for ALL parties (capped) so the name search works
+  // across every movement, not just the rows currently expanded.
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const m of movements) {
+      if (m.sourceParty && !names[m.sourceParty]) ids.add(m.sourceParty);
+      if (m.destParty && !names[m.destParty]) ids.add(m.destParty);
+    }
+    const list = [...ids].slice(0, 500);
+    if (!list.length) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', list);
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as { id: string; full_name: string | null }[]) {
+        if (p.full_name) next[p.id] = p.full_name;
+      }
+      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movements]);
+
+  // Apply all active filters to the flat movement list.
+  const filteredMovements = useMemo(() => {
+    const fromTs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
+    const toTs = dateTo ? new Date(dateTo + 'T23:59:59').getTime() : null;
+    const q = search.trim().toLowerCase();
+    return movements.filter(m => {
+      if (selectedCategories.size > 0 && !selectedCategories.has(m.category)) return false;
+      if (sourceFilter !== 'all' && endpointType(m.sourceLabel) !== sourceFilter) return false;
+      if (destFilter !== 'all' && endpointType(m.destLabel) !== destFilter) return false;
+      if (fromTs !== null || toTs !== null) {
+        const t = new Date(m.date).getTime();
+        if (fromTs !== null && t < fromTs) return false;
+        if (toTs !== null && t > toTs) return false;
+      }
+      if (q) {
+        const srcName = m.sourceParty ? (names[m.sourceParty] || m.sourceParty) : '';
+        const dstName = m.destParty ? (names[m.destParty] || m.destParty) : '';
+        const hay = [
+          srcName, dstName, m.sourceLabel, m.destLabel,
+          m.reference || '', m.description || '', m.category,
+        ].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [movements, selectedCategories, sourceFilter, destFilter, dateFrom, dateTo, search, names]);
+
   // Group by category, then order categories by the strict CFO sequence.
   const categoryGroups = useMemo(() => {
     const byCat = new Map<string, { total: number; items: TimelineMovement[] }>();
-    for (const m of movements) {
+    for (const m of filteredMovements) {
       const g = byCat.get(m.category) || { total: 0, items: [] };
       g.total += m.amount; g.items.push(m); byCat.set(m.category, g);
     }
@@ -1019,35 +1099,9 @@ function MovementTimeline({
       return b.total - a.total;
     });
     return groups;
-  }, [movements]);
+  }, [filteredMovements]);
 
-  const grandTotal = useMemo(() => movements.reduce((s, m) => s + m.amount, 0), [movements]);
-
-  // Resolve names for the parties currently visible.
-  useEffect(() => {
-    const ids = new Set<string>();
-    for (const g of categoryGroups) {
-      const shown = openCats[g.category] ? (limits[g.category] ?? PER_CATEGORY_INITIAL) : 0;
-      g.items.slice(0, shown).forEach(m => {
-        if (m.sourceParty && !names[m.sourceParty]) ids.add(m.sourceParty);
-        if (m.destParty && !names[m.destParty]) ids.add(m.destParty);
-      });
-    }
-    const list = [...ids];
-    if (!list.length) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase.from('profiles').select('id, full_name').in('id', list.slice(0, 200));
-      if (cancelled || !data) return;
-      const next: Record<string, string> = {};
-      for (const p of data as { id: string; full_name: string | null }[]) {
-        if (p.full_name) next[p.id] = p.full_name;
-      }
-      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryGroups, openCats, limits]);
+  const grandTotal = useMemo(() => filteredMovements.reduce((s, m) => s + m.amount, 0), [filteredMovements]);
 
   const partyName = (id: string | null, fallbackLabel: string) =>
     id ? (names[id] || `${id.slice(0, 8)}…`) : fallbackLabel;
