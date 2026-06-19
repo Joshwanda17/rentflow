@@ -5074,10 +5074,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Village}
                       onChange={(e) => setLc1Village(formatNameInput(e.target.value))}
                       placeholder="Village"
-                     
+                      className={`${hasFieldError('lc1Village') ? 'border-destructive border-2' : ''}`}
                       required
                     />
-                    <FieldError message={vPlace(lc1Village, 'Kira Zone A')} />
+                    <FieldError message={vPlace(lc1Village, 'Kira Zone A') || getFieldError('lc1Village')} />
                   </div>
                   </div>
                   )}
