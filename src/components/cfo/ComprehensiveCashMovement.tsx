@@ -213,22 +213,15 @@ const WALLET_FLOW_LABEL_OUT: Record<string, string> = {
 // Wallet → Company category groups (4 numbered buckets the CFO
 // reads on the "From Wallets to Company" card).
 // ─────────────────────────────────────────────────────────────
-// Group 1 must align EXACTLY with the "Collected" figure on the Agent
-// Capacity / Fleet Performance page (Tenant Operations dashboard). That
-// figure is the sum of the `repayments` table for the period — i.e. the
-// actual rent collected from tenants and allocated by agents. In the
-// ledger this is mirrored 1:1 by the `rent_payment_for_tenant` wallet
-// cash_out leg (verified to the shilling across recent weeks/months).
-//
-// We deliberately EXCLUDE float reallocations (agent_float_settlement,
-// agent_float_assignment, agent_float_used_for_rent, agent_float_allocation,
-// agent_commission_used_for_rent) — those are agent float being moved /
-// returned, NOT rent collected from tenants, they never appear in the
-// `repayments` table, and including them inflated this card far beyond the
-// real "Collected" number. They still count as wallet→company money and
-// surface under the "Other money from wallets" drilldown.
 const WALLET_TO_COMPANY_GROUP_1 = new Set([
+  'agent_float_used_for_rent',
+  'agent_float_allocation',
+  'rent_repayment',
+  'tenant_repayment',
   'rent_payment_for_tenant',
+  'agent_commission_used_for_rent',
+  'agent_float_settlement',
+  'agent_float_assignment',
 ]);
 const WALLET_TO_COMPANY_GROUP_2 = new Set([
   'partner_funding',
