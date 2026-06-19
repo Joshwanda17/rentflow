@@ -3063,7 +3063,7 @@ export function ComprehensiveCashMovement() {
     return (roles || []).some(r => LEDGER_DETAIL_ROLES.has(r));
   }, [role, roles]);
 
-  const [period, setPeriod] = useState<PeriodKey>('24h');
+  const [period, setPeriod] = useState<PeriodKey>('30d');
   const [granularity, setGranularity] = useState<Granularity>('daily');
   const [includeAdjustments, setIncludeAdjustments] = useState(false);
   // Plain-English / "Simple" mode — hides accounting jargon, big tables,
