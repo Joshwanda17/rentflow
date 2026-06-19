@@ -30,7 +30,7 @@ function isPreviewContext(): boolean {
     host.startsWith('id-preview--') ||
     host.startsWith('preview--') ||
     host.endsWith('.lovableproject.com') ||
-    host.endsWith('.lovable.app') === false && host.endsWith('lovableproject.com')
+    host.endsWith('.lovableproject-dev.com')
   );
 }
 
