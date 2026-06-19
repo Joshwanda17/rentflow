@@ -513,7 +513,7 @@ function TreasuryWalletFlowSummary({
           tone="in"
           icon={<WalletIcon className="h-5 w-5" />}
           title="Company → Wallets"
-          subtitle="Money the CFO moved from what we have into user & agent wallets"
+          subtitle="Every move of company money into user & agent wallets — CFO transfers, auto payouts (ROI, commissions) and Financial Ops disbursements"
           summary={inSummary}
           partyHeading="Top recipients"
           direction="cash_in"
