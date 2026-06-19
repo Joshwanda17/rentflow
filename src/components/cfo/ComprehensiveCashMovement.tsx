@@ -949,6 +949,8 @@ function CompanyToWalletBreakdownChart({
   const [drill, setDrill] = useState<{ category: string; userId: string | 'ALL' } | null>(null);
   const [drillSearch, setDrillSearch] = useState('');
   const [drillDirection, setDrillDirection] = useState<'cash_in' | 'cash_out' | 'both'>('cash_in');
+  const [drillDateFrom, setDrillDateFrom] = useState('');
+  const [drillDateTo, setDrillDateTo] = useState('');
 
   // ── Chart-local filters ────────────────────────────────────
   const [dateFrom, setDateFrom] = useState<string>('');
