@@ -222,6 +222,9 @@ export default function HouseDetail() {
   const mapLink = listing.latitude && listing.longitude
     ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
     : null;
+  const directionsLink = listing.latitude && listing.longitude
+    ? `https://www.google.com/maps/dir/?api=1&destination=${listing.latitude},${listing.longitude}&travelmode=driving`
+    : null;
   const mapEmbed = listing.latitude && listing.longitude
     ? `https://maps.google.com/maps?q=${listing.latitude},${listing.longitude}&z=15&output=embed`
     : null;
@@ -527,7 +530,7 @@ export default function HouseDetail() {
                 </div>
               </a>
               <a
-                href={mapLink}
+                href={directionsLink || mapLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => announceMap(listing.title)}
@@ -535,7 +538,7 @@ export default function HouseDetail() {
                 className="mt-2 flex items-center justify-center gap-2.5 w-full min-h-[52px] px-6 py-3.5 rounded-full bg-primary text-primary-foreground font-bold text-base shadow-lg active:scale-[0.98] transition-transform touch-manipulation focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <Navigation className="h-5 w-5" />
-                Tap to open in Google Maps
+                Get Directions &amp; Go See It
               </a>
               <button
                 type="button"

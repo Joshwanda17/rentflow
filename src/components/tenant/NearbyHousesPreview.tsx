@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink, ZoomIn, Navigation } from 'lucide-react';
 import { AgentContactBar } from '@/components/tenant/AgentContactBar';
+import { GetDirectionsButton } from '@/components/tenant/GetDirectionsButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { ShareNearbyHousesButton } from '@/components/tenant/ShareNearbyHousesButton';
 import HouseRatingBadge from '@/components/house/HouseRatingBadge';
@@ -177,6 +178,9 @@ function MiniHouseCard({ listing, onSelectHouse }: { listing: HouseListing; onSe
 
         {/* Mini map */}
         <MiniMapThumb lat={listing.latitude} lng={listing.longitude} title={listing.title} />
+
+        {/* Go see it yourself — turn-by-turn navigation */}
+        <GetDirectionsButton lat={listing.latitude} lng={listing.longitude} title={listing.title} />
 
         {/* WhatsApp Agent */}
         <AgentContactBar phone={listing.agent_phone} agentName={listing.agent_name} agentRating={listing.agent_rating} houseTitle={listing.title} />
