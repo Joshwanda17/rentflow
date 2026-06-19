@@ -939,6 +939,7 @@ function TreasuryWalletFlowSummary({
     partyHeading,
     direction,
     rawItems,
+    onGroupDrill,
   }: {
     tone: 'in' | 'out';
     icon: React.ReactNode;
@@ -948,6 +949,7 @@ function TreasuryWalletFlowSummary({
     partyHeading: string;
     direction: 'cash_in' | 'cash_out';
     rawItems: TreasuryFlowItem[];
+    onGroupDrill?: (meta: { label: string; color: string; categories: Set<string> }) => void;
   }) => {
     const [groupView, setGroupView] = useState<'amount' | 'count' | 'pct'>('amount');
     return (
