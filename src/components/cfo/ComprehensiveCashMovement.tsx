@@ -995,6 +995,7 @@ function TreasuryWalletFlowSummary({
     direction,
     rawItems,
     onGroupDrill,
+    groupDefs,
   }: {
     tone: 'in' | 'out';
     icon: React.ReactNode;
@@ -1005,8 +1006,10 @@ function TreasuryWalletFlowSummary({
     direction: 'cash_in' | 'cash_out';
     rawItems: TreasuryFlowItem[];
     onGroupDrill?: (meta: { label: string; color: string; categories: Set<string> }) => void;
+    groupDefs?: { label: string; categories: Set<string>; color: string }[];
   }) => {
     const [groupView, setGroupView] = useState<'amount' | 'count' | 'pct'>('amount');
+    const groups = groupDefs ?? (direction === 'cash_out' ? WALLET_TO_COMPANY_GROUPS : COMPANY_TO_WALLETS_GROUPS);
     return (
       <div
         className={cn(
