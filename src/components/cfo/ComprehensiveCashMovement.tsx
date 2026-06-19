@@ -1092,18 +1092,28 @@ function CompanyToWalletBreakdownChart({
     return deduped.sort((a, b) => (a.transaction_date < b.transaction_date ? 1 : -1));
   }, [drill, byCatRows, byCatRecipientRows, rows, drillDirection, dateFrom, dateTo]);
 
-  // Search-filtered drill rows (recipient, reference, description, timestamp).
+  // Search-filtered drill rows (recipient, reference, description, timestamp, date range).
   const drillRows = useMemo(() => {
+    let list = rawDrillRows;
+    // Apply drill-down date range
+    if (drillDateFrom || drillDateTo) {
+      list = list.filter(r => {
+        const d = r.transaction_date.slice(0, 10);
+        if (drillDateFrom && d < drillDateFrom) return false;
+        if (drillDateTo && d > drillDateTo) return false;
+        return true;
+      });
+    }
     const q = drillSearch.trim().toLowerCase();
-    if (!q) return rawDrillRows;
-    return rawDrillRows.filter(r => {
+    if (!q) return list;
+    return list.filter(r => {
       const recipient = (r.user_id ? nameOf(r.user_id) : '').toLowerCase();
       const ref = (r.reference_id || '').toLowerCase();
       const desc = (r.description || '').toLowerCase();
       const ts = format(new Date(r.transaction_date), 'd MMM yyyy HH:mm').toLowerCase();
       return recipient.includes(q) || ref.includes(q) || desc.includes(q) || ts.includes(q);
     });
-  }, [rawDrillRows, drillSearch, names]);
+  }, [rawDrillRows, drillSearch, names, drillDateFrom, drillDateTo]);
 
   const drillTotal = useMemo(() => {
     if (drillDirection === 'both') {
