@@ -1880,6 +1880,7 @@ export function ComprehensiveCashMovement() {
             </span>
             {([
               { id: 'cm-treasury',     label: 'Treasury ⇄ Wallets', emoji: '🔁' },
+              { id: 'cm-allocation-chart', label: 'Allocation chart', emoji: '📊' },
               simpleMode ? { id: 'cm-glance',       label: 'Glance',       emoji: '👀' } : null,
               { id: 'cm-totals',       label: 'Money In / Out', emoji: '⇅' },
               !simpleMode ? { id: 'cm-inflows',    label: 'New money',     emoji: '⬆️' } : null,
