@@ -777,6 +777,9 @@ function GroupPeriodDrilldown({
 
   const total = filtered.reduce((s, i) => s + i.amount, 0);
 
+  const totalMatches = Math.abs(total - expectedTotal) < 0.01;
+  const countMatches = filtered.length === expectedCount;
+
   // Bucket transactions by the selected period granularity.
   const periods = useMemo(() => {
     const map = new Map<string, { key: string; label: string; sortKey: string; amount: number; items: TreasuryFlowItem[] }>();
