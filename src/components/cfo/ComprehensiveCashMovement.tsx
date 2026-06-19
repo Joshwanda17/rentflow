@@ -1023,11 +1023,16 @@ function TreasuryWalletFlowSummary({
                           ? `${formatUGX(v.amount)} · ${pct}% of total`
                           : `${formatUGX(v.amount)} · ${v.count.toLocaleString()} transaction${v.count === 1 ? '' : 's'}`;
                       return (
-                        <div
+                        <button
                           key={label}
+                          type="button"
+                          disabled={isEmpty || !onGroupDrill}
+                          onClick={() => onGroupDrill?.({ label, color: groupMeta.color, categories: groupMeta.categories })}
                           className={cn(
-                            'flex items-center gap-3 rounded-lg border px-3 py-2.5',
-                            isEmpty ? 'bg-muted/30 border-border opacity-60' : (groupMeta?.color || 'bg-muted/50 border-border')
+                            'w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all',
+                            isEmpty
+                              ? 'bg-muted/30 border-border opacity-60 cursor-default'
+                              : cn(groupMeta?.color || 'bg-muted/50 border-border', 'hover:brightness-105 hover:shadow-sm cursor-pointer')
                           )}
                         >
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background font-bold text-sm shadow-sm">
@@ -1035,12 +1040,13 @@ function TreasuryWalletFlowSummary({
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-[13px] font-semibold leading-snug">{label}</p>
-                            <p className="text-[10px] opacity-80">{isEmpty ? 'No movements in this period' : subLine}</p>
+                            <p className="text-[10px] opacity-80">{isEmpty ? 'No movements in this period' : `${subLine} · tap for per-period detail`}</p>
                           </div>
-                          <div className="shrink-0 text-right">
+                          <div className="shrink-0 text-right flex items-center gap-1.5">
                             <p className="text-[15px] font-bold font-mono leading-tight">{mainValue}</p>
+                            {!isEmpty && onGroupDrill && <ChevronRight className="h-4 w-4 opacity-60" />}
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
