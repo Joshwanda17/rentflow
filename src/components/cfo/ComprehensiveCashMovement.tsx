@@ -229,7 +229,6 @@ const WALLET_TO_COMPANY_GROUP_2 = new Set([
   'roi_reinvestment',
   'coo_proxy_investment',
   'proxy_investment_commission',
-  'angel_pool_investment',
 ]);
 const WALLET_TO_COMPANY_GROUP_3 = new Set([
   'advance_recovery',
@@ -240,6 +239,9 @@ const WALLET_TO_COMPANY_GROUP_3 = new Set([
 ]);
 const WALLET_TO_COMPANY_GROUP_4 = new Set([
   'share_capital',
+  'angel_pool_investment',
+  'angel_pool_contribution',
+  'angel_pool_topup',
 ]);
 const WALLET_TO_COMPANY_GROUPS: { label: string; categories: Set<string>; color: string }[] = [
   { label: 'Rent payments for tenants (allocated by agents)', categories: WALLET_TO_COMPANY_GROUP_1, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
@@ -760,8 +762,11 @@ function TreasuryWalletFlowSummary({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    {summary.groups.map(([label, v], idx) => {
-                      const groupMeta = WALLET_TO_COMPANY_GROUPS.find(g => g.label === label);
+                    {WALLET_TO_COMPANY_GROUPS.map((groupMeta, idx) => {
+                      const label = groupMeta.label;
+                      const found = summary.groups.find(([l]) => l === label);
+                      const v = found ? found[1] : { amount: 0, count: 0 };
+                      const isEmpty = v.amount === 0 && v.count === 0;
                       const pct = summary.total > 0 ? Math.round((v.amount / summary.total) * 100) : 0;
                       const mainValue = groupView === 'amount'
                         ? formatUGX(v.amount)
@@ -778,7 +783,7 @@ function TreasuryWalletFlowSummary({
                           key={label}
                           className={cn(
                             'flex items-center gap-3 rounded-lg border px-3 py-2.5',
-                            groupMeta?.color || 'bg-muted/50 border-border'
+                            isEmpty ? 'bg-muted/30 border-border opacity-60' : (groupMeta?.color || 'bg-muted/50 border-border')
                           )}
                         >
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background font-bold text-sm shadow-sm">
@@ -786,7 +791,7 @@ function TreasuryWalletFlowSummary({
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-[13px] font-semibold leading-snug">{label}</p>
-                            <p className="text-[10px] opacity-80">{subLine}</p>
+                            <p className="text-[10px] opacity-80">{isEmpty ? 'No movements in this period' : subLine}</p>
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="text-[15px] font-bold font-mono leading-tight">{mainValue}</p>
