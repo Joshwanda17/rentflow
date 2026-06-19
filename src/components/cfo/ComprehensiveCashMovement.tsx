@@ -704,141 +704,174 @@ function TreasuryWalletFlowSummary({
     partyHeading: string;
     direction: 'cash_in' | 'cash_out';
     rawItems: TreasuryFlowItem[];
-  }) => (
-    <div
-      className={cn(
-        'rounded-2xl border-2 p-4 space-y-3',
-        tone === 'in'
-          ? 'border-emerald-500/30 bg-emerald-500/[0.06]'
-          : 'border-amber-500/30 bg-amber-500/[0.06]',
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <div className={cn('p-2 rounded-xl shrink-0', tone === 'in' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/15 text-amber-600')}>
-          {icon}
+  }) => {
+    const [groupView, setGroupView] = useState<'amount' | 'count' | 'pct'>('amount');
+    return (
+      <div
+        className={cn(
+          'rounded-2xl border-2 p-4 space-y-3',
+          tone === 'in'
+            ? 'border-emerald-500/30 bg-emerald-500/[0.06]'
+            : 'border-amber-500/30 bg-amber-500/[0.06]',
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <div className={cn('p-2 rounded-xl shrink-0', tone === 'in' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/15 text-amber-600')}>
+            {icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold leading-tight">{title}</p>
+            <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{subtitle}</p>
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold leading-tight">{title}</p>
-          <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{subtitle}</p>
+        <div>
+          <p className={cn('text-2xl font-bold font-mono tracking-tight', tone === 'in' ? 'text-emerald-600' : 'text-amber-600')}>
+            {formatUGX(summary.total)}
+          </p>
+          <p className="text-[11px] text-muted-foreground">{summary.count.toLocaleString()} transfer{summary.count === 1 ? '' : 's'}</p>
         </div>
-      </div>
-      <div>
-        <p className={cn('text-2xl font-bold font-mono tracking-tight', tone === 'in' ? 'text-emerald-600' : 'text-amber-600')}>
-          {formatUGX(summary.total)}
-        </p>
-        <p className="text-[11px] text-muted-foreground">{summary.count.toLocaleString()} transfer{summary.count === 1 ? '' : 's'}</p>
-      </div>
 
-      {summary.cats.length > 0 && (
-        <div className="space-y-1.5 pt-1 border-t border-border/60">
-          {direction === 'cash_out' && summary.groups.length > 0 ? (
-            <>
-              <div className="rounded-xl border border-border bg-card p-3 space-y-2.5">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
-                  Money coming from wallets into company
-                </p>
-                <div className="space-y-2">
-                  {summary.groups.map(([label, v], idx) => {
-                    const groupMeta = WALLET_TO_COMPANY_GROUPS.find(g => g.label === label);
-                    const pct = summary.total > 0 ? Math.round((v.amount / summary.total) * 100) : 0;
+        {summary.cats.length > 0 && (
+          <div className="space-y-1.5 pt-1 border-t border-border/60">
+            {direction === 'cash_out' && summary.groups.length > 0 ? (
+              <>
+                <div className="rounded-xl border border-border bg-card p-3 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+                      Money coming from wallets into company
+                    </p>
+                    {/* Quick-toggle chips */}
+                    <div className="inline-flex items-center gap-1 bg-muted rounded-lg p-0.5">
+                      {(['amount', 'count', 'pct'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setGroupView(mode)}
+                          className={cn(
+                            'px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors',
+                            groupView === mode
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          {mode === 'amount' ? 'Amount' : mode === 'count' ? 'Count' : 'Percent'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {summary.groups.map(([label, v], idx) => {
+                      const groupMeta = WALLET_TO_COMPANY_GROUPS.find(g => g.label === label);
+                      const pct = summary.total > 0 ? Math.round((v.amount / summary.total) * 100) : 0;
+                      const mainValue = groupView === 'amount'
+                        ? formatUGX(v.amount)
+                        : groupView === 'count'
+                          ? v.count.toLocaleString()
+                          : `${pct}%`;
+                      const subLine = groupView === 'amount'
+                        ? `${v.count.toLocaleString()} transaction${v.count === 1 ? '' : 's'} · ${pct}% of total`
+                        : groupView === 'count'
+                          ? `${formatUGX(v.amount)} · ${pct}% of total`
+                          : `${formatUGX(v.amount)} · ${v.count.toLocaleString()} transaction${v.count === 1 ? '' : 's'}`;
+                      return (
+                        <div
+                          key={label}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                            groupMeta?.color || 'bg-muted/50 border-border'
+                          )}
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background font-bold text-sm shadow-sm">
+                            {idx + 1}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-semibold leading-snug">{label}</p>
+                            <p className="text-[10px] opacity-80">{subLine}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-[15px] font-bold font-mono leading-tight">{mainValue}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Expandable drilldown for uncategorized items */}
+                  {(() => {
+                    const groupedTotal = summary.groups.reduce((s, [, v]) => s + v.amount, 0);
+                    const other = summary.total - groupedTotal;
+                    if (other <= 0) return null;
+                    const groupedCatSet = new Set(WALLET_TO_COMPANY_GROUPS.flatMap(g => [...g.categories]));
+                    const otherItems = rawItems.filter(i => !groupedCatSet.has(i.category));
                     return (
-                      <div
-                        key={label}
-                        className={cn(
-                          'flex items-center gap-3 rounded-lg border px-3 py-2.5',
-                          groupMeta?.color || 'bg-muted/50 border-border'
-                        )}
-                      >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background font-bold text-sm shadow-sm">
-                          {idx + 1}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-semibold leading-snug">{label}</p>
-                          <p className="text-[10px] opacity-80">{v.count.toLocaleString()} transaction{v.count === 1 ? '' : 's'} · {pct}% of total</p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-[15px] font-bold font-mono leading-tight">{formatUGX(v.amount)}</p>
-                        </div>
-                      </div>
+                      <OtherWalletOriginDrilldown
+                        items={otherItems}
+                        otherTotal={other}
+                        direction={direction}
+                        initialNames={names}
+                      />
                     );
-                  })}
+                  })()}
                 </div>
-                {/* Expandable drilldown for uncategorized items */}
-                {(() => {
-                  const groupedTotal = summary.groups.reduce((s, [, v]) => s + v.amount, 0);
-                  const other = summary.total - groupedTotal;
-                  if (other <= 0) return null;
-                  const groupedCatSet = new Set(WALLET_TO_COMPANY_GROUPS.flatMap(g => [...g.categories]));
-                  const otherItems = rawItems.filter(i => !groupedCatSet.has(i.category));
-                  return (
-                    <OtherWalletOriginDrilldown
-                      items={otherItems}
-                      otherTotal={other}
-                      direction={direction}
-                      initialNames={names}
-                    />
-                  );
-                })()}
-              </div>
-              <div className="pt-1.5 border-t border-border/40">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
-                  All types · CFO order
+                <div className="pt-1.5 border-t border-border/40">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                    All types · CFO order
+                  </p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                    {summary.cats.map(([cat, v]) => (
+                      <div key={cat} className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="truncate text-muted-foreground">{friendlyWalletLabel(cat, direction)}</span>
+                        <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  By type · CFO order
                 </p>
-                <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                   {summary.cats.map(([cat, v]) => (
-                    <div key={cat} className="flex items-center justify-between gap-2 text-[11px]">
-                      <span className="truncate text-muted-foreground">{friendlyWalletLabel(cat, direction)}</span>
+                    <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
+                      <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, direction)}</span>
                       <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
                     </div>
                   ))}
                 </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {summary.parties.length > 0 && (
+          <div className="space-y-1.5 pt-1 border-t border-border/60">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{partyHeading}</p>
+            {summary.parties.slice(0, 5).map(([id, v]) => (
+              <div key={id} className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="truncate text-foreground/90">{nameOf(id)}</span>
+                <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
               </div>
-            </>
-          ) : (
-            <>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                By type · CFO order
-              </p>
-              <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-                {summary.cats.map(([cat, v]) => (
-                  <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
-                    <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, direction)}</span>
-                    <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {summary.parties.length > 0 && (
-        <div className="space-y-1.5 pt-1 border-t border-border/60">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{partyHeading}</p>
-          {summary.parties.slice(0, 5).map(([id, v]) => (
-            <div key={id} className="flex items-center justify-between gap-2 text-[12px]">
-              <span className="truncate text-foreground/90">{nameOf(id)}</span>
-              <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
-            </div>
-          ))}
-        </div>
-      )}
+        {summary.count === 0 && (
+          <p className="text-[12px] text-muted-foreground italic pt-1">No transfers in this period.</p>
+        )}
 
-      {summary.count === 0 && (
-        <p className="text-[12px] text-muted-foreground italic pt-1">No transfers in this period.</p>
-      )}
-
-      {onDrill && summary.count > 0 && (
-        <button
-          type="button"
-          onClick={() => onDrill(direction, 'wallet')}
-          className="text-[11px] font-medium text-primary inline-flex items-center gap-1 hover:underline"
-        >
-          See all transactions <ArrowRight className="h-3 w-3" />
-        </button>
-      )}
-    </div>
-  );
+        {onDrill && summary.count > 0 && (
+          <button
+            type="button"
+            onClick={() => onDrill(direction, 'wallet')}
+            className="text-[11px] font-medium text-primary inline-flex items-center gap-1 hover:underline"
+          >
+            See all transactions <ArrowRight className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <section id="cm-treasury" className="space-y-3">
