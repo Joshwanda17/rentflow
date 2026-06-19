@@ -4233,13 +4233,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     value={formatNationalIdDisplay(tenantNationalId)}
                     onChange={(e) => setTenantNationalId(cleanNationalIdInput(e.target.value))}
                     placeholder="e.g. CM12 3456 7890 12"
-                    className="font-mono uppercase tracking-wider"
+                    className={`font-mono uppercase tracking-wider ${hasFieldError('tenantNationalId') ? 'border-destructive border-2' : ''}`}
                     inputMode="text"
                     autoCapitalize="characters"
                     maxLength={17}
                     required
                   />
-                  <FieldError message={vNationalId(tenantNationalId)} />
+                  <FieldError message={vNationalId(tenantNationalId) || getFieldError('tenantNationalId')} />
                 </div>
 
                 <div className="space-y-1">
