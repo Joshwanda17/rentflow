@@ -1121,7 +1121,7 @@ export function DirectCreditTool() {
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               {operation === 'withdraw'
                 ? `Withdraw UGX ${amt.toLocaleString()} → ${selectedUser?.full_name || '...'}`
-                : `${isCredit ? 'Credit' : 'Debit'} UGX ${amt.toLocaleString()} ${isCredit ? 'to' : 'from'} ${selectedUser?.full_name || '...'}`}
+                : `${isCredit ? 'Send money to' : 'Take money from'} ${selectedUser?.full_name || '...'}'s wallet · UGX ${amt.toLocaleString()}`}
             </Button>
 
             <AlertDialog open={floatConfirmOpen} onOpenChange={setFloatConfirmOpen}>
