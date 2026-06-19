@@ -1470,6 +1470,32 @@ function CompanyToWalletBreakdownChart({
 
                 {/* Advanced filter chips */}
                 <div className="flex flex-col gap-1.5 pt-1">
+                  {/* Date range */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Dates</span>
+                    <input
+                      type="date"
+                      value={drillDateFrom}
+                      onChange={e => setDrillDateFrom(e.target.value)}
+                      className="h-7 rounded-md border border-border bg-background px-2 text-[11px]"
+                    />
+                    <span className="text-muted-foreground text-[11px]">→</span>
+                    <input
+                      type="date"
+                      value={drillDateTo}
+                      onChange={e => setDrillDateTo(e.target.value)}
+                      className="h-7 rounded-md border border-border bg-background px-2 text-[11px]"
+                    />
+                    {(drillDateFrom || drillDateTo) && (
+                      <button
+                        type="button"
+                        onClick={() => { setDrillDateFrom(''); setDrillDateTo(''); }}
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        Clear dates
+                      </button>
+                    )}
+                  </div>
                   {/* Direction */}
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Direction</span>
