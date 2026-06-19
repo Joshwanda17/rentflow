@@ -927,6 +927,268 @@ function AgentAllocationBreakdownChart({
 }
 
 // ─────────────────────────────────────────────────────────────
+// Company → Wallets Breakdown — mirrors the Agent Allocation chart
+// but for the INBOUND direction: how company money flows OUT to user
+// & agent wallets, split by category. Source: a wallet cash_in leg
+// paired with a platform cash_out leg in one transaction group (the
+// CFO funding wallets, auto ROI/commission payouts, Financial Ops
+// disbursements). One horizontal bar per category; bar length is the
+// total moved. Click a category to see its top recipients.
+// ─────────────────────────────────────────────────────────────
+function CompanyToWalletBreakdownChart({
+  rows,
+  includeAdjustments,
+}: {
+  rows: LedgerRow[];
+  includeAdjustments: boolean;
+}) {
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  // ── Chart-local filters ────────────────────────────────────
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const dateActive = !!(dateFrom || dateTo);
+
+  // Build per-category totals + per-category recipient breakdown from
+  // paired wallet-in / platform-out ledger legs (Company → Wallets).
+  const { catList, total, count, byCatRecipients } = useMemo(() => {
+    const groups = new Map<string, LedgerRow[]>();
+    for (const r of rows) {
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const gid = r.transaction_group_id;
+      if (!gid) continue;
+      const arr = groups.get(gid) || [];
+      arr.push(r);
+      groups.set(gid, arr);
+    }
+    const catTotals = new Map<string, { amount: number; count: number }>();
+    const byCatRecipients = new Map<string, Map<string, number>>();
+    let total = 0;
+    let count = 0;
+    for (const legs of groups.values()) {
+      const hasPlatformOut = legs.some(l => l.ledger_scope === 'platform' && l.direction === 'cash_out');
+      if (!hasPlatformOut) continue;
+      for (const w of legs) {
+        if (w.ledger_scope !== 'wallet' || w.direction !== 'cash_in') continue;
+        const amt = Number(w.amount) || 0;
+        if (!amt) continue;
+        const d = w.transaction_date.slice(0, 10);
+        if (dateFrom && d < dateFrom) continue;
+        if (dateTo && d > dateTo) continue;
+        const c = catTotals.get(w.category) || { amount: 0, count: 0 };
+        c.amount += amt; c.count += 1; catTotals.set(w.category, c);
+        total += amt; count += 1;
+        if (w.user_id) {
+          const recs = byCatRecipients.get(w.category) || new Map<string, number>();
+          recs.set(w.user_id, (recs.get(w.user_id) || 0) + amt);
+          byCatRecipients.set(w.category, recs);
+        }
+      }
+    }
+    const catList = [...catTotals.entries()]
+      .sort((a, b) => {
+        const ra = cfoCategoryRank(a[0]);
+        const rb = cfoCategoryRank(b[0]);
+        if (ra !== rb) return ra - rb;
+        return b[1].amount - a[1].amount;
+      })
+      .map(([category, v]) => ({ category, amount: v.amount, count: v.count }));
+    return { catList, total, count, byCatRecipients };
+  }, [rows, includeAdjustments, dateFrom, dateTo]);
+
+  // Resolve recipient names for the currently-expanded category.
+  useEffect(() => {
+    if (!expanded) return;
+    const recs = byCatRecipients.get(expanded);
+    if (!recs) return;
+    const ids = [...recs.keys()].filter(id => id && !names[id]).slice(0, 12);
+    if (!ids.length) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as { id: string; full_name: string | null }[]) {
+        if (p.full_name) next[p.id] = p.full_name;
+      }
+      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, byCatRecipients]);
+
+  const nameOf = (id: string) => names[id] || `${id.slice(0, 8)}…`;
+
+  const chartData = useMemo(
+    () => catList.map(c => ({ name: friendlyWalletLabel(c.category, 'cash_in'), category: c.category, amount: c.amount })),
+    [catList],
+  );
+  const chartHeight = Math.max(180, catList.length * 40 + 60);
+
+  if (count === 0 && !dateActive) {
+    return (
+      <section id="cm-company-wallet-chart" className="space-y-2">
+        <div className="flex items-center gap-2">
+          <ArrowLeftRight className="h-4 w-4 text-emerald-600" />
+          <h4 className="text-sm font-semibold">Company → Wallets Breakdown</h4>
+        </div>
+        <div className="rounded-2xl border border-border bg-muted/20 p-6 text-center text-[12px] text-muted-foreground">
+          No company money moved into wallets in this period.
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section id="cm-company-wallet-chart" className="space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <ArrowLeftRight className="h-4 w-4 text-emerald-600" />
+          <h4 className="text-sm font-semibold">Company → Wallets Breakdown</h4>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {dateActive && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-[11px] px-2 rounded-full"
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+            >
+              Clear dates
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant={showFilters ? 'default' : 'outline'}
+            className="h-7 text-[11px] px-2.5 rounded-full"
+            onClick={() => setShowFilters(v => !v)}
+          >
+            <Filter className="h-3 w-3 mr-1" />
+            Filters
+            {dateActive && (
+              <span className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary-foreground text-[9px] font-bold text-primary">1</span>
+            )}
+          </Button>
+        </div>
+      </div>
+      <p className="text-[11px] text-muted-foreground -mt-1">
+        How each category moved company money into user &amp; agent wallets — every category that funds
+        wallets, with the exact amount it moved. Tap a category to see who received it.
+      </p>
+
+      {showFilters && (
+        <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-1.5">
+          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Date range</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="h-8 rounded-md border border-border bg-background px-2 text-[12px]"
+            />
+            <span className="text-muted-foreground text-[12px]">→</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="h-8 rounded-md border border-border bg-background px-2 text-[12px]"
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] px-3 py-2">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          Total to wallets · {count.toLocaleString()} transfer{count === 1 ? '' : 's'} · {catList.length} categor{catList.length === 1 ? 'y' : 'ies'}
+        </span>
+        <span className="text-sm font-bold font-mono text-emerald-600">{formatUGX(total)}</span>
+      </div>
+
+      {count === 0 ? (
+        <div className="rounded-2xl border border-border bg-muted/20 p-6 text-center text-[12px] text-muted-foreground">
+          No movements match the current dates.
+        </div>
+      ) : (
+        <>
+          <div className="rounded-2xl border-2 border-border/60 bg-card p-3" style={{ height: chartHeight }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 10 }}
+                  stroke="hsl(var(--muted-foreground))"
+                  tickFormatter={(v: number) => formatUGX(v)}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={140}
+                  tick={{ fontSize: 11 }}
+                  stroke="hsl(var(--muted-foreground))"
+                />
+                <RechartsTooltip
+                  formatter={(v: number) => [formatUGX(v), 'Moved to wallets']}
+                  contentStyle={{
+                    background: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="amount" fill="hsl(160 84% 39%)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Per-category detail list — expand for top recipients */}
+          <div className="rounded-2xl border border-border bg-card divide-y divide-border/60">
+            {catList.map(c => {
+              const isOpen = expanded === c.category;
+              const recs = byCatRecipients.get(c.category);
+              const topRecs = recs ? [...recs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6) : [];
+              return (
+                <div key={c.category}>
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isOpen ? null : c.category)}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-muted/40 transition-colors"
+                  >
+                    <span className="min-w-0 flex items-center gap-1.5">
+                      {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                      <span className="min-w-0">
+                        <span className="text-[13px] font-medium block truncate">{friendlyWalletLabel(c.category, 'cash_in')}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono block truncate">{c.category} · {c.count.toLocaleString()} transfer{c.count === 1 ? '' : 's'}</span>
+                      </span>
+                    </span>
+                    <span className="font-mono font-semibold text-[13px] text-emerald-600 shrink-0">{formatUGX(c.amount)}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="px-3 pb-3 pt-0.5 space-y-1.5 bg-muted/20">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-1.5">Top recipients</p>
+                      {topRecs.length > 0 ? topRecs.map(([id, amt]) => (
+                        <div key={id} className="flex items-center justify-between gap-2 text-[12px]">
+                          <span className="truncate text-foreground/90">{nameOf(id)}</span>
+                          <span className="font-mono font-medium shrink-0">{formatUGX(amt)}</span>
+                        </div>
+                      )) : (
+                        <p className="text-[12px] text-muted-foreground italic">No identified recipients for this category.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // Movement Timeline (strict CFO category order)
 // A single, scan-able ledger of every cash movement in the period,
 // grouped by category in the exact CFO sequence (LOCKED_CATEGORIES).
@@ -2851,6 +3113,7 @@ export function ComprehensiveCashMovement() {
             </span>
             {([
               { id: 'cm-treasury',     label: 'Treasury ⇄ Wallets', emoji: '🔁' },
+              { id: 'cm-company-wallet-chart', label: 'Company → Wallets', emoji: '🏦' },
               { id: 'cm-allocation-chart', label: 'Allocation chart', emoji: '📊' },
               { id: 'cm-timeline',     label: 'Movement timeline', emoji: '🕒' },
               simpleMode ? { id: 'cm-glance',       label: 'Glance',       emoji: '👀' } : null,
@@ -2902,6 +3165,14 @@ export function ComprehensiveCashMovement() {
         {/* ─── Agent allocation breakdown chart ────────────────────
             Per-agent view of the Wallets → Company flow, split by
             category and amount as a horizontal stacked bar chart. */}
+        {/* ─── Company → Wallets breakdown chart ───────────────────
+            Per-category view of the Company → Wallets flow: how each
+            category moved company money into user & agent wallets. */}
+        <CompanyToWalletBreakdownChart
+          rows={rows}
+          includeAdjustments={includeAdjustments}
+        />
+
         <AgentAllocationBreakdownChart
           rows={rows}
           includeAdjustments={includeAdjustments}
