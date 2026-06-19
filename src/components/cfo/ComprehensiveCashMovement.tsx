@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Info, Users, ArrowLeftRight, Check, AlertTriangle, TrendingUp, MinusCircle, Share2, Image as ImageIcon, Download } from 'lucide-react';
+import { Landmark, Wallet as WalletIcon, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -285,6 +286,236 @@ function Highlight({ text, query }: { text: string | null | undefined; query: st
 // ─────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// Treasury ⇄ Wallets — the headline movement report.
+// Two flows the CFO cares about most, derived purely from the
+// double-entry ledger (no extra DB reads beyond name resolution):
+//   1. Company → Wallets : the CFO funding wallets out of "money we
+//      have" (a wallet cash_in leg paired with a platform cash_out leg
+//      in the same transaction group).
+//   2. Wallets → Company : agents allocating money out of their wallets
+//      back into "money we have" (a wallet cash_out leg paired with a
+//      platform cash_in leg).
+// Pure deposits / withdrawals (where both legs move the same direction)
+// are intentionally excluded — they are not internal treasury transfers.
+// ─────────────────────────────────────────────────────────────
+type TreasuryFlowItem = { amount: number; category: string; party: string | null; date: string };
+function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
+  const total = items.reduce((s, i) => s + i.amount, 0);
+  const byCat = new Map<string, { amount: number; count: number }>();
+  const byParty = new Map<string, { amount: number; count: number }>();
+  for (const i of items) {
+    const c = byCat.get(i.category) || { amount: 0, count: 0 };
+    c.amount += i.amount; c.count += 1; byCat.set(i.category, c);
+    if (i.party) {
+      const p = byParty.get(i.party) || { amount: 0, count: 0 };
+      p.amount += i.amount; p.count += 1; byParty.set(i.party, p);
+    }
+  }
+  return {
+    total,
+    count: items.length,
+    cats: [...byCat.entries()].sort((a, b) => b[1].amount - a[1].amount),
+    parties: [...byParty.entries()].sort((a, b) => b[1].amount - a[1].amount),
+  };
+}
+
+function TreasuryWalletFlowSummary({
+  rows,
+  includeAdjustments,
+  onDrill,
+}: {
+  rows: LedgerRow[];
+  includeAdjustments: boolean;
+  onDrill?: (direction: 'cash_in' | 'cash_out', scope: 'wallet') => void;
+}) {
+  const [names, setNames] = useState<Record<string, string>>({});
+
+  const { toWallets, toCompany } = useMemo(() => {
+    const groups = new Map<string, LedgerRow[]>();
+    for (const r of rows) {
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const gid = r.transaction_group_id;
+      if (!gid) continue;
+      const arr = groups.get(gid) || [];
+      arr.push(r);
+      groups.set(gid, arr);
+    }
+    const toWallets: TreasuryFlowItem[] = [];
+    const toCompany: TreasuryFlowItem[] = [];
+    for (const legs of groups.values()) {
+      const platformLegs = legs.filter(l => l.ledger_scope === 'platform');
+      const walletLegs = legs.filter(l => l.ledger_scope === 'wallet');
+      if (!platformLegs.length || !walletLegs.length) continue;
+      const hasPlatformOut = platformLegs.some(p => p.direction === 'cash_out');
+      const hasPlatformIn = platformLegs.some(p => p.direction === 'cash_in');
+      for (const w of walletLegs) {
+        const amt = Number(w.amount) || 0;
+        if (!amt) continue;
+        if (w.direction === 'cash_in' && hasPlatformOut) {
+          toWallets.push({ amount: amt, category: w.category, party: w.user_id ?? null, date: w.transaction_date });
+        } else if (w.direction === 'cash_out' && hasPlatformIn) {
+          toCompany.push({ amount: amt, category: w.category, party: w.user_id ?? null, date: w.transaction_date });
+        }
+      }
+    }
+    return { toWallets, toCompany };
+  }, [rows, includeAdjustments]);
+
+  const inSummary = useMemo(() => summarizeTreasuryFlow(toWallets), [toWallets]);
+  const outSummary = useMemo(() => summarizeTreasuryFlow(toCompany), [toCompany]);
+  const net = inSummary.total - outSummary.total;
+
+  // Resolve party names for the top movers shown on each card.
+  useEffect(() => {
+    const ids = Array.from(new Set(
+      [...inSummary.parties.slice(0, 8), ...outSummary.parties.slice(0, 8)]
+        .map(([id]) => id)
+        .filter(id => id && !names[id]),
+    ));
+    if (!ids.length) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as { id: string; full_name: string | null }[]) {
+        if (p.full_name) next[p.id] = p.full_name;
+      }
+      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inSummary.parties, outSummary.parties]);
+
+  const nameOf = (id: string) => names[id] || `${id.slice(0, 8)}…`;
+
+  const Flow = ({
+    tone,
+    icon,
+    title,
+    subtitle,
+    summary,
+    partyHeading,
+    direction,
+  }: {
+    tone: 'in' | 'out';
+    icon: React.ReactNode;
+    title: string;
+    subtitle: string;
+    summary: ReturnType<typeof summarizeTreasuryFlow>;
+    partyHeading: string;
+    direction: 'cash_in' | 'cash_out';
+  }) => (
+    <div
+      className={cn(
+        'rounded-2xl border-2 p-4 space-y-3',
+        tone === 'in'
+          ? 'border-emerald-500/30 bg-emerald-500/[0.06]'
+          : 'border-amber-500/30 bg-amber-500/[0.06]',
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className={cn('p-2 rounded-xl shrink-0', tone === 'in' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/15 text-amber-600')}>
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-semibold leading-tight">{title}</p>
+          <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{subtitle}</p>
+        </div>
+      </div>
+      <div>
+        <p className={cn('text-2xl font-bold font-mono tracking-tight', tone === 'in' ? 'text-emerald-600' : 'text-amber-600')}>
+          {formatUGX(summary.total)}
+        </p>
+        <p className="text-[11px] text-muted-foreground">{summary.count.toLocaleString()} transfer{summary.count === 1 ? '' : 's'}</p>
+      </div>
+
+      {summary.cats.length > 0 && (
+        <div className="space-y-1.5 pt-1 border-t border-border/60">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">By type</p>
+          {summary.cats.slice(0, 5).map(([cat, v]) => (
+            <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
+              <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, direction)}</span>
+              <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {summary.parties.length > 0 && (
+        <div className="space-y-1.5 pt-1 border-t border-border/60">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{partyHeading}</p>
+          {summary.parties.slice(0, 5).map(([id, v]) => (
+            <div key={id} className="flex items-center justify-between gap-2 text-[12px]">
+              <span className="truncate text-foreground/90">{nameOf(id)}</span>
+              <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {summary.count === 0 && (
+        <p className="text-[12px] text-muted-foreground italic pt-1">No transfers in this period.</p>
+      )}
+
+      {onDrill && summary.count > 0 && (
+        <button
+          type="button"
+          onClick={() => onDrill(direction, 'wallet')}
+          className="text-[11px] font-medium text-primary inline-flex items-center gap-1 hover:underline"
+        >
+          See all transactions <ArrowRight className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <section id="cm-treasury" className="space-y-3">
+      <div className="flex items-center gap-2">
+        <ArrowLeftRight className="h-4 w-4 text-primary" />
+        <h4 className="text-sm font-semibold">Treasury ⇄ Wallets</h4>
+      </div>
+      <p className="text-[11px] text-muted-foreground -mt-1">
+        The two movements that matter most: the CFO funding wallets out of company money, and agents
+        allocating money out of their wallets back to the company.
+      </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <Flow
+          tone="in"
+          icon={<WalletIcon className="h-5 w-5" />}
+          title="Company → Wallets"
+          subtitle="Money the CFO moved from what we have into user & agent wallets"
+          summary={inSummary}
+          partyHeading="Top recipients"
+          direction="cash_in"
+        />
+        <Flow
+          tone="out"
+          icon={<Landmark className="h-5 w-5" />}
+          title="Wallets → Company"
+          subtitle="Money agents allocated out of their wallets back to what we have"
+          summary={outSummary}
+          partyHeading="Top allocators"
+          direction="cash_out"
+        />
+      </div>
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2">
+        <span className="text-[11px] font-medium text-muted-foreground inline-flex items-center gap-1.5">
+          <span className="font-mono">Company → Wallets</span>
+          <ArrowRight className="h-3 w-3" />
+          <span className="font-mono">Wallets → Company</span>
+          = Net to wallets
+        </span>
+        <span className={cn('text-sm font-bold font-mono', net >= 0 ? 'text-emerald-600' : 'text-amber-600')}>
+          {net >= 0 ? '+' : '−'}{formatUGX(Math.abs(net))}
+        </span>
+      </div>
+    </section>
+  );
+}
 
 export function ComprehensiveCashMovement() {
   const { role, roles } = useAuth();
@@ -1451,6 +1682,7 @@ export function ComprehensiveCashMovement() {
               Jump to:
             </span>
             {([
+              { id: 'cm-treasury',     label: 'Treasury ⇄ Wallets', emoji: '🔁' },
               simpleMode ? { id: 'cm-glance',       label: 'Glance',       emoji: '👀' } : null,
               { id: 'cm-totals',       label: 'Money In / Out', emoji: '⇅' },
               !simpleMode ? { id: 'cm-inflows',    label: 'New money',     emoji: '⬆️' } : null,
@@ -1478,6 +1710,24 @@ export function ComprehensiveCashMovement() {
             ))}
           </div>
         </nav>
+
+        {/* ─── Treasury ⇄ Wallets headline report ──────────────────
+            The primary view the CFO asked for: how the CFO moves money
+            from company funds into wallets, and how agents allocate money
+            out of their wallets back to the company. Shown first, above
+            every other breakdown. */}
+        <TreasuryWalletFlowSummary
+          rows={rows}
+          includeAdjustments={includeAdjustments}
+          onDrill={(direction) => {
+            setScopeFilter('wallet');
+            setDirectionQuickFilter(direction);
+            setPageDrillOpen(true);
+            setTimeout(() => {
+              document.getElementById('cm-transactions')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+          }}
+        />
 
         {/* ─── Thumb-friendly filter bar ──────────────────────────
             Three large tap targets (≥56px tall) for the filters non-tech
