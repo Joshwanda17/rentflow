@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildPartnershipAgreementRequest, dispatchTransactionalEmail, resolveManagedProxy } from "../_shared/partnership-emails.ts";
+import { buildPartnershipAgreementRequest, buildPartnerCompoundCreationRequest, dispatchTransactionalEmail, resolveManagedProxy } from "../_shared/partnership-emails.ts";
 import { withRetry } from "../_shared/rpcRetry.ts";
 import { isValidInvestmentAmount, MIN_INVESTMENT_ERROR } from "../_shared/investmentAmount.ts";
 
@@ -355,18 +355,28 @@ Deno.serve(async (req) => {
         dispatchTransactionalEmail(
           supabaseUrl,
           supabaseServiceKey,
-          buildPartnershipAgreementRequest({
-            recipientEmail: partnerProfile.email,
-            partnerName: partnerProfile.full_name || partnerName,
-            partnerId: body.partner_id,
-            portfolioId: portfolio.id,
-            amount: body.amount,
-            monthlyReward,
-            contributionDateIso: contributionDate.toISOString(),
-            firstPayoutDateIso: fmt(nextRoiDate),
-            payoutDay,
-            roiPercentage: body.roi_percentage,
-          }),
+          body.roi_mode === "monthly_compounding"
+            ? buildPartnerCompoundCreationRequest({
+                recipientEmail: partnerProfile.email,
+                partnerName: partnerProfile.full_name || partnerName,
+                partnerId: body.partner_id,
+                portfolioId: portfolio.id,
+                initialAmount: body.amount,
+                roiPercentage: body.roi_percentage,
+                contributionDateIso: contributionDate.toISOString(),
+              })
+            : buildPartnershipAgreementRequest({
+                recipientEmail: partnerProfile.email,
+                partnerName: partnerProfile.full_name || partnerName,
+                partnerId: body.partner_id,
+                portfolioId: portfolio.id,
+                amount: body.amount,
+                monthlyReward,
+                contributionDateIso: contributionDate.toISOString(),
+                firstPayoutDateIso: fmt(nextRoiDate),
+                payoutDay,
+                roiPercentage: body.roi_percentage,
+              }),
           "coo-create-portfolio",
         );
       }

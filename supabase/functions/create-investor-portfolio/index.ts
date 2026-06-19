@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isValidInvestmentAmount, MIN_INVESTMENT_ERROR_PORTFOLIO } from "../_shared/investmentAmount.ts";
+import {
+  buildPartnershipAgreementRequest,
+  buildPartnerCompoundCreationRequest,
+  dispatchTransactionalEmail,
+} from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -393,6 +398,52 @@ Deno.serve(async (req) => {
       }
 
       console.log(`Portfolio ${codeData} created (pending_approval): ${investmentAmount} UGX, ${durationMonths}mo, ${roiMode}. Queued for manager approval.`);
+    }
+
+    // ── Partner email — fire-and-forget, target = the partner (investorId) ──
+    // When the partner chose the COMPOUNDING ROI mode we send the rich compound
+    // breakdown email (same flow as the compound email template). Monthly-payout
+    // partners get the standard partnership-agreement email.
+    if (investorId) {
+      try {
+        const { data: partnerProfile } = await adminClient
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", investorId)
+          .maybeSingle();
+        if (partnerProfile?.email) {
+          const emailRequest = roiMode === "monthly_compounding"
+            ? buildPartnerCompoundCreationRequest({
+                recipientEmail: partnerProfile.email,
+                partnerName: partnerProfile.full_name,
+                partnerId: investorId,
+                portfolioId: portfolio.id,
+                initialAmount: investmentAmount,
+                roiPercentage,
+                contributionDateIso: now.toISOString(),
+              })
+            : buildPartnershipAgreementRequest({
+                recipientEmail: partnerProfile.email,
+                partnerName: partnerProfile.full_name,
+                partnerId: investorId,
+                portfolioId: portfolio.id,
+                amount: investmentAmount,
+                monthlyReward: Math.round(investmentAmount * (roiPercentage / 100)),
+                contributionDateIso: now.toISOString(),
+                firstPayoutDateIso: nextRoiDate.toISOString(),
+                payoutDay,
+                roiPercentage,
+              });
+          dispatchTransactionalEmail(
+            supabaseUrl,
+            supabaseServiceKey,
+            emailRequest,
+            "create-investor-portfolio",
+          );
+        }
+      } catch (emailErr) {
+        console.warn("[create-investor-portfolio] Partner email lookup failed (non-blocking):", emailErr);
+      }
     }
 
     return new Response(JSON.stringify({
