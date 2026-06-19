@@ -1055,11 +1055,40 @@ function CompanyToWalletBreakdownChart({
   // Rows powering the active drill-down (one recipient, or the whole category).
   const rawDrillRows = useMemo(() => {
     if (!drill) return [] as LedgerRow[];
-    const list = drill.userId === 'ALL'
+    const baseList = drill.userId === 'ALL'
       ? (byCatRows.get(drill.category) || [])
       : (byCatRecipientRows.get(drill.category)?.get(drill.userId) || []);
-    return [...list].sort((a, b) => (a.transaction_date < b.transaction_date ? 1 : -1));
-  }, [drill, byCatRows, byCatRecipientRows]);
+
+    if (drillDirection === 'cash_in') {
+      return [...baseList].sort((a, b) => (a.transaction_date < b.transaction_date ? 1 : -1));
+    }
+
+    // For cash_out or both, pull every leg that shares a transaction_group_id.
+    const groupIds = new Set<string>(baseList.map(r => r.transaction_group_id).filter(Boolean) as string[]);
+    const allLegs = rows.filter(r => {
+      if (!r.transaction_group_id || !groupIds.has(r.transaction_group_id)) return false;
+      // Respect date filters so drill-down matches the chart view
+      const d = r.transaction_date.slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    });
+
+    if (drillDirection === 'cash_out') {
+      return allLegs
+        .filter(r => r.direction === 'cash_out')
+        .sort((a, b) => (a.transaction_date < b.transaction_date ? 1 : -1));
+    }
+
+    // both: deduplicate
+    const seen = new Set<string>();
+    const deduped: LedgerRow[] = [];
+    for (const r of allLegs) {
+      const key = r.id || `${r.transaction_group_id}-${r.ledger_scope}-${r.direction}-${r.user_id || 'none'}`;
+      if (!seen.has(key)) { seen.add(key); deduped.push(r); }
+    }
+    return deduped.sort((a, b) => (a.transaction_date < b.transaction_date ? 1 : -1));
+  }, [drill, byCatRows, byCatRecipientRows, rows, drillDirection, dateFrom, dateTo]);
 
   // Search-filtered drill rows (recipient, reference, description, timestamp).
   const drillRows = useMemo(() => {
@@ -1074,7 +1103,13 @@ function CompanyToWalletBreakdownChart({
     });
   }, [rawDrillRows, drillSearch, names]);
 
-  const drillTotal = useMemo(() => drillRows.reduce((s, r) => s + (Number(r.amount) || 0), 0), [drillRows]);
+  const drillTotal = useMemo(() => {
+    if (drillDirection === 'both') {
+      // Avoid double-counting double-entry legs; show the economic amount (cash_in).
+      return drillRows.filter(r => r.direction === 'cash_in').reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    }
+    return drillRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  }, [drillRows, drillDirection]);
 
   // Resolve any recipient names referenced by the open whole-category drill.
   useEffect(() => {
