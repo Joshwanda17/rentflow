@@ -3795,7 +3795,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Button 
                       type="button" 
                       variant="outline" 
-                      onClick={() => { setStep('type'); setValidationErrors([]); }}
+                      onClick={() => { setStep('type'); setValidationErrors([]); setFieldErrors({}); }}
                       className="flex-1"
                     >
                       Back
