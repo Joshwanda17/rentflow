@@ -1289,14 +1289,23 @@ function MovementTimeline({
               onOpenChange={(o) => setOpenCats(prev => ({ ...prev, [g.category]: o }))}
               className="rounded-lg border border-border bg-background overflow-hidden"
             >
-              <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors text-left">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors">
+                <CollapsibleTrigger className="flex items-center gap-2 min-w-0 flex-1 text-left">
                   <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
                   <span className="text-[13px] font-medium truncate">{prettifyCategory(g.category)}</span>
                   <Badge variant="outline" className="text-[10px] shrink-0">{g.count}</Badge>
+                </CollapsibleTrigger>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono text-[12px] font-semibold">{formatUGX(g.total)}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setDetailCat(g.category); setDetailSearch(''); setDetailPage(0); setExpandedRow(null); }}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-medium text-primary hover:bg-muted transition-colors"
+                  >
+                    Details <ArrowRight className="h-3 w-3" />
+                  </button>
                 </div>
-                <span className="font-mono text-[12px] font-semibold shrink-0">{formatUGX(g.total)}</span>
-              </CollapsibleTrigger>
+              </div>
               <CollapsibleContent>
                 <div className="border-t border-border divide-y divide-border/40">
                   {shown.map((m) => (
