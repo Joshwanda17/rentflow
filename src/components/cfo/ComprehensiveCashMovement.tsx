@@ -733,16 +733,36 @@ function TreasuryWalletFlowSummary({
         <div className="space-y-1.5 pt-1 border-t border-border/60">
           {direction === 'cash_out' && summary.groups.length > 0 ? (
             <>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                By category group
-              </p>
-              <div className="space-y-1.5">
-                {summary.groups.map(([label, v]) => (
-                  <div key={label} className="flex items-center justify-between gap-2 text-[12px]">
-                    <span className="truncate text-foreground/90 font-medium">{label}</span>
-                    <span className="font-mono font-semibold shrink-0">{formatUGX(v.amount)}</span>
-                  </div>
-                ))}
+              <div className="rounded-xl border border-border bg-card p-3 space-y-2.5">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+                  Money coming from wallets into company
+                </p>
+                <div className="space-y-2">
+                  {summary.groups.map(([label, v], idx) => {
+                    const groupMeta = WALLET_TO_COMPANY_GROUPS.find(g => g.label === label);
+                    const pct = summary.total > 0 ? Math.round((v.amount / summary.total) * 100) : 0;
+                    return (
+                      <div
+                        key={label}
+                        className={cn(
+                          'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                          groupMeta?.color || 'bg-muted/50 border-border'
+                        )}
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background font-bold text-sm shadow-sm">
+                          {idx + 1}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-semibold leading-snug">{label}</p>
+                          <p className="text-[10px] opacity-80">{v.count.toLocaleString()} transaction{v.count === 1 ? '' : 's'} · {pct}% of total</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-[15px] font-bold font-mono leading-tight">{formatUGX(v.amount)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 {/* Expandable drilldown for uncategorized items */}
                 {(() => {
                   const groupedTotal = summary.groups.reduce((s, [, v]) => s + v.amount, 0);
