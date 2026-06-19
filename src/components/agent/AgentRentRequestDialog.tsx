@@ -5047,10 +5047,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Name}
                       onChange={(e) => setLc1Name(formatNameInput(e.target.value))}
                       placeholder="LC1 name"
-                     
+                      className={`${hasFieldError('lc1Name') ? 'border-destructive border-2' : ''}`}
                       required
                     />
-                    <FieldError message={vName(lc1Name)} />
+                    <FieldError message={vName(lc1Name) || getFieldError('lc1Name')} />
                   </div>
                   <div className="space-y-1">
                     <Label >Phone *</Label>
