@@ -30,6 +30,7 @@ import { CreditDrawApprovalQueue } from './CreditDrawApprovalQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
 import { PayoutAutomationToggle } from './PayoutAutomationToggle';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
+import { CFO_PAYOUT_LABELS, CFO_PAYOUT_VERB, CFO_PAYOUT_TOAST } from '@/lib/cfoPayoutLabels';
 
 type Operation = 'credit' | 'debit' | 'withdraw';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
@@ -585,9 +586,9 @@ export function DirectCreditTool() {
       toast({
         title:
           operation === 'credit'
-            ? '✅ Money sent to user\'s wallet'
+            ? CFO_PAYOUT_TOAST.credit
             : operation === 'debit'
-              ? '✅ Money taken from user\'s wallet'
+              ? CFO_PAYOUT_TOAST.debit
               : '✅ Expense withdrawal recorded',
         description: data?.message,
       });
@@ -637,7 +638,7 @@ export function DirectCreditTool() {
             onClick={() => handleOperationChange('credit')}
           >
             <ArrowUpRight className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>Send money to users wallet</span>
+            <span>{CFO_PAYOUT_LABELS.credit}</span>
           </Button>
           <Button
             type="button"
@@ -646,7 +647,7 @@ export function DirectCreditTool() {
             onClick={() => handleOperationChange('debit')}
           >
             <ArrowDownLeft className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>Money from users wallets</span>
+            <span>{CFO_PAYOUT_LABELS.debit}</span>
           </Button>
           <Button
             type="button"
@@ -1121,7 +1122,7 @@ export function DirectCreditTool() {
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               {operation === 'withdraw'
                 ? `Withdraw UGX ${amt.toLocaleString()} → ${selectedUser?.full_name || '...'}`
-                : `${isCredit ? 'Send money to' : 'Take money from'} ${selectedUser?.full_name || '...'}'s wallet · UGX ${amt.toLocaleString()}`}
+                : `${isCredit ? CFO_PAYOUT_VERB.credit : CFO_PAYOUT_VERB.debit} ${selectedUser?.full_name || '...'}'s wallet · UGX ${amt.toLocaleString()}`}
             </Button>
 
             <AlertDialog open={floatConfirmOpen} onOpenChange={setFloatConfirmOpen}>
