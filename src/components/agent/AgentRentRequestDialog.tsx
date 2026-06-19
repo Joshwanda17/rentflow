@@ -905,6 +905,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [autofillingTenant, setAutofillingTenant] = useState(false);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   // Ref to the "things still needed" banner so we can scroll the agent
@@ -1626,6 +1627,165 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     return errors;
   };
 
+  /**
+   * Parallel to getStepErrors — returns a Record that maps field identifiers
+   * to their specific error messages so the UI can highlight individual fields.
+   */
+  const getStepFieldErrors = (idx: number): Record<string, string> => {
+    const map: Record<string, string> = {};
+    const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+    const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+    const cleanNationalId = tenantNationalId.trim().toUpperCase();
+    if (idx === 0) {
+      if (!amount) map['rentAmount'] = 'Type the rent amount';
+      else if (amount < 50000) map['rentAmount'] = 'Rent amount must be at least UGX 50,000';
+    } else if (idx === 1) {
+      if (!tenantName.trim()) map['tenantName'] = "Type the tenant's full name";
+      if (!tenantPhone.trim()) map['tenantPhone'] = "Type the tenant's phone number";
+      else if (!isValidUgPhone(cleanTenantPhone)) map['tenantPhone'] = 'Tenant phone looks wrong — use a number like 0783 123 456';
+      if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+        map['tenantNationalId'] = "Enter the tenant's National ID (the long number/letters on their ID card)";
+      }
+      if (!preferredLanguage) map['preferredLanguage'] = 'Choose the language the tenant speaks';
+    } else if (idx === 2) {
+      if (!houseCategory) map['houseCategory'] = 'Choose the house type';
+      const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
+      if (!landlordRegistered) {
+        map['landlord'] = 'Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.';
+      } else if (landlordCheck === 'missing') {
+        map['landlord'] = 'Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.';
+      } else if (landlordCheck === 'unverified') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.';
+      } else if (landlordCheck === 'checking') {
+        map['landlord'] = 'Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.';
+      } else if (landlordCheck !== 'registered') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.';
+      }
+      if (selectedHouse && !listingHasRealPhoto(selectedHouse)) {
+        map['housePhotos'] = "This landlord's house has no photos — pick a house that shows photos before posting the rent request";
+      }
+      if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
+      const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+      if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
+      if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+    } else if (idx === 3) {
+      if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
+      if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
+      else if (!isValidUgPhone(cleanLc1Phone)) map['lc1Phone'] = 'LC1 phone looks wrong — use a valid Ugandan number';
+      if (!lc1Village.trim()) map['lc1Village'] = 'Type the LC1 village';
+      if (!propertyCity.trim()) map['propertyCity'] = 'Type the town / city';
+      const tOk = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
+      const lOk = !!cleanLandlordPhone && isValidUgPhone(cleanLandlordPhone);
+      const cOk = !!cleanLc1Phone && isValidUgPhone(cleanLc1Phone);
+      if (tOk && lOk && cleanTenantPhone === cleanLandlordPhone) map['tenantPhone'] = 'Tenant and Landlord phones must be different numbers';
+      if (tOk && cOk && cleanTenantPhone === cleanLc1Phone) map['tenantPhone'] = 'Tenant and LC1 phones must be different numbers';
+      if (lOk && cOk && cleanLandlordPhone === cleanLc1Phone) map['landlordPhone'] = 'Landlord and LC1 phones must be different numbers';
+    } else if (idx === 4) {
+      if (!guarantorConsent) map['guarantorConsent'] = 'Tick the box to accept guarantor responsibility';
+    }
+    return map;
+  };
+
+  /**
+   * Full-form field error map for final submit (non-outstanding flow).
+   */
+  const collectFieldErrors = (isOutstanding: boolean): Record<string, string> => {
+    const map: Record<string, string> = {};
+    const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+    const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+
+    if (!tenantName.trim()) map['tenantName'] = "Type the tenant's full name";
+    if (!tenantPhone.trim()) map['tenantPhone'] = "Type the tenant's phone number";
+    else if (!isValidUgPhone(cleanTenantPhone)) map['tenantPhone'] = 'Tenant phone looks wrong — use a number like 0783 123 456';
+
+    const cleanNationalId = tenantNationalId.trim().toUpperCase();
+    if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+      map['tenantNationalId'] = "Enter the tenant's National ID (the long number/letters on their ID card)";
+    }
+
+    if (!preferredLanguage) map['preferredLanguage'] = 'Choose the language the tenant speaks';
+
+    if (isOutstanding) {
+      if (!amount) map['outstandingRentAmount'] = 'Type the rent amount';
+      else if (amount < 50000) map['outstandingRentAmount'] = 'Rent amount must be at least UGX 50,000';
+      if (!outstandingBalance.trim()) map['outstandingBalance'] = 'Type the outstanding balance';
+      else if (parseInt(outstandingBalance) <= 0) map['outstandingBalance'] = 'Outstanding balance must be above 0';
+      if (!outstandingDaysRemaining.trim()) map['outstandingDaysRemaining'] = 'Type the days remaining';
+      else if (parseInt(outstandingDaysRemaining) <= 0) map['outstandingDaysRemaining'] = 'Days remaining must be above 0';
+      if (!outstandingHouseCategory) map['outstandingHouseCategory'] = 'Choose the house type';
+      const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
+      if (!landlordRegistered) {
+        map['landlord'] = 'Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.';
+      } else if (landlordCheck === 'missing') {
+        map['landlord'] = 'Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.';
+      } else if (landlordCheck === 'unverified') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.';
+      } else if (landlordCheck === 'checking') {
+        map['landlord'] = 'Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.';
+      } else if (landlordCheck !== 'registered') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.';
+      }
+      if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
+      if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
+      if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
+      else {
+        if (!isValidUgPhone(cleanLc1Phone)) map['lc1Phone'] = 'LC1 phone looks wrong — use a valid Ugandan number';
+      }
+      if (!lc1Village.trim()) map['lc1Village'] = 'Type the LC1 village';
+      if (!propertyCity.trim()) map['propertyCity'] = 'Type the town / city';
+    } else {
+      if (!amount) map['rentAmount'] = 'Type the rent amount';
+      else if (amount < 50000) map['rentAmount'] = 'Rent amount must be at least UGX 50,000';
+      if (!houseCategory) map['houseCategory'] = 'Choose the house type';
+      const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
+      if (!landlordRegistered) {
+        map['landlord'] = 'Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.';
+      } else if (landlordCheck === 'missing') {
+        map['landlord'] = 'Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.';
+      } else if (landlordCheck === 'unverified') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.';
+      } else if (landlordCheck === 'checking') {
+        map['landlord'] = 'Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.';
+      } else if (landlordCheck !== 'registered') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.';
+      }
+      if (selectedHouse && !listingHasRealPhoto(selectedHouse)) {
+        map['housePhotos'] = "This landlord's house has no photos — pick a house that shows photos before posting the rent request";
+      }
+      if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
+      const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+      if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
+      if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+      if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
+      if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
+      else if (!isValidUgPhone(cleanLc1Phone)) map['lc1Phone'] = 'LC1 phone looks wrong — use a valid Ugandan number';
+      if (!lc1Village.trim()) map['lc1Village'] = 'Type the LC1 village';
+    if (!propertyCity.trim()) map['propertyCity'] = 'Type the town / city';
+    }
+
+    const tenantPhoneValid = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
+    const landlordPhoneValid = !!cleanLandlordPhone && isValidUgPhone(cleanLandlordPhone);
+    const lc1PhoneValid = !!cleanLc1Phone && isValidUgPhone(cleanLc1Phone);
+
+    if (tenantPhoneValid && landlordPhoneValid && cleanTenantPhone === cleanLandlordPhone) {
+      map['tenantPhone'] = 'Tenant and Landlord phones must be different numbers';
+    }
+    if (tenantPhoneValid && lc1PhoneValid && cleanTenantPhone === cleanLc1Phone) {
+      map['tenantPhone'] = 'Tenant and LC1 phones must be different numbers';
+    }
+    if (landlordPhoneValid && lc1PhoneValid && cleanLandlordPhone === cleanLc1Phone) {
+      map['landlordPhone'] = 'Landlord and LC1 phones must be different numbers';
+    }
+
+    const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+    if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
+    if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+
+    return map;
+  };
+
   const scrollDialogTop = () => {
     requestAnimationFrame(() => {
       const dialog = document.querySelector('[role="dialog"]');
@@ -1635,8 +1795,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const goNextStep = () => {
     const errs = getStepErrors(detailStep);
+    const fieldMap = getStepFieldErrors(detailStep);
     if (errs.length > 0) {
       setValidationErrors(errs);
+      setFieldErrors(fieldMap);
       setSubmissionError(null);
       setErrorDetails(null);
       toast.error(errs.length === 1 ? errs[0] : `${errs.length} things still needed`);
@@ -1646,12 +1808,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       return;
     }
     setValidationErrors([]);
+    setFieldErrors({});
     setDetailStep((s) => Math.min(s + 1, DETAIL_STEPS.length - 1));
     scrollDialogTop();
   };
 
   const goBackStep = () => {
     setValidationErrors([]);
+    setFieldErrors({});
     setSubmissionError(null);
     setErrorDetails(null);
     if (detailStep === 0) { setStep('type'); return; }
@@ -1890,6 +2054,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setTenantPhoto(null);
     setGuarantorConsent(false);
     setValidationErrors([]);
+    setFieldErrors({});
     setSubmissionError(null);
     setErrorDetails(null);
     setSuccess(false);
@@ -2116,7 +2281,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   // Helper to check if a specific field has an error
   const hasFieldError = (fieldName: string): boolean => {
-    return validationErrors.some(e => e.toLowerCase().includes(fieldName.toLowerCase()));
+    return !!fieldErrors[fieldName];
+  };
+  const getFieldError = (fieldName: string): string | null => {
+    return fieldErrors[fieldName] || null;
   };
 
   const handleSubmit = async () => {
@@ -2157,9 +2325,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     const isOutstanding = incomeType === 'outstanding';
     const errors = collectValidationErrors(isOutstanding);
+    const fieldMap = collectFieldErrors(isOutstanding);
 
     if (errors.length > 0) {
       setValidationErrors(errors);
+      setFieldErrors(fieldMap);
       setSubmissionError(errors[0]);
       toast.error(
         errors.length === 1
@@ -2180,6 +2350,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
 
     setValidationErrors([]);
+    setFieldErrors({});
 
     // Synchronous duplicate-tap guard — refs update instantly, unlike React state.
     if (submitLockRef.current) return;
@@ -3027,6 +3198,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     setIncomeType('daily');
                     setDetailStep(0);
                     setValidationErrors([]);
+                    setFieldErrors({});
                     setStep('details');
                   }}
                   className="p-4 rounded-xl border-2 border-muted hover:border-primary hover:bg-primary/5 transition-all text-left group active:scale-[0.98]"
@@ -3047,6 +3219,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     setIncomeType('weekly-monthly');
                     setDetailStep(0);
                     setValidationErrors([]);
+                    setFieldErrors({});
                     setStep('details');
                   }}
                   className="p-4 rounded-xl border-2 border-muted hover:border-success hover:bg-success/5 transition-all text-left group active:scale-[0.98]"
@@ -3399,10 +3572,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           value={tenantName}
                           onChange={(e) => setTenantName(formatNameInput(e.target.value))}
                           placeholder="Full name"
-                         
+                          className={`${hasFieldError('tenantName') ? 'border-destructive border-2' : ''}`}
                           required
                         />
-                        <FieldError message={vName(tenantName)} />
+                        <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
                       </div>
                       <div className="space-y-1">
                         <Label >Tenant Phone *</Label>
@@ -3412,11 +3585,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           value={tenantPhone}
                           onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
                           placeholder="0783 123 456"
-                         
+                          className={`h-10 ${hasFieldError('tenantPhone') ? 'border-destructive border-2' : ''}`}
                           maxLength={12}
                           required
                         />
-                        <FieldError message={vPhone(tenantPhone)} />
+                        <FieldError message={vPhone(tenantPhone) || getFieldError('tenantPhone')} />
                         <ExistingTenantPhoneNotice
                           match={existingTenantByPhone}
                           checking={checkingTenantPhone}
@@ -3430,7 +3603,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
                       <p className="text-[11px] text-muted-foreground">e.g. Luganda</p>
                       <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
-                        <SelectTrigger>
+                        <SelectTrigger className={`${hasFieldError('preferredLanguage') ? 'border-destructive border-2' : ''}`}>
                           <SelectValue placeholder="Select tenant language" />
                         </SelectTrigger>
                         <SelectContent>
@@ -3439,6 +3612,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           ))}
                         </SelectContent>
                       </Select>
+                      <FieldError message={getFieldError('preferredLanguage')} />
                     </div>
                   </div>
 
@@ -3458,10 +3632,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           value={formatCurrencyInput(outstandingRentAmount)}
                           onChange={(e) => setOutstandingRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="e.g. 300,000"
-                         
+                          className={`${hasFieldError('outstandingRentAmount') ? 'border-destructive border-2' : ''}`}
                           required
                         />
-                        <FieldError message={vAmount(outstandingRentAmount)} />
+                        <FieldError message={vAmount(outstandingRentAmount) || getFieldError('outstandingRentAmount')} />
                       </div>
                       <div className="space-y-1">
                         <Label className="font-semibold">Repayment Duration *</Label>
@@ -3488,10 +3662,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         value={formatCurrencyInput(outstandingBalance)}
                         onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="Enter amount"
-                        className="h-12 text-lg font-bold rounded-xl border-input focus-visible:border-primary"
+                        className={`h-12 text-lg font-bold rounded-xl border-input focus-visible:border-primary ${hasFieldError('outstandingBalance') ? 'border-destructive border-2' : ''}`}
                         required
                       />
-                      <FieldError message={vAmount(outstandingBalance)} />
+                      <FieldError message={vAmount(outstandingBalance) || getFieldError('outstandingBalance')} />
                       {amount > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Daily repayment: <span className="font-semibold">{formatUGX(Math.ceil(amount / parseInt(duration)))}/day</span> for {duration} days
@@ -3508,16 +3682,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         value={outstandingDaysRemaining}
                         onChange={(e) => setOutstandingDaysRemaining(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="Days left on current rent period"
-                       
+                        className={`${hasFieldError('outstandingDaysRemaining') ? 'border-destructive border-2' : ''}`}
                         required
                       />
-                      <FieldError message={vDays(outstandingDaysRemaining)} />
+                      <FieldError message={vDays(outstandingDaysRemaining) || getFieldError('outstandingDaysRemaining')} />
                     </div>
 
                     <div className="space-y-1">
                       <Label className="font-semibold">House Type *</Label>
                       <Select value={outstandingHouseCategory} onValueChange={setOutstandingHouseCategory}>
-                        <SelectTrigger>
+                        <SelectTrigger className={`${hasFieldError('outstandingHouseCategory') ? 'border-destructive border-2' : ''}`}>
                           <SelectValue placeholder="Select house type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -3528,6 +3702,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           ))}
                         </SelectContent>
                       </Select>
+                      <FieldError message={getFieldError('outstandingHouseCategory')} />
                     </div>
                   </div>
 
@@ -3625,7 +3800,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Button 
                       type="button" 
                       variant="outline" 
-                      onClick={() => { setStep('type'); setValidationErrors([]); }}
+                      onClick={() => { setStep('type'); setValidationErrors([]); setFieldErrors({}); }}
                       className="flex-1"
                     >
                       Back
@@ -3864,10 +4039,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={formatCurrencyInput(rentAmount)}
                       onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
                       placeholder="500,000"
-                      className="h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl"
+                      className={`h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl ${hasFieldError('rentAmount') ? 'border-destructive' : ''}`}
                       required
                     />
-                    <FieldError message={vAmount(rentAmount)} />
+                    <FieldError message={vAmount(rentAmount) || getFieldError('rentAmount')} />
                     {amount > 0 && (
                       <p className="text-xs font-semibold">
                         {unlimitedPosting ? (
@@ -4022,10 +4197,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={tenantName}
                       onChange={(e) => setTenantName(formatNameInput(e.target.value))}
                       placeholder="Tenant's name"
-                     
+                      className={`${hasFieldError('tenantName') ? 'border-destructive border-2' : ''}`}
                       required
                     />
-                    <FieldError message={vName(tenantName)} />
+                    <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" >Phone *</Label>
@@ -4036,11 +4211,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={tenantPhone}
                       onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
                       placeholder="0783 123 456"
-                      className={`h-10 ${hasFieldError('tenant phone') ? 'border-destructive border-2' : ''}`}
+                      className={`h-10 ${hasFieldError('tenantPhone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
-                    <FieldError message={vPhone(tenantPhone)} />
+                    <FieldError message={vPhone(tenantPhone) || getFieldError('tenantPhone')} />
                     <ExistingTenantPhoneNotice
                       match={existingTenantByPhone}
                       checking={checkingTenantPhone}
@@ -4058,13 +4233,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     value={formatNationalIdDisplay(tenantNationalId)}
                     onChange={(e) => setTenantNationalId(cleanNationalIdInput(e.target.value))}
                     placeholder="e.g. CM12 3456 7890 12"
-                    className="font-mono uppercase tracking-wider"
+                    className={`font-mono uppercase tracking-wider ${hasFieldError('tenantNationalId') ? 'border-destructive border-2' : ''}`}
                     inputMode="text"
                     autoCapitalize="characters"
                     maxLength={17}
                     required
                   />
-                  <FieldError message={vNationalId(tenantNationalId)} />
+                  <FieldError message={vNationalId(tenantNationalId) || getFieldError('tenantNationalId')} />
                 </div>
 
                 <div className="space-y-1">
@@ -4072,7 +4247,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
                       <p className="text-[11px] text-muted-foreground">e.g. Luganda</p>
                   <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
-                    <SelectTrigger>
+                    <SelectTrigger className={`${hasFieldError('preferredLanguage') ? 'border-destructive border-2' : ''}`}>
                       <SelectValue placeholder="Select tenant language" />
                     </SelectTrigger>
                     <SelectContent>
@@ -4081,6 +4256,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       ))}
                     </SelectContent>
                   </Select>
+                  <FieldError message={getFieldError('preferredLanguage')} />
                 </div>
               </div>
               </>
@@ -4097,7 +4273,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <p className="text-xs text-muted-foreground leading-snug">Pick what kind of house this is (single room, two rooms, etc.).</p>
                 <p className="text-[11px] text-muted-foreground">e.g. Single Room</p>
                 <Select value={houseCategory} onValueChange={setHouseCategory}>
-                  <SelectTrigger>
+                  <SelectTrigger className={`${hasFieldError('houseCategory') ? 'border-destructive border-2' : ''}`}>
                     <SelectValue placeholder="Select house type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -4108,6 +4284,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     ))}
                   </SelectContent>
                 </Select>
+                <FieldError message={getFieldError('houseCategory')} />
               </div>
 
               <Separator />
@@ -4607,10 +4784,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     value={propertyAddress}
                     onChange={(e) => setPropertyAddress(e.target.value)}
                     placeholder="Village, road or area"
-                    className="h-12 text-base"
+                    className={`h-12 text-base ${hasFieldError('propertyAddress') ? 'border-destructive border-2' : ''}`}
                     required
                   />
-                  <FieldError message={vPlace(propertyAddress, 'Kira Town, near Total')} />
+                  <FieldError message={vPlace(propertyAddress, 'Kira Town, near Total') || getFieldError('propertyAddress')} />
                 </div>
 
                 {/* GPS Capture */}
@@ -4870,10 +5047,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Name}
                       onChange={(e) => setLc1Name(formatNameInput(e.target.value))}
                       placeholder="LC1 name"
-                     
+                      className={`${hasFieldError('lc1Name') ? 'border-destructive border-2' : ''}`}
                       required
                     />
-                    <FieldError message={vName(lc1Name)} />
+                    <FieldError message={vName(lc1Name) || getFieldError('lc1Name')} />
                   </div>
                   <div className="space-y-1">
                     <Label >Phone *</Label>
@@ -4883,11 +5060,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Phone}
                       onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
                       placeholder="0700 123 456"
-                      className={`h-10 ${hasFieldError('lc1 phone') ? 'border-destructive border-2' : ''}`}
+                      className={`h-10 ${hasFieldError('lc1Phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
-                    <FieldError message={vPhone(lc1Phone)} />
+                    <FieldError message={vPhone(lc1Phone) || getFieldError('lc1Phone')} />
                   </div>
                   <div className="space-y-1">
                     <Label >Village *</Label>
@@ -4897,10 +5074,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Village}
                       onChange={(e) => setLc1Village(formatNameInput(e.target.value))}
                       placeholder="Village"
-                     
+                      className={`${hasFieldError('lc1Village') ? 'border-destructive border-2' : ''}`}
                       required
                     />
-                    <FieldError message={vPlace(lc1Village, 'Kira Zone A')} />
+                    <FieldError message={vPlace(lc1Village, 'Kira Zone A') || getFieldError('lc1Village')} />
                   </div>
                   </div>
                   )}
@@ -4975,10 +5152,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={propertyCity}
                       onChange={(e) => setPropertyCity(formatNameInput(e.target.value))}
                       placeholder="e.g. Entebbe, Kampala, Jinja"
-                      className={`h-10 ${hasFieldError('city') ? 'border-destructive border-2' : ''}`}
+                      className={`h-10 ${hasFieldError('propertyCity') ? 'border-destructive border-2' : ''}`}
                       required
                     />
-                    <FieldError message={vPlace(propertyCity, 'Entebbe')} />
+                    <FieldError message={vPlace(propertyCity, 'Entebbe') || getFieldError('propertyCity')} />
                   </div>
                   <div className="space-y-1">
                     <Label >District</Label>
@@ -4994,9 +5171,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         }
                       }}
                       placeholder="e.g. Wakiso"
-                     
+                      className={`${hasFieldError('propertyDistrict') ? 'border-destructive border-2' : ''}`}
                     />
-                    <FieldError message={vPlace(propertyDistrict, 'Wakiso')} />
+                    <FieldError message={vPlace(propertyDistrict, 'Wakiso') || getFieldError('propertyDistrict')} />
                     {districtWarning(propertyDistrict) && (
                       <p className="text-[10px] text-warning leading-tight">
                         {districtWarning(propertyDistrict)}
