@@ -179,7 +179,7 @@ function MiniHouseCard({ listing, onSelectHouse }: { listing: HouseListing; onSe
         <MiniMapThumb lat={listing.latitude} lng={listing.longitude} title={listing.title} />
 
         {/* WhatsApp Agent */}
-        <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
+        <AgentContactBar phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
       </div>
 
       {/* Fullscreen Lightbox */}
