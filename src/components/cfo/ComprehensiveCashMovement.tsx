@@ -262,15 +262,14 @@ const WALLET_TO_COMPANY_GROUPS: { label: string; categories: Set<string>; color:
 // cash_in leg at all. We must NEVER drop these: every agent rent allocation
 // is company money and belongs on the "From Wallets to Company" card.
 const ALWAYS_WALLET_TO_COMPANY = new Set<string>([
-  // Rent paid for tenants out of agent float / commission (Group 1)
+  // Rent collected for tenants out of agent float (Group 1). Mirror the
+  // Tenant Ops dashboard "collected" definition exactly: only the rent
+  // payment legs — never the float plumbing categories (assignment /
+  // settlement / allocation / commission-used-for-rent).
   'rent_payment_for_tenant',
   'agent_float_used_for_rent',
-  'agent_float_allocation',
-  'agent_commission_used_for_rent',
   'rent_repayment',
   'tenant_repayment',
-  'agent_float_settlement',
-  'agent_float_assignment',
   // Advance auto-recovery pulled straight from agent wallets (Group 3)
   'advance_recovery',
   'agent_repayment',
