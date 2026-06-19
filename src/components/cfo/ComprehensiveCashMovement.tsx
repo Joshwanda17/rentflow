@@ -1134,7 +1134,8 @@ function MovementTimeline({
           <h4 className="text-sm font-semibold">Movement Timeline · CFO order</h4>
         </div>
         <span className="text-[11px] text-muted-foreground font-mono">
-          {movements.length.toLocaleString()} moves · {formatUGX(grandTotal)}
+          {filteredMovements.length.toLocaleString()}
+          {filtersActive && <span className="opacity-70"> / {movements.length.toLocaleString()}</span>} moves · {formatUGX(grandTotal)}
         </span>
       </div>
       <p className="text-[11px] text-muted-foreground -mt-1">
@@ -1142,9 +1143,113 @@ function MovementTimeline({
         the date, amount, and exactly where the money came from and where it went.
       </p>
 
+      {/* ── Filters ───────────────────────────────────────────── */}
+      <div className="rounded-lg border border-border bg-muted/20 p-2.5 space-y-2">
+        {/* Name / wallet search */}
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search wallet or user name, reference, description…"
+            className="h-8 pl-8 text-xs"
+          />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+          {/* Date range */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">From</label>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-8 text-xs" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">To</label>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-8 text-xs" />
+          </div>
+          {/* Source */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Source</label>
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value as EndpointType | 'all')}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              {ENDPOINT_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          {/* Destination */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Destination</label>
+            <select
+              value={destFilter}
+              onChange={(e) => setDestFilter(e.target.value as EndpointType | 'all')}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+            >
+              {ENDPOINT_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          {/* CFO category multi-select */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">CFO category</label>
+            <Popover open={catPopoverOpen} onOpenChange={setCatPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-8 justify-between text-xs font-normal px-2">
+                  <span className="truncate">
+                    {selectedCategories.size === 0 ? 'All categories' : `${selectedCategories.size} selected`}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-0">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                  <span className="text-[11px] font-semibold">Filter by category</span>
+                  {selectedCategories.size > 0 && (
+                    <button type="button" className="text-[10px] text-primary hover:underline"
+                      onClick={() => setSelectedCategories(new Set())}>Clear</button>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto p-1">
+                  {availableCategories.length === 0 && (
+                    <div className="text-[11px] text-muted-foreground italic px-2 py-3 text-center">No categories.</div>
+                  )}
+                  {availableCategories.map(cat => {
+                    const checked = selectedCategories.has(cat);
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setSelectedCategories(prev => {
+                          const next = new Set(prev);
+                          if (next.has(cat)) next.delete(cat); else next.add(cat);
+                          return next;
+                        })}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/60 text-left"
+                      >
+                        <Checkbox checked={checked} className="pointer-events-none" />
+                        <span className="text-[12px] truncate">{prettifyCategory(cat)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+        {filtersActive && (
+          <div className="flex items-center justify-between gap-2 pt-0.5">
+            <span className="text-[10px] text-muted-foreground">
+              Showing {filteredMovements.length.toLocaleString()} of {movements.length.toLocaleString()} movements
+            </span>
+            <button type="button" onClick={clearFilters}
+              className="inline-flex items-center gap-1 text-[11px] text-primary font-medium hover:underline">
+              <X className="h-3 w-3" /> Clear filters
+            </button>
+          </div>
+        )}
+      </div>
+
       {categoryGroups.length === 0 && (
         <div className="text-[12px] text-muted-foreground italic rounded-lg border border-border p-4 text-center">
-          No movements in this period.
+          {filtersActive ? 'No movements match these filters.' : 'No movements in this period.'}
         </div>
       )}
 
