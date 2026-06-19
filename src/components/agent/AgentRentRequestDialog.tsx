@@ -4039,10 +4039,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={formatCurrencyInput(rentAmount)}
                       onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
                       placeholder="500,000"
-                      className="h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl"
+                      className={`h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl ${hasFieldError('rentAmount') ? 'border-destructive' : ''}`}
                       required
                     />
-                    <FieldError message={vAmount(rentAmount)} />
+                    <FieldError message={vAmount(rentAmount) || getFieldError('rentAmount')} />
                     {amount > 0 && (
                       <p className="text-xs font-semibold">
                         {unlimitedPosting ? (
