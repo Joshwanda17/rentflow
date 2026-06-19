@@ -420,6 +420,9 @@ export function LandlordOpsDashboard() {
     localStorage.setItem('landlordOpsHouseFilter', houseStatusFilter);
   }, [houseStatusFilter]);
   const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
+  const [editingRentId, setEditingRentId] = useState<string | null>(null);
+  const [editRentValue, setEditRentValue] = useState<string>('');
+  const [savingRentId, setSavingRentId] = useState<string | null>(null);
   // ─── Verification Queue bulk selection ───
   const [verifySelectedIds, setVerifySelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<null | 'hide' | 'unhide' | 'verify' | 'reject'>(null);
