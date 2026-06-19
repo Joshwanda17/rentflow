@@ -1523,13 +1523,19 @@ function CompanyToWalletBreakdownChart({
                 <ul className="divide-y divide-border/60">
                   {drillRows.map((r, i) => {
                     const ts = format(new Date(r.transaction_date), 'd MMM yyyy, HH:mm');
+                    const isCashIn = r.direction === 'cash_in';
                     return (
                       <li key={r.id || i} className="px-4 py-2.5 space-y-1">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-[12px] font-medium text-foreground">
                             <Highlight text={ts} query={drillSearch} />
                           </span>
-                          <span className="text-[13px] font-mono font-semibold text-emerald-600 shrink-0">{formatUGX(Number(r.amount) || 0)}</span>
+                          <span className={cn(
+                            'text-[13px] font-mono font-semibold shrink-0',
+                            isCashIn ? 'text-emerald-600' : 'text-rose-600'
+                          )}>
+                            {isCashIn ? '+' : '−'}{formatUGX(Number(r.amount) || 0)}
+                          </span>
                         </div>
                         {drill.userId === 'ALL' && r.user_id && (
                           <p className="text-[11px] text-foreground/80 truncate">
@@ -1542,6 +1548,16 @@ function CompanyToWalletBreakdownChart({
                           </p>
                         )}
                         <div className="flex items-center gap-2 flex-wrap">
+                          {drillDirection !== 'cash_in' && (
+                            <span className={cn(
+                              'inline-flex items-center rounded px-1 py-0 text-[9px] font-medium border',
+                              isCashIn
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                : 'bg-rose-500/10 text-rose-600 border-rose-500/20'
+                            )}>
+                              {r.ledger_scope === 'wallet' ? 'Wallet' : 'Platform'} · {isCashIn ? 'In' : 'Out'}
+                            </span>
+                          )}
                           {r.reference_id && (
                             <span className="text-[10px] font-mono text-muted-foreground">
                               Ref: <Highlight text={r.reference_id} query={drillSearch} />
