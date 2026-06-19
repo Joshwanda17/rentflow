@@ -3691,7 +3691,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <div className="space-y-1">
                       <Label className="font-semibold">House Type *</Label>
                       <Select value={outstandingHouseCategory} onValueChange={setOutstandingHouseCategory}>
-                        <SelectTrigger>
+                        <SelectTrigger className={`${hasFieldError('outstandingHouseCategory') ? 'border-destructive border-2' : ''}`}>
                           <SelectValue placeholder="Select house type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -3702,6 +3702,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           ))}
                         </SelectContent>
                       </Select>
+                      <FieldError message={getFieldError('outstandingHouseCategory')} />
                     </div>
                   </div>
 
