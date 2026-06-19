@@ -4197,10 +4197,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={tenantName}
                       onChange={(e) => setTenantName(formatNameInput(e.target.value))}
                       placeholder="Tenant's name"
-                     
+                      className={`${hasFieldError('tenantName') ? 'border-destructive border-2' : ''}`}
                       required
                     />
-                    <FieldError message={vName(tenantName)} />
+                    <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="tenantPhone" >Phone *</Label>
@@ -4211,11 +4211,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={tenantPhone}
                       onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
                       placeholder="0783 123 456"
-                      className={`h-10 ${hasFieldError('tenant phone') ? 'border-destructive border-2' : ''}`}
+                      className={`h-10 ${hasFieldError('tenantPhone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
-                    <FieldError message={vPhone(tenantPhone)} />
+                    <FieldError message={vPhone(tenantPhone) || getFieldError('tenantPhone')} />
                     <ExistingTenantPhoneNotice
                       match={existingTenantByPhone}
                       checking={checkingTenantPhone}
