@@ -213,15 +213,20 @@ const WALLET_FLOW_LABEL_OUT: Record<string, string> = {
 // Wallet → Company category groups (4 numbered buckets the CFO
 // reads on the "From Wallets to Company" card).
 // ─────────────────────────────────────────────────────────────
+// Group 1 must reconcile EXACTLY with the "collected" figure on the Tenant
+// Operations dashboard. That dashboard counts rent actually collected from
+// tenants — the `rent_payment_for_tenant` leg (which mirrors `agent_collections`
+// 1:1), plus the legacy `agent_float_used_for_rent` equivalent and the
+// `tenant_repayment` / `rent_repayment` collection legs. It deliberately does
+// NOT count agent float plumbing (assignment / settlement / allocation /
+// commission-used-for-rent), which are float top-ups & reshuffles, not rent
+// collected — including them previously inflated this group far above the
+// dashboard's collected total.
 const WALLET_TO_COMPANY_GROUP_1 = new Set([
+  'rent_payment_for_tenant',
   'agent_float_used_for_rent',
-  'agent_float_allocation',
   'rent_repayment',
   'tenant_repayment',
-  'rent_payment_for_tenant',
-  'agent_commission_used_for_rent',
-  'agent_float_settlement',
-  'agent_float_assignment',
 ]);
 const WALLET_TO_COMPANY_GROUP_2 = new Set([
   'partner_funding',
