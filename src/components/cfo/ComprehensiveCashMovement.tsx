@@ -719,6 +719,8 @@ function GroupPeriodDrilldown({
   direction,
   items,
   initialNames,
+  expectedTotal,
+  expectedCount,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -727,6 +729,8 @@ function GroupPeriodDrilldown({
   direction: 'cash_in' | 'cash_out';
   items: TreasuryFlowItem[];
   initialNames: Record<string, string>;
+  expectedTotal: number;
+  expectedCount: number;
 }) {
   const [gran, setGran] = useState<Granularity>('daily');
   const [userQuery, setUserQuery] = useState('');
@@ -773,6 +777,9 @@ function GroupPeriodDrilldown({
 
   const total = filtered.reduce((s, i) => s + i.amount, 0);
 
+  const totalMatches = Math.abs(total - expectedTotal) < 0.01;
+  const countMatches = filtered.length === expectedCount;
+
   // Bucket transactions by the selected period granularity.
   const periods = useMemo(() => {
     const map = new Map<string, { key: string; label: string; sortKey: string; amount: number; items: TreasuryFlowItem[] }>();
@@ -816,6 +823,29 @@ function GroupPeriodDrilldown({
             <p className="text-[10px] uppercase tracking-wider font-bold opacity-80">Total in this period</p>
             <p className="text-2xl font-bold font-mono tracking-tight">{formatUGX(total)}</p>
             <p className="text-[11px] opacity-80">{filtered.length.toLocaleString()} transaction{filtered.length === 1 ? '' : 's'} · {periods.length} period{periods.length === 1 ? '' : 's'}</p>
+
+            {/* Reconciliation indicator */}
+            {totalMatches && countMatches ? (
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600/10 border border-emerald-500/20 px-2.5 py-1">
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="text-[11px] font-semibold text-emerald-700">Reconciled — matches card breakdown</span>
+              </div>
+            ) : (
+              <div className="mt-2 inline-flex flex-col gap-1 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                  <span className="text-[11px] font-semibold text-amber-700">Does not match card breakdown</span>
+                </div>
+                <div className="text-[10px] text-amber-700/80 space-y-0.5">
+                  {!totalMatches && (
+                    <p>Total: card {formatUGX(expectedTotal)} vs drill {formatUGX(total)} (Δ {formatUGX(Math.abs(expectedTotal - total))})</p>
+                  )}
+                  {!countMatches && (
+                    <p>Count: card {expectedCount.toLocaleString()} vs drill {filtered.length.toLocaleString()} (Δ {Math.abs(expectedCount - filtered.length).toLocaleString()})</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Granularity toggle */}
@@ -912,7 +942,7 @@ function TreasuryWalletFlowSummary({
 }) {
   const [names, setNames] = useState<Record<string, string>>({});
   const [groupDrill, setGroupDrill] = useState<
-    { label: string; color: string; direction: 'cash_in' | 'cash_out'; items: TreasuryFlowItem[] } | null
+    { label: string; color: string; direction: 'cash_in' | 'cash_out'; items: TreasuryFlowItem[]; expectedTotal: number; expectedCount: number } | null
   >(null);
 
   const { toWallets, toCompany } = useMemo(() => {
@@ -1007,7 +1037,7 @@ function TreasuryWalletFlowSummary({
     partyHeading: string;
     direction: 'cash_in' | 'cash_out';
     rawItems: TreasuryFlowItem[];
-    onGroupDrill?: (meta: { label: string; color: string; categories: Set<string> }) => void;
+    onGroupDrill?: (meta: { label: string; color: string; categories: Set<string>; expectedTotal: number; expectedCount: number }) => void;
     groupDefs?: { label: string; categories: Set<string>; color: string }[];
   }) => {
     const [groupView, setGroupView] = useState<'amount' | 'count' | 'pct'>('amount');
@@ -1087,7 +1117,7 @@ function TreasuryWalletFlowSummary({
                           key={label}
                           type="button"
                           disabled={isEmpty || !onGroupDrill}
-                          onClick={() => onGroupDrill?.({ label, color: groupMeta.color, categories: groupMeta.categories })}
+                          onClick={() => onGroupDrill?.({ label, color: groupMeta.color, categories: groupMeta.categories, expectedTotal: v.amount, expectedCount: v.count })}
                           className={cn(
                             'w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all',
                             isEmpty
@@ -1215,6 +1245,8 @@ function TreasuryWalletFlowSummary({
             color: meta.color,
             direction: 'cash_in',
             items: toWallets.filter(i => meta.categories.has(i.category)),
+            expectedTotal: meta.expectedTotal,
+            expectedCount: meta.expectedCount,
           })}
         />
         <Flow
@@ -1232,6 +1264,8 @@ function TreasuryWalletFlowSummary({
             color: meta.color,
             direction: 'cash_out',
             items: toCompany.filter(i => meta.categories.has(i.category)),
+            expectedTotal: meta.expectedTotal,
+            expectedCount: meta.expectedCount,
           })}
         />
       </div>
@@ -1256,6 +1290,8 @@ function TreasuryWalletFlowSummary({
         direction={groupDrill.direction}
         items={groupDrill.items}
         initialNames={names}
+        expectedTotal={groupDrill.expectedTotal}
+        expectedCount={groupDrill.expectedCount}
       />
     )}
     </>
