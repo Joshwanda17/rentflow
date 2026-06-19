@@ -649,6 +649,201 @@ function OtherWalletOriginDrilldown({
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// Per-group drilldown for the "From Wallets to Company" card.
+// Opens from any of the 4 numbered groups (or the headline) and shows
+// the contributing transactions broken down PER PERIOD (day / week /
+// month) so the CFO can trace exactly when each chunk of company money
+// arrived. Also supports a user/wallet filter.
+// ─────────────────────────────────────────────────────────────
+function GroupPeriodDrilldown({
+  open,
+  onOpenChange,
+  label,
+  color,
+  direction,
+  items,
+  initialNames,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  label: string;
+  color: string;
+  direction: 'cash_in' | 'cash_out';
+  items: TreasuryFlowItem[];
+  initialNames: Record<string, string>;
+}) {
+  const [gran, setGran] = useState<Granularity>('daily');
+  const [userQuery, setUserQuery] = useState('');
+  const [names, setNames] = useState<Record<string, string>>(initialNames);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNames(prev => ({ ...initialNames, ...prev }));
+  }, [initialNames]);
+
+  // Resolve party names for every wallet in this group so the search and
+  // the per-transaction rows show real names instead of raw ids.
+  useEffect(() => {
+    if (!open) return;
+    const ids = Array.from(new Set(
+      items.map(i => i.party).filter((id): id is string => !!id && !names[id]),
+    ));
+    if (!ids.length) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as { id: string; full_name: string | null }[]) {
+        if (p.full_name) next[p.id] = p.full_name;
+      }
+      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, items]);
+
+  const nameOf = (id: string | null) => (id ? names[id] || `${id.slice(0, 8)}…` : 'Unknown wallet');
+
+  const filtered = useMemo(() => {
+    const q = userQuery.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(i => {
+      const id = (i.party || '').toLowerCase();
+      const nm = (i.party ? names[i.party] || '' : '').toLowerCase();
+      return id.includes(q) || nm.includes(q);
+    });
+  }, [items, userQuery, names]);
+
+  const total = filtered.reduce((s, i) => s + i.amount, 0);
+
+  // Bucket transactions by the selected period granularity.
+  const periods = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; sortKey: string; amount: number; items: TreasuryFlowItem[] }>();
+    for (const i of filtered) {
+      const d = i.date ? new Date(i.date) : null;
+      let key: string; let lbl: string; let sk: string;
+      if (!d || Number.isNaN(d.getTime())) {
+        key = 'unknown'; lbl = 'Unknown date'; sk = '';
+      } else if (gran === 'daily') {
+        key = format(startOfDay(d), 'yyyy-MM-dd'); lbl = format(d, 'EEE, dd MMM yyyy'); sk = key;
+      } else if (gran === 'weekly') {
+        const w = startOfWeek(d, { weekStartsOn: 1 });
+        key = format(w, 'yyyy-MM-dd'); lbl = `Week of ${format(w, 'dd MMM yyyy')}`; sk = key;
+      } else {
+        const m = startOfMonth(d);
+        key = format(m, 'yyyy-MM'); lbl = format(m, 'MMMM yyyy'); sk = key;
+      }
+      const e = map.get(key) || { key, label: lbl, sortKey: sk, amount: 0, items: [] };
+      e.amount += i.amount; e.items.push(i); map.set(key, e);
+    }
+    return [...map.values()]
+      .map(p => ({ ...p, items: [...p.items].sort((a, b) => (b.date || '').localeCompare(a.date || '')) }))
+      .sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  }, [filtered, gran]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
+        <SheetHeader className="p-4 pb-3 border-b border-border space-y-1">
+          <SheetTitle className="text-base leading-snug pr-6">{label}</SheetTitle>
+          <SheetDescription className="text-[12px]">
+            Money moving from wallets into company funds, broken down per period.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="p-4 space-y-3 overflow-y-auto flex-1">
+          {/* Headline total */}
+          <div className={cn('rounded-xl border p-3', color)}>
+            <p className="text-[10px] uppercase tracking-wider font-bold opacity-80">Total in this period</p>
+            <p className="text-2xl font-bold font-mono tracking-tight">{formatUGX(total)}</p>
+            <p className="text-[11px] opacity-80">{filtered.length.toLocaleString()} transaction{filtered.length === 1 ? '' : 's'} · {periods.length} period{periods.length === 1 ? '' : 's'}</p>
+          </div>
+
+          {/* Granularity toggle */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Per period</span>
+            <div className="inline-flex items-center gap-1 bg-muted rounded-lg p-0.5">
+              {GRANULARITIES.map(g => (
+                <button
+                  key={g.value}
+                  type="button"
+                  onClick={() => setGran(g.value)}
+                  className={cn(
+                    'px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors',
+                    gran === g.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* User / wallet filter */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={userQuery}
+              onChange={e => setUserQuery(e.target.value)}
+              placeholder="Filter by user / wallet (name or id)"
+              className="h-8 text-[12px] pl-7 pr-7"
+            />
+            {userQuery && (
+              <button type="button" onClick={() => setUserQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Per-period rows, each expandable to its transactions */}
+          {periods.length === 0 ? (
+            <p className="text-[12px] text-muted-foreground italic">No transactions match this filter.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {periods.map(p => {
+                const isOpen = expanded === p.key;
+                const pct = total > 0 ? Math.round((p.amount / total) * 100) : 0;
+                return (
+                  <div key={p.key} className="rounded-lg border border-border overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExpanded(isOpen ? null : p.key)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors"
+                    >
+                      <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-semibold truncate">{p.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{p.items.length} txn{p.items.length === 1 ? '' : 's'} · {pct}% of total</p>
+                      </div>
+                      <span className="text-[13px] font-mono font-bold shrink-0">{formatUGX(p.amount)}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t border-border bg-muted/20 px-3 py-2 space-y-1 max-h-60 overflow-y-auto">
+                        {p.items.map((it, idx) => (
+                          <div key={`${p.key}-${idx}`} className="flex items-center justify-between gap-2 text-[11px]">
+                            <span className="truncate text-foreground/90">
+                              {nameOf(it.party)}
+                              <span className="text-muted-foreground"> · {friendlyWalletLabel(it.category, direction)}</span>
+                              <span className="text-muted-foreground opacity-70"> · {it.date ? format(new Date(it.date), 'dd MMM HH:mm') : '—'}</span>
+                            </span>
+                            <span className="font-mono font-medium shrink-0">{formatUGX(it.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function TreasuryWalletFlowSummary({
   rows,
   includeAdjustments,
@@ -659,6 +854,9 @@ function TreasuryWalletFlowSummary({
   onDrill?: (direction: 'cash_in' | 'cash_out', scope: 'wallet') => void;
 }) {
   const [names, setNames] = useState<Record<string, string>>({});
+  const [groupDrill, setGroupDrill] = useState<
+    { label: string; color: string; direction: 'cash_in' | 'cash_out'; items: TreasuryFlowItem[] } | null
+  >(null);
 
   const { toWallets, toCompany } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
