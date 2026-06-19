@@ -2985,6 +2985,26 @@ export function LandlordOpsDashboard() {
                   rejectLabel="Reject"
                   onApprove={(note) => handleVerifyListing(house, note)}
                   onReject={(note) => handleRejectListing(house, note)}
+                  checklistTitle="Confirm landlord & house details"
+                  checklistSubtitle={`Landlord: ${house.landlords?.name || 'Not linked'}`}
+                  approveChecklist={[
+                    { label: 'This person is the genuine landlord', value: house.landlords?.name || 'No landlord linked' },
+                    { label: 'Landlord name is correct', value: house.landlords?.name || '—' },
+                    {
+                      label: 'House location is correct',
+                      value: [house.address, house.village, house.region, house.district].filter(Boolean).join(' · ') || '—',
+                    },
+                    { label: 'Price of the house listed is correct', value: `UGX ${Number(house.monthly_rent || 0).toLocaleString()} / month` },
+                    { label: 'LC chairperson of the village is confirmed', value: house.lc1_chairperson_name || 'Not provided' },
+                    { label: 'The house has water and electricity', value: undefined },
+                    {
+                      label: 'Meter number is in whose names',
+                      value: [
+                        house.landlords?.electricity_meter_number ? `Electricity: ${house.landlords.electricity_meter_number}` : null,
+                        house.landlords?.water_meter_number ? `Water: ${house.landlords.water_meter_number}` : null,
+                      ].filter(Boolean).join(' · ') || 'Confirm meter ownership',
+                    },
+                  ]}
                 />
               </div>
             </div>
