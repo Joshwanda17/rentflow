@@ -3572,10 +3572,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           value={tenantName}
                           onChange={(e) => setTenantName(formatNameInput(e.target.value))}
                           placeholder="Full name"
-                         
+                          className={`${hasFieldError('tenantName') ? 'border-destructive border-2' : ''}`}
                           required
                         />
-                        <FieldError message={vName(tenantName)} />
+                        <FieldError message={vName(tenantName) || getFieldError('tenantName')} />
                       </div>
                       <div className="space-y-1">
                         <Label >Tenant Phone *</Label>
@@ -3585,11 +3585,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           value={tenantPhone}
                           onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
                           placeholder="0783 123 456"
-                         
+                          className={`h-10 ${hasFieldError('tenantPhone') ? 'border-destructive border-2' : ''}`}
                           maxLength={12}
                           required
                         />
-                        <FieldError message={vPhone(tenantPhone)} />
+                        <FieldError message={vPhone(tenantPhone) || getFieldError('tenantPhone')} />
                         <ExistingTenantPhoneNotice
                           match={existingTenantByPhone}
                           checking={checkingTenantPhone}
@@ -3603,7 +3603,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
                       <p className="text-[11px] text-muted-foreground">e.g. Luganda</p>
                       <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
-                        <SelectTrigger>
+                        <SelectTrigger className={`${hasFieldError('preferredLanguage') ? 'border-destructive border-2' : ''}`}>
                           <SelectValue placeholder="Select tenant language" />
                         </SelectTrigger>
                         <SelectContent>
@@ -3612,6 +3612,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           ))}
                         </SelectContent>
                       </Select>
+                      <FieldError message={getFieldError('preferredLanguage')} />
                     </div>
                   </div>
 
@@ -3631,10 +3632,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           value={formatCurrencyInput(outstandingRentAmount)}
                           onChange={(e) => setOutstandingRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="e.g. 300,000"
-                         
+                          className={`${hasFieldError('outstandingRentAmount') ? 'border-destructive border-2' : ''}`}
                           required
                         />
-                        <FieldError message={vAmount(outstandingRentAmount)} />
+                        <FieldError message={vAmount(outstandingRentAmount) || getFieldError('outstandingRentAmount')} />
                       </div>
                       <div className="space-y-1">
                         <Label className="font-semibold">Repayment Duration *</Label>
