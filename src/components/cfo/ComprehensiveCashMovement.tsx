@@ -949,6 +949,8 @@ function CompanyToWalletBreakdownChart({
   const [drill, setDrill] = useState<{ category: string; userId: string | 'ALL' } | null>(null);
   const [drillSearch, setDrillSearch] = useState('');
   const [drillDirection, setDrillDirection] = useState<'cash_in' | 'cash_out' | 'both'>('cash_in');
+  const [drillDateFrom, setDrillDateFrom] = useState('');
+  const [drillDateTo, setDrillDateTo] = useState('');
 
   // ── Chart-local filters ────────────────────────────────────
   const [dateFrom, setDateFrom] = useState<string>('');
@@ -1090,18 +1092,28 @@ function CompanyToWalletBreakdownChart({
     return deduped.sort((a, b) => (a.transaction_date < b.transaction_date ? 1 : -1));
   }, [drill, byCatRows, byCatRecipientRows, rows, drillDirection, dateFrom, dateTo]);
 
-  // Search-filtered drill rows (recipient, reference, description, timestamp).
+  // Search-filtered drill rows (recipient, reference, description, timestamp, date range).
   const drillRows = useMemo(() => {
+    let list = rawDrillRows;
+    // Apply drill-down date range
+    if (drillDateFrom || drillDateTo) {
+      list = list.filter(r => {
+        const d = r.transaction_date.slice(0, 10);
+        if (drillDateFrom && d < drillDateFrom) return false;
+        if (drillDateTo && d > drillDateTo) return false;
+        return true;
+      });
+    }
     const q = drillSearch.trim().toLowerCase();
-    if (!q) return rawDrillRows;
-    return rawDrillRows.filter(r => {
+    if (!q) return list;
+    return list.filter(r => {
       const recipient = (r.user_id ? nameOf(r.user_id) : '').toLowerCase();
       const ref = (r.reference_id || '').toLowerCase();
       const desc = (r.description || '').toLowerCase();
       const ts = format(new Date(r.transaction_date), 'd MMM yyyy HH:mm').toLowerCase();
       return recipient.includes(q) || ref.includes(q) || desc.includes(q) || ts.includes(q);
     });
-  }, [rawDrillRows, drillSearch, names]);
+  }, [rawDrillRows, drillSearch, names, drillDateFrom, drillDateTo]);
 
   const drillTotal = useMemo(() => {
     if (drillDirection === 'both') {
@@ -1421,7 +1433,7 @@ function CompanyToWalletBreakdownChart({
       )}
 
       {/* ── Deep drill-down: every transaction behind a number ──────── */}
-      <Sheet open={!!drill} onOpenChange={(o) => { if (!o) { setDrill(null); setDrillSearch(''); setDrillDirection('cash_in'); } }}>
+      <Sheet open={!!drill} onOpenChange={(o) => { if (!o) { setDrill(null); setDrillSearch(''); setDrillDirection('cash_in'); setDrillDateFrom(''); setDrillDateTo(''); } }}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
           {drill && (
             <>
@@ -1458,6 +1470,32 @@ function CompanyToWalletBreakdownChart({
 
                 {/* Advanced filter chips */}
                 <div className="flex flex-col gap-1.5 pt-1">
+                  {/* Date range */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Dates</span>
+                    <input
+                      type="date"
+                      value={drillDateFrom}
+                      onChange={e => setDrillDateFrom(e.target.value)}
+                      className="h-7 rounded-md border border-border bg-background px-2 text-[11px]"
+                    />
+                    <span className="text-muted-foreground text-[11px]">→</span>
+                    <input
+                      type="date"
+                      value={drillDateTo}
+                      onChange={e => setDrillDateTo(e.target.value)}
+                      className="h-7 rounded-md border border-border bg-background px-2 text-[11px]"
+                    />
+                    {(drillDateFrom || drillDateTo) && (
+                      <button
+                        type="button"
+                        onClick={() => { setDrillDateFrom(''); setDrillDateTo(''); }}
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        Clear dates
+                      </button>
+                    )}
+                  </div>
                   {/* Direction */}
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Direction</span>
@@ -1508,12 +1546,17 @@ function CompanyToWalletBreakdownChart({
               </SheetHeader>
               <div className="px-4 py-3 border-b bg-muted/40 flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
-                  {drillSearch
+                  {drillSearch || drillDateFrom || drillDateTo
                     ? `${drillRows.length.toLocaleString()} of ${rawDrillRows.length.toLocaleString()} match${drillRows.length === 1 ? '' : 'es'}`
                     : `${drillRows.length.toLocaleString()} transaction${drillRows.length === 1 ? '' : 's'}`}
                   {drillDirection !== 'cash_in' && (
                     <span className="ml-1 font-medium text-foreground">
                       · {drillDirection === 'cash_out' ? 'Cash Out' : 'Both directions'}
+                    </span>
+                  )}
+                  {(drillDateFrom || drillDateTo) && (
+                    <span className="ml-1 font-medium text-foreground">
+                      · {drillDateFrom || '…'} → {drillDateTo || '…'}
                     </span>
                   )}
                 </span>
