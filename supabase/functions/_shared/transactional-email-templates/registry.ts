@@ -8,6 +8,7 @@ import { template as partnerCompoundTemplate } from './partner-compound.tsx'
 import { template as partnerPortfolioCompoundedTemplate } from './partner-portfolio-compounded.tsx'
 import { template as portfolioRenewalTemplate } from './portfolio-renewal.tsx'
 import { template as portfolioMaturityTemplate } from './portfolio-maturity.tsx'
+import { template as partnershipMaturityNoticeTemplate } from './partnership-maturity-notice.tsx'
 import { template as partnerAccountCreatedTemplate } from './partner-account-created.tsx'
 import { template as databaseBackupReadyTemplate } from './database-backup-ready.tsx'
 import { template as databaseBackupLinkTemplate } from './database-backup-link.tsx'
@@ -35,6 +36,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'partner-portfolio-compounded': partnerPortfolioCompoundedTemplate,
   'portfolio-renewal': portfolioRenewalTemplate,
   'portfolio-maturity': portfolioMaturityTemplate,
+  'partnership-maturity-notice': partnershipMaturityNoticeTemplate,
   'partner-account-created': partnerAccountCreatedTemplate,
   'database-backup-ready': databaseBackupReadyTemplate,
   'database-backup-link': databaseBackupLinkTemplate,
