@@ -1433,7 +1433,7 @@ function CompanyToWalletBreakdownChart({
       )}
 
       {/* ── Deep drill-down: every transaction behind a number ──────── */}
-      <Sheet open={!!drill} onOpenChange={(o) => { if (!o) { setDrill(null); setDrillSearch(''); setDrillDirection('cash_in'); } }}>
+      <Sheet open={!!drill} onOpenChange={(o) => { if (!o) { setDrill(null); setDrillSearch(''); setDrillDirection('cash_in'); setDrillDateFrom(''); setDrillDateTo(''); } }}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
           {drill && (
             <>
