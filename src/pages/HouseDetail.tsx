@@ -222,6 +222,9 @@ export default function HouseDetail() {
   const mapLink = listing.latitude && listing.longitude
     ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
     : null;
+  const directionsLink = listing.latitude && listing.longitude
+    ? `https://www.google.com/maps/dir/?api=1&destination=${listing.latitude},${listing.longitude}&travelmode=driving`
+    : null;
   const mapEmbed = listing.latitude && listing.longitude
     ? `https://maps.google.com/maps?q=${listing.latitude},${listing.longitude}&z=15&output=embed`
     : null;
