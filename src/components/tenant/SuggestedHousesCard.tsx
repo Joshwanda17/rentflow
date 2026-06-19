@@ -7,6 +7,7 @@ import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { AgentContactBar } from '@/components/tenant/AgentContactBar';
+import { GetDirectionsButton } from '@/components/tenant/GetDirectionsButton';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 
 interface SuggestedHousesCardProps {
@@ -26,6 +27,8 @@ interface SuggestedHouse {
   daily_rate: number;
   image_urls: string[] | null;
   short_code: string | null;
+  latitude: number | null;
+  longitude: number | null;
   agent_id: string;
   agent_name: string | null;
   agent_phone: string | null;
@@ -46,7 +49,7 @@ async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
 
   const { data: houses } = await client
     .from('house_listings')
-    .select('id, title, address, region, district, house_category, number_of_rooms, monthly_rent, daily_rate, image_urls, short_code, agent_id')
+    .select('id, title, address, region, district, house_category, number_of_rooms, monthly_rent, daily_rate, image_urls, short_code, latitude, longitude, agent_id')
     .eq('status', 'available')
     .eq('is_hidden', false)
     .is('tenant_id', null)
