@@ -893,6 +893,11 @@ type TimelineMovement = {
   destParty: string | null;
   reference: string | null;
   description: string | null;
+  direction: 'cash_in' | 'cash_out';
+  scope: string;
+  raw: LedgerRow;
+  groupId: string;
+  groupLegs: LedgerRow[];
 };
 
 const COMPANY_LABEL = 'Company (money we have)';
@@ -911,6 +916,15 @@ const ENDPOINT_FILTER_OPTIONS: { value: EndpointType | 'all'; label: string }[] 
   { value: 'wallet', label: 'User / agent wallet' },
   { value: 'external', label: 'External' },
 ];
+
+function DetailField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</dt>
+      <dd className={cn('text-foreground/90 truncate', mono && 'font-mono')}>{value}</dd>
+    </div>
+  );
+}
 
 function MovementTimeline({
   rows,
@@ -933,6 +947,13 @@ function MovementTimeline({
   const [destFilter, setDestFilter] = useState<EndpointType | 'all'>('all');
   const [search, setSearch] = useState<string>('');
   const [catPopoverOpen, setCatPopoverOpen] = useState(false);
+
+  // ── Category drill-down (full detail sheet) ──
+  const [detailCat, setDetailCat] = useState<string | null>(null);
+  const [detailSearch, setDetailSearch] = useState('');
+  const [detailPage, setDetailPage] = useState(0);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const DETAIL_PAGE_SIZE = 50;
 
   const filtersActive =
     !!dateFrom || !!dateTo || selectedCategories.size > 0 ||
@@ -990,6 +1011,11 @@ function MovementTimeline({
             sourceLabel, sourceParty, destLabel, destParty,
             reference: w.reference_id ?? null,
             description: w.description ?? null,
+            direction: w.direction,
+            scope: w.ledger_scope,
+            raw: w,
+            groupId: gid,
+            groupLegs: legs,
           });
         });
       } else if (platformLegs.length) {
@@ -1009,6 +1035,11 @@ function MovementTimeline({
             destParty: null,
             reference: p.reference_id ?? null,
             description: p.description ?? null,
+            direction: p.direction,
+            scope: p.ledger_scope,
+            raw: p,
+            groupId: gid,
+            groupLegs: legs,
           });
         });
       }
@@ -1267,14 +1298,23 @@ function MovementTimeline({
               onOpenChange={(o) => setOpenCats(prev => ({ ...prev, [g.category]: o }))}
               className="rounded-lg border border-border bg-background overflow-hidden"
             >
-              <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors text-left">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors">
+                <CollapsibleTrigger className="flex items-center gap-2 min-w-0 flex-1 text-left">
                   <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
                   <span className="text-[13px] font-medium truncate">{prettifyCategory(g.category)}</span>
                   <Badge variant="outline" className="text-[10px] shrink-0">{g.count}</Badge>
+                </CollapsibleTrigger>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono text-[12px] font-semibold">{formatUGX(g.total)}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setDetailCat(g.category); setDetailSearch(''); setDetailPage(0); setExpandedRow(null); }}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] font-medium text-primary hover:bg-muted transition-colors"
+                  >
+                    Details <ArrowRight className="h-3 w-3" />
+                  </button>
                 </div>
-                <span className="font-mono text-[12px] font-semibold shrink-0">{formatUGX(g.total)}</span>
-              </CollapsibleTrigger>
+              </div>
               <CollapsibleContent>
                 <div className="border-t border-border divide-y divide-border/40">
                   {shown.map((m) => (
@@ -1315,6 +1355,150 @@ function MovementTimeline({
           );
         })}
       </div>
+
+      {/* ── Category drill-down: every movement + full raw detail ── */}
+      <Sheet open={!!detailCat} onOpenChange={(o) => { if (!o) setDetailCat(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          {detailCat && (() => {
+            const all = filteredMovements
+              .filter(m => m.category === detailCat)
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const q = detailSearch.trim().toLowerCase();
+            const matched = q
+              ? all.filter(m => {
+                  const srcName = m.sourceParty ? (names[m.sourceParty] || m.sourceParty) : '';
+                  const dstName = m.destParty ? (names[m.destParty] || m.destParty) : '';
+                  return [
+                    srcName, dstName, m.sourceLabel, m.destLabel,
+                    m.reference || '', m.description || '', m.raw.source_table || '',
+                    String(m.raw.source_id || ''),
+                  ].join(' ').toLowerCase().includes(q);
+                })
+              : all;
+            const total = matched.reduce((s, m) => s + m.amount, 0);
+            const totalPages = Math.max(1, Math.ceil(matched.length / DETAIL_PAGE_SIZE));
+            const page = Math.min(detailPage, totalPages - 1);
+            const slice = matched.slice(page * DETAIL_PAGE_SIZE, (page + 1) * DETAIL_PAGE_SIZE);
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2 flex-wrap">
+                    {prettifyCategory(detailCat)}
+                    <Badge variant="secondary" className="text-[10px]">{matched.length.toLocaleString()} movements</Badge>
+                  </SheetTitle>
+                  <SheetDescription>
+                    {CATEGORY_DESCRIPTIONS[detailCat] || 'Every movement in this category, with full ledger detail. Tap a row to expand every field and its double-entry legs.'}
+                  </SheetDescription>
+                </SheetHeader>
+
+                <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">Total in view</span>
+                  <span className="font-mono text-sm font-semibold">{formatUGX(total)}</span>
+                </div>
+
+                <div className="mt-3 relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={detailSearch}
+                    onChange={(e) => { setDetailSearch(e.target.value); setDetailPage(0); }}
+                    placeholder="Search name, reference, description, source…"
+                    className="h-8 pl-8 text-xs"
+                  />
+                </div>
+
+                <div className="mt-3 space-y-1.5 border-t border-border pt-2">
+                  {slice.length === 0 && (
+                    <div className="text-[11px] text-muted-foreground italic py-6 text-center">No movements match.</div>
+                  )}
+                  {slice.map((m) => {
+                    const open = expandedRow === m.id;
+                    return (
+                      <div key={m.id} className="rounded-md border border-border/60 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedRow(open ? null : m.id)}
+                          className="w-full flex items-start justify-between gap-3 px-2.5 py-2 text-left hover:bg-muted/40 transition-colors"
+                        >
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="text-[11px] text-muted-foreground font-mono">
+                              {format(new Date(m.date), 'dd MMM yyyy · HH:mm')}
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Endpoint label={m.sourceLabel} party={m.sourceParty} />
+                              <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <Endpoint label={m.destLabel} party={m.destParty} />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono text-[12px] font-semibold">{formatUGX(m.amount)}</span>
+                            <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} />
+                          </div>
+                        </button>
+                        {open && (
+                          <div className="border-t border-border/60 bg-muted/20 px-2.5 py-2 space-y-2">
+                            <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+                              <DetailField label="Date" value={format(new Date(m.date), 'dd MMM yyyy HH:mm:ss')} />
+                              <DetailField label="Amount" value={formatUGX(m.amount)} mono />
+                              <DetailField label="Category" value={prettifyCategory(m.category)} />
+                              <DetailField label="Direction" value={m.direction === 'cash_in' ? 'Cash in' : 'Cash out'} />
+                              <DetailField label="Scope" value={SCOPE_LABEL[m.scope] || m.scope} />
+                              <DetailField label="Classification" value={m.raw.classification || '—'} />
+                              <DetailField label="Source" value={m.sourceParty ? partyName(m.sourceParty, m.sourceLabel) : m.sourceLabel} />
+                              <DetailField label="Destination" value={m.destParty ? partyName(m.destParty, m.destLabel) : m.destLabel} />
+                              <DetailField label="Reference" value={m.reference || '—'} mono />
+                              <DetailField label="Source table" value={m.raw.source_table || '—'} mono />
+                              <DetailField label="Source ID" value={m.raw.source_id ? String(m.raw.source_id) : '—'} mono />
+                              <DetailField label="Txn group" value={m.groupId} mono />
+                            </dl>
+                            {m.description && (
+                              <div className="text-[11px]">
+                                <span className="text-muted-foreground">Description: </span>
+                                <span className="text-foreground/90">{m.description}</span>
+                              </div>
+                            )}
+                            {m.groupLegs.length > 0 && (
+                              <div className="space-y-1 pt-1 border-t border-border/50">
+                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                                  Double-entry legs ({m.groupLegs.length})
+                                </div>
+                                {m.groupLegs.map((leg, i) => (
+                                  <div key={leg.id || i} className="flex items-center justify-between gap-2 text-[11px]">
+                                    <span className="truncate text-foreground/80">
+                                      <span className={cn('font-mono mr-1', leg.direction === 'cash_in' ? 'text-success' : 'text-destructive')}>
+                                        {leg.direction === 'cash_in' ? '+' : '−'}
+                                      </span>
+                                      {SCOPE_LABEL[leg.ledger_scope] || leg.ledger_scope} · {prettifyCategory(leg.category)}
+                                    </span>
+                                    <span className="font-mono shrink-0">{formatUGX(Number(leg.amount) || 0)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {matched.length > DETAIL_PAGE_SIZE && (
+                  <div className="mt-3 flex items-center justify-between gap-2 text-[10px]">
+                    <div className="text-muted-foreground">
+                      {page * DETAIL_PAGE_SIZE + 1}–{Math.min((page + 1) * DETAIL_PAGE_SIZE, matched.length)} of {matched.length.toLocaleString()}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                        disabled={page === 0} onClick={() => setDetailPage(p => Math.max(0, p - 1))}>‹ Prev</Button>
+                      <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]"
+                        disabled={page >= totalPages - 1} onClick={() => setDetailPage(p => Math.min(totalPages - 1, p + 1))}>Next ›</Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }
