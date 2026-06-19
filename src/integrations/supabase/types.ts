@@ -20028,6 +20028,15 @@ export type Database = {
           total_debits: number
         }[]
       }
+      get_listing_agent_contacts: {
+        Args: { p_listing_ids: string[] }
+        Returns: {
+          agent_id: string
+          full_name: string
+          listing_id: string
+          phone: string
+        }[]
+      }
       get_location_breakdown: {
         Args: {
           p_agent_id?: string
