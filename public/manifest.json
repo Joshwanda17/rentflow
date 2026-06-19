@@ -75,5 +75,10 @@
       "url": "url"
     }
   },
-  "related_applications": []
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://welilereceipts.com/manifest.json"
+    }
+  ]
 }
