@@ -637,7 +637,7 @@ export function DirectCreditTool() {
             onClick={() => handleOperationChange('credit')}
           >
             <ArrowUpRight className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>Credit</span>
+            <span>Send money to users wallet</span>
           </Button>
           <Button
             type="button"
@@ -646,7 +646,7 @@ export function DirectCreditTool() {
             onClick={() => handleOperationChange('debit')}
           >
             <ArrowDownLeft className="h-4 w-4 mr-1.5 shrink-0" />
-            <span>Debit</span>
+            <span>Money from users wallets</span>
           </Button>
           <Button
             type="button"
