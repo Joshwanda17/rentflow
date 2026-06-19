@@ -2365,6 +2365,15 @@ export function ComprehensiveCashMovement() {
           includeAdjustments={includeAdjustments}
         />
 
+        {/* ─── Movement Timeline (strict CFO category order) ───────
+            Every cash movement in the period, grouped in the exact CFO
+            category sequence, each shown as a clear timeline entry:
+            Date · Amount · Source → Destination. */}
+        <MovementTimeline
+          rows={rows}
+          includeAdjustments={includeAdjustments}
+        />
+
         {/* ─── Thumb-friendly filter bar ──────────────────────────
             Three large tap targets (≥56px tall) for the filters non-tech
             users reach for most: Date, Direction, and Party. Each opens a
