@@ -949,11 +949,13 @@ function CompanyToWalletBreakdownChart({
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const dateActive = !!(dateFrom || dateTo);
+  const categoryFilterActive = selectedCategories.size > 0;
 
   // Build per-category totals + per-category recipient breakdown from
   // paired wallet-in / platform-out ledger legs (Company → Wallets).
-  const { catList, total, count, byCatRecipients } = useMemo(() => {
+  const { catList, total, count, byCatRecipients, availableCategories } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
@@ -965,6 +967,7 @@ function CompanyToWalletBreakdownChart({
     }
     const catTotals = new Map<string, { amount: number; count: number }>();
     const byCatRecipients = new Map<string, Map<string, number>>();
+    const available = new Set<string>();
     let total = 0;
     let count = 0;
     for (const legs of groups.values()) {
@@ -977,6 +980,8 @@ function CompanyToWalletBreakdownChart({
         const d = w.transaction_date.slice(0, 10);
         if (dateFrom && d < dateFrom) continue;
         if (dateTo && d > dateTo) continue;
+        available.add(w.category);
+        if (categoryFilterActive && !selectedCategories.has(w.category)) continue;
         const c = catTotals.get(w.category) || { amount: 0, count: 0 };
         c.amount += amt; c.count += 1; catTotals.set(w.category, c);
         total += amt; count += 1;
@@ -995,8 +1000,8 @@ function CompanyToWalletBreakdownChart({
         return b[1].amount - a[1].amount;
       })
       .map(([category, v]) => ({ category, amount: v.amount, count: v.count }));
-    return { catList, total, count, byCatRecipients };
-  }, [rows, includeAdjustments, dateFrom, dateTo]);
+    return { catList, total, count, byCatRecipients, availableCategories: [...available].sort((a, b) => cfoCategoryRank(a) - cfoCategoryRank(b)) };
+  }, [rows, includeAdjustments, dateFrom, dateTo, categoryFilterActive, selectedCategories]);
 
   // Resolve recipient names for the currently-expanded category.
   useEffect(() => {
