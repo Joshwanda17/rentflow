@@ -3164,6 +3164,14 @@ export function ComprehensiveCashMovement() {
         {/* ─── Agent allocation breakdown chart ────────────────────
             Per-agent view of the Wallets → Company flow, split by
             category and amount as a horizontal stacked bar chart. */}
+        {/* ─── Company → Wallets breakdown chart ───────────────────
+            Per-category view of the Company → Wallets flow: how each
+            category moved company money into user & agent wallets. */}
+        <CompanyToWalletBreakdownChart
+          rows={rows}
+          includeAdjustments={includeAdjustments}
+        />
+
         <AgentAllocationBreakdownChart
           rows={rows}
           includeAdjustments={includeAdjustments}
