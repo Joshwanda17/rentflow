@@ -719,6 +719,8 @@ function GroupPeriodDrilldown({
   direction,
   items,
   initialNames,
+  expectedTotal,
+  expectedCount,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -727,6 +729,8 @@ function GroupPeriodDrilldown({
   direction: 'cash_in' | 'cash_out';
   items: TreasuryFlowItem[];
   initialNames: Record<string, string>;
+  expectedTotal: number;
+  expectedCount: number;
 }) {
   const [gran, setGran] = useState<Granularity>('daily');
   const [userQuery, setUserQuery] = useState('');
