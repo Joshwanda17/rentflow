@@ -1627,6 +1627,161 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     return errors;
   };
 
+  /**
+   * Parallel to getStepErrors — returns a Record that maps field identifiers
+   * to their specific error messages so the UI can highlight individual fields.
+   */
+  const getStepFieldErrors = (idx: number): Record<string, string> => {
+    const map: Record<string, string> = {};
+    const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+    const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+    const cleanNationalId = tenantNationalId.trim().toUpperCase();
+    if (idx === 0) {
+      if (!amount) map['rentAmount'] = 'Type the rent amount';
+      else if (amount < 50000) map['rentAmount'] = 'Rent amount must be at least UGX 50,000';
+    } else if (idx === 1) {
+      if (!tenantName.trim()) map['tenantName'] = "Type the tenant's full name";
+      if (!tenantPhone.trim()) map['tenantPhone'] = "Type the tenant's phone number";
+      else if (!isValidUgPhone(cleanTenantPhone)) map['tenantPhone'] = 'Tenant phone looks wrong — use a number like 0783 123 456';
+      if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+        map['tenantNationalId'] = "Enter the tenant's National ID (the long number/letters on their ID card)";
+      }
+      if (!preferredLanguage) map['preferredLanguage'] = 'Choose the language the tenant speaks';
+    } else if (idx === 2) {
+      if (!houseCategory) map['houseCategory'] = 'Choose the house type';
+      const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
+      if (!landlordRegistered) {
+        map['landlord'] = 'Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.';
+      } else if (landlordCheck === 'missing') {
+        map['landlord'] = 'Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.';
+      } else if (landlordCheck === 'unverified') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.';
+      } else if (landlordCheck === 'checking') {
+        map['landlord'] = 'Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.';
+      } else if (landlordCheck !== 'registered') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.';
+      }
+      if (selectedHouse && !listingHasRealPhoto(selectedHouse)) {
+        map['housePhotos'] = "This landlord's house has no photos — pick a house that shows photos before posting the rent request";
+      }
+      if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
+      const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+      if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
+      if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+    } else if (idx === 3) {
+      if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
+      if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
+      else if (!isValidUgPhone(cleanLc1Phone)) map['lc1Phone'] = 'LC1 phone looks wrong — use a valid Ugandan number';
+      if (!lc1Village.trim()) map['lc1Village'] = 'Type the LC1 village';
+      if (!propertyCity.trim()) map['propertyCity'] = 'Type the town / city';
+      const tOk = !!cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
+      const lOk = !!cleanLandlordPhone && isValidUgPhone(cleanLandlordPhone);
+      const cOk = !!cleanLc1Phone && isValidUgPhone(cleanLc1Phone);
+      if (tOk && lOk && cleanTenantPhone === cleanLandlordPhone) map['tenantPhone'] = 'Tenant and Landlord phones must be different numbers';
+      if (tOk && cOk && cleanTenantPhone === cleanLc1Phone) map['tenantPhone'] = 'Tenant and LC1 phones must be different numbers';
+      if (lOk && cOk && cleanLandlordPhone === cleanLc1Phone) map['landlordPhone'] = 'Landlord and LC1 phones must be different numbers';
+    } else if (idx === 4) {
+      if (!guarantorConsent) map['guarantorConsent'] = 'Tick the box to accept guarantor responsibility';
+    }
+    return map;
+  };
+
+  /**
+   * Full-form field error map for final submit (non-outstanding flow).
+   */
+  const collectFieldErrors = (isOutstanding: boolean): Record<string, string> => {
+    const map: Record<string, string> = {};
+    const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+    const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+
+    if (!tenantName.trim()) map['tenantName'] = "Type the tenant's full name";
+    if (!tenantPhone.trim()) map['tenantPhone'] = "Type the tenant's phone number";
+    else if (!isValidUgPhone(cleanTenantPhone)) map['tenantPhone'] = 'Tenant phone looks wrong — use a number like 0783 123 456';
+
+    const cleanNationalId = tenantNationalId.trim().toUpperCase();
+    if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+      map['tenantNationalId'] = "Enter the tenant's National ID (the long number/letters on their ID card)";
+    }
+
+    if (!preferredLanguage) map['preferredLanguage'] = 'Choose the language the tenant speaks';
+
+    if (isOutstanding) {
+      if (!amount) map['outstandingRentAmount'] = 'Type the rent amount';
+      else if (amount < 50000) map['outstandingRentAmount'] = 'Rent amount must be at least UGX 50,000';
+      if (!outstandingBalance.trim()) map['outstandingBalance'] = 'Type the outstanding balance';
+      else if (parseInt(outstandingBalance) <= 0) map['outstandingBalance'] = 'Outstanding balance must be above 0';
+      if (!outstandingDaysRemaining.trim()) map['outstandingDaysRemaining'] = 'Type the days remaining';
+      else if (parseInt(outstandingDaysRemaining) <= 0) map['outstandingDaysRemaining'] = 'Days remaining must be above 0';
+      if (!outstandingHouseCategory) map['outstandingHouseCategory'] = 'Choose the house type';
+      const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
+      if (!landlordRegistered) {
+        map['landlord'] = 'Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.';
+      } else if (landlordCheck === 'missing') {
+        map['landlord'] = 'Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.';
+      } else if (landlordCheck === 'unverified') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.';
+      } else if (landlordCheck === 'checking') {
+        map['landlord'] = 'Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.';
+      } else if (landlordCheck !== 'registered') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.';
+      }
+      if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
+      if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
+      if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
+      else {
+        if (!isValidUgPhone(cleanLc1Phone)) map['lc1Phone'] = 'LC1 phone looks wrong — use a valid Ugandan number';
+      }
+      if (!lc1Village.trim()) map['lc1Village'] = 'Type the LC1 village';
+      if (!propertyCity.trim()) map['propertyCity'] = 'Type the town / city';
+    } else {
+      if (!amount) map['rentAmount'] = 'Type the rent amount';
+      else if (amount < 50000) map['rentAmount'] = 'Rent amount must be at least UGX 50,000';
+      if (!houseCategory) map['houseCategory'] = 'Choose the house type';
+      const landlordRegistered = !!selectedLandlord || !!selectedHouse?.landlord_id;
+      if (!landlordRegistered) {
+        map['landlord'] = 'Step 2 — Landlord verified: Register the landlord first. Search to pick an existing landlord, or tap "Add new" to register them.';
+      } else if (landlordCheck === 'missing') {
+        map['landlord'] = 'Step 2 — Landlord verified: The selected landlord is no longer registered in the system. Pick a registered landlord or register them again.';
+      } else if (landlordCheck === 'unverified') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord is registered but not yet verified. They must be verified before you can post a rent request.';
+      } else if (landlordCheck === 'checking') {
+        map['landlord'] = 'Step 2 — Landlord verified: Confirming the landlord is registered — please wait a moment before posting.';
+      } else if (landlordCheck !== 'registered') {
+        map['landlord'] = 'Step 2 — Landlord verified: The landlord must be registered and verified before you can post a rent request.';
+      }
+      if (selectedHouse && !listingHasRealPhoto(selectedHouse)) {
+        map['housePhotos'] = "This landlord's house has no photos — pick a house that shows photos before posting the rent request";
+      }
+      if (!propertyAddress.trim()) map['propertyAddress'] = 'Type the property address';
+      const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+      if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
+      if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+      if (!lc1Name.trim()) map['lc1Name'] = "Type the LC1 chairperson's name";
+      if (!lc1Phone.trim()) map['lc1Phone'] = 'Type the LC1 phone number';
+      else if (!isValidUgPhone(cleanLc1Phone)) map['lc1Phone'] = 'LC1 phone looks wrong — use a valid Ugandan number';
+      if (!lc1Village.trim()) map['lc1Village'] = 'Type the LC1 village';
+      if (!propertyCity.trim()) map['propertyCity'] = 'Type the town / city';
+    }
+
+    if (tenantPhoneValid && landlordPhoneValid && cleanTenantPhone === cleanLandlordPhone) {
+      map['tenantPhone'] = 'Tenant and Landlord phones must be different numbers';
+    }
+    if (tenantPhoneValid && lc1PhoneValid && cleanTenantPhone === cleanLc1Phone) {
+      map['tenantPhone'] = 'Tenant and LC1 phones must be different numbers';
+    }
+    if (landlordPhoneValid && lc1PhoneValid && cleanLandlordPhone === cleanLc1Phone) {
+      map['landlordPhone'] = 'Landlord and LC1 phones must be different numbers';
+    }
+
+    const missingHousePhotos = HOUSE_PHOTO_SLOTS.some((_, i) => !housePhotos[i]);
+    if (missingHousePhotos) map['housePhotos'] = 'Take all 4 house photos (front, back, left and right)';
+    if (!tenantPhoto) map['tenantPhoto'] = "Take the tenant's passport photo";
+
+    return map;
+  };
+
   const scrollDialogTop = () => {
     requestAnimationFrame(() => {
       const dialog = document.querySelector('[role="dialog"]');
