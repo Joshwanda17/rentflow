@@ -1795,8 +1795,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const goNextStep = () => {
     const errs = getStepErrors(detailStep);
+    const fieldMap = getStepFieldErrors(detailStep);
     if (errs.length > 0) {
       setValidationErrors(errs);
+      setFieldErrors(fieldMap);
       setSubmissionError(null);
       setErrorDetails(null);
       toast.error(errs.length === 1 ? errs[0] : `${errs.length} things still needed`);
@@ -1806,6 +1808,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       return;
     }
     setValidationErrors([]);
+    setFieldErrors({});
     setDetailStep((s) => Math.min(s + 1, DETAIL_STEPS.length - 1));
     scrollDialogTop();
   };
