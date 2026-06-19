@@ -804,7 +804,9 @@ function GroupPeriodDrilldown({
         <SheetHeader className="p-4 pb-3 border-b border-border space-y-1">
           <SheetTitle className="text-base leading-snug pr-6">{label}</SheetTitle>
           <SheetDescription className="text-[12px]">
-            Money moving from wallets into company funds, broken down per period.
+            {direction === 'cash_out'
+              ? 'Money moving from wallets into company funds, broken down per period.'
+              : 'Money moving from company funds into wallets, broken down per period.'}
           </SheetDescription>
         </SheetHeader>
 
