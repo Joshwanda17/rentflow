@@ -355,18 +355,28 @@ Deno.serve(async (req) => {
         dispatchTransactionalEmail(
           supabaseUrl,
           supabaseServiceKey,
-          buildPartnershipAgreementRequest({
-            recipientEmail: partnerProfile.email,
-            partnerName: partnerProfile.full_name || partnerName,
-            partnerId: body.partner_id,
-            portfolioId: portfolio.id,
-            amount: body.amount,
-            monthlyReward,
-            contributionDateIso: contributionDate.toISOString(),
-            firstPayoutDateIso: fmt(nextRoiDate),
-            payoutDay,
-            roiPercentage: body.roi_percentage,
-          }),
+          body.roi_mode === "monthly_compounding"
+            ? buildPartnerCompoundCreationRequest({
+                recipientEmail: partnerProfile.email,
+                partnerName: partnerProfile.full_name || partnerName,
+                partnerId: body.partner_id,
+                portfolioId: portfolio.id,
+                initialAmount: body.amount,
+                roiPercentage: body.roi_percentage,
+                contributionDateIso: contributionDate.toISOString(),
+              })
+            : buildPartnershipAgreementRequest({
+                recipientEmail: partnerProfile.email,
+                partnerName: partnerProfile.full_name || partnerName,
+                partnerId: body.partner_id,
+                portfolioId: portfolio.id,
+                amount: body.amount,
+                monthlyReward,
+                contributionDateIso: contributionDate.toISOString(),
+                firstPayoutDateIso: fmt(nextRoiDate),
+                payoutDay,
+                roiPercentage: body.roi_percentage,
+              }),
           "coo-create-portfolio",
         );
       }
