@@ -899,6 +899,19 @@ const COMPANY_LABEL = 'Company (money we have)';
 const EXTERNAL_IN_LABEL = 'External (deposits / funding)';
 const EXTERNAL_OUT_LABEL = 'External (payouts / withdrawals)';
 
+type EndpointType = 'company' | 'external' | 'wallet';
+function endpointType(label: string): EndpointType {
+  if (label === COMPANY_LABEL) return 'company';
+  if (label === EXTERNAL_IN_LABEL || label === EXTERNAL_OUT_LABEL) return 'external';
+  return 'wallet';
+}
+const ENDPOINT_FILTER_OPTIONS: { value: EndpointType | 'all'; label: string }[] = [
+  { value: 'all', label: 'Any' },
+  { value: 'company', label: 'Company (money we have)' },
+  { value: 'wallet', label: 'User / agent wallet' },
+  { value: 'external', label: 'External' },
+];
+
 function MovementTimeline({
   rows,
   includeAdjustments,
