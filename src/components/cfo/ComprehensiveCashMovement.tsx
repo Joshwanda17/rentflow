@@ -949,11 +949,13 @@ function CompanyToWalletBreakdownChart({
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const dateActive = !!(dateFrom || dateTo);
+  const categoryFilterActive = selectedCategories.size > 0;
 
   // Build per-category totals + per-category recipient breakdown from
   // paired wallet-in / platform-out ledger legs (Company → Wallets).
-  const { catList, total, count, byCatRecipients } = useMemo(() => {
+  const { catList, total, count, byCatRecipients, availableCategories } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
     for (const r of rows) {
       if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
@@ -965,6 +967,7 @@ function CompanyToWalletBreakdownChart({
     }
     const catTotals = new Map<string, { amount: number; count: number }>();
     const byCatRecipients = new Map<string, Map<string, number>>();
+    const available = new Set<string>();
     let total = 0;
     let count = 0;
     for (const legs of groups.values()) {
@@ -977,6 +980,8 @@ function CompanyToWalletBreakdownChart({
         const d = w.transaction_date.slice(0, 10);
         if (dateFrom && d < dateFrom) continue;
         if (dateTo && d > dateTo) continue;
+        available.add(w.category);
+        if (categoryFilterActive && !selectedCategories.has(w.category)) continue;
         const c = catTotals.get(w.category) || { amount: 0, count: 0 };
         c.amount += amt; c.count += 1; catTotals.set(w.category, c);
         total += amt; count += 1;
@@ -995,8 +1000,8 @@ function CompanyToWalletBreakdownChart({
         return b[1].amount - a[1].amount;
       })
       .map(([category, v]) => ({ category, amount: v.amount, count: v.count }));
-    return { catList, total, count, byCatRecipients };
-  }, [rows, includeAdjustments, dateFrom, dateTo]);
+    return { catList, total, count, byCatRecipients, availableCategories: [...available].sort((a, b) => cfoCategoryRank(a) - cfoCategoryRank(b)) };
+  }, [rows, includeAdjustments, dateFrom, dateTo, categoryFilterActive, selectedCategories]);
 
   // Resolve recipient names for the currently-expanded category.
   useEffect(() => {
@@ -1049,14 +1054,14 @@ function CompanyToWalletBreakdownChart({
           <h4 className="text-sm font-semibold">Company → Wallets Breakdown</h4>
         </div>
         <div className="flex items-center gap-1.5">
-          {dateActive && (
+          {(dateActive || categoryFilterActive) && (
             <Button
               size="sm"
               variant="ghost"
               className="h-7 text-[11px] px-2 rounded-full"
-              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              onClick={() => { setDateFrom(''); setDateTo(''); setSelectedCategories(new Set()); }}
             >
-              Clear dates
+              Clear filters
             </Button>
           )}
           <Button
@@ -1067,8 +1072,8 @@ function CompanyToWalletBreakdownChart({
           >
             <Filter className="h-3 w-3 mr-1" />
             Filters
-            {dateActive && (
-              <span className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary-foreground text-[9px] font-bold text-primary">1</span>
+            {(dateActive || categoryFilterActive) && (
+              <span className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary-foreground text-[9px] font-bold text-primary">{[dateActive, categoryFilterActive].filter(Boolean).length}</span>
             )}
           </Button>
         </div>
@@ -1079,23 +1084,88 @@ function CompanyToWalletBreakdownChart({
       </p>
 
       {showFilters && (
-        <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-1.5">
-          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Date range</div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-              className="h-8 rounded-md border border-border bg-background px-2 text-[12px]"
-            />
-            <span className="text-muted-foreground text-[12px]">→</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-              className="h-8 rounded-md border border-border bg-background px-2 text-[12px]"
-            />
+        <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+          {/* Date range */}
+          <div className="space-y-1.5">
+            <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Date range</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                className="h-8 rounded-md border border-border bg-background px-2 text-[12px]"
+              />
+              <span className="text-muted-foreground text-[12px]">→</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                className="h-8 rounded-md border border-border bg-background px-2 text-[12px]"
+              />
+            </div>
           </div>
+
+          {/* Category filter */}
+          {availableCategories.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Categories</div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className="text-[10px] text-primary hover:underline"
+                    onClick={() => setSelectedCategories(new Set(availableCategories))}
+                  >
+                    Select all
+                  </button>
+                  <span className="text-muted-foreground text-[10px]">|</span>
+                  <button
+                    type="button"
+                    className="text-[10px] text-primary hover:underline"
+                    onClick={() => setSelectedCategories(new Set())}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-[180px] overflow-y-auto pr-1">
+                {availableCategories.map(cat => {
+                  const checked = selectedCategories.has(cat);
+                  return (
+                    <label
+                      key={cat}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 cursor-pointer select-none rounded-full border px-2.5 py-1 text-[11px] transition-colors',
+                        checked
+                          ? 'border-primary/40 bg-primary/10 text-primary'
+                          : 'border-border bg-background text-muted-foreground hover:bg-muted/40'
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={checked}
+                        onChange={() => {
+                          const next = new Set(selectedCategories);
+                          if (checked) next.delete(cat);
+                          else next.add(cat);
+                          setSelectedCategories(next);
+                        }}
+                      />
+                      <span className={cn('h-2.5 w-2.5 rounded-full border', checked ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
+                      <span className="truncate max-w-[200px]">{friendlyWalletLabel(cat, 'cash_in')}</span>
+                      <span className="font-mono text-[9px] opacity-60">{cat}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {categoryFilterActive && (
+                <div className="text-[10px] text-muted-foreground">
+                  Showing {selectedCategories.size} of {availableCategories.length} categories
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
