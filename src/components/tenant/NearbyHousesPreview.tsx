@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink, ZoomIn, Navigation } from 'lucide-react';
-import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
+import { AgentContactBar } from '@/components/tenant/AgentContactBar';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { ShareNearbyHousesButton } from '@/components/tenant/ShareNearbyHousesButton';
 import HouseRatingBadge from '@/components/house/HouseRatingBadge';
@@ -179,7 +179,7 @@ function MiniHouseCard({ listing, onSelectHouse }: { listing: HouseListing; onSe
         <MiniMapThumb lat={listing.latitude} lng={listing.longitude} title={listing.title} />
 
         {/* WhatsApp Agent */}
-        <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
+        <AgentContactBar phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
       </div>
 
       {/* Fullscreen Lightbox */}

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon } from 'lucide-react';
-import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
+import { AgentContactBar } from '@/components/tenant/AgentContactBar';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { ShareNearbyHousesButton } from '@/components/tenant/ShareNearbyHousesButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
@@ -249,7 +249,7 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
         <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} />
 
         {/* WhatsApp Agent */}
-        <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
+        <AgentContactBar phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
 
         {/* Share */}
         <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} shortCode={listing.short_code} variant="full" address={listing.address} monthlyRent={listing.monthly_rent} rooms={listing.number_of_rooms} category={listing.house_category} />
