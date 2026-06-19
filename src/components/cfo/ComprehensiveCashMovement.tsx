@@ -19,6 +19,12 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 import { CATEGORY_DESCRIPTIONS, LOCKED_CATEGORIES } from '@/lib/ledgerConstants';
+import { downloadCsv } from '@/lib/csvExport';
+import { useAuth } from '@/hooks/useAuth';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Lock } from 'lucide-react';
+import { HScrollHint, FOCUSABLE_COL_HEAD_CLASS, focusableColHeadProps } from './HScrollHint';
 
 // ─────────────────────────────────────────────────────────────
 // Canonical CFO category ordering. The CFO reads wallet movements
@@ -32,12 +38,6 @@ const CFO_CATEGORY_RANK: Record<string, number> = Object.fromEntries(
 function cfoCategoryRank(category: string): number {
   return CFO_CATEGORY_RANK[category] ?? Number.MAX_SAFE_INTEGER;
 }
-import { downloadCsv } from '@/lib/csvExport';
-import { useAuth } from '@/hooks/useAuth';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { Lock } from 'lucide-react';
-import { HScrollHint, FOCUSABLE_COL_HEAD_CLASS, focusableColHeadProps } from './HScrollHint';
 
 // Roles allowed to drill into individual ledger entries and export raw movement data
 const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']);
