@@ -953,6 +953,19 @@ function CompanyToWalletBreakdownChart({
   const dateActive = !!(dateFrom || dateTo);
   const categoryFilterActive = selectedCategories.size > 0;
 
+  // Presets — one-click common comparison sets. Only categories that actually
+  // appear in the current period are applied (intersected with availableCategories).
+  type Preset = { label: string; categories: string[] };
+  const PRESETS: Preset[] = [
+    { label: 'All', categories: [] }, // sentinel — means "no restriction"
+    { label: 'Commissions', categories: ['agent_commission', 'partner_commission', 'business_advance_commission'] },
+    { label: 'Returns & Payroll', categories: ['roi_payout', 'roi_wallet_credit', 'payroll', 'payroll_growth'] },
+    { label: 'Deposits', categories: ['deposit', 'agent_float_deposit', 'landlord_float_deposit'] },
+    { label: 'Partner flows', categories: ['partner_funding', 'coo_proxy_investment', 'proxy_investment_commission', 'pending_portfolio_topup'] },
+    { label: 'Bonuses', categories: ['tenant_placement_bonus'] },
+  ];
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+
   // Build per-category totals + per-category recipient breakdown from
   // paired wallet-in / platform-out ledger legs (Company → Wallets).
   const { catList, total, count, byCatRecipients, availableCategories } = useMemo(() => {
@@ -1059,7 +1072,7 @@ function CompanyToWalletBreakdownChart({
               size="sm"
               variant="ghost"
               className="h-7 text-[11px] px-2 rounded-full"
-              onClick={() => { setDateFrom(''); setDateTo(''); setSelectedCategories(new Set()); }}
+              onClick={() => { setDateFrom(''); setDateTo(''); setSelectedCategories(new Set()); setActivePreset('All'); }}
             >
               Clear filters
             </Button>
@@ -1107,14 +1120,54 @@ function CompanyToWalletBreakdownChart({
 
           {/* Category filter */}
           {availableCategories.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              {/* Presets */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Presets</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESETS.map(preset => {
+                    const isAll = preset.categories.length === 0;
+                    const wouldApply = isAll ? availableCategories : preset.categories.filter(c => availableCategories.includes(c));
+                    const hasAny = wouldApply.length > 0;
+                    const isActive = activePreset === preset.label;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        disabled={!hasAny}
+                        onClick={() => {
+                          if (isAll) {
+                            setSelectedCategories(new Set());
+                            setActivePreset(preset.label);
+                          } else {
+                            setSelectedCategories(new Set(wouldApply));
+                            setActivePreset(preset.label);
+                          }
+                        }}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] transition-colors',
+                          isActive
+                            ? 'border-primary/40 bg-primary/10 text-primary'
+                            : 'border-border bg-background text-muted-foreground hover:bg-muted/40',
+                          !hasAny && 'opacity-40 cursor-not-allowed hover:bg-background'
+                        )}
+                      >
+                        {isActive && <Check className="h-2.5 w-2.5" />}
+                        {preset.label}
+                        {!isAll && <span className="font-mono text-[9px] opacity-60">{wouldApply.length}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
                 <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Categories</div>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     className="text-[10px] text-primary hover:underline"
-                    onClick={() => setSelectedCategories(new Set(availableCategories))}
+                    onClick={() => { setSelectedCategories(new Set(availableCategories)); setActivePreset(null); }}
                   >
                     Select all
                   </button>
@@ -1122,7 +1175,7 @@ function CompanyToWalletBreakdownChart({
                   <button
                     type="button"
                     className="text-[10px] text-primary hover:underline"
-                    onClick={() => setSelectedCategories(new Set())}
+                    onClick={() => { setSelectedCategories(new Set()); setActivePreset('All'); }}
                   >
                     Clear
                   </button>
@@ -1150,6 +1203,7 @@ function CompanyToWalletBreakdownChart({
                           if (checked) next.delete(cat);
                           else next.add(cat);
                           setSelectedCategories(next);
+                          setActivePreset(null);
                         }}
                       />
                       <span className={cn('h-2.5 w-2.5 rounded-full border', checked ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
@@ -1178,7 +1232,7 @@ function CompanyToWalletBreakdownChart({
 
       {count === 0 ? (
         <div className="rounded-2xl border border-border bg-muted/20 p-6 text-center text-[12px] text-muted-foreground">
-          No movements match the current dates.
+          No movements match the current filters.
         </div>
       ) : (
         <>
