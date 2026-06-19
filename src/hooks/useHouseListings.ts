@@ -49,18 +49,27 @@ export interface HouseListing {
   agent_name?: string | null;
 }
 
-/** Enrich listings with agent phone/name from profiles */
+/**
+ * Enrich listings with the listing agent's phone/name.
+ *
+ * Tenants cannot read other users' `profiles` rows directly (RLS), so we use the
+ * `get_listing_agent_contacts` SECURITY DEFINER RPC, which only returns the
+ * contact of the agent who listed an available house. This is what powers the
+ * "Chat on WhatsApp" button on the tenant dashboard.
+ */
 async function enrichWithAgentInfo(listings: HouseListing[]): Promise<HouseListing[]> {
-  const agentIds = [...new Set(listings.map(l => l.agent_id).filter(Boolean))] as string[];
-  if (!agentIds.length) return listings;
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, phone, full_name')
-    .in('id', agentIds);
-  if (!profiles) return listings;
-  const map = new Map(profiles.map(p => [p.id, p]));
+  const listingIds = [...new Set(listings.map(l => l.id).filter(Boolean))] as string[];
+  if (!listingIds.length) return listings;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any).rpc('get_listing_agent_contacts', {
+    p_listing_ids: listingIds,
+  });
+  if (!data) return listings;
+  const map = new Map<string, { full_name: string | null; phone: string | null }>(
+    (data as any[]).map((r) => [r.listing_id, { full_name: r.full_name, phone: r.phone }])
+  );
   return listings.map(l => {
-    const agent = l.agent_id ? map.get(l.agent_id) : null;
+    const agent = map.get(l.id);
     return { ...l, agent_phone: agent?.phone ?? null, agent_name: agent?.full_name ?? null };
   });
 }
