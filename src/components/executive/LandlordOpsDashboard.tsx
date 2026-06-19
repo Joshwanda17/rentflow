@@ -2980,7 +2980,46 @@ export function LandlordOpsDashboard() {
                   </div>
                   <div>
                     <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Monthly rent</p>
-                    <p className="text-[11px] font-medium">UGX {Number(house.monthly_rent || 0).toLocaleString()}</p>
+                    {editingRentId === house.id ? (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Input
+                          type="number"
+                          value={editRentValue}
+                          onChange={(e) => setEditRentValue(e.target.value)}
+                          className="h-7 text-[11px] px-2 py-0.5 w-28"
+                          disabled={savingRentId === house.id}
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          className="h-7 px-2 text-[10px]"
+                          disabled={savingRentId === house.id}
+                          onClick={() => handleUpdateMonthlyRent(house, Number(editRentValue))}
+                        >
+                          {savingRentId === house.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-[10px]"
+                          disabled={savingRentId === house.id}
+                          onClick={() => { setEditingRentId(null); setEditRentValue(''); }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[11px] font-medium">UGX {Number(house.monthly_rent || 0).toLocaleString()}</p>
+                        <button
+                          onClick={() => { setEditingRentId(house.id); setEditRentValue(String(house.monthly_rent || '')); }}
+                          className="text-muted-foreground hover:text-primary transition-colors"
+                          title="Edit monthly rent"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Daily rate</p>
