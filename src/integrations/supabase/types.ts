@@ -20032,6 +20032,7 @@ export type Database = {
         Args: { p_listing_ids: string[] }
         Returns: {
           agent_id: string
+          avg_rating: number
           full_name: string
           listing_id: string
           phone: string
