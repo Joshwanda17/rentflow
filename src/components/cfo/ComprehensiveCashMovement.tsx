@@ -893,6 +893,11 @@ type TimelineMovement = {
   destParty: string | null;
   reference: string | null;
   description: string | null;
+  direction: 'cash_in' | 'cash_out';
+  scope: string;
+  raw: LedgerRow;
+  groupId: string;
+  groupLegs: LedgerRow[];
 };
 
 const COMPANY_LABEL = 'Company (money we have)';
