@@ -298,6 +298,12 @@ const COMPANY_TO_WALLETS_GROUP_10 = new Set(['equipment_expense']);
 const COMPANY_TO_WALLETS_GROUP_11 = new Set([
   'agent_float_deposit', 'agent_float_assignment', 'agent_float_allocation', 'agent_float_settlement',
 ]);
+// Wallet-leg categories that carry no economic meaning on their own. When a
+// wallet cash_in leg uses one of these, the real purpose of the money lives on
+// the paired platform cash_out leg, so we bucket by the platform category.
+const GENERIC_WALLET_CATEGORIES = new Set([
+  'wallet_deposit', 'wallet_credit', 'system_balance_correction', 'balance_correction', 'wallet_transfer',
+]);
 const COMPANY_TO_WALLETS_GROUPS: { label: string; categories: Set<string>; color: string }[] = [
   { label: 'Returns paid to Supporters (and their proxy-agent wallets)', categories: COMPANY_TO_WALLETS_GROUP_1, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
   { label: 'Rent disbursed to landlords via agent landlord-float wallets', categories: COMPANY_TO_WALLETS_GROUP_2, color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
