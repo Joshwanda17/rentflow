@@ -995,6 +995,11 @@ function MovementTimeline({
             sourceLabel, sourceParty, destLabel, destParty,
             reference: w.reference_id ?? null,
             description: w.description ?? null,
+            direction: w.direction,
+            scope: w.ledger_scope,
+            raw: w,
+            groupId: gid,
+            groupLegs: legs,
           });
         });
       } else if (platformLegs.length) {
@@ -1014,6 +1019,11 @@ function MovementTimeline({
             destParty: null,
             reference: p.reference_id ?? null,
             description: p.description ?? null,
+            direction: p.direction,
+            scope: p.ledger_scope,
+            raw: p,
+            groupId: gid,
+            groupLegs: legs,
           });
         });
       }
