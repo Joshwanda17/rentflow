@@ -947,6 +947,7 @@ function CompanyToWalletBreakdownChart({
   const [expanded, setExpanded] = useState<string | null>(null);
   // Deep drill-down: a single recipient (or whole category) → every transaction.
   const [drill, setDrill] = useState<{ category: string; userId: string | 'ALL' } | null>(null);
+  const [drillSearch, setDrillSearch] = useState('');
 
   // ── Chart-local filters ────────────────────────────────────
   const [dateFrom, setDateFrom] = useState<string>('');
