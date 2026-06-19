@@ -518,6 +518,202 @@ function TreasuryWalletFlowSummary({
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// Agent Allocation Breakdown — a chart showing how each agent's
+// wallet distributes money into company funds, split by category and
+// amount. Same source as the "Wallets → Company" flow above: a wallet
+// cash_out leg paired with a platform cash_in leg in one transaction
+// group. One horizontal stacked bar per agent; each segment is a
+// category. Hover a segment for the exact amount.
+// ─────────────────────────────────────────────────────────────
+const ALLOCATION_CHART_PALETTE = [
+  'hsl(var(--primary))',
+  'hsl(38 92% 50%)',   // amber
+  'hsl(160 84% 39%)',  // emerald
+  'hsl(199 89% 48%)',  // sky
+  'hsl(280 65% 60%)',  // violet
+  'hsl(346 77% 58%)',  // rose
+  'hsl(24 95% 53%)',   // orange
+  'hsl(199 18% 46%)',  // slate
+];
+
+function AgentAllocationBreakdownChart({
+  rows,
+  includeAdjustments,
+}: {
+  rows: LedgerRow[];
+  includeAdjustments: boolean;
+}) {
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [maxAgents, setMaxAgents] = useState<8 | 20>(8);
+
+  // Build per-agent, per-category allocation totals from paired
+  // wallet-out / platform-in ledger legs.
+  const { perAgent, categories } = useMemo(() => {
+    const groups = new Map<string, LedgerRow[]>();
+    for (const r of rows) {
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const gid = r.transaction_group_id;
+      if (!gid) continue;
+      const arr = groups.get(gid) || [];
+      arr.push(r);
+      groups.set(gid, arr);
+    }
+    // agentId -> { total, byCat: Map<category, amount> }
+    const perAgent = new Map<string, { total: number; byCat: Map<string, number> }>();
+    const catTotals = new Map<string, number>();
+    for (const legs of groups.values()) {
+      const hasPlatformIn = legs.some(l => l.ledger_scope === 'platform' && l.direction === 'cash_in');
+      if (!hasPlatformIn) continue;
+      for (const w of legs) {
+        if (w.ledger_scope !== 'wallet' || w.direction !== 'cash_out') continue;
+        const amt = Number(w.amount) || 0;
+        if (!amt || !w.user_id) continue;
+        const entry = perAgent.get(w.user_id) || { total: 0, byCat: new Map<string, number>() };
+        entry.total += amt;
+        entry.byCat.set(w.category, (entry.byCat.get(w.category) || 0) + amt);
+        perAgent.set(w.user_id, entry);
+        catTotals.set(w.category, (catTotals.get(w.category) || 0) + amt);
+      }
+    }
+    const categories = [...catTotals.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+    return { perAgent, categories };
+  }, [rows, includeAdjustments]);
+
+  const topAgents = useMemo(
+    () => [...perAgent.entries()].sort((a, b) => b[1].total - a[1].total).slice(0, maxAgents),
+    [perAgent, maxAgents],
+  );
+
+  // Resolve agent names.
+  useEffect(() => {
+    const ids = topAgents.map(([id]) => id).filter(id => !names[id]);
+    if (!ids.length) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as { id: string; full_name: string | null }[]) {
+        if (p.full_name) next[p.id] = p.full_name;
+      }
+      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topAgents]);
+
+  const colorFor = useMemo(() => {
+    const map: Record<string, string> = {};
+    categories.forEach((c, i) => { map[c] = ALLOCATION_CHART_PALETTE[i % ALLOCATION_CHART_PALETTE.length]; });
+    return map;
+  }, [categories]);
+
+  const chartData = useMemo(() => {
+    return topAgents.map(([id, entry]) => {
+      const row: Record<string, number | string> = {
+        agent: names[id] || `${id.slice(0, 8)}…`,
+        total: entry.total,
+      };
+      for (const c of categories) row[c] = entry.byCat.get(c) || 0;
+      return row;
+    });
+  }, [topAgents, categories, names]);
+
+  const totalAgents = perAgent.size;
+
+  if (totalAgents === 0) {
+    return (
+      <section id="cm-allocation-chart" className="space-y-2">
+        <div className="flex items-center gap-2">
+          <ArrowLeftRight className="h-4 w-4 text-primary" />
+          <h4 className="text-sm font-semibold">Agent Allocation Breakdown</h4>
+        </div>
+        <div className="rounded-2xl border border-border bg-muted/20 p-6 text-center text-[12px] text-muted-foreground">
+          No agent wallet allocations to company funds in this period.
+        </div>
+      </section>
+    );
+  }
+
+  // ~38px per agent row + headroom for the legend/axis.
+  const chartHeight = Math.max(180, topAgents.length * 40 + 60);
+
+  return (
+    <section id="cm-allocation-chart" className="space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <ArrowLeftRight className="h-4 w-4 text-primary" />
+          <h4 className="text-sm font-semibold">Agent Allocation Breakdown</h4>
+        </div>
+        {totalAgents > 8 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-[11px] px-2.5 rounded-full"
+            onClick={() => setMaxAgents(v => (v === 8 ? 20 : 8))}
+          >
+            {maxAgents === 8 ? `Show top 20 of ${totalAgents}` : 'Show top 8'}
+          </Button>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground -mt-1">
+        How each agent's wallet distributes money into company funds, split by category and amount.
+        Each bar is one agent; each colour is a category. Hover a segment for the exact amount.
+      </p>
+
+      {/* Category legend with colour swatches + totals */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {categories.map(c => (
+          <span key={c} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: colorFor[c] }} />
+            {friendlyWalletLabel(c, 'cash_out')}
+          </span>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border-2 border-border/60 bg-card p-3" style={{ height: chartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+            <XAxis
+              type="number"
+              tick={{ fontSize: 10 }}
+              stroke="hsl(var(--muted-foreground))"
+              tickFormatter={(v: number) => formatUGX(v)}
+            />
+            <YAxis
+              type="category"
+              dataKey="agent"
+              width={110}
+              tick={{ fontSize: 11 }}
+              stroke="hsl(var(--muted-foreground))"
+            />
+            <RechartsTooltip
+              formatter={(v: number, name: string) => [formatUGX(v), friendlyWalletLabel(name, 'cash_out')]}
+              contentStyle={{
+                background: 'hsl(var(--popover))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+            />
+            {categories.map((c, i) => (
+              <Bar
+                key={c}
+                dataKey={c}
+                stackId="alloc"
+                fill={colorFor[c]}
+                radius={i === categories.length - 1 ? [0, 4, 4, 0] : undefined}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
+
 export function ComprehensiveCashMovement() {
   const { role, roles } = useAuth();
   const canViewLedgerDetail = useMemo(() => {
