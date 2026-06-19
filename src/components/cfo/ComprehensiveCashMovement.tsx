@@ -1207,6 +1207,13 @@ function TreasuryWalletFlowSummary({
           partyHeading="Top recipients"
           direction="cash_in"
           rawItems={toWallets}
+          groupDefs={COMPANY_TO_WALLETS_GROUPS}
+          onGroupDrill={(meta) => setGroupDrill({
+            label: meta.label,
+            color: meta.color,
+            direction: 'cash_in',
+            items: toWallets.filter(i => meta.categories.has(i.category)),
+          })}
         />
         <Flow
           tone="out"
@@ -1217,6 +1224,7 @@ function TreasuryWalletFlowSummary({
           partyHeading="Top sources"
           direction="cash_out"
           rawItems={toCompany}
+          groupDefs={WALLET_TO_COMPANY_GROUPS}
           onGroupDrill={(meta) => setGroupDrill({
             label: meta.label,
             color: meta.color,
