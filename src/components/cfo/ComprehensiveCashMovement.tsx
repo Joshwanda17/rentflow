@@ -967,7 +967,20 @@ function TreasuryWalletFlowSummary({
       const platformLegs = legs.filter(l => l.ledger_scope === 'platform');
       const walletLegs = legs.filter(l => l.ledger_scope === 'wallet');
       const bridgeLegs = legs.filter(l => l.ledger_scope === 'bridge');
-      if (!walletLegs.length) continue;
+      // Rent disbursed to landlords funds an agent landlord-float account,
+      // which this ledger records as platform cash_out → bridge cash_in
+      // (rent_receivable_created) with NO wallet leg. The landlord float IS the
+      // destination "wallet" the CFO funds, so surface these in Company →
+      // Wallets (bucket 2) even though there is no wallet-scope leg.
+      if (!walletLegs.length) {
+        for (const p of platformLegs) {
+          if (p.direction !== 'cash_out') continue;
+          if (!COMPANY_TO_WALLETS_GROUP_2.has(p.category)) continue;
+          const amt = Number(p.amount) || 0;
+          if (amt) toWallets.push({ amount: amt, category: p.category, party: p.user_id ?? null, date: p.transaction_date });
+        }
+        continue;
+      }
       if (!platformLegs.length && !bridgeLegs.length) continue;
       const hasPlatformOut = platformLegs.some(p => p.direction === 'cash_out');
       const hasPlatformIn = platformLegs.some(p => p.direction === 'cash_in');
