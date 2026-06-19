@@ -266,12 +266,17 @@ export function NearbyHousesPreview({ onViewAll, onSelectHouse }: NearbyHousesPr
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h2 className="font-bold text-base flex items-center gap-1.5">
-          <Home className="h-4 w-4 text-primary" />
-          {(manual || hasGPS)
-            ? `Near ${nearbyCity || 'You'}`
-            : 'Available Houses'}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-bold text-base flex items-center gap-1.5">
+            <Home className="h-4 w-4 text-primary" />
+            {(manual || hasGPS)
+              ? `Near ${nearbyCity || 'You'}`
+              : 'Available Houses'}
+          </h2>
+          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${manual ? 'bg-amber-100 text-amber-700 border-amber-200' : hasGPS ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-muted text-muted-foreground border-border'}`}>
+            {manual ? '🏙️ Manual' : hasGPS ? '📍 GPS' : '—'}
+          </span>
+        </div>
         <div className="flex items-center gap-1.5">
           {picker}
           <ShareNearbyHousesButton
