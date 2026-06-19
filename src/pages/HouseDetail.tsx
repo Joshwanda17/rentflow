@@ -530,7 +530,7 @@ export default function HouseDetail() {
                 </div>
               </a>
               <a
-                href={mapLink}
+                href={directionsLink || mapLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => announceMap(listing.title)}
