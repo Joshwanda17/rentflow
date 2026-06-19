@@ -980,6 +980,8 @@ function CompanyToWalletBreakdownChart({
     }
     const catTotals = new Map<string, { amount: number; count: number }>();
     const byCatRecipients = new Map<string, Map<string, number>>();
+    const byCatRecipientRows = new Map<string, Map<string, LedgerRow[]>>();
+    const byCatRows = new Map<string, LedgerRow[]>();
     const available = new Set<string>();
     let total = 0;
     let count = 0;
@@ -998,10 +1000,16 @@ function CompanyToWalletBreakdownChart({
         const c = catTotals.get(w.category) || { amount: 0, count: 0 };
         c.amount += amt; c.count += 1; catTotals.set(w.category, c);
         total += amt; count += 1;
+        const allRows = byCatRows.get(w.category) || [];
+        allRows.push(w); byCatRows.set(w.category, allRows);
         if (w.user_id) {
           const recs = byCatRecipients.get(w.category) || new Map<string, number>();
           recs.set(w.user_id, (recs.get(w.user_id) || 0) + amt);
           byCatRecipients.set(w.category, recs);
+          const recRows = byCatRecipientRows.get(w.category) || new Map<string, LedgerRow[]>();
+          const list = recRows.get(w.user_id) || [];
+          list.push(w); recRows.set(w.user_id, list);
+          byCatRecipientRows.set(w.category, recRows);
         }
       }
     }
@@ -1013,7 +1021,7 @@ function CompanyToWalletBreakdownChart({
         return b[1].amount - a[1].amount;
       })
       .map(([category, v]) => ({ category, amount: v.amount, count: v.count }));
-    return { catList, total, count, byCatRecipients, availableCategories: [...available].sort((a, b) => cfoCategoryRank(a) - cfoCategoryRank(b)) };
+    return { catList, total, count, byCatRecipients, byCatRecipientRows, byCatRows, availableCategories: [...available].sort((a, b) => cfoCategoryRank(a) - cfoCategoryRank(b)) };
   }, [rows, includeAdjustments, dateFrom, dateTo, categoryFilterActive, selectedCategories]);
 
   // Resolve recipient names for the currently-expanded category.
