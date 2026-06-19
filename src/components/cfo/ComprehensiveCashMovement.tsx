@@ -820,6 +820,29 @@ function GroupPeriodDrilldown({
             <p className="text-[10px] uppercase tracking-wider font-bold opacity-80">Total in this period</p>
             <p className="text-2xl font-bold font-mono tracking-tight">{formatUGX(total)}</p>
             <p className="text-[11px] opacity-80">{filtered.length.toLocaleString()} transaction{filtered.length === 1 ? '' : 's'} · {periods.length} period{periods.length === 1 ? '' : 's'}</p>
+
+            {/* Reconciliation indicator */}
+            {totalMatches && countMatches ? (
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600/10 border border-emerald-500/20 px-2.5 py-1">
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="text-[11px] font-semibold text-emerald-700">Reconciled — matches card breakdown</span>
+              </div>
+            ) : (
+              <div className="mt-2 inline-flex flex-col gap-1 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                  <span className="text-[11px] font-semibold text-amber-700">Does not match card breakdown</span>
+                </div>
+                <div className="text-[10px] text-amber-700/80 space-y-0.5">
+                  {!totalMatches && (
+                    <p>Total: card {formatUGX(expectedTotal)} vs drill {formatUGX(total)} (Δ {formatUGX(Math.abs(expectedTotal - total))})</p>
+                  )}
+                  {!countMatches && (
+                    <p>Count: card {expectedCount.toLocaleString()} vs drill {filtered.length.toLocaleString()} (Δ {Math.abs(expectedCount - filtered.length).toLocaleString()})</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Granularity toggle */}
