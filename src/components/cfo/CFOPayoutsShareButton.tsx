@@ -17,6 +17,7 @@ import { generateCfoPayoutsPdf, shareCfoPayoutsPdf, type CfoPayoutRow } from '@/
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { CFO_PAYOUT_LABELS } from '@/lib/cfoPayoutLabels';
 
 // Audit-log action types that represent money actually paid OUT to a person/wallet.
 const PAYOUT_ACTIONS = [
@@ -33,7 +34,7 @@ const PAYOUT_ACTIONS = [
 ];
 
 const ACTION_LABEL: Record<string, string> = {
-  cfo_direct_credit: 'Send Money to Users Wallet',
+  cfo_direct_credit: CFO_PAYOUT_LABELS.credit,
   cfo_roi_payout_approved: 'ROI Payout',
   roi_payout: 'ROI Payout',
   rent_payout_approved: 'Rent Payout',
