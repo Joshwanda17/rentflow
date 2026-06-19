@@ -654,6 +654,8 @@ function AgentAllocationBreakdownChart({
       if (!hasPlatformIn) continue;
       for (const w of legs) {
         if (w.ledger_scope !== 'wallet' || w.direction !== 'cash_out') continue;
+        // Exclude personal wallet withdrawals — they are wallet → external, not wallet → company
+        if (w.category === 'wallet_withdrawal' || w.category === 'withdrawal') continue;
         const amt = Number(w.amount) || 0;
         if (!amt || !w.user_id) continue;
         // Date filter
