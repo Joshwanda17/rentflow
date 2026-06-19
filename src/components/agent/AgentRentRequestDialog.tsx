@@ -4247,7 +4247,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <p className="text-xs text-muted-foreground leading-snug">The language the tenant understands best.</p>
                       <p className="text-[11px] text-muted-foreground">e.g. Luganda</p>
                   <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
-                    <SelectTrigger>
+                    <SelectTrigger className={`${hasFieldError('preferredLanguage') ? 'border-destructive border-2' : ''}`}>
                       <SelectValue placeholder="Select tenant language" />
                     </SelectTrigger>
                     <SelectContent>
@@ -4256,6 +4256,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       ))}
                     </SelectContent>
                   </Select>
+                  <FieldError message={getFieldError('preferredLanguage')} />
                 </div>
               </div>
               </>
