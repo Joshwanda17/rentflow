@@ -1123,6 +1123,59 @@ function CompanyToWalletBreakdownChart({
     return drillRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   }, [drillRows, drillDirection]);
 
+  // Export the currently filtered drill-down rows to a PDF document.
+  const exportDrillPdf = useCallback(() => {
+    if (!drill || drillRows.length === 0) {
+      toast.error('Nothing to export', { description: 'No transactions match the current filters.' });
+      return;
+    }
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const title = friendlyWalletLabel(drill.category, 'cash_in');
+    const scope = drill.userId === 'ALL' ? 'All recipients' : nameOf(drill.userId);
+    doc.setFontSize(14);
+    doc.text(`${title}`, 40, 40);
+    doc.setFontSize(9);
+    doc.setTextColor(110);
+    const metaLines = [
+      `Category: ${drill.category}  ·  Recipient: ${scope}`,
+      `Direction: ${drillDirection === 'cash_in' ? 'Cash In' : drillDirection === 'cash_out' ? 'Cash Out' : 'Both'}` +
+        (drillSearch ? `  ·  Search: "${drillSearch}"` : '') +
+        ((drillDateFrom || drillDateTo) ? `  ·  Dates: ${drillDateFrom || '…'} → ${drillDateTo || '…'}` : ''),
+      `${drillRows.length.toLocaleString()} transaction(s)  ·  Total: ${formatUGX(drillTotal)}`,
+      `Generated: ${format(new Date(), 'd MMM yyyy, HH:mm')}`,
+    ];
+    metaLines.forEach((line, i) => doc.text(line, 40, 58 + i * 13));
+    autoTable(doc, {
+      startY: 58 + metaLines.length * 13 + 6,
+      head: [['Date', 'Recipient', 'Description', 'Scope · Dir', 'Reference', 'Amount']],
+      body: drillRows.map(r => {
+        const isCashIn = r.direction === 'cash_in';
+        return [
+          format(new Date(r.transaction_date), 'd MMM yyyy, HH:mm'),
+          r.user_id ? nameOf(r.user_id) : '—',
+          r.description || '—',
+          `${r.ledger_scope === 'wallet' ? 'Wallet' : 'Platform'} · ${isCashIn ? 'In' : 'Out'}`,
+          r.reference_id || '—',
+          `${isCashIn ? '+' : '−'}${formatUGX(Number(r.amount) || 0)}`,
+        ];
+      }),
+      styles: { fontSize: 7.5, cellPadding: 3, overflow: 'linebreak' },
+      headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 95 },
+        1: { cellWidth: 110 },
+        2: { cellWidth: 230 },
+        3: { cellWidth: 70 },
+        4: { cellWidth: 110 },
+        5: { cellWidth: 90, halign: 'right' },
+      },
+      margin: { left: 40, right: 40 },
+    });
+    const safeCat = drill.category.replace(/[^a-z0-9]+/gi, '-');
+    doc.save(`drilldown-${safeCat}-${format(new Date(), 'yyyyMMdd-HHmm')}.pdf`);
+    toast.success('PDF exported', { description: `${drillRows.length.toLocaleString()} transaction(s) saved.` });
+  }, [drill, drillRows, drillTotal, drillDirection, drillSearch, drillDateFrom, drillDateTo, names]);
+
   // Resolve any recipient names referenced by the open whole-category drill.
   useEffect(() => {
     if (!drill) return;
