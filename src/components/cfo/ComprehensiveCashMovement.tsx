@@ -18,13 +18,26 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
-import { CATEGORY_DESCRIPTIONS } from '@/lib/ledgerConstants';
+import { CATEGORY_DESCRIPTIONS, LOCKED_CATEGORIES } from '@/lib/ledgerConstants';
 import { downloadCsv } from '@/lib/csvExport';
 import { useAuth } from '@/hooks/useAuth';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Lock } from 'lucide-react';
 import { HScrollHint, FOCUSABLE_COL_HEAD_CLASS, focusableColHeadProps } from './HScrollHint';
+
+// ─────────────────────────────────────────────────────────────
+// Canonical CFO category ordering. The CFO reads wallet movements
+// in the same fixed order they appear on every other CFO report
+// (LOCKED_CATEGORIES). Anything not in the canonical list is pushed
+// to the end but still shown — we never silently drop a movement.
+// ─────────────────────────────────────────────────────────────
+const CFO_CATEGORY_RANK: Record<string, number> = Object.fromEntries(
+  (LOCKED_CATEGORIES as readonly string[]).map((c, i) => [c, i]),
+);
+function cfoCategoryRank(category: string): number {
+  return CFO_CATEGORY_RANK[category] ?? Number.MAX_SAFE_INTEGER;
+}
 
 // Roles allowed to drill into individual ledger entries and export raw movement data
 const LEDGER_DETAIL_ROLES = new Set(['cfo', 'ceo', 'coo', 'super_admin', 'cto', 'manager']);
@@ -317,7 +330,15 @@ function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
   return {
     total,
     count: items.length,
-    cats: [...byCat.entries()].sort((a, b) => b[1].amount - a[1].amount),
+    // Ordered by the canonical CFO category sequence (LOCKED_CATEGORIES),
+    // falling back to amount for any non-canonical categories so the CFO
+    // always reads movements in a predictable, familiar order.
+    cats: [...byCat.entries()].sort((a, b) => {
+      const ra = cfoCategoryRank(a[0]);
+      const rb = cfoCategoryRank(b[0]);
+      if (ra !== rb) return ra - rb;
+      return b[1].amount - a[1].amount;
+    }),
     parties: [...byParty.entries()].sort((a, b) => b[1].amount - a[1].amount),
   };
 }
@@ -435,13 +456,17 @@ function TreasuryWalletFlowSummary({
 
       {summary.cats.length > 0 && (
         <div className="space-y-1.5 pt-1 border-t border-border/60">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">By type</p>
-          {summary.cats.slice(0, 5).map(([cat, v]) => (
-            <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
-              <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, direction)}</span>
-              <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
-            </div>
-          ))}
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            By type · CFO order
+          </p>
+          <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+            {summary.cats.map(([cat, v]) => (
+              <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, direction)}</span>
+                <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -488,7 +513,7 @@ function TreasuryWalletFlowSummary({
           tone="in"
           icon={<WalletIcon className="h-5 w-5" />}
           title="Company → Wallets"
-          subtitle="Money the CFO moved from what we have into user & agent wallets"
+          subtitle="Every move of company money into user & agent wallets — CFO transfers, auto payouts (ROI, commissions) and Financial Ops disbursements"
           summary={inSummary}
           partyHeading="Top recipients"
           direction="cash_in"
