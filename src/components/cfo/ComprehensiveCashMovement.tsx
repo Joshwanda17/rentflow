@@ -1421,7 +1421,7 @@ function CompanyToWalletBreakdownChart({
       )}
 
       {/* ── Deep drill-down: every transaction behind a number ──────── */}
-      <Sheet open={!!drill} onOpenChange={(o) => { if (!o) { setDrill(null); setDrillSearch(''); } }}>
+      <Sheet open={!!drill} onOpenChange={(o) => { if (!o) { setDrill(null); setDrillSearch(''); setDrillDirection('cash_in'); } }}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
           {drill && (
             <>
@@ -1435,6 +1435,7 @@ function CompanyToWalletBreakdownChart({
                     ? <>Every company → wallet transfer in <span className="font-mono">{drill.category}</span></>
                     : <>Transfers to <span className="font-semibold text-foreground">{nameOf(drill.userId)}</span> · <span className="font-mono">{drill.category}</span></>}
                 </SheetDescription>
+
                 {/* Search box */}
                 <div className="relative pt-1">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -1454,12 +1455,67 @@ function CompanyToWalletBreakdownChart({
                     </button>
                   )}
                 </div>
+
+                {/* Advanced filter chips */}
+                <div className="flex flex-col gap-1.5 pt-1">
+                  {/* Direction */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Direction</span>
+                    {(['cash_in', 'cash_out', 'both'] as const).map(dir => (
+                      <button
+                        key={dir}
+                        type="button"
+                        onClick={() => setDrillDirection(dir)}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                          drillDirection === dir
+                            ? 'border-primary/40 bg-primary/10 text-primary'
+                            : 'border-border bg-background text-muted-foreground hover:bg-muted/40'
+                        )}
+                      >
+                        {dir === 'cash_in' && <ArrowUpRight className="h-2.5 w-2.5" />}
+                        {dir === 'cash_out' && <ArrowDownRight className="h-2.5 w-2.5" />}
+                        {dir === 'both' && <ArrowLeftRight className="h-2.5 w-2.5" />}
+                        {dir === 'cash_in' ? 'Cash In' : dir === 'cash_out' ? 'Cash Out' : 'Both'}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Category — only when viewing ALL recipients */}
+                  {drill.userId === 'ALL' && catList.length > 1 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">Category</span>
+                      <div className="flex flex-wrap gap-1">
+                        {catList.map(c => (
+                          <button
+                            key={c.category}
+                            type="button"
+                            onClick={() => { setDrill({ category: c.category, userId: 'ALL' }); setDrillSearch(''); }}
+                            className={cn(
+                              'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] transition-colors max-w-[160px] truncate',
+                              drill.category === c.category
+                                ? 'border-primary/40 bg-primary/10 text-primary'
+                                : 'border-border bg-background text-muted-foreground hover:bg-muted/40'
+                            )}
+                            title={friendlyWalletLabel(c.category, 'cash_in')}
+                          >
+                            {friendlyWalletLabel(c.category, 'cash_in')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </SheetHeader>
               <div className="px-4 py-3 border-b bg-muted/40 flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
                   {drillSearch
                     ? `${drillRows.length.toLocaleString()} of ${rawDrillRows.length.toLocaleString()} match${drillRows.length === 1 ? '' : 'es'}`
                     : `${drillRows.length.toLocaleString()} transaction${drillRows.length === 1 ? '' : 's'}`}
+                  {drillDirection !== 'cash_in' && (
+                    <span className="ml-1 font-medium text-foreground">
+                      · {drillDirection === 'cash_out' ? 'Cash Out' : 'Both directions'}
+                    </span>
+                  )}
                 </span>
                 <span className="text-sm font-bold font-mono text-emerald-600">{formatUGX(drillTotal)}</span>
               </div>
