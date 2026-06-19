@@ -249,6 +249,30 @@ const WALLET_TO_COMPANY_GROUPS: { label: string; categories: Set<string>; color:
   { label: 'Advance auto-recovery from agents who took Welile advances', categories: WALLET_TO_COMPANY_GROUP_3, color: 'bg-rose-500/10 text-rose-600 border-rose-500/20' },
   { label: 'Share capital (Angel Pool contributions)', categories: WALLET_TO_COMPANY_GROUP_4, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
 ];
+// Wallet-origin categories that are UNAMBIGUOUSLY money moving into the
+// company ("money we have"), regardless of how the transaction group is
+// paired. Agent rent allocations move agent operational float (a wallet
+// cash_out) into the company — sometimes against a bridge rent-receivable
+// leg, sometimes as a wallet-only float settlement with no platform/bridge
+// cash_in leg at all. We must NEVER drop these: every agent rent allocation
+// is company money and belongs on the "From Wallets to Company" card.
+const ALWAYS_WALLET_TO_COMPANY = new Set<string>([
+  // Rent paid for tenants out of agent float / commission (Group 1)
+  'rent_payment_for_tenant',
+  'agent_float_used_for_rent',
+  'agent_float_allocation',
+  'agent_commission_used_for_rent',
+  'rent_repayment',
+  'tenant_repayment',
+  'agent_float_settlement',
+  'agent_float_assignment',
+  // Advance auto-recovery pulled straight from agent wallets (Group 3)
+  'advance_recovery',
+  'agent_repayment',
+  'agent_advance_repayment',
+  'salary_advance_repayment',
+  'debt_recovery',
+]);
 function friendlyWalletLabel(category: string, direction: 'cash_in' | 'cash_out'): string {
   const map = direction === 'cash_in' ? WALLET_FLOW_LABEL_IN : WALLET_FLOW_LABEL_OUT;
   return map[category] || prettifyCategory(category);
