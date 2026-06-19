@@ -4376,13 +4376,13 @@ export function ComprehensiveCashMovement() {
             <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" /> Show me
             </label>
-            <div className="grid grid-cols-3 sm:flex sm:gap-1.5 gap-1.5 sm:items-center sm:overflow-x-auto sm:pb-1 sm:-mx-1 sm:px-1 sm:snap-x">
+            <div className="grid grid-cols-3 sm:flex sm:flex-wrap sm:gap-1.5 gap-1.5 sm:items-center">
               {PERIODS.map(p => (
                 <Button
                   key={p.value}
                   size="sm"
                   variant={period === p.value ? 'default' : 'outline'}
-                  className="text-xs h-9 sm:h-8 w-full sm:w-auto sm:shrink-0 sm:snap-start"
+                  className="text-xs h-9 sm:h-8 w-full sm:w-auto sm:shrink-0"
                   onClick={() => setPeriod(p.value)}
                 >
                   {p.label}
