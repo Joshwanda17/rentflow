@@ -835,6 +835,7 @@ function TreasuryWalletFlowSummary({
           summary={inSummary}
           partyHeading="Top recipients"
           direction="cash_in"
+          rawItems={toWallets}
         />
         <Flow
           tone="out"
@@ -844,6 +845,7 @@ function TreasuryWalletFlowSummary({
           summary={outSummary}
           partyHeading="Top sources"
           direction="cash_out"
+          rawItems={toCompany}
         />
       </div>
       <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2">
