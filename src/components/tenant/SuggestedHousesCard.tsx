@@ -61,17 +61,23 @@ async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
   );
   if (!withPhotos.length) return [];
 
-  const agentIds = [...new Set(withPhotos.map((h: any) => h.agent_id).filter(Boolean))] as string[];
+  // Tenants cannot read agents' `profiles` directly (RLS). Use the secure RPC
+  // that returns only the listing agent's contact so the WhatsApp button works.
+  const listingIds = withPhotos.map((h: any) => h.id).filter(Boolean);
   let agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
-  if (agentIds.length) {
-    const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', agentIds);
-    if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
+  if (listingIds.length) {
+    const { data: contacts } = await client.rpc('get_listing_agent_contacts', { p_listing_ids: listingIds });
+    if (contacts) {
+      agentMap = new Map(
+        (contacts as any[]).map((r) => [r.listing_id, { full_name: r.full_name, phone: r.phone }])
+      );
+    }
   }
 
   return withPhotos.map((h: any) => ({
     ...h,
-    agent_name: agentMap.get(h.agent_id)?.full_name || null,
-    agent_phone: agentMap.get(h.agent_id)?.phone || null,
+    agent_name: agentMap.get(h.id)?.full_name || null,
+    agent_phone: agentMap.get(h.id)?.phone || null,
   }));
 }
 
