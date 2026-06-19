@@ -3195,6 +3195,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     setIncomeType('daily');
                     setDetailStep(0);
                     setValidationErrors([]);
+                    setFieldErrors({});
                     setStep('details');
                   }}
                   className="p-4 rounded-xl border-2 border-muted hover:border-primary hover:bg-primary/5 transition-all text-left group active:scale-[0.98]"
