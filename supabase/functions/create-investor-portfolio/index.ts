@@ -1,5 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isValidInvestmentAmount, MIN_INVESTMENT_ERROR_PORTFOLIO } from "../_shared/investmentAmount.ts";
+import {
+  buildPartnershipAgreementRequest,
+  buildPartnerCompoundCreationRequest,
+  dispatchTransactionalEmail,
+} from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
