@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Info, Users, ArrowLeftRight, Check, AlertTriangle, TrendingUp, MinusCircle, Share2, Image as ImageIcon, Download } from 'lucide-react';
 import { Landmark, Wallet as WalletIcon, ArrowRight } from 'lucide-react';
