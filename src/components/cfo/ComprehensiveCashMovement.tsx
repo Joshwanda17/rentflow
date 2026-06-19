@@ -1007,7 +1007,7 @@ function TreasuryWalletFlowSummary({
     partyHeading: string;
     direction: 'cash_in' | 'cash_out';
     rawItems: TreasuryFlowItem[];
-    onGroupDrill?: (meta: { label: string; color: string; categories: Set<string> }) => void;
+    onGroupDrill?: (meta: { label: string; color: string; categories: Set<string>; expectedTotal: number; expectedCount: number }) => void;
     groupDefs?: { label: string; categories: Set<string>; color: string }[];
   }) => {
     const [groupView, setGroupView] = useState<'amount' | 'count' | 'pct'>('amount');
@@ -1087,7 +1087,7 @@ function TreasuryWalletFlowSummary({
                           key={label}
                           type="button"
                           disabled={isEmpty || !onGroupDrill}
-                          onClick={() => onGroupDrill?.({ label, color: groupMeta.color, categories: groupMeta.categories })}
+                          onClick={() => onGroupDrill?.({ label, color: groupMeta.color, categories: groupMeta.categories, expectedTotal: v.amount, expectedCount: v.count })}
                           className={cn(
                             'w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all',
                             isEmpty
@@ -1215,6 +1215,8 @@ function TreasuryWalletFlowSummary({
             color: meta.color,
             direction: 'cash_in',
             items: toWallets.filter(i => meta.categories.has(i.category)),
+            expectedTotal: meta.expectedTotal,
+            expectedCount: meta.expectedCount,
           })}
         />
         <Flow
@@ -1232,6 +1234,8 @@ function TreasuryWalletFlowSummary({
             color: meta.color,
             direction: 'cash_out',
             items: toCompany.filter(i => meta.categories.has(i.category)),
+            expectedTotal: meta.expectedTotal,
+            expectedCount: meta.expectedCount,
           })}
         />
       </div>
