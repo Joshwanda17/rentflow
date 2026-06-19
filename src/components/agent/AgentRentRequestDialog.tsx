@@ -2321,9 +2321,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     const isOutstanding = incomeType === 'outstanding';
     const errors = collectValidationErrors(isOutstanding);
+    const fieldMap = collectFieldErrors(isOutstanding);
 
     if (errors.length > 0) {
       setValidationErrors(errors);
+      setFieldErrors(fieldMap);
       setSubmissionError(errors[0]);
       toast.error(
         errors.length === 1
@@ -2344,6 +2346,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     }
 
     setValidationErrors([]);
+    setFieldErrors({});
 
     // Synchronous duplicate-tap guard — refs update instantly, unlike React state.
     if (submitLockRef.current) return;
