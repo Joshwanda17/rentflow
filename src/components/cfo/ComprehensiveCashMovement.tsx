@@ -1232,7 +1232,7 @@ function CompanyToWalletBreakdownChart({
 
       {count === 0 ? (
         <div className="rounded-2xl border border-border bg-muted/20 p-6 text-center text-[12px] text-muted-foreground">
-          No movements match the current dates.
+          No movements match the current filters.
         </div>
       ) : (
         <>
