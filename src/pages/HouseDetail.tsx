@@ -538,7 +538,7 @@ export default function HouseDetail() {
                 className="mt-2 flex items-center justify-center gap-2.5 w-full min-h-[52px] px-6 py-3.5 rounded-full bg-primary text-primary-foreground font-bold text-base shadow-lg active:scale-[0.98] transition-transform touch-manipulation focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <Navigation className="h-5 w-5" />
-                Tap to open in Google Maps
+                Get Directions &amp; Go See It
               </a>
               <button
                 type="button"
