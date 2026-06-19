@@ -957,8 +957,8 @@ function TreasuryWalletFlowSummary({
     return { toWallets, toCompany };
   }, [rows, includeAdjustments]);
 
-  const inSummary = useMemo(() => summarizeTreasuryFlow(toWallets), [toWallets]);
-  const outSummary = useMemo(() => summarizeTreasuryFlow(toCompany), [toCompany]);
+  const inSummary = useMemo(() => summarizeTreasuryFlow(toWallets, COMPANY_TO_WALLETS_GROUPS), [toWallets]);
+  const outSummary = useMemo(() => summarizeTreasuryFlow(toCompany, WALLET_TO_COMPANY_GROUPS), [toCompany]);
   const net = inSummary.total - outSummary.total;
 
   // Resolve party names for the top movers shown on each card.
