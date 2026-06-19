@@ -1385,11 +1385,11 @@ function CompanyToWalletBreakdownChart({
       )}
 
       {/* ── Deep drill-down: every transaction behind a number ──────── */}
-      <Sheet open={!!drill} onOpenChange={(o) => { if (!o) setDrill(null); }}>
+      <Sheet open={!!drill} onOpenChange={(o) => { if (!o) { setDrill(null); setDrillSearch(''); } }}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
           {drill && (
             <>
-              <SheetHeader className="px-4 pt-4 pb-3 border-b">
+              <SheetHeader className="px-4 pt-4 pb-3 border-b space-y-2">
                 <SheetTitle className="flex items-center gap-2 text-base">
                   <ArrowLeftRight className="h-4 w-4 text-emerald-600" />
                   {friendlyWalletLabel(drill.category, 'cash_in')}
@@ -1399,46 +1399,78 @@ function CompanyToWalletBreakdownChart({
                     ? <>Every company → wallet transfer in <span className="font-mono">{drill.category}</span></>
                     : <>Transfers to <span className="font-semibold text-foreground">{nameOf(drill.userId)}</span> · <span className="font-mono">{drill.category}</span></>}
                 </SheetDescription>
+                {/* Search box */}
+                <div className="relative pt-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search recipient, reference, description, or date…"
+                    value={drillSearch}
+                    onChange={e => setDrillSearch(e.target.value)}
+                    className="pl-8 h-8 text-[12px] rounded-md"
+                  />
+                  {drillSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setDrillSearch('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
               </SheetHeader>
               <div className="px-4 py-3 border-b bg-muted/40 flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">
-                  {drillRows.length.toLocaleString()} transaction{drillRows.length === 1 ? '' : 's'}
+                  {drillSearch
+                    ? `${drillRows.length.toLocaleString()} of ${rawDrillRows.length.toLocaleString()} match${drillRows.length === 1 ? '' : 'es'}`
+                    : `${drillRows.length.toLocaleString()} transaction${drillRows.length === 1 ? '' : 's'}`}
                 </span>
                 <span className="text-sm font-bold font-mono text-emerald-600">{formatUGX(drillTotal)}</span>
               </div>
               <ScrollArea className="flex-1">
                 <ul className="divide-y divide-border/60">
-                  {drillRows.map((r, i) => (
-                    <li key={r.id || i} className="px-4 py-2.5 space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[12px] font-medium text-foreground">
-                          {format(new Date(r.transaction_date), 'd MMM yyyy, HH:mm')}
-                        </span>
-                        <span className="text-[13px] font-mono font-semibold text-emerald-600 shrink-0">{formatUGX(Number(r.amount) || 0)}</span>
-                      </div>
-                      {drill.userId === 'ALL' && r.user_id && (
-                        <p className="text-[11px] text-foreground/80 truncate">{nameOf(r.user_id)}</p>
-                      )}
-                      {r.description && (
-                        <p className="text-[11px] text-muted-foreground line-clamp-2">{r.description}</p>
-                      )}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {r.reference_id && (
-                          <span className="text-[10px] font-mono text-muted-foreground">Ref: {r.reference_id}</span>
+                  {drillRows.map((r, i) => {
+                    const ts = format(new Date(r.transaction_date), 'd MMM yyyy, HH:mm');
+                    return (
+                      <li key={r.id || i} className="px-4 py-2.5 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[12px] font-medium text-foreground">
+                            <Highlight text={ts} query={drillSearch} />
+                          </span>
+                          <span className="text-[13px] font-mono font-semibold text-emerald-600 shrink-0">{formatUGX(Number(r.amount) || 0)}</span>
+                        </div>
+                        {drill.userId === 'ALL' && r.user_id && (
+                          <p className="text-[11px] text-foreground/80 truncate">
+                            <Highlight text={nameOf(r.user_id)} query={drillSearch} />
+                          </p>
                         )}
-                        {r.transaction_group_id && (
-                          <Link
-                            to={`/ledger/${r.id || r.transaction_group_id}`}
-                            className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-primary hover:underline"
-                          >
-                            Open ledger entry <ExternalLink className="h-2.5 w-2.5" />
-                          </Link>
+                        {r.description && (
+                          <p className="text-[11px] text-muted-foreground line-clamp-2">
+                            <Highlight text={r.description} query={drillSearch} />
+                          </p>
                         )}
-                      </div>
-                    </li>
-                  ))}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {r.reference_id && (
+                            <span className="text-[10px] font-mono text-muted-foreground">
+                              Ref: <Highlight text={r.reference_id} query={drillSearch} />
+                            </span>
+                          )}
+                          {r.transaction_group_id && (
+                            <Link
+                              to={`/ledger/${r.id || r.transaction_group_id}`}
+                              className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-primary hover:underline"
+                            >
+                              Open ledger entry <ExternalLink className="h-2.5 w-2.5" />
+                            </Link>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                   {drillRows.length === 0 && (
-                    <li className="px-4 py-8 text-center text-[12px] text-muted-foreground">No transactions found.</li>
+                    <li className="px-4 py-8 text-center text-[12px] text-muted-foreground">
+                      {drillSearch ? 'No transactions match your search.' : 'No transactions found.'}
+                    </li>
                   )}
                 </ul>
               </ScrollArea>
