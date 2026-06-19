@@ -556,17 +556,60 @@ function TreasuryWalletFlowSummary({
 
       {summary.cats.length > 0 && (
         <div className="space-y-1.5 pt-1 border-t border-border/60">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            By type · CFO order
-          </p>
-          <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-            {summary.cats.map(([cat, v]) => (
-              <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
-                <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, direction)}</span>
-                <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
+          {direction === 'cash_out' && summary.groups.length > 0 ? (
+            <>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                By category group
+              </p>
+              <div className="space-y-1.5">
+                {summary.groups.map(([label, v]) => (
+                  <div key={label} className="flex items-center justify-between gap-2 text-[12px]">
+                    <span className="truncate text-foreground/90 font-medium">{label}</span>
+                    <span className="font-mono font-semibold shrink-0">{formatUGX(v.amount)}</span>
+                  </div>
+                ))}
+                {/* Show any uncategorized items as "Other" */}
+                {(() => {
+                  const groupedTotal = summary.groups.reduce((s, [, v]) => s + v.amount, 0);
+                  const other = summary.total - groupedTotal;
+                  if (other <= 0) return null;
+                  return (
+                    <div className="flex items-center justify-between gap-2 text-[12px]">
+                      <span className="truncate text-muted-foreground italic">Other (not in groups 1–3)</span>
+                      <span className="font-mono font-medium shrink-0 text-muted-foreground">{formatUGX(other)}</span>
+                    </div>
+                  );
+                })()}
               </div>
-            ))}
-          </div>
+              <div className="pt-1.5 border-t border-border/40">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  All types · CFO order
+                </p>
+                <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                  {summary.cats.map(([cat, v]) => (
+                    <div key={cat} className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="truncate text-muted-foreground">{friendlyWalletLabel(cat, direction)}</span>
+                      <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                By type · CFO order
+              </p>
+              <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                {summary.cats.map(([cat, v]) => (
+                  <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
+                    <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, direction)}</span>
+                    <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
