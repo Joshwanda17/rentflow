@@ -166,37 +166,39 @@ const WALLET_FLOW_LABEL_IN: Record<string, string> = {
   system_balance_correction: 'Balance corrections (in)',
 };
 const WALLET_FLOW_LABEL_OUT: Record<string, string> = {
-  // Withdrawals / cash leaving
+  // Withdrawals / cash leaving to EXTERNAL (not company)
   withdrawal: 'Personal wallet withdrawals',
   wallet_withdrawal: 'Personal wallet withdrawals',
   proxy_partner_withdrawal: 'Proxy partner withdrawals',
   agent_float_withdrawal: 'Agent float withdrawals',
-  // Partner Ops sweeps & portfolio investments
-  partner_funding: 'Float swept to company (Partner Ops)',
+  // Partner Ops sweeps & portfolio investments — money FROM wallet TO company
+  partner_funding: 'Partner funding (proxy-agent wallet → company)',
   coo_proxy_investment: 'Partner Ops → Partner portfolio investment',
   proxy_investment_commission: 'Proxy investment commission swept',
-  pending_portfolio_topup: 'Wallet → Partner portfolio top-up',
+  pending_portfolio_topup: 'Portfolio top-up (wallet → company)',
   // Angel Pool
   angel_pool_investment: 'Wallet → Angel Pool investment',
-  // Advance auto-recovery (collected automatically from agent wallets)
-  advance_recovery: 'Advance auto-recovery (from wallet)',
-  agent_repayment: 'Advance auto-recovery (agent wallet)',
-  agent_advance_repayment: 'Advance auto-recovery (agent wallet)',
-  salary_advance_repayment: 'Salary advance auto-recovery',
-  debt_recovery: 'Debt recovery (from wallet)',
+  // Advance auto-recovery (collected automatically from agent wallets → company)
+  advance_recovery: 'Advance auto-recovery (wallet → company)',
+  agent_repayment: 'Advance auto-recovery (agent wallet → company)',
+  agent_advance_repayment: 'Advance auto-recovery (agent wallet → company)',
+  salary_advance_repayment: 'Salary advance auto-recovery (wallet → company)',
+  debt_recovery: 'Debt recovery (wallet → company)',
   // Float allocated / settled back to company
-  agent_float_allocation: 'Float allocated to tenants/landlords',
-  agent_float_used_for_rent: 'Float allocated to tenants/landlords',
-  agent_float_settlement: 'Agent float settled to company',
-  agent_float_assignment: 'Agent float reassigned',
+  agent_float_allocation: 'Rent payment for tenants (agent float → company)',
+  agent_float_used_for_rent: 'Rent payment for tenants (agent float → company)',
+  agent_float_settlement: 'Agent float settlement to company',
+  agent_float_assignment: 'Agent float reassigned to company',
   agent_float_deposit: 'Agent float moved to company',
   // Rent repaid from wallet
-  rent_repayment: 'Rent repaid from wallet',
-  tenant_repayment: 'Rent repaid from wallet',
-  rent_payment_for_tenant: 'Rent paid from wallet for tenant',
+  rent_repayment: 'Rent repaid from wallet (→ company)',
+  tenant_repayment: 'Rent repaid from wallet (→ company)',
+  rent_payment_for_tenant: 'Rent payment for tenants (wallet → company)',
+  // ROI reinvestment
+  roi_reinvestment: 'ROI reinvestment (wallet → company)',
   // Commission used / adjusted
-  agent_commission_used_for_rent: 'Commission used for rent',
-  agent_commission_earned: 'Agent commission adjustment',
+  agent_commission_used_for_rent: 'Commission used for rent (→ company)',
+  agent_commission_earned: 'Agent commission adjustment (→ company)',
   // CFO direct debits / deductions
   wallet_deduction: 'CFO direct debit / wallet deduction',
   wallet_deduction_general_adjustment: 'CFO general adjustment debit',
@@ -574,10 +576,10 @@ function TreasuryWalletFlowSummary({
         <Flow
           tone="out"
           icon={<Landmark className="h-5 w-5" />}
-          title="Agent Float → Company Funds"
-          subtitle="Money that moved from agents' wallets into company funds — primarily when agents allocate from their operational float to cover tenant rent repayments, plus float settlements, portfolio investments, advance recovery, and CFO direct debits"
+          title="From Wallets to Company"
+          subtitle="All money that moved from any user's wallet into company funds — including rent payments for tenants allocated by agents, partner funding / top-ups / reinvestments from proxy-agent wallets, and advance auto-recovery from agents who took Welile advances"
           summary={outSummary}
-          partyHeading="Top allocators"
+          partyHeading="Top sources"
           direction="cash_out"
         />
       </div>
@@ -585,7 +587,7 @@ function TreasuryWalletFlowSummary({
         <span className="text-[11px] font-medium text-muted-foreground inline-flex items-center gap-1.5">
           <span className="font-mono">Company → Wallets</span>
           <ArrowRight className="h-3 w-3" />
-          <span className="font-mono">Agent Float → Company Funds</span>
+          <span className="font-mono">From Wallets to Company</span>
           = Net to wallets
         </span>
         <span className={cn('text-sm font-bold font-mono', net >= 0 ? 'text-emerald-600' : 'text-amber-600')}>
