@@ -872,6 +872,278 @@ function AgentAllocationBreakdownChart({
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// Movement Timeline (strict CFO category order)
+// A single, scan-able ledger of every cash movement in the period,
+// grouped by category in the exact CFO sequence (LOCKED_CATEGORIES).
+// Each row is a clear timeline entry: Date · Amount · Source →
+// Destination. Source/destination are derived from the double-entry
+// legs of each transaction group so the CFO can read, at a glance,
+// where money came from and where it went.
+// ─────────────────────────────────────────────────────────────
+type TimelineMovement = {
+  id: string;
+  date: string;
+  category: string;
+  amount: number;
+  sourceLabel: string;
+  sourceParty: string | null;
+  destLabel: string;
+  destParty: string | null;
+  reference: string | null;
+  description: string | null;
+};
+
+const COMPANY_LABEL = 'Company (money we have)';
+const EXTERNAL_IN_LABEL = 'External (deposits / funding)';
+const EXTERNAL_OUT_LABEL = 'External (payouts / withdrawals)';
+
+function MovementTimeline({
+  rows,
+  includeAdjustments,
+}: {
+  rows: LedgerRow[];
+  includeAdjustments: boolean;
+}) {
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
+  const [limits, setLimits] = useState<Record<string, number>>({});
+  const PER_CATEGORY_INITIAL = 8;
+  const PER_CATEGORY_STEP = 25;
+
+  // Build one or more movements per transaction group from the
+  // double-entry legs, deriving a human source → destination.
+  const movements = useMemo(() => {
+    const groups = new Map<string, LedgerRow[]>();
+    for (const r of rows) {
+      if (!includeAdjustments && (r.classification === 'admin_correction' || r.category === 'system_balance_correction')) continue;
+      const gid = r.transaction_group_id || r.id || `${r.transaction_date}-${r.category}`;
+      const arr = groups.get(gid) || [];
+      arr.push(r);
+      groups.set(gid, arr);
+    }
+    const out: TimelineMovement[] = [];
+    for (const [gid, legs] of groups.entries()) {
+      const walletLegs = legs.filter(l => l.ledger_scope === 'wallet');
+      const platformLegs = legs.filter(l => l.ledger_scope === 'platform');
+      const hasPlatformOut = platformLegs.some(p => p.direction === 'cash_out');
+      const hasPlatformIn = platformLegs.some(p => p.direction === 'cash_in');
+      const walletOutParty = walletLegs.find(w => w.direction === 'cash_out')?.user_id ?? null;
+      const walletInParty = walletLegs.find(w => w.direction === 'cash_in')?.user_id ?? null;
+
+      if (walletLegs.length) {
+        // One movement per wallet leg — that is the bucket that physically moved.
+        walletLegs.forEach((w, idx) => {
+          const amt = Number(w.amount) || 0;
+          if (!amt) return;
+          let sourceLabel = COMPANY_LABEL, sourceParty: string | null = null;
+          let destLabel = COMPANY_LABEL, destParty: string | null = null;
+          if (w.direction === 'cash_in') {
+            // Money landed in this wallet.
+            destLabel = 'User / agent wallet'; destParty = w.user_id ?? null;
+            if (hasPlatformOut) { sourceLabel = COMPANY_LABEL; sourceParty = null; }
+            else if (walletOutParty) { sourceLabel = 'User / agent wallet'; sourceParty = walletOutParty; }
+            else { sourceLabel = EXTERNAL_IN_LABEL; sourceParty = null; }
+          } else {
+            // Money left this wallet.
+            sourceLabel = 'User / agent wallet'; sourceParty = w.user_id ?? null;
+            if (hasPlatformIn) { destLabel = COMPANY_LABEL; destParty = null; }
+            else if (walletInParty) { destLabel = 'User / agent wallet'; destParty = walletInParty; }
+            else { destLabel = EXTERNAL_OUT_LABEL; destParty = null; }
+          }
+          out.push({
+            id: w.id || `${gid}-w${idx}`,
+            date: w.transaction_date,
+            category: w.category,
+            amount: amt,
+            sourceLabel, sourceParty, destLabel, destParty,
+            reference: w.reference_id ?? null,
+            description: w.description ?? null,
+          });
+        });
+      } else if (platformLegs.length) {
+        // Platform-only movement (money in/out of company, no wallet leg).
+        platformLegs.forEach((p, idx) => {
+          const amt = Number(p.amount) || 0;
+          if (!amt) return;
+          const isIn = p.direction === 'cash_in';
+          out.push({
+            id: p.id || `${gid}-p${idx}`,
+            date: p.transaction_date,
+            category: p.category,
+            amount: amt,
+            sourceLabel: isIn ? EXTERNAL_IN_LABEL : COMPANY_LABEL,
+            sourceParty: null,
+            destLabel: isIn ? COMPANY_LABEL : EXTERNAL_OUT_LABEL,
+            destParty: null,
+            reference: p.reference_id ?? null,
+            description: p.description ?? null,
+          });
+        });
+      }
+    }
+    return out;
+  }, [rows, includeAdjustments]);
+
+  // Group by category, then order categories by the strict CFO sequence.
+  const categoryGroups = useMemo(() => {
+    const byCat = new Map<string, { total: number; items: TimelineMovement[] }>();
+    for (const m of movements) {
+      const g = byCat.get(m.category) || { total: 0, items: [] };
+      g.total += m.amount; g.items.push(m); byCat.set(m.category, g);
+    }
+    const groups = [...byCat.entries()].map(([category, g]) => ({
+      category,
+      total: g.total,
+      count: g.items.length,
+      items: g.items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    }));
+    groups.sort((a, b) => {
+      const ra = cfoCategoryRank(a.category);
+      const rb = cfoCategoryRank(b.category);
+      if (ra !== rb) return ra - rb;
+      return b.total - a.total;
+    });
+    return groups;
+  }, [movements]);
+
+  const grandTotal = useMemo(() => movements.reduce((s, m) => s + m.amount, 0), [movements]);
+
+  // Resolve names for the parties currently visible.
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const g of categoryGroups) {
+      const shown = openCats[g.category] ? (limits[g.category] ?? PER_CATEGORY_INITIAL) : 0;
+      g.items.slice(0, shown).forEach(m => {
+        if (m.sourceParty && !names[m.sourceParty]) ids.add(m.sourceParty);
+        if (m.destParty && !names[m.destParty]) ids.add(m.destParty);
+      });
+    }
+    const list = [...ids];
+    if (!list.length) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('profiles').select('id, full_name').in('id', list.slice(0, 200));
+      if (cancelled || !data) return;
+      const next: Record<string, string> = {};
+      for (const p of data as { id: string; full_name: string | null }[]) {
+        if (p.full_name) next[p.id] = p.full_name;
+      }
+      if (Object.keys(next).length) setNames(prev => ({ ...prev, ...next }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryGroups, openCats, limits]);
+
+  const partyName = (id: string | null, fallbackLabel: string) =>
+    id ? (names[id] || `${id.slice(0, 8)}…`) : fallbackLabel;
+
+  const Endpoint = ({ label, party }: { label: string; party: string | null }) => {
+    const isCompany = label === COMPANY_LABEL;
+    const isExternal = label === EXTERNAL_IN_LABEL || label === EXTERNAL_OUT_LABEL;
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] max-w-[160px]',
+          isCompany ? 'bg-primary/10 text-primary'
+            : isExternal ? 'bg-muted text-muted-foreground'
+            : 'bg-amber-500/10 text-amber-600',
+        )}
+      >
+        {isCompany ? <Landmark className="h-3 w-3 shrink-0" />
+          : isExternal ? <ExternalLink className="h-3 w-3 shrink-0" />
+          : <WalletIcon className="h-3 w-3 shrink-0" />}
+        <span className="truncate">{party ? partyName(party, label) : label}</span>
+      </span>
+    );
+  };
+
+  return (
+    <section id="cm-timeline" className="scroll-mt-24 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <ArrowLeftRight className="h-4 w-4 text-primary" />
+          <h4 className="text-sm font-semibold">Movement Timeline · CFO order</h4>
+        </div>
+        <span className="text-[11px] text-muted-foreground font-mono">
+          {movements.length.toLocaleString()} moves · {formatUGX(grandTotal)}
+        </span>
+      </div>
+      <p className="text-[11px] text-muted-foreground -mt-1">
+        Every cash movement this period, grouped strictly in the CFO category order. Each entry shows
+        the date, amount, and exactly where the money came from and where it went.
+      </p>
+
+      {categoryGroups.length === 0 && (
+        <div className="text-[12px] text-muted-foreground italic rounded-lg border border-border p-4 text-center">
+          No movements in this period.
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {categoryGroups.map((g) => {
+          const isOpen = !!openCats[g.category];
+          const limit = limits[g.category] ?? PER_CATEGORY_INITIAL;
+          const shown = g.items.slice(0, limit);
+          return (
+            <Collapsible
+              key={g.category}
+              open={isOpen}
+              onOpenChange={(o) => setOpenCats(prev => ({ ...prev, [g.category]: o }))}
+              className="rounded-lg border border-border bg-background overflow-hidden"
+            >
+              <CollapsibleTrigger className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-muted/40 transition-colors text-left">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
+                  <span className="text-[13px] font-medium truncate">{prettifyCategory(g.category)}</span>
+                  <Badge variant="outline" className="text-[10px] shrink-0">{g.count}</Badge>
+                </div>
+                <span className="font-mono text-[12px] font-semibold shrink-0">{formatUGX(g.total)}</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="border-t border-border divide-y divide-border/40">
+                  {shown.map((m) => (
+                    <div key={m.id} className="px-3 py-2 flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="text-[11px] text-muted-foreground font-mono">
+                          {format(new Date(m.date), 'dd MMM yyyy · HH:mm')}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Endpoint label={m.sourceLabel} party={m.sourceParty} />
+                          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                          <Endpoint label={m.destLabel} party={m.destParty} />
+                        </div>
+                        {m.description && (
+                          <div className="text-[10px] text-muted-foreground truncate">{m.description}</div>
+                        )}
+                        {m.reference && (
+                          <div className="text-[10px] text-muted-foreground/70 font-mono truncate">{m.reference}</div>
+                        )}
+                      </div>
+                      <div className="font-mono text-[12px] font-semibold text-foreground shrink-0">
+                        {formatUGX(m.amount)}
+                      </div>
+                    </div>
+                  ))}
+                  {g.items.length > limit && (
+                    <button
+                      type="button"
+                      onClick={() => setLimits(prev => ({ ...prev, [g.category]: limit + PER_CATEGORY_STEP }))}
+                      className="w-full text-[11px] text-primary font-medium py-2 hover:bg-muted/40 transition-colors"
+                    >
+                      Show {Math.min(PER_CATEGORY_STEP, g.items.length - limit)} more of {g.items.length.toLocaleString()}
+                    </button>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function ComprehensiveCashMovement() {
   const { role, roles } = useAuth();
   const canViewLedgerDetail = useMemo(() => {
