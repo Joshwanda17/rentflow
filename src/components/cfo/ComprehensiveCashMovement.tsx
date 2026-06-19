@@ -1052,13 +1052,26 @@ function CompanyToWalletBreakdownChart({
   const nameOf = (id: string) => names[id] || `${id.slice(0, 8)}…`;
 
   // Rows powering the active drill-down (one recipient, or the whole category).
-  const drillRows = useMemo(() => {
+  const rawDrillRows = useMemo(() => {
     if (!drill) return [] as LedgerRow[];
     const list = drill.userId === 'ALL'
       ? (byCatRows.get(drill.category) || [])
       : (byCatRecipientRows.get(drill.category)?.get(drill.userId) || []);
     return [...list].sort((a, b) => (a.transaction_date < b.transaction_date ? 1 : -1));
   }, [drill, byCatRows, byCatRecipientRows]);
+
+  // Search-filtered drill rows (recipient, reference, description, timestamp).
+  const drillRows = useMemo(() => {
+    const q = drillSearch.trim().toLowerCase();
+    if (!q) return rawDrillRows;
+    return rawDrillRows.filter(r => {
+      const recipient = (r.user_id ? nameOf(r.user_id) : '').toLowerCase();
+      const ref = (r.reference_id || '').toLowerCase();
+      const desc = (r.description || '').toLowerCase();
+      const ts = format(new Date(r.transaction_date), 'd MMM yyyy HH:mm').toLowerCase();
+      return recipient.includes(q) || ref.includes(q) || desc.includes(q) || ts.includes(q);
+    });
+  }, [rawDrillRows, drillSearch, names]);
 
   const drillTotal = useMemo(() => drillRows.reduce((s, r) => s + (Number(r.amount) || 0), 0), [drillRows]);
 
