@@ -1613,7 +1613,20 @@ function CompanyToWalletBreakdownChart({
                     </span>
                   )}
                 </span>
-                <span className="text-sm font-bold font-mono text-emerald-600">{formatUGX(drillTotal)}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={exportDrillPdf}
+                    disabled={drillRows.length === 0}
+                    className="h-7 gap-1 text-[11px]"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Export PDF
+                  </Button>
+                  <span className="text-sm font-bold font-mono text-emerald-600">{formatUGX(drillTotal)}</span>
+                </div>
               </div>
               <ScrollArea className="flex-1">
                 <ul className="divide-y divide-border/60">
