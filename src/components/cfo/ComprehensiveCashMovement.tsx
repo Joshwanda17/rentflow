@@ -208,6 +208,41 @@ const WALLET_FLOW_LABEL_OUT: Record<string, string> = {
   wallet_deposit: 'Deposit routed to company',
   system_balance_correction: 'Balance corrections (out)',
 };
+
+// ─────────────────────────────────────────────────────────────
+// Wallet → Company category groups (3 numbered buckets the CFO
+// reads on the "From Wallets to Company" card).
+// ─────────────────────────────────────────────────────────────
+const WALLET_TO_COMPANY_GROUP_1 = new Set([
+  'agent_float_used_for_rent',
+  'agent_float_allocation',
+  'rent_repayment',
+  'tenant_repayment',
+  'rent_payment_for_tenant',
+  'agent_commission_used_for_rent',
+  'agent_float_settlement',
+  'agent_float_assignment',
+]);
+const WALLET_TO_COMPANY_GROUP_2 = new Set([
+  'partner_funding',
+  'pending_portfolio_topup',
+  'roi_reinvestment',
+  'coo_proxy_investment',
+  'proxy_investment_commission',
+  'angel_pool_investment',
+]);
+const WALLET_TO_COMPANY_GROUP_3 = new Set([
+  'advance_recovery',
+  'agent_repayment',
+  'agent_advance_repayment',
+  'salary_advance_repayment',
+  'debt_recovery',
+]);
+const WALLET_TO_COMPANY_GROUPS: { label: string; categories: Set<string> }[] = [
+  { label: '1. Rent payments for tenants (allocated by agents)', categories: WALLET_TO_COMPANY_GROUP_1 },
+  { label: '2. Partner funding, top-ups, and reinvestments', categories: WALLET_TO_COMPANY_GROUP_2 },
+  { label: '3. Advance auto-recovery from agents who took Welile advances', categories: WALLET_TO_COMPANY_GROUP_3 },
+];
 function friendlyWalletLabel(category: string, direction: 'cash_in' | 'cash_out'): string {
   const map = direction === 'cash_in' ? WALLET_FLOW_LABEL_IN : WALLET_FLOW_LABEL_OUT;
   return map[category] || prettifyCategory(category);
@@ -372,12 +407,21 @@ function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
   const total = items.reduce((s, i) => s + i.amount, 0);
   const byCat = new Map<string, { amount: number; count: number }>();
   const byParty = new Map<string, { amount: number; count: number }>();
+  const byGroup = new Map<string, { amount: number; count: number }>();
   for (const i of items) {
     const c = byCat.get(i.category) || { amount: 0, count: 0 };
     c.amount += i.amount; c.count += 1; byCat.set(i.category, c);
     if (i.party) {
       const p = byParty.get(i.party) || { amount: 0, count: 0 };
       p.amount += i.amount; p.count += 1; byParty.set(i.party, p);
+    }
+    // Bucket into the 3 Wallet → Company groups (only used for cash_out card)
+    for (const g of WALLET_TO_COMPANY_GROUPS) {
+      if (g.categories.has(i.category)) {
+        const existing = byGroup.get(g.label) || { amount: 0, count: 0 };
+        existing.amount += i.amount; existing.count += 1; byGroup.set(g.label, existing);
+        break;
+      }
     }
   }
   return {
@@ -393,6 +437,7 @@ function summarizeTreasuryFlow(items: TreasuryFlowItem[]) {
       return b[1].amount - a[1].amount;
     }),
     parties: [...byParty.entries()].sort((a, b) => b[1].amount - a[1].amount),
+    groups: [...byGroup.entries()].sort((a, b) => b[1].amount - a[1].amount),
   };
 }
 
