@@ -1129,6 +1129,7 @@ function TreasuryWalletFlowSummary({
   };
 
   return (
+    <>
     <section id="cm-treasury" className="space-y-3">
       <div className="flex items-center gap-2">
         <ArrowLeftRight className="h-4 w-4 text-primary" />
@@ -1158,6 +1159,12 @@ function TreasuryWalletFlowSummary({
           partyHeading="Top sources"
           direction="cash_out"
           rawItems={toCompany}
+          onGroupDrill={(meta) => setGroupDrill({
+            label: meta.label,
+            color: meta.color,
+            direction: 'cash_out',
+            items: toCompany.filter(i => meta.categories.has(i.category)),
+          })}
         />
       </div>
       <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2">
@@ -1172,6 +1179,18 @@ function TreasuryWalletFlowSummary({
         </span>
       </div>
     </section>
+    {groupDrill && (
+      <GroupPeriodDrilldown
+        open={!!groupDrill}
+        onOpenChange={(o) => { if (!o) setGroupDrill(null); }}
+        label={groupDrill.label}
+        color={groupDrill.color}
+        direction={groupDrill.direction}
+        items={groupDrill.items}
+        initialNames={names}
+      />
+    )}
+    </>
   );
 }
 
