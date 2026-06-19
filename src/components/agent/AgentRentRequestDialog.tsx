@@ -2054,6 +2054,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setTenantPhoto(null);
     setGuarantorConsent(false);
     setValidationErrors([]);
+    setFieldErrors({});
     setSubmissionError(null);
     setErrorDetails(null);
     setSuccess(false);
