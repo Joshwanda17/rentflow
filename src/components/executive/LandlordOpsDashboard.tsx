@@ -1996,7 +1996,7 @@ export function LandlordOpsDashboard() {
                             </div>
                           )}
                           <InlineModerationActions
-                            approveLabel="Approve"
+                            approveLabel="Review & Approve"
                             rejectLabel="Reject"
                             onApprove={(note) => handleApproveLandlord(landlord, note)}
                             onReject={(note) => handleRejectLandlord(landlord, note)}
@@ -3660,7 +3660,7 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
 function InlineModerationActions({
   onApprove,
   onReject,
-  approveLabel = 'Approve',
+  approveLabel = 'Review & Approve',
   rejectLabel = 'Reject',
   approveHidden = false,
   approveChecklist,
@@ -3727,12 +3727,8 @@ function InlineModerationActions({
           className="h-11 gap-2 font-bold"
           disabled={busy !== null}
           onClick={() => {
-            if (checklistItems.length > 0) {
-              setChecked({});
-              setChecklistOpen(true);
-            } else {
-              run('approve');
-            }
+            setChecked({});
+            setChecklistOpen(true);
           }}
         >
           <ShieldCheck className="h-4 w-4" />
