@@ -953,6 +953,19 @@ function CompanyToWalletBreakdownChart({
   const dateActive = !!(dateFrom || dateTo);
   const categoryFilterActive = selectedCategories.size > 0;
 
+  // Presets — one-click common comparison sets. Only categories that actually
+  // appear in the current period are applied (intersected with availableCategories).
+  type Preset = { label: string; categories: string[] };
+  const PRESETS: Preset[] = [
+    { label: 'All', categories: [] }, // sentinel — means "no restriction"
+    { label: 'Commissions', categories: ['agent_commission', 'partner_commission', 'business_advance_commission'] },
+    { label: 'Returns & Payroll', categories: ['roi_payout', 'roi_wallet_credit', 'payroll', 'payroll_growth'] },
+    { label: 'Deposits', categories: ['deposit', 'agent_float_deposit', 'landlord_float_deposit'] },
+    { label: 'Partner flows', categories: ['partner_funding', 'coo_proxy_investment', 'proxy_investment_commission', 'pending_portfolio_topup'] },
+    { label: 'Bonuses', categories: ['tenant_placement_bonus'] },
+  ];
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+
   // Build per-category totals + per-category recipient breakdown from
   // paired wallet-in / platform-out ledger legs (Company → Wallets).
   const { catList, total, count, byCatRecipients, availableCategories } = useMemo(() => {
