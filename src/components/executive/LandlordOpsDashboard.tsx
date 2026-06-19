@@ -1251,6 +1251,44 @@ export function LandlordOpsDashboard() {
     }
   };
 
+  // Update monthly rent on a house listing with audit logging and cache update.
+  const handleUpdateMonthlyRent = async (listing: ListingWithLandlord, newRent: number) => {
+    if (!user) return;
+    if (!newRent || newRent <= 0 || isNaN(newRent)) {
+      toast({ title: 'Invalid amount', description: 'Monthly rent must be a positive number.', variant: 'destructive' });
+      return;
+    }
+    setSavingRentId(listing.id);
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ monthly_rent: newRent })
+        .eq('id', listing.id);
+      if (error) throw error;
+
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map(l => l.id === listing.id ? { ...l, monthly_rent: newRent } : l);
+      });
+
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'listing_rent_updated',
+        table_name: 'house_listings',
+        record_id: listing.id,
+        metadata: { old_rent: listing.monthly_rent, new_rent: newRent, listing_title: listing.title, reason: 'Landlord ops updated monthly rent' },
+      });
+
+      toast({ title: 'Rent updated', description: `Monthly rent changed to UGX ${newRent.toLocaleString()}` });
+      setEditingRentId(null);
+      setEditRentValue('');
+    } catch (err: any) {
+      toast({ title: 'Update failed', description: err?.message || 'Could not update rent', variant: 'destructive' });
+    } finally {
+      setSavingRentId(null);
+    }
+  };
+
   // Hide / unhide a house from the tenant-facing dashboard & marketplace.
   // Uses the `is_hidden` flag that all tenant/public listing queries respect.
   const handleToggleHidden = async (listing: ListingWithLandlord) => {
