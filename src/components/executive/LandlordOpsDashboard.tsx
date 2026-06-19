@@ -3727,8 +3727,12 @@ function InlineModerationActions({
           className="h-11 gap-2 font-bold"
           disabled={busy !== null}
           onClick={() => {
-            setChecked({});
-            setChecklistOpen(true);
+            if (checklistItems.length > 0) {
+              setChecked({});
+              setChecklistOpen(true);
+            } else {
+              run('approve');
+            }
           }}
         >
           <ShieldCheck className="h-4 w-4" />
