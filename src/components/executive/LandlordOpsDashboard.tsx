@@ -420,6 +420,9 @@ export function LandlordOpsDashboard() {
     localStorage.setItem('landlordOpsHouseFilter', houseStatusFilter);
   }, [houseStatusFilter]);
   const [togglingHide, setTogglingHide] = useState<Record<string, boolean>>({});
+  const [editingRentId, setEditingRentId] = useState<string | null>(null);
+  const [editRentValue, setEditRentValue] = useState<string>('');
+  const [savingRentId, setSavingRentId] = useState<string | null>(null);
   // ─── Verification Queue bulk selection ───
   const [verifySelectedIds, setVerifySelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<null | 'hide' | 'unhide' | 'verify' | 'reject'>(null);
@@ -1245,6 +1248,44 @@ export function LandlordOpsDashboard() {
     } catch (err: any) {
       setOptimisticallyVerifiedIds(prev => { const next = new Set(prev); next.delete(listing.id); return next; });
       toast({ title: 'Reject failed', description: err?.message || 'Could not reject listing', variant: 'destructive' });
+    }
+  };
+
+  // Update monthly rent on a house listing with audit logging and cache update.
+  const handleUpdateMonthlyRent = async (listing: ListingWithLandlord, newRent: number) => {
+    if (!user) return;
+    if (!newRent || newRent <= 0 || isNaN(newRent)) {
+      toast({ title: 'Invalid amount', description: 'Monthly rent must be a positive number.', variant: 'destructive' });
+      return;
+    }
+    setSavingRentId(listing.id);
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ monthly_rent: newRent })
+        .eq('id', listing.id);
+      if (error) throw error;
+
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map(l => l.id === listing.id ? { ...l, monthly_rent: newRent } : l);
+      });
+
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'listing_rent_updated',
+        table_name: 'house_listings',
+        record_id: listing.id,
+        metadata: { old_rent: listing.monthly_rent, new_rent: newRent, listing_title: listing.title, reason: 'Landlord ops updated monthly rent' },
+      });
+
+      toast({ title: 'Rent updated', description: `Monthly rent changed to UGX ${newRent.toLocaleString()}` });
+      setEditingRentId(null);
+      setEditRentValue('');
+    } catch (err: any) {
+      toast({ title: 'Update failed', description: err?.message || 'Could not update rent', variant: 'destructive' });
+    } finally {
+      setSavingRentId(null);
     }
   };
 
@@ -2939,7 +2980,46 @@ export function LandlordOpsDashboard() {
                   </div>
                   <div>
                     <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Monthly rent</p>
-                    <p className="text-[11px] font-medium">UGX {Number(house.monthly_rent || 0).toLocaleString()}</p>
+                    {editingRentId === house.id ? (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Input
+                          type="number"
+                          value={editRentValue}
+                          onChange={(e) => setEditRentValue(e.target.value)}
+                          className="h-7 text-[11px] px-2 py-0.5 w-28"
+                          disabled={savingRentId === house.id}
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          className="h-7 px-2 text-[10px]"
+                          disabled={savingRentId === house.id}
+                          onClick={() => handleUpdateMonthlyRent(house, Number(editRentValue))}
+                        >
+                          {savingRentId === house.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-[10px]"
+                          disabled={savingRentId === house.id}
+                          onClick={() => { setEditingRentId(null); setEditRentValue(''); }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[11px] font-medium">UGX {Number(house.monthly_rent || 0).toLocaleString()}</p>
+                        <button
+                          onClick={() => { setEditingRentId(house.id); setEditRentValue(String(house.monthly_rent || '')); }}
+                          className="text-muted-foreground hover:text-primary transition-colors"
+                          title="Edit monthly rent"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="text-[9px] uppercase tracking-wide text-muted-foreground flex items-center gap-1"><Banknote className="h-3 w-3" /> Daily rate</p>
