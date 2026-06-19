@@ -1264,6 +1264,8 @@ function TreasuryWalletFlowSummary({
         direction={groupDrill.direction}
         items={groupDrill.items}
         initialNames={names}
+        expectedTotal={groupDrill.expectedTotal}
+        expectedCount={groupDrill.expectedCount}
       />
     )}
     </>
