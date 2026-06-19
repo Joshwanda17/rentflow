@@ -745,29 +745,14 @@ function TreasuryWalletFlowSummary({
                   const other = summary.total - groupedTotal;
                   if (other <= 0) return null;
                   const groupedCatSet = new Set(WALLET_TO_COMPANY_GROUPS.flatMap(g => [...g.categories]));
-                  const otherCats = summary.cats.filter(([cat]) => !groupedCatSet.has(cat));
+                  const otherItems = rawItems.filter(i => !groupedCatSet.has(i.category));
                   return (
-                    <Collapsible className="space-y-1">
-                      <CollapsibleTrigger asChild>
-                        <button type="button" className="w-full flex items-center justify-between gap-2 text-[12px] group">
-                          <span className="truncate text-muted-foreground italic group-hover:text-foreground transition-colors">Other (not in groups 1–3)</span>
-                          <span className="inline-flex items-center gap-1">
-                            <span className="font-mono font-medium shrink-0 text-muted-foreground">{formatUGX(other)}</span>
-                            <ChevronDown className="h-3 w-3 text-muted-foreground group-data-[state=open]:rotate-180 transition-transform" />
-                          </span>
-                        </button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="pl-3 space-y-1 border-l-2 border-border">
-                          {otherCats.map(([cat, v]) => (
-                            <div key={cat} className="flex items-center justify-between gap-2 text-[11px]">
-                              <span className="truncate text-muted-foreground">{friendlyWalletLabel(cat, direction)}</span>
-                              <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
+                    <OtherWalletOriginDrilldown
+                      items={otherItems}
+                      otherTotal={other}
+                      direction={direction}
+                      initialNames={names}
+                    />
                   );
                 })()}
               </div>
