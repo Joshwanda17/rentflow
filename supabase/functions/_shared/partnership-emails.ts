@@ -185,6 +185,56 @@ export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
 }
 
 export interface ReturnsDisbursementInput {
+  // placeholder anchor — see builder below
+  _?: never;
+}
+
+export interface PartnerCompoundCreationInput {
+  recipientEmail: string;
+  partnerName: string | null | undefined;
+  partnerId: string;             // idempotency scoping
+  portfolioId: string;           // idempotency scoping + shown in email
+  initialAmount: number;         // portfolio principal at creation
+  roiPercentage: number;         // agreed monthly ROI % for this portfolio
+  contributionDateIso?: string;  // defaults to now — drives the projection start
+}
+
+/**
+ * Compound email sent when a partner chooses the COMPOUNDING ROI mode at
+ * portfolio creation. Uses the rich `partner-compound` template which renders
+ * the full month-by-month compounding breakdown working forward from the
+ * new principal. Mirrors the auto-cron compound email flow but for the very
+ * first cycle (payment_number = 1).
+ */
+export function buildPartnerCompoundCreationRequest(input: PartnerCompoundCreationInput) {
+  const contributionIso = input.contributionDateIso || new Date().toISOString();
+  const pct = input.roiPercentage > 0 ? input.roiPercentage : 0;
+  const returnAmount = Math.round(input.initialAmount * (pct / 100));
+  const newTotal = input.initialAmount + returnAmount;
+  return {
+    templateName: "partner-compound",
+    recipientEmail: input.recipientEmail,
+    idempotencyKey: `partner-compound-creation-${input.partnerId}-${input.portfolioId}`,
+    templateData: {
+      partner_name: input.partnerName || "Partner",
+      portfolio_id: shortPortfolioId(input.portfolioId),
+      compound_date: formatOrdinalDate(contributionIso),
+      initial_partnership_amount: input.initialAmount,
+      roi_return: `${pct}%`,
+      roi_percentage: pct,
+      return_amount: returnAmount,
+      new_total_partnership_value: newTotal,
+      payment_number: 1,
+      currency: CURRENCY,
+      company_name: COMPANY_NAME,
+      logo_url: LOGO_URL,
+      unsubscribe_url: UNSUBSCRIBE_URL,
+      dashboard_url: DASHBOARD_URL,
+    },
+  };
+}
+
+export interface ReturnsDisbursementInputLegacy {
   recipientEmail: string;
   partnerName: string | null | undefined;
   partnerId: string;
