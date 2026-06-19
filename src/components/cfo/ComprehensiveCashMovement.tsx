@@ -456,13 +456,17 @@ function TreasuryWalletFlowSummary({
 
       {summary.cats.length > 0 && (
         <div className="space-y-1.5 pt-1 border-t border-border/60">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">By type</p>
-          {summary.cats.slice(0, 5).map(([cat, v]) => (
-            <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
-              <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, direction)}</span>
-              <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
-            </div>
-          ))}
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            By type · CFO order
+          </p>
+          <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+            {summary.cats.map(([cat, v]) => (
+              <div key={cat} className="flex items-center justify-between gap-2 text-[12px]">
+                <span className="truncate text-foreground/90">{friendlyWalletLabel(cat, direction)}</span>
+                <span className="font-mono font-medium shrink-0">{formatUGX(v.amount)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
