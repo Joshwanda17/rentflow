@@ -11,6 +11,8 @@ import HouseRatingBadge from '@/components/house/HouseRatingBadge';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { useManualLocation } from '@/hooks/useManualLocation';
+import { LocationPicker } from '@/components/tenant/LocationPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -201,9 +203,15 @@ function MiniHouseCard({ listing, onSelectHouse }: { listing: HouseListing; onSe
 
 export function NearbyHousesPreview({ onViewAll, onSelectHouse }: NearbyHousesPreviewProps) {
   const geo = useGeolocation(true);
+  const { manual, choose, clear } = useManualLocation();
+
+  // A manual choice always wins; otherwise fall back to detected (GPS/IP) coordinates.
+  const centerLat = manual ? manual.latitude : geo.latitude;
+  const centerLng = manual ? manual.longitude : geo.longitude;
+
   const { listings, loading } = useNearbyHouses({
-    latitude: geo.latitude,
-    longitude: geo.longitude,
+    latitude: centerLat,
+    longitude: centerLng,
     radiusKm: 50,
     limit: 10,
     enabled: !geo.loading,
@@ -223,25 +231,53 @@ export function NearbyHousesPreview({ onViewAll, onSelectHouse }: NearbyHousesPr
     );
   }
 
-  if (!listings.length) return null;
-
   const hasGPS = !!(geo.latitude && geo.longitude);
-  const nearbyCity = geo.city;
+  const nearbyCity = manual ? manual.name : geo.city;
+  const activeName = manual ? manual.name : geo.city;
+
+  const picker = (
+    <LocationPicker
+      currentName={activeName}
+      isManual={!!manual}
+      onSelect={choose}
+      onUseGPS={() => {
+        clear();
+        geo.requestGPSPermission();
+      }}
+    />
+  );
+
+  if (!listings.length) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold text-base flex items-center gap-1.5">
+            <Home className="h-4 w-4 text-primary" /> Available Houses
+          </h2>
+          {picker}
+        </div>
+        <p className="text-sm text-muted-foreground py-4 text-center">
+          No houses found near {activeName || 'your area'}. Try choosing a different area.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-base flex items-center gap-1.5">
           <Home className="h-4 w-4 text-primary" />
-          {hasGPS
+          {(manual || hasGPS)
             ? `Near ${nearbyCity || 'You'}`
             : 'Available Houses'}
         </h2>
         <div className="flex items-center gap-1.5">
+          {picker}
           <ShareNearbyHousesButton
             variant="icon"
-            latitude={geo.latitude}
-            longitude={geo.longitude}
+            latitude={centerLat}
+            longitude={centerLng}
             area={nearbyCity}
           />
           <button
@@ -255,8 +291,8 @@ export function NearbyHousesPreview({ onViewAll, onSelectHouse }: NearbyHousesPr
 
       <ShareNearbyHousesButton
         variant="full"
-        latitude={geo.latitude}
-        longitude={geo.longitude}
+        latitude={centerLat}
+        longitude={centerLng}
         area={nearbyCity}
       />
 
