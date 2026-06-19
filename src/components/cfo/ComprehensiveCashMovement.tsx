@@ -259,6 +259,58 @@ const WALLET_TO_COMPANY_GROUPS: { label: string; categories: Set<string>; color:
   { label: 'Advance auto-recovery from agents who took Welile advances', categories: WALLET_TO_COMPANY_GROUP_3, color: 'bg-rose-500/10 text-rose-600 border-rose-500/20' },
   { label: 'Share capital (Angel Pool contributions)', categories: WALLET_TO_COMPANY_GROUP_4, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
 ];
+// ─────────────────────────────────────────────────────────────
+// Company → Wallets category groups (the numbered buckets the CFO
+// reads on the "Company → Wallets" card). Every move of company money
+// into a user/agent/employee wallet falls into one of these buckets;
+// anything not mapped is shown under "Other" so nothing is dropped.
+// ─────────────────────────────────────────────────────────────
+// 1. Returns paid to supporters (or their proxy-agent wallets)
+const COMPANY_TO_WALLETS_GROUP_1 = new Set([
+  'roi_wallet_credit', 'roi_payout', 'roi_expense', 'supporter_platform_rewards', 'supporter_reward', 'investment_reward',
+]);
+// 2. Rent disbursed to landlords through agents' landlord-float wallets
+const COMPANY_TO_WALLETS_GROUP_2 = new Set([
+  'rent_disbursement', 'landlord_float_deposit', 'agent_landlord_float', 'landlord_float_allocation', 'landlord_payout',
+]);
+// 3. Advances disbursed to wallets of different users (especially agents)
+const COMPANY_TO_WALLETS_GROUP_3 = new Set([
+  'agent_advance_credit', 'business_advance_disbursement', 'business_advance_credit', 'credit_draw', 'credit_access_draw', 'employee_advance', 'salary_advance',
+]);
+// 4. Agent commissions & all other agent earnings (auto + manual)
+const COMPANY_TO_WALLETS_GROUP_4 = new Set([
+  'agent_commission_earned', 'agent_commission', 'agent_commission_payout', 'partner_commission', 'business_advance_commission',
+  'referral_bonus', 'tenant_placement_bonus', 'recruiter_override', 'agent_incentive_bonus', 'agent_event_bonus',
+]);
+// 5. Marketing expenses sent to wallets by CFO
+const COMPANY_TO_WALLETS_GROUP_5 = new Set(['marketing_expense']);
+// 6. Operational expenses paid by CFO to different wallets
+const COMPANY_TO_WALLETS_GROUP_6 = new Set(['general_admin_expense', 'operational_expenses']);
+// 7. Payroll paid to employee wallets
+const COMPANY_TO_WALLETS_GROUP_7 = new Set(['payroll_expense', 'payroll', 'salary_payment', 'payroll_growth']);
+// 8. Tax payments paid to wallets
+const COMPANY_TO_WALLETS_GROUP_8 = new Set(['tax_expense']);
+// 9. Research & Development paid to wallets by CFO
+const COMPANY_TO_WALLETS_GROUP_9 = new Set(['research_development_expense']);
+// 10. Equipment & asset purchases paid to specific wallets by CFO
+const COMPANY_TO_WALLETS_GROUP_10 = new Set(['equipment_expense']);
+// 11. Agent float allocations & corrections by CFO to agent wallets
+const COMPANY_TO_WALLETS_GROUP_11 = new Set([
+  'agent_float_deposit', 'agent_float_assignment', 'agent_float_allocation', 'agent_float_settlement',
+]);
+const COMPANY_TO_WALLETS_GROUPS: { label: string; categories: Set<string>; color: string }[] = [
+  { label: 'Returns paid to Supporters (and their proxy-agent wallets)', categories: COMPANY_TO_WALLETS_GROUP_1, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  { label: 'Rent disbursed to landlords via agent landlord-float wallets', categories: COMPANY_TO_WALLETS_GROUP_2, color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  { label: 'Advances disbursed to user wallets (especially agents)', categories: COMPANY_TO_WALLETS_GROUP_3, color: 'bg-rose-500/10 text-rose-600 border-rose-500/20' },
+  { label: 'Agent commissions & all other agent earnings (auto + manual)', categories: COMPANY_TO_WALLETS_GROUP_4, color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  { label: 'Marketing expenses sent to wallets by CFO', categories: COMPANY_TO_WALLETS_GROUP_5, color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
+  { label: 'Operational expenses paid by CFO to wallets', categories: COMPANY_TO_WALLETS_GROUP_6, color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
+  { label: 'Payroll paid to employee wallets', categories: COMPANY_TO_WALLETS_GROUP_7, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
+  { label: 'Tax payments paid to wallets', categories: COMPANY_TO_WALLETS_GROUP_8, color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+  { label: 'Research & Development paid to wallets', categories: COMPANY_TO_WALLETS_GROUP_9, color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
+  { label: 'Equipment & asset purchases paid to wallets', categories: COMPANY_TO_WALLETS_GROUP_10, color: 'bg-teal-500/10 text-teal-600 border-teal-500/20' },
+  { label: 'Agent float allocations & corrections by CFO', categories: COMPANY_TO_WALLETS_GROUP_11, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+];
 // Wallet-origin categories that are UNAMBIGUOUSLY money moving into the
 // company ("money we have"), regardless of how the transaction group is
 // paired. Agent rent allocations move agent operational float (a wallet
