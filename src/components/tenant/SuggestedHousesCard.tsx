@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { MoveInOfferBadge } from '@/components/house/MoveInOfferBadge';
-import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
+import { AgentContactBar } from '@/components/tenant/AgentContactBar';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 
 interface SuggestedHousesCardProps {
