@@ -3662,10 +3662,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         value={formatCurrencyInput(outstandingBalance)}
                         onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="Enter amount"
-                        className="h-12 text-lg font-bold rounded-xl border-input focus-visible:border-primary"
+                        className={`h-12 text-lg font-bold rounded-xl border-input focus-visible:border-primary ${hasFieldError('outstandingBalance') ? 'border-destructive border-2' : ''}`}
                         required
                       />
-                      <FieldError message={vAmount(outstandingBalance)} />
+                      <FieldError message={vAmount(outstandingBalance) || getFieldError('outstandingBalance')} />
                       {amount > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Daily repayment: <span className="font-semibold">{formatUGX(Math.ceil(amount / parseInt(duration)))}/day</span> for {duration} days
