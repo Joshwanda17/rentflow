@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation, X, List, Map as MapIcon } from 'lucide-react';
 import { AgentContactBar } from '@/components/tenant/AgentContactBar';
+import { GetDirectionsButton } from '@/components/tenant/GetDirectionsButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { ShareNearbyHousesButton } from '@/components/tenant/ShareNearbyHousesButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
@@ -247,6 +248,9 @@ function HouseCard({ listing, highlighted = false }: { listing: HouseListing; hi
 
         {/* Google Maps embed */}
         <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} />
+
+        {/* Go see it yourself — turn-by-turn navigation */}
+        <GetDirectionsButton lat={listing.latitude} lng={listing.longitude} title={listing.title} />
 
         {/* WhatsApp Agent */}
         <AgentContactBar phone={listing.agent_phone} agentName={listing.agent_name} agentRating={listing.agent_rating} houseTitle={listing.title} />
