@@ -690,6 +690,7 @@ function TreasuryWalletFlowSummary({
     summary,
     partyHeading,
     direction,
+    rawItems,
   }: {
     tone: 'in' | 'out';
     icon: React.ReactNode;
@@ -698,6 +699,7 @@ function TreasuryWalletFlowSummary({
     summary: ReturnType<typeof summarizeTreasuryFlow>;
     partyHeading: string;
     direction: 'cash_in' | 'cash_out';
+    rawItems: TreasuryFlowItem[];
   }) => (
     <div
       className={cn(
