@@ -4784,10 +4784,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     value={propertyAddress}
                     onChange={(e) => setPropertyAddress(e.target.value)}
                     placeholder="Village, road or area"
-                    className="h-12 text-base"
+                    className={`h-12 text-base ${hasFieldError('propertyAddress') ? 'border-destructive border-2' : ''}`}
                     required
                   />
-                  <FieldError message={vPlace(propertyAddress, 'Kira Town, near Total')} />
+                  <FieldError message={vPlace(propertyAddress, 'Kira Town, near Total') || getFieldError('propertyAddress')} />
                 </div>
 
                 {/* GPS Capture */}
