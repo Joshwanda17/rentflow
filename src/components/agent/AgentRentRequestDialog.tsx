@@ -4273,7 +4273,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <p className="text-xs text-muted-foreground leading-snug">Pick what kind of house this is (single room, two rooms, etc.).</p>
                 <p className="text-[11px] text-muted-foreground">e.g. Single Room</p>
                 <Select value={houseCategory} onValueChange={setHouseCategory}>
-                  <SelectTrigger>
+                  <SelectTrigger className={`${hasFieldError('houseCategory') ? 'border-destructive border-2' : ''}`}>
                     <SelectValue placeholder="Select house type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -4284,6 +4284,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     ))}
                   </SelectContent>
                 </Select>
+                <FieldError message={getFieldError('houseCategory')} />
               </div>
 
               <Separator />
