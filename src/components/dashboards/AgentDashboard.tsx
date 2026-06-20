@@ -77,6 +77,7 @@ import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PendingDraftsBanner } from '@/components/agent/PendingDraftsBanner';
 import { DashboardDataErrorBanner } from '@/components/dashboards/DashboardDataErrorBanner';
+import AgentListingRulesNotice from '@/components/agent/AgentListingRulesNotice';
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
@@ -608,6 +609,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         )}
 
         <AgentAgreementBanner />
+        <AgentListingRulesNotice />
         <AgentPaymentEditAlert agentId={user.id} />
 
         {/* Linked-but-uncredited deposits — surfaces stuck float receipts */}
