@@ -212,6 +212,39 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialLc1Name, initialLc1Phone, initialLc1Village]);
 
+  // Check whether this agent is currently blocked from posting houses whenever
+  // the dialog opens. The DB also enforces this on insert, but checking up front
+  // lets us show a clear notice + countdown instead of letting them fill the form.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setBlockChecking(true);
+    (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any).rpc('get_my_listing_block');
+        if (cancelled) return;
+        if (error) {
+          setListingBlock(null);
+        } else {
+          setListingBlock((data as ListingBlock) ?? { blocked: false });
+        }
+      } catch {
+        if (!cancelled) setListingBlock(null);
+      } finally {
+        if (!cancelled) setBlockChecking(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
+  // Live countdown tick (every second) while a block notice is showing.
+  useEffect(() => {
+    if (!open || !listingBlock?.blocked) return;
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [open, listingBlock?.blocked]);
+
   // Promo banner mode: pre-apply empty-house defaults and show campaign badge.
   useEffect(() => {
     if (open && fromPromoBanner) {
