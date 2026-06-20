@@ -229,7 +229,9 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         let query = supabase
           .from('house_listings')
           .select('*')
-          .in('status', ['available', 'pending'])
+          .eq('status', 'available')
+          .eq('verified', true)
+          .eq('is_hidden', false)
           .order('created_at', { ascending: false })
           .limit(options.limit || 50);
 
