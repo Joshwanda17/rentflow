@@ -114,6 +114,19 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // a flag noting that location/area was pre-filled from the agent profile.
   const [lastLandlord, setLastLandlord] = useState<LandlordHit | null>(null);
   const [prefilledFromProfile, setPrefilledFromProfile] = useState(false);
+  // ─── House-posting block (3-strike auto-block + manual Landlord Ops block) ───
+  // When the agent is blocked they cannot list any house; we show the reason and
+  // a live countdown to when posting reopens. No commission is earned while blocked.
+  type ListingBlock = {
+    blocked: boolean;
+    blocked_until?: string | null;
+    reason?: string | null;
+    auto_blocked?: boolean | null;
+    rejection_count?: number | null;
+  };
+  const [listingBlock, setListingBlock] = useState<ListingBlock | null>(null);
+  const [blockChecking, setBlockChecking] = useState(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   // Phone-based auto-detection: when the agent types a landlord phone that is
   // already registered anywhere in the system (even one created from just an
   // estimation, with no photos/houses yet), surface it so they reuse it and
