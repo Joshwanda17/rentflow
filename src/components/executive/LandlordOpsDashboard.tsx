@@ -2943,6 +2943,11 @@ export function LandlordOpsDashboard() {
                         <Mail className="h-3 w-3 shrink-0" /> {house.agent_email}
                       </a>
                     )}
+                    {house.agent_id && (
+                      <div className="pt-1.5 mt-1 border-t border-indigo-500/10">
+                        <AgentListingBlockControl agentId={house.agent_id} agentName={house.agent_name} />
+                      </div>
+                    )}
                   </div>
                 )}
                 {/* LC1 */}
