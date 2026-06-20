@@ -19,12 +19,14 @@ export function FindAHouseCTA({ onClick }: FindAHouseCTAProps) {
           .select('id', { count: 'exact', head: true })
           .eq('status', 'available')
           .eq('is_hidden', false)
+          .eq('verified', true)
           .is('tenant_id', null),
         supabase
           .from('house_listings')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'available')
           .eq('is_hidden', false)
+          .eq('verified', true)
           .is('tenant_id', null)
           .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
       ]);

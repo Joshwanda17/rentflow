@@ -54,6 +54,7 @@ import { DealPipeline } from './landlord-ops/DealPipeline';
 import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
 import { VerificationTimelinePanel } from './landlord-ops/VerificationTimelinePanel';
 import { EmptyHouseActionDialog } from './landlord-ops/EmptyHouseActionDialog';
+import { AgentListingBlockControl } from './landlord-ops/AgentListingBlockControl';
 import { Trash2, XCircle, Pencil } from 'lucide-react';
 import { EditLandlordDialog } from './landlord-ops/EditLandlordDialog';
 import { EditLC1Dialog } from './landlord-ops/EditLC1Dialog';
@@ -2941,6 +2942,11 @@ export function LandlordOpsDashboard() {
                       <a href={`mailto:${house.agent_email}`} className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline break-all">
                         <Mail className="h-3 w-3 shrink-0" /> {house.agent_email}
                       </a>
+                    )}
+                    {house.agent_id && (
+                      <div className="pt-1.5 mt-1 border-t border-indigo-500/10">
+                        <AgentListingBlockControl agentId={house.agent_id} agentName={house.agent_name} />
+                      </div>
                     )}
                   </div>
                 )}

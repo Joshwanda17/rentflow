@@ -21,7 +21,8 @@ export default function PriceComparison({ region, category, dailyRate, houseId }
         .eq('region', region)
         .eq('house_category', category)
         .neq('id', houseId)
-        .eq('status', 'available');
+        .eq('status', 'available')
+        .eq('verified', true);
 
       if (data && data.length >= 2) {
         const avg = data.reduce((s, r) => s + r.daily_rate, 0) / data.length;

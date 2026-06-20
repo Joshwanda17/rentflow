@@ -37,6 +37,7 @@ export function PublicHousesPreview() {
           .select('id, title, region, district, address, house_category, number_of_rooms, daily_rate, monthly_rent, image_urls, short_code')
           .eq('status', 'available')
           .eq('is_hidden', false)
+          .eq('verified', true)
           .is('tenant_id', null)
           .not('image_urls', 'is', null)
           .neq('image_urls', '{}')
@@ -48,6 +49,7 @@ export function PublicHousesPreview() {
           .select('id', { count: 'exact', head: true })
           .eq('status', 'available')
           .eq('is_hidden', false)
+          .eq('verified', true)
           .is('tenant_id', null)
           .not('image_urls', 'is', null)
           .neq('image_urls', '{}'),
