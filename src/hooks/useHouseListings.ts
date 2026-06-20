@@ -128,6 +128,13 @@ export function useHouseListings(options: UseHouseListingsOptions = {}) {
         query = query.eq('is_hidden', false);
       }
 
+      // A listing is only shown publicly once Landlord Ops (admin) has approved
+      // it (verified = true). Unverified listings stay out of the marketplace.
+      // Agents still see all of their own listings regardless of approval state.
+      if (!options.agentId) {
+        query = query.eq('verified', true);
+      }
+
       if (options.region) {
         query = query.ilike('region', `%${options.region}%`);
       }
