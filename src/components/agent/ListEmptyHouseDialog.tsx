@@ -1188,7 +1188,65 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     <>
     <Dialog open={open} onOpenChange={(v) => { if (!v) closeAll(); else onOpenChange(v); }}>
       <DialogContent className={`w-[calc(100vw-1rem)] sm:max-w-md overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl p-4 sm:p-6 ${successListing ? 'max-h-[92vh]' : 'h-[92vh] h-[92dvh] max-h-[92vh] max-h-[92dvh]'}`}>
-        {successListing ? (
+        {listingBlock?.blocked ? (
+          (() => {
+            const until = listingBlock.blocked_until ? new Date(listingBlock.blocked_until).getTime() : 0;
+            const remainingMs = Math.max(0, until - nowTick);
+            const totalSec = Math.floor(remainingMs / 1000);
+            const days = Math.floor(totalSec / 86400);
+            const hours = Math.floor((totalSec % 86400) / 3600);
+            const mins = Math.floor((totalSec % 3600) / 60);
+            const secs = totalSec % 60;
+            const pad = (n: number) => String(n).padStart(2, '0');
+            return (
+              <div className="space-y-5 py-2">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-5 w-5" />
+                    House posting blocked
+                  </DialogTitle>
+                  <DialogDescription>
+                    You can't list houses right now. While blocked you earn no listing
+                    rewards or commission.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
+                  <p className="text-[10px] font-semibold text-destructive/80 uppercase tracking-wider">
+                    {listingBlock.auto_blocked ? 'Reason (3 listings rejected)' : 'Reason from Landlord Ops'}
+                  </p>
+                  <p className="text-sm font-medium text-foreground whitespace-pre-line">
+                    {listingBlock.reason || 'Your house posting has been temporarily blocked.'}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/40 border border-border text-center space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    You can post again in
+                  </p>
+                  {remainingMs > 0 ? (
+                    <p className="text-2xl font-bold tabular-nums text-foreground">
+                      {days > 0 ? `${days}d ` : ''}{pad(hours)}:{pad(mins)}:{pad(secs)}
+                    </p>
+                  ) : (
+                    <p className="text-sm font-semibold text-emerald-600">
+                      The block has expired — close and reopen to start listing.
+                    </p>
+                  )}
+                  {listingBlock.blocked_until && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Posting reopens {new Date(listingBlock.blocked_until).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+
+                <Button type="button" variant="secondary" className="w-full h-11" onClick={closeAll}>
+                  Close
+                </Button>
+              </div>
+            );
+          })()
+        ) : successListing ? (
           <div className="space-y-5 py-2">
             <div className="text-center space-y-2">
               <div className="w-14 h-14 mx-auto rounded-full bg-success/15 flex items-center justify-center">
