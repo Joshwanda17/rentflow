@@ -1101,7 +1101,22 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       setAttempted(false);
     } catch (err: any) {
       console.error('[ListEmptyHouseDialog] submit failed:', err);
-      toast.error(err?.message || 'Failed to list house');
+      const raw = String(err?.message || '');
+      if (raw.includes('AGENT_LISTING_BLOCKED')) {
+        // The agent got blocked mid-flow — surface the block screen with reason + countdown.
+        toast.error('House posting is blocked', {
+          description: 'You cannot list houses right now. No commission is earned while blocked.',
+        });
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data } = await (supabase as any).rpc('get_my_listing_block');
+          setListingBlock((data as ListingBlock) ?? { blocked: true, reason: raw.replace('AGENT_LISTING_BLOCKED:', '').trim() });
+        } catch {
+          setListingBlock({ blocked: true, reason: raw.replace('AGENT_LISTING_BLOCKED:', '').trim() });
+        }
+      } else {
+        toast.error(err?.message || 'Failed to list house');
+      }
       scrollDialogToTop();
     } finally {
       setSubmitting(false);
