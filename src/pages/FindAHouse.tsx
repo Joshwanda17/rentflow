@@ -610,7 +610,10 @@ export default function FindAHouse() {
   const { listings, loading } = useNearbyHouses({
     latitude: effectiveLat,
     longitude: effectiveLng,
-    radiusKm: selectedRegion !== 'All Regions' ? 200 : 50,
+    // "All Regions" must show every house across the whole country (not just
+    // houses near the user's GPS), so we pass a country-sized radius. A specific
+    // region stays at 200km around the user.
+    radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
     limit: 500,
