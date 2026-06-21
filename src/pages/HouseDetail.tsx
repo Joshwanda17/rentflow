@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -56,7 +56,15 @@ export default function HouseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  // Filter context arrives either via in-app navigation state OR via a shared
+  // deep link (?from=funder&list=<url-encoded query string>) so the breadcrumb
+  // back-to-filtered-list works even on a cold page load.
+  const navState = location.state as { from?: string; listSearch?: string } | null;
+  const fromFunder = navState?.from === 'funder' || searchParams.get('from') === 'funder';
+  const listSearch = navState?.listSearch || searchParams.get('list') || '';
+  const cameFromFilteredList = listSearch.length > 0;
   const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,6 +144,31 @@ export default function HouseDetail() {
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
       toast({ title: 'Link copied!', description: 'Paste it anywhere to share this house.' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: 'Could not copy', variant: 'destructive' });
+    }
+  };
+
+  // Deep link that re-opens THIS house AND preserves the originating filtered
+  // list so the recipient gets the same breadcrumb-back behaviour.
+  const filteredDeepLink = `${SITE_URL}/house/${listing?.short_code || id}?from=funder${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`;
+
+  const handleShareFilteredLink = async () => {
+    const shareData = {
+      title: listing ? `${listing.title} — Daily Rent | Welile` : 'House for Rent | Welile',
+      text: listing
+        ? `Check out this house (with my saved house filters): ${listing.title} in ${listing.region} on Welile!`
+        : 'Check out this house on Welile!',
+      url: filteredDeepLink,
+    };
+    if (navigator.share) {
+      try { await navigator.share(shareData); return; } catch { /* fall through to copy */ }
+    }
+    try {
+      await navigator.clipboard.writeText(filteredDeepLink);
+      setCopied(true);
+      toast({ title: 'Filtered link copied!', description: 'Opens this house with the same list filters.' });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({ title: 'Could not copy', variant: 'destructive' });
@@ -228,10 +261,6 @@ export default function HouseDetail() {
 
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const isPending = !listing.verified || listing.status === 'pending';
-  const navState = location.state as { from?: string; listSearch?: string } | null;
-  const fromFunder = navState?.from === 'funder';
-  const listSearch = navState?.listSearch || '';
-  const cameFromFilteredList = listSearch.length > 0;
   const mapLink = listing.latitude && listing.longitude
     ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
     : null;
@@ -311,6 +340,14 @@ export default function HouseDetail() {
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
+              <button
+                onClick={handleShareFilteredLink}
+                className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-primary rounded-lg px-2 py-1.5 hover:bg-primary/10 active:scale-95 transition-all touch-manipulation shrink-0"
+                title="Share a link that opens this house with the same list filters"
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                <span className="hidden sm:inline">Share filtered link</span>
+              </button>
             </div>
           </div>
         )}
