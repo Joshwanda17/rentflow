@@ -22,7 +22,12 @@ interface PublicHouse {
   short_code: string | null;
 }
 
-export function PublicHousesPreview() {
+interface PublicHousesPreviewProps {
+  /** When true, taps open the full house detail / browse pages instead of the sign-in screen. */
+  authenticated?: boolean;
+}
+
+export function PublicHousesPreview({ authenticated = false }: PublicHousesPreviewProps) {
   const navigate = useNavigate();
   const [houses, setHouses] = useState<PublicHouse[] | null>(null);
   const [totalCount, setTotalCount] = useState<number | null>(null);
@@ -63,7 +68,16 @@ export function PublicHousesPreview() {
 
   const goExplore = () => {
     hapticTap();
-    navigate('/auth?role=tenant');
+    navigate(authenticated ? '/find-a-house' : '/auth?role=tenant');
+  };
+
+  const openHouse = (house: PublicHouse) => {
+    hapticTap();
+    if (authenticated) {
+      navigate(`/house/${house.short_code || house.id}`);
+    } else {
+      navigate('/auth?role=tenant');
+    }
   };
 
   if (houses && houses.length === 0) return null;
@@ -109,8 +123,8 @@ export function PublicHousesPreview() {
               key={house.id}
               role="button"
               tabIndex={0}
-              onClick={goExplore}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') goExplore(); }}
+              onClick={() => openHouse(house)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openHouse(house); }}
               className="shrink-0 w-44 snap-start text-left rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md active:scale-[0.98] transition-all touch-manipulation cursor-pointer"
             >
               <div className="relative w-full h-28 bg-muted">
@@ -176,7 +190,9 @@ export function PublicHousesPreview() {
       )}
 
       <p className="text-[11px] text-muted-foreground text-center mt-2">
-        Tap any house to sign in and explore details
+        {authenticated
+          ? 'Tap any house to view full details'
+          : 'Tap any house to sign in and explore details'}
       </p>
     </motion.section>
   );
