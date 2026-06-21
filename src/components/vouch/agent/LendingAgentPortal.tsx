@@ -69,7 +69,7 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
 
   const trustScore = snapshot?.score ?? 0;
   const lendablePool = withdrawableBalance + commissionBalance;
-  const eligible = trustScore >= LENDING_AGENT_MIN_TRUST_SCORE;
+  const eligible = true; // Any user qualifies to lend
 
   // Load my disbursed loans when sheet opens & agreement is accepted
   useEffect(() => {
@@ -323,11 +323,10 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
                               type="number"
                               value={interestRate}
                               onChange={(e) => setInterestRate(e.target.value)}
-                              min={5}
-                              max={15}
+                              min={0}
                               className="h-9 text-sm"
                             />
-                            <p className="text-[9px] text-muted-foreground mt-0.5">5% – 15% allowed</p>
+                            <p className="text-[9px] text-muted-foreground mt-0.5">Any rate allowed</p>
                           </div>
                           <div>
                             <Label className="text-xs">Due date</Label>
