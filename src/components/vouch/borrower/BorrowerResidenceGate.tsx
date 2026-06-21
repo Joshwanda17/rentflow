@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Building2, MapPin, ShieldCheck, ShieldAlert, UserCheck, Loader2,
   CheckCircle2, Plus, Search, X, ArrowRight, Home, Gavel,
+  Clock, XCircle, BadgeCheck, Send,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,12 +46,26 @@ interface Props {
   onComplete: () => void;
 }
 
-/** A residence profile is "complete enough" to request a loan when the borrower
- *  has a linked landlord WITH GPS, and a linked LC1 chairperson. */
+export type VerifStatus = 'verified' | 'pending' | 'rejected';
+
+/** A residence profile is allowed to request a loan ONLY when the borrower has a
+ *  VERIFIED landlord WITH GPS, and a VERIFIED LC1 chairperson. Pending / rejected
+ *  records block the request. */
 export function isResidenceComplete(landlord: LinkedLandlord | null, lc1: LinkedLc1 | null) {
-  const landlordOk = !!landlord && landlord.latitude != null && landlord.longitude != null;
-  const lc1Ok = !!lc1;
+  const landlordOk = !!landlord && landlord.verified === true && landlord.latitude != null && landlord.longitude != null;
+  const lc1Ok = !!lc1 && lc1.verified === true;
   return landlordOk && lc1Ok;
+}
+
+/** Pill that renders the pending / verified / rejected verification state. */
+function StatusBadge({ status }: { status: VerifStatus }) {
+  if (status === 'verified') {
+    return <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold gap-0.5"><BadgeCheck className="h-2.5 w-2.5" />Verified</Badge>;
+  }
+  if (status === 'rejected') {
+    return <Badge className="bg-destructive/15 text-destructive border-0 text-[9px] font-bold gap-0.5"><XCircle className="h-2.5 w-2.5" />Rejected</Badge>;
+  }
+  return <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[9px] font-bold gap-0.5"><Clock className="h-2.5 w-2.5" />Pending review</Badge>;
 }
 
 export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }: Props) {
