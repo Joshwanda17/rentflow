@@ -78,11 +78,14 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     if (reset) setLoading(true); else setLoadingMore(true);
-    const { data } = await (supabase
+    let query = (supabase
       .from('lending_agent_offers' as any)
       .select('*')
-      .eq('active', true)
-      .neq('lender_agent_id', user.id)
+      .eq('active', true));
+    if (!showOwnOffers) {
+      query = (query as any).neq('lender_agent_id', user.id);
+    }
+    const { data } = await (query
       .order('created_at', { ascending: false })
       .range(from, to) as any);
     const rows = (data as Offer[]) ?? [];
@@ -90,7 +93,7 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
     setHasMore(rows.length === PAGE_SIZE);
     pageRef.current = page + 1;
     if (reset) setLoading(false); else setLoadingMore(false);
-  }, [user]);
+  }, [user, showOwnOffers]);
 
   useEffect(() => {
     if (!open || !user) return;
