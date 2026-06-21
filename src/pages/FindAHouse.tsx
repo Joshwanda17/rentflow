@@ -417,6 +417,17 @@ export default function FindAHouse() {
   const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(searchText, 250);
 
+  // Infinite scroll: grow the fetch limit as the user reaches the bottom
+  // instead of relying on a single hard cap.
+  const PAGE_SIZE = 30;
+  const [fetchLimit, setFetchLimit] = useState(PAGE_SIZE);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset paging whenever the server-side query inputs change.
+  useEffect(() => {
+    setFetchLimit(PAGE_SIZE);
+  }, [selectedRegion, selectedCategory]);
+
   // Funder context flows in from the funders dashboard "See all" link.
   const cameFromFunder = (location.state as { from?: string } | null)?.from === 'funder';
 
@@ -475,15 +486,31 @@ export default function FindAHouse() {
     }
   }, [geo.city, geo.loading, geoDefaultApplied, sharedRegion]);
 
-  const { listings, loading } = useNearbyHouses({
+  const { listings, loading, hasMore } = useNearbyHouses({
     latitude: effectiveLat,
     longitude: effectiveLng,
     radiusKm: selectedRegion !== 'All Regions' ? 200 : 50,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
-    limit: 500,
+    limit: fetchLimit,
     enabled: hasSharedLocation || !geo.loading,
   });
+
+  // Load the next page when the sentinel scrolls into view.
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !hasMore || loading) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setFetchLimit((prev) => prev + PAGE_SIZE);
+        }
+      },
+      { rootMargin: '600px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loading]);
 
   const filtered = useMemo(() => {
     let result = [...listings];
@@ -773,7 +800,7 @@ export default function FindAHouse() {
 
         {/* Listings */}
         <main id="house-list" tabIndex={-1} className="max-w-2xl mx-auto px-4 py-4 space-y-3 pb-20">
-          {loading ? (
+          {loading && listings.length === 0 ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-48 w-full rounded-2xl" />
             ))
@@ -794,6 +821,14 @@ export default function FindAHouse() {
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
               </p>
               <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
+              {/* Infinite-scroll sentinel + loader */}
+              <div ref={loadMoreRef} className="h-1 w-full" aria-hidden="true" />
+              {hasMore && (
+                <div className="flex items-center justify-center py-6 text-sm text-muted-foreground gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading more houses…
+                </div>
+              )}
             </>
           )}
         </main>
