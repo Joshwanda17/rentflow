@@ -191,6 +191,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
   const [listings, setListings] = useState<HouseListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
 
   const fetchNearby = useCallback(async () => {
     if (options.enabled === false) {
@@ -203,6 +204,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
 
     try {
       let usedRpc = false;
+      const requestLimit = options.limit || 50;
 
       // If we have GPS, try the spatial RPC first
       if (options.latitude && options.longitude) {
@@ -212,11 +214,13 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
           radius_km: options.radiusKm || 50,
           category_filter: options.category || null,
           region_filter: options.region || null,
-          result_limit: options.limit || 50,
+          result_limit: requestLimit,
         });
 
         if (!rpcError && data) {
-          const rows = (((data as any[]) || []) as HouseListing[]).filter(listingHasRealPhoto);
+          const raw = ((data as any[]) || []) as HouseListing[];
+          setHasMore(raw.length >= requestLimit);
+          const rows = raw.filter(listingHasRealPhoto);
           const enriched = await enrichWithAgentInfo(rows);
           setListings(enriched);
           usedRpc = true;
@@ -233,7 +237,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
           .eq('verified', true)
           .eq('is_hidden', false)
           .order('created_at', { ascending: false })
-          .limit(options.limit || 50);
+          .limit(requestLimit);
 
         if (options.region) {
           query = query.ilike('region', `%${options.region}%`);
@@ -244,7 +248,9 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
 
         const { data, error: fetchError } = await query;
         if (fetchError) throw fetchError;
-        const rows = (((data as any[]) || []) as HouseListing[]).filter(listingHasRealPhoto);
+        const raw = ((data as any[]) || []) as HouseListing[];
+        setHasMore(raw.length >= requestLimit);
+        const rows = raw.filter(listingHasRealPhoto);
         const enriched = await enrichWithAgentInfo(rows);
         setListings(enriched);
       }
@@ -259,7 +265,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     fetchNearby();
   }, [fetchNearby]);
 
-  return { listings, loading, error, refresh: fetchNearby };
+  return { listings, loading, error, hasMore, refresh: fetchNearby };
 }
 
 /**
