@@ -52,34 +52,30 @@ const CATEGORIES = [
 ];
 
 export default function HouseDetail() {
-  const announceMap = useMapLinkAnnouncer();
+  announceMap();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  // Filter context arrives either via in-app navigation state OR via a shared
-  // deep link (?from=funder&list=<url-encoded query string>) so the breadcrumb
-  // back-to-filtered-list works even on a cold page load.
+
+  // Validate the preserved FindAHouse filters so that a malformed or empty deep
+  // link cannot break navigation. When invalid, the breadcrumb/back button fall
+  // back to /find-a-house with its default filters.
   const navState = location.state as { from?: string; listSearch?: string } | null;
   const fromFunder = navState?.from === 'funder' || searchParams.get('from') === 'funder';
-  const listSearch = navState?.listSearch || searchParams.get('list') || '';
-  const cameFromFilteredList = listSearch.length > 0;
-  // Single explicit target for both the Back button and the "Filtered houses"
-  // breadcrumb. Using an explicit path (instead of navigate(-1)) guarantees the
-  // originating FindAHouse filters are restored even on a cold deep-link load,
-  // where there is no in-app history entry to step back to.
+  const rawListSearch = navState?.listSearch || searchParams.get('list') || '';
+  const validated = validateListSearch(rawListSearch);
+  const listSearch = validated.valid ? validated.search : '';
+  const cameFromFilteredList = validated.valid;
   const filteredListTo = {
     pathname: '/find-a-house',
-    search: listSearch ? (listSearch.startsWith('?') ? listSearch : `?${listSearch}`) : '',
+    search: listSearch ? `?${listSearch}` : '',
   };
   const goToFilteredList = () => {
-    if (cameFromFilteredList) {
-      navigate(filteredListTo, { state: { from: 'funder', listSearch } });
-    } else {
-      navigate('/dashboard/funder');
-    }
+    navigate(filteredListTo, { state: { from: 'funder', listSearch } });
   };
+
   const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
