@@ -12785,6 +12785,8 @@ export type Database = {
           agent_type: string | null
           always_share_location: boolean | null
           avatar_url: string | null
+          borrower_landlord_id: string | null
+          borrower_lc1_id: string | null
           business_advance_notify_email: boolean
           business_advance_notify_sms: boolean
           city: string | null
@@ -12858,6 +12860,8 @@ export type Database = {
           agent_type?: string | null
           always_share_location?: boolean | null
           avatar_url?: string | null
+          borrower_landlord_id?: string | null
+          borrower_lc1_id?: string | null
           business_advance_notify_email?: boolean
           business_advance_notify_sms?: boolean
           city?: string | null
@@ -12931,6 +12935,8 @@ export type Database = {
           agent_type?: string | null
           always_share_location?: boolean | null
           avatar_url?: string | null
+          borrower_landlord_id?: string | null
+          borrower_lc1_id?: string | null
           business_advance_notify_email?: boolean
           business_advance_notify_sms?: boolean
           city?: string | null
@@ -12998,6 +13004,27 @@ export type Database = {
           whatsapp_verified_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_borrower_landlord_id_fkey"
+            columns: ["borrower_landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_borrower_lc1_id_fkey"
+            columns: ["borrower_lc1_id"]
+            isOneToOne: false
+            referencedRelation: "lc1_chairpersons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_borrower_lc1_id_fkey"
+            columns: ["borrower_lc1_id"]
+            isOneToOne: false
+            referencedRelation: "v_lc1_phone_duplicates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_wallet_id_fkey"
             columns: ["wallet_id"]
