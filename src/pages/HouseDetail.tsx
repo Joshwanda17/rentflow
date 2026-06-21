@@ -51,8 +51,80 @@ const CATEGORIES = [
   { value: 'shop', label: 'Shop' },
 ];
 
+// Valid FindAHouse filter keys and value sets. Keep in sync with FindAHouse.tsx.
+const VALID_FILTER_KEYS = new Set(['q', 'region', 'category', 'sort', 'verified', 'max', 'amenities']);
+const VALID_REGIONS = new Set([
+  'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
+  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
+  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
+  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
+]);
+const VALID_CATEGORIES = new Set([
+  'all', 'single_room', 'double_room', 'bedsitter', 'one_bedroom',
+  'two_bedroom', 'three_bedroom', 'studio', 'shop',
+]);
+const VALID_SORTS = new Set(['price_asc', 'price_desc', 'newest', 'nearest']);
+const VALID_AMENITIES = new Set([
+  'has_water', 'has_electricity', 'has_security', 'has_parking', 'is_furnished',
+]);
+
+/**
+ * Parse and validate a query string saved from the FindAHouse filter bar.
+ * Returns a normalized query string (without the leading '?') when every key and
+ * value is recognised, otherwise reports invalid so the UI can fall back to
+ * /find-a-house with default filters.
+ */
+function validateListSearch(raw: string): { valid: true; search: string } | { valid: false } {
+  if (!raw || !raw.trim()) return { valid: false };
+  try {
+    const params = new URLSearchParams(raw.startsWith('?') ? raw.slice(1) : raw);
+    const normalized = new URLSearchParams();
+    for (const [key, value] of params.entries()) {
+      if (!VALID_FILTER_KEYS.has(key)) return { valid: false };
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+      switch (key) {
+        case 'q':
+          normalized.set('q', trimmed);
+          break;
+        case 'region':
+          if (!VALID_REGIONS.has(trimmed)) return { valid: false };
+          if (trimmed !== 'All Regions') normalized.set('region', trimmed);
+          break;
+        case 'category':
+          if (!VALID_CATEGORIES.has(trimmed)) return { valid: false };
+          if (trimmed !== 'all') normalized.set('category', trimmed);
+          break;
+        case 'sort':
+          if (!VALID_SORTS.has(trimmed)) return { valid: false };
+          normalized.set('sort', trimmed);
+          break;
+        case 'verified':
+          if (trimmed !== '1') return { valid: false };
+          normalized.set('verified', '1');
+          break;
+        case 'max':
+          if (!/^[1-9]\d*$/.test(trimmed)) return { valid: false };
+          normalized.set('max', trimmed);
+          break;
+        case 'amenities': {
+          const parts = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+          if (!parts.length) continue;
+          if (parts.some(p => !VALID_AMENITIES.has(p))) return { valid: false };
+          normalized.set('amenities', parts.join(','));
+          break;
+        }
+      }
+    }
+    const search = normalized.toString();
+    return search ? { valid: true, search } : { valid: false };
+  } catch {
+    return { valid: false };
+  }
+}
+
 export default function HouseDetail() {
-  announceMap();
+  const announceMap = useMapLinkAnnouncer();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,6 +147,7 @@ export default function HouseDetail() {
   const goToFilteredList = () => {
     navigate(filteredListTo, { state: { from: 'funder', listSearch } });
   };
+
 
   const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
