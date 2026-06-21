@@ -396,9 +396,17 @@ export default function FindAHouse() {
   const location = useLocation();
   const geo = useGeolocation(true);
   const [searchText, setSearchText] = useState(() => searchParams.get('q') || '');
-  const [selectedRegion, setSelectedRegion] = useState('All Regions');
+  const [selectedRegion, setSelectedRegion] = useState(() => {
+    const r = searchParams.get('region');
+    return r && REGIONS.includes(r) ? r : 'All Regions';
+  });
   const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
-  const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
+  // If the URL already carries a region (restored filtered list / shared link),
+  // skip the geolocation auto-default so we don't override the chosen region.
+  const [geoDefaultApplied, setGeoDefaultApplied] = useState(() => {
+    const r = searchParams.get('region');
+    return !!(r && REGIONS.includes(r));
+  });
   const [copied, setCopied] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>(() => (searchParams.get('sort') as SortKey) || 'price_asc');
   const [verifiedOnly, setVerifiedOnly] = useState(() => searchParams.get('verified') === '1');
