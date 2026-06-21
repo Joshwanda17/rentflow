@@ -773,10 +773,10 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
                             </div>
                           </div>
 
-                          <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-2.5 flex items-start gap-2">
-                            <Info className="h-3.5 w-3.5 text-amber-700 shrink-0 mt-0.5" />
+                          <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-2.5 flex items-start gap-2">
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-700 shrink-0 mt-0.5" />
                             <p className="text-[10px] leading-relaxed">
-                              <span className="font-bold">Welile does NOT vouch this loan.</span> You bear 100% of the credit risk. Decide based on borrower's score, cash flow, and history.
+                              <span className="font-bold">Your principal is protected.</span> Welile pays you 100% of the principal if this borrower defaults (pays nothing or only part). Interest is not guaranteed — decide using their score, cash flow, and history.
                             </p>
                           </div>
 
