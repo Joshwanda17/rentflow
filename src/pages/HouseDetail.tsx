@@ -340,6 +340,14 @@ export default function HouseDetail() {
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
+              <button
+                onClick={handleShareFilteredLink}
+                className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-primary rounded-lg px-2 py-1.5 hover:bg-primary/10 active:scale-95 transition-all touch-manipulation shrink-0"
+                title="Share a link that opens this house with the same list filters"
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                <span className="hidden sm:inline">Share filtered link</span>
+              </button>
             </div>
           </div>
         )}
