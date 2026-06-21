@@ -65,6 +65,21 @@ export default function HouseDetail() {
   const fromFunder = navState?.from === 'funder' || searchParams.get('from') === 'funder';
   const listSearch = navState?.listSearch || searchParams.get('list') || '';
   const cameFromFilteredList = listSearch.length > 0;
+  // Single explicit target for both the Back button and the "Filtered houses"
+  // breadcrumb. Using an explicit path (instead of navigate(-1)) guarantees the
+  // originating FindAHouse filters are restored even on a cold deep-link load,
+  // where there is no in-app history entry to step back to.
+  const filteredListTo = {
+    pathname: '/find-a-house',
+    search: listSearch ? (listSearch.startsWith('?') ? listSearch : `?${listSearch}`) : '',
+  };
+  const goToFilteredList = () => {
+    if (cameFromFilteredList) {
+      navigate(filteredListTo, { state: { from: 'funder', listSearch } });
+    } else {
+      navigate('/dashboard/funder');
+    }
+  };
   const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
