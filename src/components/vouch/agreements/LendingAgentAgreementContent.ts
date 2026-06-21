@@ -1,4 +1,4 @@
-export const LENDING_AGENT_AGREEMENT_VERSION = 'v1.0';
+export const LENDING_AGENT_AGREEMENT_VERSION = 'v1.1';
 
 export const LENDING_AGENT_MIN_TRUST_SCORE = 70;
 
@@ -9,7 +9,7 @@ Platform: welile.com
 Company: Welile Technologies Limited ("Welile", "we", "us")
 Lending Agent: Welile Agent acting as a peer lender ("you")
 Effective Date: [Auto-filled]
-Version: v1.0
+Version: v1.1
 
 By clicking "I Agree", you confirm you have read, understood, and accepted these Terms.
 
@@ -28,16 +28,23 @@ To unlock the Lending Agent role, you must:
 2.2 Loans are disbursed and repaid through the Welile Wallet rails.
 2.3 You set the loan terms with the borrower (amount, interest, due date) within Welile's allowed limits.
 
-3) IMPORTANT — WELILE DOES NOT VOUCH THESE LOANS
+3) PRINCIPAL PROTECTION — WELILE GUARANTEES YOUR PRINCIPAL
 
-3.1 The Welile Vouch system is designed for REGISTERED EXTERNAL LENDERS, not for peer agents.
-3.2 As a Lending Agent, YOU bear 100% of the credit risk on loans you disburse.
-3.3 Welile will provide tools to help you decide:
+3.1 IMPORTANT: Welile Technologies Limited agrees to pay you, the Lending Agent,
+    100% OF THE PRINCIPAL of any loan recorded in Welile where the borrower
+    defaults — whether the borrower paid NOTHING or only paid PART of the loan.
+3.2 "Default" means the borrower fails to repay the full principal by the agreed
+    due date (including borrowers who repaid only partially).
+3.3 The guarantee covers your PRINCIPAL only. Interest you would have earned on a
+    defaulted loan is NOT guaranteed.
+3.4 To qualify for principal protection, the loan MUST have been recorded inside
+    Welile (see Section 6) with the correct counterpart, principal, due date and
+    terms. Off-platform or mis-recorded loans are NOT protected.
+3.5 Welile still provides decision tools to keep defaults low:
    • Borrower's Welile Trust Profile and score
    • Cash-flow capacity estimate
    • Network and behaviour signals
    • Recovery support via Welile agents
-But these are decision aids, NOT guarantees.
 
 4) INTEREST & FEES
 
@@ -46,13 +53,14 @@ But these are decision aids, NOT guarantees.
 4.3 Welile takes a 1% PLATFORM FEE on each disbursed loan, deducted from your wallet at disbursement.
 4.4 Interest collected is yours.
 
-5) RECOVERY
+5) RECOVERY & PRINCIPAL REIMBURSEMENT
 
 5.1 On default, Welile will:
+   • Reimburse you 100% of the unpaid PRINCIPAL (full or partial default), per Section 3
    • Auto-deduct from the borrower's wallet on any future credit
    • Apply a Trust Score penalty to the borrower
    • Notify Welile collection agents
-But Welile does NOT reimburse you for the loss.
+   • Pursue recovery from the borrower on its own account
 
 5.2 You may NOT:
    • Threaten, harass, or shame borrowers
@@ -94,8 +102,8 @@ These Terms are governed by the laws of Uganda.
 
 By clicking "I Agree", you confirm:
    ✓ You meet the eligibility in Section 1
-   ✓ You understand Welile DOES NOT vouch your peer loans
-   ✓ You bear 100% of the credit risk
-   ✓ You will record every loan inside Welile
+   ✓ You understand Welile GUARANTEES 100% of your PRINCIPAL if a borrower defaults (pays nothing or only part), per Section 3
+   ✓ You understand only the principal is protected — not the interest
+   ✓ You will record every loan inside Welile (required for protection)
    ✓ You will follow Section 5.2 (no harassment, no unlawful collection)
    ✓ You accept the 1% platform fee per disbursement`;
