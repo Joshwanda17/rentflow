@@ -16,7 +16,6 @@ import { motion } from 'framer-motion';
 import LandlordRegistrationForm from '@/components/shared/LandlordRegistrationForm';
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
-import { useCaptureLocation } from '@/hooks/useCaptureLocation';
 
 interface LinkedLandlord {
   id: string;
@@ -56,7 +55,6 @@ export function isResidenceComplete(landlord: LinkedLandlord | null, lc1: Linked
 
 export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }: Props) {
   const { user } = useAuth();
-  const { location, captureLocation, isCapturing } = useCaptureLocation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [landlord, setLandlord] = useState<LinkedLandlord | null>(null);
