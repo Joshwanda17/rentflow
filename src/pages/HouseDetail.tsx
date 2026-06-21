@@ -143,6 +143,31 @@ export default function HouseDetail() {
     }
   };
 
+  // Deep link that re-opens THIS house AND preserves the originating filtered
+  // list so the recipient gets the same breadcrumb-back behaviour.
+  const filteredDeepLink = `${SITE_URL}/house/${listing?.short_code || id}?from=funder${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`;
+
+  const handleShareFilteredLink = async () => {
+    const shareData = {
+      title: listing ? `${listing.title} — Daily Rent | Welile` : 'House for Rent | Welile',
+      text: listing
+        ? `Check out this house (with my saved house filters): ${listing.title} in ${listing.region} on Welile!`
+        : 'Check out this house on Welile!',
+      url: filteredDeepLink,
+    };
+    if (navigator.share) {
+      try { await navigator.share(shareData); return; } catch { /* fall through to copy */ }
+    }
+    try {
+      await navigator.clipboard.writeText(filteredDeepLink);
+      setCopied(true);
+      toast({ title: 'Filtered link copied!', description: 'Opens this house with the same list filters.' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: 'Could not copy', variant: 'destructive' });
+    }
+  };
+
   const ogLocation = listing
     ? [listing.region, listing.district].filter(Boolean).join(', ')
     : '';
