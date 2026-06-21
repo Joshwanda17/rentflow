@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HandCoins, Loader2, User, Clock, CheckCircle2, Search, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
