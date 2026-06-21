@@ -68,13 +68,17 @@ export function PublicHousesPreview({ authenticated = false }: PublicHousesPrevi
 
   const goExplore = () => {
     hapticTap();
-    navigate(authenticated ? '/find-a-house' : '/auth?role=tenant');
+    if (authenticated) {
+      navigate('/find-a-house', { state: { from: 'funder' } });
+    } else {
+      navigate('/auth?role=tenant');
+    }
   };
 
   const openHouse = (house: PublicHouse) => {
     hapticTap();
     if (authenticated) {
-      navigate(`/house/${house.short_code || house.id}`);
+      navigate(`/house/${house.short_code || house.id}`, { state: { from: 'funder' } });
     } else {
       navigate('/auth?role=tenant');
     }

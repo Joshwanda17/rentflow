@@ -1,7 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 
 import { supabase } from '@/integrations/supabase/client';
 import { HouseListing } from '@/hooks/useHouseListings';
@@ -47,6 +55,7 @@ export default function HouseDetail() {
   const announceMap = useMapLinkAnnouncer();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
@@ -219,6 +228,7 @@ export default function HouseDetail() {
 
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const isPending = !listing.verified || listing.status === 'pending';
+  const fromFunder = (location.state as { from?: string } | null)?.from === 'funder';
   const mapLink = listing.latitude && listing.longitude
     ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
     : null;
@@ -263,6 +273,39 @@ export default function HouseDetail() {
         )}
       </Helmet>
       <div className="min-h-screen bg-background pb-28">
+        {/* ── Funder breadcrumb + consistent back button ── */}
+        {fromFunder && (
+          <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b border-border">
+            <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center gap-3">
+              <button
+                onClick={() => navigate('/dashboard/funder')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-foreground rounded-lg px-2 py-1 -ml-2 hover:bg-accent/50 active:scale-95 transition-all touch-manipulation shrink-0"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </button>
+              <Breadcrumb className="min-w-0">
+                <BreadcrumbList className="flex-nowrap">
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to="/dashboard/funder">Dashboard</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to="/find-a-house">Houses</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem className="min-w-0">
+                    <BreadcrumbPage className="truncate">{listing.title}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+          </div>
+        )}
         {/* ── Full-bleed Hero Image Gallery ── */}
         <div className="relative w-full">
           {images.length > 0 ? (
