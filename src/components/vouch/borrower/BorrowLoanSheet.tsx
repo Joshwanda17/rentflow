@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
-import { HandCoins, Loader2, User, Clock, CheckCircle2, Search, X } from 'lucide-react';
+import { HandCoins, Loader2, User, Clock, CheckCircle2, Search, X, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -20,6 +20,7 @@ import { motion } from 'framer-motion';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onOpenLendingPortal?: () => void;
 }
 
 interface Offer {
@@ -36,7 +37,7 @@ interface Offer {
   max_duration_days: number;
 }
 
-export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
+export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPortal }: Props) {
   const { user } = useAuth();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -274,8 +275,20 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
                 <Skeleton className="h-24 w-full rounded-xl" />
               ) : offers.length === 0 ? (
                 <Card className="border-dashed">
-                  <CardContent className="p-6 text-center">
-                    <p className="text-xs text-muted-foreground">No loan offers available right now. Try requesting an agent by AI ID above.</p>
+                  <CardContent className="p-6 text-center space-y-2">
+                    {showOwnOffers ? (
+                      <>
+                        <p className="text-xs text-muted-foreground">You haven’t published any loan offers yet. Turn the toggle off to browse other agents’ offers, or publish your own.</p>
+                        {onOpenLendingPortal && (
+                          <Button size="sm" className="h-9 text-xs font-bold" onClick={onOpenLendingPortal}>
+                            <Plus className="h-3.5 w-3.5 mr-1.5" />
+                            Create your first offer
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No loan offers available right now. Try requesting an agent by AI ID above.</p>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
