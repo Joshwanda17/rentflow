@@ -202,6 +202,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
       interest_rate_pct: 0,
       min_duration_days: 1,
       max_duration_days: 365,
+      active: true,
     });
   };
 
