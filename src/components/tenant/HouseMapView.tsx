@@ -7,6 +7,10 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import type { HouseListing } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
+import { resolveHouseCoords, buildDirectionsUrl } from '@/lib/houseGeo';
+
+// A listing paired with its resolved (exact or approximate) map coordinate.
+type MappableListing = HouseListing & { _lat: number; _lng: number; _approx: boolean };
 
 // Fix default marker icons (Leaflet's default assets break under bundlers)
 const DefaultIcon = L.icon({
@@ -21,22 +25,25 @@ const DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // A price pill marker, so the map reads like Booking.com / Airbnb.
-function priceIcon(label: string, selected: boolean): L.DivIcon {
+function priceIcon(label: string, selected: boolean, approximate: boolean): L.DivIcon {
   const bg = selected ? '#0f172a' : '#ffffff';
   const fg = selected ? '#ffffff' : '#0f172a';
   const ring = selected ? '#0f172a' : 'rgba(0,0,0,0.12)';
+  // Approximate pins (district/region fallback, no exact GPS) get a dashed
+  // border so users know the position is an estimate of the area.
+  const border = approximate ? `1px dashed ${selected ? '#ffffff' : '#94a3b8'}` : `1px solid ${ring}`;
   return L.divIcon({
     className: '',
     html: `<div style="transform:translate(-50%,-100%);display:inline-flex;align-items:center;white-space:nowrap;
       padding:4px 9px;border-radius:9999px;background:${bg};color:${fg};font-weight:700;font-size:12px;
-      border:1px solid ${ring};box-shadow:0 3px 10px rgba(0,0,0,0.22);font-family:inherit;">${label}</div>`,
+      border:${border};box-shadow:0 3px 10px rgba(0,0,0,0.22);font-family:inherit;">${approximate ? '~' : ''}${label}</div>`,
     iconSize: [0, 0],
     iconAnchor: [0, 0],
   });
 }
 
-// Build a popup DOM node with a working "View details" button.
-function buildPopup(l: HouseListing, onOpenDetails: (l: HouseListing) => void): HTMLElement {
+// Build a popup DOM node with working "View details" + "Get directions" buttons.
+function buildPopup(l: MappableListing, onOpenDetails: (l: HouseListing) => void): HTMLElement {
   const root = document.createElement('div');
   root.style.width = '176px';
   const photo = l.image_urls?.find((u) => typeof u === 'string' && u.trim().length > 0);
@@ -44,6 +51,7 @@ function buildPopup(l: HouseListing, onOpenDetails: (l: HouseListing) => void): 
     ${photo ? `<img src="${photo}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px;" loading="lazy" />` : ''}
     <p style="font-weight:600;font-size:12px;line-height:1.2;margin:0 0 2px;">${l.title ?? ''}</p>
     ${l.address ? `<p style="font-size:11px;color:#64748b;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${l.address}</p>` : ''}
+    ${l._approx ? `<p style="font-size:10px;color:#94a3b8;margin:0 0 2px;">Approximate area</p>` : ''}
     <p style="font-size:12px;font-weight:700;margin:0 0 6px;">${formatUGX(l.daily_rate)}/day</p>
   `;
   const btn = document.createElement('button');
@@ -52,6 +60,15 @@ function buildPopup(l: HouseListing, onOpenDetails: (l: HouseListing) => void): 
     'width:100%;height:28px;font-size:12px;font-weight:600;border:none;border-radius:6px;background:#0f172a;color:#fff;cursor:pointer;';
   btn.addEventListener('click', () => onOpenDetails(l));
   root.appendChild(btn);
+
+  const dir = document.createElement('a');
+  dir.textContent = '↳ Get directions';
+  dir.href = buildDirectionsUrl(l);
+  dir.target = '_blank';
+  dir.rel = 'noopener noreferrer';
+  dir.style.cssText =
+    'display:block;text-align:center;width:100%;height:28px;line-height:28px;margin-top:4px;font-size:12px;font-weight:600;border-radius:6px;background:#f1f5f9;color:#0f172a;text-decoration:none;';
+  root.appendChild(dir);
   return root;
 }
 
@@ -74,7 +91,7 @@ function ClusterLayer({
   onSelect,
   onOpenDetails,
 }: {
-  listings: HouseListing[];
+  listings: MappableListing[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onOpenDetails: (l: HouseListing) => void;
@@ -100,9 +117,8 @@ function ClusterLayer({
 
     const markers = new Map<string, L.Marker>();
     listings.forEach((l) => {
-      if (typeof l.latitude !== 'number' || typeof l.longitude !== 'number') return;
-      const marker = L.marker([l.latitude, l.longitude], {
-        icon: priceIcon(`${formatUGX(l.daily_rate)}/day`, selectedId === l.id),
+      const marker = L.marker([l._lat, l._lng], {
+        icon: priceIcon(`${formatUGX(l.daily_rate)}/day`, selectedId === l.id, l._approx),
         zIndexOffset: selectedId === l.id ? 1000 : 0,
       });
       // Tag the marker so a cluster click can map back to a listing id.
@@ -146,7 +162,7 @@ function ClusterLayer({
       const isSel = id === selectedId;
       const list = listings.find((l) => l.id === id);
       if (!list) return;
-      marker.setIcon(priceIcon(`${formatUGX(list.daily_rate)}/day`, isSel));
+      marker.setIcon(priceIcon(`${formatUGX(list.daily_rate)}/day`, isSel, list._approx));
       marker.setZIndexOffset(isSel ? 1000 : 0);
     });
   }, [selectedId, listings]);
@@ -163,7 +179,7 @@ function FitBounds({
   points: [number, number][];
   userCoords: { lat: number; lng: number } | null;
   selectedId: string | null;
-  listings: HouseListing[];
+  listings: MappableListing[];
 }) {
   const map = useMap();
 
@@ -183,8 +199,8 @@ function FitBounds({
   useEffect(() => {
     if (!selectedId) return;
     const sel = listings.find((l) => l.id === selectedId);
-    if (sel && sel.latitude != null && sel.longitude != null) {
-      map.flyTo([sel.latitude, sel.longitude], Math.max(map.getZoom(), 14), { duration: 0.5 });
+    if (sel) {
+      map.flyTo([sel._lat, sel._lng], Math.max(map.getZoom(), 14), { duration: 0.5 });
     }
   }, [map, selectedId, listings]);
 
@@ -192,13 +208,18 @@ function FitBounds({
 }
 
 export function HouseMapView({ listings, userCoords, selectedId, onSelect, onOpenDetails }: HouseMapViewProps) {
-  const mappable = useMemo(
-    () => listings.filter((l) => typeof l.latitude === 'number' && typeof l.longitude === 'number'),
-    [listings]
-  );
+  // Resolve a coordinate for every listing — exact GPS when present, otherwise
+  // an approximate district/region centroid — so all houses appear on the map.
+  const mappable = useMemo<MappableListing[]>(() => {
+    return listings.flatMap((l) => {
+      const c = resolveHouseCoords(l);
+      if (!c) return [];
+      return [{ ...l, _lat: c.lat, _lng: c.lng, _approx: c.approximate }];
+    });
+  }, [listings]);
 
   const points = useMemo<[number, number][]>(
-    () => mappable.map((l) => [l.latitude as number, l.longitude as number]),
+    () => mappable.map((l) => [l._lat, l._lng]),
     [mappable]
   );
 

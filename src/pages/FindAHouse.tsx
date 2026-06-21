@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
+import { resolveHouseCoords, buildDirectionsUrl, distanceToHouse } from '@/lib/houseGeo';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 
@@ -129,10 +130,16 @@ function HouseImageCarousel({ images, title, onImageClick, layout = 'vertical' }
   );
 }
 
-function LocationMap({ lat, lng, title, anchorId }: { lat: number | null; lng: number | null; title: string; anchorId?: string }) {
+function LocationMap({ listing, anchorId }: { listing: HouseListing; anchorId?: string }) {
   const announce = useMapLinkAnnouncer();
   const containerRef = useRef<HTMLAnchorElement | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
+  const resolved = resolveHouseCoords(listing);
+  const lat = resolved?.lat ?? null;
+  const lng = resolved?.lng ?? null;
+  const approximate = resolved?.approximate ?? false;
+  const title = listing.title;
+  const directionsUrl = buildDirectionsUrl(listing);
 
   // Only mount the (heavy) Google Maps iframe once the card actually enters the
   // viewport. The virtualizer keeps a few off-screen rows mounted for smooth
@@ -156,11 +163,10 @@ function LocationMap({ lat, lng, title, anchorId }: { lat: number | null; lng: n
 
   if (!lat || !lng) return null;
   const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
-  const linkUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   return (
-    <a ref={containerRef} href={linkUrl} id={anchorId} target="_blank" rel="noopener noreferrer"
+    <a ref={containerRef} href={directionsUrl} id={anchorId} target="_blank" rel="noopener noreferrer"
       onClick={() => announce(title)}
-      aria-label={`Open ${title} location in Google Maps (opens in a new tab)`}
+      aria-label={`Get directions to ${title} in Google Maps (opens in a new tab)`}
       className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
       {mapVisible ? (
         <iframe src={mapUrl} className="w-full h-full pointer-events-none" title={`Map: ${title}`} loading="lazy" style={{ border: 0 }} />
@@ -176,8 +182,13 @@ function LocationMap({ lat, lng, title, anchorId }: { lat: number | null; lng: n
         </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none" />
+      {approximate && (
+        <div className="absolute top-2 left-2 bg-background/85 backdrop-blur-md text-foreground text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+          Approximate area
+        </div>
+      )}
       <div className="absolute bottom-2 left-2 right-2 mx-auto w-fit min-h-[44px] bg-primary text-primary-foreground text-sm font-bold px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl touch-manipulation">
-        <Navigation className="h-4 w-4" /> Tap to open in Google Maps
+        <Navigation className="h-4 w-4" /> Get directions
       </div>
     </a>
   );
@@ -318,7 +329,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
 
         {listing.description && <p className="text-xs text-muted-foreground line-clamp-2" itemProp="description">{listing.description}</p>}
 
-        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} anchorId={isFirst ? 'first-map-cta' : undefined} />
+        <LocationMap listing={listing} anchorId={isFirst ? 'first-map-cta' : undefined} />
       </div>
 
       {/* RIGHT: price + actions panel (Booking.com style) */}
@@ -535,7 +546,11 @@ export default function FindAHouse() {
         result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         break;
       case 'nearest':
-        result.sort((a, b) => (a.distance_km ?? 99999) - (b.distance_km ?? 99999));
+        result.sort((a, b) => {
+          const da = a.distance_km ?? (effectiveLat && effectiveLng ? distanceToHouse(a, effectiveLat, effectiveLng) : null) ?? 99999;
+          const db = b.distance_km ?? (effectiveLat && effectiveLng ? distanceToHouse(b, effectiveLat, effectiveLng) : null) ?? 99999;
+          return da - db;
+        });
         break;
       case 'price_asc':
       default:
@@ -543,7 +558,7 @@ export default function FindAHouse() {
         break;
     }
     return result;
-  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey]);
+  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, effectiveLat, effectiveLng]);
 
   const activeFilterCount =
     (verifiedOnly ? 1 : 0) +
