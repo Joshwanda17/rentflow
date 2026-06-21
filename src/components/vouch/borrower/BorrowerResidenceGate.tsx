@@ -129,10 +129,13 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
     setLc1Reject(null);
     const { data: prof } = await supabase
       .from('profiles')
-      .select('borrower_landlord_id, borrower_lc1_id, full_name, phone')
+      .select('borrower_landlord_id, borrower_lc1_id, full_name, phone, email, verification_notify_email, verification_notify_sms')
       .eq('id', user.id)
       .maybeSingle();
     setMeContact({ full_name: prof?.full_name ?? null, phone: prof?.phone ?? null });
+    setNotifyEmail((prof as any)?.verification_notify_email ?? true);
+    setNotifySms((prof as any)?.verification_notify_sms ?? true);
+    setHasEmail(!!(prof as any)?.email);
 
     let ll: LinkedLandlord | null = null;
     if (prof?.borrower_landlord_id) {
