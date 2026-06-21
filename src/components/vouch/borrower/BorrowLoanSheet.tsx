@@ -46,6 +46,7 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [myRequests, setMyRequests] = useState<any[]>([]);
   const [me, setMe] = useState<{ full_name: string | null; phone: string | null } | null>(null);
+  const [showOwnOffers, setShowOwnOffers] = useState(false);
 
   // Request form state
   const [activeOffer, setActiveOffer] = useState<Offer | null>(null);
