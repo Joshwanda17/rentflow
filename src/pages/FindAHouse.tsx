@@ -372,7 +372,7 @@ function VirtualHouseList({ listings, onOpenDetails }: { listings: HouseListing[
 
   const virtualizer = useWindowVirtualizer({
     count: listings.length,
-    estimateSize: () => 760,
+    estimateSize: () => 480,
     overscan: 3,
     gap: 12,
     scrollMargin: listRef.current?.offsetTop ?? 0,
