@@ -9,6 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   Banknote, ShieldCheck, Search, Loader2, AlertCircle, Plus,
   CheckCircle2, FileText, Wallet, TrendingUp, Info, Megaphone, Inbox, Trash2, X, Check,
   ScrollText, Users, SearchX,
@@ -30,6 +33,7 @@ import LendingBorrowerCard from './LendingBorrowerCard';
 import {
   LendingLoan, computeStats, matchesFilter, matchesSearch, dueStateOf,
   StatusFilter,
+  RepaymentFrequency, REPAYMENT_FREQUENCIES, buildSchedule,
 } from './lendingHelpers';
 
 interface Props {
