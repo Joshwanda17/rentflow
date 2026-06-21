@@ -65,6 +65,21 @@ export default function HouseDetail() {
   const fromFunder = navState?.from === 'funder' || searchParams.get('from') === 'funder';
   const listSearch = navState?.listSearch || searchParams.get('list') || '';
   const cameFromFilteredList = listSearch.length > 0;
+  // Single explicit target for both the Back button and the "Filtered houses"
+  // breadcrumb. Using an explicit path (instead of navigate(-1)) guarantees the
+  // originating FindAHouse filters are restored even on a cold deep-link load,
+  // where there is no in-app history entry to step back to.
+  const filteredListTo = {
+    pathname: '/find-a-house',
+    search: listSearch ? (listSearch.startsWith('?') ? listSearch : `?${listSearch}`) : '',
+  };
+  const goToFilteredList = () => {
+    if (cameFromFilteredList) {
+      navigate(filteredListTo, { state: { from: 'funder', listSearch } });
+    } else {
+      navigate('/dashboard/funder');
+    }
+  };
   const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
@@ -310,7 +325,7 @@ export default function HouseDetail() {
           <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b border-border">
             <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center gap-3">
               <button
-                onClick={() => (cameFromFilteredList ? navigate(-1) : navigate('/dashboard/funder'))}
+                onClick={goToFilteredList}
                 className="flex items-center gap-1.5 text-sm font-semibold text-foreground rounded-lg px-2 py-1 -ml-2 hover:bg-accent/50 active:scale-95 transition-all touch-manipulation shrink-0"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -327,7 +342,7 @@ export default function HouseDetail() {
                   <BreadcrumbItem>
                     <BreadcrumbLink asChild>
                       <Link
-                        to={{ pathname: '/find-a-house', search: listSearch }}
+                        to={filteredListTo}
                         state={{ from: 'funder', listSearch }}
                       >
                         {cameFromFilteredList ? 'Filtered houses' : 'Houses'}
