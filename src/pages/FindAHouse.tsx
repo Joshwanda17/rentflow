@@ -392,18 +392,45 @@ export default function FindAHouse() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const geo = useGeolocation(true);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState(() => searchParams.get('q') || '');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>('price_asc');
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [maxDaily, setMaxDaily] = useState<string>('all');
-  const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>(() => (searchParams.get('sort') as SortKey) || 'price_asc');
+  const [verifiedOnly, setVerifiedOnly] = useState(() => searchParams.get('verified') === '1');
+  const [maxDaily, setMaxDaily] = useState<string>(() => searchParams.get('max') || 'all');
+  const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>(
+    () => (searchParams.get('amenities')?.split(',').filter(Boolean) as AmenityKey[]) || []
+  );
   const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(searchText, 250);
+
+  // Funder context flows in from the funders dashboard "See all" link.
+  const cameFromFunder = (location.state as { from?: string } | null)?.from === 'funder';
+
+  // Serialize the active filters so a house detail page can link back to this
+  // exact filtered list (breadcrumb "Filtered houses").
+  const buildListSearch = useCallback(() => {
+    const p = new URLSearchParams();
+    if (searchText.trim()) p.set('q', searchText.trim());
+    if (selectedRegion !== 'All Regions') p.set('region', selectedRegion);
+    if (selectedCategory !== 'all') p.set('category', selectedCategory);
+    if (sortKey !== 'price_asc') p.set('sort', sortKey);
+    if (verifiedOnly) p.set('verified', '1');
+    if (maxDaily !== 'all') p.set('max', maxDaily);
+    if (activeAmenities.length) p.set('amenities', activeAmenities.join(','));
+    return p.toString();
+  }, [searchText, selectedRegion, selectedCategory, sortKey, verifiedOnly, maxDaily, activeAmenities]);
+
+  const openDetails = useCallback((listing: HouseListing) => {
+    navigate(`/house/${listing.short_code || listing.id}`, {
+      state: { from: cameFromFunder ? 'funder' : undefined, listSearch: buildListSearch() },
+    });
+  }, [navigate, cameFromFunder, buildListSearch]);
 
   // A shared link can pin the area so whoever opens it sees houses near the
   // sharer's location, not their own. lat/lng/region come from the share button.
