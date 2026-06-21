@@ -66,17 +66,22 @@ const AMENITY_FILTERS = [
 
 type AmenityKey = typeof AMENITY_FILTERS[number]['key'];
 
-function HouseImageCarousel({ images, title, onImageClick }: { images: string[] | null; title: string; onImageClick?: (index: number) => void }) {
+function HouseImageCarousel({ images, title, onImageClick, layout = 'vertical' }: { images: string[] | null; title: string; onImageClick?: (index: number) => void; layout?: 'vertical' | 'horizontal' }) {
   const [idx, setIdx] = useState(0);
+  // In horizontal (Booking-style) row cards the image fills the full height of
+  // the left column on desktop; on mobile it falls back to the 5/4 ratio.
+  const sizeClass = layout === 'horizontal'
+    ? 'aspect-[5/4] md:aspect-auto md:h-full md:min-h-[280px]'
+    : 'aspect-[5/4]';
   if (!images || images.length === 0) {
     return (
-      <div className="w-full aspect-[5/4] bg-muted flex items-center justify-center">
+      <div className={`w-full ${sizeClass} bg-muted flex items-center justify-center`}>
         <Home className="h-12 w-12 text-muted-foreground/20" />
       </div>
     );
   }
   return (
-    <div className="relative w-full aspect-[5/4] overflow-hidden bg-muted group">
+    <div className={`relative w-full ${sizeClass} overflow-hidden bg-muted group`}>
       <img
         src={images[idx]}
         alt={title}
@@ -222,11 +227,12 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
     <motion.article
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-3xl border border-border/60 bg-card overflow-hidden shadow-xl shadow-foreground/5"
+      className="rounded-3xl border border-border/60 bg-card overflow-hidden shadow-xl shadow-foreground/5 flex flex-col md:flex-row"
       itemScope itemType="https://schema.org/Accommodation"
     >
-      <div className="relative">
-        <HouseImageCarousel images={listing.image_urls} title={listing.title} onImageClick={openLightbox} />
+      {/* LEFT: photo column (full height on desktop, Booking.com row style) */}
+      <div className="relative md:w-[340px] md:shrink-0">
+        <HouseImageCarousel images={listing.image_urls} title={listing.title} onImageClick={openLightbox} layout="horizontal" />
 
         {/* Top-left floating badges */}
         <div className="absolute top-4 left-4 flex flex-wrap gap-2">
@@ -250,7 +256,9 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
         <HouseRatingBadge houseId={listing.id} houseLat={listing.latitude} houseLng={listing.longitude} className="absolute top-4 right-4" />
       </div>
 
-      <div className="p-5 space-y-4">
+      {/* MIDDLE + RIGHT: details and price/action panel */}
+      <div className="flex-1 flex flex-col lg:flex-row min-w-0">
+      <div className="flex-1 min-w-0 p-5 space-y-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             {onOpenDetails ? (
@@ -304,35 +312,40 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
 
         {listing.description && <p className="text-xs text-muted-foreground line-clamp-2" itemProp="description">{listing.description}</p>}
 
-        {/* Price + rooms summary row */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/60">
+        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} anchorId={isFirst ? 'first-map-cta' : undefined} />
+      </div>
+
+      {/* RIGHT: price + actions panel (Booking.com style) */}
+      <div className="lg:w-60 lg:shrink-0 lg:border-l border-t lg:border-t-0 border-border/60 p-5 flex flex-col gap-3 lg:justify-between bg-muted/20">
+        <div className="flex items-center justify-between lg:flex-col lg:items-start gap-2">
           <div>
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Monthly</p>
-            <p className="text-base font-black text-foreground tracking-tight">{formatUGX(listing.monthly_rent)}</p>
+            <p className="text-xl font-black text-foreground tracking-tight">{formatUGX(listing.monthly_rent)}</p>
           </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted text-xs font-semibold text-muted-foreground w-fit">
             <DoorOpen className="h-3.5 w-3.5" /> {listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}
           </span>
         </div>
 
-        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} anchorId={isFirst ? 'first-map-cta' : undefined} />
+        <div className="flex flex-col gap-3">
+          {/* View full details — opens the house detail page (keeps list filters) */}
+          {onOpenDetails && (
+            <Button
+              variant="default"
+              className="w-full gap-1.5 font-bold"
+              onClick={() => onOpenDetails(listing)}
+            >
+              View full details <ArrowRight className="h-4 w-4" />
+            </Button>
+          )}
 
-        {/* View full details — opens the house detail page (keeps list filters) */}
-        {onOpenDetails && (
-          <Button
-            variant="default"
-            className="w-full gap-1.5 font-bold"
-            onClick={() => onOpenDetails(listing)}
-          >
-            View full details <ArrowRight className="h-4 w-4" />
-          </Button>
-        )}
+          {/* WhatsApp Agent */}
+          <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
 
-        {/* WhatsApp Agent */}
-        <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
-
-        {/* Share */}
-        <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} shortCode={listing.short_code} variant="full" address={listing.address} monthlyRent={listing.monthly_rent} rooms={listing.number_of_rooms} category={listing.house_category} />
+          {/* Share */}
+          <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} shortCode={listing.short_code} variant="full" address={listing.address} monthlyRent={listing.monthly_rent} rooms={listing.number_of_rooms} category={listing.house_category} />
+        </div>
+      </div>
       </div>
 
       {/* Fullscreen Lightbox */}
@@ -359,7 +372,7 @@ function VirtualHouseList({ listings, onOpenDetails }: { listings: HouseListing[
 
   const virtualizer = useWindowVirtualizer({
     count: listings.length,
-    estimateSize: () => 760,
+    estimateSize: () => 480,
     overscan: 3,
     gap: 12,
     scrollMargin: listRef.current?.offsetTop ?? 0,
@@ -772,7 +785,7 @@ export default function FindAHouse() {
         </div>
 
         {/* Listings */}
-        <main id="house-list" tabIndex={-1} className="max-w-2xl mx-auto px-4 py-4 space-y-3 pb-20">
+        <main id="house-list" tabIndex={-1} className="max-w-5xl mx-auto px-4 py-4 space-y-3 pb-20">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-48 w-full rounded-2xl" />
