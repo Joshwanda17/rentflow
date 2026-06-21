@@ -116,8 +116,8 @@ function ClusterLayer({
     // Clicking a cluster zooms into it (markercluster's default) AND selects
     // the house nearest the cluster's centre, so the list/selection stays in
     // sync with what the user just drilled into.
-    group.on('clusterclick', (e: L.LeafletEvent & { layer: L.MarkerCluster }) => {
-      const cluster = e.layer;
+    group.on('clusterclick', (e: L.LeafletEvent) => {
+      const cluster = (e as unknown as { layer: L.MarkerCluster }).layer;
       const center = cluster.getLatLng();
       const children = cluster.getAllChildMarkers() as Array<
         L.Marker & { __houseId?: string }
@@ -129,7 +129,7 @@ function ClusterLayer({
         const dist = map.distance(center, child.getLatLng());
         if (!closest || dist < closest.dist) closest = { id, dist };
       });
-      if (closest) onSelectRef.current(closest.id);
+      if (closest) onSelectRef.current((closest as { id: string }).id);
     });
 
     markersRef.current = markers;
