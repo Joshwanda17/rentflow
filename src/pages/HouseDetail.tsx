@@ -58,6 +58,13 @@ export default function HouseDetail() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  // Filter context arrives either via in-app navigation state OR via a shared
+  // deep link (?from=funder&list=<url-encoded query string>) so the breadcrumb
+  // back-to-filtered-list works even on a cold page load.
+  const navState = location.state as { from?: string; listSearch?: string } | null;
+  const fromFunder = navState?.from === 'funder' || searchParams.get('from') === 'funder';
+  const listSearch = navState?.listSearch || searchParams.get('list') || '';
+  const cameFromFilteredList = listSearch.length > 0;
   const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
