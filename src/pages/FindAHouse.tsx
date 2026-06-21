@@ -423,7 +423,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
  * crucial because each card mounts a Google Map iframe + multiple images.
  * Heights are measured dynamically since cards vary (amenities, description, thumbnails).
  */
-function VirtualHouseList({ listings, onOpenDetails }: { listings: HouseListing[]; onOpenDetails?: (listing: HouseListing) => void }) {
+function VirtualHouseList({ listings, onOpenDetails, userLat, userLng }: { listings: HouseListing[]; onOpenDetails?: (listing: HouseListing) => void; userLat?: number | null; userLng?: number | null }) {
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const virtualizer = useWindowVirtualizer({
@@ -449,7 +449,7 @@ function VirtualHouseList({ listings, onOpenDetails }: { listings: HouseListing[
             className="absolute left-0 top-0 w-full"
             style={{ transform: `translateY(${vi.start - virtualizer.options.scrollMargin}px)` }}
           >
-            <PublicHouseCard listing={listing} isFirst={vi.index === 0} onOpenDetails={onOpenDetails} />
+            <PublicHouseCard listing={listing} isFirst={vi.index === 0} onOpenDetails={onOpenDetails} userLat={userLat} userLng={userLng} />
           </div>
         );
       })}
