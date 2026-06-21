@@ -481,7 +481,7 @@ export default function FindAHouse() {
     radiusKm: selectedRegion !== 'All Regions' ? 200 : 50,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
-    limit: 100,
+    limit: 500,
     enabled: hasSharedLocation || !geo.loading,
   });
 
