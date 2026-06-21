@@ -622,6 +622,15 @@ export default function FindAHouse() {
 
   const filtered = useMemo(() => {
     let result = [...listings];
+    if (selectedDistrict !== 'all') {
+      result = result.filter(l => (l.district || '').trim() === selectedDistrict);
+    }
+    if (selectedSubCounty !== 'all') {
+      result = result.filter(l => (l.sub_county || '').trim() === selectedSubCounty);
+    }
+    if (selectedVillage !== 'all') {
+      result = result.filter(l => (l.village || '').trim() === selectedVillage);
+    }
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase();
       result = result.filter(l =>
@@ -661,7 +670,37 @@ export default function FindAHouse() {
         break;
     }
     return result;
-  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, effectiveLat, effectiveLng]);
+  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, effectiveLat, effectiveLng, selectedDistrict, selectedSubCounty, selectedVillage]);
+
+  // Distinct location options derived from the loaded listings, cascading from
+  // the current region/district/sub-county selection. Only areas that actually
+  // have houses are offered, so the dropdowns stay relevant for tenants & funders.
+  const districtOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach(l => { const v = (l.district || '').trim(); if (v) set.add(v); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listings]);
+
+  const subCountyOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach(l => {
+      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
+      const v = (l.sub_county || '').trim();
+      if (v) set.add(v);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listings, selectedDistrict]);
+
+  const villageOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach(l => {
+      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
+      if (selectedSubCounty !== 'all' && (l.sub_county || '').trim() !== selectedSubCounty) return;
+      const v = (l.village || '').trim();
+      if (v) set.add(v);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listings, selectedDistrict, selectedSubCounty]);
 
   const activeFilterCount =
     (verifiedOnly ? 1 : 0) +
