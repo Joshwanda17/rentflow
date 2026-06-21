@@ -84,8 +84,10 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
     if (reset) setLoading(true); else setLoadingMore(true);
     let query = (supabase
       .from('lending_agent_offers' as any)
-      .select('*')
-      .eq('active', true));
+      .select('*'));
+    if (statusFilter !== 'all') {
+      query = (query as any).eq('active', statusFilter === 'published');
+    }
     if (!showOwnOffers) {
       query = (query as any).neq('lender_agent_id', user.id);
     }
@@ -97,7 +99,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
     setHasMore(rows.length === PAGE_SIZE);
     pageRef.current = page + 1;
     if (reset) setLoading(false); else setLoadingMore(false);
-  }, [user, showOwnOffers]);
+  }, [user, showOwnOffers, statusFilter]);
 
   useEffect(() => {
     if (!open || !user) return;
