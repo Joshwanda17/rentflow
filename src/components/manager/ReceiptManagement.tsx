@@ -114,9 +114,9 @@ function VendorCard({ vendor, onPinSet }: { vendor: Vendor; onPinSet: () => void
           {vendor.phone && <p className="text-sm text-muted-foreground">{vendor.phone}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={vendor.pin ? 'success' : 'outline'} className="gap-1">
+          <Badge variant={vendor.has_pin ? 'success' : 'outline'} className="gap-1">
             <Key className="h-3 w-3" />
-            {vendor.pin ? 'PIN Set' : 'No PIN'}
+            {vendor.has_pin ? 'PIN Set' : 'No PIN'}
           </Badge>
           <Badge variant={vendor.active ? 'success' : 'secondary'}>
             {vendor.active ? 'Active' : 'Inactive'}
