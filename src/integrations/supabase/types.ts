@@ -9296,6 +9296,8 @@ export type Database = {
           updated_at: string
           verification_pin_1: string | null
           verification_pin_2: string | null
+          verification_reason: string | null
+          verification_status: string
           verified: boolean | null
           verified_at: string | null
           verified_by: string | null
@@ -9359,6 +9361,8 @@ export type Database = {
           updated_at?: string
           verification_pin_1?: string | null
           verification_pin_2?: string | null
+          verification_reason?: string | null
+          verification_status?: string
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
@@ -9422,6 +9426,8 @@ export type Database = {
           updated_at?: string
           verification_pin_1?: string | null
           verification_pin_2?: string | null
+          verification_reason?: string | null
+          verification_status?: string
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
@@ -9486,6 +9492,8 @@ export type Database = {
           town_council: string | null
           verification_bonus_paid: boolean
           verification_bonus_paid_at: string | null
+          verification_reason: string | null
+          verification_status: string
           verified: boolean
           verified_at: string | null
           verified_by: string | null
@@ -9511,6 +9519,8 @@ export type Database = {
           town_council?: string | null
           verification_bonus_paid?: boolean
           verification_bonus_paid_at?: string | null
+          verification_reason?: string | null
+          verification_status?: string
           verified?: boolean
           verified_at?: string | null
           verified_by?: string | null
@@ -9536,6 +9546,8 @@ export type Database = {
           town_council?: string | null
           verification_bonus_paid?: boolean
           verification_bonus_paid_at?: string | null
+          verification_reason?: string | null
+          verification_status?: string
           verified?: boolean
           verified_at?: string | null
           verified_by?: string | null
@@ -21539,6 +21551,14 @@ export type Database = {
           user_id: string
           withdrawable_balance: number
         }[]
+      }
+      set_landlord_verification: {
+        Args: { p_landlord_id: string; p_reason: string; p_status: string }
+        Returns: undefined
+      }
+      set_lc1_verification: {
+        Args: { p_lc1_id: string; p_reason: string; p_status: string }
+        Returns: undefined
       }
       set_staff_access_password: {
         Args: { p_new_password: string; p_user_id: string }
