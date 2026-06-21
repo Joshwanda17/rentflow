@@ -525,6 +525,12 @@ export default function FindAHouse() {
     return r && REGIONS.includes(r) ? r : 'All Regions';
   });
   const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
+  // Cascading location filters (region -> district -> sub-county/area -> village).
+  // Options are derived from the loaded listings so they only show areas that
+  // actually have houses. Works for both tenant and funder views.
+  const [selectedDistrict, setSelectedDistrict] = useState(() => searchParams.get('district') || 'all');
+  const [selectedSubCounty, setSelectedSubCounty] = useState(() => searchParams.get('subcounty') || 'all');
+  const [selectedVillage, setSelectedVillage] = useState(() => searchParams.get('village') || 'all');
   // If the URL already carries a region (restored filtered list / shared link),
   // skip the geolocation auto-default so we don't override the chosen region.
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(() => {
@@ -552,13 +558,16 @@ export default function FindAHouse() {
     const p = new URLSearchParams();
     if (searchText.trim()) p.set('q', searchText.trim());
     if (selectedRegion !== 'All Regions') p.set('region', selectedRegion);
+    if (selectedDistrict !== 'all') p.set('district', selectedDistrict);
+    if (selectedSubCounty !== 'all') p.set('subcounty', selectedSubCounty);
+    if (selectedVillage !== 'all') p.set('village', selectedVillage);
     if (selectedCategory !== 'all') p.set('category', selectedCategory);
     if (sortKey !== 'price_asc') p.set('sort', sortKey);
     if (verifiedOnly) p.set('verified', '1');
     if (maxDaily !== 'all') p.set('max', maxDaily);
     if (activeAmenities.length) p.set('amenities', activeAmenities.join(','));
     return p.toString();
-  }, [searchText, selectedRegion, selectedCategory, sortKey, verifiedOnly, maxDaily, activeAmenities]);
+  }, [searchText, selectedRegion, selectedDistrict, selectedSubCounty, selectedVillage, selectedCategory, sortKey, verifiedOnly, maxDaily, activeAmenities]);
 
   const openDetails = useCallback((listing: HouseListing) => {
     navigate(`/house/${listing.short_code || listing.id}`, {
@@ -586,6 +595,27 @@ export default function FindAHouse() {
     setMaxDaily('all');
     setActiveAmenities([]);
     setSelectedCategory('all');
+    setSelectedDistrict('all');
+    setSelectedSubCounty('all');
+    setSelectedVillage('all');
+  };
+
+  // Selecting a broader area resets the narrower ones so we never keep a stale
+  // district/village that no longer belongs to the new selection.
+  const handleRegionChange = (value: string) => {
+    setSelectedRegion(value);
+    setSelectedDistrict('all');
+    setSelectedSubCounty('all');
+    setSelectedVillage('all');
+  };
+  const handleDistrictChange = (value: string) => {
+    setSelectedDistrict(value);
+    setSelectedSubCounty('all');
+    setSelectedVillage('all');
+  };
+  const handleSubCountyChange = (value: string) => {
+    setSelectedSubCounty(value);
+    setSelectedVillage('all');
   };
 
   useEffect(() => {
@@ -604,7 +634,10 @@ export default function FindAHouse() {
   const { listings, loading } = useNearbyHouses({
     latitude: effectiveLat,
     longitude: effectiveLng,
-    radiusKm: selectedRegion !== 'All Regions' ? 200 : 50,
+    // "All Regions" must show every house across the whole country (not just
+    // houses near the user's GPS), so we pass a country-sized radius. A specific
+    // region stays at 200km around the user.
+    radiusKm: selectedRegion === 'All Regions' ? 100000 : 200,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
     limit: 500,
@@ -613,6 +646,15 @@ export default function FindAHouse() {
 
   const filtered = useMemo(() => {
     let result = [...listings];
+    if (selectedDistrict !== 'all') {
+      result = result.filter(l => (l.district || '').trim() === selectedDistrict);
+    }
+    if (selectedSubCounty !== 'all') {
+      result = result.filter(l => (l.sub_county || '').trim() === selectedSubCounty);
+    }
+    if (selectedVillage !== 'all') {
+      result = result.filter(l => (l.village || '').trim() === selectedVillage);
+    }
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase();
       result = result.filter(l =>
@@ -652,13 +694,46 @@ export default function FindAHouse() {
         break;
     }
     return result;
-  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, effectiveLat, effectiveLng]);
+  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, effectiveLat, effectiveLng, selectedDistrict, selectedSubCounty, selectedVillage]);
+
+  // Distinct location options derived from the loaded listings, cascading from
+  // the current region/district/sub-county selection. Only areas that actually
+  // have houses are offered, so the dropdowns stay relevant for tenants & funders.
+  const districtOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach(l => { const v = (l.district || '').trim(); if (v) set.add(v); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listings]);
+
+  const subCountyOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach(l => {
+      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
+      const v = (l.sub_county || '').trim();
+      if (v) set.add(v);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listings, selectedDistrict]);
+
+  const villageOptions = useMemo(() => {
+    const set = new Set<string>();
+    listings.forEach(l => {
+      if (selectedDistrict !== 'all' && (l.district || '').trim() !== selectedDistrict) return;
+      if (selectedSubCounty !== 'all' && (l.sub_county || '').trim() !== selectedSubCounty) return;
+      const v = (l.village || '').trim();
+      if (v) set.add(v);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [listings, selectedDistrict, selectedSubCounty]);
 
   const activeFilterCount =
     (verifiedOnly ? 1 : 0) +
     (maxDaily !== 'all' ? 1 : 0) +
     activeAmenities.length +
-    (selectedCategory !== 'all' ? 1 : 0);
+    (selectedCategory !== 'all' ? 1 : 0) +
+    (selectedDistrict !== 'all' ? 1 : 0) +
+    (selectedSubCounty !== 'all' ? 1 : 0) +
+    (selectedVillage !== 'all' ? 1 : 0);
 
   const sortLabel = SORT_OPTIONS.find(s => s.value === sortKey)?.label ?? '';
 
@@ -797,7 +872,7 @@ export default function FindAHouse() {
               )}
             </div>
             <div className="flex gap-2">
-              <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+              <Select value={selectedRegion} onValueChange={handleRegionChange}>
                 <SelectTrigger className="flex-1 h-9 text-xs"><SelectValue placeholder="Region" /></SelectTrigger>
                 <SelectContent>
                   {REGIONS.map(r => <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>)}
@@ -810,6 +885,39 @@ export default function FindAHouse() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Cascading location filters: district -> area/sub-county -> village.
+                Only render a level when there are houses with that data. */}
+            {(districtOptions.length > 0 || subCountyOptions.length > 0 || villageOptions.length > 0) && (
+              <div className="flex gap-2">
+                {districtOptions.length > 0 && (
+                  <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
+                    <SelectTrigger className="flex-1 h-9 text-xs min-w-0"><SelectValue placeholder="District" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All districts</SelectItem>
+                      {districtOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+                {subCountyOptions.length > 0 && (
+                  <Select value={selectedSubCounty} onValueChange={handleSubCountyChange}>
+                    <SelectTrigger className="flex-1 h-9 text-xs min-w-0"><SelectValue placeholder="Town / Area" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All areas</SelectItem>
+                      {subCountyOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+                {villageOptions.length > 0 && (
+                  <Select value={selectedVillage} onValueChange={setSelectedVillage}>
+                    <SelectTrigger className="flex-1 h-9 text-xs min-w-0"><SelectValue placeholder="Village / Zone" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All villages</SelectItem>
+                      {villageOptions.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
             {/* Sort + filter toggle row */}
             <div className="flex gap-2">
               <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
