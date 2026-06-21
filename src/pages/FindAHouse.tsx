@@ -188,7 +188,7 @@ function VerificationBadge({ verified, status }: { verified?: boolean | null; st
   );
 }
 
-function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?: boolean }) {
+function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseListing; isFirst?: boolean; onOpenDetails?: (listing: HouseListing) => void }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -253,7 +253,17 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
       <div className="p-5 space-y-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-lg tracking-tight leading-tight truncate" itemProp="name">{listing.title}</h2>
+            {onOpenDetails ? (
+              <button
+                type="button"
+                onClick={() => onOpenDetails(listing)}
+                className="text-left w-full active:scale-[0.99] transition-transform touch-manipulation"
+              >
+                <h2 className="font-bold text-lg tracking-tight leading-tight truncate hover:text-primary transition-colors" itemProp="name">{listing.title}</h2>
+              </button>
+            ) : (
+              <h2 className="font-bold text-lg tracking-tight leading-tight truncate" itemProp="name">{listing.title}</h2>
+            )}
             <div className="flex items-center gap-1 mt-1" itemProp="address">
               <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
               <p className="text-xs text-muted-foreground font-medium truncate">
@@ -306,6 +316,17 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
         </div>
 
         <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} anchorId={isFirst ? 'first-map-cta' : undefined} />
+
+        {/* View full details — opens the house detail page (keeps list filters) */}
+        {onOpenDetails && (
+          <Button
+            variant="default"
+            className="w-full gap-1.5 font-bold"
+            onClick={() => onOpenDetails(listing)}
+          >
+            View full details <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
 
         {/* WhatsApp Agent */}
         <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
