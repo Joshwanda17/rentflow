@@ -36,6 +36,7 @@ interface Offer {
   interest_rate_pct: number;
   min_duration_days: number;
   max_duration_days: number;
+  active: boolean;
 }
 
 export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPortal }: Props) {
