@@ -296,8 +296,14 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
                   <CardContent className="p-6 text-center space-y-2">
                     {showOwnOffers ? (
                       <>
-                        <p className="text-xs text-muted-foreground">You haven’t published any loan offers yet. Turn the toggle off to browse other agents’ offers, or publish your own.</p>
-                        {onOpenLendingPortal && (
+                        <p className="text-xs text-muted-foreground">
+                          {statusFilter === 'published'
+                            ? "You have no published loan offers yet. Turn the toggle off to browse other agents’ offers, or publish your own."
+                            : statusFilter === 'draft'
+                            ? "You have no draft loan offers. Drafts are only visible to you."
+                            : "You haven’t created any loan offers yet."}
+                        </p>
+                        {statusFilter !== 'draft' && onOpenLendingPortal && (
                           <Button size="sm" className="h-9 text-xs font-bold" onClick={onOpenLendingPortal}>
                             <Plus className="h-3.5 w-3.5 mr-1.5" />
                             Create your first offer
@@ -305,7 +311,13 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
                         )}
                       </>
                     ) : (
-                      <p className="text-xs text-muted-foreground">No loan offers available right now. Try requesting an agent by AI ID above.</p>
+                      <p className="text-xs text-muted-foreground">
+                        {statusFilter === 'published'
+                          ? "No published loan offers available right now. Try requesting an agent by AI ID above."
+                          : statusFilter === 'draft'
+                          ? "No draft loan offers are visible. Drafts are only visible to their creators."
+                          : "No loan offers available right now. Try requesting an agent by AI ID above."}
+                      </p>
                     )}
                   </CardContent>
                 </Card>
