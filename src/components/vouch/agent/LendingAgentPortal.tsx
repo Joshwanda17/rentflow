@@ -383,6 +383,11 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
     }
 
     setSubmitting(true);
+    const ratePct = interestRate ? Number(interestRate) : 0;
+    const totalOwed = principalNum + (principalNum * ratePct) / 100;
+    const schedule = autoDeduct
+      ? buildSchedule(totalOwed, frequency, new Date(), dueDate || null)
+      : null;
     const { error } = await (supabase.from('lending_agent_loans' as any).insert({
       lender_agent_id: user.id,
       borrower_user_id: borrower.user_id,
@@ -398,6 +403,11 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       borrower_trust_score_at_record: borrower.trust.score,
       borrower_trust_tier_at_record: borrower.trust.tier,
       status: 'active',
+      repayment_frequency: autoDeduct ? frequency : 'once',
+      auto_deduct_enabled: autoDeduct,
+      installment_ugx: schedule?.installment ?? 0,
+      next_deduction_date: schedule?.firstDate ?? null,
+      auto_deduct_started_at: autoDeduct ? new Date().toISOString() : null,
     }) as any);
     setSubmitting(false);
 
@@ -407,11 +417,16 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       return;
     }
 
-    toast.success(`Loan to ${borrower.identity?.full_name ?? borrower.ai_id} recorded.`);
+    toast.success(
+      autoDeduct
+        ? `Loan recorded. Auto-deduction set ${frequency.replace('_', ' ')} (~${formatUGX(schedule?.installment ?? 0)}/cycle).`
+        : `Loan to ${borrower.identity?.full_name ?? borrower.ai_id} recorded.`,
+    );
     await reloadLoans();
     refetchBalances();
     setShowLoanForm(false);
     setPrincipal(''); setDueDate(''); setPurpose('');
+    setAutoDeduct(true); setFrequency('monthly');
     setActiveAiId(null); setAiIdInput('');
     setTab('borrowers');
   };
