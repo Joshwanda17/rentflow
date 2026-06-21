@@ -525,6 +525,12 @@ export default function FindAHouse() {
     return r && REGIONS.includes(r) ? r : 'All Regions';
   });
   const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
+  // Cascading location filters (region -> district -> sub-county/area -> village).
+  // Options are derived from the loaded listings so they only show areas that
+  // actually have houses. Works for both tenant and funder views.
+  const [selectedDistrict, setSelectedDistrict] = useState(() => searchParams.get('district') || 'all');
+  const [selectedSubCounty, setSelectedSubCounty] = useState(() => searchParams.get('subcounty') || 'all');
+  const [selectedVillage, setSelectedVillage] = useState(() => searchParams.get('village') || 'all');
   // If the URL already carries a region (restored filtered list / shared link),
   // skip the geolocation auto-default so we don't override the chosen region.
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(() => {
