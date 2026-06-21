@@ -80,6 +80,9 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
   const [dueDate, setDueDate] = useState('');
   const [purpose, setPurpose] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Auto-deduction schedule
+  const [autoDeduct, setAutoDeduct] = useState(true);
+  const [frequency, setFrequency] = useState<RepaymentFrequency>('monthly');
 
   // Loan offers (published to all users) + incoming requests
   const [offers, setOffers] = useState<any[]>([]);
