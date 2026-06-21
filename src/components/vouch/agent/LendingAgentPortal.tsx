@@ -22,6 +22,7 @@ import LendingAgentAgreementModal from '@/components/vouch/agent/LendingAgentAgr
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { generateWelileAiId } from '@/lib/welileAiId';
+import { logLendingAudit } from '@/lib/lendingAudit';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -173,17 +174,50 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       .eq('lender_agent_id', user.id)
       .order('created_at', { ascending: false }) as any);
     if (data) setOffers(data);
+    const created = (data ?? [])[0];
+    await logLendingAudit({
+      actorId: user.id,
+      actorDisplayName: myName,
+      actionType: 'offer_created',
+      entityType: 'offer',
+      entityId: created?.id ?? null,
+      lenderAgentId: user.id,
+      amountUgx: max,
+      details: { title: offerForm.title.trim(), min_amount_ugx: min, max_amount_ugx: max, interest_rate_pct: Number(offerForm.interest_rate) || 0 },
+    });
   };
 
   const toggleOffer = async (id: string, active: boolean) => {
     await (supabase.from('lending_agent_offers' as any).update({ active }).eq('id', id) as any);
     setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, active } : o)));
+    if (user) {
+      await logLendingAudit({
+        actorId: user.id,
+        actorDisplayName: myName,
+        actionType: active ? 'offer_activated' : 'offer_deactivated',
+        entityType: 'offer',
+        entityId: id,
+        lenderAgentId: user.id,
+        oldStatus: active ? 'inactive' : 'active',
+        newStatus: active ? 'active' : 'inactive',
+      });
+    }
   };
 
   const deleteOffer = async (id: string) => {
     await (supabase.from('lending_agent_offers' as any).delete().eq('id', id) as any);
     setOffers((prev) => prev.filter((o) => o.id !== id));
     toast.success('Offer removed');
+    if (user) {
+      await logLendingAudit({
+        actorId: user.id,
+        actorDisplayName: myName,
+        actionType: 'offer_deleted',
+        entityType: 'offer',
+        entityId: id,
+        lenderAgentId: user.id,
+      });
+    }
   };
 
   const handleApproveRequest = async (req: any) => {
@@ -219,6 +253,27 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       .eq('id', req.id) as any);
     setDecidingId(null);
     toast.success(`Loan to ${req.borrower_display_name ?? req.borrower_ai_id} approved & recorded`);
+    // Audit: approval, disbursement, fee deduction, and status change
+    await logLendingAudit({
+      actorId: user.id, actorDisplayName: myName, actionType: 'request_approved',
+      entityType: 'request', entityId: req.id,
+      borrowerUserId: req.borrower_user_id, lenderAgentId: user.id,
+      amountUgx: principalNum, feeUgx: fee, oldStatus: 'pending', newStatus: 'approved',
+      details: { loan_id: loanRow?.id ?? null, borrower_ai_id: req.borrower_ai_id },
+    });
+    await logLendingAudit({
+      actorId: user.id, actorDisplayName: myName, actionType: 'loan_disbursed',
+      entityType: 'loan', entityId: loanRow?.id ?? null,
+      borrowerUserId: req.borrower_user_id, lenderAgentId: user.id,
+      amountUgx: principalNum, feeUgx: fee, newStatus: 'active',
+      details: { interest_rate_pct: req.interest_rate_pct ?? 0, request_id: req.id },
+    });
+    await logLendingAudit({
+      actorId: user.id, actorDisplayName: myName, actionType: 'fee_deducted',
+      entityType: 'loan', entityId: loanRow?.id ?? null,
+      borrowerUserId: req.borrower_user_id, lenderAgentId: user.id,
+      feeUgx: fee, details: { platform_fee_pct: PLATFORM_FEE_PCT, principal_ugx: principalNum },
+    });
     await reloadRequests();
     refetchBalances();
     const { data } = await (supabase
@@ -237,6 +292,14 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       .eq('id', req.id) as any);
     setDecidingId(null);
     toast.success('Request declined');
+    if (user) {
+      await logLendingAudit({
+        actorId: user.id, actorDisplayName: myName, actionType: 'request_declined',
+        entityType: 'request', entityId: req.id,
+        borrowerUserId: req.borrower_user_id, lenderAgentId: user.id,
+        amountUgx: Number(req.requested_amount_ugx), oldStatus: 'pending', newStatus: 'declined',
+      });
+    }
     await reloadRequests();
   };
 
