@@ -283,8 +283,9 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
                         <p className="text-[11px] text-muted-foreground mt-1">
                           {formatUGX(offer.min_amount_ugx)} – {formatUGX(offer.max_amount_ugx)} · {offer.min_duration_days}-{offer.max_duration_days} days
                         </p>
-                        <Button size="sm" className="w-full mt-2 h-8 text-[11px]" onClick={() => openRequest(offer)}>
-                          Request This Loan
+                        <Button size="sm" className="w-full mt-2 h-9 text-xs font-bold" onClick={() => openRequest(offer)}>
+                          <HandCoins className="h-3.5 w-3.5 mr-1.5" />
+                          Borrow this offer
                         </Button>
                       </CardContent>
                     </Card>
