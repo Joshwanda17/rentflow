@@ -157,3 +157,60 @@ export function distanceToHouse(g: GeoLike, fromLat: number, fromLng: number): n
   if (!c) return null;
   return haversineKm(fromLat, fromLng, c.lat, c.lng);
 }
+
+export interface RouteEstimate {
+  /** Estimated driving distance in km along roads (approximated from straight-line). */
+  distanceKm: number;
+  /** Estimated driving time in minutes. */
+  minutes: number;
+  /** Pre-formatted distance label, e.g. "3.4 km" or "850 m". */
+  distanceLabel: string;
+  /** Pre-formatted duration label, e.g. "12 min" or "1 h 5 min". */
+  durationLabel: string;
+  /** True when based on an approximate (non-GPS) house location. */
+  approximate: boolean;
+}
+
+// Real road routes are longer than the straight-line distance; ~1.3x is a good
+// average for Ugandan urban/peri-urban road networks. Average effective driving
+// speed (incl. traffic, junctions) ~28 km/h in town, faster over longer trips.
+const ROAD_FACTOR = 1.3;
+
+function estimateSpeedKmh(straightKm: number): number {
+  if (straightKm < 5) return 24; // dense town driving
+  if (straightKm < 20) return 35; // mixed roads
+  return 55; // longer / highway stretches
+}
+
+function formatDistance(km: number): string {
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}
+
+function formatDuration(min: number): string {
+  const m = Math.max(1, Math.round(min));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem ? `${h} h ${rem} min` : `${h} h`;
+}
+
+/**
+ * Estimated driving distance and time from a reference point to a house, derived
+ * from the great-circle distance (no API call). Returns null when the house has
+ * no resolvable location. Used to preview the route on the card before the user
+ * opens turn-by-turn navigation in Google Maps.
+ */
+export function estimateRoute(g: GeoLike, fromLat: number, fromLng: number): RouteEstimate | null {
+  const c = resolveHouseCoords(g);
+  if (!c) return null;
+  const straightKm = haversineKm(fromLat, fromLng, c.lat, c.lng);
+  const distanceKm = straightKm * ROAD_FACTOR;
+  const minutes = (distanceKm / estimateSpeedKmh(straightKm)) * 60;
+  return {
+    distanceKm,
+    minutes,
+    distanceLabel: formatDistance(distanceKm),
+    durationLabel: formatDuration(minutes),
+    approximate: c.approximate,
+  };
+}
