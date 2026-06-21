@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   Banknote, ShieldCheck, Lock, Search, Loader2, AlertCircle, Plus,
-  CheckCircle2, FileText, Wallet, TrendingUp, Info,
+  CheckCircle2, FileText, Wallet, TrendingUp, Info, Megaphone, Inbox, Trash2, X, Check,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyTrustScore } from '@/hooks/useMyTrustScore';
@@ -20,6 +21,7 @@ import { LENDING_AGENT_MIN_TRUST_SCORE } from '@/components/vouch/agreements';
 import LendingAgentAgreementModal from '@/components/vouch/agent/LendingAgentAgreementModal';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { generateWelileAiId } from '@/lib/welileAiId';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -67,6 +69,24 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
   const [purpose, setPurpose] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Loan offers (published to all users) + incoming requests
+  const [offers, setOffers] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [myName, setMyName] = useState<string | null>(null);
+  const [showOfferForm, setShowOfferForm] = useState(false);
+  const [savingOffer, setSavingOffer] = useState(false);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [offerForm, setOfferForm] = useState({
+    title: 'Quick Cash Loan',
+    description: '',
+    min_amount: '50000',
+    max_amount: '500000',
+    interest_rate: '10',
+    min_duration: '7',
+    max_duration: '30',
+  });
+  const myAiId = user ? generateWelileAiId(user.id) : null;
+
   const trustScore = snapshot?.score ?? 0;
   const lendablePool = withdrawableBalance + commissionBalance;
   const eligible = true; // Any user qualifies to lend
@@ -84,8 +104,141 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
         .limit(50) as any);
       if (data) setLoans(data as Loan[]);
       setLoansLoading(false);
+
+      // Offers I've published
+      const { data: offerData } = await (supabase
+        .from('lending_agent_offers' as any)
+        .select('*')
+        .eq('lender_agent_id', user.id)
+        .order('created_at', { ascending: false }) as any);
+      if (offerData) setOffers(offerData);
+
+      // Incoming loan requests
+      const { data: reqData } = await (supabase
+        .from('lending_loan_requests' as any)
+        .select('*')
+        .eq('lender_agent_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50) as any);
+      if (reqData) setRequests(reqData);
+
+      // My display name (used when publishing offers)
+      const { data: prof } = await (supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .maybeSingle() as any);
+      setMyName(prof?.full_name ?? null);
     })();
   }, [open, user, isAccepted]);
+
+  const reloadRequests = async () => {
+    if (!user) return;
+    const { data } = await (supabase
+      .from('lending_loan_requests' as any)
+      .select('*')
+      .eq('lender_agent_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50) as any);
+    if (data) setRequests(data);
+  };
+
+  const handleCreateOffer = async () => {
+    if (!user) return;
+    const min = Number(offerForm.min_amount);
+    const max = Number(offerForm.max_amount);
+    if (!offerForm.title.trim()) { toast.error('Enter a title'); return; }
+    if (!min || !max || min > max) { toast.error('Check the amount range'); return; }
+    setSavingOffer(true);
+    const { error } = await (supabase.from('lending_agent_offers' as any).insert({
+      lender_agent_id: user.id,
+      lender_display_name: myName,
+      lender_ai_id: myAiId,
+      title: offerForm.title.trim(),
+      description: offerForm.description.trim() || null,
+      min_amount_ugx: min,
+      max_amount_ugx: max,
+      interest_rate_pct: Number(offerForm.interest_rate) || 0,
+      min_duration_days: Number(offerForm.min_duration) || 1,
+      max_duration_days: Number(offerForm.max_duration) || 30,
+      active: true,
+    }) as any);
+    setSavingOffer(false);
+    if (error) { toast.error('Could not publish offer: ' + error.message); return; }
+    toast.success('Loan offer published — any user can now request it');
+    setShowOfferForm(false);
+    const { data } = await (supabase
+      .from('lending_agent_offers' as any)
+      .select('*')
+      .eq('lender_agent_id', user.id)
+      .order('created_at', { ascending: false }) as any);
+    if (data) setOffers(data);
+  };
+
+  const toggleOffer = async (id: string, active: boolean) => {
+    await (supabase.from('lending_agent_offers' as any).update({ active }).eq('id', id) as any);
+    setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, active } : o)));
+  };
+
+  const deleteOffer = async (id: string) => {
+    await (supabase.from('lending_agent_offers' as any).delete().eq('id', id) as any);
+    setOffers((prev) => prev.filter((o) => o.id !== id));
+    toast.success('Offer removed');
+  };
+
+  const handleApproveRequest = async (req: any) => {
+    if (!user) return;
+    const principalNum = Number(req.requested_amount_ugx);
+    const fee = Math.round(principalNum * PLATFORM_FEE_PCT);
+    if (principalNum + fee > lendablePool) {
+      toast.error(`Insufficient wallet balance. Need ${formatUGX(principalNum + fee)} (loan + 1% fee).`);
+      return;
+    }
+    setDecidingId(req.id);
+    const { data: loanRow, error } = await (supabase.from('lending_agent_loans' as any).insert({
+      lender_agent_id: user.id,
+      borrower_user_id: req.borrower_user_id,
+      borrower_ai_id: req.borrower_ai_id,
+      borrower_display_name: req.borrower_display_name,
+      borrower_phone: req.borrower_phone,
+      principal_ugx: principalNum,
+      interest_rate_pct: req.interest_rate_pct ?? 0,
+      expected_repayment_date: null,
+      loan_purpose: req.purpose ?? null,
+      platform_fee_ugx: fee,
+      lender_trust_score_at_record: trustScore,
+      status: 'active',
+    }).select('id').single() as any);
+    if (error) {
+      setDecidingId(null);
+      toast.error('Could not disburse: ' + error.message);
+      return;
+    }
+    await (supabase.from('lending_loan_requests' as any)
+      .update({ status: 'approved', decided_at: new Date().toISOString(), loan_id: loanRow?.id ?? null })
+      .eq('id', req.id) as any);
+    setDecidingId(null);
+    toast.success(`Loan to ${req.borrower_display_name ?? req.borrower_ai_id} approved & recorded`);
+    await reloadRequests();
+    refetchBalances();
+    const { data } = await (supabase
+      .from('lending_agent_loans' as any)
+      .select('*')
+      .eq('lender_agent_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50) as any);
+    if (data) setLoans(data as Loan[]);
+  };
+
+  const handleDeclineRequest = async (req: any) => {
+    setDecidingId(req.id);
+    await (supabase.from('lending_loan_requests' as any)
+      .update({ status: 'declined', decided_at: new Date().toISOString() })
+      .eq('id', req.id) as any);
+    setDecidingId(null);
+    toast.success('Request declined');
+    await reloadRequests();
+  };
 
   const handleLookup = () => {
     const cleaned = aiIdInput.trim().toUpperCase();
