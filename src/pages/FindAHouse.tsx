@@ -872,7 +872,7 @@ export default function FindAHouse() {
               )}
             </div>
             <div className="flex gap-2">
-              <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+              <Select value={selectedRegion} onValueChange={handleRegionChange}>
                 <SelectTrigger className="flex-1 h-9 text-xs"><SelectValue placeholder="Region" /></SelectTrigger>
                 <SelectContent>
                   {REGIONS.map(r => <SelectItem key={r} value={r}>{regionLabel(r)}</SelectItem>)}
@@ -885,6 +885,39 @@ export default function FindAHouse() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Cascading location filters: district -> area/sub-county -> village.
+                Only render a level when there are houses with that data. */}
+            {(districtOptions.length > 0 || subCountyOptions.length > 0 || villageOptions.length > 0) && (
+              <div className="flex gap-2">
+                {districtOptions.length > 0 && (
+                  <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
+                    <SelectTrigger className="flex-1 h-9 text-xs min-w-0"><SelectValue placeholder="District" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All districts</SelectItem>
+                      {districtOptions.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+                {subCountyOptions.length > 0 && (
+                  <Select value={selectedSubCounty} onValueChange={handleSubCountyChange}>
+                    <SelectTrigger className="flex-1 h-9 text-xs min-w-0"><SelectValue placeholder="Town / Area" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All areas</SelectItem>
+                      {subCountyOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+                {villageOptions.length > 0 && (
+                  <Select value={selectedVillage} onValueChange={setSelectedVillage}>
+                    <SelectTrigger className="flex-1 h-9 text-xs min-w-0"><SelectValue placeholder="Village / Zone" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All villages</SelectItem>
+                      {villageOptions.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
             {/* Sort + filter toggle row */}
             <div className="flex gap-2">
               <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
