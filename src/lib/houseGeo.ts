@@ -124,17 +124,23 @@ export function locationText(g: GeoLike): string {
     .join(', ');
 }
 
+export type TravelMode = 'driving' | 'walking';
+
 /**
  * Google Maps "Get directions" link. Routes from the viewer's current location
  * to the house. Uses exact GPS when available, otherwise the registered address
  * text so tenants/funders can still navigate to the area.
  */
-export function buildDirectionsUrl(g: GeoLike): string {
+export function buildDirectionsUrl(g: GeoLike, mode: TravelMode = 'driving'): string {
   const base = 'https://www.google.com/maps/dir/?api=1&destination=';
+  let url = '';
   if (typeof g.latitude === 'number' && typeof g.longitude === 'number' && (g.latitude !== 0 || g.longitude !== 0)) {
-    return `${base}${g.latitude},${g.longitude}`;
+    url = `${base}${g.latitude},${g.longitude}`;
+  } else {
+    url = `${base}${encodeURIComponent(locationText(g))}`;
   }
-  return `${base}${encodeURIComponent(locationText(g))}`;
+  if (mode === 'walking') url += '&travelmode=walking';
+  return url;
 }
 
 /** Great-circle distance in km. */
@@ -159,9 +165,9 @@ export function distanceToHouse(g: GeoLike, fromLat: number, fromLng: number): n
 }
 
 export interface RouteEstimate {
-  /** Estimated driving distance in km along roads (approximated from straight-line). */
+  /** Estimated route distance in km along roads (approximated from straight-line). */
   distanceKm: number;
-  /** Estimated driving time in minutes. */
+  /** Estimated route time in minutes. */
   minutes: number;
   /** Pre-formatted distance label, e.g. "3.4 km" or "850 m". */
   distanceLabel: string;
@@ -174,9 +180,10 @@ export interface RouteEstimate {
 // Real road routes are longer than the straight-line distance; ~1.3x is a good
 // average for Ugandan urban/peri-urban road networks. Average effective driving
 // speed (incl. traffic, junctions) ~28 km/h in town, faster over longer trips.
-const ROAD_FACTOR = 1.3;
+const DRIVING_ROAD_FACTOR = 1.3;
+const WALKING_ROAD_FACTOR = 1.15;
 
-function estimateSpeedKmh(straightKm: number): number {
+function estimateDrivingSpeedKmh(straightKm: number): number {
   if (straightKm < 5) return 24; // dense town driving
   if (straightKm < 20) return 35; // mixed roads
   return 55; // longer / highway stretches
@@ -195,17 +202,24 @@ function formatDuration(min: number): string {
 }
 
 /**
- * Estimated driving distance and time from a reference point to a house, derived
+ * Estimated route distance and time from a reference point to a house, derived
  * from the great-circle distance (no API call). Returns null when the house has
  * no resolvable location. Used to preview the route on the card before the user
  * opens turn-by-turn navigation in Google Maps.
  */
-export function estimateRoute(g: GeoLike, fromLat: number, fromLng: number): RouteEstimate | null {
+export function estimateRoute(
+  g: GeoLike,
+  fromLat: number,
+  fromLng: number,
+  mode: TravelMode = 'driving'
+): RouteEstimate | null {
   const c = resolveHouseCoords(g);
   if (!c) return null;
   const straightKm = haversineKm(fromLat, fromLng, c.lat, c.lng);
-  const distanceKm = straightKm * ROAD_FACTOR;
-  const minutes = (distanceKm / estimateSpeedKmh(straightKm)) * 60;
+  const factor = mode === 'walking' ? WALKING_ROAD_FACTOR : DRIVING_ROAD_FACTOR;
+  const speedKmh = mode === 'walking' ? 5 : estimateDrivingSpeedKmh(straightKm);
+  const distanceKm = straightKm * factor;
+  const minutes = (distanceKm / speedKmh) * 60;
   return {
     distanceKm,
     minutes,

@@ -11,7 +11,7 @@ import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
   SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight,
-  Map as MapIcon, List as ListIcon, Route
+  Map as MapIcon, List as ListIcon, Route, Footprints
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -24,7 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
-import { resolveHouseCoords, buildDirectionsUrl, distanceToHouse, estimateRoute } from '@/lib/houseGeo';
+import { cn } from '@/lib/utils';
+import { resolveHouseCoords, buildDirectionsUrl, distanceToHouse, estimateRoute, TravelMode } from '@/lib/houseGeo';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 
@@ -130,7 +131,7 @@ function HouseImageCarousel({ images, title, onImageClick, layout = 'vertical' }
   );
 }
 
-function LocationMap({ listing, anchorId }: { listing: HouseListing; anchorId?: string }) {
+function LocationMap({ listing, anchorId, travelMode = 'driving' }: { listing: HouseListing; anchorId?: string; travelMode?: TravelMode }) {
   const announce = useMapLinkAnnouncer();
   const containerRef = useRef<HTMLAnchorElement | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
@@ -139,7 +140,7 @@ function LocationMap({ listing, anchorId }: { listing: HouseListing; anchorId?: 
   const lng = resolved?.lng ?? null;
   const approximate = resolved?.approximate ?? false;
   const title = listing.title;
-  const directionsUrl = buildDirectionsUrl(listing);
+  const directionsUrl = buildDirectionsUrl(listing, travelMode);
 
   // Only mount the (heavy) Google Maps iframe once the card actually enters the
   // viewport. The virtualizer keeps a few off-screen rows mounted for smooth
@@ -215,6 +216,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
   const dist = listing.distance_km;
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
+  const [travelMode, setTravelMode] = useState<TravelMode>('driving');
 
   const lightboxImages = useMemo(() =>
     (listing.image_urls || []).map((url, i) => ({ id: `${listing.id}-${i}`, image_url: url })),
@@ -226,13 +228,13 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
     setLightboxOpen(true);
   }, []);
   const announce = useMapLinkAnnouncer();
-  const directionsUrl = buildDirectionsUrl(listing);
+  const directionsUrl = useMemo(() => buildDirectionsUrl(listing, travelMode), [listing, travelMode]);
 
-  // Estimated driving distance + time from the viewer to this house, shown
+  // Estimated route distance + time from the viewer to this house, shown
   // before they open turn-by-turn navigation. Derived locally (no API call).
   const routeEstimate = useMemo(
-    () => (userLat != null && userLng != null ? estimateRoute(listing, userLat, userLng) : null),
-    [listing, userLat, userLng]
+    () => (userLat != null && userLng != null ? estimateRoute(listing, userLat, userLng, travelMode) : null),
+    [listing, userLat, userLng, travelMode]
   );
 
   // "New" badge for listings created within the last 14 days.
@@ -338,7 +340,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
 
         {listing.description && <p className="text-xs text-muted-foreground line-clamp-2" itemProp="description">{listing.description}</p>}
 
-        <LocationMap listing={listing} anchorId={isFirst ? 'first-map-cta' : undefined} />
+        <LocationMap listing={listing} anchorId={isFirst ? 'first-map-cta' : undefined} travelMode={travelMode} />
       </div>
 
       {/* RIGHT: price + actions panel (Booking.com style) */}
@@ -354,6 +356,38 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
         </div>
 
         <div className="flex flex-col gap-3">
+          {/* Travel mode toggle — choose driving or walking before navigating */}
+          {routeEstimate && (
+            <div className="flex items-center justify-center gap-0" role="group" aria-label="Travel mode">
+              <button
+                type="button"
+                onClick={() => setTravelMode('driving')}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-l-xl px-3 py-1.5 text-xs font-bold transition-colors border",
+                  travelMode === 'driving'
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:bg-muted"
+                )}
+                aria-pressed={travelMode === 'driving'}
+              >
+                <Car className="h-3.5 w-3.5" /> Driving
+              </button>
+              <button
+                type="button"
+                onClick={() => setTravelMode('walking')}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-r-xl px-3 py-1.5 text-xs font-bold transition-colors border-y border-r",
+                  travelMode === 'walking'
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:bg-muted"
+                )}
+                aria-pressed={travelMode === 'walking'}
+              >
+                <Footprints className="h-3.5 w-3.5" /> Walking
+              </button>
+            </div>
+          )}
+
           {/* Estimated route preview — distance + time before opening navigation */}
           {routeEstimate && (
             <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2 flex items-center justify-between gap-2">
@@ -378,7 +412,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => announce(listing.title)}
-              aria-label={`Get directions to ${listing.title}`}
+              aria-label={`Get ${travelMode} directions to ${listing.title}`}
             >
               <Navigation className="h-4 w-4" /> Get directions
             </a>
