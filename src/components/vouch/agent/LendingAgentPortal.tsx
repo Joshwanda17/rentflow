@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   Banknote, ShieldCheck, Lock, Search, Loader2, AlertCircle, Plus,
   CheckCircle2, FileText, Wallet, TrendingUp, Info, Megaphone, Inbox, Trash2, X, Check,
+  ScrollText,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyTrustScore } from '@/hooks/useMyTrustScore';
@@ -22,6 +23,7 @@ import LendingAgentAgreementModal from '@/components/vouch/agent/LendingAgentAgr
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { generateWelileAiId } from '@/lib/welileAiId';
+import { logLendingAudit } from '@/lib/lendingAudit';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -72,6 +74,7 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
   // Loan offers (published to all users) + incoming requests
   const [offers, setOffers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [auditLog, setAuditLog] = useState<any[]>([]);
   const [myName, setMyName] = useState<string | null>(null);
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [savingOffer, setSavingOffer] = useState(false);
@@ -122,6 +125,14 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
         .limit(50) as any);
       if (reqData) setRequests(reqData);
 
+      // Audit trail (actions I performed or that involve me)
+      const { data: auditData } = await (supabase
+        .from('lending_audit_log' as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(60) as any);
+      if (auditData) setAuditLog(auditData);
+
       // My display name (used when publishing offers)
       const { data: prof } = await (supabase
         .from('profiles')
@@ -141,6 +152,12 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       .order('created_at', { ascending: false })
       .limit(50) as any);
     if (data) setRequests(data);
+    const { data: auditData } = await (supabase
+      .from('lending_audit_log' as any)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(60) as any);
+    if (auditData) setAuditLog(auditData);
   };
 
   const handleCreateOffer = async () => {
@@ -173,17 +190,50 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       .eq('lender_agent_id', user.id)
       .order('created_at', { ascending: false }) as any);
     if (data) setOffers(data);
+    const created = (data ?? [])[0];
+    await logLendingAudit({
+      actorId: user.id,
+      actorDisplayName: myName,
+      actionType: 'offer_created',
+      entityType: 'offer',
+      entityId: created?.id ?? null,
+      lenderAgentId: user.id,
+      amountUgx: max,
+      details: { title: offerForm.title.trim(), min_amount_ugx: min, max_amount_ugx: max, interest_rate_pct: Number(offerForm.interest_rate) || 0 },
+    });
   };
 
   const toggleOffer = async (id: string, active: boolean) => {
     await (supabase.from('lending_agent_offers' as any).update({ active }).eq('id', id) as any);
     setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, active } : o)));
+    if (user) {
+      await logLendingAudit({
+        actorId: user.id,
+        actorDisplayName: myName,
+        actionType: active ? 'offer_activated' : 'offer_deactivated',
+        entityType: 'offer',
+        entityId: id,
+        lenderAgentId: user.id,
+        oldStatus: active ? 'inactive' : 'active',
+        newStatus: active ? 'active' : 'inactive',
+      });
+    }
   };
 
   const deleteOffer = async (id: string) => {
     await (supabase.from('lending_agent_offers' as any).delete().eq('id', id) as any);
     setOffers((prev) => prev.filter((o) => o.id !== id));
     toast.success('Offer removed');
+    if (user) {
+      await logLendingAudit({
+        actorId: user.id,
+        actorDisplayName: myName,
+        actionType: 'offer_deleted',
+        entityType: 'offer',
+        entityId: id,
+        lenderAgentId: user.id,
+      });
+    }
   };
 
   const handleApproveRequest = async (req: any) => {
@@ -219,6 +269,27 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       .eq('id', req.id) as any);
     setDecidingId(null);
     toast.success(`Loan to ${req.borrower_display_name ?? req.borrower_ai_id} approved & recorded`);
+    // Audit: approval, disbursement, fee deduction, and status change
+    await logLendingAudit({
+      actorId: user.id, actorDisplayName: myName, actionType: 'request_approved',
+      entityType: 'request', entityId: req.id,
+      borrowerUserId: req.borrower_user_id, lenderAgentId: user.id,
+      amountUgx: principalNum, feeUgx: fee, oldStatus: 'pending', newStatus: 'approved',
+      details: { loan_id: loanRow?.id ?? null, borrower_ai_id: req.borrower_ai_id },
+    });
+    await logLendingAudit({
+      actorId: user.id, actorDisplayName: myName, actionType: 'loan_disbursed',
+      entityType: 'loan', entityId: loanRow?.id ?? null,
+      borrowerUserId: req.borrower_user_id, lenderAgentId: user.id,
+      amountUgx: principalNum, feeUgx: fee, newStatus: 'active',
+      details: { interest_rate_pct: req.interest_rate_pct ?? 0, request_id: req.id },
+    });
+    await logLendingAudit({
+      actorId: user.id, actorDisplayName: myName, actionType: 'fee_deducted',
+      entityType: 'loan', entityId: loanRow?.id ?? null,
+      borrowerUserId: req.borrower_user_id, lenderAgentId: user.id,
+      feeUgx: fee, details: { platform_fee_pct: PLATFORM_FEE_PCT, principal_ugx: principalNum },
+    });
     await reloadRequests();
     refetchBalances();
     const { data } = await (supabase
@@ -237,6 +308,14 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       .eq('id', req.id) as any);
     setDecidingId(null);
     toast.success('Request declined');
+    if (user) {
+      await logLendingAudit({
+        actorId: user.id, actorDisplayName: myName, actionType: 'request_declined',
+        entityType: 'request', entityId: req.id,
+        borrowerUserId: req.borrower_user_id, lenderAgentId: user.id,
+        amountUgx: Number(req.requested_amount_ugx), oldStatus: 'pending', newStatus: 'declined',
+      });
+    }
     await reloadRequests();
   };
 
@@ -710,6 +789,38 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
                           )}
                         </CardContent>
                       </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Audit trail */}
+            <div className="space-y-2 mt-4">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <ScrollText className="h-3.5 w-3.5" /> Activity Log
+              </Label>
+              {auditLog.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No activity recorded yet.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {auditLog.map((a) => {
+                    const label = (a.action_type as string).replace(/_/g, ' ');
+                    return (
+                      <div key={a.id} className="flex items-start justify-between gap-2 rounded-lg border border-border/50 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold capitalize text-foreground">{label}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {a.actor_display_name ?? 'User'}
+                            {a.amount_ugx != null ? ` · ${formatUGX(Number(a.amount_ugx))}` : ''}
+                            {a.fee_ugx != null ? ` · fee ${formatUGX(Number(a.fee_ugx))}` : ''}
+                            {a.old_status && a.new_status ? ` · ${a.old_status} → ${a.new_status}` : ''}
+                          </p>
+                        </div>
+                        <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0">
+                          {new Date(a.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
                     );
                   })}
                 </div>

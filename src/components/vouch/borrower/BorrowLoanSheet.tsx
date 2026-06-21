@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { generateWelileAiId, normalizeAiId, isValidAiId } from '@/lib/welileAiId';
+import { logLendingAudit } from '@/lib/lendingAudit';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -105,7 +106,7 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
     if (lenderAgentId === user.id) { toast.error("You can't request a loan from yourself"); return; }
 
     setSubmitting(true);
-    const { error } = await (supabase.from('lending_loan_requests' as any).insert({
+    const { data: inserted, error } = await (supabase.from('lending_loan_requests' as any).insert({
       borrower_user_id: user.id,
       lender_agent_id: lenderAgentId,
       offer_id: opts.offer?.id ?? null,
@@ -117,10 +118,22 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
       interest_rate_pct: opts.offer?.interest_rate_pct ?? opts.rate ?? null,
       purpose: purpose.trim() || null,
       status: 'pending',
-    }) as any);
+    }).select('id').single() as any);
     setSubmitting(false);
     if (error) { toast.error('Could not send request: ' + error.message); return; }
     toast.success('Loan request sent — the lending agent will review it');
+    await logLendingAudit({
+      actorId: user.id,
+      actorDisplayName: me?.full_name ?? null,
+      actionType: 'request_created',
+      entityType: 'request',
+      entityId: inserted?.id ?? null,
+      borrowerUserId: user.id,
+      lenderAgentId: lenderAgentId,
+      amountUgx: amountNum,
+      newStatus: 'pending',
+      details: { offer_id: opts.offer?.id ?? null, purpose: purpose.trim() || null },
+    });
     setActiveOffer(null);
     setLenderAiInput('');
     setAmount(''); setDuration(''); setPurpose('');

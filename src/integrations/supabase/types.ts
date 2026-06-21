@@ -10238,6 +10238,57 @@ export type Database = {
         }
         Relationships: []
       }
+      lending_audit_log: {
+        Row: {
+          action_type: string
+          actor_display_name: string | null
+          actor_id: string
+          amount_ugx: number | null
+          borrower_user_id: string | null
+          created_at: string
+          details: Json
+          entity_id: string | null
+          entity_type: string
+          fee_ugx: number | null
+          id: string
+          lender_agent_id: string | null
+          new_status: string | null
+          old_status: string | null
+        }
+        Insert: {
+          action_type: string
+          actor_display_name?: string | null
+          actor_id: string
+          amount_ugx?: number | null
+          borrower_user_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type: string
+          fee_ugx?: number | null
+          id?: string
+          lender_agent_id?: string | null
+          new_status?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          action_type?: string
+          actor_display_name?: string | null
+          actor_id?: string
+          amount_ugx?: number | null
+          borrower_user_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type?: string
+          fee_ugx?: number | null
+          id?: string
+          lender_agent_id?: string | null
+          new_status?: string | null
+          old_status?: string | null
+        }
+        Relationships: []
+      }
       lending_loan_requests: {
         Row: {
           borrower_ai_id: string | null
