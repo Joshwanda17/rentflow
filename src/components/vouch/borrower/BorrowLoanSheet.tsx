@@ -130,11 +130,10 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
   const handleDirectRequest = async () => {
     const cleaned = normalizeAiId(lenderAiInput);
     if (!isValidAiId(cleaned)) { toast.error('Enter a valid AI ID e.g. WEL-AB12CD'); return; }
-    // Resolve AI ID -> user via public trust profile lookup
-    const { data, error } = await (supabase.functions.invoke('trust-profile', {
-      body: { ai_id: cleaned, public_mode: true },
-    }) as any);
-    if (error || !data?.user_id) {
+    // Resolve AI ID -> user via public trust profile RPC
+    const { data, error } = await (supabase.rpc('get_public_trust_profile', { p_ai_id: cleaned }) as any);
+    const profile = data as any;
+    if (error || !profile || profile.error || !profile.user_id) {
       toast.error('No user found for that AI ID');
       return;
     }
@@ -142,10 +141,10 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
     // Open a generic request form by setting a synthetic active offer
     setActiveOffer({
       id: '',
-      lender_agent_id: data.user_id,
-      lender_display_name: data.identity?.full_name ?? cleaned,
+      lender_agent_id: profile.user_id,
+      lender_display_name: profile.identity?.full_name ?? cleaned,
       lender_ai_id: cleaned,
-      title: `Loan request to ${data.identity?.full_name ?? cleaned}`,
+      title: `Loan request to ${profile.identity?.full_name ?? cleaned}`,
       description: null,
       min_amount_ugx: 0,
       max_amount_ugx: 0,
