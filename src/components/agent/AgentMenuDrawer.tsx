@@ -147,6 +147,7 @@ export function AgentMenuDrawer({
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('money');
   const [guideOpen, setGuideOpen] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const handleClose = () => {
     hapticTap();
@@ -279,6 +280,20 @@ export function AgentMenuDrawer({
   ];
 
   const activeCat = categories.find(c => c.id === activeCategory) || categories[0];
+
+  // Flat, cross-category search — type once, jump anywhere. The single biggest
+  // win for agents who manage lots of borrowers and can't remember which tab
+  // a given action lives under.
+  const query = search.trim().toLowerCase();
+  const searching = query.length > 0;
+  const searchResults = searching
+    ? categories.flatMap((cat) =>
+        cat.items.map((item) => ({ item, catLabel: cat.label })),
+      ).filter(({ item }) =>
+        item.label.toLowerCase().includes(query) ||
+        (item.description?.toLowerCase().includes(query) ?? false),
+      )
+    : [];
 
   const getAccentClasses = (accent: string) => {
     const map: Record<string, { bg: string; text: string; ring: string }> = {
