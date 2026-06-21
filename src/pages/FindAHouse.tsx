@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
-  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight
+  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight,
+  Map as MapIcon, List as ListIcon
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -25,6 +26,11 @@ import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
+
+// Leaflet + tiles are heavy; only load the map bundle when the user opens it.
+const HouseMapView = lazy(() =>
+  import('@/components/tenant/HouseMapView').then((m) => ({ default: m.HouseMapView }))
+);
 
 const REGIONS = [
   'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
