@@ -348,6 +348,17 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
     toast.success('Verification requested — our team will review your LC1');
   };
 
+  const updateAlertPref = async (field: 'verification_notify_email' | 'verification_notify_sms', value: boolean) => {
+    if (!user) return;
+    if (field === 'verification_notify_email') setNotifyEmail(value); else setNotifySms(value);
+    const { error } = await supabase.from('profiles').update({ [field]: value }).eq('id', user.id);
+    if (error) {
+      // revert on failure
+      if (field === 'verification_notify_email') setNotifyEmail(!value); else setNotifySms(!value);
+      toast.error('Could not update alert preference');
+    }
+  };
+
   const complete = isResidenceComplete(landlord, lc1);
 
   return (
