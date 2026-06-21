@@ -388,16 +388,16 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
             </div>
           )}
 
-          {/* Estimated route preview — distance + time + travel mode */}
+          {/* Estimated route preview — distance + mode + time, in fixed columns so layout persists when toggling */}
           {routeEstimate && (
-            <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
+            <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2 grid grid-cols-3 items-center gap-2">
+              <div className="flex items-center gap-1.5 min-w-0 justify-start">
                 <Route className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-sm font-bold text-foreground truncate">
                   {routeEstimate.approximate ? '~' : ''}{routeEstimate.distanceLabel}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5 justify-center">
                 {travelMode === 'driving' ? (
                   <Car className="h-3.5 w-3.5 text-primary" />
                 ) : (
@@ -407,7 +407,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
                   {travelMode === 'driving' ? 'Driving' : 'Walking'}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5 justify-end">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-semibold text-muted-foreground">
                   {routeEstimate.approximate ? '~' : ''}{routeEstimate.durationLabel}
