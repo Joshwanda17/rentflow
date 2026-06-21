@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HandCoins, Loader2, User, Clock, CheckCircle2, Search, X, Plus } from 'lucide-react';
@@ -35,6 +36,7 @@ interface Offer {
   interest_rate_pct: number;
   min_duration_days: number;
   max_duration_days: number;
+  active: boolean;
 }
 
 export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPortal }: Props) {
@@ -48,6 +50,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
   const [myRequests, setMyRequests] = useState<any[]>([]);
   const [me, setMe] = useState<{ full_name: string | null; phone: string | null } | null>(null);
   const [showOwnOffers, setShowOwnOffers] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('published');
 
   // Request form state
   const [activeOffer, setActiveOffer] = useState<Offer | null>(null);
@@ -81,8 +84,10 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
     if (reset) setLoading(true); else setLoadingMore(true);
     let query = (supabase
       .from('lending_agent_offers' as any)
-      .select('*')
-      .eq('active', true));
+      .select('*'));
+    if (statusFilter !== 'all') {
+      query = (query as any).eq('active', statusFilter === 'published');
+    }
     if (!showOwnOffers) {
       query = (query as any).neq('lender_agent_id', user.id);
     }
@@ -94,7 +99,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
     setHasMore(rows.length === PAGE_SIZE);
     pageRef.current = page + 1;
     if (reset) setLoading(false); else setLoadingMore(false);
-  }, [user, showOwnOffers]);
+  }, [user, showOwnOffers, statusFilter]);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -200,6 +205,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
       interest_rate_pct: 0,
       min_duration_days: 1,
       max_duration_days: 365,
+      active: true,
     });
   };
 
@@ -271,6 +277,18 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
                   <Switch checked={showOwnOffers} onCheckedChange={setShowOwnOffers} className="scale-75" />
                 </div>
               </div>
+              <div className="flex items-center justify-end">
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'published' | 'draft')}>
+                  <SelectTrigger className="h-8 w-[132px] text-xs bg-background">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {loading ? (
                 <Skeleton className="h-24 w-full rounded-xl" />
               ) : offers.length === 0 ? (
@@ -278,8 +296,14 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
                   <CardContent className="p-6 text-center space-y-2">
                     {showOwnOffers ? (
                       <>
-                        <p className="text-xs text-muted-foreground">You haven’t published any loan offers yet. Turn the toggle off to browse other agents’ offers, or publish your own.</p>
-                        {onOpenLendingPortal && (
+                        <p className="text-xs text-muted-foreground">
+                          {statusFilter === 'published'
+                            ? "You have no published loan offers yet. Turn the toggle off to browse other agents’ offers, or publish your own."
+                            : statusFilter === 'draft'
+                            ? "You have no draft loan offers. Drafts are only visible to you."
+                            : "You haven’t created any loan offers yet."}
+                        </p>
+                        {statusFilter !== 'draft' && onOpenLendingPortal && (
                           <Button size="sm" className="h-9 text-xs font-bold" onClick={onOpenLendingPortal}>
                             <Plus className="h-3.5 w-3.5 mr-1.5" />
                             Create your first offer
@@ -287,7 +311,13 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
                         )}
                       </>
                     ) : (
-                      <p className="text-xs text-muted-foreground">No loan offers available right now. Try requesting an agent by AI ID above.</p>
+                      <p className="text-xs text-muted-foreground">
+                        {statusFilter === 'published'
+                          ? "No published loan offers available right now. Try requesting an agent by AI ID above."
+                          : statusFilter === 'draft'
+                          ? "No draft loan offers are visible. Drafts are only visible to their creators."
+                          : "No loan offers available right now. Try requesting an agent by AI ID above."}
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -303,6 +333,9 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
                             <div className="flex items-center gap-1.5">
                               {isOwnOffer && (
                                 <Badge className="bg-primary/15 text-primary border-0 text-[9px] font-bold">Yours</Badge>
+                              )}
+                              {!offer.active && (
+                                <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[9px] font-bold">Draft</Badge>
                               )}
                               <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold">{offer.interest_rate_pct}%</Badge>
                             </div>
