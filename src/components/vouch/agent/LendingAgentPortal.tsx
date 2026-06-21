@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   Banknote, ShieldCheck, Lock, Search, Loader2, AlertCircle, Plus,
-  CheckCircle2, FileText, Wallet, TrendingUp, Info,
+  CheckCircle2, FileText, Wallet, TrendingUp, Info, Megaphone, Inbox, Trash2, X, Check,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyTrustScore } from '@/hooks/useMyTrustScore';
@@ -20,6 +21,7 @@ import { LENDING_AGENT_MIN_TRUST_SCORE } from '@/components/vouch/agreements';
 import LendingAgentAgreementModal from '@/components/vouch/agent/LendingAgentAgreementModal';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { generateWelileAiId } from '@/lib/welileAiId';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
@@ -67,6 +69,24 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
   const [purpose, setPurpose] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Loan offers (published to all users) + incoming requests
+  const [offers, setOffers] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [myName, setMyName] = useState<string | null>(null);
+  const [showOfferForm, setShowOfferForm] = useState(false);
+  const [savingOffer, setSavingOffer] = useState(false);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [offerForm, setOfferForm] = useState({
+    title: 'Quick Cash Loan',
+    description: '',
+    min_amount: '50000',
+    max_amount: '500000',
+    interest_rate: '10',
+    min_duration: '7',
+    max_duration: '30',
+  });
+  const myAiId = user ? generateWelileAiId(user.id) : null;
+
   const trustScore = snapshot?.score ?? 0;
   const lendablePool = withdrawableBalance + commissionBalance;
   const eligible = true; // Any user qualifies to lend
@@ -84,8 +104,141 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
         .limit(50) as any);
       if (data) setLoans(data as Loan[]);
       setLoansLoading(false);
+
+      // Offers I've published
+      const { data: offerData } = await (supabase
+        .from('lending_agent_offers' as any)
+        .select('*')
+        .eq('lender_agent_id', user.id)
+        .order('created_at', { ascending: false }) as any);
+      if (offerData) setOffers(offerData);
+
+      // Incoming loan requests
+      const { data: reqData } = await (supabase
+        .from('lending_loan_requests' as any)
+        .select('*')
+        .eq('lender_agent_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50) as any);
+      if (reqData) setRequests(reqData);
+
+      // My display name (used when publishing offers)
+      const { data: prof } = await (supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .maybeSingle() as any);
+      setMyName(prof?.full_name ?? null);
     })();
   }, [open, user, isAccepted]);
+
+  const reloadRequests = async () => {
+    if (!user) return;
+    const { data } = await (supabase
+      .from('lending_loan_requests' as any)
+      .select('*')
+      .eq('lender_agent_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50) as any);
+    if (data) setRequests(data);
+  };
+
+  const handleCreateOffer = async () => {
+    if (!user) return;
+    const min = Number(offerForm.min_amount);
+    const max = Number(offerForm.max_amount);
+    if (!offerForm.title.trim()) { toast.error('Enter a title'); return; }
+    if (!min || !max || min > max) { toast.error('Check the amount range'); return; }
+    setSavingOffer(true);
+    const { error } = await (supabase.from('lending_agent_offers' as any).insert({
+      lender_agent_id: user.id,
+      lender_display_name: myName,
+      lender_ai_id: myAiId,
+      title: offerForm.title.trim(),
+      description: offerForm.description.trim() || null,
+      min_amount_ugx: min,
+      max_amount_ugx: max,
+      interest_rate_pct: Number(offerForm.interest_rate) || 0,
+      min_duration_days: Number(offerForm.min_duration) || 1,
+      max_duration_days: Number(offerForm.max_duration) || 30,
+      active: true,
+    }) as any);
+    setSavingOffer(false);
+    if (error) { toast.error('Could not publish offer: ' + error.message); return; }
+    toast.success('Loan offer published — any user can now request it');
+    setShowOfferForm(false);
+    const { data } = await (supabase
+      .from('lending_agent_offers' as any)
+      .select('*')
+      .eq('lender_agent_id', user.id)
+      .order('created_at', { ascending: false }) as any);
+    if (data) setOffers(data);
+  };
+
+  const toggleOffer = async (id: string, active: boolean) => {
+    await (supabase.from('lending_agent_offers' as any).update({ active }).eq('id', id) as any);
+    setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, active } : o)));
+  };
+
+  const deleteOffer = async (id: string) => {
+    await (supabase.from('lending_agent_offers' as any).delete().eq('id', id) as any);
+    setOffers((prev) => prev.filter((o) => o.id !== id));
+    toast.success('Offer removed');
+  };
+
+  const handleApproveRequest = async (req: any) => {
+    if (!user) return;
+    const principalNum = Number(req.requested_amount_ugx);
+    const fee = Math.round(principalNum * PLATFORM_FEE_PCT);
+    if (principalNum + fee > lendablePool) {
+      toast.error(`Insufficient wallet balance. Need ${formatUGX(principalNum + fee)} (loan + 1% fee).`);
+      return;
+    }
+    setDecidingId(req.id);
+    const { data: loanRow, error } = await (supabase.from('lending_agent_loans' as any).insert({
+      lender_agent_id: user.id,
+      borrower_user_id: req.borrower_user_id,
+      borrower_ai_id: req.borrower_ai_id,
+      borrower_display_name: req.borrower_display_name,
+      borrower_phone: req.borrower_phone,
+      principal_ugx: principalNum,
+      interest_rate_pct: req.interest_rate_pct ?? 0,
+      expected_repayment_date: null,
+      loan_purpose: req.purpose ?? null,
+      platform_fee_ugx: fee,
+      lender_trust_score_at_record: trustScore,
+      status: 'active',
+    }).select('id').single() as any);
+    if (error) {
+      setDecidingId(null);
+      toast.error('Could not disburse: ' + error.message);
+      return;
+    }
+    await (supabase.from('lending_loan_requests' as any)
+      .update({ status: 'approved', decided_at: new Date().toISOString(), loan_id: loanRow?.id ?? null })
+      .eq('id', req.id) as any);
+    setDecidingId(null);
+    toast.success(`Loan to ${req.borrower_display_name ?? req.borrower_ai_id} approved & recorded`);
+    await reloadRequests();
+    refetchBalances();
+    const { data } = await (supabase
+      .from('lending_agent_loans' as any)
+      .select('*')
+      .eq('lender_agent_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50) as any);
+    if (data) setLoans(data as Loan[]);
+  };
+
+  const handleDeclineRequest = async (req: any) => {
+    setDecidingId(req.id);
+    await (supabase.from('lending_loan_requests' as any)
+      .update({ status: 'declined', decided_at: new Date().toISOString() })
+      .eq('id', req.id) as any);
+    setDecidingId(null);
+    toast.success('Request declined');
+    await reloadRequests();
+  };
 
   const handleLookup = () => {
     const cleaned = aiIdInput.trim().toUpperCase();
@@ -363,6 +516,146 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
                 </Card>
               </motion.div>
             )}
+
+            {/* My published offers */}
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Megaphone className="h-3.5 w-3.5" /> My Loan Offers
+                </Label>
+                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setShowOfferForm((v) => !v)}>
+                  <Plus className="h-3 w-3 mr-1" /> New Offer
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Published offers are visible to <span className="font-semibold">any user</span>, who can then request a loan from you.
+              </p>
+
+              {showOfferForm && (
+                <Card className="border-primary/30">
+                  <CardContent className="p-3 space-y-2">
+                    <div>
+                      <Label className="text-xs">Title *</Label>
+                      <Input value={offerForm.title} onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })} className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Description</Label>
+                      <Textarea value={offerForm.description} onChange={(e) => setOfferForm({ ...offerForm, description: e.target.value })} rows={2} className="text-sm resize-none" placeholder="Who is this for, terms, etc." />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Min amount (UGX)</Label>
+                        <Input type="number" value={offerForm.min_amount} onChange={(e) => setOfferForm({ ...offerForm, min_amount: e.target.value })} className="h-9 text-sm" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Max amount (UGX)</Label>
+                        <Input type="number" value={offerForm.max_amount} onChange={(e) => setOfferForm({ ...offerForm, max_amount: e.target.value })} className="h-9 text-sm" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label className="text-xs">Interest %</Label>
+                        <Input type="number" value={offerForm.interest_rate} onChange={(e) => setOfferForm({ ...offerForm, interest_rate: e.target.value })} min={0} className="h-9 text-sm" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Min days</Label>
+                        <Input type="number" value={offerForm.min_duration} onChange={(e) => setOfferForm({ ...offerForm, min_duration: e.target.value })} min={1} className="h-9 text-sm" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Max days</Label>
+                        <Input type="number" value={offerForm.max_duration} onChange={(e) => setOfferForm({ ...offerForm, max_duration: e.target.value })} min={1} className="h-9 text-sm" />
+                      </div>
+                    </div>
+                    <Button size="sm" className="w-full" onClick={handleCreateOffer} disabled={savingOffer}>
+                      {savingOffer && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+                      Publish Offer
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {offers.length === 0 && !showOfferForm ? (
+                <Card className="border-dashed">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground">No offers yet. Publish one so users can request loans from you.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {offers.map((offer) => (
+                    <Card key={offer.id} className="border-border/60">
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-bold truncate">{offer.title}</p>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={offer.active} onCheckedChange={(c) => toggleOffer(offer.id, c)} />
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteOffer(offer.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {formatUGX(offer.min_amount_ugx)} – {formatUGX(offer.max_amount_ugx)} · {offer.interest_rate_pct}% · {offer.min_duration_days}-{offer.max_duration_days} days
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Incoming loan requests */}
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Inbox className="h-3.5 w-3.5" /> Loan Requests
+                </Label>
+                <Badge variant="outline" className="text-[10px]">
+                  {requests.filter((r) => r.status === 'pending').length} pending
+                </Badge>
+              </div>
+              {requests.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground">No loan requests yet.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {requests.map((req) => {
+                    const statusColor =
+                      req.status === 'approved' ? 'bg-emerald-500/15 text-emerald-700' :
+                      req.status === 'declined' ? 'bg-destructive/15 text-destructive' :
+                      'bg-amber-500/15 text-amber-700';
+                    return (
+                      <Card key={req.id} className="border-border/60">
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm font-bold truncate">{req.borrower_display_name ?? req.borrower_ai_id ?? 'User'}</p>
+                            <Badge className={`${statusColor} border-0 text-[9px] font-bold capitalize`}>{req.status}</Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {formatUGX(req.requested_amount_ugx)}{req.requested_duration_days ? ` · ${req.requested_duration_days} days` : ''}{req.interest_rate_pct != null ? ` · ${req.interest_rate_pct}%` : ''}
+                          </p>
+                          {req.purpose && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{req.purpose}</p>}
+                          {req.status === 'pending' && (
+                            <div className="flex gap-2 mt-2">
+                              <Button size="sm" variant="outline" className="flex-1 h-8 text-[11px]" disabled={decidingId === req.id} onClick={() => handleDeclineRequest(req)}>
+                                <X className="h-3 w-3 mr-1" /> Decline
+                              </Button>
+                              <Button size="sm" className="flex-1 h-8 text-[11px]" disabled={decidingId === req.id} onClick={() => handleApproveRequest(req)}>
+                                {decidingId === req.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                                Approve & Disburse
+                              </Button>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* My loans list */}
             <div className="space-y-2">

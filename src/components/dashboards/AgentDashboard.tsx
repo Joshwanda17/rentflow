@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Wallet, Landmark, LayoutDashboard, ChevronRight } from 'lucide-react';
+import { HandCoins } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -157,6 +158,7 @@ import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
 import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNotesList';
 import { AgentAdvanceRequestForm } from '@/components/agent/AgentAdvanceRequestForm';
 import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
+import BorrowLoanSheet from '@/components/vouch/borrower/BorrowLoanSheet';
 
 // PDF form generators
 import {
@@ -386,6 +388,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
   const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
+  const [borrowOpen, setBorrowOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AgentHubTab>('home');
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
 
@@ -1047,6 +1050,20 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </div>
               <span className="text-xs font-bold text-emerald-700">→</span>
             </button>
+            <button
+              onClick={() => { hapticTap(); setBorrowOpen(true); }}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/10 to-emerald-500/5 ring-1 ring-primary/30 active:scale-[0.98] transition-all touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="p-2.5 rounded-xl bg-primary text-white shadow-md">
+                <HandCoins className="h-5 w-5" strokeWidth={2.2} />
+              </div>
+              <div className="flex-1 text-left">
+                <div className="font-bold text-sm text-foreground">Borrow a Loan</div>
+                <div className="text-[11px] text-muted-foreground">Browse lending agents' offers · Request a loan</div>
+              </div>
+              <span className="text-xs font-bold text-primary">→</span>
+            </button>
             <RecentAutoCharges />
             <StuckDepositsRepairPanel agentId={user.id} />
           </div>
@@ -1462,6 +1479,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentPartnerDashboardSheet open={partnerDashboardOpen} onOpenChange={setPartnerDashboardOpen} />
       <FinancialAgentSection open={requisitionOpen} onOpenChange={setRequisitionOpen} />
       <LendingAgentPortal open={lendingAgentOpen} onOpenChange={setLendingAgentOpen} />
+      <BorrowLoanSheet open={borrowOpen} onOpenChange={setBorrowOpen} />
 
       {/* Rent Fee Available (Credit Access) — opened from All Menu → Earnings */}
       <Dialog open={creditOpen} onOpenChange={setCreditOpen}>
