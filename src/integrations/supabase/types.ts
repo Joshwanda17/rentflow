@@ -12859,6 +12859,8 @@ export type Database = {
           territory: string | null
           town: string | null
           updated_at: string
+          verification_notify_email: boolean
+          verification_notify_sms: boolean
           verified: boolean
           village: string | null
           wallet_id: string | null
@@ -12934,6 +12936,8 @@ export type Database = {
           territory?: string | null
           town?: string | null
           updated_at?: string
+          verification_notify_email?: boolean
+          verification_notify_sms?: boolean
           verified?: boolean
           village?: string | null
           wallet_id?: string | null
@@ -13009,6 +13013,8 @@ export type Database = {
           territory?: string | null
           town?: string | null
           updated_at?: string
+          verification_notify_email?: boolean
+          verification_notify_sms?: boolean
           verified?: boolean
           village?: string | null
           wallet_id?: string | null

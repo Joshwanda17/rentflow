@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Building2, MapPin, UserCheck, Loader2,
   CheckCircle2, Plus, Search, X, ArrowRight, Home, Gavel,
-  Clock, XCircle, BadgeCheck, Send,
+  Clock, XCircle, BadgeCheck, Send, Bell, Mail, MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -101,6 +102,11 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
   const [lc1ReqState, setLc1ReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
   const [meContact, setMeContact] = useState<{ full_name: string | null; phone: string | null }>({ full_name: null, phone: null });
 
+  // optional email / SMS alert preferences
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifySms, setNotifySms] = useState(true);
+  const [hasEmail, setHasEmail] = useState(false);
+
   // sub-flows
   const [addLandlord, setAddLandlord] = useState(false);
   const [addLc1, setAddLc1] = useState(false);
@@ -123,10 +129,13 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
     setLc1Reject(null);
     const { data: prof } = await supabase
       .from('profiles')
-      .select('borrower_landlord_id, borrower_lc1_id, full_name, phone')
+      .select('borrower_landlord_id, borrower_lc1_id, full_name, phone, email, verification_notify_email, verification_notify_sms')
       .eq('id', user.id)
       .maybeSingle();
     setMeContact({ full_name: prof?.full_name ?? null, phone: prof?.phone ?? null });
+    setNotifyEmail((prof as any)?.verification_notify_email ?? true);
+    setNotifySms((prof as any)?.verification_notify_sms ?? true);
+    setHasEmail(!!(prof as any)?.email);
 
     let ll: LinkedLandlord | null = null;
     if (prof?.borrower_landlord_id) {
@@ -337,6 +346,17 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
     }
     setLc1ReqState('sent');
     toast.success('Verification requested — our team will review your LC1');
+  };
+
+  const updateAlertPref = async (field: 'verification_notify_email' | 'verification_notify_sms', value: boolean) => {
+    if (!user) return;
+    if (field === 'verification_notify_email') setNotifyEmail(value); else setNotifySms(value);
+    const { error } = await supabase.from('profiles').update({ [field]: value }).eq('id', user.id);
+    if (error) {
+      // revert on failure
+      if (field === 'verification_notify_email') setNotifyEmail(!value); else setNotifySms(!value);
+      toast.error('Could not update alert preference');
+    }
   };
 
   const complete = isResidenceComplete(landlord, lc1);
@@ -577,6 +597,30 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
 
               {/* CONTINUE */}
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                {/* OPTIONAL ALERTS */}
+                <Card className="mb-3 border-border/60">
+                  <CardContent className="p-3.5 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-xs font-bold">Alerts for verification updates</p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug -mt-1">
+                      Get notified when your landlord GPS or LC1 status changes (rejection reasons included).
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="notify-sms" className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" /> SMS{meContact.phone ? '' : ' (add a phone first)'}
+                      </Label>
+                      <Switch id="notify-sms" checked={notifySms} disabled={!meContact.phone} onCheckedChange={(v) => updateAlertPref('verification_notify_sms', v)} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="notify-email" className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground" /> Email{hasEmail ? '' : ' (add an email first)'}
+                      </Label>
+                      <Switch id="notify-email" checked={notifyEmail} disabled={!hasEmail} onCheckedChange={(v) => updateAlertPref('verification_notify_email', v)} />
+                    </div>
+                  </CardContent>
+                </Card>
                 <Button
                   className="w-full h-11 font-bold"
                   disabled={!complete || saving}
