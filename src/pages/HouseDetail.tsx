@@ -51,6 +51,78 @@ const CATEGORIES = [
   { value: 'shop', label: 'Shop' },
 ];
 
+// Valid FindAHouse filter keys and value sets. Keep in sync with FindAHouse.tsx.
+const VALID_FILTER_KEYS = new Set(['q', 'region', 'category', 'sort', 'verified', 'max', 'amenities']);
+const VALID_REGIONS = new Set([
+  'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
+  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale',
+  'Mbarara', 'Gulu', 'Lira', 'Fort Portal', 'Masaka',
+  'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
+]);
+const VALID_CATEGORIES = new Set([
+  'all', 'single_room', 'double_room', 'bedsitter', 'one_bedroom',
+  'two_bedroom', 'three_bedroom', 'studio', 'shop',
+]);
+const VALID_SORTS = new Set(['price_asc', 'price_desc', 'newest', 'nearest']);
+const VALID_AMENITIES = new Set([
+  'has_water', 'has_electricity', 'has_security', 'has_parking', 'is_furnished',
+]);
+
+/**
+ * Parse and validate a query string saved from the FindAHouse filter bar.
+ * Returns a normalized query string (without the leading '?') when every key and
+ * value is recognised, otherwise reports invalid so the UI can fall back to
+ * /find-a-house with default filters.
+ */
+function validateListSearch(raw: string): { valid: true; search: string } | { valid: false } {
+  if (!raw || !raw.trim()) return { valid: false };
+  try {
+    const params = new URLSearchParams(raw.startsWith('?') ? raw.slice(1) : raw);
+    const normalized = new URLSearchParams();
+    for (const [key, value] of params.entries()) {
+      if (!VALID_FILTER_KEYS.has(key)) return { valid: false };
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+      switch (key) {
+        case 'q':
+          normalized.set('q', trimmed);
+          break;
+        case 'region':
+          if (!VALID_REGIONS.has(trimmed)) return { valid: false };
+          if (trimmed !== 'All Regions') normalized.set('region', trimmed);
+          break;
+        case 'category':
+          if (!VALID_CATEGORIES.has(trimmed)) return { valid: false };
+          if (trimmed !== 'all') normalized.set('category', trimmed);
+          break;
+        case 'sort':
+          if (!VALID_SORTS.has(trimmed)) return { valid: false };
+          normalized.set('sort', trimmed);
+          break;
+        case 'verified':
+          if (trimmed !== '1') return { valid: false };
+          normalized.set('verified', '1');
+          break;
+        case 'max':
+          if (!/^[1-9]\d*$/.test(trimmed)) return { valid: false };
+          normalized.set('max', trimmed);
+          break;
+        case 'amenities': {
+          const parts = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+          if (!parts.length) continue;
+          if (parts.some(p => !VALID_AMENITIES.has(p))) return { valid: false };
+          normalized.set('amenities', parts.join(','));
+          break;
+        }
+      }
+    }
+    const search = normalized.toString();
+    return search ? { valid: true, search } : { valid: false };
+  } catch {
+    return { valid: false };
+  }
+}
+
 export default function HouseDetail() {
   const announceMap = useMapLinkAnnouncer();
   const { id } = useParams<{ id: string }>();
@@ -58,28 +130,25 @@ export default function HouseDetail() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  // Filter context arrives either via in-app navigation state OR via a shared
-  // deep link (?from=funder&list=<url-encoded query string>) so the breadcrumb
-  // back-to-filtered-list works even on a cold page load.
+
+  // Validate the preserved FindAHouse filters so that a malformed or empty deep
+  // link cannot break navigation. When invalid, the breadcrumb/back button fall
+  // back to /find-a-house with its default filters.
   const navState = location.state as { from?: string; listSearch?: string } | null;
   const fromFunder = navState?.from === 'funder' || searchParams.get('from') === 'funder';
-  const listSearch = navState?.listSearch || searchParams.get('list') || '';
-  const cameFromFilteredList = listSearch.length > 0;
-  // Single explicit target for both the Back button and the "Filtered houses"
-  // breadcrumb. Using an explicit path (instead of navigate(-1)) guarantees the
-  // originating FindAHouse filters are restored even on a cold deep-link load,
-  // where there is no in-app history entry to step back to.
+  const rawListSearch = navState?.listSearch || searchParams.get('list') || '';
+  const validated = validateListSearch(rawListSearch);
+  const listSearch = validated.valid ? validated.search : '';
+  const cameFromFilteredList = validated.valid;
   const filteredListTo = {
     pathname: '/find-a-house',
-    search: listSearch ? (listSearch.startsWith('?') ? listSearch : `?${listSearch}`) : '',
+    search: listSearch ? `?${listSearch}` : '',
   };
   const goToFilteredList = () => {
-    if (cameFromFilteredList) {
-      navigate(filteredListTo, { state: { from: 'funder', listSearch } });
-    } else {
-      navigate('/dashboard/funder');
-    }
+    navigate(filteredListTo, { state: { from: 'funder', listSearch } });
   };
+
+
   const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
