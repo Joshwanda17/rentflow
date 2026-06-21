@@ -66,17 +66,22 @@ const AMENITY_FILTERS = [
 
 type AmenityKey = typeof AMENITY_FILTERS[number]['key'];
 
-function HouseImageCarousel({ images, title, onImageClick }: { images: string[] | null; title: string; onImageClick?: (index: number) => void }) {
+function HouseImageCarousel({ images, title, onImageClick, layout = 'vertical' }: { images: string[] | null; title: string; onImageClick?: (index: number) => void; layout?: 'vertical' | 'horizontal' }) {
   const [idx, setIdx] = useState(0);
+  // In horizontal (Booking-style) row cards the image fills the full height of
+  // the left column on desktop; on mobile it falls back to the 5/4 ratio.
+  const sizeClass = layout === 'horizontal'
+    ? 'aspect-[5/4] md:aspect-auto md:h-full md:min-h-[280px]'
+    : 'aspect-[5/4]';
   if (!images || images.length === 0) {
     return (
-      <div className="w-full aspect-[5/4] bg-muted flex items-center justify-center">
+      <div className={`w-full ${sizeClass} bg-muted flex items-center justify-center`}>
         <Home className="h-12 w-12 text-muted-foreground/20" />
       </div>
     );
   }
   return (
-    <div className="relative w-full aspect-[5/4] overflow-hidden bg-muted group">
+    <div className={`relative w-full ${sizeClass} overflow-hidden bg-muted group`}>
       <img
         src={images[idx]}
         alt={title}
