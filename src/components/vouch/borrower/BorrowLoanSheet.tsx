@@ -254,6 +254,17 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[94vh] overflow-y-auto rounded-t-2xl px-4 pb-8 pt-5">
+        <BorrowerResidenceGate
+          open={gateOpen}
+          onOpenChange={setGateOpen}
+          onComplete={() => {
+            setResidenceComplete(true);
+            const action = pendingActionRef.current;
+            pendingActionRef.current = null;
+            refreshResidence();
+            action?.();
+          }}
+        />
         <div className="flex items-center gap-2.5 mb-4">
           <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center">
             <HandCoins className="h-4 w-4 text-white" />
