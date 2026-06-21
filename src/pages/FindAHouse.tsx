@@ -340,7 +340,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
 
         {listing.description && <p className="text-xs text-muted-foreground line-clamp-2" itemProp="description">{listing.description}</p>}
 
-        <LocationMap listing={listing} anchorId={isFirst ? 'first-map-cta' : undefined} />
+        <LocationMap listing={listing} anchorId={isFirst ? 'first-map-cta' : undefined} travelMode={travelMode} />
       </div>
 
       {/* RIGHT: price + actions panel (Booking.com style) */}
