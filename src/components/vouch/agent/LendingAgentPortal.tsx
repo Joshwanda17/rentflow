@@ -517,6 +517,146 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
               </motion.div>
             )}
 
+            {/* My published offers */}
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Megaphone className="h-3.5 w-3.5" /> My Loan Offers
+                </Label>
+                <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setShowOfferForm((v) => !v)}>
+                  <Plus className="h-3 w-3 mr-1" /> New Offer
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Published offers are visible to <span className="font-semibold">any user</span>, who can then request a loan from you.
+              </p>
+
+              {showOfferForm && (
+                <Card className="border-primary/30">
+                  <CardContent className="p-3 space-y-2">
+                    <div>
+                      <Label className="text-xs">Title *</Label>
+                      <Input value={offerForm.title} onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })} className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Description</Label>
+                      <Textarea value={offerForm.description} onChange={(e) => setOfferForm({ ...offerForm, description: e.target.value })} rows={2} className="text-sm resize-none" placeholder="Who is this for, terms, etc." />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Min amount (UGX)</Label>
+                        <Input type="number" value={offerForm.min_amount} onChange={(e) => setOfferForm({ ...offerForm, min_amount: e.target.value })} className="h-9 text-sm" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Max amount (UGX)</Label>
+                        <Input type="number" value={offerForm.max_amount} onChange={(e) => setOfferForm({ ...offerForm, max_amount: e.target.value })} className="h-9 text-sm" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label className="text-xs">Interest %</Label>
+                        <Input type="number" value={offerForm.interest_rate} onChange={(e) => setOfferForm({ ...offerForm, interest_rate: e.target.value })} min={0} className="h-9 text-sm" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Min days</Label>
+                        <Input type="number" value={offerForm.min_duration} onChange={(e) => setOfferForm({ ...offerForm, min_duration: e.target.value })} min={1} className="h-9 text-sm" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Max days</Label>
+                        <Input type="number" value={offerForm.max_duration} onChange={(e) => setOfferForm({ ...offerForm, max_duration: e.target.value })} min={1} className="h-9 text-sm" />
+                      </div>
+                    </div>
+                    <Button size="sm" className="w-full" onClick={handleCreateOffer} disabled={savingOffer}>
+                      {savingOffer && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+                      Publish Offer
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {offers.length === 0 && !showOfferForm ? (
+                <Card className="border-dashed">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground">No offers yet. Publish one so users can request loans from you.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {offers.map((offer) => (
+                    <Card key={offer.id} className="border-border/60">
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-bold truncate">{offer.title}</p>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={offer.active} onCheckedChange={(c) => toggleOffer(offer.id, c)} />
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteOffer(offer.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {formatUGX(offer.min_amount_ugx)} – {formatUGX(offer.max_amount_ugx)} · {offer.interest_rate_pct}% · {offer.min_duration_days}-{offer.max_duration_days} days
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Incoming loan requests */}
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Inbox className="h-3.5 w-3.5" /> Loan Requests
+                </Label>
+                <Badge variant="outline" className="text-[10px]">
+                  {requests.filter((r) => r.status === 'pending').length} pending
+                </Badge>
+              </div>
+              {requests.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground">No loan requests yet.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {requests.map((req) => {
+                    const statusColor =
+                      req.status === 'approved' ? 'bg-emerald-500/15 text-emerald-700' :
+                      req.status === 'declined' ? 'bg-destructive/15 text-destructive' :
+                      'bg-amber-500/15 text-amber-700';
+                    return (
+                      <Card key={req.id} className="border-border/60">
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm font-bold truncate">{req.borrower_display_name ?? req.borrower_ai_id ?? 'User'}</p>
+                            <Badge className={`${statusColor} border-0 text-[9px] font-bold capitalize`}>{req.status}</Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {formatUGX(req.requested_amount_ugx)}{req.requested_duration_days ? ` · ${req.requested_duration_days} days` : ''}{req.interest_rate_pct != null ? ` · ${req.interest_rate_pct}%` : ''}
+                          </p>
+                          {req.purpose && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{req.purpose}</p>}
+                          {req.status === 'pending' && (
+                            <div className="flex gap-2 mt-2">
+                              <Button size="sm" variant="outline" className="flex-1 h-8 text-[11px]" disabled={decidingId === req.id} onClick={() => handleDeclineRequest(req)}>
+                                <X className="h-3 w-3 mr-1" /> Decline
+                              </Button>
+                              <Button size="sm" className="flex-1 h-8 text-[11px]" disabled={decidingId === req.id} onClick={() => handleApproveRequest(req)}>
+                                {decidingId === req.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Check className="h-3 w-3 mr-1" />}
+                                Approve & Disburse
+                              </Button>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* My loans list */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
