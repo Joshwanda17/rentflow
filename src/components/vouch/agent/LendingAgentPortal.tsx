@@ -287,6 +287,12 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       return;
     }
     setDecidingId(req.id);
+    const ratePct = req.interest_rate_pct ?? 0;
+    const totalOwed = principalNum + (principalNum * ratePct) / 100;
+    const durationDays = Number(req.requested_duration_days) || 30;
+    const dueStr = new Date(Date.now() + durationDays * 86400000).toISOString().slice(0, 10);
+    const reqFreq: RepaymentFrequency = durationDays <= 1 ? 'once' : 'monthly';
+    const reqSchedule = buildSchedule(totalOwed, reqFreq, new Date(), dueStr);
     const { data: loanRow, error } = await (supabase.from('lending_agent_loans' as any).insert({
       lender_agent_id: user.id,
       borrower_user_id: req.borrower_user_id,
@@ -295,11 +301,16 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       borrower_phone: req.borrower_phone,
       principal_ugx: principalNum,
       interest_rate_pct: req.interest_rate_pct ?? 0,
-      expected_repayment_date: null,
+      expected_repayment_date: dueStr,
       loan_purpose: req.purpose ?? null,
       platform_fee_ugx: fee,
       lender_trust_score_at_record: trustScore,
       status: 'active',
+      repayment_frequency: reqFreq,
+      auto_deduct_enabled: true,
+      installment_ugx: reqSchedule.installment,
+      next_deduction_date: reqSchedule.firstDate,
+      auto_deduct_started_at: new Date().toISOString(),
     }).select('id').single() as any);
     if (error) {
       setDecidingId(null);
