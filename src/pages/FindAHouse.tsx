@@ -486,15 +486,31 @@ export default function FindAHouse() {
     }
   }, [geo.city, geo.loading, geoDefaultApplied, sharedRegion]);
 
-  const { listings, loading } = useNearbyHouses({
+  const { listings, loading, hasMore } = useNearbyHouses({
     latitude: effectiveLat,
     longitude: effectiveLng,
     radiusKm: selectedRegion !== 'All Regions' ? 200 : 50,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
-    limit: 500,
+    limit: fetchLimit,
     enabled: hasSharedLocation || !geo.loading,
   });
+
+  // Load the next page when the sentinel scrolls into view.
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !hasMore || loading) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setFetchLimit((prev) => prev + PAGE_SIZE);
+        }
+      },
+      { rootMargin: '600px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loading]);
 
   const filtered = useMemo(() => {
     let result = [...listings];
