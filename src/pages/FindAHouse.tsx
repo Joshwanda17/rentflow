@@ -356,6 +356,38 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
         </div>
 
         <div className="flex flex-col gap-3">
+          {/* Travel mode toggle — choose driving or walking before navigating */}
+          {routeEstimate && (
+            <div className="flex items-center justify-center gap-0" role="group" aria-label="Travel mode">
+              <button
+                type="button"
+                onClick={() => setTravelMode('driving')}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-l-xl px-3 py-1.5 text-xs font-bold transition-colors border",
+                  travelMode === 'driving'
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:bg-muted"
+                )}
+                aria-pressed={travelMode === 'driving'}
+              >
+                <Car className="h-3.5 w-3.5" /> Driving
+              </button>
+              <button
+                type="button"
+                onClick={() => setTravelMode('walking')}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-r-xl px-3 py-1.5 text-xs font-bold transition-colors border-y border-r",
+                  travelMode === 'walking'
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:bg-muted"
+                )}
+                aria-pressed={travelMode === 'walking'}
+              >
+                <Footprints className="h-3.5 w-3.5" /> Walking
+              </button>
+            </div>
+          )}
+
           {/* Estimated route preview — distance + time before opening navigation */}
           {routeEstimate && (
             <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2 flex items-center justify-between gap-2">
