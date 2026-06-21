@@ -427,26 +427,26 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
               </div>
             </CardContent>
           </Card>
-        ) : !isAccepted ? (
-          <Card className="border-primary/30 bg-primary/5 mb-4">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-bold">Sign the Lending Agent Agreement</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    You qualify (score {trustScore}/100). Read & accept the terms to start lending. Welile takes a <span className="font-bold text-foreground">1% platform fee</span> per loan. <span className="font-bold text-amber-700">Welile does NOT vouch your peer loans</span> — you bear the credit risk.
-                  </p>
-                </div>
-              </div>
-              <Button size="sm" className="w-full" onClick={() => setShowAgreement(true)}>
-                <FileText className="h-4 w-4 mr-1.5" />
-                Read & Sign Agreement
-              </Button>
-            </CardContent>
-          </Card>
         ) : (
           <>
+            {/* Non-blocking agreement reminder — does NOT gate loan creation */}
+            {!isAccepted && (
+              <Card className="border-amber-500/30 bg-amber-500/5 mb-4">
+                <CardContent className="p-3 flex items-start gap-3">
+                  <ShieldCheck className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1.5 flex-1">
+                    <p className="text-xs font-bold">Lending Agent terms</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Welile takes a <span className="font-bold text-foreground">1% platform fee</span> per loan and does <span className="font-bold text-amber-700">NOT</span> vouch your peer loans — you bear the credit risk. You can start lending now and sign anytime.
+                    </p>
+                    <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setShowAgreement(true)}>
+                      <FileText className="h-3.5 w-3.5 mr-1" />
+                      Read & Sign
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {/* Lending capacity */}
             <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-primary/5 mb-4">
               <CardContent className="p-4">
