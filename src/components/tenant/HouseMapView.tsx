@@ -1,10 +1,12 @@
-import { useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet';
+import { useEffect, useMemo, useRef } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import type { HouseListing } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Button } from '@/components/ui/button';
 
 // Fix default marker icons (Leaflet's default assets break under bundlers)
 const DefaultIcon = L.icon({
@@ -33,12 +35,102 @@ function priceIcon(label: string, selected: boolean): L.DivIcon {
   });
 }
 
+// Build a popup DOM node with a working "View details" button.
+function buildPopup(l: HouseListing, onOpenDetails: (l: HouseListing) => void): HTMLElement {
+  const root = document.createElement('div');
+  root.style.width = '176px';
+  const photo = l.image_urls?.find((u) => typeof u === 'string' && u.trim().length > 0);
+  root.innerHTML = `
+    ${photo ? `<img src="${photo}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px;" loading="lazy" />` : ''}
+    <p style="font-weight:600;font-size:12px;line-height:1.2;margin:0 0 2px;">${l.title ?? ''}</p>
+    ${l.address ? `<p style="font-size:11px;color:#64748b;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${l.address}</p>` : ''}
+    <p style="font-size:12px;font-weight:700;margin:0 0 6px;">${formatUGX(l.daily_rate)}/day</p>
+  `;
+  const btn = document.createElement('button');
+  btn.textContent = 'View details';
+  btn.style.cssText =
+    'width:100%;height:28px;font-size:12px;font-weight:600;border:none;border-radius:6px;background:#0f172a;color:#fff;cursor:pointer;';
+  btn.addEventListener('click', () => onOpenDetails(l));
+  root.appendChild(btn);
+  return root;
+}
+
 interface HouseMapViewProps {
   listings: HouseListing[];
   userCoords: { lat: number; lng: number } | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onOpenDetails: (listing: HouseListing) => void;
+}
+
+/**
+ * Imperative clustered marker layer. leaflet.markercluster groups nearby pins
+ * into a single expandable badge so dense areas (e.g. central Kampala) stay
+ * legible instead of a pile of overlapping price pills.
+ */
+function ClusterLayer({
+  listings,
+  selectedId,
+  onSelect,
+  onOpenDetails,
+}: {
+  listings: HouseListing[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onOpenDetails: (l: HouseListing) => void;
+}) {
+  const map = useMap();
+  const markersRef = useRef<Map<string, L.Marker>>(new Map());
+
+  // Keep the latest callbacks without forcing a layer rebuild (a rebuild would
+  // close the popup that a marker click just opened).
+  const onSelectRef = useRef(onSelect);
+  const onOpenRef = useRef(onOpenDetails);
+  onSelectRef.current = onSelect;
+  onOpenRef.current = onOpenDetails;
+
+  // Build the cluster group whenever the visible set of listings changes.
+  useEffect(() => {
+    const group = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 55,
+      spiderfyOnMaxZoom: true,
+      chunkedLoading: true,
+    });
+
+    const markers = new Map<string, L.Marker>();
+    listings.forEach((l) => {
+      if (typeof l.latitude !== 'number' || typeof l.longitude !== 'number') return;
+      const marker = L.marker([l.latitude, l.longitude], {
+        icon: priceIcon(`${formatUGX(l.daily_rate)}/day`, selectedId === l.id),
+        zIndexOffset: selectedId === l.id ? 1000 : 0,
+      });
+      marker.on('click', () => onSelectRef.current(l.id));
+      marker.bindPopup(() => buildPopup(l, onOpenRef.current));
+      group.addLayer(marker);
+      markers.set(l.id, marker);
+    });
+
+    markersRef.current = markers;
+    map.addLayer(group);
+    return () => {
+      map.removeLayer(group);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, listings]);
+
+  // Re-style the selected pin without rebuilding the whole cluster group.
+  useEffect(() => {
+    markersRef.current.forEach((marker, id) => {
+      const isSel = id === selectedId;
+      const list = listings.find((l) => l.id === id);
+      if (!list) return;
+      marker.setIcon(priceIcon(`${formatUGX(list.daily_rate)}/day`, isSel));
+      marker.setZIndexOffset(isSel ? 1000 : 0);
+    });
+  }, [selectedId, listings]);
+
+  return null;
 }
 
 function FitBounds({
@@ -117,34 +209,12 @@ export function HouseMapView({ listings, userCoords, selectedId, onSelect, onOpe
             <Popup>You are here</Popup>
           </CircleMarker>
         )}
-        {mappable.map((l) => (
-          <Marker
-            key={l.id}
-            position={[l.latitude as number, l.longitude as number]}
-            icon={priceIcon(formatUGX(l.daily_rate) + '/day', selectedId === l.id)}
-            zIndexOffset={selectedId === l.id ? 1000 : 0}
-            eventHandlers={{ click: () => onSelect(l.id) }}
-          >
-            <Popup>
-              <div className="w-44 space-y-1.5">
-                {l.image_urls?.[0] && (
-                  <img
-                    src={l.image_urls[0]}
-                    alt={l.title}
-                    className="w-full h-24 object-cover rounded-md"
-                    loading="lazy"
-                  />
-                )}
-                <p className="font-semibold text-xs leading-tight line-clamp-2">{l.title}</p>
-                {l.address && <p className="text-[11px] text-muted-foreground line-clamp-1">{l.address}</p>}
-                <p className="text-xs font-bold">{formatUGX(l.daily_rate)}/day</p>
-                <Button size="sm" className="w-full h-7 text-xs" onClick={() => onOpenDetails(l)}>
-                  View details
-                </Button>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        <ClusterLayer
+          listings={mappable}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onOpenDetails={onOpenDetails}
+        />
         <FitBounds points={points} userCoords={userCoords} selectedId={selectedId} listings={mappable} />
       </MapContainer>
     </div>
