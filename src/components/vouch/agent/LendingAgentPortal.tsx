@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   Banknote, ShieldCheck, Lock, Search, Loader2, AlertCircle, Plus,
   CheckCircle2, FileText, Wallet, TrendingUp, Info, Megaphone, Inbox, Trash2, X, Check,
+  ScrollText,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyTrustScore } from '@/hooks/useMyTrustScore';
@@ -782,6 +783,38 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
                           )}
                         </CardContent>
                       </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Audit trail */}
+            <div className="space-y-2 mt-4">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <ScrollText className="h-3.5 w-3.5" /> Activity Log
+              </Label>
+              {auditLog.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No activity recorded yet.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {auditLog.map((a) => {
+                    const label = (a.action_type as string).replace(/_/g, ' ');
+                    return (
+                      <div key={a.id} className="flex items-start justify-between gap-2 rounded-lg border border-border/50 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold capitalize text-foreground">{label}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {a.actor_display_name ?? 'User'}
+                            {a.amount_ugx != null ? ` · ${formatUGX(Number(a.amount_ugx))}` : ''}
+                            {a.fee_ugx != null ? ` · fee ${formatUGX(Number(a.fee_ugx))}` : ''}
+                            {a.old_status && a.new_status ? ` · ${a.old_status} → ${a.new_status}` : ''}
+                          </p>
+                        </div>
+                        <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0">
+                          {new Date(a.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
                     );
                   })}
                 </div>
