@@ -390,10 +390,10 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
 
           {/* Estimated route summary — large scannable distance / mode / time values in fixed columns */}
           {routeEstimate && (
-            <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2.5 grid grid-cols-3 items-center gap-2">
+            <div className="rounded-2xl border border-border/60 bg-background/60 px-2 md:px-3 py-2 md:py-2.5 grid grid-cols-3 items-center gap-1 md:gap-2">
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Distance</span>
-                <span className="text-base font-black text-foreground tabular-nums leading-tight mt-0.5 truncate">
+                <span className="text-sm md:text-base font-black text-foreground tabular-nums leading-tight mt-0.5 truncate">
                   {routeEstimate.approximate ? '~' : ''}{routeEstimate.distanceLabel}
                 </span>
               </div>
@@ -401,18 +401,18 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Mode</span>
                 <div className="flex items-center gap-1 mt-0.5">
                   {travelMode === 'driving' ? (
-                    <Car className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <Car className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary shrink-0" />
                   ) : (
-                    <Footprints className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <Footprints className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary shrink-0" />
                   )}
-                  <span className="text-xs font-bold text-foreground uppercase tracking-tight">
+                  <span className="text-[10px] md:text-xs font-bold text-foreground uppercase tracking-tight">
                     {travelMode === 'driving' ? 'Drive' : 'Walk'}
                   </span>
                 </div>
               </div>
               <div className="flex flex-col items-end min-w-0">
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Time</span>
-                <span className="text-base font-black text-muted-foreground tabular-nums leading-tight mt-0.5 truncate">
+                <span className="text-sm md:text-base font-black text-muted-foreground tabular-nums leading-tight mt-0.5 truncate">
                   {routeEstimate.approximate ? '~' : ''}{routeEstimate.durationLabel}
                 </span>
               </div>
