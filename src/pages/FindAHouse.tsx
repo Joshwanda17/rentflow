@@ -354,6 +354,23 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
         </div>
 
         <div className="flex flex-col gap-3">
+          {/* Estimated route preview — distance + time before opening navigation */}
+          {routeEstimate && (
+            <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Route className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm font-bold text-foreground truncate">
+                  {routeEstimate.approximate ? '~' : ''}{routeEstimate.distanceLabel}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold text-muted-foreground">
+                  {routeEstimate.approximate ? '~' : ''}{routeEstimate.durationLabel}
+                </span>
+              </div>
+            </div>
+          )}
           {/* Get directions — opens Google Maps turn-by-turn navigation */}
           <Button asChild variant="outline" className="w-full gap-1.5 font-bold">
             <a
