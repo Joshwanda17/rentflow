@@ -89,6 +89,7 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
     max_duration: '30',
   });
   const myAiId = user ? generateWelileAiId(user.id) : null;
+  const borrowerInputRef = useRef<HTMLInputElement>(null);
 
   const trustScore = snapshot?.score ?? 0;
   const lendablePool = withdrawableBalance + commissionBalance;
