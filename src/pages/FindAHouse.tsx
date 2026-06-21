@@ -363,27 +363,27 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
                 type="button"
                 onClick={() => setTravelMode('driving')}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-l-xl px-3 py-1.5 text-xs font-bold transition-colors border",
+                  "flex items-center gap-1 rounded-l-xl px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold transition-colors border",
                   travelMode === 'driving'
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-muted-foreground border-border hover:bg-muted"
                 )}
                 aria-pressed={travelMode === 'driving'}
               >
-                <Car className="h-3.5 w-3.5" /> Driving
+                <Car className="h-3 w-3 md:h-3.5 md:w-3.5" /> Driving
               </button>
               <button
                 type="button"
                 onClick={() => setTravelMode('walking')}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-r-xl px-3 py-1.5 text-xs font-bold transition-colors border-y border-r",
+                  "flex items-center gap-1 rounded-r-xl px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold transition-colors border-y border-r",
                   travelMode === 'walking'
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-muted-foreground border-border hover:bg-muted"
                 )}
                 aria-pressed={travelMode === 'walking'}
               >
-                <Footprints className="h-3.5 w-3.5" /> Walking
+                <Footprints className="h-3 w-3 md:h-3.5 md:w-3.5" /> Walking
               </button>
             </div>
           )}
