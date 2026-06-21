@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
   Phone, MessageCircle, MessageSquare, HandCoins, Loader2, ChevronDown,
-  CheckCircle2, Clock, AlertTriangle, CalendarClock,
+  CheckCircle2, Clock, AlertTriangle, CalendarClock, Repeat,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { LendingLoan, outstandingOf, dueStateOf, normalizePhone } from './lendingHelpers';
@@ -45,6 +45,8 @@ export default function LendingBorrowerCard({ loan, onRecordRepayment }: Props) 
   const due = dueStateOf(loan);
   const statusStyle = STATUS_STYLE[loan.status] ?? STATUS_STYLE.active;
   const dueStyle = DUE_STYLE[due];
+  const autoOn = !!loan.auto_deduct_enabled && isOpen;
+  const freqLabel = (loan.repayment_frequency ?? '').replace('_', ' ');
 
   const contact = (kind: 'call' | 'wa' | 'sms') => {
     if (!phone) { toast.error('No phone number on file for this borrower'); return; }
@@ -121,6 +123,13 @@ export default function LendingBorrowerCard({ loan, onRecordRepayment }: Props) 
             <span className="text-[9px] text-muted-foreground font-semibold tabular-nums">{repaidPct}%</span>
             <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
           </div>
+          {autoOn && (
+            <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary">
+              <Repeat className="h-2.5 w-2.5" />
+              Auto {freqLabel} · ~{formatUGX(Number(loan.installment_ugx) || 0)}
+              {loan.next_deduction_date ? ` · next ${new Date(loan.next_deduction_date).toLocaleDateString()}` : ''}
+            </div>
+          )}
         </button>
 
         {/* Expanded actions */}
