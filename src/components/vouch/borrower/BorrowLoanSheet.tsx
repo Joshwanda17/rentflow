@@ -50,6 +50,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
   const [myRequests, setMyRequests] = useState<any[]>([]);
   const [me, setMe] = useState<{ full_name: string | null; phone: string | null } | null>(null);
   const [showOwnOffers, setShowOwnOffers] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('published');
 
   // Request form state
   const [activeOffer, setActiveOffer] = useState<Offer | null>(null);
