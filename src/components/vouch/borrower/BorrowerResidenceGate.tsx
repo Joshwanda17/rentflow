@@ -563,11 +563,13 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
                   onClick={() => { onOpenChange(false); onComplete(); }}
                 >
                   {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                  {complete ? <>Continue to loan request <ArrowRight className="h-4 w-4 ml-1.5" /></> : 'Add landlord & LC1 to continue'}
+                  {complete
+                    ? <>Continue to loan request <ArrowRight className="h-4 w-4 ml-1.5" /></>
+                    : (!landlord || !lc1) ? 'Add landlord & LC1 to continue' : 'Awaiting verification to continue'}
                 </Button>
                 {!complete && (
                   <p className="text-[10px] text-center text-muted-foreground mt-2">
-                    A landlord with GPS location and an LC1 chairperson are required so your lending agent can verify where you live.
+                    Loan requests are blocked until your landlord's GPS and your LC1 chairperson are <span className="font-semibold text-foreground">verified</span> by our team.
                   </p>
                 )}
               </motion.div>
