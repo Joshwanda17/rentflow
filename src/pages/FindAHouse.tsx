@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
-  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight
+  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight,
+  Map as MapIcon, List as ListIcon
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -25,6 +26,11 @@ import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
+
+// Leaflet + tiles are heavy; only load the map bundle when the user opens it.
+const HouseMapView = lazy(() =>
+  import('@/components/tenant/HouseMapView').then((m) => ({ default: m.HouseMapView }))
+);
 
 const REGIONS = [
   'All Regions', 'Central', 'Eastern', 'Northern', 'Western',
@@ -429,6 +435,8 @@ export default function FindAHouse() {
   );
   const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(searchText, 250);
+  const [showMap, setShowMap] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Funder context flows in from the funders dashboard "See all" link.
   const cameFromFunder = (location.state as { from?: string } | null)?.from === 'funder';
@@ -785,7 +793,11 @@ export default function FindAHouse() {
         </div>
 
         {/* Listings */}
-        <main id="house-list" tabIndex={-1} className="max-w-5xl mx-auto px-4 py-4 space-y-3 pb-20">
+        <main
+          id="house-list"
+          tabIndex={-1}
+          className={`${showMap ? 'max-w-7xl' : 'max-w-5xl'} mx-auto px-4 py-4 space-y-3 pb-20`}
+        >
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-48 w-full rounded-2xl" />
@@ -803,10 +815,48 @@ export default function FindAHouse() {
             </div>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground">
-                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
-              </p>
-              <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
+                </p>
+                <Button
+                  variant={showMap ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowMap((v) => !v)}
+                  className="gap-1.5 shrink-0"
+                  aria-pressed={showMap}
+                >
+                  {showMap ? <ListIcon className="h-4 w-4" /> : <MapIcon className="h-4 w-4" />}
+                  {showMap ? 'Hide map' : 'Show map'}
+                </Button>
+              </div>
+
+              {showMap ? (
+                <div className="flex flex-col md:flex-row gap-3">
+                  {/* Map — full width on mobile, sticky side pane on desktop */}
+                  <div className="md:order-2 md:w-[44%] md:sticky md:top-4 h-[55vh] md:h-[calc(100vh-7rem)] rounded-2xl overflow-hidden border border-border shrink-0">
+                    <Suspense fallback={<Skeleton className="h-full w-full" />}>
+                      <HouseMapView
+                        listings={filtered}
+                        userCoords={
+                          effectiveLat != null && effectiveLng != null
+                            ? { lat: effectiveLat, lng: effectiveLng }
+                            : null
+                        }
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
+                        onOpenDetails={openDetails}
+                      />
+                    </Suspense>
+                  </div>
+                  {/* List — hidden on mobile while the map is open (toggle), shown beside map on desktop */}
+                  <div className="hidden md:block md:order-1 md:flex-1 min-w-0">
+                    <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
+                  </div>
+                </div>
+              ) : (
+                <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
+              )}
             </>
           )}
         </main>
