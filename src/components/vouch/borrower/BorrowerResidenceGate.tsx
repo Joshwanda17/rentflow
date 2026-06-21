@@ -1,0 +1,422 @@
+import { useState, useEffect, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Building2, MapPin, ShieldCheck, ShieldAlert, UserCheck, Loader2,
+  CheckCircle2, Plus, Search, X, ArrowRight, Home, Gavel,
+} from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import LandlordRegistrationForm from '@/components/shared/LandlordRegistrationForm';
+import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
+import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
+
+interface LinkedLandlord {
+  id: string;
+  name: string;
+  phone: string | null;
+  verified: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
+  property_address: string | null;
+  village: string | null;
+  district: string | null;
+  registered_by: string | null;
+}
+
+interface LinkedLc1 {
+  id: string;
+  name: string;
+  phone: string | null;
+  verified: boolean | null;
+  village: string | null;
+}
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Fired once the borrower's residence profile is complete and they tap continue. */
+  onComplete: () => void;
+}
+
+/** A residence profile is "complete enough" to request a loan when the borrower
+ *  has a linked landlord WITH GPS, and a linked LC1 chairperson. */
+export function isResidenceComplete(landlord: LinkedLandlord | null, lc1: LinkedLc1 | null) {
+  const landlordOk = !!landlord && landlord.latitude != null && landlord.longitude != null;
+  const lc1Ok = !!lc1;
+  return landlordOk && lc1Ok;
+}
+
+export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }: Props) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [landlord, setLandlord] = useState<LinkedLandlord | null>(null);
+  const [lc1, setLc1] = useState<LinkedLc1 | null>(null);
+  const [agentName, setAgentName] = useState<string | null>(null);
+
+  // sub-flows
+  const [addLandlord, setAddLandlord] = useState(false);
+  const [addLc1, setAddLc1] = useState(false);
+
+  // landlord search
+  const [landlordSearch, setLandlordSearch] = useState('');
+
+  // lc1 search + manual add
+  const [lc1Search, setLc1Search] = useState('');
+  const [lc1Results, setLc1Results] = useState<LinkedLc1[]>([]);
+  const [lc1Searching, setLc1Searching] = useState(false);
+  const [lc1Form, setLc1Form] = useState({ name: '', phone: '', village: '' });
+
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('borrower_landlord_id, borrower_lc1_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    let ll: LinkedLandlord | null = null;
+    if (prof?.borrower_landlord_id) {
+      const { data } = await supabase
+        .from('landlords')
+        .select('id, name, phone, verified, latitude, longitude, property_address, village, district, registered_by')
+        .eq('id', prof.borrower_landlord_id)
+        .maybeSingle();
+      ll = (data as LinkedLandlord) ?? null;
+    }
+    setLandlord(ll);
+
+    let chair: LinkedLc1 | null = null;
+    if (prof?.borrower_lc1_id) {
+      const { data } = await supabase
+        .from('lc1_chairpersons')
+        .select('id, name, phone, verified, village')
+        .eq('id', prof.borrower_lc1_id)
+        .maybeSingle();
+      chair = (data as LinkedLc1) ?? null;
+    }
+    setLc1(chair);
+
+    if (ll?.registered_by) {
+      const { data: ag } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', ll.registered_by)
+        .maybeSingle();
+      setAgentName(ag?.full_name ?? null);
+    } else {
+      setAgentName(null);
+    }
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (open) {
+      setAddLandlord(false);
+      setAddLc1(false);
+      setLandlordSearch('');
+      setLc1Search('');
+      setLc1Form({ name: '', phone: '', village: '' });
+      loadProfile();
+    }
+  }, [open, loadProfile]);
+
+  // LC1 search effect
+  useEffect(() => {
+    const term = lc1Search.trim();
+    if (term.length < 2) { setLc1Results([]); return; }
+    let active = true;
+    setLc1Searching(true);
+    const t = setTimeout(async () => {
+      const digits = term.replace(/\D/g, '');
+      const orParts = [`name.ilike.%${term}%`, `phone.ilike.%${term}%`];
+      if (digits.length >= 3 && digits !== term) orParts.push(`phone.ilike.%${digits}%`);
+      const { data } = await supabase
+        .from('lc1_chairpersons')
+        .select('id, name, phone, verified, village')
+        .or(orParts.join(','))
+        .limit(8);
+      if (active) {
+        const rows = (data ?? []) as LinkedLc1[];
+        rows.sort((a, b) => (Boolean(a.verified) === Boolean(b.verified) ? 0 : a.verified ? -1 : 1));
+        setLc1Results(rows);
+        setLc1Searching(false);
+      }
+    }, 250);
+    return () => { active = false; clearTimeout(t); };
+  }, [lc1Search]);
+
+  const linkLandlord = async (landlordId: string) => {
+    if (!user) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ borrower_landlord_id: landlordId })
+      .eq('id', user.id);
+    setSaving(false);
+    if (error) { toast.error('Could not link landlord: ' + error.message); return; }
+    toast.success('Landlord added to your profile');
+    setAddLandlord(false);
+    setLandlordSearch('');
+    loadProfile();
+  };
+
+  const linkLc1 = async (lc1Id: string) => {
+    if (!user) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ borrower_lc1_id: lc1Id })
+      .eq('id', user.id);
+    setSaving(false);
+    if (error) { toast.error('Could not link LC1: ' + error.message); return; }
+    toast.success('LC1 chairperson added to your profile');
+    setAddLc1(false);
+    setLc1Search('');
+    loadProfile();
+  };
+
+  const handleSelectLandlord = (l: LandlordOption) => {
+    if (l.latitude == null || l.longitude == null) {
+      toast.error('That landlord has no GPS location yet. Pick another or add your own with GPS.');
+    }
+    linkLandlord(l.id);
+  };
+
+  const handleAddLc1 = async () => {
+    if (!user) return;
+    if (!lc1Form.name.trim()) { toast.error('LC1 name is required'); return; }
+    setSaving(true);
+    const { data, error } = await supabase
+      .from('lc1_chairpersons')
+      .insert({
+        name: lc1Form.name.trim(),
+        phone: lc1Form.phone.trim() || null,
+        village: lc1Form.village.trim() || null,
+        registered_by: user.id,
+        verified: false,
+      })
+      .select('id')
+      .single();
+    setSaving(false);
+    if (error || !data) { toast.error('Could not add LC1: ' + (error?.message ?? 'unknown')); return; }
+    await linkLc1(data.id);
+  };
+
+  const complete = isResidenceComplete(landlord, lc1);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[92vh] overflow-y-auto p-0 gap-0">
+        {/* Header */}
+        <DialogHeader className="px-5 pt-5 pb-3 border-b">
+          <DialogTitle className="flex items-center gap-2.5 text-base">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center">
+              <Home className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold tracking-tight">Complete your residence profile</p>
+              <p className="text-[11px] font-normal text-muted-foreground">Required before you can request a loan</p>
+            </div>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="px-5 py-4 space-y-4">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : addLandlord ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold">Add your landlord</p>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAddLandlord(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <LandlordRegistrationForm
+                registeredByRole="tenant"
+                onClose={() => setAddLandlord(false)}
+                onSuccess={(l) => { if (l?.id) linkLandlord(l.id); }}
+                toastFn={(opts) => {
+                  if (opts.variant === 'destructive') toast.error(opts.title, { description: opts.description });
+                  else toast.success(opts.title, { description: opts.description });
+                }}
+              />
+            </div>
+          ) : addLc1 ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold">Add your LC1 chairperson</p>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAddLc1(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <Label className="text-xs">Chairperson name *</Label>
+                  <Input value={lc1Form.name} onChange={(e) => setLc1Form((f) => ({ ...f, name: e.target.value }))} placeholder="Full name" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">Phone</Label>
+                  <Input value={lc1Form.phone} onChange={(e) => setLc1Form((f) => ({ ...f, phone: e.target.value }))} placeholder="07XXXXXXXX" inputMode="tel" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">Village / zone</Label>
+                  <Input value={lc1Form.village} onChange={(e) => setLc1Form((f) => ({ ...f, village: e.target.value }))} placeholder="Village name" className="h-9 text-sm" />
+                </div>
+                <p className="text-[10px] text-muted-foreground">Your LC1 will be verified by our team later. You can still continue now.</p>
+                <Button size="sm" className="w-full h-9 font-bold" disabled={saving} onClick={handleAddLc1}>
+                  {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  Save LC1 chairperson
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* LANDLORD SECTION */}
+              <Card className={landlord ? 'border-emerald-500/40' : 'border-dashed'}>
+                <CardContent className="p-3.5 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    <p className="text-sm font-bold">Your landlord</p>
+                    {landlord && landlord.latitude != null && (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-auto" />
+                    )}
+                  </div>
+
+                  {landlord ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-semibold">{landlord.name}</p>
+                        {landlord.verified ? (
+                          <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold gap-0.5"><ShieldCheck className="h-2.5 w-2.5" />Verified</Badge>
+                        ) : (
+                          <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[9px] font-bold gap-0.5"><ShieldAlert className="h-2.5 w-2.5" />Pending verify</Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        {landlord.latitude != null && landlord.longitude != null
+                          ? `GPS ${landlord.latitude.toFixed(5)}, ${landlord.longitude.toFixed(5)}`
+                          : <span className="text-amber-600 font-semibold">No GPS — add a landlord with location</span>}
+                      </p>
+                      {(landlord.property_address || landlord.village) && (
+                        <p className="text-[11px] text-muted-foreground">{landlord.property_address || landlord.village}</p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <UserCheck className="h-3 w-3 shrink-0" />
+                        {agentName ? `Registered by ${agentName}` : 'Registered by you'}
+                      </p>
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-primary" onClick={() => setLandlord(null)}>
+                        Change landlord
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label className="text-[11px] text-muted-foreground">Search a registered landlord by name or phone</Label>
+                      <LandlordAutocompleteInput
+                        field="name"
+                        value={landlordSearch}
+                        onChange={setLandlordSearch}
+                        onSelect={handleSelectLandlord}
+                        placeholder="Landlord name or phone"
+                        className="h-9 text-sm"
+                      />
+                      <Button variant="outline" size="sm" className="w-full h-9 text-xs font-bold" onClick={() => setAddLandlord(true)}>
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> My landlord isn't registered — add them
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* LC1 SECTION */}
+              <Card className={lc1 ? 'border-emerald-500/40' : 'border-dashed'}>
+                <CardContent className="p-3.5 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Gavel className="h-4 w-4 text-primary" />
+                    <p className="text-sm font-bold">Your LC1 chairperson</p>
+                    {lc1 && <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-auto" />}
+                  </div>
+
+                  {lc1 ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-semibold">{lc1.name}</p>
+                        {lc1.verified ? (
+                          <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold gap-0.5"><ShieldCheck className="h-2.5 w-2.5" />Verified</Badge>
+                        ) : (
+                          <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[9px] font-bold gap-0.5"><ShieldAlert className="h-2.5 w-2.5" />Pending verify</Badge>
+                        )}
+                      </div>
+                      {(lc1.phone || lc1.village) && (
+                        <p className="text-[11px] text-muted-foreground">{[lc1.phone, lc1.village].filter(Boolean).join(' · ')}</p>
+                      )}
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-primary" onClick={() => setLc1(null)}>
+                        Change LC1
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label className="text-[11px] text-muted-foreground">Search your LC1 chairperson by name or phone</Label>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input value={lc1Search} onChange={(e) => setLc1Search(e.target.value)} placeholder="LC1 name or phone" className="h-9 text-sm pl-8" />
+                      </div>
+                      {lc1Searching && <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Searching…</p>}
+                      {lc1Results.length > 0 && (
+                        <div className="rounded-xl border divide-y overflow-hidden">
+                          {lc1Results.map((r) => (
+                            <button key={r.id} type="button" onClick={() => linkLc1(r.id)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-accent transition-colors">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                <Gavel className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold truncate">{r.name}</p>
+                                <p className="text-[11px] text-muted-foreground truncate">{[r.phone, r.village].filter(Boolean).join(' · ') || 'LC1 chairperson'}</p>
+                              </div>
+                              <span className="text-[11px] font-semibold text-primary shrink-0">Use</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <Button variant="outline" size="sm" className="w-full h-9 text-xs font-bold" onClick={() => setAddLc1(true)}>
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> My LC1 isn't listed — add them
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* CONTINUE */}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <Button
+                  className="w-full h-11 font-bold"
+                  disabled={!complete || saving}
+                  onClick={() => { onOpenChange(false); onComplete(); }}
+                >
+                  {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                  {complete ? <>Continue to loan request <ArrowRight className="h-4 w-4 ml-1.5" /></> : 'Add landlord & LC1 to continue'}
+                </Button>
+                {!complete && (
+                  <p className="text-[10px] text-center text-muted-foreground mt-2">
+                    A landlord with GPS location and an LC1 chairperson are required so your lending agent can verify where you live.
+                  </p>
+                )}
+              </motion.div>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

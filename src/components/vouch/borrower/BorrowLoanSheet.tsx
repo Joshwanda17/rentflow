@@ -17,6 +17,7 @@ import { generateWelileAiId, normalizeAiId, isValidAiId } from '@/lib/welileAiId
 import { logLendingAudit } from '@/lib/lendingAudit';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import BorrowerResidenceGate, { isResidenceComplete } from './BorrowerResidenceGate';
 
 interface Props {
   open: boolean;
@@ -61,6 +62,11 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
 
   // Direct request by lender AI ID
   const [lenderAiInput, setLenderAiInput] = useState('');
+
+  // Residence profile gate (landlord + GPS + LC1) — required before requesting
+  const [residenceComplete, setResidenceComplete] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
+  const pendingActionRef = useRef<null | (() => void)>(null);
 
   const myAiId = user ? generateWelileAiId(user.id) : null;
   const PAGE_SIZE = 20;
@@ -109,13 +115,47 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
     (async () => {
       const { data: prof } = await (supabase
         .from('profiles')
-        .select('full_name, phone')
+        .select('full_name, phone, borrower_landlord_id, borrower_lc1_id')
         .eq('id', user.id)
         .maybeSingle() as any);
       setMe({ full_name: prof?.full_name ?? null, phone: prof?.phone ?? null });
+      await refreshResidence(prof);
       reloadRequests();
     })();
   }, [open, user, reloadRequests, loadOffers]);
+
+  // Re-check the borrower's residence profile completeness (landlord w/ GPS + LC1)
+  const refreshResidence = useCallback(async (prof?: any) => {
+    if (!user) { setResidenceComplete(false); return; }
+    let p = prof;
+    if (!p) {
+      const { data } = await (supabase
+        .from('profiles')
+        .select('borrower_landlord_id, borrower_lc1_id')
+        .eq('id', user.id)
+        .maybeSingle() as any);
+      p = data;
+    }
+    if (!p?.borrower_landlord_id || !p?.borrower_lc1_id) { setResidenceComplete(false); return; }
+    const { data: ll } = await (supabase
+      .from('landlords')
+      .select('id, latitude, longitude, verified, name, phone, property_address, village, district, registered_by')
+      .eq('id', p.borrower_landlord_id)
+      .maybeSingle() as any);
+    const { data: chair } = await (supabase
+      .from('lc1_chairpersons')
+      .select('id, name, phone, verified, village')
+      .eq('id', p.borrower_lc1_id)
+      .maybeSingle() as any);
+    setResidenceComplete(isResidenceComplete(ll ?? null, chair ?? null));
+  }, [user]);
+
+  // Run `action` only when the residence profile is complete; otherwise open the gate.
+  const requireResidence = (action: () => void) => {
+    if (residenceComplete) { action(); return; }
+    pendingActionRef.current = action;
+    setGateOpen(true);
+  };
 
   // Infinite scroll: load the next page when the sentinel enters view
   useEffect(() => {
@@ -132,10 +172,12 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
   }, [open, activeOffer, hasMore, loading, loadingMore, loadOffers]);
 
   const openRequest = (offer: Offer) => {
-    setActiveOffer(offer);
-    setAmount(String(offer.min_amount_ugx));
-    setDuration(String(offer.min_duration_days));
-    setPurpose('');
+    requireResidence(() => {
+      setActiveOffer(offer);
+      setAmount(String(offer.min_amount_ugx));
+      setDuration(String(offer.min_duration_days));
+      setPurpose('');
+    });
   };
 
   const submitRequest = async (opts: { offer?: Offer | null; lenderAgentId?: string; rate?: number | null }) => {
@@ -193,7 +235,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
     }
     setAmount(''); setDuration(''); setPurpose('');
     // Open a generic request form by setting a synthetic active offer
-    setActiveOffer({
+    requireResidence(() => setActiveOffer({
       id: '',
       lender_agent_id: profile.user_id,
       lender_display_name: profile.identity?.full_name ?? cleaned,
@@ -206,12 +248,23 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
       min_duration_days: 1,
       max_duration_days: 365,
       active: true,
-    });
+    }));
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[94vh] overflow-y-auto rounded-t-2xl px-4 pb-8 pt-5">
+        <BorrowerResidenceGate
+          open={gateOpen}
+          onOpenChange={setGateOpen}
+          onComplete={() => {
+            setResidenceComplete(true);
+            const action = pendingActionRef.current;
+            pendingActionRef.current = null;
+            refreshResidence();
+            action?.();
+          }}
+        />
         <div className="flex items-center gap-2.5 mb-4">
           <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center">
             <HandCoins className="h-4 w-4 text-white" />
