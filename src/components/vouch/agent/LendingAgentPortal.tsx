@@ -528,6 +528,30 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
             <Skeleton className="h-40 w-full rounded-2xl" />
           ) : (
             <>
+              {/* Principal protection guarantee — always visible & prominent.
+                  Borrowers never see this; it is for the Lending Agent only. */}
+              <div className="mb-4 rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="h-9 w-9 shrink-0 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-extrabold text-foreground leading-tight">Your principal is protected</p>
+                      <Badge className="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5">100%</Badge>
+                    </div>
+                    <p className="text-[12px] text-foreground/80 leading-relaxed">
+                      <span className="font-bold">Welile Technologies pays you 100% of the principal</span> if a borrower
+                      defaults — whether they paid <span className="font-bold">nothing</span> or only{' '}
+                      <span className="font-bold">part</span> of the loan. You only risk the interest, not your money.
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Applies only to loans recorded inside Welile. Interest is not guaranteed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Non-blocking agreement reminder */}
               {!isAccepted && (
                 <Card className="border-amber-500/30 bg-amber-500/5 mb-4">
@@ -536,7 +560,7 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
                     <div className="space-y-1.5 flex-1">
                       <p className="text-xs font-bold">Lending Agent terms</p>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        Welile takes a <span className="font-bold text-foreground">1% platform fee</span> per loan and does <span className="font-bold text-amber-700">NOT</span> vouch your peer loans — you bear the credit risk. You can start lending now and sign anytime.
+                        Welile takes a <span className="font-bold text-foreground">1% platform fee</span> per loan and <span className="font-bold text-emerald-700">guarantees 100% of your principal</span> if a borrower defaults (pays nothing or only part). Read &amp; sign the updated terms to understand your protection.
                       </p>
                       <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setShowAgreement(true)}>
                         <FileText className="h-3.5 w-3.5 mr-1" />
