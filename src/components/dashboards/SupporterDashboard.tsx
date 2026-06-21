@@ -615,7 +615,7 @@ export default function SupporterDashboard({
               <h2 className="text-sm font-black text-foreground tracking-tight">Houses on Welile</h2>
             </div>
             <WidgetErrorBoundary label="Houses on Welile">
-              <PublicHousesPreview />
+              <PublicHousesPreview authenticated />
             </WidgetErrorBoundary>
           </div>
 
