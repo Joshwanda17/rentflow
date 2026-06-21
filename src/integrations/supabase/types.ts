@@ -10187,6 +10187,132 @@ export type Database = {
         }
         Relationships: []
       }
+      lending_agent_offers: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          interest_rate_pct: number
+          lender_agent_id: string
+          lender_ai_id: string | null
+          lender_display_name: string | null
+          max_amount_ugx: number
+          max_duration_days: number
+          min_amount_ugx: number
+          min_duration_days: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          interest_rate_pct?: number
+          lender_agent_id: string
+          lender_ai_id?: string | null
+          lender_display_name?: string | null
+          max_amount_ugx?: number
+          max_duration_days?: number
+          min_amount_ugx?: number
+          min_duration_days?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          interest_rate_pct?: number
+          lender_agent_id?: string
+          lender_ai_id?: string | null
+          lender_display_name?: string | null
+          max_amount_ugx?: number
+          max_duration_days?: number
+          min_amount_ugx?: number
+          min_duration_days?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lending_loan_requests: {
+        Row: {
+          borrower_ai_id: string | null
+          borrower_display_name: string | null
+          borrower_phone: string | null
+          borrower_user_id: string
+          created_at: string
+          decided_at: string | null
+          decline_reason: string | null
+          id: string
+          interest_rate_pct: number | null
+          lender_agent_id: string
+          loan_id: string | null
+          offer_id: string | null
+          purpose: string | null
+          requested_amount_ugx: number
+          requested_duration_days: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          borrower_ai_id?: string | null
+          borrower_display_name?: string | null
+          borrower_phone?: string | null
+          borrower_user_id: string
+          created_at?: string
+          decided_at?: string | null
+          decline_reason?: string | null
+          id?: string
+          interest_rate_pct?: number | null
+          lender_agent_id: string
+          loan_id?: string | null
+          offer_id?: string | null
+          purpose?: string | null
+          requested_amount_ugx: number
+          requested_duration_days?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          borrower_ai_id?: string | null
+          borrower_display_name?: string | null
+          borrower_phone?: string | null
+          borrower_user_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decline_reason?: string | null
+          id?: string
+          interest_rate_pct?: number | null
+          lender_agent_id?: string
+          loan_id?: string | null
+          offer_id?: string | null
+          purpose?: string | null
+          requested_amount_ugx?: number
+          requested_duration_days?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lending_loan_requests_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "lending_agent_loans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lending_loan_requests_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "lending_agent_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       liquidity_alerts: {
         Row: {
           agent_id: string
