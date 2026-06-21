@@ -546,7 +546,11 @@ export default function FindAHouse() {
         result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         break;
       case 'nearest':
-        result.sort((a, b) => (a.distance_km ?? 99999) - (b.distance_km ?? 99999));
+        result.sort((a, b) => {
+          const da = a.distance_km ?? (effectiveLat && effectiveLng ? distanceToHouse(a, effectiveLat, effectiveLng) : null) ?? 99999;
+          const db = b.distance_km ?? (effectiveLat && effectiveLng ? distanceToHouse(b, effectiveLat, effectiveLng) : null) ?? 99999;
+          return da - db;
+        });
         break;
       case 'price_asc':
       default:
@@ -554,7 +558,7 @@ export default function FindAHouse() {
         break;
     }
     return result;
-  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey]);
+  }, [listings, debouncedSearch, verifiedOnly, maxDaily, activeAmenities, sortKey, effectiveLat, effectiveLng]);
 
   const activeFilterCount =
     (verifiedOnly ? 1 : 0) +
