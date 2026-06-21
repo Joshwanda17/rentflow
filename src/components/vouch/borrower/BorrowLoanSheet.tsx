@@ -263,7 +263,13 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
 
             {/* Offers list */}
             <div className="space-y-2 mb-4">
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Available Loan Offers</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Available Loan Offers</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground">Show my offers</span>
+                  <Switch checked={showOwnOffers} onCheckedChange={setShowOwnOffers} className="scale-75" />
+                </div>
+              </div>
               {loading ? (
                 <Skeleton className="h-24 w-full rounded-xl" />
               ) : offers.length === 0 ? (
