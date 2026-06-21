@@ -595,6 +595,27 @@ export default function FindAHouse() {
     setMaxDaily('all');
     setActiveAmenities([]);
     setSelectedCategory('all');
+    setSelectedDistrict('all');
+    setSelectedSubCounty('all');
+    setSelectedVillage('all');
+  };
+
+  // Selecting a broader area resets the narrower ones so we never keep a stale
+  // district/village that no longer belongs to the new selection.
+  const handleRegionChange = (value: string) => {
+    setSelectedRegion(value);
+    setSelectedDistrict('all');
+    setSelectedSubCounty('all');
+    setSelectedVillage('all');
+  };
+  const handleDistrictChange = (value: string) => {
+    setSelectedDistrict(value);
+    setSelectedSubCounty('all');
+    setSelectedVillage('all');
+  };
+  const handleSubCountyChange = (value: string) => {
+    setSelectedSubCounty(value);
+    setSelectedVillage('all');
   };
 
   useEffect(() => {
