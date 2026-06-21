@@ -905,11 +905,11 @@ export default function FindAHouse() {
                   </div>
                   {/* List — hidden on mobile while the map is open (toggle), shown beside map on desktop */}
                   <div className="hidden md:block md:order-1 md:flex-1 min-w-0">
-                    <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
+                    <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
                   </div>
                 </div>
               ) : (
-                <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
+                <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
               )}
             </>
           )}
