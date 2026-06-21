@@ -11,7 +11,7 @@ import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
   SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight,
-  Map as MapIcon, List as ListIcon, Footprints
+  Map as MapIcon, List as ListIcon, Route, Footprints
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -388,33 +388,39 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
             </div>
           )}
 
-          {/* Estimated route summary — large scannable distance / mode / time values in fixed columns */}
+          {/* Estimated route summary — desktop shows labels; mobile goes icon-only/value-inline to prevent wrapping */}
           {routeEstimate && (
-            <div className="rounded-2xl border border-border/60 bg-background/60 px-2 md:px-3 py-2 md:py-2.5 grid grid-cols-3 items-center gap-1 md:gap-2">
-              <div className="flex flex-col min-w-0">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Distance</span>
-                <span className="text-sm md:text-base font-black text-foreground tabular-nums leading-tight mt-0.5 truncate">
-                  {routeEstimate.approximate ? '~' : ''}{routeEstimate.distanceLabel}
-                </span>
+            <div className="rounded-2xl border border-border/60 bg-background/60 px-1.5 md:px-3 py-1.5 md:py-2.5 grid grid-cols-3 items-center gap-1 md:gap-2">
+              <div className="flex flex-col min-w-0 md:items-start items-center">
+                <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Distance</span>
+                <div className="flex items-center gap-1 mt-0 md:mt-0.5">
+                  <Route className="h-3.5 w-3.5 text-primary md:hidden shrink-0" />
+                  <span className="text-sm md:text-base font-black text-foreground tabular-nums leading-tight truncate">
+                    {routeEstimate.approximate ? '~' : ''}{routeEstimate.distanceLabel}
+                  </span>
+                </div>
               </div>
               <div className="flex flex-col items-center min-w-0">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Mode</span>
-                <div className="flex items-center gap-1 mt-0.5">
+                <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Mode</span>
+                <div className="flex items-center gap-1 mt-0 md:mt-0.5">
                   {travelMode === 'driving' ? (
                     <Car className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary shrink-0" />
                   ) : (
                     <Footprints className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary shrink-0" />
                   )}
-                  <span className="text-[10px] md:text-xs font-bold text-foreground uppercase tracking-tight">
+                  <span className="hidden md:inline text-xs font-bold text-foreground uppercase tracking-tight">
                     {travelMode === 'driving' ? 'Drive' : 'Walk'}
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col items-end min-w-0">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Time</span>
-                <span className="text-sm md:text-base font-black text-muted-foreground tabular-nums leading-tight mt-0.5 truncate">
-                  {routeEstimate.approximate ? '~' : ''}{routeEstimate.durationLabel}
-                </span>
+              <div className="flex flex-col min-w-0 md:items-end items-center">
+                <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Time</span>
+                <div className="flex items-center gap-1 mt-0 md:mt-0.5">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground md:hidden shrink-0" />
+                  <span className="text-sm md:text-base font-black text-muted-foreground tabular-nums leading-tight truncate">
+                    {routeEstimate.approximate ? '~' : ''}{routeEstimate.durationLabel}
+                  </span>
+                </div>
               </div>
             </div>
           )}
