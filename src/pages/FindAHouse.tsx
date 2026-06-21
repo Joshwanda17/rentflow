@@ -390,19 +390,19 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
 
           {/* Estimated route summary — desktop shows labels; mobile goes icon-only/value-inline to prevent wrapping */}
           {routeEstimate && (
-            <div className="rounded-2xl border border-border/60 bg-background/60 px-1.5 md:px-3 py-1.5 md:py-2.5 grid grid-cols-3 items-center gap-1 md:gap-2">
-              <div className="flex flex-col min-w-0 md:items-start items-center">
+            <div className="rounded-2xl border border-border/60 bg-background/60 px-2 md:px-3 py-2 md:py-2.5 grid grid-cols-[1fr_auto_1fr] items-center gap-x-2 md:gap-x-3 gap-y-1 overflow-hidden">
+              <div className="flex flex-col min-w-0 md:items-start items-start">
                 <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Distance</span>
-                <div className="flex items-center gap-1 mt-0 md:mt-0.5">
+                <div className="flex items-center gap-1 min-w-0 mt-0 md:mt-0.5">
                   <Route className="h-3.5 w-3.5 text-primary md:hidden shrink-0" />
-                  <span className="text-sm md:text-base font-black text-foreground tabular-nums leading-tight truncate">
+                  <span className="text-xs md:text-sm lg:text-base font-black text-foreground tabular-nums leading-tight truncate">
                     {routeEstimate.approximate ? '~' : ''}{routeEstimate.distanceLabel}
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col items-center min-w-0">
+              <div className="flex flex-col items-center min-w-0 px-1">
                 <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Mode</span>
-                <div className="flex items-center gap-1 mt-0 md:mt-0.5">
+                <div className="flex items-center gap-1 min-w-0 mt-0 md:mt-0.5">
                   {travelMode === 'driving' ? (
                     <Car className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary shrink-0" />
                   ) : (
@@ -413,11 +413,11 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col min-w-0 md:items-end items-center">
+              <div className="flex flex-col min-w-0 md:items-end items-end">
                 <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Time</span>
-                <div className="flex items-center gap-1 mt-0 md:mt-0.5">
+                <div className="flex items-center gap-1 min-w-0 mt-0 md:mt-0.5">
                   <Clock className="h-3.5 w-3.5 text-muted-foreground md:hidden shrink-0" />
-                  <span className="text-sm md:text-base font-black text-muted-foreground tabular-nums leading-tight truncate">
+                  <span className="text-xs md:text-sm lg:text-base font-black text-muted-foreground tabular-nums leading-tight truncate">
                     {routeEstimate.approximate ? '~' : ''}{routeEstimate.durationLabel}
                   </span>
                 </div>
