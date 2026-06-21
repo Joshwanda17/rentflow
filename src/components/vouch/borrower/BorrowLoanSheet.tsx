@@ -289,6 +289,16 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
                       </CardContent>
                     </Card>
                   ))}
+                  {/* Infinite-scroll sentinel + loader */}
+                  <div ref={sentinelRef} className="h-1 w-full" />
+                  {loadingMore && (
+                    <div className="flex justify-center py-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {!hasMore && offers.length > 0 && (
+                    <p className="text-center text-[10px] text-muted-foreground py-2">You've reached the end · {offers.length} offers</p>
+                  )}
                 </div>
               )}
             </div>
