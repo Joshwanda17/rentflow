@@ -730,7 +730,10 @@ export default function FindAHouse() {
     (verifiedOnly ? 1 : 0) +
     (maxDaily !== 'all' ? 1 : 0) +
     activeAmenities.length +
-    (selectedCategory !== 'all' ? 1 : 0);
+    (selectedCategory !== 'all' ? 1 : 0) +
+    (selectedDistrict !== 'all' ? 1 : 0) +
+    (selectedSubCounty !== 'all' ? 1 : 0) +
+    (selectedVillage !== 'all' ? 1 : 0);
 
   const sortLabel = SORT_OPTIONS.find(s => s.value === sortKey)?.label ?? '';
 
