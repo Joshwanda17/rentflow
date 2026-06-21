@@ -101,6 +101,10 @@ export function ResidenceVerificationPanel() {
     setSaving(false);
     if (error) { toast.error(error.message || 'Could not update status'); return; }
     toast.success(`${entity === 'landlord' ? 'Landlord' : 'LC1'} set to ${newStatus}`);
+    // Fire optional email/SMS alerts to linked borrowers (best-effort).
+    supabase.functions.invoke('notify-verification-change', {
+      body: { entity, id: target.id, status: newStatus, reason: reason.trim() },
+    }).catch((e) => console.error('notify-verification-change failed', e));
     setTarget(null);
     qc.invalidateQueries({ queryKey: ['residence-verification'] });
     qc.invalidateQueries({ queryKey: ['landlord-ops-pending-verification-count'] });
