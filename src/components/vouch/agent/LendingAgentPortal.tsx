@@ -95,9 +95,9 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
   const lendablePool = withdrawableBalance + commissionBalance;
   const eligible = true; // Any user qualifies to lend
 
-  // Load my disbursed loans when sheet opens & agreement is accepted
+  // Load my disbursed loans when sheet opens (no agreement gate — lend instantly)
   useEffect(() => {
-    if (!open || !user || !isAccepted) return;
+    if (!open || !user) return;
     setLoansLoading(true);
     (async () => {
       const { data } = await (supabase
@@ -142,7 +142,7 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
         .maybeSingle() as any);
       setMyName(prof?.full_name ?? null);
     })();
-  }, [open, user, isAccepted]);
+  }, [open, user]);
 
   const reloadRequests = async () => {
     if (!user) return;
