@@ -30,7 +30,7 @@ interface Vendor {
   name: string;
   location: string | null;
   phone: string | null;
-  pin: string | null;
+  has_pin?: boolean;
   active: boolean;
   created_at: string;
 }
