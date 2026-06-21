@@ -12,6 +12,10 @@ export interface LendingLoan {
   expected_repayment_date: string | null;
   created_at: string;
   platform_fee_ugx: number;
+  repayment_frequency?: string | null;
+  auto_deduct_enabled?: boolean | null;
+  installment_ugx?: number | null;
+  next_deduction_date?: string | null;
 }
 
 /** Normalize a Ugandan phone number to international (256...) digits for tel/wa/sms links. */
