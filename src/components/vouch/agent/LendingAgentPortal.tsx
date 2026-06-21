@@ -29,7 +29,7 @@ import LendingStatCards from './LendingStatCards';
 import LendingBorrowerCard from './LendingBorrowerCard';
 import {
   LendingLoan, computeStats, matchesFilter, matchesSearch, dueStateOf,
-  StatusFilter, outstandingOf,
+  StatusFilter,
 } from './lendingHelpers';
 
 interface Props {
