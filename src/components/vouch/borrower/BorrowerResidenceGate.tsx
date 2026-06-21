@@ -271,6 +271,54 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
     await linkLc1(data.id);
   };
 
+  const requestLandlordVerification = async () => {
+    if (!user || !landlord) return;
+    setLlReqState('sending');
+    const { error } = await supabase.from('landlord_verification_requests').insert({
+      landlord_id: landlord.id,
+      landlord_name: landlord.name,
+      landlord_phone: landlord.phone,
+      requested_by: user.id,
+      agent_name: meContact.full_name,
+      agent_phone: meContact.phone,
+      note: 'Borrower requested landlord verification for a lending-agent loan',
+      status: 'pending',
+    });
+    if (error) {
+      // 23505 = a pending request already exists (unique index)
+      if ((error as any).code === '23505') { setLlReqState('exists'); toast.success('Verification already requested'); return; }
+      setLlReqState('idle');
+      toast.error('Could not request verification: ' + error.message);
+      return;
+    }
+    setLlReqState('sent');
+    toast.success('Verification requested — our team will review your landlord');
+  };
+
+  const requestLc1Verification = async () => {
+    if (!user || !lc1) return;
+    setLc1ReqState('sending');
+    const { error } = await supabase.from('lc1_verification_requests').insert({
+      lc1_id: lc1.id,
+      lc1_name: lc1.name,
+      lc1_phone: lc1.phone,
+      lc1_village: lc1.village,
+      requested_by: user.id,
+      agent_name: meContact.full_name,
+      agent_phone: meContact.phone,
+      note: 'Borrower requested LC1 verification for a lending-agent loan',
+      status: 'pending',
+    });
+    if (error) {
+      if ((error as any).code === '23505') { setLc1ReqState('exists'); toast.success('Verification already requested'); return; }
+      setLc1ReqState('idle');
+      toast.error('Could not request verification: ' + error.message);
+      return;
+    }
+    setLc1ReqState('sent');
+    toast.success('Verification requested — our team will review your LC1');
+  };
+
   const complete = isResidenceComplete(landlord, lc1);
 
   return (
