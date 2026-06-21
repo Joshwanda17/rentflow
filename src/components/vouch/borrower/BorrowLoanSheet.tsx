@@ -277,6 +277,18 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
                   <Switch checked={showOwnOffers} onCheckedChange={setShowOwnOffers} className="scale-75" />
                 </div>
               </div>
+              <div className="flex items-center justify-end">
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'published' | 'draft')}>
+                  <SelectTrigger className="h-8 w-[132px] text-xs bg-background">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {loading ? (
                 <Skeleton className="h-24 w-full rounded-xl" />
               ) : offers.length === 0 ? (
