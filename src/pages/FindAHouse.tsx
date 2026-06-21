@@ -11,7 +11,7 @@ import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
   SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight,
-  Map as MapIcon, List as ListIcon
+  Map as MapIcon, List as ListIcon, Route
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
-import { resolveHouseCoords, buildDirectionsUrl, distanceToHouse } from '@/lib/houseGeo';
+import { resolveHouseCoords, buildDirectionsUrl, distanceToHouse, estimateRoute } from '@/lib/houseGeo';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 
@@ -210,7 +210,7 @@ function VerificationBadge({ verified, status }: { verified?: boolean | null; st
   );
 }
 
-function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseListing; isFirst?: boolean; onOpenDetails?: (listing: HouseListing) => void }) {
+function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: { listing: HouseListing; isFirst?: boolean; onOpenDetails?: (listing: HouseListing) => void; userLat?: number | null; userLng?: number | null }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -227,6 +227,13 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
   }, []);
   const announce = useMapLinkAnnouncer();
   const directionsUrl = buildDirectionsUrl(listing);
+
+  // Estimated driving distance + time from the viewer to this house, shown
+  // before they open turn-by-turn navigation. Derived locally (no API call).
+  const routeEstimate = useMemo(
+    () => (userLat != null && userLng != null ? estimateRoute(listing, userLat, userLng) : null),
+    [listing, userLat, userLng]
+  );
 
   // "New" badge for listings created within the last 14 days.
   const isNew = useMemo(() => {
@@ -347,6 +354,23 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
         </div>
 
         <div className="flex flex-col gap-3">
+          {/* Estimated route preview — distance + time before opening navigation */}
+          {routeEstimate && (
+            <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Route className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm font-bold text-foreground truncate">
+                  {routeEstimate.approximate ? '~' : ''}{routeEstimate.distanceLabel}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold text-muted-foreground">
+                  {routeEstimate.approximate ? '~' : ''}{routeEstimate.durationLabel}
+                </span>
+              </div>
+            </div>
+          )}
           {/* Get directions — opens Google Maps turn-by-turn navigation */}
           <Button asChild variant="outline" className="w-full gap-1.5 font-bold">
             <a
@@ -399,7 +423,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
  * crucial because each card mounts a Google Map iframe + multiple images.
  * Heights are measured dynamically since cards vary (amenities, description, thumbnails).
  */
-function VirtualHouseList({ listings, onOpenDetails }: { listings: HouseListing[]; onOpenDetails?: (listing: HouseListing) => void }) {
+function VirtualHouseList({ listings, onOpenDetails, userLat, userLng }: { listings: HouseListing[]; onOpenDetails?: (listing: HouseListing) => void; userLat?: number | null; userLng?: number | null }) {
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const virtualizer = useWindowVirtualizer({
@@ -425,7 +449,7 @@ function VirtualHouseList({ listings, onOpenDetails }: { listings: HouseListing[
             className="absolute left-0 top-0 w-full"
             style={{ transform: `translateY(${vi.start - virtualizer.options.scrollMargin}px)` }}
           >
-            <PublicHouseCard listing={listing} isFirst={vi.index === 0} onOpenDetails={onOpenDetails} />
+            <PublicHouseCard listing={listing} isFirst={vi.index === 0} onOpenDetails={onOpenDetails} userLat={userLat} userLng={userLng} />
           </div>
         );
       })}
@@ -881,11 +905,11 @@ export default function FindAHouse() {
                   </div>
                   {/* List — hidden on mobile while the map is open (toggle), shown beside map on desktop */}
                   <div className="hidden md:block md:order-1 md:flex-1 min-w-0">
-                    <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
+                    <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
                   </div>
                 </div>
               ) : (
-                <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
+                <VirtualHouseList listings={filtered} onOpenDetails={openDetails} userLat={effectiveLat} userLng={effectiveLng} />
               )}
             </>
           )}
