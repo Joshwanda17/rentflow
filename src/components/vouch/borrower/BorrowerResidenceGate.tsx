@@ -597,6 +597,30 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
 
               {/* CONTINUE */}
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                {/* OPTIONAL ALERTS */}
+                <Card className="mb-3 border-border/60">
+                  <CardContent className="p-3.5 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-xs font-bold">Alerts for verification updates</p>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug -mt-1">
+                      Get notified when your landlord GPS or LC1 status changes (rejection reasons included).
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="notify-sms" className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" /> SMS{meContact.phone ? '' : ' (add a phone first)'}
+                      </Label>
+                      <Switch id="notify-sms" checked={notifySms} disabled={!meContact.phone} onCheckedChange={(v) => updateAlertPref('verification_notify_sms', v)} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="notify-email" className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground" /> Email{hasEmail ? '' : ' (add an email first)'}
+                      </Label>
+                      <Switch id="notify-email" checked={notifyEmail} disabled={!hasEmail} onCheckedChange={(v) => updateAlertPref('verification_notify_email', v)} />
+                    </div>
+                  </CardContent>
+                </Card>
                 <Button
                   className="w-full h-11 font-bold"
                   disabled={!complete || saving}
