@@ -225,6 +225,8 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
     setLightboxIdx(index);
     setLightboxOpen(true);
   }, []);
+  const announce = useMapLinkAnnouncer();
+  const directionsUrl = buildDirectionsUrl(listing);
 
   // "New" badge for listings created within the last 14 days.
   const isNew = useMemo(() => {
@@ -345,6 +347,19 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
         </div>
 
         <div className="flex flex-col gap-3">
+          {/* Get directions — opens Google Maps turn-by-turn navigation */}
+          <Button asChild variant="outline" className="w-full gap-1.5 font-bold">
+            <a
+              href={directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => announce(listing.title)}
+              aria-label={`Get directions to ${listing.title}`}
+            >
+              <Navigation className="h-4 w-4" /> Get directions
+            </a>
+          </Button>
+
           {/* View full details — opens the house detail page (keeps list filters) */}
           {onOpenDetails && (
             <Button
