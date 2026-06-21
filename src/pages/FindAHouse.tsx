@@ -435,6 +435,8 @@ export default function FindAHouse() {
   );
   const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(searchText, 250);
+  const [showMap, setShowMap] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Funder context flows in from the funders dashboard "See all" link.
   const cameFromFunder = (location.state as { from?: string } | null)?.from === 'funder';
