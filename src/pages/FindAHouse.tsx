@@ -821,6 +821,14 @@ export default function FindAHouse() {
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
               </p>
               <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
+              {/* Infinite-scroll sentinel + loader */}
+              <div ref={loadMoreRef} className="h-1 w-full" aria-hidden="true" />
+              {hasMore && (
+                <div className="flex items-center justify-center py-6 text-sm text-muted-foreground gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading more houses…
+                </div>
+              )}
             </>
           )}
         </main>
