@@ -417,6 +417,17 @@ export default function FindAHouse() {
   const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(searchText, 250);
 
+  // Infinite scroll: grow the fetch limit as the user reaches the bottom
+  // instead of relying on a single hard cap.
+  const PAGE_SIZE = 30;
+  const [fetchLimit, setFetchLimit] = useState(PAGE_SIZE);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset paging whenever the server-side query inputs change.
+  useEffect(() => {
+    setFetchLimit(PAGE_SIZE);
+  }, [selectedRegion, selectedCategory]);
+
   // Funder context flows in from the funders dashboard "See all" link.
   const cameFromFunder = (location.state as { from?: string } | null)?.from === 'funder';
 
