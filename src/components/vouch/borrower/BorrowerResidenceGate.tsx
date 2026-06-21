@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
-  Building2, MapPin, ShieldCheck, ShieldAlert, UserCheck, Loader2,
+  Building2, MapPin, UserCheck, Loader2,
   CheckCircle2, Plus, Search, X, ArrowRight, Home, Gavel,
   Clock, XCircle, BadgeCheck, Send,
 } from 'lucide-react';
