@@ -349,7 +349,33 @@ export function AgentMenuDrawer({
               </button>
             </div>
 
-            {/* Category Tabs — Horizontal Scroll */}
+            {/* Search — type to jump to any action across every category */}
+            <div className="px-4 pb-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  inputMode="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search actions… (e.g. deposit, tenant, advance)"
+                  aria-label="Search agent actions"
+                  className="w-full h-11 pl-9 pr-9 rounded-2xl bg-muted/60 border border-border/50 text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                />
+                {search.length > 0 && (
+                  <button
+                    onClick={() => { hapticTap(); setSearch(''); }}
+                    aria-label="Clear search"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-muted hover:bg-muted-foreground/20 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Category Tabs — Horizontal Scroll (hidden while searching) */}
+            {!searching && (
             <div className="px-3 pb-3">
               <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
                 {categories.map((cat) => {
@@ -376,9 +402,59 @@ export function AgentMenuDrawer({
                 })}
               </div>
             </div>
+            )}
 
             {/* Content Grid */}
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
+              {searching ? (
+                /* === SEARCH RESULTS — flat list across all categories === */
+                searchResults.length > 0 ? (
+                  <div className="space-y-2 animate-fade-in">
+                    <p className="text-[11px] font-semibold text-muted-foreground px-1">
+                      {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+                    </p>
+                    {searchResults.map(({ item, catLabel }, idx) => {
+                      const colors = getAccentClasses(item.accent);
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.label + idx}
+                          onClick={() => handleItemClick(item)}
+                          className="w-full flex items-center gap-3 p-3 rounded-2xl border border-border/50 bg-card hover:bg-muted/40 active:scale-[0.98] transition-all touch-manipulation text-left"
+                        >
+                          <div className={cn("p-2.5 rounded-xl shrink-0", colors.bg)}>
+                            <Icon className={cn("h-5 w-5", colors.text)} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold leading-tight truncate">{item.label}</p>
+                              {item.badge && (
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-success/20 text-success rounded-full leading-none shrink-0">
+                                  {item.badge}
+                                </span>
+                              )}
+                            </div>
+                            {item.description && (
+                              <p className="text-[11px] text-muted-foreground leading-tight truncate mt-0.5">{item.description}</p>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground/70 shrink-0">{catLabel}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center animate-fade-in">
+                    <div className="p-3 rounded-2xl bg-muted/60 mb-3">
+                      <Search className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-semibold">No actions found</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-[220px]">
+                      Nothing matches “{search.trim()}”. Try a shorter word like “rent”, “pay”, or “tenant”.
+                    </p>
+                  </div>
+                )
+              ) : (
               <div
                 key={activeCategory}
                 className="animate-fade-in"
