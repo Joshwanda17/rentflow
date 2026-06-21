@@ -511,6 +511,7 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
               </Label>
               <div className="flex gap-2">
                 <Input
+                  ref={borrowerInputRef}
                   value={aiIdInput}
                   onChange={(e) => setAiIdInput(e.target.value.toUpperCase())}
                   placeholder="WEL-XXXXXX"
