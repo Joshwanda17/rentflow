@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { regionLabel } from '@/lib/ugandaDistricts';
+import { resolveHouseCoords, buildDirectionsUrl, distanceToHouse } from '@/lib/houseGeo';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 
