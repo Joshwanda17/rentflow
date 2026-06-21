@@ -575,6 +575,7 @@ export function AgentMenuDrawer({
                     </div>
                   )}
                 </div>
+              )}
             </div>
           </div>
         </>
