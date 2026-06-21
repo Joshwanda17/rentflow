@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
-  Building2, MapPin, ShieldCheck, ShieldAlert, UserCheck, Loader2,
+  Building2, MapPin, UserCheck, Loader2,
   CheckCircle2, Plus, Search, X, ArrowRight, Home, Gavel,
+  Clock, XCircle, BadgeCheck, Send,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,12 +46,26 @@ interface Props {
   onComplete: () => void;
 }
 
-/** A residence profile is "complete enough" to request a loan when the borrower
- *  has a linked landlord WITH GPS, and a linked LC1 chairperson. */
+export type VerifStatus = 'verified' | 'pending' | 'rejected';
+
+/** A residence profile is allowed to request a loan ONLY when the borrower has a
+ *  VERIFIED landlord WITH GPS, and a VERIFIED LC1 chairperson. Pending / rejected
+ *  records block the request. */
 export function isResidenceComplete(landlord: LinkedLandlord | null, lc1: LinkedLc1 | null) {
-  const landlordOk = !!landlord && landlord.latitude != null && landlord.longitude != null;
-  const lc1Ok = !!lc1;
+  const landlordOk = !!landlord && landlord.verified === true && landlord.latitude != null && landlord.longitude != null;
+  const lc1Ok = !!lc1 && lc1.verified === true;
   return landlordOk && lc1Ok;
+}
+
+/** Pill that renders the pending / verified / rejected verification state. */
+function StatusBadge({ status }: { status: VerifStatus }) {
+  if (status === 'verified') {
+    return <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold gap-0.5"><BadgeCheck className="h-2.5 w-2.5" />Verified</Badge>;
+  }
+  if (status === 'rejected') {
+    return <Badge className="bg-destructive/15 text-destructive border-0 text-[9px] font-bold gap-0.5"><XCircle className="h-2.5 w-2.5" />Rejected</Badge>;
+  }
+  return <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[9px] font-bold gap-0.5"><Clock className="h-2.5 w-2.5" />Pending review</Badge>;
 }
 
 export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }: Props) {
@@ -60,6 +75,16 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
   const [landlord, setLandlord] = useState<LinkedLandlord | null>(null);
   const [lc1, setLc1] = useState<LinkedLc1 | null>(null);
   const [agentName, setAgentName] = useState<string | null>(null);
+
+  // verification status derived from the *.verified flag + the borrower's own
+  // verification-request rows (pending/rejected).
+  const [landlordStatus, setLandlordStatus] = useState<VerifStatus>('pending');
+  const [lc1Status, setLc1Status] = useState<VerifStatus>('pending');
+  const [landlordReject, setLandlordReject] = useState<string | null>(null);
+  const [lc1Reject, setLc1Reject] = useState<string | null>(null);
+  const [llReqState, setLlReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
+  const [lc1ReqState, setLc1ReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
+  const [meContact, setMeContact] = useState<{ full_name: string | null; phone: string | null }>({ full_name: null, phone: null });
 
   // sub-flows
   const [addLandlord, setAddLandlord] = useState(false);
@@ -77,11 +102,16 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
   const loadProfile = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    setLlReqState('idle');
+    setLc1ReqState('idle');
+    setLandlordReject(null);
+    setLc1Reject(null);
     const { data: prof } = await supabase
       .from('profiles')
-      .select('borrower_landlord_id, borrower_lc1_id')
+      .select('borrower_landlord_id, borrower_lc1_id, full_name, phone')
       .eq('id', user.id)
       .maybeSingle();
+    setMeContact({ full_name: prof?.full_name ?? null, phone: prof?.phone ?? null });
 
     let ll: LinkedLandlord | null = null;
     if (prof?.borrower_landlord_id) {
@@ -93,6 +123,21 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
       ll = (data as LinkedLandlord) ?? null;
     }
     setLandlord(ll);
+    // Derive landlord verification status
+    if (ll?.verified) {
+      setLandlordStatus('verified');
+    } else if (ll) {
+      const { data: req } = await supabase
+        .from('landlord_verification_requests')
+        .select('status, reject_comment')
+        .eq('landlord_id', ll.id)
+        .eq('requested_by', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (req?.status === 'rejected') { setLandlordStatus('rejected'); setLandlordReject(req.reject_comment ?? null); }
+      else { setLandlordStatus('pending'); if (req) setLlReqState('exists'); }
+    }
 
     let chair: LinkedLc1 | null = null;
     if (prof?.borrower_lc1_id) {
@@ -104,6 +149,21 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
       chair = (data as LinkedLc1) ?? null;
     }
     setLc1(chair);
+    // Derive LC1 verification status
+    if (chair?.verified) {
+      setLc1Status('verified');
+    } else if (chair) {
+      const { data: req } = await supabase
+        .from('lc1_verification_requests')
+        .select('status, reject_comment')
+        .eq('lc1_id', chair.id)
+        .eq('requested_by', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (req?.status === 'rejected') { setLc1Status('rejected'); setLc1Reject(req.reject_comment ?? null); }
+      else { setLc1Status('pending'); if (req) setLc1ReqState('exists'); }
+    }
 
     if (ll?.registered_by) {
       const { data: ag } = await supabase
@@ -211,6 +271,54 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
     await linkLc1(data.id);
   };
 
+  const requestLandlordVerification = async () => {
+    if (!user || !landlord) return;
+    setLlReqState('sending');
+    const { error } = await supabase.from('landlord_verification_requests').insert({
+      landlord_id: landlord.id,
+      landlord_name: landlord.name,
+      landlord_phone: landlord.phone,
+      requested_by: user.id,
+      agent_name: meContact.full_name,
+      agent_phone: meContact.phone,
+      note: 'Borrower requested landlord verification for a lending-agent loan',
+      status: 'pending',
+    });
+    if (error) {
+      // 23505 = a pending request already exists (unique index)
+      if ((error as any).code === '23505') { setLlReqState('exists'); toast.success('Verification already requested'); return; }
+      setLlReqState('idle');
+      toast.error('Could not request verification: ' + error.message);
+      return;
+    }
+    setLlReqState('sent');
+    toast.success('Verification requested — our team will review your landlord');
+  };
+
+  const requestLc1Verification = async () => {
+    if (!user || !lc1) return;
+    setLc1ReqState('sending');
+    const { error } = await supabase.from('lc1_verification_requests').insert({
+      lc1_id: lc1.id,
+      lc1_name: lc1.name,
+      lc1_phone: lc1.phone,
+      lc1_village: lc1.village,
+      requested_by: user.id,
+      agent_name: meContact.full_name,
+      agent_phone: meContact.phone,
+      note: 'Borrower requested LC1 verification for a lending-agent loan',
+      status: 'pending',
+    });
+    if (error) {
+      if ((error as any).code === '23505') { setLc1ReqState('exists'); toast.success('Verification already requested'); return; }
+      setLc1ReqState('idle');
+      toast.error('Could not request verification: ' + error.message);
+      return;
+    }
+    setLc1ReqState('sent');
+    toast.success('Verification requested — our team will review your LC1');
+  };
+
   const complete = isResidenceComplete(landlord, lc1);
 
   return (
@@ -288,7 +396,7 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-primary" />
                     <p className="text-sm font-bold">Your landlord</p>
-                    {landlord && landlord.latitude != null && (
+                    {landlord && landlordStatus === 'verified' && (
                       <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-auto" />
                     )}
                   </div>
@@ -297,11 +405,7 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-semibold">{landlord.name}</p>
-                        {landlord.verified ? (
-                          <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold gap-0.5"><ShieldCheck className="h-2.5 w-2.5" />Verified</Badge>
-                        ) : (
-                          <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[9px] font-bold gap-0.5"><ShieldAlert className="h-2.5 w-2.5" />Pending verify</Badge>
-                        )}
+                        <StatusBadge status={landlordStatus} />
                       </div>
                       <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                         <MapPin className="h-3 w-3 shrink-0" />
@@ -316,6 +420,35 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
                         <UserCheck className="h-3 w-3 shrink-0" />
                         {agentName ? `Registered by ${agentName}` : 'Registered by you'}
                       </p>
+                      {landlordStatus === 'pending' && (
+                        <div className="rounded-lg bg-amber-500/10 px-2.5 py-2 space-y-1.5">
+                          <p className="text-[11px] text-amber-700 flex items-center gap-1.5"><Clock className="h-3 w-3 shrink-0" />Our team must verify this landlord's GPS before you can borrow.</p>
+                          {llReqState === 'idle' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px] font-bold border-amber-500/40" onClick={requestLandlordVerification}>
+                              <Send className="h-3 w-3 mr-1" /> Request verification
+                            </Button>
+                          ) : llReqState === 'sending' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px]" disabled><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending…</Button>
+                          ) : (
+                            <p className="text-[11px] font-semibold text-amber-700 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Verification requested</p>
+                          )}
+                        </div>
+                      )}
+                      {landlordStatus === 'rejected' && (
+                        <div className="rounded-lg bg-destructive/10 px-2.5 py-2 space-y-1.5">
+                          <p className="text-[11px] text-destructive flex items-center gap-1.5"><XCircle className="h-3 w-3 shrink-0" />Verification rejected{landlordReject ? `: ${landlordReject}` : '.'}</p>
+                          <p className="text-[10px] text-muted-foreground">Change to another registered landlord, or fix the details and request again.</p>
+                          {llReqState === 'idle' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px] font-bold" onClick={requestLandlordVerification}>
+                              <Send className="h-3 w-3 mr-1" /> Request verification again
+                            </Button>
+                          ) : llReqState === 'sending' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px]" disabled><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending…</Button>
+                          ) : (
+                            <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Verification requested</p>
+                          )}
+                        </div>
+                      )}
                       <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-primary" onClick={() => setLandlord(null)}>
                         Change landlord
                       </Button>
@@ -345,21 +478,46 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
                   <div className="flex items-center gap-2">
                     <Gavel className="h-4 w-4 text-primary" />
                     <p className="text-sm font-bold">Your LC1 chairperson</p>
-                    {lc1 && <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-auto" />}
+                    {lc1 && lc1Status === 'verified' && <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-auto" />}
                   </div>
 
                   {lc1 ? (
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-semibold">{lc1.name}</p>
-                        {lc1.verified ? (
-                          <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold gap-0.5"><ShieldCheck className="h-2.5 w-2.5" />Verified</Badge>
-                        ) : (
-                          <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[9px] font-bold gap-0.5"><ShieldAlert className="h-2.5 w-2.5" />Pending verify</Badge>
-                        )}
+                        <StatusBadge status={lc1Status} />
                       </div>
                       {(lc1.phone || lc1.village) && (
                         <p className="text-[11px] text-muted-foreground">{[lc1.phone, lc1.village].filter(Boolean).join(' · ')}</p>
+                      )}
+                      {lc1Status === 'pending' && (
+                        <div className="rounded-lg bg-amber-500/10 px-2.5 py-2 space-y-1.5">
+                          <p className="text-[11px] text-amber-700 flex items-center gap-1.5"><Clock className="h-3 w-3 shrink-0" />Our team must verify this LC1 chairperson before you can borrow.</p>
+                          {lc1ReqState === 'idle' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px] font-bold border-amber-500/40" onClick={requestLc1Verification}>
+                              <Send className="h-3 w-3 mr-1" /> Request verification
+                            </Button>
+                          ) : lc1ReqState === 'sending' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px]" disabled><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending…</Button>
+                          ) : (
+                            <p className="text-[11px] font-semibold text-amber-700 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Verification requested</p>
+                          )}
+                        </div>
+                      )}
+                      {lc1Status === 'rejected' && (
+                        <div className="rounded-lg bg-destructive/10 px-2.5 py-2 space-y-1.5">
+                          <p className="text-[11px] text-destructive flex items-center gap-1.5"><XCircle className="h-3 w-3 shrink-0" />Verification rejected{lc1Reject ? `: ${lc1Reject}` : '.'}</p>
+                          <p className="text-[10px] text-muted-foreground">Pick another LC1, or fix the details and request again.</p>
+                          {lc1ReqState === 'idle' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px] font-bold" onClick={requestLc1Verification}>
+                              <Send className="h-3 w-3 mr-1" /> Request verification again
+                            </Button>
+                          ) : lc1ReqState === 'sending' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px]" disabled><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending…</Button>
+                          ) : (
+                            <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Verification requested</p>
+                          )}
+                        </div>
                       )}
                       <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-primary" onClick={() => setLc1(null)}>
                         Change LC1
@@ -405,11 +563,13 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
                   onClick={() => { onOpenChange(false); onComplete(); }}
                 >
                   {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                  {complete ? <>Continue to loan request <ArrowRight className="h-4 w-4 ml-1.5" /></> : 'Add landlord & LC1 to continue'}
+                  {complete
+                    ? <>Continue to loan request <ArrowRight className="h-4 w-4 ml-1.5" /></>
+                    : (!landlord || !lc1) ? 'Add landlord & LC1 to continue' : 'Awaiting verification to continue'}
                 </Button>
                 {!complete && (
                   <p className="text-[10px] text-center text-muted-foreground mt-2">
-                    A landlord with GPS location and an LC1 chairperson are required so your lending agent can verify where you live.
+                    Loan requests are blocked until your landlord's GPS and your LC1 chairperson are <span className="font-semibold text-foreground">verified</span> by our team.
                   </p>
                 )}
               </motion.div>
