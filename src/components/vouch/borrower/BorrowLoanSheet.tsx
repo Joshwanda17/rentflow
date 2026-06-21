@@ -334,6 +334,9 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
                               {isOwnOffer && (
                                 <Badge className="bg-primary/15 text-primary border-0 text-[9px] font-bold">Yours</Badge>
                               )}
+                              {!offer.active && (
+                                <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[9px] font-bold">Draft</Badge>
+                              )}
                               <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold">{offer.interest_rate_pct}%</Badge>
                             </div>
                           </div>
