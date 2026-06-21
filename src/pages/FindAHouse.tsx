@@ -412,7 +412,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => announce(listing.title)}
-              aria-label={`Get directions to ${listing.title}`}
+              aria-label={`Get ${travelMode} directions to ${listing.title}`}
             >
               <Navigation className="h-4 w-4" /> Get directions
             </a>
