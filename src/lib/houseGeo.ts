@@ -124,17 +124,23 @@ export function locationText(g: GeoLike): string {
     .join(', ');
 }
 
+export type TravelMode = 'driving' | 'walking';
+
 /**
  * Google Maps "Get directions" link. Routes from the viewer's current location
  * to the house. Uses exact GPS when available, otherwise the registered address
  * text so tenants/funders can still navigate to the area.
  */
-export function buildDirectionsUrl(g: GeoLike): string {
+export function buildDirectionsUrl(g: GeoLike, mode: TravelMode = 'driving'): string {
   const base = 'https://www.google.com/maps/dir/?api=1&destination=';
+  let url = '';
   if (typeof g.latitude === 'number' && typeof g.longitude === 'number' && (g.latitude !== 0 || g.longitude !== 0)) {
-    return `${base}${g.latitude},${g.longitude}`;
+    url = `${base}${g.latitude},${g.longitude}`;
+  } else {
+    url = `${base}${encodeURIComponent(locationText(g))}`;
   }
-  return `${base}${encodeURIComponent(locationText(g))}`;
+  if (mode === 'walking') url += '&travelmode=walking';
+  return url;
 }
 
 /** Great-circle distance in km. */
