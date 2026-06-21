@@ -228,7 +228,10 @@ export default function HouseDetail() {
 
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const isPending = !listing.verified || listing.status === 'pending';
-  const fromFunder = (location.state as { from?: string } | null)?.from === 'funder';
+  const navState = location.state as { from?: string; listSearch?: string } | null;
+  const fromFunder = navState?.from === 'funder';
+  const listSearch = navState?.listSearch || '';
+  const cameFromFilteredList = listSearch.length > 0;
   const mapLink = listing.latitude && listing.longitude
     ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
     : null;
