@@ -73,6 +73,7 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
   // Loan offers (published to all users) + incoming requests
   const [offers, setOffers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [auditLog, setAuditLog] = useState<any[]>([]);
   const [myName, setMyName] = useState<string | null>(null);
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [savingOffer, setSavingOffer] = useState(false);
@@ -122,6 +123,14 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
         .order('created_at', { ascending: false })
         .limit(50) as any);
       if (reqData) setRequests(reqData);
+
+      // Audit trail (actions I performed or that involve me)
+      const { data: auditData } = await (supabase
+        .from('lending_audit_log' as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(60) as any);
+      if (auditData) setAuditLog(auditData);
 
       // My display name (used when publishing offers)
       const { data: prof } = await (supabase
