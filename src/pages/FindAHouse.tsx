@@ -131,7 +131,7 @@ function HouseImageCarousel({ images, title, onImageClick, layout = 'vertical' }
   );
 }
 
-function LocationMap({ listing, anchorId }: { listing: HouseListing; anchorId?: string }) {
+function LocationMap({ listing, anchorId, travelMode = 'driving' }: { listing: HouseListing; anchorId?: string; travelMode?: TravelMode }) {
   const announce = useMapLinkAnnouncer();
   const containerRef = useRef<HTMLAnchorElement | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
@@ -140,7 +140,7 @@ function LocationMap({ listing, anchorId }: { listing: HouseListing; anchorId?: 
   const lng = resolved?.lng ?? null;
   const approximate = resolved?.approximate ?? false;
   const title = listing.title;
-  const directionsUrl = buildDirectionsUrl(listing);
+  const directionsUrl = buildDirectionsUrl(listing, travelMode);
 
   // Only mount the (heavy) Google Maps iframe once the card actually enters the
   // viewport. The virtualizer keeps a few off-screen rows mounted for smooth
