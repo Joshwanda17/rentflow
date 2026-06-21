@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,10 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const pageRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [myRequests, setMyRequests] = useState<any[]>([]);
   const [me, setMe] = useState<{ full_name: string | null; phone: string | null } | null>(null);
 
@@ -53,6 +57,7 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
   const [lenderAiInput, setLenderAiInput] = useState('');
 
   const myAiId = user ? generateWelileAiId(user.id) : null;
+  const PAGE_SIZE = 20;
 
   const reloadRequests = useCallback(async () => {
     if (!user) return;
@@ -65,30 +70,55 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
     if (data) setMyRequests(data);
   }, [user]);
 
+  const loadOffers = useCallback(async (reset: boolean) => {
+    if (!user) return;
+    const page = reset ? 0 : pageRef.current;
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    if (reset) setLoading(true); else setLoadingMore(true);
+    const { data } = await (supabase
+      .from('lending_agent_offers' as any)
+      .select('*')
+      .eq('active', true)
+      .neq('lender_agent_id', user.id)
+      .order('created_at', { ascending: false })
+      .range(from, to) as any);
+    const rows = (data as Offer[]) ?? [];
+    setOffers((prev) => (reset ? rows : [...prev, ...rows]));
+    setHasMore(rows.length === PAGE_SIZE);
+    pageRef.current = page + 1;
+    if (reset) setLoading(false); else setLoadingMore(false);
+  }, [user]);
+
   useEffect(() => {
     if (!open || !user) return;
-    setLoading(true);
+    pageRef.current = 0;
+    setHasMore(true);
+    loadOffers(true);
     (async () => {
-      const { data: offerData } = await (supabase
-        .from('lending_agent_offers' as any)
-        .select('*')
-        .eq('active', true)
-        .neq('lender_agent_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(100) as any);
-      if (offerData) setOffers(offerData as Offer[]);
-      setLoading(false);
-
       const { data: prof } = await (supabase
         .from('profiles')
         .select('full_name, phone')
         .eq('id', user.id)
         .maybeSingle() as any);
       setMe({ full_name: prof?.full_name ?? null, phone: prof?.phone ?? null });
-
       reloadRequests();
     })();
-  }, [open, user, reloadRequests]);
+  }, [open, user, reloadRequests, loadOffers]);
+
+  // Infinite scroll: load the next page when the sentinel enters view
+  useEffect(() => {
+    if (!open || activeOffer) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && hasMore && !loading && !loadingMore) {
+        loadOffers(false);
+      }
+    }, { rootMargin: '200px' });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [open, activeOffer, hasMore, loading, loadingMore, loadOffers]);
 
   const openRequest = (offer: Offer) => {
     setActiveOffer(offer);
@@ -259,6 +289,16 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
                       </CardContent>
                     </Card>
                   ))}
+                  {/* Infinite-scroll sentinel + loader */}
+                  <div ref={sentinelRef} className="h-1 w-full" />
+                  {loadingMore && (
+                    <div className="flex justify-center py-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {!hasMore && offers.length > 0 && (
+                    <p className="text-center text-[10px] text-muted-foreground py-2">You've reached the end · {offers.length} offers</p>
+                  )}
                 </div>
               )}
             </div>
