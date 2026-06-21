@@ -102,6 +102,11 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
   const [lc1ReqState, setLc1ReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
   const [meContact, setMeContact] = useState<{ full_name: string | null; phone: string | null }>({ full_name: null, phone: null });
 
+  // optional email / SMS alert preferences
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifySms, setNotifySms] = useState(true);
+  const [hasEmail, setHasEmail] = useState(false);
+
   // sub-flows
   const [addLandlord, setAddLandlord] = useState(false);
   const [addLc1, setAddLc1] = useState(false);
