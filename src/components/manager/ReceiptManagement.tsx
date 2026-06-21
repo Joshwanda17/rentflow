@@ -191,7 +191,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
     const [vendorsRes, receiptsRes, userReceiptsRes] = await Promise.all([
       supabase
         .from('vendors')
-        .select('*')
+        .select('id, name, location, phone, active, created_at')
         .order('created_at', { ascending: false }),
       supabase
         .from('receipt_numbers')
@@ -223,7 +223,12 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
       profiles: profiles?.find(p => p.id === r.user_id)
     }));
 
-    setVendors(vendorsRes.data || []);
+    // Managers can see whether a PIN is set (without exposing the value)
+    const { data: pinFlags } = await supabase.rpc('manager_vendor_pin_flags');
+    const pinMap = new Map((pinFlags || []).map((f) => [f.vendor_id, f.has_pin]));
+    setVendors(
+      (vendorsRes.data || []).map((v) => ({ ...v, has_pin: pinMap.get(v.id) ?? false }))
+    );
     setReceiptNumbers(receiptsRes.data || []);
     setUserReceipts(receiptsWithProfiles);
     setLoading(false);
