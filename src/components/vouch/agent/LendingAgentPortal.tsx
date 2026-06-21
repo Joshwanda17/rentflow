@@ -464,6 +464,46 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
               </CardContent>
             </Card>
 
+            {/* Create loan CTA */}
+            <Card className="border-primary/30 bg-primary/5 mb-4">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Banknote className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold">Create a loan for a user</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Enter the borrower's AI ID below and disburse straight from your wallet.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    setActiveAiId(null);
+                    setShowLoanForm(false);
+                    setAiIdInput('');
+                    borrowerInputRef.current?.focus();
+                    borrowerInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Start a New Loan
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowOfferForm(true)}
+                >
+                  <Megaphone className="h-4 w-4 mr-1.5" />
+                  Publish Loan Offer Instead
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Borrower lookup */}
             <div className="space-y-2 mb-4">
               <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
