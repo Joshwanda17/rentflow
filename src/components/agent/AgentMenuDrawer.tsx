@@ -151,6 +151,7 @@ export function AgentMenuDrawer({
 
   const handleClose = () => {
     hapticTap();
+    setSearch('');
     onOpenChange(false);
   };
 
