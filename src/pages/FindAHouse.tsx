@@ -210,7 +210,7 @@ function VerificationBadge({ verified, status }: { verified?: boolean | null; st
   );
 }
 
-function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseListing; isFirst?: boolean; onOpenDetails?: (listing: HouseListing) => void }) {
+function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: { listing: HouseListing; isFirst?: boolean; onOpenDetails?: (listing: HouseListing) => void; userLat?: number | null; userLng?: number | null }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -227,6 +227,13 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseLi
   }, []);
   const announce = useMapLinkAnnouncer();
   const directionsUrl = buildDirectionsUrl(listing);
+
+  // Estimated driving distance + time from the viewer to this house, shown
+  // before they open turn-by-turn navigation. Derived locally (no API call).
+  const routeEstimate = useMemo(
+    () => (userLat != null && userLng != null ? estimateRoute(listing, userLat, userLng) : null),
+    [listing, userLat, userLng]
+  );
 
   // "New" badge for listings created within the last 14 days.
   const isNew = useMemo(() => {
