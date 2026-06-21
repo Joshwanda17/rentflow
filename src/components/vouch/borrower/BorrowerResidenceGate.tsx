@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Building2, MapPin, UserCheck, Loader2,
   CheckCircle2, Plus, Search, X, ArrowRight, Home, Gavel,
-  Clock, XCircle, BadgeCheck, Send,
+  Clock, XCircle, BadgeCheck, Send, Bell, Mail, MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
