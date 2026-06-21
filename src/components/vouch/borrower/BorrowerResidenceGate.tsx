@@ -18,11 +18,15 @@ import LandlordRegistrationForm from '@/components/shared/LandlordRegistrationFo
 import { LandlordAutocompleteInput } from '@/components/agent/LandlordAutocompleteInput';
 import type { LandlordOption } from '@/components/agent/LandlordSearchSelect';
 
+export type VerifStatus = 'verified' | 'pending' | 'rejected';
+
 interface LinkedLandlord {
   id: string;
   name: string;
   phone: string | null;
   verified: boolean | null;
+  verification_status: VerifStatus | null;
+  verification_reason: string | null;
   latitude: number | null;
   longitude: number | null;
   property_address: string | null;
@@ -36,6 +40,8 @@ interface LinkedLc1 {
   name: string;
   phone: string | null;
   verified: boolean | null;
+  verification_status: VerifStatus | null;
+  verification_reason: string | null;
   village: string | null;
 }
 
@@ -46,14 +52,23 @@ interface Props {
   onComplete: () => void;
 }
 
-export type VerifStatus = 'verified' | 'pending' | 'rejected';
+/** Authoritative verification status comes from the verification_status column,
+ *  falling back to the legacy verified boolean. */
+function landlordVerifStatus(l: LinkedLandlord): VerifStatus {
+  if (l.verification_status) return l.verification_status;
+  return l.verified ? 'verified' : 'pending';
+}
+function lc1VerifStatus(l: LinkedLc1): VerifStatus {
+  if (l.verification_status) return l.verification_status;
+  return l.verified ? 'verified' : 'pending';
+}
 
 /** A residence profile is allowed to request a loan ONLY when the borrower has a
  *  VERIFIED landlord WITH GPS, and a VERIFIED LC1 chairperson. Pending / rejected
  *  records block the request. */
 export function isResidenceComplete(landlord: LinkedLandlord | null, lc1: LinkedLc1 | null) {
-  const landlordOk = !!landlord && landlord.verified === true && landlord.latitude != null && landlord.longitude != null;
-  const lc1Ok = !!lc1 && lc1.verified === true;
+  const landlordOk = !!landlord && landlordVerifStatus(landlord) === 'verified' && landlord.latitude != null && landlord.longitude != null;
+  const lc1Ok = !!lc1 && lc1VerifStatus(lc1) === 'verified';
   return landlordOk && lc1Ok;
 }
 
@@ -117,52 +132,57 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
     if (prof?.borrower_landlord_id) {
       const { data } = await supabase
         .from('landlords')
-        .select('id, name, phone, verified, latitude, longitude, property_address, village, district, registered_by')
+        .select('id, name, phone, verified, verification_status, verification_reason, latitude, longitude, property_address, village, district, registered_by')
         .eq('id', prof.borrower_landlord_id)
         .maybeSingle();
       ll = (data as LinkedLandlord) ?? null;
     }
     setLandlord(ll);
-    // Derive landlord verification status
-    if (ll?.verified) {
-      setLandlordStatus('verified');
-    } else if (ll) {
-      const { data: req } = await supabase
-        .from('landlord_verification_requests')
-        .select('status, reject_comment')
-        .eq('landlord_id', ll.id)
-        .eq('requested_by', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (req?.status === 'rejected') { setLandlordStatus('rejected'); setLandlordReject(req.reject_comment ?? null); }
-      else { setLandlordStatus('pending'); if (req) setLlReqState('exists'); }
+    // Derive landlord verification status from the authoritative column.
+    if (ll) {
+      const st = landlordVerifStatus(ll);
+      setLandlordStatus(st);
+      if (st === 'rejected') setLandlordReject(ll.verification_reason ?? null);
+      if (st === 'pending') {
+        // surface whether the borrower already has an open request
+        const { data: req } = await supabase
+          .from('landlord_verification_requests')
+          .select('status')
+          .eq('landlord_id', ll.id)
+          .eq('requested_by', user.id)
+          .eq('status', 'pending')
+          .limit(1)
+          .maybeSingle();
+        if (req) setLlReqState('exists');
+      }
     }
 
     let chair: LinkedLc1 | null = null;
     if (prof?.borrower_lc1_id) {
       const { data } = await supabase
         .from('lc1_chairpersons')
-        .select('id, name, phone, verified, village')
+        .select('id, name, phone, verified, verification_status, verification_reason, village')
         .eq('id', prof.borrower_lc1_id)
         .maybeSingle();
       chair = (data as LinkedLc1) ?? null;
     }
     setLc1(chair);
-    // Derive LC1 verification status
-    if (chair?.verified) {
-      setLc1Status('verified');
-    } else if (chair) {
-      const { data: req } = await supabase
-        .from('lc1_verification_requests')
-        .select('status, reject_comment')
-        .eq('lc1_id', chair.id)
-        .eq('requested_by', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (req?.status === 'rejected') { setLc1Status('rejected'); setLc1Reject(req.reject_comment ?? null); }
-      else { setLc1Status('pending'); if (req) setLc1ReqState('exists'); }
+    // Derive LC1 verification status from the authoritative column.
+    if (chair) {
+      const st = lc1VerifStatus(chair);
+      setLc1Status(st);
+      if (st === 'rejected') setLc1Reject(chair.verification_reason ?? null);
+      if (st === 'pending') {
+        const { data: req } = await supabase
+          .from('lc1_verification_requests')
+          .select('status')
+          .eq('lc1_id', chair.id)
+          .eq('requested_by', user.id)
+          .eq('status', 'pending')
+          .limit(1)
+          .maybeSingle();
+        if (req) setLc1ReqState('exists');
+      }
     }
 
     if (ll?.registered_by) {

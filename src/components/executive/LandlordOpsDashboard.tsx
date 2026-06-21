@@ -71,6 +71,7 @@ import { LandlordHousesPanel } from './landlord-ops/LandlordHousesPanel';
 import { AgentVerificationRequestsPanel } from './landlord-ops/AgentVerificationRequestsPanel';
 import { Lc1VerificationRequestsPanel } from './landlord-ops/Lc1VerificationRequestsPanel';
 import { Lc1DuplicatesPanel } from './landlord-ops/Lc1DuplicatesPanel';
+import { ResidenceVerificationPanel } from './landlord-ops/ResidenceVerificationPanel';
 
 
 interface ListingWithLandlord {
@@ -232,7 +233,7 @@ function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]
   );
 }
 
-type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord';
+type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'residence-verify' | 'lc1-duplicates' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests' | 'houses-by-landlord';
 
 // ─── Navigation Items ───
 const navItems: { id: View; label: string; icon: typeof Building2; color: string; description: string; priority?: boolean }[] = [
@@ -243,6 +244,7 @@ const navItems: { id: View; label: string; icon: typeof Building2; color: string
   { id: 'all-requests', label: 'All Requests', icon: Table2, color: 'bg-slate-500/10 text-slate-600 border-slate-500/30', description: 'Full table of every rent request (landlord lens)', priority: true },
   { id: 'locations', label: 'Locations', icon: MapPin, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Regions, districts & house counts', priority: true },
   { id: 'lc1', label: 'LC1 Chairpersons', icon: ShieldCheck, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'LC1 contacts per village', priority: true },
+  { id: 'residence-verify', label: 'GPS & LC1 Verification', icon: ShieldCheck, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'Set landlord GPS & LC1 status (pending/verified/rejected)', priority: true },
   { id: 'lc1-duplicates', label: 'LC1 Duplicates', icon: Layers, color: 'bg-rose-500/10 text-rose-600 border-rose-500/30', description: 'Review & merge duplicate LC1 phone rows' },
   { id: 'cities', label: 'Cities We Operate In', icon: Globe, color: 'bg-teal-500/10 text-teal-600 border-teal-500/30', description: 'All cities with tenants & properties', priority: true },
   { id: 'no-landlord', label: 'No Landlord Listed', icon: UserX, color: 'bg-orange-500/10 text-orange-600 border-orange-500/30', description: 'Tenants without landlord — contact to list & earn 5K', priority: true },
@@ -2307,6 +2309,20 @@ export function LandlordOpsDashboard() {
         </p>
         <Lc1DuplicatesPanel onResolved={() => { refetchLC1(); refetchAll(); }} />
       </div>
+    );
+  }
+
+  // ─── GPS & LC1 VERIFICATION VIEW (set pending/verified/rejected with reason) ───
+  if (view === 'residence-verify') {
+    return (
+      <>
+      <div className="space-y-4">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> GPS & LC1 Verification</h2>
+        <ResidenceVerificationPanel />
+      </div>
+      {renderDialogs()}
+      </>
     );
   }
 
