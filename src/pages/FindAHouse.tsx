@@ -785,7 +785,7 @@ export default function FindAHouse() {
               <p className="text-xs text-muted-foreground">
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
               </p>
-              <VirtualHouseList listings={filtered} />
+              <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
             </>
           )}
         </main>
