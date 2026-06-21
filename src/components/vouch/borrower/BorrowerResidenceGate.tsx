@@ -76,6 +76,16 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
   const [lc1, setLc1] = useState<LinkedLc1 | null>(null);
   const [agentName, setAgentName] = useState<string | null>(null);
 
+  // verification status derived from the *.verified flag + the borrower's own
+  // verification-request rows (pending/rejected).
+  const [landlordStatus, setLandlordStatus] = useState<VerifStatus>('pending');
+  const [lc1Status, setLc1Status] = useState<VerifStatus>('pending');
+  const [landlordReject, setLandlordReject] = useState<string | null>(null);
+  const [lc1Reject, setLc1Reject] = useState<string | null>(null);
+  const [llReqState, setLlReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
+  const [lc1ReqState, setLc1ReqState] = useState<'idle' | 'sending' | 'sent' | 'exists'>('idle');
+  const [meContact, setMeContact] = useState<{ full_name: string | null; phone: string | null }>({ full_name: null, phone: null });
+
   // sub-flows
   const [addLandlord, setAddLandlord] = useState(false);
   const [addLc1, setAddLc1] = useState(false);
@@ -92,11 +102,16 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
   const loadProfile = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    setLlReqState('idle');
+    setLc1ReqState('idle');
+    setLandlordReject(null);
+    setLc1Reject(null);
     const { data: prof } = await supabase
       .from('profiles')
-      .select('borrower_landlord_id, borrower_lc1_id')
+      .select('borrower_landlord_id, borrower_lc1_id, full_name, phone')
       .eq('id', user.id)
       .maybeSingle();
+    setMeContact({ full_name: prof?.full_name ?? null, phone: prof?.phone ?? null });
 
     let ll: LinkedLandlord | null = null;
     if (prof?.borrower_landlord_id) {
@@ -108,6 +123,21 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
       ll = (data as LinkedLandlord) ?? null;
     }
     setLandlord(ll);
+    // Derive landlord verification status
+    if (ll?.verified) {
+      setLandlordStatus('verified');
+    } else if (ll) {
+      const { data: req } = await supabase
+        .from('landlord_verification_requests')
+        .select('status, reject_comment')
+        .eq('landlord_id', ll.id)
+        .eq('requested_by', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (req?.status === 'rejected') { setLandlordStatus('rejected'); setLandlordReject(req.reject_comment ?? null); }
+      else { setLandlordStatus('pending'); if (req) setLlReqState('exists'); }
+    }
 
     let chair: LinkedLc1 | null = null;
     if (prof?.borrower_lc1_id) {
@@ -119,6 +149,21 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
       chair = (data as LinkedLc1) ?? null;
     }
     setLc1(chair);
+    // Derive LC1 verification status
+    if (chair?.verified) {
+      setLc1Status('verified');
+    } else if (chair) {
+      const { data: req } = await supabase
+        .from('lc1_verification_requests')
+        .select('status, reject_comment')
+        .eq('lc1_id', chair.id)
+        .eq('requested_by', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (req?.status === 'rejected') { setLc1Status('rejected'); setLc1Reject(req.reject_comment ?? null); }
+      else { setLc1Status('pending'); if (req) setLc1ReqState('exists'); }
+    }
 
     if (ll?.registered_by) {
       const { data: ag } = await supabase
