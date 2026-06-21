@@ -122,12 +122,6 @@ function ClusterLayer({
   // Re-style the selected pin without rebuilding the whole cluster group.
   useEffect(() => {
     markersRef.current.forEach((marker, id) => {
-      const label = marker.getPopup ? undefined : undefined; // noop guard
-      void label;
-      const text = (marker.options.icon as L.DivIcon | undefined)?.options?.html;
-      void text;
-    });
-    markersRef.current.forEach((marker, id) => {
       const isSel = id === selectedId;
       const list = listings.find((l) => l.id === id);
       if (!list) return;
