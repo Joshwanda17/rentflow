@@ -14,7 +14,7 @@ export default function LendingAgentAgreementModal({ isOpen, onClose, onAccept, 
       isOpen={isOpen}
       onClose={onClose}
       title="Welile Lending Agent Agreement"
-      subtitle="Peer lending through your Welile Wallet. Welile does NOT vouch peer loans — you bear the risk."
+      subtitle="Peer lending through your Welile Wallet. Welile guarantees 100% of your principal if a borrower defaults."
       agreementText={LENDING_AGENT_AGREEMENT_TEXT}
       onAccept={onAccept}
       viewOnly={viewOnly}
