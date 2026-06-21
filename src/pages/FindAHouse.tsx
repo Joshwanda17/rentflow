@@ -558,13 +558,16 @@ export default function FindAHouse() {
     const p = new URLSearchParams();
     if (searchText.trim()) p.set('q', searchText.trim());
     if (selectedRegion !== 'All Regions') p.set('region', selectedRegion);
+    if (selectedDistrict !== 'all') p.set('district', selectedDistrict);
+    if (selectedSubCounty !== 'all') p.set('subcounty', selectedSubCounty);
+    if (selectedVillage !== 'all') p.set('village', selectedVillage);
     if (selectedCategory !== 'all') p.set('category', selectedCategory);
     if (sortKey !== 'price_asc') p.set('sort', sortKey);
     if (verifiedOnly) p.set('verified', '1');
     if (maxDaily !== 'all') p.set('max', maxDaily);
     if (activeAmenities.length) p.set('amenities', activeAmenities.join(','));
     return p.toString();
-  }, [searchText, selectedRegion, selectedCategory, sortKey, verifiedOnly, maxDaily, activeAmenities]);
+  }, [searchText, selectedRegion, selectedDistrict, selectedSubCounty, selectedVillage, selectedCategory, sortKey, verifiedOnly, maxDaily, activeAmenities]);
 
   const openDetails = useCallback((listing: HouseListing) => {
     navigate(`/house/${listing.short_code || listing.id}`, {
