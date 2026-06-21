@@ -388,13 +388,23 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
             </div>
           )}
 
-          {/* Estimated route preview — distance + time before opening navigation */}
+          {/* Estimated route preview — distance + time + travel mode */}
           {routeEstimate && (
             <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2 flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <Route className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-sm font-bold text-foreground truncate">
                   {routeEstimate.approximate ? '~' : ''}{routeEstimate.distanceLabel}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {travelMode === 'driving' ? (
+                  <Car className="h-3.5 w-3.5 text-primary" />
+                ) : (
+                  <Footprints className="h-3.5 w-3.5 text-primary" />
+                )}
+                <span className="text-xs font-bold text-foreground uppercase tracking-tight">
+                  {travelMode === 'driving' ? 'Driving' : 'Walking'}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
