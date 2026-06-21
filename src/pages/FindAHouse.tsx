@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, ShieldCheck, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn, Navigation,
-  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2
+  SlidersHorizontal, X, Droplets, Zap, Lock, Car, Sofa, ArrowDownUp, Loader2, ArrowRight
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -188,7 +188,7 @@ function VerificationBadge({ verified, status }: { verified?: boolean | null; st
   );
 }
 
-function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?: boolean }) {
+function PublicHouseCard({ listing, isFirst, onOpenDetails }: { listing: HouseListing; isFirst?: boolean; onOpenDetails?: (listing: HouseListing) => void }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -253,7 +253,17 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
       <div className="p-5 space-y-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-lg tracking-tight leading-tight truncate" itemProp="name">{listing.title}</h2>
+            {onOpenDetails ? (
+              <button
+                type="button"
+                onClick={() => onOpenDetails(listing)}
+                className="text-left w-full active:scale-[0.99] transition-transform touch-manipulation"
+              >
+                <h2 className="font-bold text-lg tracking-tight leading-tight truncate hover:text-primary transition-colors" itemProp="name">{listing.title}</h2>
+              </button>
+            ) : (
+              <h2 className="font-bold text-lg tracking-tight leading-tight truncate" itemProp="name">{listing.title}</h2>
+            )}
             <div className="flex items-center gap-1 mt-1" itemProp="address">
               <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
               <p className="text-xs text-muted-foreground font-medium truncate">
@@ -307,6 +317,17 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
 
         <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} anchorId={isFirst ? 'first-map-cta' : undefined} />
 
+        {/* View full details — opens the house detail page (keeps list filters) */}
+        {onOpenDetails && (
+          <Button
+            variant="default"
+            className="w-full gap-1.5 font-bold"
+            onClick={() => onOpenDetails(listing)}
+          >
+            View full details <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
+
         {/* WhatsApp Agent */}
         <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
 
@@ -333,7 +354,7 @@ function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?
  * crucial because each card mounts a Google Map iframe + multiple images.
  * Heights are measured dynamically since cards vary (amenities, description, thumbnails).
  */
-function VirtualHouseList({ listings }: { listings: HouseListing[] }) {
+function VirtualHouseList({ listings, onOpenDetails }: { listings: HouseListing[]; onOpenDetails?: (listing: HouseListing) => void }) {
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const virtualizer = useWindowVirtualizer({
@@ -359,7 +380,7 @@ function VirtualHouseList({ listings }: { listings: HouseListing[] }) {
             className="absolute left-0 top-0 w-full"
             style={{ transform: `translateY(${vi.start - virtualizer.options.scrollMargin}px)` }}
           >
-            <PublicHouseCard listing={listing} isFirst={vi.index === 0} />
+            <PublicHouseCard listing={listing} isFirst={vi.index === 0} onOpenDetails={onOpenDetails} />
           </div>
         );
       })}
@@ -371,18 +392,53 @@ export default function FindAHouse() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const geo = useGeolocation(true);
-  const [searchText, setSearchText] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('All Regions');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
+  const [searchText, setSearchText] = useState(() => searchParams.get('q') || '');
+  const [selectedRegion, setSelectedRegion] = useState(() => {
+    const r = searchParams.get('region');
+    return r && REGIONS.includes(r) ? r : 'All Regions';
+  });
+  const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || 'all');
+  // If the URL already carries a region (restored filtered list / shared link),
+  // skip the geolocation auto-default so we don't override the chosen region.
+  const [geoDefaultApplied, setGeoDefaultApplied] = useState(() => {
+    const r = searchParams.get('region');
+    return !!(r && REGIONS.includes(r));
+  });
   const [copied, setCopied] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>('price_asc');
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [maxDaily, setMaxDaily] = useState<string>('all');
-  const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>(() => (searchParams.get('sort') as SortKey) || 'price_asc');
+  const [verifiedOnly, setVerifiedOnly] = useState(() => searchParams.get('verified') === '1');
+  const [maxDaily, setMaxDaily] = useState<string>(() => searchParams.get('max') || 'all');
+  const [activeAmenities, setActiveAmenities] = useState<AmenityKey[]>(
+    () => (searchParams.get('amenities')?.split(',').filter(Boolean) as AmenityKey[]) || []
+  );
   const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebouncedValue(searchText, 250);
+
+  // Funder context flows in from the funders dashboard "See all" link.
+  const cameFromFunder = (location.state as { from?: string } | null)?.from === 'funder';
+
+  // Serialize the active filters so a house detail page can link back to this
+  // exact filtered list (breadcrumb "Filtered houses").
+  const buildListSearch = useCallback(() => {
+    const p = new URLSearchParams();
+    if (searchText.trim()) p.set('q', searchText.trim());
+    if (selectedRegion !== 'All Regions') p.set('region', selectedRegion);
+    if (selectedCategory !== 'all') p.set('category', selectedCategory);
+    if (sortKey !== 'price_asc') p.set('sort', sortKey);
+    if (verifiedOnly) p.set('verified', '1');
+    if (maxDaily !== 'all') p.set('max', maxDaily);
+    if (activeAmenities.length) p.set('amenities', activeAmenities.join(','));
+    return p.toString();
+  }, [searchText, selectedRegion, selectedCategory, sortKey, verifiedOnly, maxDaily, activeAmenities]);
+
+  const openDetails = useCallback((listing: HouseListing) => {
+    navigate(`/house/${listing.short_code || listing.id}`, {
+      state: { from: cameFromFunder ? 'funder' : undefined, listSearch: buildListSearch() },
+    });
+  }, [navigate, cameFromFunder, buildListSearch]);
 
   // A shared link can pin the area so whoever opens it sees houses near the
   // sharer's location, not their own. lat/lng/region come from the share button.
@@ -737,7 +793,7 @@ export default function FindAHouse() {
               <p className="text-xs text-muted-foreground">
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · {sortLabel.toLowerCase()}
               </p>
-              <VirtualHouseList listings={filtered} />
+              <VirtualHouseList listings={filtered} onOpenDetails={openDetails} />
             </>
           )}
         </main>

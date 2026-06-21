@@ -228,7 +228,10 @@ export default function HouseDetail() {
 
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const isPending = !listing.verified || listing.status === 'pending';
-  const fromFunder = (location.state as { from?: string } | null)?.from === 'funder';
+  const navState = location.state as { from?: string; listSearch?: string } | null;
+  const fromFunder = navState?.from === 'funder';
+  const listSearch = navState?.listSearch || '';
+  const cameFromFilteredList = listSearch.length > 0;
   const mapLink = listing.latitude && listing.longitude
     ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
     : null;
@@ -278,7 +281,7 @@ export default function HouseDetail() {
           <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b border-border">
             <div className="max-w-2xl mx-auto px-4 py-2.5 flex items-center gap-3">
               <button
-                onClick={() => navigate('/dashboard/funder')}
+                onClick={() => (cameFromFilteredList ? navigate(-1) : navigate('/dashboard/funder'))}
                 className="flex items-center gap-1.5 text-sm font-semibold text-foreground rounded-lg px-2 py-1 -ml-2 hover:bg-accent/50 active:scale-95 transition-all touch-manipulation shrink-0"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -294,7 +297,12 @@ export default function HouseDetail() {
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
                     <BreadcrumbLink asChild>
-                      <Link to="/find-a-house">Houses</Link>
+                      <Link
+                        to={{ pathname: '/find-a-house', search: listSearch }}
+                        state={{ from: 'funder', listSearch }}
+                      >
+                        {cameFromFilteredList ? 'Filtered houses' : 'Houses'}
+                      </Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator />
