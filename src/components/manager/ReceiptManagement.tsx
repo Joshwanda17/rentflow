@@ -149,7 +149,7 @@ function VendorCard({ vendor, onPinSet }: { vendor: Vendor; onPinSet: () => void
           onClick={() => setShowPinInput(true)}
         >
           <Key className="h-3 w-3" />
-          {vendor.pin ? 'Change PIN' : 'Set PIN'}
+          {vendor.has_pin ? 'Change PIN' : 'Set PIN'}
         </Button>
       )}
     </div>
