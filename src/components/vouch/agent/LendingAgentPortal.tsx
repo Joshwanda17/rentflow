@@ -776,6 +776,43 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
                                 <Label className="text-xs">Loan purpose</Label>
                                 <Textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} rows={2} placeholder="e.g. school fees, business stock" className="text-sm resize-none" />
                               </div>
+                              {/* Auto-deduction schedule */}
+                              <div className="rounded-lg border bg-muted/30 p-2.5 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <Label className="text-xs font-semibold">Auto-deduct repayments</Label>
+                                    <p className="text-[9px] text-muted-foreground">Pull installments straight from the borrower's wallet into yours.</p>
+                                  </div>
+                                  <Switch checked={autoDeduct} onCheckedChange={setAutoDeduct} />
+                                </div>
+                                {autoDeduct && (
+                                  <>
+                                    <div>
+                                      <Label className="text-xs">Repayment schedule</Label>
+                                      <Select value={frequency} onValueChange={(v) => setFrequency(v as RepaymentFrequency)}>
+                                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                          {REPAYMENT_FREQUENCIES.map((f) => (
+                                            <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    {principal && Number(principal) > 0 && (() => {
+                                      const ratePct = interestRate ? Number(interestRate) : 0;
+                                      const totalOwed = Number(principal) + (Number(principal) * ratePct) / 100;
+                                      const sched = buildSchedule(totalOwed, frequency, new Date(), dueDate || null);
+                                      return (
+                                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                          {frequency === 'once'
+                                            ? `One lump-sum pull of ${formatUGX(sched.installment)} on ${sched.firstDate}.`
+                                            : `${sched.periods} installments of ~${formatUGX(sched.installment)} each. First on ${sched.firstDate}. Partial amounts are taken when the wallet is short and retried next cycle.`}
+                                        </p>
+                                      );
+                                    })()}
+                                  </>
+                                )}
+                              </div>
                               <div className="flex gap-2 pt-1">
                                 <Button size="sm" variant="outline" className="flex-1" onClick={() => setShowLoanForm(false)}>Cancel</Button>
                                 <Button size="sm" className="flex-1" onClick={handleDisburse} disabled={submitting}>
