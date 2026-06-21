@@ -280,27 +280,40 @@ export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
                 </Card>
               ) : (
                 <div className="space-y-2">
-                  {offers.map((offer) => (
-                    <Card key={offer.id} className="border-border/60">
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-bold truncate">{offer.title}</p>
-                          <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold">{offer.interest_rate_pct}%</Badge>
-                        </div>
-                        {offer.description && <p className="text-[11px] text-muted-foreground mb-1 line-clamp-2">{offer.description}</p>}
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                          <User className="h-3 w-3" /> {offer.lender_display_name ?? offer.lender_ai_id ?? 'Lending agent'}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground mt-1">
-                          {formatUGX(offer.min_amount_ugx)} – {formatUGX(offer.max_amount_ugx)} · {offer.min_duration_days}-{offer.max_duration_days} days
-                        </p>
-                        <Button size="sm" className="w-full mt-2 h-9 text-xs font-bold" onClick={() => openRequest(offer)}>
-                          <HandCoins className="h-3.5 w-3.5 mr-1.5" />
-                          Borrow this offer
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {offers.map((offer) => {
+                    const isOwnOffer = offer.lender_agent_id === user?.id;
+                    return (
+                      <Card key={offer.id} className="border-border/60">
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm font-bold truncate">{offer.title}</p>
+                            <div className="flex items-center gap-1.5">
+                              {isOwnOffer && (
+                                <Badge className="bg-primary/15 text-primary border-0 text-[9px] font-bold">Yours</Badge>
+                              )}
+                              <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold">{offer.interest_rate_pct}%</Badge>
+                            </div>
+                          </div>
+                          {offer.description && <p className="text-[11px] text-muted-foreground mb-1 line-clamp-2">{offer.description}</p>}
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <User className="h-3 w-3" /> {offer.lender_display_name ?? offer.lender_ai_id ?? 'Lending agent'}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            {formatUGX(offer.min_amount_ugx)} – {formatUGX(offer.max_amount_ugx)} · {offer.min_duration_days}-{offer.max_duration_days} days
+                          </p>
+                          <Button
+                            size="sm"
+                            className="w-full mt-2 h-9 text-xs font-bold"
+                            disabled={isOwnOffer}
+                            onClick={() => openRequest(offer)}
+                          >
+                            <HandCoins className="h-3.5 w-3.5 mr-1.5" />
+                            {isOwnOffer ? 'Your own offer' : 'Borrow this offer'}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                   {/* Infinite-scroll sentinel + loader */}
                   <div ref={sentinelRef} className="h-1 w-full" />
                   {loadingMore && (
