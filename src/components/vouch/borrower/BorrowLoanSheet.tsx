@@ -235,7 +235,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
     }
     setAmount(''); setDuration(''); setPurpose('');
     // Open a generic request form by setting a synthetic active offer
-    setActiveOffer({
+    requireResidence(() => setActiveOffer({
       id: '',
       lender_agent_id: profile.user_id,
       lender_display_name: profile.identity?.full_name ?? cleaned,
@@ -248,7 +248,7 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
       min_duration_days: 1,
       max_duration_days: 365,
       active: true,
-    });
+    }));
   };
 
   return (
