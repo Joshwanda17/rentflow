@@ -216,6 +216,7 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
   const dist = listing.distance_km;
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
+  const [travelMode, setTravelMode] = useState<TravelMode>('driving');
 
   const lightboxImages = useMemo(() =>
     (listing.image_urls || []).map((url, i) => ({ id: `${listing.id}-${i}`, image_url: url })),
@@ -227,13 +228,13 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
     setLightboxOpen(true);
   }, []);
   const announce = useMapLinkAnnouncer();
-  const directionsUrl = buildDirectionsUrl(listing);
+  const directionsUrl = useMemo(() => buildDirectionsUrl(listing, travelMode), [listing, travelMode]);
 
-  // Estimated driving distance + time from the viewer to this house, shown
+  // Estimated route distance + time from the viewer to this house, shown
   // before they open turn-by-turn navigation. Derived locally (no API call).
   const routeEstimate = useMemo(
-    () => (userLat != null && userLng != null ? estimateRoute(listing, userLat, userLng) : null),
-    [listing, userLat, userLng]
+    () => (userLat != null && userLng != null ? estimateRoute(listing, userLat, userLng, travelMode) : null),
+    [listing, userLat, userLng, travelMode]
   );
 
   // "New" badge for listings created within the last 14 days.
