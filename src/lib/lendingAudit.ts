@@ -10,6 +10,7 @@ export type LendingAuditAction =
   | 'request_declined'
   | 'loan_disbursed'
   | 'fee_deducted'
+  | 'repayment_recorded'
   | 'status_change';
 
 export interface LendingAuditEntry {
