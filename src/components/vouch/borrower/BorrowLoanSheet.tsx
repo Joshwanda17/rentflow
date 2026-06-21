@@ -37,7 +37,7 @@ interface Offer {
   max_duration_days: number;
 }
 
-export default function BorrowLoanSheet({ open, onOpenChange }: Props) {
+export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPortal }: Props) {
   const { user } = useAuth();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(false);
