@@ -275,8 +275,20 @@ export default function BorrowLoanSheet({ open, onOpenChange, onOpenLendingPorta
                 <Skeleton className="h-24 w-full rounded-xl" />
               ) : offers.length === 0 ? (
                 <Card className="border-dashed">
-                  <CardContent className="p-6 text-center">
-                    <p className="text-xs text-muted-foreground">No loan offers available right now. Try requesting an agent by AI ID above.</p>
+                  <CardContent className="p-6 text-center space-y-2">
+                    {showOwnOffers ? (
+                      <>
+                        <p className="text-xs text-muted-foreground">You haven’t published any loan offers yet. Turn the toggle off to browse other agents’ offers, or publish your own.</p>
+                        {onOpenLendingPortal && (
+                          <Button size="sm" className="h-9 text-xs font-bold" onClick={onOpenLendingPortal}>
+                            <Plus className="h-3.5 w-3.5 mr-1.5" />
+                            Create your first offer
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No loan offers available right now. Try requesting an agent by AI ID above.</p>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
