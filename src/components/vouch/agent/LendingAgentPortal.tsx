@@ -152,6 +152,12 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       .order('created_at', { ascending: false })
       .limit(50) as any);
     if (data) setRequests(data);
+    const { data: auditData } = await (supabase
+      .from('lending_audit_log' as any)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(60) as any);
+    if (auditData) setAuditLog(auditData);
   };
 
   const handleCreateOffer = async () => {
