@@ -9,6 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   Banknote, ShieldCheck, Search, Loader2, AlertCircle, Plus,
   CheckCircle2, FileText, Wallet, TrendingUp, Info, Megaphone, Inbox, Trash2, X, Check,
   ScrollText, Users, SearchX,
@@ -30,6 +33,7 @@ import LendingBorrowerCard from './LendingBorrowerCard';
 import {
   LendingLoan, computeStats, matchesFilter, matchesSearch, dueStateOf,
   StatusFilter,
+  RepaymentFrequency, REPAYMENT_FREQUENCIES, buildSchedule,
 } from './lendingHelpers';
 
 interface Props {
@@ -76,6 +80,9 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
   const [dueDate, setDueDate] = useState('');
   const [purpose, setPurpose] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Auto-deduction schedule
+  const [autoDeduct, setAutoDeduct] = useState(true);
+  const [frequency, setFrequency] = useState<RepaymentFrequency>('monthly');
 
   // Loan offers (published to all users) + incoming requests
   const [offers, setOffers] = useState<any[]>([]);
@@ -280,6 +287,12 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       return;
     }
     setDecidingId(req.id);
+    const ratePct = req.interest_rate_pct ?? 0;
+    const totalOwed = principalNum + (principalNum * ratePct) / 100;
+    const durationDays = Number(req.requested_duration_days) || 30;
+    const dueStr = new Date(Date.now() + durationDays * 86400000).toISOString().slice(0, 10);
+    const reqFreq: RepaymentFrequency = durationDays <= 1 ? 'once' : 'monthly';
+    const reqSchedule = buildSchedule(totalOwed, reqFreq, new Date(), dueStr);
     const { data: loanRow, error } = await (supabase.from('lending_agent_loans' as any).insert({
       lender_agent_id: user.id,
       borrower_user_id: req.borrower_user_id,
@@ -288,11 +301,16 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       borrower_phone: req.borrower_phone,
       principal_ugx: principalNum,
       interest_rate_pct: req.interest_rate_pct ?? 0,
-      expected_repayment_date: null,
+      expected_repayment_date: dueStr,
       loan_purpose: req.purpose ?? null,
       platform_fee_ugx: fee,
       lender_trust_score_at_record: trustScore,
       status: 'active',
+      repayment_frequency: reqFreq,
+      auto_deduct_enabled: true,
+      installment_ugx: reqSchedule.installment,
+      next_deduction_date: reqSchedule.firstDate,
+      auto_deduct_started_at: new Date().toISOString(),
     }).select('id').single() as any);
     if (error) {
       setDecidingId(null);
@@ -376,6 +394,11 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
     }
 
     setSubmitting(true);
+    const ratePct = interestRate ? Number(interestRate) : 0;
+    const totalOwed = principalNum + (principalNum * ratePct) / 100;
+    const schedule = autoDeduct
+      ? buildSchedule(totalOwed, frequency, new Date(), dueDate || null)
+      : null;
     const { error } = await (supabase.from('lending_agent_loans' as any).insert({
       lender_agent_id: user.id,
       borrower_user_id: borrower.user_id,
@@ -391,6 +414,11 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       borrower_trust_score_at_record: borrower.trust.score,
       borrower_trust_tier_at_record: borrower.trust.tier,
       status: 'active',
+      repayment_frequency: autoDeduct ? frequency : 'once',
+      auto_deduct_enabled: autoDeduct,
+      installment_ugx: schedule?.installment ?? 0,
+      next_deduction_date: schedule?.firstDate ?? null,
+      auto_deduct_started_at: autoDeduct ? new Date().toISOString() : null,
     }) as any);
     setSubmitting(false);
 
@@ -400,11 +428,16 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
       return;
     }
 
-    toast.success(`Loan to ${borrower.identity?.full_name ?? borrower.ai_id} recorded.`);
+    toast.success(
+      autoDeduct
+        ? `Loan recorded. Auto-deduction set ${frequency.replace('_', ' ')} (~${formatUGX(schedule?.installment ?? 0)}/cycle).`
+        : `Loan to ${borrower.identity?.full_name ?? borrower.ai_id} recorded.`,
+    );
     await reloadLoans();
     refetchBalances();
     setShowLoanForm(false);
     setPrincipal(''); setDueDate(''); setPurpose('');
+    setAutoDeduct(true); setFrequency('monthly');
     setActiveAiId(null); setAiIdInput('');
     setTab('borrowers');
   };
@@ -753,6 +786,43 @@ export default function LendingAgentPortal({ open, onOpenChange }: Props) {
                               <div>
                                 <Label className="text-xs">Loan purpose</Label>
                                 <Textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} rows={2} placeholder="e.g. school fees, business stock" className="text-sm resize-none" />
+                              </div>
+                              {/* Auto-deduction schedule */}
+                              <div className="rounded-lg border bg-muted/30 p-2.5 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <Label className="text-xs font-semibold">Auto-deduct repayments</Label>
+                                    <p className="text-[9px] text-muted-foreground">Pull installments straight from the borrower's wallet into yours.</p>
+                                  </div>
+                                  <Switch checked={autoDeduct} onCheckedChange={setAutoDeduct} />
+                                </div>
+                                {autoDeduct && (
+                                  <>
+                                    <div>
+                                      <Label className="text-xs">Repayment schedule</Label>
+                                      <Select value={frequency} onValueChange={(v) => setFrequency(v as RepaymentFrequency)}>
+                                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                          {REPAYMENT_FREQUENCIES.map((f) => (
+                                            <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    {principal && Number(principal) > 0 && (() => {
+                                      const ratePct = interestRate ? Number(interestRate) : 0;
+                                      const totalOwed = Number(principal) + (Number(principal) * ratePct) / 100;
+                                      const sched = buildSchedule(totalOwed, frequency, new Date(), dueDate || null);
+                                      return (
+                                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                          {frequency === 'once'
+                                            ? `One lump-sum pull of ${formatUGX(sched.installment)} on ${sched.firstDate}.`
+                                            : `${sched.periods} installments of ~${formatUGX(sched.installment)} each. First on ${sched.firstDate}. Partial amounts are taken when the wallet is short and retried next cycle.`}
+                                        </p>
+                                      );
+                                    })()}
+                                  </>
+                                )}
                               </div>
                               <div className="flex gap-2 pt-1">
                                 <Button size="sm" variant="outline" className="flex-1" onClick={() => setShowLoanForm(false)}>Cancel</Button>

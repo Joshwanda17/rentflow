@@ -12,6 +12,10 @@ export interface LendingLoan {
   expected_repayment_date: string | null;
   created_at: string;
   platform_fee_ugx: number;
+  repayment_frequency?: string | null;
+  auto_deduct_enabled?: boolean | null;
+  installment_ugx?: number | null;
+  next_deduction_date?: string | null;
 }
 
 /** Normalize a Ugandan phone number to international (256...) digits for tel/wa/sms links. */
@@ -101,4 +105,90 @@ export function matchesSearch(loan: LendingLoan, q: string): boolean {
     (loan.borrower_ai_id ?? '').toLowerCase().includes(needle) ||
     (loan.borrower_phone ?? '').toLowerCase().includes(needle)
   );
+}
+
+// ===== Auto-deduction repayment schedule =====
+
+export type RepaymentFrequency = 'daily' | 'weekly' | 'monthly' | 'once' | 'end_of_month';
+
+export const REPAYMENT_FREQUENCIES: { value: RepaymentFrequency; label: string; hint: string }[] = [
+  { value: 'daily', label: 'Daily', hint: 'Pull a slice every day' },
+  { value: 'weekly', label: 'Weekly', hint: 'Pull once every 7 days' },
+  { value: 'monthly', label: 'Monthly', hint: 'Pull once a month' },
+  { value: 'end_of_month', label: 'End of month', hint: 'Pull on the last day of each month' },
+  { value: 'once', label: 'Once (lump sum)', hint: 'Pull the whole balance one time' },
+];
+
+function lastDayOfMonth(year: number, monthIdx: number): Date {
+  return new Date(year, monthIdx + 1, 0);
+}
+
+function diffDays(a: Date, b: Date): number {
+  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000));
+}
+
+/** Count how many month-ends fall in (start, due]. */
+function countMonthEnds(start: Date, due: Date): number {
+  let count = 0;
+  const cursor = lastDayOfMonth(start.getFullYear(), start.getMonth());
+  while (cursor <= due) {
+    if (cursor > start) count += 1;
+    cursor.setMonth(cursor.getMonth() + 1);
+    // re-snap to month end after month increment
+    cursor.setDate(0);
+    cursor.setMonth(cursor.getMonth() + 1);
+    cursor.setDate(0);
+  }
+  return Math.max(1, count);
+}
+
+/** Number of installments for a cadence over a [start, due] window. */
+export function periodsFor(freq: RepaymentFrequency, start: Date, due: Date): number {
+  if (freq === 'once' || due <= start) return 1;
+  const days = diffDays(start, due);
+  switch (freq) {
+    case 'daily': return Math.max(1, days);
+    case 'weekly': return Math.max(1, Math.ceil(days / 7));
+    case 'monthly': return Math.max(1, Math.ceil(days / 30));
+    case 'end_of_month': return countMonthEnds(start, due);
+    default: return 1;
+  }
+}
+
+/** First deduction date for a cadence starting from `start`. */
+export function firstDeductionDate(freq: RepaymentFrequency, start: Date, due: Date): string {
+  const d = new Date(start.getTime());
+  const fmt = (x: Date) => {
+    const y = x.getFullYear();
+    const m = String(x.getMonth() + 1).padStart(2, '0');
+    const day = String(x.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  switch (freq) {
+    case 'daily': d.setDate(d.getDate() + 1); return fmt(d);
+    case 'weekly': d.setDate(d.getDate() + 7); return fmt(d);
+    case 'monthly': d.setMonth(d.getMonth() + 1); return fmt(d);
+    case 'end_of_month': return fmt(lastDayOfMonth(d.getFullYear(), d.getMonth()));
+    case 'once': return fmt(due > start ? due : d);
+    default: return fmt(d);
+  }
+}
+
+export interface ScheduleResult {
+  installment: number;
+  periods: number;
+  firstDate: string;
+}
+
+/** Even split of total owed across the cadence's periods within the loan window. */
+export function buildSchedule(
+  totalOwed: number,
+  freq: RepaymentFrequency,
+  startDate: Date,
+  dueDateStr: string | null,
+): ScheduleResult {
+  const due = dueDateStr ? new Date(dueDateStr) : new Date(startDate.getTime() + 30 * 86400000);
+  const periods = periodsFor(freq, startDate, due);
+  const installment = Math.max(1, Math.ceil(totalOwed / periods));
+  return { installment, periods, firstDate: firstDeductionDate(freq, startDate, due) };
 }

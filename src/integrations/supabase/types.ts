@@ -10115,6 +10115,10 @@ export type Database = {
       lending_agent_loans: {
         Row: {
           amount_repaid_ugx: number
+          auto_deduct_attempts: number
+          auto_deduct_collected_ugx: number
+          auto_deduct_enabled: boolean
+          auto_deduct_started_at: string | null
           borrower_ai_id: string
           borrower_display_name: string | null
           borrower_phone: string | null
@@ -10126,19 +10130,27 @@ export type Database = {
           expected_repayment_date: string | null
           external_loan_reference: string | null
           id: string
+          installment_ugx: number
           interest_rate_pct: number | null
+          last_auto_deduct_at: string | null
           last_repayment_at: string | null
           lender_agent_id: string
           lender_trust_score_at_record: number | null
           loan_purpose: string | null
+          next_deduction_date: string | null
           notes: string | null
           platform_fee_ugx: number
           principal_ugx: number
+          repayment_frequency: string
           status: string
           updated_at: string
         }
         Insert: {
           amount_repaid_ugx?: number
+          auto_deduct_attempts?: number
+          auto_deduct_collected_ugx?: number
+          auto_deduct_enabled?: boolean
+          auto_deduct_started_at?: string | null
           borrower_ai_id: string
           borrower_display_name?: string | null
           borrower_phone?: string | null
@@ -10150,19 +10162,27 @@ export type Database = {
           expected_repayment_date?: string | null
           external_loan_reference?: string | null
           id?: string
+          installment_ugx?: number
           interest_rate_pct?: number | null
+          last_auto_deduct_at?: string | null
           last_repayment_at?: string | null
           lender_agent_id: string
           lender_trust_score_at_record?: number | null
           loan_purpose?: string | null
+          next_deduction_date?: string | null
           notes?: string | null
           platform_fee_ugx?: number
           principal_ugx: number
+          repayment_frequency?: string
           status?: string
           updated_at?: string
         }
         Update: {
           amount_repaid_ugx?: number
+          auto_deduct_attempts?: number
+          auto_deduct_collected_ugx?: number
+          auto_deduct_enabled?: boolean
+          auto_deduct_started_at?: string | null
           borrower_ai_id?: string
           borrower_display_name?: string | null
           borrower_phone?: string | null
@@ -10174,14 +10194,18 @@ export type Database = {
           expected_repayment_date?: string | null
           external_loan_reference?: string | null
           id?: string
+          installment_ugx?: number
           interest_rate_pct?: number | null
+          last_auto_deduct_at?: string | null
           last_repayment_at?: string | null
           lender_agent_id?: string
           lender_trust_score_at_record?: number | null
           loan_purpose?: string | null
+          next_deduction_date?: string | null
           notes?: string | null
           platform_fee_ugx?: number
           principal_ugx?: number
+          repayment_frequency?: string
           status?: string
           updated_at?: string
         }
