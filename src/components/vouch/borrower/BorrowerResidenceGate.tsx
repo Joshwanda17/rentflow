@@ -478,21 +478,46 @@ export default function BorrowerResidenceGate({ open, onOpenChange, onComplete }
                   <div className="flex items-center gap-2">
                     <Gavel className="h-4 w-4 text-primary" />
                     <p className="text-sm font-bold">Your LC1 chairperson</p>
-                    {lc1 && <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-auto" />}
+                    {lc1 && lc1Status === 'verified' && <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-auto" />}
                   </div>
 
                   {lc1 ? (
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-sm font-semibold">{lc1.name}</p>
-                        {lc1.verified ? (
-                          <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[9px] font-bold gap-0.5"><ShieldCheck className="h-2.5 w-2.5" />Verified</Badge>
-                        ) : (
-                          <Badge className="bg-amber-500/15 text-amber-700 border-0 text-[9px] font-bold gap-0.5"><ShieldAlert className="h-2.5 w-2.5" />Pending verify</Badge>
-                        )}
+                        <StatusBadge status={lc1Status} />
                       </div>
                       {(lc1.phone || lc1.village) && (
                         <p className="text-[11px] text-muted-foreground">{[lc1.phone, lc1.village].filter(Boolean).join(' · ')}</p>
+                      )}
+                      {lc1Status === 'pending' && (
+                        <div className="rounded-lg bg-amber-500/10 px-2.5 py-2 space-y-1.5">
+                          <p className="text-[11px] text-amber-700 flex items-center gap-1.5"><Clock className="h-3 w-3 shrink-0" />Our team must verify this LC1 chairperson before you can borrow.</p>
+                          {lc1ReqState === 'idle' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px] font-bold border-amber-500/40" onClick={requestLc1Verification}>
+                              <Send className="h-3 w-3 mr-1" /> Request verification
+                            </Button>
+                          ) : lc1ReqState === 'sending' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px]" disabled><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending…</Button>
+                          ) : (
+                            <p className="text-[11px] font-semibold text-amber-700 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Verification requested</p>
+                          )}
+                        </div>
+                      )}
+                      {lc1Status === 'rejected' && (
+                        <div className="rounded-lg bg-destructive/10 px-2.5 py-2 space-y-1.5">
+                          <p className="text-[11px] text-destructive flex items-center gap-1.5"><XCircle className="h-3 w-3 shrink-0" />Verification rejected{lc1Reject ? `: ${lc1Reject}` : '.'}</p>
+                          <p className="text-[10px] text-muted-foreground">Pick another LC1, or fix the details and request again.</p>
+                          {lc1ReqState === 'idle' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px] font-bold" onClick={requestLc1Verification}>
+                              <Send className="h-3 w-3 mr-1" /> Request verification again
+                            </Button>
+                          ) : lc1ReqState === 'sending' ? (
+                            <Button size="sm" variant="outline" className="h-7 w-full text-[11px]" disabled><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending…</Button>
+                          ) : (
+                            <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Verification requested</p>
+                          )}
+                        </div>
                       )}
                       <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] text-primary" onClick={() => setLc1(null)}>
                         Change LC1
