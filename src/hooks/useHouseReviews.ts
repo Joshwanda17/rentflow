@@ -8,9 +8,6 @@ export interface HouseReview {
   reviewer_id: string;
   rating: number;
   review_text: string | null;
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
   created_at: string;
   updated_at: string;
   reviewer_profile?: {
@@ -42,7 +39,7 @@ export function useHouseReviews(houseId: string | undefined) {
 
     const { data, error } = await supabase
       .from('house_reviews')
-      .select('*')
+      .select('id, house_id, reviewer_id, rating, review_text, created_at, updated_at')
       .eq('house_id', houseId)
       .order('created_at', { ascending: false });
 

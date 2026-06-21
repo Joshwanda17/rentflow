@@ -30,7 +30,7 @@ interface Vendor {
   name: string;
   location: string | null;
   phone: string | null;
-  pin: string | null;
+  has_pin?: boolean;
   active: boolean;
   created_at: string;
 }
@@ -114,9 +114,9 @@ function VendorCard({ vendor, onPinSet }: { vendor: Vendor; onPinSet: () => void
           {vendor.phone && <p className="text-sm text-muted-foreground">{vendor.phone}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={vendor.pin ? 'success' : 'outline'} className="gap-1">
+          <Badge variant={vendor.has_pin ? 'success' : 'outline'} className="gap-1">
             <Key className="h-3 w-3" />
-            {vendor.pin ? 'PIN Set' : 'No PIN'}
+            {vendor.has_pin ? 'PIN Set' : 'No PIN'}
           </Badge>
           <Badge variant={vendor.active ? 'success' : 'secondary'}>
             {vendor.active ? 'Active' : 'Inactive'}
@@ -149,7 +149,7 @@ function VendorCard({ vendor, onPinSet }: { vendor: Vendor; onPinSet: () => void
           onClick={() => setShowPinInput(true)}
         >
           <Key className="h-3 w-3" />
-          {vendor.pin ? 'Change PIN' : 'Set PIN'}
+          {vendor.has_pin ? 'Change PIN' : 'Set PIN'}
         </Button>
       )}
     </div>
@@ -191,7 +191,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
     const [vendorsRes, receiptsRes, userReceiptsRes] = await Promise.all([
       supabase
         .from('vendors')
-        .select('*')
+        .select('id, name, location, phone, active, created_at')
         .order('created_at', { ascending: false }),
       supabase
         .from('receipt_numbers')
@@ -223,7 +223,12 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
       profiles: profiles?.find(p => p.id === r.user_id)
     }));
 
-    setVendors(vendorsRes.data || []);
+    // Managers can see whether a PIN is set (without exposing the value)
+    const { data: pinFlags } = await supabase.rpc('manager_vendor_pin_flags');
+    const pinMap = new Map((pinFlags || []).map((f) => [f.vendor_id, f.has_pin]));
+    setVendors(
+      (vendorsRes.data || []).map((v) => ({ ...v, has_pin: pinMap.get(v.id) ?? false }))
+    );
     setReceiptNumbers(receiptsRes.data || []);
     setUserReceipts(receiptsWithProfiles);
     setLoading(false);

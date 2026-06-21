@@ -20768,6 +20768,13 @@ export type Database = {
           phone: string
         }[]
       }
+      manager_vendor_pin_flags: {
+        Args: never
+        Returns: {
+          has_pin: boolean
+          vendor_id: string
+        }[]
+      }
       merge_lc1_duplicates: {
         Args: { p_canonical_id: string; p_duplicate_ids: string[] }
         Returns: Json
