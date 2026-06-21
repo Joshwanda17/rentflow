@@ -785,7 +785,7 @@ export default function FindAHouse() {
         </div>
 
         {/* Listings */}
-        <main id="house-list" tabIndex={-1} className="max-w-2xl mx-auto px-4 py-4 space-y-3 pb-20">
+        <main id="house-list" tabIndex={-1} className="max-w-5xl mx-auto px-4 py-4 space-y-3 pb-20">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-48 w-full rounded-2xl" />
