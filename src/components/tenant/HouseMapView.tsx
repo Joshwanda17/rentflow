@@ -105,10 +105,31 @@ function ClusterLayer({
         icon: priceIcon(`${formatUGX(l.daily_rate)}/day`, selectedId === l.id),
         zIndexOffset: selectedId === l.id ? 1000 : 0,
       });
+      // Tag the marker so a cluster click can map back to a listing id.
+      (marker as L.Marker & { __houseId?: string }).__houseId = l.id;
       marker.on('click', () => onSelectRef.current(l.id));
       marker.bindPopup(() => buildPopup(l, onOpenRef.current));
       group.addLayer(marker);
       markers.set(l.id, marker);
+    });
+
+    // Clicking a cluster zooms into it (markercluster's default) AND selects
+    // the house nearest the cluster's centre, so the list/selection stays in
+    // sync with what the user just drilled into.
+    group.on('clusterclick', (e: L.LeafletEvent & { layer: L.MarkerCluster }) => {
+      const cluster = e.layer;
+      const center = cluster.getLatLng();
+      const children = cluster.getAllChildMarkers() as Array<
+        L.Marker & { __houseId?: string }
+      >;
+      let closest: { id: string; dist: number } | null = null;
+      children.forEach((child) => {
+        const id = child.__houseId;
+        if (!id) return;
+        const dist = map.distance(center, child.getLatLng());
+        if (!closest || dist < closest.dist) closest = { id, dist };
+      });
+      if (closest) onSelectRef.current(closest.id);
     });
 
     markersRef.current = markers;
