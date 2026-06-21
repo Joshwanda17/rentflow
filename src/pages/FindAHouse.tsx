@@ -358,64 +358,66 @@ function PublicHouseCard({ listing, isFirst, onOpenDetails, userLat, userLng }: 
         <div className="flex flex-col gap-3">
           {/* Travel mode toggle — choose driving or walking before navigating */}
           {routeEstimate && (
-            <div className="flex items-center justify-center gap-0" role="group" aria-label="Travel mode">
+            <div className="flex items-center justify-center gap-0 w-full" role="group" aria-label="Travel mode">
               <button
                 type="button"
                 onClick={() => setTravelMode('driving')}
                 className={cn(
-                  "flex items-center gap-1 rounded-l-xl px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold transition-colors border",
+                  "flex items-center justify-center gap-1 rounded-l-xl px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold transition-colors border min-w-0 overflow-hidden",
                   travelMode === 'driving'
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-muted-foreground border-border hover:bg-muted"
                 )}
                 aria-pressed={travelMode === 'driving'}
               >
-                <Car className="h-3 w-3 md:h-3.5 md:w-3.5" /> Driving
+                <Car className="h-3 w-3 md:h-3.5 md:w-3.5 shrink-0" />
+                <span className="truncate">Driving</span>
               </button>
               <button
                 type="button"
                 onClick={() => setTravelMode('walking')}
                 className={cn(
-                  "flex items-center gap-1 rounded-r-xl px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold transition-colors border-y border-r",
+                  "flex items-center justify-center gap-1 rounded-r-xl px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold transition-colors border-y border-r min-w-0 overflow-hidden",
                   travelMode === 'walking'
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-muted-foreground border-border hover:bg-muted"
                 )}
                 aria-pressed={travelMode === 'walking'}
               >
-                <Footprints className="h-3 w-3 md:h-3.5 md:w-3.5" /> Walking
+                <Footprints className="h-3 w-3 md:h-3.5 md:w-3.5 shrink-0" />
+                <span className="truncate">Walking</span>
               </button>
             </div>
           )}
 
           {/* Estimated route summary — desktop shows labels; mobile goes icon-only/value-inline to prevent wrapping */}
           {routeEstimate && (
-            <div className="rounded-2xl border border-border/60 bg-background/60 px-2 md:px-3 py-2 md:py-2.5 grid grid-cols-[1fr_auto_1fr] items-center gap-x-2 md:gap-x-3 gap-y-1 overflow-hidden">
-              <div className="flex flex-col min-w-0 md:items-start items-start">
-                <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Distance</span>
-                <div className="flex items-center gap-1 min-w-0 mt-0 md:mt-0.5">
+            <div className="rounded-2xl border border-border/60 bg-background/60 px-2 md:px-3 py-2 md:py-2.5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 md:gap-x-3 gap-y-1 overflow-hidden">
+              <div className="flex flex-col min-w-0 md:items-start items-start overflow-hidden">
+                <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none truncate w-full">Distance</span>
+                <div className="flex items-center gap-1 min-w-0 w-full mt-0 md:mt-0.5">
                   <Route className="h-3.5 w-3.5 text-primary md:hidden shrink-0" />
                   <span className="text-xs md:text-sm lg:text-base font-black text-foreground tabular-nums leading-tight truncate">
                     {routeEstimate.approximate ? '~' : ''}{routeEstimate.distanceLabel}
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col items-center min-w-0 px-1">
-                <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Mode</span>
-                <div className="flex items-center gap-1 min-w-0 mt-0 md:mt-0.5">
+              <div className="flex flex-col items-center min-w-0 px-1 overflow-hidden">
+                <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none truncate w-full text-center">Mode</span>
+                <div className="flex items-center justify-center gap-1 min-w-0 w-full mt-0 md:mt-0.5">
                   {travelMode === 'driving' ? (
                     <Car className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary shrink-0" />
                   ) : (
                     <Footprints className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary shrink-0" />
                   )}
-                  <span className="hidden md:inline text-xs font-bold text-foreground uppercase tracking-tight">
+                  <span className="hidden md:inline text-xs font-bold text-foreground uppercase tracking-tight truncate">
                     {travelMode === 'driving' ? 'Drive' : 'Walk'}
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col min-w-0 md:items-end items-end">
-                <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none">Time</span>
-                <div className="flex items-center gap-1 min-w-0 mt-0 md:mt-0.5">
+              <div className="flex flex-col min-w-0 md:items-end items-end overflow-hidden">
+                <span className="hidden md:block text-[10px] font-semibold text-muted-foreground uppercase tracking-tight leading-none truncate w-full text-right">Time</span>
+                <div className="flex items-center justify-end gap-1 min-w-0 w-full mt-0 md:mt-0.5">
                   <Clock className="h-3.5 w-3.5 text-muted-foreground md:hidden shrink-0" />
                   <span className="text-xs md:text-sm lg:text-base font-black text-muted-foreground tabular-nums leading-tight truncate">
                     {routeEstimate.approximate ? '~' : ''}{routeEstimate.durationLabel}
