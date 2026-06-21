@@ -1479,7 +1479,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentPartnerDashboardSheet open={partnerDashboardOpen} onOpenChange={setPartnerDashboardOpen} />
       <FinancialAgentSection open={requisitionOpen} onOpenChange={setRequisitionOpen} />
       <LendingAgentPortal open={lendingAgentOpen} onOpenChange={setLendingAgentOpen} />
-      <BorrowLoanSheet open={borrowOpen} onOpenChange={setBorrowOpen} />
+      <BorrowLoanSheet
+        open={borrowOpen}
+        onOpenChange={setBorrowOpen}
+        onOpenLendingPortal={() => {
+          setBorrowOpen(false);
+          setLendingAgentOpen(true);
+        }}
+      />
 
       {/* Rent Fee Available (Credit Access) — opened from All Menu → Earnings */}
       <Dialog open={creditOpen} onOpenChange={setCreditOpen}>
