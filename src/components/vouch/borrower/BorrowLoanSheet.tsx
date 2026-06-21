@@ -20,6 +20,7 @@ import { motion } from 'framer-motion';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onOpenLendingPortal?: () => void;
 }
 
 interface Offer {
