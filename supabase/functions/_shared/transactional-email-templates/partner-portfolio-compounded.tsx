@@ -35,6 +35,7 @@ interface PartnerPortfolioCompoundedProps {
   return_amount?: string | number
   new_total_partnership_value?: string | number
   payment_number?: number | string
+  duration_months?: number | string
   compound_history?: Array<{
     cycle?: number | string
     month_name?: string
@@ -86,6 +87,7 @@ export function PartnerPortfolioCompounded({
   return_amount = 0,
   new_total_partnership_value = 0,
   payment_number,
+  duration_months,
   compound_history,
   currency = 'UGX',
   company_name = 'Welile',
