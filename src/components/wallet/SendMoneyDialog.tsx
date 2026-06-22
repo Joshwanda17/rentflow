@@ -91,6 +91,36 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     | { status: 'not_found' }
   >({ status: 'idle' });
 
+  // Load this user's saved recipients (favourites + recents) when the dialog opens.
+  useEffect(() => {
+    if (open) {
+      setSavedRecipients(sortRecipients(loadRecipients(user?.id)));
+    }
+  }, [open, user?.id]);
+
+  // Fill the input from a saved recipient chip — the debounced lookup re-resolves them.
+  const selectSavedRecipient = (r: SavedRecipient) => {
+    if (r.mode === 'email' && r.email) {
+      setMode('email');
+      setEmail(r.email);
+      setPhone('');
+    } else if (r.phone) {
+      setMode('phone');
+      setPhone(r.phone);
+      setEmail('');
+    }
+    setRecipient({ status: 'searching' });
+    setLookupNonce((n) => n + 1);
+  };
+
+  const handleToggleFavorite = (r: SavedRecipient) => {
+    setSavedRecipients(sortRecipients(toggleFavorite(user?.id, r)));
+  };
+
+  const handleRemoveSaved = (r: SavedRecipient) => {
+    setSavedRecipients(sortRecipients(removeRecipient(user?.id, r)));
+  };
+
   // Debounced recipient lookup (phone OR email depending on mode)
   useEffect(() => {
     if (mode === 'phone') {
