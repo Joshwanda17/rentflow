@@ -60,9 +60,10 @@ interface SupportRecord {
 interface CRMSupportLogPanelProps {
   title: string;
   subtitle: string;
+  defaultTab?: 'issues' | 'support';
 }
 
-export function CRMSupportLogPanel({ title, subtitle }: CRMSupportLogPanelProps) {
+export function CRMSupportLogPanel({ title, subtitle, defaultTab = 'issues' }: CRMSupportLogPanelProps) {
   const qc = useQueryClient();
   const [monthOffset, setMonthOffset] = useState(0);
   const [exporting, setExporting] = useState(false);
@@ -158,7 +159,7 @@ export function CRMSupportLogPanel({ title, subtitle }: CRMSupportLogPanelProps)
         <KpiTile label="Total Invested" value={fmtUGX(totalInvested)} icon={Star} cls="bg-purple-500/10 text-purple-600" />
       </div>
 
-      <Tabs defaultValue="issues" className="w-full">
+      <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="issues" className="gap-1.5"><MessageSquareWarning className="h-4 w-4" /> Customer Issues</TabsTrigger>
           <TabsTrigger value="support" className="gap-1.5"><HeartHandshake className="h-4 w-4" /> Tenant Support</TabsTrigger>
