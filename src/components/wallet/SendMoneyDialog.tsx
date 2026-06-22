@@ -734,7 +734,6 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                             ) : (
                               <button
                                 type="button"
-                                onClickout={(e) => e.stopPropagation()}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setDraftNickname(r.nickname || '');
