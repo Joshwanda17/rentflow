@@ -93,12 +93,16 @@ Deno.serve(async (req) => {
       testEmail?: string;
       partnerIds?: string[];
       portfolioIds?: string[];
+      stream?: boolean;
     };
 
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+    type Outcome = "sent" | "suppressed" | "rate_limited" | "failed";
+
     // Send a single email, retrying when the email service rate-limits us.
-    const dispatch = async (payload: Record<string, unknown>): Promise<boolean> => {
+    // Returns a precise outcome so the caller can tally categories.
+    const dispatch = async (payload: Record<string, unknown>): Promise<Outcome> => {
       const MAX_ATTEMPTS = 4;
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
@@ -110,9 +114,19 @@ Deno.serve(async (req) => {
             },
             body: JSON.stringify(payload),
           });
-          if (res.ok) return true;
-
           const txt = await res.text().catch(() => "");
+
+          if (res.ok) {
+            // The email service returns 200 with success:false when the
+            // recipient is on the suppression list (bounced/unsubscribed).
+            let parsed: any = null;
+            try { parsed = JSON.parse(txt); } catch { /* ignore */ }
+            if (parsed && parsed.success === false) {
+              return /suppress/i.test(String(parsed.reason)) ? "suppressed" : "failed";
+            }
+            return "sent";
+          }
+
           const isRateLimit = res.status === 429 || /rate ?limit/i.test(txt);
           if (isRateLimit && attempt < MAX_ATTEMPTS) {
             // Honour Retry-After when present, otherwise back off progressively.
@@ -126,7 +140,7 @@ Deno.serve(async (req) => {
             continue;
           }
           console.warn("[bulk-send-maturity-notice] send failed:", res.status, txt);
-          return false;
+          return isRateLimit ? "rate_limited" : "failed";
         } catch (e) {
           const msg = String(e);
           const isRateLimit = /rate ?limit/i.test(msg);
@@ -136,10 +150,10 @@ Deno.serve(async (req) => {
             continue;
           }
           console.warn("[bulk-send-maturity-notice] send threw:", e);
-          return false;
+          return isRateLimit ? "rate_limited" : "failed";
         }
       }
-      return false;
+      return "rate_limited";
     };
 
     // ─── TEST MODE: single sample email ───
@@ -165,7 +179,7 @@ Deno.serve(async (req) => {
           currency: "UGX",
         }),
       });
-      return json({ ok, test: true, recipient: testEmail }, ok ? 200 : 502);
+      return json({ ok: ok === "sent", outcome: ok, test: true, recipient: testEmail }, ok === "sent" ? 200 : 502);
     }
 
     // ─── BULK MODE ───
@@ -218,7 +232,7 @@ Deno.serve(async (req) => {
     }
 
     if (!portfolios || portfolios.length === 0) {
-      return json({ ok: true, sent: 0, skipped: 0, failed: 0, total: 0, message: "No matching partnerships with a maturity date" }, 200);
+      return json({ ok: true, sent: 0, skipped: 0, suppressed: 0, rateLimited: 0, failed: 0, total: 0, message: "No matching partnerships with a maturity date" }, 200);
     }
 
     // Resolve recipient emails in one batch.
@@ -236,16 +250,18 @@ Deno.serve(async (req) => {
       for (const pr of profiles ?? []) profileMap.set(pr.id, { email: pr.email, full_name: pr.full_name });
     }
 
-    let sent = 0, skipped = 0, failed = 0;
+    const total = portfolios.length;
+    const counts = { queued: total, sent: 0, skipped: 0, suppressed: 0, rateLimited: 0, failed: 0, processed: 0 };
 
-    for (const p of portfolios as any[]) {
+    // Process one portfolio, updating counts. Returns nothing; mutates `counts`.
+    const processOne = async (p: any) => {
       const recipientId = p.investor_id || p.agent_id;
       const profile = recipientId ? profileMap.get(recipientId) : null;
       const email = profile?.email?.trim();
-      if (!email) { skipped++; continue; }
+      if (!email) { counts.skipped++; counts.processed++; return; }
 
       const ref = p.portfolio_code || `PF-${String(p.id).replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-      const ok = await dispatch({
+      const outcome = await dispatch({
         templateName: "partnership-maturity-notice",
         recipientEmail: email,
         idempotencyKey: `partnership-maturity-notice-${p.id}-${fmtIsoDay(p.maturity_date)}`,
@@ -259,12 +275,47 @@ Deno.serve(async (req) => {
           currency: p.display_currency || "UGX",
         }),
       });
-      if (ok) sent++; else failed++;
-      // Gentle pacing between sends to stay under the email service rate limit.
-      await sleep(150);
+      if (outcome === "sent") counts.sent++;
+      else if (outcome === "suppressed") counts.suppressed++;
+      else if (outcome === "rate_limited") counts.rateLimited++;
+      else counts.failed++;
+      counts.processed++;
+    };
+
+    // ─── STREAMING MODE: emit NDJSON progress lines as we send ───
+    if (body.stream) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          const emit = (obj: Record<string, unknown>) =>
+            controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+          try {
+            emit({ type: "progress", ...counts });
+            for (const p of portfolios as any[]) {
+              await processOne(p);
+              emit({ type: "progress", ...counts });
+              await sleep(150); // pace to stay under the email rate limit
+            }
+            emit({ type: "done", ok: true, total, ...counts });
+          } catch (e) {
+            emit({ type: "error", error: (e as Error)?.message || "Unexpected error", ...counts });
+          } finally {
+            controller.close();
+          }
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/x-ndjson", "Cache-Control": "no-cache" },
+      });
     }
 
-    return json({ ok: true, sent, skipped, failed, total: portfolios.length }, 200);
+    // ─── NON-STREAM MODE: process all, return summary JSON ───
+    for (const p of portfolios as any[]) {
+      await processOne(p);
+      await sleep(150);
+    }
+    return json({ ok: true, total, ...counts }, 200);
   } catch (err) {
     console.error("[bulk-send-maturity-notice] fatal:", err);
     return json({ error: (err as Error)?.message || "Unexpected error" }, 500);

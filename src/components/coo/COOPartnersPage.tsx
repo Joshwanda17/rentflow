@@ -3939,6 +3939,12 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
   const [sendingNotices, setSendingNotices] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmPortfolioIds, setConfirmPortfolioIds] = useState<string[]>([]);
+  type NoticeProgress = {
+    queued: number; sent: number; skipped: number;
+    suppressed: number; rateLimited: number; failed: number; processed: number;
+    done: boolean;
+  };
+  const [progress, setProgress] = useState<NoticeProgress | null>(null);
 
   function openMaturityConfirm() {
     // One notice per expiring portfolio exactly as listed in the dialog.
@@ -3955,21 +3961,69 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
     setConfirmOpen(false);
     if (sendingNotices || confirmPortfolioIds.length === 0) return;
     setSendingNotices(true);
+    setProgress({ queued: confirmPortfolioIds.length, sent: 0, skipped: 0, suppressed: 0, rateLimited: 0, failed: 0, processed: 0, done: false });
     try {
-      const { data, error } = await supabase.functions.invoke('bulk-send-maturity-notice', {
-        body: { portfolioIds: confirmPortfolioIds },
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bulk-send-maturity-notice`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': apikey,
+        },
+        body: JSON.stringify({ portfolioIds: confirmPortfolioIds, stream: true }),
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const sent = (data as any)?.sent ?? 0;
-      const skipped = (data as any)?.skipped ?? 0;
-      const failed = (data as any)?.failed ?? 0;
+      if (!res.ok || !res.body) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(txt || `Request failed (${res.status})`);
+      }
+
+      // Read the NDJSON progress stream line-by-line.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let last: any = null;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let evt: any;
+          try { evt = JSON.parse(line); } catch { continue; }
+          if (evt.type === 'error') throw new Error(evt.error || 'Send failed');
+          last = evt;
+          setProgress({
+            queued: evt.queued ?? confirmPortfolioIds.length,
+            sent: evt.sent ?? 0,
+            skipped: evt.skipped ?? 0,
+            suppressed: evt.suppressed ?? 0,
+            rateLimited: evt.rateLimited ?? 0,
+            failed: evt.failed ?? 0,
+            processed: evt.processed ?? 0,
+            done: evt.type === 'done',
+          });
+        }
+      }
+
+      const sent = last?.sent ?? 0;
+      const skipped = last?.skipped ?? 0;
+      const suppressed = last?.suppressed ?? 0;
+      const rateLimited = last?.rateLimited ?? 0;
+      const failed = last?.failed ?? 0;
       toast.success(`Maturity notices sent: ${sent}`, {
-        description: `${skipped} skipped (no email), ${failed} failed.`,
+        description: `${skipped} skipped (no email), ${suppressed} suppressed, ${rateLimited} rate-limited, ${failed} failed.`,
       });
     } catch (e: any) {
       console.error('Bulk maturity notice failed', e);
       toast.error(e?.message || 'Failed to send maturity notices');
+      setProgress(prev => (prev ? { ...prev, done: true } : prev));
     } finally {
       setSendingNotices(false);
       setConfirmPortfolioIds([]);
@@ -4010,6 +4064,42 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
             {sendingNotices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
             {sendingNotices ? 'Sending…' : `Send Maturity Notice to ${filtered.length} Portfolio${filtered.length === 1 ? '' : 's'}`}
           </Button>
+        )}
+        {progress && (
+          <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold flex items-center gap-1.5">
+                {progress.done
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  : <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+                {progress.done ? 'Maturity notices complete' : 'Sending maturity notices…'}
+              </p>
+              <span className="text-[11px] tabular-nums text-muted-foreground">
+                {progress.processed}/{progress.queued}
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+              <div
+                className={cn('h-full rounded-full transition-all', progress.done ? 'bg-emerald-500' : 'bg-primary')}
+                style={{ width: `${progress.queued ? Math.round((progress.processed / progress.queued) * 100) : 0}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-0.5">
+              {([
+                ['Queued', progress.queued, 'text-muted-foreground'],
+                ['Sent', progress.sent, 'text-emerald-600'],
+                ['Skipped', progress.skipped, 'text-amber-600'],
+                ['Suppressed', progress.suppressed, 'text-slate-500'],
+                ['Rate-limited', progress.rateLimited, 'text-orange-600'],
+                ['Failed', progress.failed, 'text-rose-600'],
+              ] as const).map(([label, value, tone]) => (
+                <div key={label} className="rounded-lg bg-background border border-border px-2 py-1.5 text-center">
+                  <p className={cn('text-base font-bold tabular-nums leading-none', tone)}>{value}</p>
+                  <p className="text-[9px] uppercase tracking-wide text-muted-foreground mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
         <div className="flex-1 overflow-y-auto -mx-1 px-1">
           {filtered.length === 0 ? (
