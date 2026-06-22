@@ -113,7 +113,7 @@ export function PartnerSMSBroadcast() {
   return (
     <div className="space-y-4">
       {/* Hero */}
-      <Card className="overflow-hidden border-0 bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 text-white">
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600 text-white">
         <CardContent className="p-5 sm:p-6 flex items-start gap-4">
           <div className="h-12 w-12 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
             <Sparkles className="h-6 w-6" />
