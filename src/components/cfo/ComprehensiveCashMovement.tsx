@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Info, Users, ArrowLeftRight, Check, AlertTriangle, TrendingUp, MinusCircle, Share2, Image as ImageIcon, Download } from 'lucide-react';
 import { Landmark, Wallet as WalletIcon, ArrowRight } from 'lucide-react';
@@ -952,6 +953,9 @@ function TreasuryWalletFlowSummary({
   >(null);
   // CFO toggle: hide today's movements so the cards show only settled/prior-day flow.
   const [excludeToday, setExcludeToday] = useState(false);
+  // CFO date-range filter: limit cash movements to a chosen window (inclusive).
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const { toWallets, toCompany } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
@@ -1020,15 +1024,24 @@ function TreasuryWalletFlowSummary({
     return { toWallets, toCompany };
   }, [rows, includeAdjustments]);
 
-  // When "exclude today" is on, drop any movement whose calendar day is today.
+  // Date filters: optionally hide today, and/or restrict to a chosen [from, to] window.
   const todayKey = format(startOfDay(new Date()), 'yyyy-MM-dd');
+  const fromKey = dateFrom ? format(startOfDay(dateFrom), 'yyyy-MM-dd') : null;
+  const toKey = dateTo ? format(startOfDay(dateTo), 'yyyy-MM-dd') : null;
+  const matchesDateFilter = useCallback((dateStr: string) => {
+    const dayKey = format(startOfDay(new Date(dateStr)), 'yyyy-MM-dd');
+    if (excludeToday && dayKey === todayKey) return false;
+    if (fromKey && dayKey < fromKey) return false;
+    if (toKey && dayKey > toKey) return false;
+    return true;
+  }, [excludeToday, todayKey, fromKey, toKey]);
   const filteredToWallets = useMemo(
-    () => (excludeToday ? toWallets.filter(i => format(startOfDay(new Date(i.date)), 'yyyy-MM-dd') !== todayKey) : toWallets),
-    [toWallets, excludeToday, todayKey],
+    () => toWallets.filter(i => matchesDateFilter(i.date)),
+    [toWallets, matchesDateFilter],
   );
   const filteredToCompany = useMemo(
-    () => (excludeToday ? toCompany.filter(i => format(startOfDay(new Date(i.date)), 'yyyy-MM-dd') !== todayKey) : toCompany),
-    [toCompany, excludeToday, todayKey],
+    () => toCompany.filter(i => matchesDateFilter(i.date)),
+    [toCompany, matchesDateFilter],
   );
 
   const inSummary = useMemo(() => summarizeTreasuryFlow(filteredToWallets, COMPANY_TO_WALLETS_GROUPS), [filteredToWallets]);
@@ -1271,10 +1284,66 @@ function TreasuryWalletFlowSummary({
         The two movements that matter most: the CFO funding wallets out of company money, and agents
         allocating money out of their wallets back to the company.
       </p>
-      <label className="flex items-center gap-2 w-fit rounded-lg border border-border bg-muted/30 px-3 py-1.5 cursor-pointer select-none">
-        <Checkbox checked={excludeToday} onCheckedChange={(c) => setExcludeToday(c === true)} />
-        <span className="text-[11px] font-medium text-foreground/90">Exclude today's movements</span>
-      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 w-fit rounded-lg border border-border bg-muted/30 px-3 py-1.5 cursor-pointer select-none">
+          <Checkbox checked={excludeToday} onCheckedChange={(c) => setExcludeToday(c === true)} />
+          <span className="text-[11px] font-medium text-foreground/90">Exclude today's movements</span>
+        </label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn('h-8 justify-start text-[11px] font-medium gap-1.5', !dateFrom && 'text-muted-foreground')}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {dateFrom ? format(dateFrom, 'dd MMM yyyy') : 'From date'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarPicker
+              mode="single"
+              selected={dateFrom}
+              onSelect={setDateFrom}
+              disabled={(d) => (dateTo ? d > dateTo : false)}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+            />
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn('h-8 justify-start text-[11px] font-medium gap-1.5', !dateTo && 'text-muted-foreground')}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {dateTo ? format(dateTo, 'dd MMM yyyy') : 'To date'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarPicker
+              mode="single"
+              selected={dateTo}
+              onSelect={setDateTo}
+              disabled={(d) => (dateFrom ? d < dateFrom : false)}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+            />
+          </PopoverContent>
+        </Popover>
+        {(dateFrom || dateTo) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-[11px] gap-1"
+            onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
+          >
+            <X className="h-3.5 w-3.5" /> Clear dates
+          </Button>
+        )}
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Flow
           tone="in"
