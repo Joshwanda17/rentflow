@@ -59,6 +59,23 @@ function persist(userId: string | null | undefined, list: SavedRecipient[]) {
   }
 }
 
+/** Derive a friendly nickname from name / phone / email. */
+function autoNickname(name: string, phone?: string, email?: string): string {
+  if (name && name.trim() && name.trim() !== 'Welile user') {
+    const first = name.trim().split(/\s+/)[0];
+    if (first && first.length > 1) return first;
+  }
+  if (phone) {
+    const digits = phone.replace(/\D/g, '').slice(-4);
+    if (digits) return `Phone …${digits}`;
+  }
+  if (email) {
+    const prefix = email.split('@')[0];
+    if (prefix && prefix.length > 1) return prefix;
+  }
+  return name || 'Contact';
+}
+
 /** Record (or refresh) a recipient after a successful transfer. */
 export function rememberRecipient(
   userId: string | null | undefined,
@@ -73,6 +90,10 @@ export function rememberRecipient(
     favorite: existing?.favorite ?? false,
     lastUsed: Date.now(),
   };
+  // Auto-generate a nickname for brand-new recipients so they’re easy to recognise.
+  if (!existing && !next.nickname) {
+    next.nickname = autoNickname(next.name, next.phone, next.email);
+  }
   const others = list.filter((r) => identity(r) !== id);
   // Keep all favourites + the most recent non-favourites up to the cap.
   const favorites = others.filter((r) => r.favorite);
