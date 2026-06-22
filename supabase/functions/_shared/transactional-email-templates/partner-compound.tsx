@@ -114,7 +114,8 @@ export function PartnerCompound({
   const fmtDate = (d: Date) =>
     d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-  const PROJECTION_MONTHS = Math.max(1, 12 - (startDate.getMonth() + 1))
+  // Newly created portfolio: always show the full 12-month compounding year.
+  const PROJECTION_MONTHS = 12
 
   const ratePct = (() => {
     const explicit = roi_percentage === undefined || roi_percentage === null || roi_percentage === ''
@@ -468,7 +469,7 @@ export const template = {
     const principal = Number(String(data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
     return `New Portfolio Account Active — Value ${formatAmount(principal, currency)}`
   },
-  displayName: 'Partner Portfolio Compounding Confirmation',
+  displayName: 'New Account Compound',
   previewData: {
     partner_name: 'Sarah Nakato',
     portfolio_id: 'PF-1A2B3C4D',
