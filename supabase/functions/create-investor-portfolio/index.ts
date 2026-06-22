@@ -417,6 +417,7 @@ Deno.serve(async (req) => {
           .select("email, full_name")
           .eq("id", investorId)
           .maybeSingle();
+    const contributionIso = contributionDate ? new Date(`${contributionDate}T00:00:00Z`).toISOString() : now.toISOString();
         if (partnerProfile?.email) {
           const emailRequest = roiMode === "monthly_compounding"
             ? buildPartnerCompoundCreationRequest({
@@ -426,7 +427,7 @@ Deno.serve(async (req) => {
                 portfolioId: portfolio.id,
                 initialAmount: investmentAmount,
                 roiPercentage,
-                contributionDateIso: now.toISOString(),
+                contributionDateIso: contributionIso,
               })
             : buildPartnershipAgreementRequest({
                 recipientEmail: partnerProfile.email,
@@ -435,7 +436,7 @@ Deno.serve(async (req) => {
                 portfolioId: portfolio.id,
                 amount: investmentAmount,
                 monthlyReward: Math.round(investmentAmount * (roiPercentage / 100)),
-                contributionDateIso: now.toISOString(),
+                contributionDateIso: contributionIso,
                 firstPayoutDateIso: nextRoiDate.toISOString(),
                 payoutDay,
                 roiPercentage,
