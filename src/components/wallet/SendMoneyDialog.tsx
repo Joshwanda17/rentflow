@@ -72,6 +72,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [isFirstTx, setIsFirstTx] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [lookupNonce, setLookupNonce] = useState(0);
+  const [savedRecipients, setSavedRecipients] = useState<SavedRecipient[]>([]);
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   type RecipientMatch = {
