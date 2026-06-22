@@ -20,6 +20,11 @@ const PAPER_MM: Record<PaperSize, { w: number; h: number }> = {
   Letter: { w: 215.9, h: 279.4 },
 };
 
+// Allowed ranges for the printer-fit controls.
+const MARGIN_OPTIONS = [0, 5, 10, 15, 20] as const;
+const SCALE_MIN = 50;
+const SCALE_MAX = 100;
+
 const POSTER_FILENAME = 'Welile-Available-For-Rent.jpg';
 const POSTER_CAPTION =
   'Available for rent on Welile! Move in and get your first week FREE. Visit welile.com';
@@ -33,6 +38,10 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
   const [downloading, setDownloading] = useState(false);
   const [paper, setPaper] = useState<PaperSize>('A4');
   const [orientation, setOrientation] = useState<Orientation>('landscape');
+  // Page margin in millimetres and image scale as a percentage of the
+  // printable area — let agents nudge the layout to fit their printer.
+  const [margin, setMargin] = useState<number>(10);
+  const [scale, setScale] = useState<number>(100);
 
   const fetchPosterBlob = async () => {
     const res = await fetch(posterAsset.url);
@@ -90,18 +99,27 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
         compress: true,
       });
 
-      // Fit the image inside the page preserving aspect ratio, then centre it.
+      // Printable area after subtracting margins on all sides.
+      const safeMargin = Math.max(0, Math.min(margin, page.w / 2 - 5, page.h / 2 - 5));
+      const areaW = page.w - safeMargin * 2;
+      const areaH = page.h - safeMargin * 2;
+
+      // Fit the image inside the printable area preserving aspect ratio,
+      // then apply the chosen scale and centre it.
       const imgRatio = img.width / img.height;
-      const pageRatio = page.w / page.h;
-      let drawW = page.w;
-      let drawH = page.h;
-      if (imgRatio > pageRatio) {
-        drawW = page.w;
-        drawH = page.w / imgRatio;
+      const areaRatio = areaW / areaH;
+      let drawW: number;
+      let drawH: number;
+      if (imgRatio > areaRatio) {
+        drawW = areaW;
+        drawH = areaW / imgRatio;
       } else {
-        drawH = page.h;
-        drawW = page.h * imgRatio;
+        drawH = areaH;
+        drawW = areaH * imgRatio;
       }
+      const factor = scale / 100;
+      drawW *= factor;
+      drawH *= factor;
       const x = (page.w - drawW) / 2;
       const y = (page.h - drawH) / 2;
       pdf.addImage(img, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
@@ -120,15 +138,22 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
       return;
     }
     const pageSize = paper === 'A4' ? 'A4' : 'letter';
+    const safeScale = Math.max(SCALE_MIN, Math.min(scale, SCALE_MAX));
     w.document.write(`
       <html>
         <head>
           <title>Available for Rent</title>
           <style>
-            @page { size: ${pageSize} ${orientation}; margin: 0; }
+            @page { size: ${pageSize} ${orientation}; margin: ${margin}mm; }
             html, body { margin: 0; padding: 0; height: 100%; }
             body { display: flex; align-items: center; justify-content: center; }
-            img { max-width: 100%; max-height: 100%; display: block; }
+            img {
+              max-width: ${safeScale}%;
+              max-height: ${safeScale}%;
+              width: auto;
+              height: auto;
+              display: block;
+            }
           </style>
         </head>
         <body>
@@ -191,6 +216,40 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
                 {o}
               </Button>
             ))}
+          </div>
+        </div>
+
+        {/* Printer-fit controls — margin & scale apply to Download and Print */}
+        <div className="flex flex-wrap items-center gap-4 pt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Margin:</span>
+            {MARGIN_OPTIONS.map((m) => (
+              <Button
+                key={m}
+                type="button"
+                size="sm"
+                variant={margin === m ? 'default' : 'outline'}
+                onClick={() => setMargin(m)}
+                className="h-8 px-3 touch-manipulation select-none"
+              >
+                {m === 0 ? 'None' : `${m}mm`}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 min-w-[200px] flex-1">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              Scale: {scale}%
+            </span>
+            <input
+              type="range"
+              min={SCALE_MIN}
+              max={SCALE_MAX}
+              step={5}
+              value={scale}
+              onChange={(e) => setScale(Number(e.target.value))}
+              className="flex-1 accent-primary touch-manipulation"
+              aria-label="Poster scale percentage"
+            />
           </div>
         </div>
 
