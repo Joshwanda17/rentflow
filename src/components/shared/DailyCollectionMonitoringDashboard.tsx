@@ -274,7 +274,12 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     staleTime: 60_000,
   });
 
-  // Resolve agent + tenant + landlord names
+  // Resolve agent + tenant + landlord names.
+  // IMPORTANT: only depend on rent requests here. The tracker rows (and the
+  // exported reports) resolve names exclusively from rent_request ids, which are
+  // range-independent. Mixing in collection ids made this set — and the profiles
+  // query key — change every time the range (Today/Weekly/Monthly) switched,
+  // briefly emptying the profiles map and rendering tenant names as "Unknown".
   const ids = useMemo(() => {
     const set = new Set<string>();
     (rentReqs || []).forEach(r => {
@@ -282,12 +287,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
       if (r.agent_id) set.add(r.agent_id);
       if (r.landlord_id) set.add(r.landlord_id);
     });
-    (collections || []).forEach(c => {
-      if (c.agent_id) set.add(c.agent_id);
-      set.add(c.tenant_id);
-    });
     return Array.from(set);
-  }, [rentReqs, collections]);
+  }, [rentReqs]);
 
   const { data: profiles } = useQuery({
     queryKey: ['daily-collection-profiles', ids.slice().sort().join(',')],
