@@ -469,7 +469,7 @@ export const template = {
     const principal = Number(String(data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
     return `New Portfolio Account Active — Value ${formatAmount(principal, currency)}`
   },
-  displayName: 'Partner Portfolio Compounding Confirmation',
+  displayName: 'New Account Compound',
   previewData: {
     partner_name: 'Sarah Nakato',
     portfolio_id: 'PF-1A2B3C4D',
