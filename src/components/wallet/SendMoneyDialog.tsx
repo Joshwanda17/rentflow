@@ -74,6 +74,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [confirming, setConfirming] = useState(false);
   const [lookupNonce, setLookupNonce] = useState(0);
   const [savedRecipients, setSavedRecipients] = useState<SavedRecipient[]>([]);
+  const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null);
+  const [draftNickname, setDraftNickname] = useState('');
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   type RecipientMatch = {
