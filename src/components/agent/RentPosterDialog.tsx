@@ -219,6 +219,40 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
           </div>
         </div>
 
+        {/* Printer-fit controls — margin & scale apply to Download and Print */}
+        <div className="flex flex-wrap items-center gap-4 pt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Margin:</span>
+            {MARGIN_OPTIONS.map((m) => (
+              <Button
+                key={m}
+                type="button"
+                size="sm"
+                variant={margin === m ? 'default' : 'outline'}
+                onClick={() => setMargin(m)}
+                className="h-8 px-3 touch-manipulation select-none"
+              >
+                {m === 0 ? 'None' : `${m}mm`}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 min-w-[200px] flex-1">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              Scale: {scale}%
+            </span>
+            <input
+              type="range"
+              min={SCALE_MIN}
+              max={SCALE_MAX}
+              step={5}
+              value={scale}
+              onChange={(e) => setScale(Number(e.target.value))}
+              className="flex-1 accent-primary touch-manipulation"
+              aria-label="Poster scale percentage"
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-2 pt-1">
           <Button
             type="button"
