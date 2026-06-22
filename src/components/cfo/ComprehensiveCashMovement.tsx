@@ -1439,7 +1439,7 @@ function TreasuryWalletFlowSummary({
           direction="cash_in"
           rawItems={filteredToWallets}
           groupDefs={COMPANY_TO_WALLETS_GROUPS}
-          compareTotal={prevInSummary ? prevInSummary.total : null}
+          compareSummary={prevInSummary}
           onGroupDrill={(meta) => setGroupDrill({
             label: meta.label,
             color: meta.color,
