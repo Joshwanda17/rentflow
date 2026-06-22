@@ -135,7 +135,7 @@ export function PartnerPortfolioCompounded({
       <Head>
         <style>{clientOverrides}</style>
       </Head>
-      <Preview>Portfolio Compounded — Value {formattedNewTotal}</Preview>
+      <Preview>New portfolio account active — value {formattedNewTotal}</Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
           <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
