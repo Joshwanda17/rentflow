@@ -1023,15 +1023,24 @@ function TreasuryWalletFlowSummary({
     return { toWallets, toCompany };
   }, [rows, includeAdjustments]);
 
-  // When "exclude today" is on, drop any movement whose calendar day is today.
+  // Date filters: optionally hide today, and/or restrict to a chosen [from, to] window.
   const todayKey = format(startOfDay(new Date()), 'yyyy-MM-dd');
+  const fromKey = dateFrom ? format(startOfDay(dateFrom), 'yyyy-MM-dd') : null;
+  const toKey = dateTo ? format(startOfDay(dateTo), 'yyyy-MM-dd') : null;
+  const matchesDateFilter = useCallback((dateStr: string) => {
+    const dayKey = format(startOfDay(new Date(dateStr)), 'yyyy-MM-dd');
+    if (excludeToday && dayKey === todayKey) return false;
+    if (fromKey && dayKey < fromKey) return false;
+    if (toKey && dayKey > toKey) return false;
+    return true;
+  }, [excludeToday, todayKey, fromKey, toKey]);
   const filteredToWallets = useMemo(
-    () => (excludeToday ? toWallets.filter(i => format(startOfDay(new Date(i.date)), 'yyyy-MM-dd') !== todayKey) : toWallets),
-    [toWallets, excludeToday, todayKey],
+    () => toWallets.filter(i => matchesDateFilter(i.date)),
+    [toWallets, matchesDateFilter],
   );
   const filteredToCompany = useMemo(
-    () => (excludeToday ? toCompany.filter(i => format(startOfDay(new Date(i.date)), 'yyyy-MM-dd') !== todayKey) : toCompany),
-    [toCompany, excludeToday, todayKey],
+    () => toCompany.filter(i => matchesDateFilter(i.date)),
+    [toCompany, matchesDateFilter],
   );
 
   const inSummary = useMemo(() => summarizeTreasuryFlow(filteredToWallets, COMPANY_TO_WALLETS_GROUPS), [filteredToWallets]);
