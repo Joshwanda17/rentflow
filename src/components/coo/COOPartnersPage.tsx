@@ -4069,12 +4069,12 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
           <AlertDialogHeader>
             <AlertDialogTitle>Send Maturity Notices</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to send the <strong>"Maturity Notice"</strong> email to{' '}
-              <strong>{confirmPartnerIds.length} partner{confirmPartnerIds.length === 1 ? '' : 's'}</strong> whose portfolios are expiring soon.
+              You are about to send the <strong>"Maturity Notice"</strong> email for{' '}
+              <strong>{confirmPortfolioIds.length} expiring portfolio{confirmPortfolioIds.length === 1 ? '' : 's'}</strong> listed here.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmPartnerIds([])}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setConfirmPortfolioIds([])}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmSend} disabled={sendingNotices}>
               {sendingNotices ? (
                 <>
@@ -4082,7 +4082,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
                   Sending…
                 </>
               ) : (
-                <>Send {confirmPartnerIds.length} Notice{confirmPartnerIds.length === 1 ? '' : 's'}</>
+                <>Send {confirmPortfolioIds.length} Notice{confirmPortfolioIds.length === 1 ? '' : 's'}</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
