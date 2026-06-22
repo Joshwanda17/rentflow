@@ -23,13 +23,14 @@ import {
   Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles, UserCheck, UserX,
   Mail, UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
   Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, AlertTriangle, ArrowRight,
-  Star, X
+  Star, X, Pencil, Check
 } from 'lucide-react';
 import {
   loadRecipients,
   rememberRecipient,
   toggleFavorite,
   removeRecipient,
+  updateNickname,
   sortRecipients,
   type SavedRecipient,
 } from '@/lib/transferRecipients';
@@ -73,6 +74,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [confirming, setConfirming] = useState(false);
   const [lookupNonce, setLookupNonce] = useState(0);
   const [savedRecipients, setSavedRecipients] = useState<SavedRecipient[]>([]);
+  const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null);
+  const [draftNickname, setDraftNickname] = useState('');
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   type RecipientMatch = {
@@ -649,52 +652,110 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                       Saved recipients
                     </Label>
                     <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-0.5">
-                      {savedRecipients.map((r) => (
-                        <div
-                          key={`${r.mode}-${r.id || r.phone || r.email}`}
-                          className="group flex items-center gap-2 rounded-lg border border-border/50 bg-background/50 px-2.5 py-2 transition-all hover:border-primary/50"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleToggleFavorite(r)}
-                            className="shrink-0"
-                            title={r.favorite ? 'Remove from favourites' : 'Mark as favourite'}
+                      {savedRecipients.map((r) => {
+                        const chipKey = `${r.mode}-${r.id || r.phone || r.email}`;
+                        const isEditing = editingNicknameId === chipKey;
+                        return (
+                          <div
+                            key={chipKey}
+                            className="group flex items-center gap-2 rounded-lg border border-border/50 bg-background/50 px-2.5 py-2 transition-all hover:border-primary/50"
                           >
-                            <Star
-                              className={`h-4 w-4 transition-colors ${
-                                r.favorite
-                                  ? 'fill-amber-400 text-amber-400'
-                                  : 'text-muted-foreground hover:text-amber-400'
-                              }`}
-                            />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => selectSavedRecipient(r)}
-                            className="flex flex-1 items-center gap-2 min-w-0 text-left"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
-                              <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
-                                {r.mode === 'email' ? (
-                                  <Mail className="h-3 w-3 shrink-0" />
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFavorite(r)}
+                              className="shrink-0"
+                              title={r.favorite ? 'Remove from favourites' : 'Mark as favourite'}
+                            >
+                              <Star
+                                className={`h-4 w-4 transition-colors ${
+                                  r.favorite
+                                    ? 'fill-amber-400 text-amber-400'
+                                    : 'text-muted-foreground hover:text-amber-400'
+                                }`}
+                              />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => selectSavedRecipient(r)}
+                              className="flex flex-1 items-center gap-2 min-w-0 text-left"
+                            >
+                              <div className="min-w-0 flex-1">
+                                {r.nickname ? (
+                                  <p className="text-sm font-semibold text-foreground truncate">{r.nickname}</p>
                                 ) : (
-                                  <Phone className="h-3 w-3 shrink-0" />
+                                  <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
                                 )}
-                                {r.mode === 'email' ? r.email : r.phone}
-                              </p>
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSaved(r)}
-                            className="shrink-0 text-muted-foreground/60 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                            title="Remove from list"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                                <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
+                                  {r.mode === 'email' ? (
+                                    <Mail className="h-3 w-3 shrink-0" />
+                                  ) : (
+                                    <Phone className="h-3 w-3 shrink-0" />
+                                  )}
+                                  {r.mode === 'email' ? r.email : r.phone}
+                                  {r.nickname && (
+                                    <span className="truncate">· {r.name}</span>
+                                  )}
+                                </p>
+                              </div>
+                            </button>
+                            {isEditing ? (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Input
+                                  autoFocus
+                                  value={draftNickname}
+                                  onChange={(e) => setDraftNickname(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      setSavedRecipients(sortRecipients(updateNickname(user?.id, r, draftNickname)));
+                                      setEditingNicknameId(null);
+                                    }
+                                    if (e.key === 'Escape') {
+                                      setEditingNicknameId(null);
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    setSavedRecipients(sortRecipients(updateNickname(user?.id, r, draftNickname)));
+                                    setEditingNicknameId(null);
+                                  }}
+                                  className="h-7 w-28 px-1.5 py-0 text-xs"
+                                  placeholder="Nickname"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSavedRecipients(sortRecipients(updateNickname(user?.id, r, draftNickname)));
+                                    setEditingNicknameId(null);
+                                  }}
+                                  className="text-muted-foreground hover:text-foreground"
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDraftNickname(r.nickname || '');
+                                  setEditingNicknameId(chipKey);
+                                }}
+                                className="shrink-0 text-muted-foreground/60 opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
+                                title="Edit nickname"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSaved(r)}
+                              className="shrink-0 text-muted-foreground/60 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                              title="Remove from list"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </motion.div>
                 )}

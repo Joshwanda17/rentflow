@@ -13,6 +13,8 @@ export interface SavedRecipient {
   id?: string;
   /** Display name shown on the chip. */
   name: string;
+  /** User-defined nickname to recognise the recipient faster. */
+  nickname?: string;
   /** Raw phone number the user typed (used to refill the input). */
   phone?: string;
   /** Raw email the user typed (used to refill the input). */
@@ -102,6 +104,21 @@ export function removeRecipient(
   const list = loadRecipients(userId);
   const id = identity(recipient);
   const next = list.filter((r) => identity(r) !== id);
+  persist(userId, next);
+  return next;
+}
+
+/** Set or clear a nickname on a recipient. */
+export function updateNickname(
+  userId: string | null | undefined,
+  recipient: Pick<SavedRecipient, 'mode' | 'phone' | 'email' | 'id'>,
+  nickname: string | undefined,
+): SavedRecipient[] {
+  const list = loadRecipients(userId);
+  const id = identity(recipient);
+  const next = list.map((r) =>
+    identity(r) === id ? { ...r, nickname: nickname?.trim() || undefined } : r,
+  );
   persist(userId, next);
   return next;
 }
