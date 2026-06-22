@@ -1343,6 +1343,23 @@ function TreasuryWalletFlowSummary({
             <X className="h-3.5 w-3.5" /> Clear dates
           </Button>
         )}
+        <div className="inline-flex items-center gap-1">
+          {([
+            { label: 'Last 7 days', from: startOfDay(subDays(new Date(), 6)) },
+            { label: 'Last 30 days', from: startOfDay(subDays(new Date(), 29)) },
+            { label: 'This month', from: startOfMonth(new Date()) },
+          ] as const).map((preset) => (
+            <Button
+              key={preset.label}
+              variant="secondary"
+              size="sm"
+              className="h-8 text-[11px]"
+              onClick={() => { setExcludeToday(false); setDateFrom(preset.from); setDateTo(startOfDay(new Date())); }}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Flow
