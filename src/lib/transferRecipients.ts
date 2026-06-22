@@ -13,6 +13,8 @@ export interface SavedRecipient {
   id?: string;
   /** Display name shown on the chip. */
   name: string;
+  /** User-defined nickname to recognise the recipient faster. */
+  nickname?: string;
   /** Raw phone number the user typed (used to refill the input). */
   phone?: string;
   /** Raw email the user typed (used to refill the input). */
