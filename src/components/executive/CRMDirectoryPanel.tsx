@@ -151,6 +151,15 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
       verified: selected.verified,
       city: selected.city || selected.territory || undefined,
       lastActiveAt: selected.last_active_at,
+      email: selected.email ?? undefined,
+      nationalId: selected.national_id ?? undefined,
+      district: selected.district ?? undefined,
+      region: selected.region ?? undefined,
+      territory: selected.territory ?? undefined,
+      monthlyRent: selected.monthly_rent ?? undefined,
+      stage: selected.stage ?? undefined,
+      tenantStatus: selected.tenant_status ?? undefined,
+      hasRentRequest: role === 'tenant' ? selected.stage === 'rent_request' : undefined,
     };
   }, [selected, role]);
 
