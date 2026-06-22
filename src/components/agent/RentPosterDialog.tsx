@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Megaphone, Share2, Download, Printer, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Megaphone, Share2, Download, Printer, Loader2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { shareImageViaWhatsApp } from '@/lib/whatsappShare';
 import posterAsset from '@/assets/available-for-rent-poster.jpg.asset.json';
