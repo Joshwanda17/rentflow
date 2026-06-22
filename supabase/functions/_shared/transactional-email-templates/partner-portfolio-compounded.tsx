@@ -108,6 +108,22 @@ export function PartnerPortfolioCompounded({
 
   const compoundDateLabel = compound_date || contribution_date || creation_date || 'the date shown above'
 
+  // Compounding breakdown — shows each cycle's opening balance, return earned
+  // and the resulting compounded balance. The most recent (current) cycle is
+  // highlighted.
+  const timeline = Array.isArray(compound_history) && compound_history.length > 0
+    ? compound_history.map((row, index) => ({
+      cycleLabel: row.month_name
+        ? `Cycle ${row.cycle || index + 1} — ${row.month_name}`
+        : `Cycle ${row.cycle || index + 1}`,
+      dateLabel: row.date,
+      before: Number(String(row.balance_before ?? 0).replace(/,/g, '')) || 0,
+      earned: Number(String(row.return_amount ?? 0).replace(/,/g, '')) || 0,
+      after: Number(String(row.balance_after ?? 0).replace(/,/g, '')) || 0,
+      isCurrent: index === compound_history.length - 1,
+    }))
+    : []
+
   return (
     <Html>
       <Head>
@@ -177,6 +193,55 @@ export function PartnerPortfolioCompounded({
                     </table>
                   </td>
                 </tr>
+
+                {timeline.length > 0 && (
+                <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
+                    <Text style={timelineTitle}>Compounding breakdown</Text>
+                    <Text style={timelineSubtitle}>
+                      Here is how your portfolio has compounded at the rate of ({roiLabel}).
+                    </Text>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
+                      <tbody>
+                        {timeline.map((row, i) => {
+                          const isLast = i === timeline.length - 1
+                          return (
+                            <tr key={i}>
+                              <td width={28} valign="top" style={timelineRailCell}>
+                                <div style={{ ...timelineDot, ...(row.isCurrent ? timelineDotCurrent : {}) }} />
+                                {!isLast && <div style={timelineLine} />}
+                              </td>
+                              <td valign="top" style={{ ...timelineRowCell, ...(isLast ? { paddingBottom: 4 } : {}) }}>
+                                <Text style={timelineCycleLabel}>
+                                  {row.cycleLabel}
+                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Latest</span>}
+                                  {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
+                                </Text>
+                                <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
+                                  <tbody>
+                                    <tr>
+                                      <td style={timelineKvLabel}>Opening balance</td>
+                                      <td align="right" style={timelineKvValue}>{formatAmount(row.before, currency)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td style={timelineKvLabel}>Return compounded ({roiLabel})</td>
+                                      <td align="right" style={timelineKvEarned}>+{formatAmount(row.earned, currency)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td style={timelineKvLabelStrong}>Balance after compound</td>
+                                      <td align="right" style={timelineKvAfter}>{formatAmount(row.after, currency)}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+                )}
 
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
