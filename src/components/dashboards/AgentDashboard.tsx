@@ -159,6 +159,7 @@ import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNote
 import { AgentAdvanceRequestForm } from '@/components/agent/AgentAdvanceRequestForm';
 import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 import BorrowLoanSheet from '@/components/vouch/borrower/BorrowLoanSheet';
+import RentPosterDialog from '@/components/agent/RentPosterDialog';
 
 // PDF form generators
 import {
