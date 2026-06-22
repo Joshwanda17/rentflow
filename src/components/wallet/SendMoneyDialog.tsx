@@ -789,6 +789,20 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                           </div>
                         );
                       })}
+                      {savedRecipients.filter((r) => {
+                        const q = recipientSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return (
+                          (r.nickname || '').toLowerCase().includes(q) ||
+                          (r.name || '').toLowerCase().includes(q) ||
+                          (r.phone || '').toLowerCase().includes(q) ||
+                          (r.email || '').toLowerCase().includes(q)
+                        );
+                      }).length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-3">
+                          No saved recipients match "{recipientSearch.trim()}"
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )}
