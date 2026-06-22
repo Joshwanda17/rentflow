@@ -12,24 +12,23 @@ import {
 import type { TemplateEntry } from './types.ts'
 
 /**
- * Partner Portfolio Compounded — for EXISTING partners.
+ * Partner Portfolio Compounded — for partners whose portfolio is created as a
+ * compounding portfolio from the start.
  *
  * Triggered when:
- *   • A regular investment portfolio is compounded (auto cron or manual COO).
- *   • A nearing-payout portfolio is compounded instead of paid out.
+ *   • A partner creates a new portfolio and selects the compounding ROI mode.
  *
- * For FIRST-TIME partners who choose compound at portfolio creation,
- * use the original `partner-compound` template — that one includes the
- * full 12-month forward projection meant to onboard new compounders.
- * This template intentionally stays compact: a clean confirmation of
- * the cycle that just settled.
+ * For EXISTING partners receiving an auto-cron compound on a live portfolio,
+ * use the `partner-compound` template instead.
  */
 
 interface PartnerPortfolioCompoundedProps {
   partner_name?: string
   portfolio_id?: string
+  creation_date?: string
   compound_date?: string
   contribution_date?: string
+  principal?: string | number
   initial_partnership_amount?: string | number
   roi_return?: string
   roi_percentage?: number | string
@@ -48,6 +47,7 @@ interface PartnerPortfolioCompoundedProps {
   company_name?: string
   logo_url?: string
   unsubscribe_url?: string
+  dashboard_url?: string
 }
 
 const formatAmount = (amount: string | number | undefined, currency: string) => {
@@ -60,8 +60,7 @@ const formatAmount = (amount: string | number | undefined, currency: string) => 
 const resolveRoiLabel = (
   roi_percentage: number | string | undefined,
   roi_return: string | undefined,
-  initNum: number,
-  retNum: number,
+  principalNum: number,
 ) => {
   const explicit = roi_percentage === undefined || roi_percentage === null || roi_percentage === ''
     ? NaN
@@ -71,18 +70,16 @@ const resolveRoiLabel = (
     return `${r}%`
   }
   if (typeof roi_return === 'string' && roi_return.trim().length > 0) return roi_return
-  if (initNum > 0) {
-    const r = Math.round((retNum / initNum) * 10000) / 100
-    return `${r}%`
-  }
   return '0%'
 }
 
 export function PartnerPortfolioCompounded({
   partner_name = 'Partner',
   portfolio_id = 'PF-XXXXXXXX',
+  creation_date = '',
   compound_date = '',
   contribution_date = '',
+  principal = 0,
   initial_partnership_amount = 0,
   roi_return,
   roi_percentage,
@@ -94,28 +91,23 @@ export function PartnerPortfolioCompounded({
   company_name = 'Welile',
   logo_url = 'https://welilereceipts.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
+  dashboard_url = 'https://welilereceipts.com/auth',
 }: PartnerPortfolioCompoundedProps) {
   const year = new Date().getFullYear()
+  // For a new compounding portfolio the principal is the initial contribution.
+  const principalNum = Number(String(principal !== undefined && principal !== '' ? principal : initial_partnership_amount).replace(/,/g, '')) || 0
   const initNum = Number(String(initial_partnership_amount).replace(/,/g, '')) || 0
   const retNum = Number(String(return_amount).replace(/,/g, '')) || 0
   const newTotalNum = Number(String(new_total_partnership_value).replace(/,/g, '')) || 0
 
-  const formattedReturn = formatAmount(return_amount, currency)
-  // Headline = explicit New Total Partnership Value from the caller (the
-  // truth shown in the in-app compound dialog: current principal + this
-  // cycle's return). Only fall back to initial+return when the caller
-  // failed to provide it. `initial_partnership_amount` is the ORIGINAL
-  // contribution and drifts from the live principal after the first
-  // compound, so it must never override an explicit value.
-  const headlineNum = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
+  // Headline value: prefer an explicit new total, otherwise fall back to principal.
+  const headlineNum = newTotalNum > 0 ? newTotalNum : (principalNum > 0 ? principalNum : initNum)
   const formattedNewTotal = formatAmount(Math.round(headlineNum), currency)
-  // Opening principal for THIS compound cycle = balance just before the
-  // return was applied. Prefer (new_total − return) since the caller-supplied
-  // new_total is the authoritative live principal after compounding.
-  // Falls back to initial_partnership_amount only if new_total is missing.
-  const openingPrincipalNum = newTotalNum > 0 ? Math.max(0, newTotalNum - retNum) : initNum
-  const formattedOpeningPrincipal = formatAmount(Math.round(openingPrincipalNum), currency)
-  const roiLabel = resolveRoiLabel(roi_percentage, roi_return, initNum, retNum)
+  const formattedPrincipal = formatAmount(Math.round(principalNum > 0 ? principalNum : initNum), currency)
+  const roiLabel = resolveRoiLabel(roi_percentage, roi_return, principalNum)
+
+  const creationDateLabel = creation_date || compound_date || contribution_date || 'the date shown above'
+
   const timeline = Array.isArray(compound_history) && compound_history.length > 0
     ? compound_history.map((row, index) => ({
       cycleLabel: row.month_name
@@ -152,7 +144,7 @@ export function PartnerPortfolioCompounded({
                           <Img src={logo_url} alt={`${company_name} Technologies Limited`} width="130" style={logoImg} />
                         </td>
                         <td align="right" valign="middle" className="hide-mobile" style={secureLabel}>
-                          Compounding Confirmation
+                          New Portfolio
                         </td>
                       </tr></tbody>
                     </table>
@@ -168,12 +160,8 @@ export function PartnerPortfolioCompounded({
                 <tr>
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
                     <Text style={greetingText}>Dear {partner_name},</Text>
-                    <Text style={introText}>I hope this message finds you well.</Text>
-                    <Text style={introText}>
-                      We are pleased to confirm the successful compounding of your portfolio (<span style={{ color: '#a855f7' }}>{portfolio_id}</span>) with {company_name} Technologies Limited.
-                    </Text>
                     <Text style={{ ...introText, margin: 0 }}>
-                      On <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedOpeningPrincipal}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). Your new portfolio account is now active and compounding at this rate.
+                      We are pleased to confirm that your Compounding Portfolio has been successfully created on <strong>{creationDateLabel}</strong> and is now active.
                     </Text>
                   </td>
                 </tr>
@@ -184,9 +172,8 @@ export function PartnerPortfolioCompounded({
                       <tbody>
                         <tr>
                           <td align="center" style={highlightInner}>
-                            <Text style={highlightEyebrow}>New Portfolio Account Value</Text>
+                            <Text style={highlightEyebrow}>Portfolio Value</Text>
                             <Text style={highlightValue}>{formattedNewTotal}</Text>
-                            <Text style={highlightSub}>Compounding monthly under portfolio {portfolio_id}.</Text>
                           </td>
                         </tr>
                       </tbody>
@@ -199,7 +186,7 @@ export function PartnerPortfolioCompounded({
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
                     <Text style={timelineTitle}>Projected compounding schedule</Text>
                     <Text style={timelineSubtitle}>
-                      Projected forward from your <strong>New Portfolio Account Value</strong> ({formattedNewTotal}). The cycle just settled is excluded — the table starts from your next month and compounds at <strong>{roiLabel}</strong> through the remainder of your portfolio term.
+                      This is projected basing on your Principal ({formattedPrincipal}) at the rate of ({roiLabel}).
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
                       <tbody>
@@ -243,6 +230,34 @@ export function PartnerPortfolioCompounded({
                   </td>
                 </tr>
                 )}
+
+                <tr>
+                  <td align="left" className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
+                    <Text style={sectionTitle}>What Happens Next?</Text>
+                    <Text style={sectionBody}>
+                      Your portfolio is configured to automatically compound eligible returns according to the terms of your selected portfolio strategy. This means that qualifying returns may be topped-up to support long-term portfolio growth over the life of the portfolio.
+                    </Text>
+
+                    <Text style={{ ...sectionTitle, marginTop: '25px' }}>Manage Your Portfolio</Text>
+                    <Text style={sectionBody}>
+                      You can monitor your portfolio performance, review compounding activity, track projected growth, and manage your portfolio settings directly from your dashboard.
+                    </Text>
+
+                    <table border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ margin: '18px 0 18px 0' }}>
+                      <tbody><tr>
+                        <td align="center" style={{ borderRadius: '8px', backgroundColor: '#7b19d4' }}>
+                          <Link href={dashboard_url} style={ctaLink}>
+                            Access Dashboard
+                          </Link>
+                        </td>
+                      </tr></tbody>
+                    </table>
+
+                    <Text style={sectionBody}>
+                      If your account is currently managed by an authorized proxy agent, they may also assist in monitoring and managing the portfolio on your behalf.
+                    </Text>
+                  </td>
+                </tr>
 
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
@@ -362,13 +377,13 @@ const greetingText: React.CSSProperties = { margin: '0 0 15px 0', color: INK, fo
 const introText: React.CSSProperties = { margin: '0 0 15px 0', color: BODY, fontSize: '15px', lineHeight: '24px' }
 
 const highlightCard: React.CSSProperties = { border: `1px solid ${BORDER}`, borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fafaf9' }
-const returnInner: React.CSSProperties = { backgroundColor: SUCCESS_BG, padding: '30px 20px', borderBottom: `1px solid ${BORDER}` }
-const returnEyebrow: React.CSSProperties = { margin: '0 0 10px 0', color: SUCCESS, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px' }
-const returnValue: React.CSSProperties = { margin: '0 0 5px 0', color: SUCCESS, fontSize: '24px', fontWeight: 700, letterSpacing: '-0.5px' }
 const highlightInner: React.CSSProperties = { backgroundColor: ACCENT_BG, padding: '30px 20px' }
 const highlightEyebrow: React.CSSProperties = { margin: '0 0 10px 0', color: SUB, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px' }
 const highlightValue: React.CSSProperties = { margin: '0 0 5px 0', color: BRAND, fontSize: '34px', fontWeight: 800, letterSpacing: '-1px' }
-const highlightSub: React.CSSProperties = { margin: 0, color: MUTED, fontSize: '13px', fontWeight: 500 }
+
+const sectionTitle: React.CSSProperties = { margin: '0 0 12px 0', color: INK, fontSize: '18px', fontWeight: 800 }
+const sectionBody: React.CSSProperties = { margin: '0 0 15px 0', color: BODY, fontSize: '15px', lineHeight: '24px' }
+const ctaLink: React.CSSProperties = { display: 'inline-block', padding: '14px 28px', color: '#ffffff', fontSize: '16px', fontWeight: 600, textDecoration: 'none', borderRadius: '8px', border: '1px solid #7b19d4' }
 
 const timelineTitle: React.CSSProperties = { margin: '0 0 8px 0', color: INK, fontSize: '18px', fontWeight: 800 }
 const timelineSubtitle: React.CSSProperties = { margin: '0 0 16px 0', color: BODY, fontSize: '14px', lineHeight: '22px' }
@@ -406,30 +421,32 @@ export const template = {
   component: PartnerPortfolioCompounded,
   subject: (data: Record<string, any>) => {
     const currency = data?.currency || 'UGX'
-    const initNum = Number(String(data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
-    const retNum = Number(String(data?.return_amount ?? 0).replace(/,/g, '')) || 0
+    const principalNum = Number(String(data?.principal !== undefined ? data.principal : data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
     const newTotalNum = Number(String(data?.new_total_partnership_value ?? 0).replace(/,/g, '')) || 0
-    const headline = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
+    const headline = newTotalNum > 0 ? newTotalNum : principalNum
     return `New Portfolio Account Created — Value ${formatAmount(headline, currency)}`
   },
   displayName: 'Partner Portfolio Compounded (Existing Partner)',
   previewData: {
     partner_name: 'Sarah Nakato',
     portfolio_id: 'PF-1A2B3C4D',
-    compound_date: '20th of April, 2026',
-    initial_partnership_amount: 6_272_000,
+    creation_date: '20th of April, 2026',
+    initial_partnership_amount: 5_000_000,
+    principal: 5_000_000,
     roi_percentage: 12,
-    return_amount: 752_640,
-    new_total_partnership_value: 7_024_640,
-    payment_number: 2,
-    contribution_date: '20 March 2026',
+    return_amount: 0,
+    new_total_partnership_value: 5_000_000,
+    payment_number: 1,
+    contribution_date: '20 April 2026',
     compound_history: [
-      { cycle: 1, date: '20 April 2026', balance_before: 5_600_000, return_amount: 672_000, balance_after: 6_272_000 },
-      { cycle: 2, date: '20 May 2026', balance_before: 6_272_000, return_amount: 752_640, balance_after: 7_024_640 },
+      { cycle: 1, date: '20 May 2026', balance_before: 5_000_000, return_amount: 600_000, balance_after: 5_600_000 },
+      { cycle: 2, date: '20 June 2026', balance_before: 5_600_000, return_amount: 672_000, balance_after: 6_272_000 },
+      { cycle: 3, date: '20 July 2026', balance_before: 6_272_000, return_amount: 752_640, balance_after: 7_024_640 },
     ],
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
+    dashboard_url: 'https://welilereceipts.com/auth',
   },
 } satisfies TemplateEntry
