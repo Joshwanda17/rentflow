@@ -393,6 +393,21 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       return;
     }
 
+    // Remember this recipient so the user doesn't have to retype next time.
+    if (recipient.status === 'found') {
+      setSavedRecipients(
+        sortRecipients(
+          rememberRecipient(user?.id, {
+            id: recipient.id,
+            name: recipient.name,
+            phone: mode === 'phone' ? phone : recipient.phone,
+            email: mode === 'email' ? email : recipient.email || undefined,
+            mode,
+          }),
+        ),
+      );
+    }
+
     setConfirming(false);
     setSuccess(true);
     
