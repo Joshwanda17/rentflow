@@ -260,6 +260,8 @@ Deno.serve(async (req) => {
         }),
       });
       if (ok) sent++; else failed++;
+      // Gentle pacing between sends to stay under the email service rate limit.
+      await sleep(150);
     }
 
     return json({ ok: true, sent, skipped, failed, total: portfolios.length }, 200);
