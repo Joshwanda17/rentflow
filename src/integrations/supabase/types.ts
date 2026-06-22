@@ -20127,6 +20127,42 @@ export type Database = {
           without_landlord: number
         }[]
       }
+      get_crm_directory: {
+        Args: {
+          _limit?: number
+          _offset?: number
+          _role: Database["public"]["Enums"]["app_role"]
+          _search?: string
+        }
+        Returns: {
+          agent_type: string
+          avatar_url: string
+          city: string
+          created_at: string
+          district: string
+          email: string
+          full_name: string
+          id: string
+          last_active_at: string
+          monthly_rent: number
+          national_id: string
+          phone: string
+          region: string
+          tenant_status: string
+          territory: string
+          total_matched: number
+          verified: boolean
+        }[]
+      }
+      get_crm_directory_totals: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: {
+          active30d: number
+          new30d: number
+          total: number
+          verified: number
+        }[]
+      }
       get_deposits_paginated: {
         Args: {
           p_agent_id?: string
