@@ -20169,6 +20169,40 @@ export type Database = {
           verified: number
         }[]
       }
+      get_crm_landlords: {
+        Args: { _limit?: number; _offset?: number; _search?: string }
+        Returns: {
+          account_number: string
+          bank_name: string
+          city: string
+          country: string
+          created_at: string
+          district: string
+          id: string
+          is_agent_managed: boolean
+          is_occupied: boolean
+          mobile_money_name: string
+          mobile_money_number: string
+          monthly_rent: number
+          name: string
+          number_of_houses: number
+          phone: string
+          property_address: string
+          region: string
+          total_matched: number
+          verification_status: string
+          verified: boolean
+        }[]
+      }
+      get_crm_landlords_totals: {
+        Args: never
+        Returns: {
+          new30d: number
+          occupied: number
+          total: number
+          verified: number
+        }[]
+      }
       get_deposits_paginated: {
         Args: {
           p_agent_id?: string
