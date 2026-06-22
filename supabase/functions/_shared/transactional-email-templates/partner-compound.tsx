@@ -135,9 +135,8 @@ export function PartnerCompound({
     if (Array.isArray(compound_history) && compound_history.length > 0) {
       return compound_history.map((row, index) => ({
         cycleLabel: row.month_name
-          ? `Month ${row.cycle || index + 1} — ${row.month_name}`
-          : `Month ${row.cycle || index + 1}`,
-        dateLabel: row.date,
+          ? row.month_name
+          : (row.date ? new Date(row.date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : `Month ${row.cycle || index + 1}`),
         before: Number(String(row.balance_before ?? 0).replace(/,/g, '')) || 0,
         earned: Number(String(row.return_amount ?? 0).replace(/,/g, '')) || 0,
         after: Number(String(row.balance_after ?? 0).replace(/,/g, '')) || 0,
@@ -145,15 +144,14 @@ export function PartnerCompound({
       }))
     }
     if (principalNum > 0 && r > 0) {
-      const rows: { cycleLabel: string; dateLabel?: string; before: number; earned: number; after: number; isCurrent: boolean }[] = []
+      const rows: { cycleLabel: string; before: number; earned: number; after: number; isCurrent: boolean }[] = []
       let bal = principalNum
       for (let i = 0; i < PROJECTION_MONTHS; i++) {
         const before = bal
         const earned = before * r
         const after = before + earned
         rows.push({
-          cycleLabel: `Month ${i + 1}`,
-          dateLabel: fmtDate(addMonths(startDate, i + 1)),
+          cycleLabel: addMonths(startDate, i + 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
           before,
           earned,
           after,
@@ -246,7 +244,6 @@ export function PartnerCompound({
                                 <Text style={timelineCycleLabel}>
                                   {row.cycleLabel}
                                   {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Next</span>}
-                                  {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
                                 </Text>
                                 <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
                                   <tbody>

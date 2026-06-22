@@ -159,7 +159,7 @@ export function PartnerPortfolioCompounded({
     const remainingMonths = Math.max(0, monthsBetween(projectionStart, maturity))
     const monthsElapsed = Math.max(0, monthsBetween(contributionDate, projectionStart))
 
-    const rows: { cycleLabel: string; dateLabel?: string; before: number; earned: number; after: number; isCurrent: boolean }[] = []
+    const rows: { cycleLabel: string; before: number; earned: number; after: number; isCurrent: boolean }[] = []
     let bal = newTotalNum
     for (let i = 0; i < remainingMonths; i++) {
       const d = addMonths(projectionStart, i)
@@ -167,8 +167,7 @@ export function PartnerPortfolioCompounded({
       const earned = Math.round(before * r)
       const after = before + earned
       rows.push({
-        cycleLabel: `Cycle ${monthsElapsed + i + 1} — ${d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`,
-        dateLabel: fmtDate(d),
+        cycleLabel: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
         before,
         earned,
         after,
@@ -270,7 +269,6 @@ export function PartnerPortfolioCompounded({
                                 <Text style={timelineCycleLabel}>
                                   {row.cycleLabel}
                                   {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Next</span>}
-                                  {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
                                 </Text>
                                 <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
                                   <tbody>
