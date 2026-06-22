@@ -67,9 +67,10 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
       const result = await shareImageViaWhatsApp(blob, {
         filename: POSTER_FILENAME,
         caption: POSTER_CAPTION,
+        phone: phone.trim() || undefined,
       });
       if (result === 'deeplink') {
-        toast.success('Poster downloaded — attach it in WhatsApp');
+        toast.success('Poster saved — attach it in WhatsApp');
       }
     } catch {
       toast.error('Could not share the poster', { description: 'Please try again in a moment.' });
