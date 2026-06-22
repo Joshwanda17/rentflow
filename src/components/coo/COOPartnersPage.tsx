@@ -4009,6 +4009,37 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
     );
   }, [expiring, search]);
 
+  /* ─── Bulk-send the "Maturity Notice" email to every partner expiring soon. ─── */
+  const [sendingNotices, setSendingNotices] = useState(false);
+  async function handleSendMaturityNotices() {
+    if (sendingNotices) return;
+    const partnerIds = Array.from(new Set(filtered.map(p => p.investorId).filter(Boolean)));
+    if (partnerIds.length === 0) {
+      toast.info('No partners to notify');
+      return;
+    }
+    if (!window.confirm(`Send the "Maturity Notice" email to ${partnerIds.length} partner(s) whose portfolios are expiring soon?`)) return;
+    setSendingNotices(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-send-maturity-notice', {
+        body: { partnerIds },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const sent = (data as any)?.sent ?? 0;
+      const skipped = (data as any)?.skipped ?? 0;
+      const failed = (data as any)?.failed ?? 0;
+      toast.success(`Maturity notices sent: ${sent}`, {
+        description: `${skipped} skipped (no email), ${failed} failed.`,
+      });
+    } catch (e: any) {
+      console.error('Bulk maturity notice failed', e);
+      toast.error(e?.message || 'Failed to send maturity notices');
+    } finally {
+      setSendingNotices(false);
+    }
+  }
+
   const fmtDate = (d: Date) => d.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' });
   const urgency = (days: number) =>
     days <= 14 ? { tone: 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/30' }
@@ -4032,6 +4063,18 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
             placeholder="Search by partner, portfolio or phone…"
             className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30" />
         </div>
+        {expiring.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1.5 text-xs self-start"
+            onClick={handleSendMaturityNotices}
+            disabled={sendingNotices}
+          >
+            {sendingNotices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+            {sendingNotices ? 'Sending…' : `Send Maturity Notice to ${filtered.length} Partner${filtered.length === 1 ? '' : 's'}`}
+          </Button>
+        )}
         <div className="flex-1 overflow-y-auto -mx-1 px-1">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
