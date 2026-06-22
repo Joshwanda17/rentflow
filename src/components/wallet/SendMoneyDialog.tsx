@@ -23,7 +23,7 @@ import {
   Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles, UserCheck, UserX,
   Mail, UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
   Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, AlertTriangle, ArrowRight,
-  Star, X
+  Star, X, Pencil, Check
 } from 'lucide-react';
 import {
   loadRecipients,
