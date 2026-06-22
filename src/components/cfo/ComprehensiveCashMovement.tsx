@@ -1280,13 +1280,13 @@ function TreasuryWalletFlowSummary({
           summary={inSummary}
           partyHeading="Top recipients"
           direction="cash_in"
-          rawItems={toWallets}
+          rawItems={filteredToWallets}
           groupDefs={COMPANY_TO_WALLETS_GROUPS}
           onGroupDrill={(meta) => setGroupDrill({
             label: meta.label,
             color: meta.color,
             direction: 'cash_in',
-            items: toWallets.filter(i => meta.categories.has(i.category)),
+            items: filteredToWallets.filter(i => meta.categories.has(i.category)),
             expectedTotal: meta.expectedTotal,
             expectedCount: meta.expectedCount,
           })}
@@ -1299,13 +1299,13 @@ function TreasuryWalletFlowSummary({
           summary={outSummary}
           partyHeading="Top sources"
           direction="cash_out"
-          rawItems={toCompany}
+          rawItems={filteredToCompany}
           groupDefs={WALLET_TO_COMPANY_GROUPS}
           onGroupDrill={(meta) => setGroupDrill({
             label: meta.label,
             color: meta.color,
             direction: 'cash_out',
-            items: toCompany.filter(i => meta.categories.has(i.category)),
+            items: filteredToCompany.filter(i => meta.categories.has(i.category)),
             expectedTotal: meta.expectedTotal,
             expectedCount: meta.expectedCount,
           })}
