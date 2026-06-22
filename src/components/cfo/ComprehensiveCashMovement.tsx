@@ -1124,15 +1124,20 @@ function TreasuryWalletFlowSummary({
     rawItems: TreasuryFlowItem[];
     onGroupDrill?: (meta: { label: string; color: string; categories: Set<string>; expectedTotal: number; expectedCount: number }) => void;
     groupDefs?: { label: string; categories: Set<string>; color: string }[];
-    compareTotal?: number | null;
+    compareSummary?: ReturnType<typeof summarizeTreasuryFlow> | null;
   }) => {
     const [groupView, setGroupView] = useState<'amount' | 'count' | 'pct'>('amount');
     const groups = groupDefs ?? (direction === 'cash_out' ? WALLET_TO_COMPANY_GROUPS : COMPANY_TO_WALLETS_GROUPS);
-    const hasCompare = compareTotal !== null && compareTotal !== undefined;
-    const delta = hasCompare ? summary.total - (compareTotal as number) : 0;
-    const deltaPct = hasCompare && (compareTotal as number) > 0
-      ? Math.round((delta / (compareTotal as number)) * 100)
+    const hasCompare = !!compareSummary;
+    const compareTotal = compareSummary ? compareSummary.total : 0;
+    const delta = hasCompare ? summary.total - compareTotal : 0;
+    const deltaPct = hasCompare && compareTotal > 0
+      ? Math.round((delta / compareTotal) * 100)
       : null;
+    const prevGroupAmount = (label: string) => {
+      const found = compareSummary?.groups.find(([l]) => l === label);
+      return found ? found[1].amount : 0;
+    };
     return (
       <div
         className={cn(
