@@ -1721,6 +1721,81 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   /* ─── Export: fetches ALL matching partners (across every page) and ─── */
   /* ─── re-applies the active local filters before writing the CSV.    ─── */
   const [exporting, setExporting] = useState(false);
+
+  /* ─── Gather ALL filtered partner IDs (across every page), mirroring the ─── */
+  /* ─── export so bulk actions act on the same result set the user sees.   ─── */
+  async function collectFilteredPartnerIds(): Promise<string[]> {
+    const allIds: string[] = [];
+    let p = 0;
+    while (p < 200) {
+      const { ids } = filterProspect === 'prospects_only'
+        ? await fetchVerifiedFundedProspectIds(p, PAGE_SIZE, debouncedSearch)
+        : await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
+      if (ids.length === 0) break;
+      allIds.push(...ids);
+      if (ids.length < PAGE_SIZE) break;
+      p += 1;
+    }
+    if (allIds.length === 0) return [];
+    const fullRows = await buildRowsForIds(allIds);
+    let filtered = fullRows;
+    if (filterStatus !== 'all') filtered = filtered.filter(r => r.status === filterStatus);
+    if (filterRoiMode !== 'all') filtered = filtered.filter(r => r.roiMode === filterRoiMode);
+    if (filterContact === 'has_phone') filtered = filtered.filter(r => r.phone && !r.phone.includes('@'));
+    else if (filterContact === 'no_phone') filtered = filtered.filter(r => !r.phone || r.phone.includes('@'));
+    else if (filterContact === 'has_email') filtered = filtered.filter(r => r.email && !r.email.includes('placeholder'));
+    else if (filterContact === 'no_email') filtered = filtered.filter(r => !r.email || r.email.includes('placeholder'));
+    if (filterWallet === 'has_balance') filtered = filtered.filter(r => (r.walletBalance || 0) > 0);
+    else if (filterWallet === 'empty') filtered = filtered.filter(r => (r.walletBalance || 0) <= 0);
+    if (payoutDateFrom || payoutDateTo) {
+      const fromMs = payoutDateFrom ? new Date(payoutDateFrom.getFullYear(), payoutDateFrom.getMonth(), payoutDateFrom.getDate()).getTime() : null;
+      const toMs = payoutDateTo ? new Date(payoutDateTo.getFullYear(), payoutDateTo.getMonth(), payoutDateTo.getDate(), 23, 59, 59, 999).getTime() : null;
+      filtered = filtered.filter(r => {
+        const dates: string[] = ((r as any).payoutDates as string[] | undefined) ?? ((r as any).nextRoiDate ? [(r as any).nextRoiDate] : []);
+        if (!dates.length) return false;
+        return dates.some(d => {
+          const t = new Date(d + 'T00:00:00').getTime();
+          if (isNaN(t)) return false;
+          if (fromMs !== null && t < fromMs) return false;
+          if (toMs !== null && t > toMs) return false;
+          return true;
+        });
+      });
+    }
+    return filtered.map(r => r.id);
+  }
+
+  /* ─── Bulk-send the "Maturity Notice" email to the filtered partners. ─── */
+  const [sendingNotices, setSendingNotices] = useState(false);
+  async function handleSendMaturityNotices() {
+    if (sendingNotices) return;
+    if (!window.confirm('Send the "Maturity Notice" email to all partners in the current list (one notice per active partnership that has a maturity date)?')) return;
+    setSendingNotices(true);
+    try {
+      const partnerIds = await collectFilteredPartnerIds();
+      if (partnerIds.length === 0) {
+        toast.info('No partners in the current list');
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke('bulk-send-maturity-notice', {
+        body: { partnerIds },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const sent = (data as any)?.sent ?? 0;
+      const skipped = (data as any)?.skipped ?? 0;
+      const failed = (data as any)?.failed ?? 0;
+      toast.success(`Maturity notices sent: ${sent}`, {
+        description: `${skipped} skipped (no email), ${failed} failed.`,
+      });
+    } catch (e: any) {
+      console.error('Bulk maturity notice failed', e);
+      toast.error(e?.message || 'Failed to send maturity notices');
+    } finally {
+      setSendingNotices(false);
+    }
+  }
+
   async function handleExportAll() {
     if (exporting) return;
     setExporting(true);
