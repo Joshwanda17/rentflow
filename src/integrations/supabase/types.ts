@@ -10777,6 +10777,51 @@ export type Database = {
           },
         ]
       }
+      managed_locations: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          district: string | null
+          id: string
+          latitude: number | null
+          location_type: string
+          longitude: number | null
+          name: string
+          notes: string | null
+          region: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          district?: string | null
+          id?: string
+          latitude?: number | null
+          location_type?: string
+          longitude?: number | null
+          name: string
+          notes?: string | null
+          region?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          district?: string | null
+          id?: string
+          latitude?: number | null
+          location_type?: string
+          longitude?: number | null
+          name?: string
+          notes?: string | null
+          region?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       managed_proxy_roi_routing_violations: {
         Row: {
           amount: number

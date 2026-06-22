@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Sparkles, History } from 'lucide-react';
+import { Sparkles, History, MapPin } from 'lucide-react';
 import { TenantOpsDashboard } from './TenantOpsDashboard';
 import { TenantOpsDashboardV2 } from './TenantOpsDashboardV2';
 import { AgentInactiveAlertBanner } from '@/components/ops/AgentInactiveAlertBanner';
@@ -14,6 +15,7 @@ export function TenantOpsHub() {
   const [mode, setMode] = useState<'v2' | 'classic'>('v2');
   const [opsUserId, setOpsUserId] = useState<string | null>(null);
   const [behaviorTenantId, setBehaviorTenantId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -36,6 +38,14 @@ export function TenantOpsHub() {
       <TenantPhoneDuplicatePanel />
 
       <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/executive-hub?tab=locations')}
+          className="gap-1.5 mr-auto"
+        >
+          <MapPin className="h-3.5 w-3.5" /> Manage Locations
+        </Button>
         <Button
           variant={mode === 'v2' ? 'default' : 'outline'}
           size="sm"
