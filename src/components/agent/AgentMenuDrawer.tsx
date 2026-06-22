@@ -42,6 +42,7 @@ import {
   BookOpen,
   LucideIcon,
   FileDown,
+  Megaphone,
 } from 'lucide-react';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { GlossaryButton } from '@/components/shared/GlossaryButton';
