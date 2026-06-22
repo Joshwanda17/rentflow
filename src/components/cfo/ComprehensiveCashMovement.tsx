@@ -1112,6 +1112,7 @@ function TreasuryWalletFlowSummary({
     rawItems,
     onGroupDrill,
     groupDefs,
+    compareTotal,
   }: {
     tone: 'in' | 'out';
     icon: React.ReactNode;
@@ -1123,9 +1124,15 @@ function TreasuryWalletFlowSummary({
     rawItems: TreasuryFlowItem[];
     onGroupDrill?: (meta: { label: string; color: string; categories: Set<string>; expectedTotal: number; expectedCount: number }) => void;
     groupDefs?: { label: string; categories: Set<string>; color: string }[];
+    compareTotal?: number | null;
   }) => {
     const [groupView, setGroupView] = useState<'amount' | 'count' | 'pct'>('amount');
     const groups = groupDefs ?? (direction === 'cash_out' ? WALLET_TO_COMPANY_GROUPS : COMPANY_TO_WALLETS_GROUPS);
+    const hasCompare = compareTotal !== null && compareTotal !== undefined;
+    const delta = hasCompare ? summary.total - (compareTotal as number) : 0;
+    const deltaPct = hasCompare && (compareTotal as number) > 0
+      ? Math.round((delta / (compareTotal as number)) * 100)
+      : null;
     return (
       <div
         className={cn(
