@@ -127,9 +127,14 @@ export default function Auth() {
 
   useEffect(() => {
     if (!authLoading && user) {
+      const redirectParam = searchParams.get('redirect');
+      if (redirectParam && redirectParam.startsWith('/')) {
+        navigate(redirectParam, { replace: true });
+        return;
+      }
       navigate(roleToSlug(authRoles[0]), { replace: true });
     }
-  }, [authLoading, user, authRoles, navigate]);
+  }, [authLoading, user, authRoles, navigate, searchParams]);
 
   // Login mode: defaults to the user's saved preference (OTP-first out of the
   // box). 'password' (phone+pw) and 'email' remain available as backups.
