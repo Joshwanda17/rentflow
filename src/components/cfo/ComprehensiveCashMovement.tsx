@@ -1156,6 +1156,19 @@ function TreasuryWalletFlowSummary({
             {formatUGX(summary.total)}
           </p>
           <p className="text-[11px] text-muted-foreground">{summary.count.toLocaleString()} transfer{summary.count === 1 ? '' : 's'}</p>
+          {hasCompare && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span className={cn(
+                'inline-flex items-center gap-0.5 font-semibold rounded-md px-1.5 py-0.5',
+                delta >= 0 ? 'bg-emerald-500/15 text-emerald-600' : 'bg-rose-500/15 text-rose-600',
+              )}>
+                {delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                {delta >= 0 ? '+' : '−'}{formatUGX(Math.abs(delta))}
+                {deltaPct !== null && <span className="opacity-80">({delta >= 0 ? '+' : '−'}{Math.abs(deltaPct)}%)</span>}
+              </span>
+              <span className="text-muted-foreground">vs {formatUGX(compareTotal as number)} prev. period</span>
+            </div>
+          )}
         </div>
 
         {summary.cats.length > 0 && (
