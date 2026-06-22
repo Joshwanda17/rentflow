@@ -12,11 +12,12 @@ interface RentPosterDialogProps {
 }
 
 type PaperSize = 'A4' | 'Letter';
+type Orientation = 'portrait' | 'landscape';
 
-// Landscape page dimensions in millimetres.
+// Portrait page dimensions in millimetres.
 const PAPER_MM: Record<PaperSize, { w: number; h: number }> = {
-  A4: { w: 297, h: 210 },
-  Letter: { w: 279.4, h: 215.9 },
+  A4: { w: 210, h: 297 },
+  Letter: { w: 215.9, h: 279.4 },
 };
 
 const POSTER_FILENAME = 'Welile-Available-For-Rent.jpg';
