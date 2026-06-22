@@ -1271,6 +1271,10 @@ function TreasuryWalletFlowSummary({
         The two movements that matter most: the CFO funding wallets out of company money, and agents
         allocating money out of their wallets back to the company.
       </p>
+      <label className="flex items-center gap-2 w-fit rounded-lg border border-border bg-muted/30 px-3 py-1.5 cursor-pointer select-none">
+        <Checkbox checked={excludeToday} onCheckedChange={(c) => setExcludeToday(c === true)} />
+        <span className="text-[11px] font-medium text-foreground/90">Exclude today's movements</span>
+      </label>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Flow
           tone="in"
