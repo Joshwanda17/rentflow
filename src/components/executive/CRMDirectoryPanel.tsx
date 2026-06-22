@@ -238,7 +238,10 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
                 {role === 'agent' ? (
                   <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Territory</th>
                 ) : (
-                  <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Status</th>
+                  <>
+                    <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Stage</th>
+                    <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Status</th>
+                  </>
                 )}
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">National ID</th>
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Verified</th>
@@ -250,14 +253,14 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 8 }).map((__, j) => (
+                    {Array.from({ length: role === 'agent' ? 8 : 9 }).map((__, j) => (
                       <td key={j} className="px-3 py-3"><div className="h-4 w-20 bg-muted animate-pulse rounded" /></td>
                     ))}
                   </tr>
                 ))
               ) : list.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">No records found</td>
+                  <td colSpan={role === 'agent' ? 8 : 9} className="px-3 py-10 text-center text-muted-foreground">No records found</td>
                 </tr>
               ) : (
                 list.map((r) => (
@@ -281,11 +284,21 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
                     {role === 'agent' ? (
                       <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{r.territory || '—'}</td>
                     ) : (
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        {r.tenant_status ? (
-                          <Badge variant="secondary" className="text-xs">{r.tenant_status}</Badge>
-                        ) : '—'}
-                      </td>
+                      <>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          {r.stage && STAGE_BY_KEY[r.stage as StageKey] ? (
+                            <Badge className={cn('text-xs border gap-1', STAGE_BY_KEY[r.stage as StageKey].badgeClass)}>
+                              {(() => { const I = STAGE_BY_KEY[r.stage as StageKey].icon; return <I className="h-3 w-3" />; })()}
+                              {STAGE_BY_KEY[r.stage as StageKey].label}
+                            </Badge>
+                          ) : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          {r.tenant_status ? (
+                            <Badge variant="secondary" className="text-xs">{r.tenant_status}</Badge>
+                          ) : '—'}
+                        </td>
+                      </>
                     )}
                     <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{r.national_id || '—'}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
