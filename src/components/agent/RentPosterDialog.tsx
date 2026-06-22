@@ -32,6 +32,7 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
   const [sharing, setSharing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [paper, setPaper] = useState<PaperSize>('A4');
+  const [orientation, setOrientation] = useState<Orientation>('landscape');
 
   const fetchPosterBlob = async () => {
     const res = await fetch(posterAsset.url);
@@ -66,15 +67,28 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
     }
   };
 
-  // Download a print-ready PDF sized to the chosen paper (A4 / Letter),
-  // landscape, with the poster centred and scaled to fit.
+  // Return page dimensions respecting the chosen orientation.
+  const getPageSize = () => {
+    const p = PAPER_MM[paper];
+    return orientation === 'landscape'
+      ? { w: p.h, h: p.w }
+      : { w: p.w, h: p.h };
+  };
+
+  // Download a print-ready PDF sized to the chosen paper (A4 / Letter)
+  // and orientation, with the poster centred and scaled to fit.
   const handleDownload = async () => {
     setDownloading(true);
     try {
       const img = await loadImage(posterAsset.url);
       const { jsPDF } = await import('jspdf');
-      const page = PAPER_MM[paper];
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: paper.toLowerCase() as 'a4' | 'letter', compress: true });
+      const page = getPageSize();
+      const pdf = new jsPDF({
+        orientation,
+        unit: 'mm',
+        format: paper.toLowerCase() as 'a4' | 'letter',
+        compress: true,
+      });
 
       // Fit the image inside the page preserving aspect ratio, then centre it.
       const imgRatio = img.width / img.height;
@@ -91,7 +105,7 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
       const x = (page.w - drawW) / 2;
       const y = (page.h - drawH) / 2;
       pdf.addImage(img, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
-      pdf.save(`Welile-Available-For-Rent-${paper}.pdf`);
+      pdf.save(`Welile-Available-For-Rent-${paper}-${orientation}.pdf`);
     } catch {
       toast.error('Could not download the poster');
     } finally {
@@ -111,7 +125,7 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
         <head>
           <title>Available for Rent</title>
           <style>
-            @page { size: ${pageSize} landscape; margin: 0; }
+            @page { size: ${pageSize} ${orientation}; margin: 0; }
             html, body { margin: 0; padding: 0; height: 100%; }
             body { display: flex; align-items: center; justify-content: center; }
             img { max-width: 100%; max-height: 100%; display: block; }
@@ -146,21 +160,38 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
           />
         </div>
 
-        {/* Paper size selector — applies to both Download and Print */}
-        <div className="flex items-center gap-2 pt-1">
-          <span className="text-sm text-muted-foreground">Paper size:</span>
-          {(['A4', 'Letter'] as PaperSize[]).map((size) => (
-            <Button
-              key={size}
-              type="button"
-              size="sm"
-              variant={paper === size ? 'default' : 'outline'}
-              onClick={() => setPaper(size)}
-              className="h-8 px-4 touch-manipulation select-none"
-            >
-              {size}
-            </Button>
-          ))}
+        {/* Paper size & orientation selectors — apply to both Download and Print */}
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Paper:</span>
+            {(['A4', 'Letter'] as PaperSize[]).map((size) => (
+              <Button
+                key={size}
+                type="button"
+                size="sm"
+                variant={paper === size ? 'default' : 'outline'}
+                onClick={() => setPaper(size)}
+                className="h-8 px-4 touch-manipulation select-none"
+              >
+                {size}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Orientation:</span>
+            {(['portrait', 'landscape'] as Orientation[]).map((o) => (
+              <Button
+                key={o}
+                type="button"
+                size="sm"
+                variant={orientation === o ? 'default' : 'outline'}
+                onClick={() => setOrientation(o)}
+                className="h-8 px-4 touch-manipulation select-none capitalize"
+              >
+                {o}
+              </Button>
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 pt-1">
@@ -181,7 +212,7 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
             className="h-11 gap-2 touch-manipulation select-none"
           >
             {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Download {paper} PDF
+            Download {paper} {orientation}
           </Button>
           <Button
             type="button"
@@ -189,7 +220,7 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
             onClick={handlePrint}
             className="h-11 gap-2 touch-manipulation select-none"
           >
-            <Printer className="h-4 w-4" /> Print {paper}
+            <Printer className="h-4 w-4" /> Print {paper} {orientation}
           </Button>
         </div>
       </DialogContent>
