@@ -59,7 +59,34 @@ const REGIONS = [
   'Entebbe', 'Nansana', 'Kira', 'Bweyogerere',
 ];
 
-import { normalizeDistrict, districtWarning, regionLabel } from '@/lib/ugandaDistricts';
+import { normalizeDistrict, districtWarning, regionLabel, UGANDA_DISTRICT_AREAS, UGANDA_REGION_GROUPS } from '@/lib/ugandaDistricts';
+
+// Flattened, searchable index of every curated administrative area across all
+// districts. Lets agents type any place (e.g. "Bwaise", "Ntinda") and jump
+// straight to it — region + district + village all auto-filled from one tap.
+interface LocationOption {
+  area: string;
+  district: string;
+  region: string;
+  label: string;
+}
+const DISTRICT_TO_BACKEND_REGION: Record<string, string> = (() => {
+  const m: Record<string, string> = {};
+  for (const g of UGANDA_REGION_GROUPS) {
+    for (const d of g.districts) m[d.name] = d.backendRegion;
+  }
+  return m;
+})();
+const LOCATION_OPTIONS: LocationOption[] = (() => {
+  const out: LocationOption[] = [];
+  for (const [district, areas] of Object.entries(UGANDA_DISTRICT_AREAS)) {
+    const region = DISTRICT_TO_BACKEND_REGION[district] ?? 'Central';
+    for (const area of areas) {
+      out.push({ area, district, region, label: `${area} · ${district}` });
+    }
+  }
+  return out;
+})();
 
 export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLandlordName, initialLandlordPhone, initialLc1Name, initialLc1Phone, initialLc1Village, fromPromoBanner = false }: ListEmptyHouseDialogProps) {
   const [submitting, setSubmitting] = useState(false);
@@ -154,6 +181,49 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [previewIndex, setPreviewIndex] = useState(0);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  // Unique GPS pin for THIS house. Captured from the device so every listing
+  // gets its own coordinates instead of a shared/blank location.
+  const [geo, setGeo] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
+  const [capturingGeo, setCapturingGeo] = useState(false);
+  // Location quick-search (search & choose a specific known area).
+  const [locQuery, setLocQuery] = useState('');
+  const [locFocused, setLocFocused] = useState(false);
+
+  // Capture a fresh, unique GPS pin for this house from the device.
+  const captureGeo = () => {
+    if (!navigator.geolocation) {
+      toast.error('GPS is not supported on this device');
+      return;
+    }
+    setCapturingGeo(true);
+    const onError = () => {
+      setCapturingGeo(false);
+      toast.error('Could not get your location. Allow location access and try again.');
+    };
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setGeo({ lat: latitude, lng: longitude, accuracy: accuracy ?? null });
+        setCapturingGeo(false);
+        toast.success('Exact location pinned for this house');
+      },
+      // Fall back to a lower-accuracy fix if high-accuracy times out (works
+      // better indoors / on cheaper phones).
+      () => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            setGeo({ lat: latitude, lng: longitude, accuracy: accuracy ?? null });
+            setCapturingGeo(false);
+            toast.success('Location pinned for this house');
+          },
+          onError,
+          { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+        );
+      },
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 },
+    );
+  };
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -952,8 +1022,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           region: form.region,
           district: form.district || null,
           address: form.address,
-          latitude: null,
-          longitude: null,
+          latitude: geo?.lat ?? null,
+          longitude: geo?.lng ?? null,
           has_water: form.has_water,
           has_electricity: form.has_electricity,
           has_security: form.has_security,
@@ -1143,6 +1213,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setManualLandlord(false);
     setPrefilledFromProfile(false);
     setPhoneMatch(null);
+    setGeo(null);
+    setCapturingGeo(false);
     setCheckingPhone(false);
     setStep(1);
     setImages([]);
@@ -1950,6 +2022,106 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 </span>
               )}
             </div>
+
+            {/* Search & choose a specific location — auto-fills region/district/village */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={locQuery}
+                onChange={(e) => setLocQuery(e.target.value)}
+                onFocus={() => setLocFocused(true)}
+                onBlur={() => setTimeout(() => setLocFocused(false), 150)}
+                placeholder="Search a place e.g. Bwaise, Ntinda, Nateete…"
+                className="h-11 pl-8 pr-8 text-base"
+              />
+              {locQuery && (
+                <button
+                  type="button"
+                  onClick={() => setLocQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              {locFocused && locQuery.trim().length >= 2 && (() => {
+                const q = locQuery.trim().toLowerCase();
+                const matches = LOCATION_OPTIONS
+                  .filter((o) => o.label.toLowerCase().includes(q))
+                  .slice(0, 8);
+                return (
+                  <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+                    {matches.length === 0 ? (
+                      <p className="px-3 py-3 text-xs text-muted-foreground">
+                        No match — just type the area below to add a new location.
+                      </p>
+                    ) : (
+                      matches.map((o) => (
+                        <button
+                          key={o.label}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setForm((f) => ({
+                              ...f,
+                              region: o.region,
+                              district: o.district,
+                              village: o.area,
+                              lc1_village: o.area,
+                            }));
+                            setLocQuery('');
+                            setLocFocused(false);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-muted/60"
+                        >
+                          <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
+                          <span className="font-medium">{o.area}</span>
+                          <span className="ml-auto text-[11px] text-muted-foreground">{o.district}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              Can't find it? Just type the area in the fields below to add a new location.
+            </p>
+
+            {/* Unique GPS pin for THIS house */}
+            <div className="rounded-lg border border-border bg-background p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Exact GPS location</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {geo
+                      ? `Pinned: ${geo.lat.toFixed(5)}, ${geo.lng.toFixed(5)}${geo.accuracy ? ` · ±${Math.round(geo.accuracy)}m` : ''}`
+                      : 'Stand at the house and pin its unique coordinates.'}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={geo ? 'outline' : 'default'}
+                  onClick={captureGeo}
+                  disabled={capturingGeo}
+                  className="h-9 shrink-0"
+                >
+                  {capturingGeo ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MapPin className="h-4 w-4" />
+                  )}
+                  <span className="ml-1">{geo ? 'Re-pin' : 'Pin location'}</span>
+                </Button>
+              </div>
+              {geo && (
+                <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-success">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Unique location captured for this house
+                </span>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm font-medium">Region *</Label>
