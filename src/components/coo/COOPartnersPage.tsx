@@ -3937,18 +3937,26 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
 
   /* ─── Bulk-send the "Maturity Notice" email to every partner expiring soon. ─── */
   const [sendingNotices, setSendingNotices] = useState(false);
-  async function handleSendMaturityNotices() {
-    if (sendingNotices) return;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmPartnerIds, setConfirmPartnerIds] = useState<string[]>([]);
+
+  function openMaturityConfirm() {
     const partnerIds = Array.from(new Set(filtered.map(p => p.investorId).filter(Boolean)));
     if (partnerIds.length === 0) {
       toast.info('No partners to notify');
       return;
     }
-    if (!window.confirm(`Send the "Maturity Notice" email to ${partnerIds.length} partner(s) whose portfolios are expiring soon?`)) return;
+    setConfirmPartnerIds(partnerIds);
+    setConfirmOpen(true);
+  }
+
+  async function handleConfirmSend() {
+    setConfirmOpen(false);
+    if (sendingNotices || confirmPartnerIds.length === 0) return;
     setSendingNotices(true);
     try {
       const { data, error } = await supabase.functions.invoke('bulk-send-maturity-notice', {
-        body: { partnerIds },
+        body: { partnerIds: confirmPartnerIds },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -3963,6 +3971,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
       toast.error(e?.message || 'Failed to send maturity notices');
     } finally {
       setSendingNotices(false);
+      setConfirmPartnerIds([]);
     }
   }
 
@@ -3994,7 +4003,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
             variant="outline"
             size="sm"
             className="h-9 gap-1.5 text-xs self-start"
-            onClick={handleSendMaturityNotices}
+            onClick={openMaturityConfirm}
             disabled={sendingNotices}
           >
             {sendingNotices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
@@ -4054,6 +4063,30 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
           )}
         </div>
       </DialogContent>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send Maturity Notices</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to send the <strong>"Maturity Notice"</strong> email to{' '}
+              <strong>{confirmPartnerIds.length} partner{confirmPartnerIds.length === 1 ? '' : 's'}</strong> whose portfolios are expiring soon.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmPartnerIds([])}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSend} disabled={sendingNotices}>
+              {sendingNotices ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Sending…
+                </>
+              ) : (
+                <>Send {confirmPartnerIds.length} Notice{confirmPartnerIds.length === 1 ? '' : 's'}</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
