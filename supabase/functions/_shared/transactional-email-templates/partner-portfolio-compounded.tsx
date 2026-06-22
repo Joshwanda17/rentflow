@@ -299,6 +299,11 @@ const highlightCard: React.CSSProperties = { border: `1px solid ${BORDER}`, bord
 const highlightInner: React.CSSProperties = { backgroundColor: ACCENT_BG, padding: '30px 20px' }
 const highlightEyebrow: React.CSSProperties = { margin: '0 0 10px 0', color: SUB, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px' }
 const highlightValue: React.CSSProperties = { margin: '0 0 5px 0', color: BRAND, fontSize: '34px', fontWeight: 800, letterSpacing: '-1px' }
+const highlightSub: React.CSSProperties = { margin: 0, color: MUTED, fontSize: '13px', fontWeight: 500 }
+const portfolioIdAccent: React.CSSProperties = { color: '#a855f7' }
+const returnCardInner: React.CSSProperties = { backgroundColor: SUCCESS_BG, padding: '30px 20px', borderBottom: `1px solid ${BORDER}` }
+const returnEyebrow: React.CSSProperties = { margin: '0 0 10px 0', color: SUCCESS, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px' }
+const returnValue: React.CSSProperties = { margin: '0 0 5px 0', color: SUCCESS, fontSize: '24px', fontWeight: 700, letterSpacing: '-0.5px' }
 
 const sectionTitle: React.CSSProperties = { margin: '0 0 12px 0', color: INK, fontSize: '18px', fontWeight: 800 }
 const sectionBody: React.CSSProperties = { margin: '0 0 15px 0', color: BODY, fontSize: '15px', lineHeight: '24px' }
@@ -343,25 +348,21 @@ export const template = {
     const principalNum = Number(String(data?.principal !== undefined ? data.principal : data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
     const newTotalNum = Number(String(data?.new_total_partnership_value ?? 0).replace(/,/g, '')) || 0
     const headline = newTotalNum > 0 ? newTotalNum : principalNum
-    return `New Portfolio Account Created — Value ${formatAmount(headline, currency)}`
+    return `Portfolio Compounded — New Value ${formatAmount(headline, currency)}`
   },
   displayName: 'Partner Portfolio Compounded (Existing Partner)',
   previewData: {
     partner_name: 'Sarah Nakato',
     portfolio_id: 'PF-1A2B3C4D',
     creation_date: '20th of April, 2026',
-    initial_partnership_amount: 5_000_000,
-    principal: 5_000_000,
+    compound_date: '20th of June, 2026',
+    initial_partnership_amount: 5_600_000,
+    principal: 5_600_000,
     roi_percentage: 12,
-    return_amount: 0,
-    new_total_partnership_value: 5_000_000,
-    payment_number: 1,
+    return_amount: 672_000,
+    new_total_partnership_value: 6_272_000,
+    payment_number: 2,
     contribution_date: '20 April 2026',
-    compound_history: [
-      { cycle: 1, date: '20 May 2026', balance_before: 5_000_000, return_amount: 600_000, balance_after: 5_600_000 },
-      { cycle: 2, date: '20 June 2026', balance_before: 5_600_000, return_amount: 672_000, balance_after: 6_272_000 },
-      { cycle: 3, date: '20 July 2026', balance_before: 6_272_000, return_amount: 752_640, balance_after: 7_024_640 },
-    ],
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
