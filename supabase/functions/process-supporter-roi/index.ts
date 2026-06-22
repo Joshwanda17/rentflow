@@ -231,6 +231,8 @@ Deno.serve(async (req) => {
                   returnAmount: roiAmount,
                   newTotal: newAmount,
                   compoundDateIso: now.toISOString(),
+                  contributionDateIso: reinvestInfo.contribution_date || undefined,
+                  durationMonths: reinvestInfo.duration_months || undefined,
                 }),
                 'process-supporter-roi',
               );
