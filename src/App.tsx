@@ -182,6 +182,7 @@ const PartnersTerms = lazy(() => import('./pages/PartnersTerms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const ShareLocation = lazy(() => import('./pages/ShareLocation'));
 const InvestorPortfolioPublic = lazy(() => import('./pages/InvestorPortfolioPublic'));
+const PortfolioActionRequest = lazy(() => import('./pages/PortfolioActionRequest'));
 const RentMoney = lazy(() => import('./pages/RentMoney'));
 const FindAHouse = lazy(() => import('./pages/FindAHouse'));
 const LandlordAgreement = lazy(() => import('./pages/LandlordAgreement'));
@@ -450,6 +451,8 @@ function AppRoutes() {
           <Route path="/privacy-policy" element={<Privacy />} />
           <Route path="/share-location" element={<ShareLocation />} />
           <Route path="/investor/portfolio/:token" element={<InvestorPortfolioPublic />} />
+          <Route path="/portfolios/:portfolioId/renew" element={<PortfolioActionRequest mode="renew" />} />
+          <Route path="/portfolios/:portfolioId/redeem" element={<PortfolioActionRequest mode="redeem" />} />
           <Route path="/register-tenant" element={<RegisterTenantPublic />} />
           <Route path="/register-partner" element={<RegisterPartnerPublic />} />
           <Route path="/activate" element={<ActivatePartner />} />
