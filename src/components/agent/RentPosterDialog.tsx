@@ -11,6 +11,14 @@ interface RentPosterDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type PaperSize = 'A4' | 'Letter';
+
+// Landscape page dimensions in millimetres.
+const PAPER_MM: Record<PaperSize, { w: number; h: number }> = {
+  A4: { w: 297, h: 210 },
+  Letter: { w: 279.4, h: 215.9 },
+};
+
 const POSTER_FILENAME = 'Welile-Available-For-Rent.jpg';
 const POSTER_CAPTION =
   'Available for rent on Welile! Move in and get your first week FREE. Visit welile.com';
@@ -21,12 +29,23 @@ const POSTER_CAPTION =
  */
 export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialogProps) {
   const [sharing, setSharing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [paper, setPaper] = useState<PaperSize>('A4');
 
   const fetchPosterBlob = async () => {
     const res = await fetch(posterAsset.url);
     if (!res.ok) throw new Error('Failed to load poster');
     return res.blob();
   };
+
+  const loadImage = (src: string) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Failed to load poster image'));
+      img.src = src;
+    });
 
   const handleShare = async () => {
     setSharing(true);
@@ -46,19 +65,36 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
     }
   };
 
+  // Download a print-ready PDF sized to the chosen paper (A4 / Letter),
+  // landscape, with the poster centred and scaled to fit.
   const handleDownload = async () => {
+    setDownloading(true);
     try {
-      const blob = await fetchPosterBlob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = POSTER_FILENAME;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      const img = await loadImage(posterAsset.url);
+      const { jsPDF } = await import('jspdf');
+      const page = PAPER_MM[paper];
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: paper.toLowerCase() as 'a4' | 'letter', compress: true });
+
+      // Fit the image inside the page preserving aspect ratio, then centre it.
+      const imgRatio = img.width / img.height;
+      const pageRatio = page.w / page.h;
+      let drawW = page.w;
+      let drawH = page.h;
+      if (imgRatio > pageRatio) {
+        drawW = page.w;
+        drawH = page.w / imgRatio;
+      } else {
+        drawH = page.h;
+        drawW = page.h * imgRatio;
+      }
+      const x = (page.w - drawW) / 2;
+      const y = (page.h - drawH) / 2;
+      pdf.addImage(img, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
+      pdf.save(`Welile-Available-For-Rent-${paper}.pdf`);
     } catch {
       toast.error('Could not download the poster');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -68,14 +104,16 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
       toast.error('Allow pop-ups to print the poster');
       return;
     }
+    const pageSize = paper === 'A4' ? 'A4' : 'letter';
     w.document.write(`
       <html>
         <head>
           <title>Available for Rent</title>
           <style>
-            @page { size: landscape; margin: 0; }
-            html, body { margin: 0; padding: 0; }
-            img { width: 100%; height: auto; display: block; }
+            @page { size: ${pageSize} landscape; margin: 0; }
+            html, body { margin: 0; padding: 0; height: 100%; }
+            body { display: flex; align-items: center; justify-content: center; }
+            img { max-width: 100%; max-height: 100%; display: block; }
           </style>
         </head>
         <body>
@@ -107,6 +145,23 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
           />
         </div>
 
+        {/* Paper size selector — applies to both Download and Print */}
+        <div className="flex items-center gap-2 pt-1">
+          <span className="text-sm text-muted-foreground">Paper size:</span>
+          {(['A4', 'Letter'] as PaperSize[]).map((size) => (
+            <Button
+              key={size}
+              type="button"
+              size="sm"
+              variant={paper === size ? 'default' : 'outline'}
+              onClick={() => setPaper(size)}
+              className="h-8 px-4 touch-manipulation select-none"
+            >
+              {size}
+            </Button>
+          ))}
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-2 pt-1">
           <Button
             type="button"
@@ -121,9 +176,11 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
             type="button"
             variant="outline"
             onClick={handleDownload}
+            disabled={downloading}
             className="h-11 gap-2 touch-manipulation select-none"
           >
-            <Download className="h-4 w-4" /> Download
+            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Download {paper} PDF
           </Button>
           <Button
             type="button"
@@ -131,7 +188,7 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
             onClick={handlePrint}
             className="h-11 gap-2 touch-manipulation select-none"
           >
-            <Printer className="h-4 w-4" /> Print
+            <Printer className="h-4 w-4" /> Print {paper}
           </Button>
         </div>
       </DialogContent>
