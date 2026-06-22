@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Megaphone, Share2, Download, Printer, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Megaphone, Share2, Download, Printer, Loader2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { shareImageViaWhatsApp } from '@/lib/whatsappShare';
 import posterAsset from '@/assets/available-for-rent-poster.jpg.asset.json';
@@ -42,6 +43,7 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
   // printable area — let agents nudge the layout to fit their printer.
   const [margin, setMargin] = useState<number>(10);
   const [scale, setScale] = useState<number>(100);
+  const [phone, setPhone] = useState('');
 
   const fetchPosterBlob = async () => {
     const res = await fetch(posterAsset.url);
@@ -65,9 +67,10 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
       const result = await shareImageViaWhatsApp(blob, {
         filename: POSTER_FILENAME,
         caption: POSTER_CAPTION,
+        phone: phone.trim() || undefined,
       });
       if (result === 'deeplink') {
-        toast.success('Poster downloaded — attach it in WhatsApp');
+        toast.success('Poster saved — attach it in WhatsApp');
       }
     } catch {
       toast.error('Could not share the poster', { description: 'Please try again in a moment.' });
@@ -253,22 +256,38 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
           </div>
         </div>
 
+        {/* WhatsApp recipient — pre-fill so the agent goes straight to a contact */}
+        <div className="flex items-center gap-2 pt-1">
+          <span className="text-sm text-muted-foreground whitespace-nowrap">Send to:</span>
+          <div className="flex items-center gap-1 flex-1">
+            <span className="text-sm text-muted-foreground select-none">+</span>
+            <Input
+              type="tel"
+              placeholder="256 7XX XXX XXX"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+              className="h-9 flex-1 touch-manipulation"
+              aria-label="Recipient phone number"
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-2 pt-1">
           <Button
             type="button"
             onClick={handleShare}
             disabled={sharing}
-            className="flex-1 h-11 gap-2 touch-manipulation select-none"
+            className="flex-1 h-12 gap-2 touch-manipulation select-none bg-[#25D366] hover:bg-[#1da851] text-white border-0"
           >
-            {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-            {sharing ? 'Sharing…' : 'Share on WhatsApp'}
+            {sharing ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}
+            {sharing ? 'Opening WhatsApp…' : 'Share on WhatsApp'}
           </Button>
           <Button
             type="button"
             variant="outline"
             onClick={handleDownload}
             disabled={downloading}
-            className="h-11 gap-2 touch-manipulation select-none"
+            className="h-12 gap-2 touch-manipulation select-none"
           >
             {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Download {paper} {orientation}
@@ -277,7 +296,7 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
             type="button"
             variant="outline"
             onClick={handlePrint}
-            className="h-11 gap-2 touch-manipulation select-none"
+            className="h-12 gap-2 touch-manipulation select-none"
           >
             <Printer className="h-4 w-4" /> Print {paper} {orientation}
           </Button>
