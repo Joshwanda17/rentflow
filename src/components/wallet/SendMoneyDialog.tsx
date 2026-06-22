@@ -23,7 +23,7 @@ import {
   Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles, UserCheck, UserX,
   Mail, UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
   Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, AlertTriangle, ArrowRight,
-  Star, X, Pencil, Check
+  Star, X, Pencil, Check, Search
 } from 'lucide-react';
 import {
   loadRecipients,
@@ -76,6 +76,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [savedRecipients, setSavedRecipients] = useState<SavedRecipient[]>([]);
   const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null);
   const [draftNickname, setDraftNickname] = useState('');
+  const [recipientSearch, setRecipientSearch] = useState('');
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   type RecipientMatch = {
@@ -454,6 +455,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setIsFirstTx(false);
       setConfirming(false);
       setRecipient({ status: 'idle' });
+      setRecipientSearch('');
     }
     onOpenChange(value);
   };
@@ -647,12 +649,43 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 </motion.div>
                 {savedRecipients.length > 0 && (
                   <motion.div variants={itemVariants} className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <Star className="h-3.5 w-3.5 text-muted-foreground" />
-                      Saved recipients
-                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="flex items-center gap-2">
+                        <Star className="h-3.5 w-3.5 text-muted-foreground" />
+                        Saved recipients
+                      </Label>
+                    </div>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={recipientSearch}
+                        onChange={(e) => setRecipientSearch(e.target.value)}
+                        placeholder="Search by name, nickname or number…"
+                        className="h-8 pl-8 pr-7 text-xs bg-background/50 border-border/50 focus:border-primary/50"
+                      />
+                      {recipientSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setRecipientSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                     <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-0.5">
-                      {savedRecipients.map((r) => {
+                      {savedRecipients
+                        .filter((r) => {
+                          const q = recipientSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return (
+                            (r.nickname || '').toLowerCase().includes(q) ||
+                            (r.name || '').toLowerCase().includes(q) ||
+                            (r.phone || '').toLowerCase().includes(q) ||
+                            (r.email || '').toLowerCase().includes(q)
+                          );
+                        })
+                        .map((r) => {
                         const chipKey = `${r.mode}-${r.id || r.phone || r.email}`;
                         const isEditing = editingNicknameId === chipKey;
                         return (
@@ -756,6 +789,20 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                           </div>
                         );
                       })}
+                      {savedRecipients.filter((r) => {
+                        const q = recipientSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return (
+                          (r.nickname || '').toLowerCase().includes(q) ||
+                          (r.name || '').toLowerCase().includes(q) ||
+                          (r.phone || '').toLowerCase().includes(q) ||
+                          (r.email || '').toLowerCase().includes(q)
+                        );
+                      }).length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center py-3">
+                          No saved recipients match "{recipientSearch.trim()}"
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )}
