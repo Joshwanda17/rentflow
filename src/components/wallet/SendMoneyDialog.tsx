@@ -642,6 +642,62 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     </div>
                   )}
                 </motion.div>
+                {savedRecipients.length > 0 && (
+                  <motion.div variants={itemVariants} className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Star className="h-3.5 w-3.5 text-muted-foreground" />
+                      Saved recipients
+                    </Label>
+                    <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-0.5">
+                      {savedRecipients.map((r) => (
+                        <div
+                          key={`${r.mode}-${r.id || r.phone || r.email}`}
+                          className="group flex items-center gap-2 rounded-lg border border-border/50 bg-background/50 px-2.5 py-2 transition-all hover:border-primary/50"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleToggleFavorite(r)}
+                            className="shrink-0"
+                            title={r.favorite ? 'Remove from favourites' : 'Mark as favourite'}
+                          >
+                            <Star
+                              className={`h-4 w-4 transition-colors ${
+                                r.favorite
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'text-muted-foreground hover:text-amber-400'
+                              }`}
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => selectSavedRecipient(r)}
+                            className="flex flex-1 items-center gap-2 min-w-0 text-left"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
+                              <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate">
+                                {r.mode === 'email' ? (
+                                  <Mail className="h-3 w-3 shrink-0" />
+                                ) : (
+                                  <Phone className="h-3 w-3 shrink-0" />
+                                )}
+                                {r.mode === 'email' ? r.email : r.phone}
+                              </p>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSaved(r)}
+                            className="shrink-0 text-muted-foreground/60 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                            title="Remove from list"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
                 <motion.div variants={itemVariants} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor={mode === 'phone' ? 'phone' : 'email'} className="flex items-center gap-2">
