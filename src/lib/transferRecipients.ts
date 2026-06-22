@@ -108,6 +108,21 @@ export function removeRecipient(
   return next;
 }
 
+/** Set or clear a nickname on a recipient. */
+export function updateNickname(
+  userId: string | null | undefined,
+  recipient: Pick<SavedRecipient, 'mode' | 'phone' | 'email' | 'id'>,
+  nickname: string | undefined,
+): SavedRecipient[] {
+  const list = loadRecipients(userId);
+  const id = identity(recipient);
+  const next = list.map((r) =>
+    identity(r) === id ? { ...r, nickname: nickname?.trim() || undefined } : r,
+  );
+  persist(userId, next);
+  return next;
+}
+
 /** Favourites first (newest first), then recents (newest first). */
 export function sortRecipients(list: SavedRecipient[]): SavedRecipient[] {
   return [...list].sort((a, b) => {
