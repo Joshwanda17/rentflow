@@ -956,6 +956,8 @@ function TreasuryWalletFlowSummary({
   // CFO date-range filter: limit cash movements to a chosen window (inclusive).
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  // Compare the selected window against the immediately preceding equal-length window.
+  const [compareEnabled, setCompareEnabled] = useState(false);
 
   const { toWallets, toCompany } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
@@ -1048,6 +1050,33 @@ function TreasuryWalletFlowSummary({
   const outSummary = useMemo(() => summarizeTreasuryFlow(filteredToCompany, WALLET_TO_COMPANY_GROUPS), [filteredToCompany]);
   const net = inSummary.total - outSummary.total;
 
+  // ── Previous-period comparison ────────────────────────────────
+  // Only meaningful when an explicit start date is chosen. The previous
+  // window is the same number of days, immediately before the selected one.
+  const effectiveFrom = dateFrom ? startOfDay(dateFrom) : null;
+  const effectiveTo = dateTo ? startOfDay(dateTo) : startOfDay(new Date());
+  const canCompare = !!effectiveFrom;
+  const prevRange = useMemo(() => {
+    if (!effectiveFrom) return null;
+    const lengthDays = differenceInCalendarDays(effectiveTo, effectiveFrom) + 1;
+    const prevTo = subDays(effectiveFrom, 1);
+    const prevFrom = subDays(prevTo, lengthDays - 1);
+    return { fromKey: format(prevFrom, 'yyyy-MM-dd'), toKey: format(prevTo, 'yyyy-MM-dd'), prevFrom, prevTo, lengthDays };
+  }, [effectiveFrom, effectiveTo]);
+  const inPrevRange = useCallback((dateStr: string) => {
+    if (!prevRange) return false;
+    const dayKey = format(startOfDay(new Date(dateStr)), 'yyyy-MM-dd');
+    return dayKey >= prevRange.fromKey && dayKey <= prevRange.toKey;
+  }, [prevRange]);
+  const prevInSummary = useMemo(
+    () => (compareEnabled && prevRange ? summarizeTreasuryFlow(toWallets.filter(i => inPrevRange(i.date)), COMPANY_TO_WALLETS_GROUPS) : null),
+    [compareEnabled, prevRange, toWallets, inPrevRange],
+  );
+  const prevOutSummary = useMemo(
+    () => (compareEnabled && prevRange ? summarizeTreasuryFlow(toCompany.filter(i => inPrevRange(i.date)), WALLET_TO_COMPANY_GROUPS) : null),
+    [compareEnabled, prevRange, toCompany, inPrevRange],
+  );
+
   // Resolve party names for the top movers shown on each card.
   useEffect(() => {
     const ids = Array.from(new Set(
@@ -1083,6 +1112,7 @@ function TreasuryWalletFlowSummary({
     rawItems,
     onGroupDrill,
     groupDefs,
+    compareTotal,
   }: {
     tone: 'in' | 'out';
     icon: React.ReactNode;
@@ -1094,9 +1124,15 @@ function TreasuryWalletFlowSummary({
     rawItems: TreasuryFlowItem[];
     onGroupDrill?: (meta: { label: string; color: string; categories: Set<string>; expectedTotal: number; expectedCount: number }) => void;
     groupDefs?: { label: string; categories: Set<string>; color: string }[];
+    compareTotal?: number | null;
   }) => {
     const [groupView, setGroupView] = useState<'amount' | 'count' | 'pct'>('amount');
     const groups = groupDefs ?? (direction === 'cash_out' ? WALLET_TO_COMPANY_GROUPS : COMPANY_TO_WALLETS_GROUPS);
+    const hasCompare = compareTotal !== null && compareTotal !== undefined;
+    const delta = hasCompare ? summary.total - (compareTotal as number) : 0;
+    const deltaPct = hasCompare && (compareTotal as number) > 0
+      ? Math.round((delta / (compareTotal as number)) * 100)
+      : null;
     return (
       <div
         className={cn(
@@ -1120,6 +1156,19 @@ function TreasuryWalletFlowSummary({
             {formatUGX(summary.total)}
           </p>
           <p className="text-[11px] text-muted-foreground">{summary.count.toLocaleString()} transfer{summary.count === 1 ? '' : 's'}</p>
+          {hasCompare && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span className={cn(
+                'inline-flex items-center gap-0.5 font-semibold rounded-md px-1.5 py-0.5',
+                delta >= 0 ? 'bg-emerald-500/15 text-emerald-600' : 'bg-rose-500/15 text-rose-600',
+              )}>
+                {delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                {delta >= 0 ? '+' : '−'}{formatUGX(Math.abs(delta))}
+                {deltaPct !== null && <span className="opacity-80">({delta >= 0 ? '+' : '−'}{Math.abs(deltaPct)}%)</span>}
+              </span>
+              <span className="text-muted-foreground">vs {formatUGX(compareTotal as number)} prev. period</span>
+            </div>
+          )}
         </div>
 
         {summary.cats.length > 0 && (
@@ -1360,7 +1409,20 @@ function TreasuryWalletFlowSummary({
             </Button>
           ))}
         </div>
+        <label className={cn(
+          'flex items-center gap-2 w-fit rounded-lg border px-3 py-1.5 select-none',
+          canCompare ? 'border-border bg-muted/30 cursor-pointer' : 'border-border/50 bg-muted/10 opacity-50 cursor-not-allowed',
+        )}>
+          <Checkbox checked={compareEnabled} disabled={!canCompare} onCheckedChange={(c) => setCompareEnabled(c === true)} />
+          <span className="text-[11px] font-medium text-foreground/90">Compare with previous period</span>
+        </label>
       </div>
+      {compareEnabled && canCompare && prevRange && (
+        <p className="text-[11px] text-muted-foreground -mt-1">
+          Comparing {format(effectiveFrom as Date, 'dd MMM')} – {format(effectiveTo, 'dd MMM yyyy')} against
+          {' '}{format(prevRange.prevFrom, 'dd MMM')} – {format(prevRange.prevTo, 'dd MMM yyyy')} ({prevRange.lengthDays} days).
+        </p>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Flow
           tone="in"
@@ -1372,6 +1434,7 @@ function TreasuryWalletFlowSummary({
           direction="cash_in"
           rawItems={filteredToWallets}
           groupDefs={COMPANY_TO_WALLETS_GROUPS}
+          compareTotal={prevInSummary ? prevInSummary.total : null}
           onGroupDrill={(meta) => setGroupDrill({
             label: meta.label,
             color: meta.color,
@@ -1391,6 +1454,7 @@ function TreasuryWalletFlowSummary({
           direction="cash_out"
           rawItems={filteredToCompany}
           groupDefs={WALLET_TO_COMPANY_GROUPS}
+          compareTotal={prevOutSummary ? prevOutSummary.total : null}
           onGroupDrill={(meta) => setGroupDrill({
             label: meta.label,
             color: meta.color,
