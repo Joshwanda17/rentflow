@@ -4,7 +4,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { ContactActionsBar } from '@/components/chat/ContactActionsBar';
 import { WhatsAppRequestButton } from '@/components/chat/WhatsAppRequestButton';
 import { Separator } from '@/components/ui/separator';
-import { MapPin, Calendar, Home, Building, Users, Phone, Shield, CheckCircle2, Zap, Eye, EyeOff } from 'lucide-react';
+import { MapPin, Calendar, Home, Building, Users, Phone, Shield, CheckCircle2, Zap, Eye, EyeOff, IdCard, Mail, Wallet, Tag } from 'lucide-react';
 import { formatDistanceToNow, differenceInDays } from 'date-fns';
 import UserReviewsSection from '@/components/reviews/UserReviewsSection';
 import { useUserStats } from '@/hooks/useUserStats';
@@ -35,8 +35,26 @@ interface UserProfileDialogProps {
     tenantCount?: number;
     hasRentRequest?: boolean;
     lastActiveAt?: string | null;
+    // CRM directory extras
+    email?: string;
+    nationalId?: string;
+    district?: string;
+    region?: string;
+    territory?: string;
+    monthlyRent?: number;
+    stage?: string;
+    tenantStatus?: string;
   } | null;
 }
+
+const STAGE_LABELS: Record<string, string> = {
+  rent_request: 'Rent Request',
+  processing: 'Processing',
+  verified: 'Verified',
+  paid: 'Paid',
+};
+
+const fmtUGX = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
 
 export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialogProps) {
   const { stats, loading: statsLoading } = useUserStats(user?.id);
