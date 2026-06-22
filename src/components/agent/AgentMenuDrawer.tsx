@@ -252,6 +252,7 @@ export function AgentMenuDrawer({
       items: [
         { icon: Building2, label: 'Landlord Reg Form', description: 'Share on WhatsApp / download', onClick: onDownloadLandlordForm, accent: 'emerald-600', badge: '📲' },
         { icon: UserPlus, label: 'Tenant Reg Form', description: 'Share on WhatsApp / download', onClick: onDownloadTenantForm, accent: 'blue-600', badge: '📲' },
+        { icon: Megaphone, label: 'Available for Rent Poster', description: 'Print or share on WhatsApp', onClick: onOpenRentPoster, accent: 'purple-500', badge: '📲' },
       ].filter(i => i.onClick !== undefined),
     },
     {
