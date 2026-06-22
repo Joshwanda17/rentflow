@@ -455,6 +455,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setIsFirstTx(false);
       setConfirming(false);
       setRecipient({ status: 'idle' });
+      setRecipientSearch('');
     }
     onOpenChange(value);
   };
