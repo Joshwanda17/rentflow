@@ -956,6 +956,8 @@ function TreasuryWalletFlowSummary({
   // CFO date-range filter: limit cash movements to a chosen window (inclusive).
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  // Compare the selected window against the immediately preceding equal-length window.
+  const [compareEnabled, setCompareEnabled] = useState(false);
 
   const { toWallets, toCompany } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
