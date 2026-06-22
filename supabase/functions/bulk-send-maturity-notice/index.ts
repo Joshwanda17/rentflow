@@ -95,26 +95,51 @@ Deno.serve(async (req) => {
       portfolioIds?: string[];
     };
 
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    // Send a single email, retrying when the email service rate-limits us.
     const dispatch = async (payload: Record<string, unknown>): Promise<boolean> => {
-      try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
+      const MAX_ATTEMPTS = 4;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          const res = await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) return true;
+
           const txt = await res.text().catch(() => "");
+          const isRateLimit = res.status === 429 || /rate ?limit/i.test(txt);
+          if (isRateLimit && attempt < MAX_ATTEMPTS) {
+            // Honour Retry-After when present, otherwise back off progressively.
+            const headerMs = Number(res.headers.get("retry-after")) * 1000;
+            const bodyMs = Number(txt.match(/(\d+)\s*ms/i)?.[1]);
+            const waitMs = Math.min(
+              Number.isFinite(headerMs) && headerMs > 0 ? headerMs : (bodyMs || attempt * 2000),
+              5000,
+            );
+            await sleep(waitMs);
+            continue;
+          }
           console.warn("[bulk-send-maturity-notice] send failed:", res.status, txt);
           return false;
+        } catch (e) {
+          const msg = String(e);
+          const isRateLimit = /rate ?limit/i.test(msg);
+          if (isRateLimit && attempt < MAX_ATTEMPTS) {
+            const bodyMs = Number(msg.match(/(\d+)\s*ms/i)?.[1]);
+            await sleep(Math.min(bodyMs || attempt * 2000, 5000));
+            continue;
+          }
+          console.warn("[bulk-send-maturity-notice] send threw:", e);
+          return false;
         }
-        return true;
-      } catch (e) {
-        console.warn("[bulk-send-maturity-notice] send threw:", e);
-        return false;
       }
+      return false;
     };
 
     // ─── TEST MODE: single sample email ───
@@ -235,6 +260,8 @@ Deno.serve(async (req) => {
         }),
       });
       if (ok) sent++; else failed++;
+      // Gentle pacing between sends to stay under the email service rate limit.
+      await sleep(150);
     }
 
     return json({ ok: true, sent, skipped, failed, total: portfolios.length }, 200);
