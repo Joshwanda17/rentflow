@@ -171,20 +171,30 @@ export function LocationManager() {
       return;
     }
 
-    // Unique-GPS guard: block reusing an exact coordinate pair already taken
-    // by a different active location.
+    // Unique-GPS guard: block reusing the same coordinate pair within the SAME
+    // administrative area (district + region). Mirrors the database rule.
     if (lat != null && lng != null) {
+      const norm = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
+      const areaDistrict = norm(form.district);
+      const areaRegion = norm(form.region);
       const clash = rows.find(
         (r) =>
           r.id !== editing?.id &&
           r.active &&
           r.latitude != null &&
           r.longitude != null &&
+          norm(r.district) === areaDistrict &&
+          norm(r.region) === areaRegion &&
           Math.abs(r.latitude - lat) < 0.00001 &&
           Math.abs(r.longitude - lng) < 0.00001,
       );
       if (clash) {
-        toast.error(`Those exact GPS coordinates are already used by "${clash.name}"`);
+        const areaLabel =
+          [form.district.trim(), form.region.trim()].filter(Boolean).join(' / ') ||
+          'this administrative area';
+        toast.error(
+          `Those GPS coordinates are already used by "${clash.name}" in ${areaLabel}. Each location in the same area must have unique coordinates.`,
+        );
         return;
       }
     }
