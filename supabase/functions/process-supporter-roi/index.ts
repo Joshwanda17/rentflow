@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     // Get auto-reinvest preferences from portfolios
     const { data: reinvestPortfolios } = await supabase
       .from('investor_portfolios')
-      .select('investor_id, id, auto_reinvest, investment_amount, created_at, contribution_date, ln')
+      .select('investor_id, id, auto_reinvest, investment_amount, created_at, duration_months')
       .eq('auto_reinvest', true)
       .eq('status', 'active');
 
@@ -89,8 +89,8 @@ Deno.serve(async (req) => {
         autoReinvestMap.set(p.investor_id, {
           portfolio_id: p.id,
           current_amount: p.investment_amount,
-          contribution_date: p.contribution_date || p.created_at || null,
-          duration_months: typeof p.ln === 'number' ? p.ln : null,
+          contribution_date: p.created_at || null,
+          duration_months: typeof p.duration_months === 'number' ? p.duration_months : null,
         });
       }
     });
