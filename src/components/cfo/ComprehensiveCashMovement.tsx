@@ -950,6 +950,8 @@ function TreasuryWalletFlowSummary({
   const [groupDrill, setGroupDrill] = useState<
     { label: string; color: string; direction: 'cash_in' | 'cash_out'; items: TreasuryFlowItem[]; expectedTotal: number; expectedCount: number } | null
   >(null);
+  // CFO toggle: hide today's movements so the cards show only settled/prior-day flow.
+  const [excludeToday, setExcludeToday] = useState(false);
 
   const { toWallets, toCompany } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
@@ -1018,8 +1020,19 @@ function TreasuryWalletFlowSummary({
     return { toWallets, toCompany };
   }, [rows, includeAdjustments]);
 
-  const inSummary = useMemo(() => summarizeTreasuryFlow(toWallets, COMPANY_TO_WALLETS_GROUPS), [toWallets]);
-  const outSummary = useMemo(() => summarizeTreasuryFlow(toCompany, WALLET_TO_COMPANY_GROUPS), [toCompany]);
+  // When "exclude today" is on, drop any movement whose calendar day is today.
+  const todayKey = format(startOfDay(new Date()), 'yyyy-MM-dd');
+  const filteredToWallets = useMemo(
+    () => (excludeToday ? toWallets.filter(i => format(startOfDay(new Date(i.date)), 'yyyy-MM-dd') !== todayKey) : toWallets),
+    [toWallets, excludeToday, todayKey],
+  );
+  const filteredToCompany = useMemo(
+    () => (excludeToday ? toCompany.filter(i => format(startOfDay(new Date(i.date)), 'yyyy-MM-dd') !== todayKey) : toCompany),
+    [toCompany, excludeToday, todayKey],
+  );
+
+  const inSummary = useMemo(() => summarizeTreasuryFlow(filteredToWallets, COMPANY_TO_WALLETS_GROUPS), [filteredToWallets]);
+  const outSummary = useMemo(() => summarizeTreasuryFlow(filteredToCompany, WALLET_TO_COMPANY_GROUPS), [filteredToCompany]);
   const net = inSummary.total - outSummary.total;
 
   // Resolve party names for the top movers shown on each card.
@@ -1258,6 +1271,10 @@ function TreasuryWalletFlowSummary({
         The two movements that matter most: the CFO funding wallets out of company money, and agents
         allocating money out of their wallets back to the company.
       </p>
+      <label className="flex items-center gap-2 w-fit rounded-lg border border-border bg-muted/30 px-3 py-1.5 cursor-pointer select-none">
+        <Checkbox checked={excludeToday} onCheckedChange={(c) => setExcludeToday(c === true)} />
+        <span className="text-[11px] font-medium text-foreground/90">Exclude today's movements</span>
+      </label>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Flow
           tone="in"
@@ -1267,13 +1284,13 @@ function TreasuryWalletFlowSummary({
           summary={inSummary}
           partyHeading="Top recipients"
           direction="cash_in"
-          rawItems={toWallets}
+          rawItems={filteredToWallets}
           groupDefs={COMPANY_TO_WALLETS_GROUPS}
           onGroupDrill={(meta) => setGroupDrill({
             label: meta.label,
             color: meta.color,
             direction: 'cash_in',
-            items: toWallets.filter(i => meta.categories.has(i.category)),
+            items: filteredToWallets.filter(i => meta.categories.has(i.category)),
             expectedTotal: meta.expectedTotal,
             expectedCount: meta.expectedCount,
           })}
@@ -1286,13 +1303,13 @@ function TreasuryWalletFlowSummary({
           summary={outSummary}
           partyHeading="Top sources"
           direction="cash_out"
-          rawItems={toCompany}
+          rawItems={filteredToCompany}
           groupDefs={WALLET_TO_COMPANY_GROUPS}
           onGroupDrill={(meta) => setGroupDrill({
             label: meta.label,
             color: meta.color,
             direction: 'cash_out',
-            items: toCompany.filter(i => meta.categories.has(i.category)),
+            items: filteredToCompany.filter(i => meta.categories.has(i.category)),
             expectedTotal: meta.expectedTotal,
             expectedCount: meta.expectedCount,
           })}
