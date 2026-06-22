@@ -30,6 +30,7 @@ import {
   rememberRecipient,
   toggleFavorite,
   removeRecipient,
+  updateNickname,
   sortRecipients,
   type SavedRecipient,
 } from '@/lib/transferRecipients';
