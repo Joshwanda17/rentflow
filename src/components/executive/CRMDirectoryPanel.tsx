@@ -168,6 +168,44 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
         <KPICard title="New (30d)" value={fmt(totals?.new30d ?? 0)} icon={Sparkles} color="bg-purple-500/10 text-purple-600" />
       </div>
 
+      {/* Lifecycle stage tabs (tenants only) */}
+      {showStages && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setStage(null)}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
+              stage === null
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-muted-foreground border-border hover:bg-muted/50',
+            )}
+          >
+            All
+            <span className="opacity-70">{fmt(totals?.total ?? 0)}</span>
+          </button>
+          {STAGES.map((s) => {
+            const Icon = s.icon;
+            const active = stage === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setStage(s.key)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
+                  active
+                    ? cn(s.badgeClass, 'ring-1 ring-inset ring-current/30')
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted/50',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {s.label}
+                <span className="opacity-70">{fmt(Number(totals?.[s.countKey] ?? 0))}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
