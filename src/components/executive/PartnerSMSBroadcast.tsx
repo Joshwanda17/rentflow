@@ -21,6 +21,32 @@ const TEMPLATES: Array<{ label: string; body: string }> = [
   { label: 'Welcome', body: 'Hello {name}, thanks for partnering with Welile. Your portfolio is active and earning. Reply HELP for support.' },
   { label: 'Returns ready', body: 'Hi {name}, your monthly returns from Welile are ready in your wallet. Open the app to withdraw. Thank you.' },
   { label: 'New opportunity', body: 'Hi {name}, a new Welile portfolio is open for top-up at solid returns. Open the app to view. Reply STOP to opt out.' },
+  {
+    label: 'Weekend payments notice',
+    body: `Dear Valued Partner,
+
+Greetings from Welile.
+
+Please note that return payments are not processed on weekends (Saturday and Sunday). Any payments due during this period will be processed on the next working day (Monday). This helps us ensure accuracy and smooth handling of all transactions.
+
+*Please note that even on public holidays*
+
+*For any inquiries* or assistance, please contact our Customer Care team on:
+
++256748747134
+
++256793750331
+
+Thank you for your understanding and continued support.
+
+*Kind regards,*
+
+Gloria
+
+Customer Care Manager
+
+Welile technologies limited`,
+  },
 ];
 
 export function PartnerSMSBroadcast() {
