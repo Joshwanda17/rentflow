@@ -950,6 +950,8 @@ function TreasuryWalletFlowSummary({
   const [groupDrill, setGroupDrill] = useState<
     { label: string; color: string; direction: 'cash_in' | 'cash_out'; items: TreasuryFlowItem[]; expectedTotal: number; expectedCount: number } | null
   >(null);
+  // CFO toggle: hide today's movements so the cards show only settled/prior-day flow.
+  const [excludeToday, setExcludeToday] = useState(false);
 
   const { toWallets, toCompany } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
