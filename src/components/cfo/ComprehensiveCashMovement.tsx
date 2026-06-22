@@ -305,6 +305,17 @@ const COMPANY_TO_WALLETS_GROUP_11 = new Set([
 const GENERIC_WALLET_CATEGORIES = new Set([
   'wallet_deposit', 'wallet_credit', 'system_balance_correction', 'balance_correction', 'wallet_transfer',
 ]);
+// Some disbursements (notably credit access draws & advances) post BOTH the
+// wallet and platform legs under the generic `wallet_deposit` category, so the
+// economic purpose can't be recovered from the category alone. In those cases
+// the originating `source_table` tells us what really moved — map it back to the
+// canonical category so the money lands in the correct Company → Wallets group
+// instead of silently falling into "Other".
+const SOURCE_TABLE_CATEGORY: Record<string, string> = {
+  credit_access_draws: 'credit_access_draw',
+  business_advances: 'business_advance_disbursement',
+  agent_advances: 'agent_advance_credit',
+};
 const COMPANY_TO_WALLETS_GROUPS: { label: string; categories: Set<string>; color: string }[] = [
   { label: 'Returns paid to Supporters (and their proxy-agent wallets)', categories: COMPANY_TO_WALLETS_GROUP_1, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
   { label: 'Rent disbursed to landlords via agent landlord-float wallets', categories: COMPANY_TO_WALLETS_GROUP_2, color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
@@ -1012,9 +1023,15 @@ function TreasuryWalletFlowSummary({
         // wallet-only agent float settlement). Never drop these.
         const isAlwaysToCompany = ALWAYS_WALLET_TO_COMPANY.has(w.category);
         if (w.direction === 'cash_in' && hasPlatformOut) {
-          const bucketCategory = (GENERIC_WALLET_CATEGORIES.has(w.category) && platformOutCategory)
+          let bucketCategory = (GENERIC_WALLET_CATEGORIES.has(w.category) && platformOutCategory)
             ? platformOutCategory
             : w.category;
+          // If the category is still generic (e.g. credit-draw / advance
+          // disbursements post both legs as `wallet_deposit`), recover the real
+          // purpose from the originating source table so it isn't lost to "Other".
+          if (GENERIC_WALLET_CATEGORIES.has(bucketCategory) && w.source_table && SOURCE_TABLE_CATEGORY[w.source_table]) {
+            bucketCategory = SOURCE_TABLE_CATEGORY[w.source_table];
+          }
           toWallets.push({ amount: amt, category: bucketCategory, party: w.user_id ?? null, date: w.transaction_date });
         } else if (w.direction === 'cash_out' && (hasPlatformIn || hasBridgeIn || isAlwaysToCompany)) {
           // Exclude personal wallet withdrawals — they are wallet → external, not wallet → company
