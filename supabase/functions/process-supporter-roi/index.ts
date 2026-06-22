@@ -79,14 +79,19 @@ Deno.serve(async (req) => {
     // Get auto-reinvest preferences from portfolios
     const { data: reinvestPortfolios } = await supabase
       .from('investor_portfolios')
-      .select('investor_id, id, auto_reinvest, investment_amount')
+      .select('investor_id, id, auto_reinvest, investment_amount, created_at, duration_months')
       .eq('auto_reinvest', true)
       .eq('status', 'active');
 
-    const autoReinvestMap = new Map<string, { portfolio_id: string; current_amount: number }>();
+    const autoReinvestMap = new Map<string, { portfolio_id: string; current_amount: number; contribution_date?: string | null; duration_months?: number | null }>();
     (reinvestPortfolios || []).forEach((p: any) => {
       if (p.investor_id && !autoReinvestMap.has(p.investor_id)) {
-        autoReinvestMap.set(p.investor_id, { portfolio_id: p.id, current_amount: p.investment_amount });
+        autoReinvestMap.set(p.investor_id, {
+          portfolio_id: p.id,
+          current_amount: p.investment_amount,
+          contribution_date: p.created_at || null,
+          duration_months: typeof p.duration_months === 'number' ? p.duration_months : null,
+        });
       }
     });
 
@@ -226,6 +231,8 @@ Deno.serve(async (req) => {
                   returnAmount: roiAmount,
                   newTotal: newAmount,
                   compoundDateIso: now.toISOString(),
+                  contributionDateIso: reinvestInfo.contribution_date || undefined,
+                  durationMonths: reinvestInfo.duration_months || undefined,
                 }),
                 'process-supporter-roi',
               );

@@ -35,6 +35,7 @@ interface PartnerPortfolioCompoundedProps {
   return_amount?: string | number
   new_total_partnership_value?: string | number
   payment_number?: number | string
+  duration_months?: number | string
   compound_history?: Array<{
     cycle?: number | string
     month_name?: string
@@ -86,6 +87,7 @@ export function PartnerPortfolioCompounded({
   return_amount = 0,
   new_total_partnership_value = 0,
   payment_number,
+  duration_months,
   compound_history,
   currency = 'UGX',
   company_name = 'Welile',
@@ -108,21 +110,74 @@ export function PartnerPortfolioCompounded({
 
   const compoundDateLabel = compound_date || contribution_date || creation_date || 'the date shown above'
 
-  // Compounding breakdown — shows each cycle's opening balance, return earned
-  // and the resulting compounded balance. The most recent (current) cycle is
-  // highlighted.
-  const timeline = Array.isArray(compound_history) && compound_history.length > 0
-    ? compound_history.map((row, index) => ({
-      cycleLabel: row.month_name
-        ? `Cycle ${row.cycle || index + 1} — ${row.month_name}`
-        : `Cycle ${row.cycle || index + 1}`,
-      dateLabel: row.date,
-      before: Number(String(row.balance_before ?? 0).replace(/,/g, '')) || 0,
-      earned: Number(String(row.return_amount ?? 0).replace(/,/g, '')) || 0,
-      after: Number(String(row.balance_after ?? 0).replace(/,/g, '')) || 0,
-      isCurrent: index === compound_history.length - 1,
-    }))
-    : []
+  // Forward-looking compounding projection for the REMAINING months of the
+  // portfolio — same projection style as the "New Account Compound" email, but
+  // anchored to the contribution date (not cycle count) so it stays correct
+  // even if a past cycle was skipped or backfilled. The projection starts the
+  // month AFTER the compound month and runs through maturity
+  // (contribution_date + duration_months), compounding the new total value at
+  // the agreed monthly rate.
+  const parseFlexibleDate = (raw: string | undefined): Date | null => {
+    if (!raw) return null
+    const cleaned = String(raw)
+      .replace(/(\d+)(st|nd|rd|th)/gi, '$1')
+      .replace(/\bof\b/gi, '')
+      .replace(/,/g, '')
+      .trim()
+    const d = new Date(cleaned)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+  const addMonths = (base: Date, n: number) => {
+    const d = new Date(base.getTime())
+    d.setMonth(d.getMonth() + n)
+    return d
+  }
+  const fmtDate = (d: Date) =>
+    d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+  const monthsBetween = (a: Date, b: Date) =>
+    (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+
+  const ratePct = (() => {
+    const explicit = roi_percentage === undefined || roi_percentage === null || roi_percentage === ''
+      ? NaN
+      : Number(roi_percentage)
+    if (Number.isFinite(explicit) && explicit > 0) return explicit
+    return principalNum > 0 ? (retNum / principalNum) * 100 : 0
+  })()
+  const r = ratePct / 100
+
+  const contributionDate = parseFlexibleDate(contribution_date) || parseFlexibleDate(creation_date)
+  const compoundDate = parseFlexibleDate(compound_date) || new Date()
+  const durationMonths = Number(duration_months) > 0 ? Number(duration_months) : 12
+
+  const timeline = (() => {
+    if (!contributionDate || !(newTotalNum > 0) || !(r > 0)) return []
+    // First day of the month AFTER the compound month.
+    const projectionStart = new Date(compoundDate.getFullYear(), compoundDate.getMonth() + 1, 1)
+    // Maturity = contribution date + duration months.
+    const maturity = addMonths(contributionDate, durationMonths)
+    const remainingMonths = Math.max(0, monthsBetween(projectionStart, maturity))
+    const monthsElapsed = Math.max(0, monthsBetween(contributionDate, projectionStart))
+
+    const rows: { cycleLabel: string; dateLabel?: string; before: number; earned: number; after: number; isCurrent: boolean }[] = []
+    let bal = newTotalNum
+    for (let i = 0; i < remainingMonths; i++) {
+      const d = addMonths(projectionStart, i)
+      const before = bal
+      const earned = Math.round(before * r)
+      const after = before + earned
+      rows.push({
+        cycleLabel: `Cycle ${monthsElapsed + i + 1} — ${d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`,
+        dateLabel: fmtDate(d),
+        before,
+        earned,
+        after,
+        isCurrent: i === 0,
+      })
+      bal = after
+    }
+    return rows
+  })()
 
   return (
     <Html>
@@ -197,9 +252,9 @@ export function PartnerPortfolioCompounded({
                 {timeline.length > 0 && (
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
-                    <Text style={timelineTitle}>Compounding breakdown</Text>
+                    <Text style={timelineTitle}>Projected compounding schedule</Text>
                     <Text style={timelineSubtitle}>
-                      Here is how your portfolio has compounded at the rate of ({roiLabel}).
+                      This is projected from your new portfolio value ({formattedNewTotal}) at the rate of ({roiLabel}) for the remaining months of your portfolio.
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
                       <tbody>
@@ -214,7 +269,7 @@ export function PartnerPortfolioCompounded({
                               <td valign="top" style={{ ...timelineRowCell, ...(isLast ? { paddingBottom: 4 } : {}) }}>
                                 <Text style={timelineCycleLabel}>
                                   {row.cycleLabel}
-                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Latest</span>}
+                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Next</span>}
                                   {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
                                 </Text>
                                 <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
@@ -239,6 +294,7 @@ export function PartnerPortfolioCompounded({
                         })}
                       </tbody>
                     </table>
+                    <Text style={timelineFootnote}>Projection assumes the portfolio continues compounding at the same monthly return through maturity. Actual values may vary if you withdraw, top up, or change the portfolio.</Text>
                   </td>
                 </tr>
                 )}
@@ -428,10 +484,7 @@ export const template = {
     new_total_partnership_value: 6_272_000,
     payment_number: 2,
     contribution_date: '20 April 2026',
-    compound_history: [
-      { cycle: 1, date: '20 May 2026', balance_before: 5_000_000, return_amount: 600_000, balance_after: 5_600_000 },
-      { cycle: 2, date: '20 June 2026', balance_before: 5_600_000, return_amount: 672_000, balance_after: 6_272_000 },
-    ],
+    duration_months: 12,
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
