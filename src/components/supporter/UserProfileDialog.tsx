@@ -292,6 +292,96 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
             )}
           </div>
 
+          {/* Contact & ID */}
+          {(user.phone || user.email || user.nationalId) && (
+            <div className="space-y-3 bg-muted/30 rounded-lg p-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact & ID</p>
+              {user.phone && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Phone</span>
+                  <span className="ml-auto font-medium">{user.phone}</span>
+                </div>
+              )}
+              {user.email && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="ml-auto font-medium text-right break-all max-w-[180px]">{user.email}</span>
+                </div>
+              )}
+              {user.nationalId && (
+                <div className="flex items-center gap-2 text-sm">
+                  <IdCard className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">National ID</span>
+                  <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded">{user.nationalId}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Location */}
+          {(user.city || user.district || user.region || user.territory || user.country) && (
+            <div className="space-y-3 bg-muted/30 rounded-lg p-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Location</p>
+              {(user.city || user.district || user.region) && (
+                <div className="flex items-start gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <span className="text-muted-foreground">Area</span>
+                  <span className="ml-auto font-medium text-right max-w-[200px]">
+                    {[user.city, user.district, user.region].filter(Boolean).join(', ')}
+                  </span>
+                </div>
+              )}
+              {user.territory && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Tag className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Territory</span>
+                  <span className="ml-auto font-medium">{user.territory}</span>
+                </div>
+              )}
+              {user.country && (
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Country</span>
+                  <span className="ml-auto font-medium">{user.country}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Rent details (tenants) */}
+          {user.type === 'tenant' && (user.stage || user.tenantStatus || (user.monthlyRent && user.monthlyRent > 0)) && (
+            <div className="space-y-3 bg-muted/30 rounded-lg p-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rent Details</p>
+              {user.stage && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Tag className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Stage</span>
+                  <span className="ml-auto">
+                    <Badge variant="secondary" className="text-xs capitalize">{STAGE_LABELS[user.stage] || user.stage}</Badge>
+                  </span>
+                </div>
+              )}
+              {user.tenantStatus && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="ml-auto">
+                    <Badge variant="secondary" className="text-xs capitalize">{user.tenantStatus}</Badge>
+                  </span>
+                </div>
+              )}
+              {user.monthlyRent && user.monthlyRent > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Monthly Rent</span>
+                  <span className="ml-auto font-semibold">{fmtUGX(user.monthlyRent)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           <Separator />
 
           {/* Verification Checklist */}
