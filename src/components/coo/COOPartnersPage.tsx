@@ -2328,16 +2328,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setUpdateDatesOpen(true)}>
           <CalendarDays className="h-3.5 w-3.5" /> Update Dates
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 gap-1.5 text-xs"
-          onClick={handleSendMaturityNotices}
-          disabled={sendingNotices}
-        >
-          {sendingNotices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-          {sendingNotices ? 'Sending…' : 'Maturity Notices'}
-        </Button>
         {pendingApprovalCount > 0 && (
           <Button
             size="sm"
