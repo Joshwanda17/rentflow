@@ -147,18 +147,32 @@ Deno.serve(async (req) => {
       ? body.partnerIds.filter((id) => typeof id === "string" && UUID.test(id))
       : null;
 
-    let query = adminClient
-      .from("investor_portfolios")
-      .select("id, portfolio_code, account_name, investment_amount, created_at, maturity_date, display_currency, status, investor_id, agent_id")
-      .not("maturity_date", "is", null)
-      .in("status", ["active", "funded", "repaying"]);
+    const SELECT_COLS = "id, portfolio_code, account_name, investment_amount, created_at, maturity_date, display_currency, status, investor_id, agent_id";
+    const portfolios: any[] = [];
 
     if (partnerIds && partnerIds.length > 0) {
-      query = query.in("investor_id", partnerIds);
+      // Chunk investor_id filter to avoid exceeding the request URL length limit.
+      const CHUNK = 80;
+      for (let i = 0; i < partnerIds.length; i += CHUNK) {
+        const batch = partnerIds.slice(i, i + CHUNK);
+        const { data, error: pErr } = await adminClient
+          .from("investor_portfolios")
+          .select(SELECT_COLS)
+          .not("maturity_date", "is", null)
+          .in("status", ["active", "funded", "repaying"])
+          .in("investor_id", batch);
+        if (pErr) return json({ error: `Failed to load portfolios: ${pErr.message}` }, 500);
+        if (data) portfolios.push(...data);
+      }
+    } else {
+      const { data, error: pErr } = await adminClient
+        .from("investor_portfolios")
+        .select(SELECT_COLS)
+        .not("maturity_date", "is", null)
+        .in("status", ["active", "funded", "repaying"]);
+      if (pErr) return json({ error: `Failed to load portfolios: ${pErr.message}` }, 500);
+      if (data) portfolios.push(...data);
     }
-
-    const { data: portfolios, error: pErr } = await query;
-    if (pErr) return json({ error: `Failed to load portfolios: ${pErr.message}` }, 500);
 
     if (!portfolios || portfolios.length === 0) {
       return json({ ok: true, sent: 0, skipped: 0, failed: 0, total: 0, message: "No matching partnerships with a maturity date" }, 200);
@@ -167,13 +181,17 @@ Deno.serve(async (req) => {
     // Resolve recipient emails in one batch.
     const recipientIds = Array.from(
       new Set(portfolios.map((p: any) => p.investor_id || p.agent_id).filter(Boolean)),
-    );
-    const { data: profiles } = await adminClient
-      .from("profiles")
-      .select("id, email, full_name")
-      .in("id", recipientIds);
+    ) as string[];
     const profileMap = new Map<string, { email: string | null; full_name: string | null }>();
-    for (const pr of profiles ?? []) profileMap.set(pr.id, { email: pr.email, full_name: pr.full_name });
+    const PCHUNK = 80;
+    for (let i = 0; i < recipientIds.length; i += PCHUNK) {
+      const batch = recipientIds.slice(i, i + PCHUNK);
+      const { data: profiles } = await adminClient
+        .from("profiles")
+        .select("id, email, full_name")
+        .in("id", batch);
+      for (const pr of profiles ?? []) profileMap.set(pr.id, { email: pr.email, full_name: pr.full_name });
+    }
 
     let sent = 0, skipped = 0, failed = 0;
 
