@@ -1050,6 +1050,33 @@ function TreasuryWalletFlowSummary({
   const outSummary = useMemo(() => summarizeTreasuryFlow(filteredToCompany, WALLET_TO_COMPANY_GROUPS), [filteredToCompany]);
   const net = inSummary.total - outSummary.total;
 
+  // ── Previous-period comparison ────────────────────────────────
+  // Only meaningful when an explicit start date is chosen. The previous
+  // window is the same number of days, immediately before the selected one.
+  const effectiveFrom = dateFrom ? startOfDay(dateFrom) : null;
+  const effectiveTo = dateTo ? startOfDay(dateTo) : startOfDay(new Date());
+  const canCompare = !!effectiveFrom;
+  const prevRange = useMemo(() => {
+    if (!effectiveFrom) return null;
+    const lengthDays = differenceInCalendarDays(effectiveTo, effectiveFrom) + 1;
+    const prevTo = subDays(effectiveFrom, 1);
+    const prevFrom = subDays(prevTo, lengthDays - 1);
+    return { fromKey: format(prevFrom, 'yyyy-MM-dd'), toKey: format(prevTo, 'yyyy-MM-dd'), prevFrom, prevTo, lengthDays };
+  }, [effectiveFrom, effectiveTo]);
+  const inPrevRange = useCallback((dateStr: string) => {
+    if (!prevRange) return false;
+    const dayKey = format(startOfDay(new Date(dateStr)), 'yyyy-MM-dd');
+    return dayKey >= prevRange.fromKey && dayKey <= prevRange.toKey;
+  }, [prevRange]);
+  const prevInSummary = useMemo(
+    () => (compareEnabled && prevRange ? summarizeTreasuryFlow(toWallets.filter(i => inPrevRange(i.date)), COMPANY_TO_WALLETS_GROUPS) : null),
+    [compareEnabled, prevRange, toWallets, inPrevRange],
+  );
+  const prevOutSummary = useMemo(
+    () => (compareEnabled && prevRange ? summarizeTreasuryFlow(toCompany.filter(i => inPrevRange(i.date)), WALLET_TO_COMPANY_GROUPS) : null),
+    [compareEnabled, prevRange, toCompany, inPrevRange],
+  );
+
   // Resolve party names for the top movers shown on each card.
   useEffect(() => {
     const ids = Array.from(new Set(
