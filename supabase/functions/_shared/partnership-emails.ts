@@ -120,6 +120,8 @@ export interface PartnerCompoundInput {
   returnAmount: number;          // monetary amount earned this cycle
   newTotal: number;              // portfolio value after compounding
   compoundDateIso?: string;      // defaults to now
+  contributionDateIso?: string;  // portfolio contribution/start date — anchors the projection
+  durationMonths?: number;       // portfolio term in months (defaults to 12)
 }
 
 function ordinalDay(day: number): string {
@@ -149,6 +151,7 @@ function shortPortfolioId(portfolioId: string): string {
 
 export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
   const compoundIso = input.compoundDateIso || new Date().toISOString();
+  const contributionIso = input.contributionDateIso || compoundIso;
   const derivedPct = input.initialAmount > 0
     ? Math.round((input.returnAmount / input.initialAmount) * 10000) / 100
     : 0;
@@ -175,6 +178,11 @@ export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
       // uses this to reconstruct a per-cycle breakdown that adds up to
       // the new total partnership value.
       payment_number: input.paymentNumber,
+      // Anchor + term for the forward-looking remaining-months projection.
+      contribution_date: formatOrdinalDate(contributionIso),
+      duration_months: typeof input.durationMonths === 'number' && input.durationMonths > 0
+        ? input.durationMonths
+        : 12,
       currency: CURRENCY,
       company_name: COMPANY_NAME,
       logo_url: LOGO_URL,
