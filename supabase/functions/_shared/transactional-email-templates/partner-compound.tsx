@@ -114,7 +114,8 @@ export function PartnerCompound({
   const fmtDate = (d: Date) =>
     d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-  const PROJECTION_MONTHS = Math.max(1, 12 - (startDate.getMonth() + 1))
+  // Newly created portfolio: always show the full 12-month compounding year.
+  const PROJECTION_MONTHS = 12
 
   const ratePct = (() => {
     const explicit = roi_percentage === undefined || roi_percentage === null || roi_percentage === ''
