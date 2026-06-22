@@ -22,8 +22,17 @@ import { toast } from 'sonner';
 import { 
   Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles, UserCheck, UserX,
   Mail, UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
-  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, AlertTriangle, ArrowRight
+  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike, AlertTriangle, ArrowRight,
+  Star, X
 } from 'lucide-react';
+import {
+  loadRecipients,
+  rememberRecipient,
+  toggleFavorite,
+  removeRecipient,
+  sortRecipients,
+  type SavedRecipient,
+} from '@/lib/transferRecipients';
 
 interface SendMoneyDialogProps {
   open: boolean;
