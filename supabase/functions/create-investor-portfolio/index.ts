@@ -418,6 +418,14 @@ Deno.serve(async (req) => {
           .eq("id", investorId)
           .maybeSingle();
     const contributionIso = contributionDate ? new Date(`${contributionDate}T00:00:00Z`).toISOString() : now.toISOString();
+        // Anchor the first monthly payout to the partner's contribution date +
+        // payout day (one month after the contribution), not the server clock.
+        // Keeps the "first payment date" in the email accurate to the real
+        // schedule the partner agreed to.
+        const firstPayout = new Date(contributionIso);
+        firstPayout.setUTCMonth(firstPayout.getUTCMonth() + 1);
+        firstPayout.setUTCDate(payoutDay);
+        const firstPayoutIso = firstPayout.toISOString();
         if (partnerProfile?.email) {
           const emailRequest = roiMode === "monthly_compounding"
             ? buildPartnerCompoundCreationRequest({
@@ -437,7 +445,7 @@ Deno.serve(async (req) => {
                 amount: investmentAmount,
                 monthlyReward: Math.round(investmentAmount * (roiPercentage / 100)),
                 contributionDateIso: contributionIso,
-                firstPayoutDateIso: nextRoiDate.toISOString(),
+                firstPayoutDateIso: firstPayoutIso,
                 payoutDay,
                 roiPercentage,
               });
