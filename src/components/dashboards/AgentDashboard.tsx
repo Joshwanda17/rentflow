@@ -1360,7 +1360,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         }}
         onDownloadLandlordForm={handleDownloadLandlordForm}
         onDownloadTenantForm={handleDownloadTenantForm}
+        onOpenRentPoster={() => {
+          setMenuOpen(false);
+          setRentPosterOpen(true);
+        }}
       />
+
+      <RentPosterDialog open={rentPosterOpen} onOpenChange={setRentPosterOpen} />
 
       {/* Existing Dialogs */}
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
