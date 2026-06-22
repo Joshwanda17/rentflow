@@ -1221,6 +1221,9 @@ function TreasuryWalletFlowSummary({
                         : groupView === 'count'
                           ? `${formatUGX(v.amount)} · ${pct}% of total`
                           : `${formatUGX(v.amount)} · ${v.count.toLocaleString()} transaction${v.count === 1 ? '' : 's'}`;
+                      const prevAmt = hasCompare ? prevGroupAmount(label) : 0;
+                      const groupDelta = v.amount - prevAmt;
+                      const groupDeltaPct = prevAmt > 0 ? Math.round((groupDelta / prevAmt) * 100) : null;
                       return (
                         <button
                           key={label}
@@ -1240,6 +1243,17 @@ function TreasuryWalletFlowSummary({
                           <div className="min-w-0 flex-1">
                             <p className="text-[13px] font-semibold leading-snug">{label}</p>
                             <p className="text-[10px] opacity-80">{isEmpty ? 'No movements in this period' : `${subLine} · tap for per-period detail`}</p>
+                            {hasCompare && (
+                              <p className={cn(
+                                'text-[10px] font-semibold mt-0.5 inline-flex items-center gap-0.5',
+                                groupDelta >= 0 ? 'text-emerald-600' : 'text-rose-600',
+                              )}>
+                                {groupDelta >= 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+                                {groupDelta >= 0 ? '+' : '−'}{formatUGX(Math.abs(groupDelta))}
+                                {groupDeltaPct !== null && <span className="opacity-80">({groupDelta >= 0 ? '+' : '−'}{Math.abs(groupDeltaPct)}%)</span>}
+                                <span className="opacity-70 font-normal"> vs {formatUGX(prevAmt)} prev.</span>
+                              </p>
+                            )}
                           </div>
                           <div className="shrink-0 text-right flex items-center gap-1.5">
                             <p className="text-[15px] font-bold font-mono leading-tight">{mainValue}</p>
