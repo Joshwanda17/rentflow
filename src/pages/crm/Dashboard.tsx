@@ -4,6 +4,7 @@ import { CRMDashboard } from '@/components/executive/CRMDashboard';
 import { CRMDirectoryPanel } from '@/components/executive/CRMDirectoryPanel';
 import { CRMLandlordsPanel } from '@/components/executive/CRMLandlordsPanel';
 import { CRMSupportLogPanel } from '@/components/executive/CRMSupportLogPanel';
+import { CTOCommunicationOverview } from '@/components/executive/CTOCommunicationOverview';
 
 export default function CRMDashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('crm');
@@ -49,6 +50,8 @@ export default function CRMDashboardPage() {
             defaultTab="support"
           />
         );
+      case 'communications':
+        return <CTOCommunicationOverview />;
       default:
         return <CRMDashboard />;
     }
