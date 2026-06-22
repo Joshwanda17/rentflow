@@ -1284,10 +1284,66 @@ function TreasuryWalletFlowSummary({
         The two movements that matter most: the CFO funding wallets out of company money, and agents
         allocating money out of their wallets back to the company.
       </p>
-      <label className="flex items-center gap-2 w-fit rounded-lg border border-border bg-muted/30 px-3 py-1.5 cursor-pointer select-none">
-        <Checkbox checked={excludeToday} onCheckedChange={(c) => setExcludeToday(c === true)} />
-        <span className="text-[11px] font-medium text-foreground/90">Exclude today's movements</span>
-      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 w-fit rounded-lg border border-border bg-muted/30 px-3 py-1.5 cursor-pointer select-none">
+          <Checkbox checked={excludeToday} onCheckedChange={(c) => setExcludeToday(c === true)} />
+          <span className="text-[11px] font-medium text-foreground/90">Exclude today's movements</span>
+        </label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn('h-8 justify-start text-[11px] font-medium gap-1.5', !dateFrom && 'text-muted-foreground')}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {dateFrom ? format(dateFrom, 'dd MMM yyyy') : 'From date'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarPicker
+              mode="single"
+              selected={dateFrom}
+              onSelect={setDateFrom}
+              disabled={(d) => (dateTo ? d > dateTo : false)}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+            />
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn('h-8 justify-start text-[11px] font-medium gap-1.5', !dateTo && 'text-muted-foreground')}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {dateTo ? format(dateTo, 'dd MMM yyyy') : 'To date'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarPicker
+              mode="single"
+              selected={dateTo}
+              onSelect={setDateTo}
+              disabled={(d) => (dateFrom ? d < dateFrom : false)}
+              initialFocus
+              className={cn('p-3 pointer-events-auto')}
+            />
+          </PopoverContent>
+        </Popover>
+        {(dateFrom || dateTo) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-[11px] gap-1"
+            onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
+          >
+            <X className="h-3.5 w-3.5" /> Clear dates
+          </Button>
+        )}
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Flow
           tone="in"
