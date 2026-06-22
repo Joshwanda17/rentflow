@@ -410,7 +410,7 @@ export const template = {
     const retNum = Number(String(data?.return_amount ?? 0).replace(/,/g, '')) || 0
     const newTotalNum = Number(String(data?.new_total_partnership_value ?? 0).replace(/,/g, '')) || 0
     const headline = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
-    return `Portfolio Compounded — Value ${formatAmount(headline, currency)}`
+    return `New Portfolio Account Created — Value ${formatAmount(headline, currency)}`
   },
   displayName: 'Partner Portfolio Compounded (Existing Partner)',
   previewData: {
