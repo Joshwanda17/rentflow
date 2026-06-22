@@ -3935,34 +3935,29 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
     );
   }, [expiring, search]);
 
-  /* Unique partners (deduped by investorId) — matches what actually gets emailed. */
-  const uniquePartnerCount = useMemo(
-    () => new Set(filtered.map(p => p.investorId).filter(Boolean)).size,
-    [filtered]
-  );
-
   /* ─── Bulk-send the "Maturity Notice" email to every partner expiring soon. ─── */
   const [sendingNotices, setSendingNotices] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmPartnerIds, setConfirmPartnerIds] = useState<string[]>([]);
+  const [confirmPortfolioIds, setConfirmPortfolioIds] = useState<string[]>([]);
 
   function openMaturityConfirm() {
-    const partnerIds = Array.from(new Set(filtered.map(p => p.investorId).filter(Boolean)));
-    if (partnerIds.length === 0) {
-      toast.info('No partners to notify');
+    // One notice per expiring portfolio exactly as listed in the dialog.
+    const portfolioIds = Array.from(new Set(filtered.map(p => p.portfolioId).filter(Boolean)));
+    if (portfolioIds.length === 0) {
+      toast.info('No portfolios to notify');
       return;
     }
-    setConfirmPartnerIds(partnerIds);
+    setConfirmPortfolioIds(portfolioIds);
     setConfirmOpen(true);
   }
 
   async function handleConfirmSend() {
     setConfirmOpen(false);
-    if (sendingNotices || confirmPartnerIds.length === 0) return;
+    if (sendingNotices || confirmPortfolioIds.length === 0) return;
     setSendingNotices(true);
     try {
       const { data, error } = await supabase.functions.invoke('bulk-send-maturity-notice', {
-        body: { partnerIds: confirmPartnerIds },
+        body: { portfolioIds: confirmPortfolioIds },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -3977,7 +3972,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
       toast.error(e?.message || 'Failed to send maturity notices');
     } finally {
       setSendingNotices(false);
-      setConfirmPartnerIds([]);
+      setConfirmPortfolioIds([]);
     }
   }
 
@@ -4013,7 +4008,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
             disabled={sendingNotices}
           >
             {sendingNotices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-            {sendingNotices ? 'Sending…' : `Send Maturity Notice to ${uniquePartnerCount} Partner${uniquePartnerCount === 1 ? '' : 's'}`}
+            {sendingNotices ? 'Sending…' : `Send Maturity Notice to ${filtered.length} Portfolio${filtered.length === 1 ? '' : 's'}`}
           </Button>
         )}
         <div className="flex-1 overflow-y-auto -mx-1 px-1">
@@ -4074,12 +4069,12 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
           <AlertDialogHeader>
             <AlertDialogTitle>Send Maturity Notices</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to send the <strong>"Maturity Notice"</strong> email to{' '}
-              <strong>{confirmPartnerIds.length} partner{confirmPartnerIds.length === 1 ? '' : 's'}</strong> whose portfolios are expiring soon.
+              You are about to send the <strong>"Maturity Notice"</strong> email for{' '}
+              <strong>{confirmPortfolioIds.length} expiring portfolio{confirmPortfolioIds.length === 1 ? '' : 's'}</strong> listed here.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmPartnerIds([])}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setConfirmPortfolioIds([])}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmSend} disabled={sendingNotices}>
               {sendingNotices ? (
                 <>
@@ -4087,7 +4082,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
                   Sending…
                 </>
               ) : (
-                <>Send {confirmPartnerIds.length} Notice{confirmPartnerIds.length === 1 ? '' : 's'}</>
+                <>Send {confirmPortfolioIds.length} Notice{confirmPortfolioIds.length === 1 ? '' : 's'}</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

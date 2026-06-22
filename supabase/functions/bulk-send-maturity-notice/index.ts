@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
       test?: boolean;
       testEmail?: string;
       partnerIds?: string[];
+      portfolioIds?: string[];
     };
 
     const dispatch = async (payload: Record<string, unknown>): Promise<boolean> => {
@@ -142,17 +143,34 @@ Deno.serve(async (req) => {
       return json({ ok, test: true, recipient: testEmail }, ok ? 200 : 502);
     }
 
-    // ─── BULK MODE: send to active partnerships with a maturity date ───
+    // ─── BULK MODE ───
+    // Preferred: send to the EXACT expiring portfolios listed in the dialog
+    // (one notice per portfolio). Falls back to partner-level for back-compat.
+    const portfolioIds = Array.isArray(body.portfolioIds)
+      ? body.portfolioIds.filter((id) => typeof id === "string" && UUID.test(id))
+      : null;
     const partnerIds = Array.isArray(body.partnerIds)
       ? body.partnerIds.filter((id) => typeof id === "string" && UUID.test(id))
       : null;
 
     const SELECT_COLS = "id, portfolio_code, account_name, investment_amount, created_at, maturity_date, display_currency, status, investor_id, agent_id";
     const portfolios: any[] = [];
+    const CHUNK = 80;
 
-    if (partnerIds && partnerIds.length > 0) {
+    if (portfolioIds && portfolioIds.length > 0) {
+      // Exact match on the portfolios shown in the dialog.
+      for (let i = 0; i < portfolioIds.length; i += CHUNK) {
+        const batch = portfolioIds.slice(i, i + CHUNK);
+        const { data, error: pErr } = await adminClient
+          .from("investor_portfolios")
+          .select(SELECT_COLS)
+          .not("maturity_date", "is", null)
+          .in("id", batch);
+        if (pErr) return json({ error: `Failed to load portfolios: ${pErr.message}` }, 500);
+        if (data) portfolios.push(...data);
+      }
+    } else if (partnerIds && partnerIds.length > 0) {
       // Chunk investor_id filter to avoid exceeding the request URL length limit.
-      const CHUNK = 80;
       for (let i = 0; i < partnerIds.length; i += CHUNK) {
         const batch = partnerIds.slice(i, i + CHUNK);
         const { data, error: pErr } = await adminClient
