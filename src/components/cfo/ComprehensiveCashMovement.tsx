@@ -1112,7 +1112,7 @@ function TreasuryWalletFlowSummary({
     rawItems,
     onGroupDrill,
     groupDefs,
-    compareTotal,
+    compareSummary,
   }: {
     tone: 'in' | 'out';
     icon: React.ReactNode;
