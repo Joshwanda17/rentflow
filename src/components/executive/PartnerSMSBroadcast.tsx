@@ -113,7 +113,7 @@ export function PartnerSMSBroadcast() {
   return (
     <div className="space-y-4">
       {/* Hero */}
-      <Card className="overflow-hidden border-0 bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 text-white">
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600 text-white">
         <CardContent className="p-5 sm:p-6 flex items-start gap-4">
           <div className="h-12 w-12 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
             <Sparkles className="h-6 w-6" />
@@ -213,7 +213,7 @@ export function PartnerSMSBroadcast() {
                 size="lg"
                 disabled={sending || !message.trim() || !audienceReady}
                 onClick={() => setConfirmOpen(true)}
-                className="bg-gradient-to-r from-amber-500 to-rose-500 hover:opacity-90"
+                className="bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-90"
               >
                 {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
                 Send to {recipientCount ?? 0} partners
@@ -243,7 +243,7 @@ export function PartnerSMSBroadcast() {
                 </div>
                 <div className="text-center text-[10px] text-slate-500 mb-2">Today, just now</div>
                 <div className="flex items-start gap-2">
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-amber-500 to-rose-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                     W
                   </div>
                   <div className="max-w-[210px] rounded-2xl rounded-tl-sm bg-white border border-slate-200 px-3 py-2 shadow-sm">
