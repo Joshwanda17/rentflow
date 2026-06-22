@@ -3935,6 +3935,12 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
     );
   }, [expiring, search]);
 
+  /* Unique partners (deduped by investorId) — matches what actually gets emailed. */
+  const uniquePartnerCount = useMemo(
+    () => new Set(filtered.map(p => p.investorId).filter(Boolean)).size,
+    [filtered]
+  );
+
   /* ─── Bulk-send the "Maturity Notice" email to every partner expiring soon. ─── */
   const [sendingNotices, setSendingNotices] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -4007,7 +4013,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
             disabled={sendingNotices}
           >
             {sendingNotices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-            {sendingNotices ? 'Sending…' : `Send Maturity Notice to ${filtered.length} Partner${filtered.length === 1 ? '' : 's'}`}
+            {sendingNotices ? 'Sending…' : `Send Maturity Notice to ${uniquePartnerCount} Partner${uniquePartnerCount === 1 ? '' : 's'}`}
           </Button>
         )}
         <div className="flex-1 overflow-y-auto -mx-1 px-1">
