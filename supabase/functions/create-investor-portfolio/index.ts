@@ -82,6 +82,12 @@ Deno.serve(async (req) => {
     const inviteId = typeof body.invite_id === 'string' && body.invite_id.length > 0 ? body.invite_id : null;
     const investorId = typeof body.investor_id === 'string' && body.investor_id.length > 0 ? body.investor_id : null;
     const payoutDay = typeof body.payout_day === 'number' && body.payout_day >= 1 && body.payout_day <= 31 ? body.payout_day : 15;
+    // Partner-selected contribution/start date (YYYY-MM-DD). Anchors the
+    // compounding projection in the "New Account Compound" email so the
+    // schedule reflects the real start date, not the server clock.
+    const contributionDate = typeof body.contribution_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.contribution_date)
+      ? body.contribution_date
+      : null;
     const instantDeduct = creatorIsBackOffice && !!investorId;
 
     // ── Explicit "fund from any user" mode ──
