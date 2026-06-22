@@ -135,7 +135,7 @@ export function PartnerPortfolioCompounded({
       <Head>
         <style>{clientOverrides}</style>
       </Head>
-      <Preview>Portfolio Compounded — Value {formattedNewTotal}</Preview>
+      <Preview>New portfolio account active — value {formattedNewTotal}</Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
           <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
@@ -161,7 +161,7 @@ export function PartnerPortfolioCompounded({
 
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '40px 40px 20px 40px' }}>
-                    <Heading style={heroH1}>Portfolio Successfully Compounded</Heading>
+                    <Heading style={heroH1}>New Portfolio Account Created</Heading>
                   </td>
                 </tr>
 
@@ -173,7 +173,7 @@ export function PartnerPortfolioCompounded({
                       We are pleased to confirm the successful compounding of your portfolio (<span style={{ color: '#a855f7' }}>{portfolio_id}</span>) with {company_name} Technologies Limited.
                     </Text>
                     <Text style={{ ...introText, margin: 0 }}>
-                      On the <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedOpeningPrincipal}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedNewTotal}</strong>.
+                      On <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedOpeningPrincipal}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). Your new portfolio account is now active and compounding at this rate.
                     </Text>
                   </td>
                 </tr>
@@ -183,16 +183,10 @@ export function PartnerPortfolioCompounded({
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={highlightCard}>
                       <tbody>
                         <tr>
-                          <td align="center" style={returnInner}>
-                            <Text style={returnEyebrow}>Return Earned ({roiLabel})</Text>
-                            <Text style={returnValue}>+{formattedReturn}</Text>
-                          </td>
-                        </tr>
-                        <tr>
                           <td align="center" style={highlightInner}>
-                            <Text style={highlightEyebrow}>New Total Partnership Value</Text>
+                            <Text style={highlightEyebrow}>New Portfolio Account Value</Text>
                             <Text style={highlightValue}>{formattedNewTotal}</Text>
-                            <Text style={highlightSub}>Your portfolio has been compounded accordingly.</Text>
+                            <Text style={highlightSub}>Compounding monthly under portfolio {portfolio_id}.</Text>
                           </td>
                         </tr>
                       </tbody>
@@ -203,9 +197,9 @@ export function PartnerPortfolioCompounded({
                 {timeline.length > 0 && (
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
-                    <Text style={timelineTitle}>Upcoming compounding breakdown</Text>
+                    <Text style={timelineTitle}>Projected compounding schedule</Text>
                     <Text style={timelineSubtitle}>
-                      Projected forward from your <strong>New Total Partnership Value</strong> ({formattedNewTotal}). The cycle just settled is excluded — the table starts from your next month and compounds at {roiLabel} through the remainder of your portfolio term.
+                      Projected forward from your <strong>New Portfolio Account Value</strong> ({formattedNewTotal}). The cycle just settled is excluded — the table starts from your next month and compounds at <strong>{roiLabel}</strong> through the remainder of your portfolio term.
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
                       <tbody>
@@ -416,7 +410,7 @@ export const template = {
     const retNum = Number(String(data?.return_amount ?? 0).replace(/,/g, '')) || 0
     const newTotalNum = Number(String(data?.new_total_partnership_value ?? 0).replace(/,/g, '')) || 0
     const headline = newTotalNum > 0 ? newTotalNum : (initNum + retNum)
-    return `Portfolio Compounded — Value ${formatAmount(headline, currency)}`
+    return `New Portfolio Account Created — Value ${formatAmount(headline, currency)}`
   },
   displayName: 'Partner Portfolio Compounded (Existing Partner)',
   previewData: {
