@@ -1409,7 +1409,20 @@ function TreasuryWalletFlowSummary({
             </Button>
           ))}
         </div>
+        <label className={cn(
+          'flex items-center gap-2 w-fit rounded-lg border px-3 py-1.5 select-none',
+          canCompare ? 'border-border bg-muted/30 cursor-pointer' : 'border-border/50 bg-muted/10 opacity-50 cursor-not-allowed',
+        )}>
+          <Checkbox checked={compareEnabled} disabled={!canCompare} onCheckedChange={(c) => setCompareEnabled(c === true)} />
+          <span className="text-[11px] font-medium text-foreground/90">Compare with previous period</span>
+        </label>
       </div>
+      {compareEnabled && canCompare && prevRange && (
+        <p className="text-[11px] text-muted-foreground -mt-1">
+          Comparing {format(effectiveFrom as Date, 'dd MMM')} – {format(effectiveTo, 'dd MMM yyyy')} against
+          {' '}{format(prevRange.prevFrom, 'dd MMM')} – {format(prevRange.prevTo, 'dd MMM yyyy')} ({prevRange.lengthDays} days).
+        </p>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Flow
           tone="in"
@@ -1421,6 +1434,7 @@ function TreasuryWalletFlowSummary({
           direction="cash_in"
           rawItems={filteredToWallets}
           groupDefs={COMPANY_TO_WALLETS_GROUPS}
+          compareTotal={prevInSummary ? prevInSummary.total : null}
           onGroupDrill={(meta) => setGroupDrill({
             label: meta.label,
             color: meta.color,
