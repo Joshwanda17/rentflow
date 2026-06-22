@@ -4003,7 +4003,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
             variant="outline"
             size="sm"
             className="h-9 gap-1.5 text-xs self-start"
-            onClick={handleSendMaturityNotices}
+            onClick={openMaturityConfirm}
             disabled={sendingNotices}
           >
             {sendingNotices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
