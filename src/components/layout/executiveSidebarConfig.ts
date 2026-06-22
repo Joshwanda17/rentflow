@@ -169,7 +169,6 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       title: 'Customer Relations',
       items: [
         { label: 'Overview', icon: LayoutDashboard, id: 'overview' },
-        { label: 'Customer Profiles', icon: Users, id: 'profiles' },
         { label: 'All Tenants', icon: Home, id: 'all-tenants' },
         { label: 'All Agents', icon: UserCog, id: 'all-agents' },
         { label: 'All Landlords', icon: Building2, id: 'all-landlords' },
