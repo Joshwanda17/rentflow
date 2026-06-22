@@ -5514,6 +5514,78 @@ export type Database = {
           },
         ]
       }
+      crm_customer_issues: {
+        Row: {
+          contact: string | null
+          created_at: string
+          customer_name: string
+          experience: string
+          id: string
+          issue: string
+          recorded_by: string | null
+          solution: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact?: string | null
+          created_at?: string
+          customer_name: string
+          experience?: string
+          id?: string
+          issue: string
+          recorded_by?: string | null
+          solution?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact?: string | null
+          created_at?: string
+          customer_name?: string
+          experience?: string
+          id?: string
+          issue?: string
+          recorded_by?: string | null
+          solution?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_tenant_support: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invested_on: string
+          notes: string | null
+          partner_name: string
+          recorded_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invested_on?: string
+          notes?: string | null
+          partner_name: string
+          recorded_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invested_on?: string
+          notes?: string | null
+          partner_name?: string
+          recorded_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_platform_stats: {
         Row: {
           active_users_30d: number

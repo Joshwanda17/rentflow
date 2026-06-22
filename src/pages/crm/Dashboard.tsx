@@ -3,6 +3,7 @@ import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import { CRMDashboard } from '@/components/executive/CRMDashboard';
 import { CRMDirectoryPanel } from '@/components/executive/CRMDirectoryPanel';
 import { CRMLandlordsPanel } from '@/components/executive/CRMLandlordsPanel';
+import { CRMSupportLogPanel } from '@/components/executive/CRMSupportLogPanel';
 
 export default function CRMDashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('crm');
@@ -30,6 +31,22 @@ export default function CRMDashboardPage() {
           <CRMLandlordsPanel
             title="All Landlords"
             subtitle="Every landlord on the platform with full details and payout info. Click a row to view more."
+          />
+        );
+      case 'customer-issues':
+        return (
+          <CRMSupportLogPanel
+            title="Customer Issues"
+            subtitle="Log complaints, rate the customer experience, and record the solution. Export a clean monthly PDF."
+            defaultTab="issues"
+          />
+        );
+      case 'tenant-support':
+        return (
+          <CRMSupportLogPanel
+            title="Tenant Support"
+            subtitle="Record partner investments — partner name, date, and amount invested. Export a clean monthly PDF."
+            defaultTab="support"
           />
         );
       default:
