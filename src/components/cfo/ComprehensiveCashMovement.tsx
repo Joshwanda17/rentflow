@@ -1020,8 +1020,19 @@ function TreasuryWalletFlowSummary({
     return { toWallets, toCompany };
   }, [rows, includeAdjustments]);
 
-  const inSummary = useMemo(() => summarizeTreasuryFlow(toWallets, COMPANY_TO_WALLETS_GROUPS), [toWallets]);
-  const outSummary = useMemo(() => summarizeTreasuryFlow(toCompany, WALLET_TO_COMPANY_GROUPS), [toCompany]);
+  // When "exclude today" is on, drop any movement whose calendar day is today.
+  const todayKey = format(startOfDay(new Date()), 'yyyy-MM-dd');
+  const filteredToWallets = useMemo(
+    () => (excludeToday ? toWallets.filter(i => format(startOfDay(new Date(i.date)), 'yyyy-MM-dd') !== todayKey) : toWallets),
+    [toWallets, excludeToday, todayKey],
+  );
+  const filteredToCompany = useMemo(
+    () => (excludeToday ? toCompany.filter(i => format(startOfDay(new Date(i.date)), 'yyyy-MM-dd') !== todayKey) : toCompany),
+    [toCompany, excludeToday, todayKey],
+  );
+
+  const inSummary = useMemo(() => summarizeTreasuryFlow(filteredToWallets, COMPANY_TO_WALLETS_GROUPS), [filteredToWallets]);
+  const outSummary = useMemo(() => summarizeTreasuryFlow(filteredToCompany, WALLET_TO_COMPANY_GROUPS), [filteredToCompany]);
   const net = inSummary.total - outSummary.total;
 
   // Resolve party names for the top movers shown on each card.
