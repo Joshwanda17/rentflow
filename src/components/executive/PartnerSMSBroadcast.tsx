@@ -50,7 +50,9 @@ Welile technologies limited`,
 ];
 
 export function PartnerSMSBroadcast() {
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(
+    TEMPLATES.find((t) => t.label === 'Weekend payments notice')?.body ?? '',
+  );
   const [testPhone, setTestPhone] = useState('');
   const [recipientCount, setRecipientCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(true);
