@@ -43,6 +43,7 @@ export default function RentPosterDialog({ open, onOpenChange }: RentPosterDialo
   // printable area — let agents nudge the layout to fit their printer.
   const [margin, setMargin] = useState<number>(10);
   const [scale, setScale] = useState<number>(100);
+  const [phone, setPhone] = useState('');
 
   const fetchPosterBlob = async () => {
     const res = await fetch(posterAsset.url);
