@@ -428,6 +428,10 @@ export const template = {
     new_total_partnership_value: 6_272_000,
     payment_number: 2,
     contribution_date: '20 April 2026',
+    compound_history: [
+      { cycle: 1, date: '20 May 2026', balance_before: 5_000_000, return_amount: 600_000, balance_after: 5_600_000 },
+      { cycle: 2, date: '20 June 2026', balance_before: 5_600_000, return_amount: 672_000, balance_after: 6_272_000 },
+    ],
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
