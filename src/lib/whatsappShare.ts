@@ -86,3 +86,31 @@ export async function sharePdfViaWhatsApp(
   window.open(link, '_blank', 'noopener,noreferrer');
   return 'deeplink';
 }
+
+/**
+ * Share an image blob through WhatsApp. Mirrors {@link sharePdfViaWhatsApp} but
+ * attaches an image file (so WhatsApp previews it inline) and falls back to a
+ * local download + WhatsApp deep link when file sharing isn't supported.
+ */
+export async function shareImageViaWhatsApp(
+  blob: Blob,
+  { filename, caption, phone }: WhatsAppShareOptions,
+): Promise<'shared' | 'deeplink' | 'cancelled'> {
+  const type = blob.type || 'image/jpeg';
+  const file = new File([blob], filename, { type });
+  const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+
+  if (typeof navigator !== 'undefined' && navigator.share && nav.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename, text: caption });
+      return 'shared';
+    } catch (err) {
+      if ((err as DOMException)?.name === 'AbortError') return 'cancelled';
+    }
+  }
+
+  downloadBlob(blob, filename);
+  const link = buildWhatsAppLink(caption, phone);
+  window.open(link, '_blank', 'noopener,noreferrer');
+  return 'deeplink';
+}

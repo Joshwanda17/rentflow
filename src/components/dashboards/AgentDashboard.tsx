@@ -159,6 +159,7 @@ import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNote
 import { AgentAdvanceRequestForm } from '@/components/agent/AgentAdvanceRequestForm';
 import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 import BorrowLoanSheet from '@/components/vouch/borrower/BorrowLoanSheet';
+import RentPosterDialog from '@/components/agent/RentPosterDialog';
 
 // PDF form generators
 import {
@@ -384,6 +385,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [requisitionOpen, setRequisitionOpen] = useState(false);
   const [angelPoolInvestOpen, setAngelPoolInvestOpen] = useState(false);
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
+  const [rentPosterOpen, setRentPosterOpen] = useState(false);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
@@ -1359,7 +1361,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         }}
         onDownloadLandlordForm={handleDownloadLandlordForm}
         onDownloadTenantForm={handleDownloadTenantForm}
+        onOpenRentPoster={() => {
+          setMenuOpen(false);
+          setRentPosterOpen(true);
+        }}
       />
+
+      <RentPosterDialog open={rentPosterOpen} onOpenChange={setRentPosterOpen} />
 
       {/* Existing Dialogs */}
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
