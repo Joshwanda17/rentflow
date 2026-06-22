@@ -952,6 +952,9 @@ function TreasuryWalletFlowSummary({
   >(null);
   // CFO toggle: hide today's movements so the cards show only settled/prior-day flow.
   const [excludeToday, setExcludeToday] = useState(false);
+  // CFO date-range filter: limit cash movements to a chosen window (inclusive).
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const { toWallets, toCompany } = useMemo(() => {
     const groups = new Map<string, LedgerRow[]>();
