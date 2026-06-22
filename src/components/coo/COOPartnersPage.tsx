@@ -4008,7 +4008,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
             disabled={sendingNotices}
           >
             {sendingNotices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-            {sendingNotices ? 'Sending…' : `Send Maturity Notice to ${uniquePartnerCount} Partner${uniquePartnerCount === 1 ? '' : 's'}`}
+            {sendingNotices ? 'Sending…' : `Send Maturity Notice to ${filtered.length} Portfolio${filtered.length === 1 ? '' : 's'}`}
           </Button>
         )}
         <div className="flex-1 overflow-y-auto -mx-1 px-1">
