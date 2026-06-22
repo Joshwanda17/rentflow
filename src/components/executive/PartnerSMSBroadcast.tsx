@@ -33,7 +33,6 @@ Please note that return payments are not processed on weekends (Saturday and Sun
 
 *For any inquiries* or assistance, please contact our Customer Care team on:
 
-
 +256748747134
 
 +256793750331
