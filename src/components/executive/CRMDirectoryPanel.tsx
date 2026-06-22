@@ -9,6 +9,7 @@ import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import {
   Search, Users, X, ShieldCheck, Activity, Sparkles,
   ChevronLeft, ChevronRight, Phone, MapPin, Loader2,
+  FileText, Clock3, BadgeCheck, Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -31,6 +32,7 @@ interface DirectoryRow {
   tenant_status: string | null;
   agent_type: string | null;
   monthly_rent: number | null;
+  stage: string | null;
   total_matched: number;
 }
 
@@ -39,12 +41,33 @@ interface Totals {
   verified: number;
   active30d: number;
   new30d: number;
+  rent_request: number;
+  processing: number;
+  stage_verified: number;
+  paid: number;
 }
 
 const PAGE_SIZE = 50;
 
 const fmt = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : n.toLocaleString();
+
+type StageKey = 'rent_request' | 'processing' | 'verified' | 'paid';
+
+const STAGES: {
+  key: StageKey;
+  label: string;
+  icon: typeof FileText;
+  badgeClass: string;
+  countKey: keyof Totals;
+}[] = [
+  { key: 'rent_request', label: 'Rent Requests', icon: FileText, badgeClass: 'bg-amber-500/10 text-amber-600 border-amber-500/30', countKey: 'rent_request' },
+  { key: 'processing', label: 'Processing', icon: Clock3, badgeClass: 'bg-blue-500/10 text-blue-600 border-blue-500/30', countKey: 'processing' },
+  { key: 'verified', label: 'Verified', icon: BadgeCheck, badgeClass: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30', countKey: 'stage_verified' },
+  { key: 'paid', label: 'Paid', icon: Wallet, badgeClass: 'bg-violet-500/10 text-violet-600 border-violet-500/30', countKey: 'paid' },
+];
+
+const STAGE_BY_KEY = Object.fromEntries(STAGES.map((s) => [s.key, s])) as Record<StageKey, typeof STAGES[number]>;
 
 interface CRMDirectoryPanelProps {
   role: Extract<AppRole, 'tenant' | 'agent'>;
@@ -57,6 +80,9 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<DirectoryRow | null>(null);
+  const [stage, setStage] = useState<StageKey | null>(null);
+
+  const showStages = role === 'tenant';
 
   // Debounce search & reset page
   useEffect(() => {
@@ -66,6 +92,9 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
     }, 300);
     return () => clearTimeout(t);
   }, [searchInput]);
+
+  // Reset page when changing stage
+  useEffect(() => { setPage(0); }, [stage]);
 
   const { data: totals } = useQuery<Totals>({
     queryKey: ['crm-directory-totals', role],
@@ -78,17 +107,22 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
         verified: Number(row?.verified ?? 0),
         active30d: Number(row?.active30d ?? 0),
         new30d: Number(row?.new30d ?? 0),
+        rent_request: Number(row?.rent_request ?? 0),
+        processing: Number(row?.processing ?? 0),
+        stage_verified: Number(row?.stage_verified ?? 0),
+        paid: Number(row?.paid ?? 0),
       };
     },
     staleTime: 120_000,
   });
 
   const { data: rows, isLoading, isFetching } = useQuery<DirectoryRow[]>({
-    queryKey: ['crm-directory-rows', role, search, page],
+    queryKey: ['crm-directory-rows', role, search, stage, page],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_crm_directory', {
         _role: role,
         _search: search || null,
+        _stage: showStages ? stage : null,
         _limit: PAGE_SIZE,
         _offset: page * PAGE_SIZE,
       });
@@ -134,6 +168,44 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
         <KPICard title="New (30d)" value={fmt(totals?.new30d ?? 0)} icon={Sparkles} color="bg-purple-500/10 text-purple-600" />
       </div>
 
+      {/* Lifecycle stage tabs (tenants only) */}
+      {showStages && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setStage(null)}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
+              stage === null
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-muted-foreground border-border hover:bg-muted/50',
+            )}
+          >
+            All
+            <span className="opacity-70">{fmt(totals?.total ?? 0)}</span>
+          </button>
+          {STAGES.map((s) => {
+            const Icon = s.icon;
+            const active = stage === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setStage(s.key)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
+                  active
+                    ? cn(s.badgeClass, 'ring-1 ring-inset ring-current/30')
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted/50',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {s.label}
+                <span className="opacity-70">{fmt(Number(totals?.[s.countKey] ?? 0))}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -166,7 +238,10 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
                 {role === 'agent' ? (
                   <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Territory</th>
                 ) : (
-                  <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Status</th>
+                  <>
+                    <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Stage</th>
+                    <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Status</th>
+                  </>
                 )}
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">National ID</th>
                 <th className="px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">Verified</th>
@@ -178,14 +253,14 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 8 }).map((__, j) => (
+                    {Array.from({ length: role === 'agent' ? 8 : 9 }).map((__, j) => (
                       <td key={j} className="px-3 py-3"><div className="h-4 w-20 bg-muted animate-pulse rounded" /></td>
                     ))}
                   </tr>
                 ))
               ) : list.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-10 text-center text-muted-foreground">No records found</td>
+                  <td colSpan={role === 'agent' ? 8 : 9} className="px-3 py-10 text-center text-muted-foreground">No records found</td>
                 </tr>
               ) : (
                 list.map((r) => (
@@ -209,11 +284,21 @@ export function CRMDirectoryPanel({ role, title, subtitle }: CRMDirectoryPanelPr
                     {role === 'agent' ? (
                       <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{r.territory || '—'}</td>
                     ) : (
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        {r.tenant_status ? (
-                          <Badge variant="secondary" className="text-xs">{r.tenant_status}</Badge>
-                        ) : '—'}
-                      </td>
+                      <>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          {r.stage && STAGE_BY_KEY[r.stage as StageKey] ? (
+                            <Badge className={cn('text-xs border gap-1', STAGE_BY_KEY[r.stage as StageKey].badgeClass)}>
+                              {(() => { const I = STAGE_BY_KEY[r.stage as StageKey].icon; return <I className="h-3 w-3" />; })()}
+                              {STAGE_BY_KEY[r.stage as StageKey].label}
+                            </Badge>
+                          ) : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          {r.tenant_status ? (
+                            <Badge variant="secondary" className="text-xs">{r.tenant_status}</Badge>
+                          ) : '—'}
+                        </td>
+                      </>
                     )}
                     <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">{r.national_id || '—'}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
