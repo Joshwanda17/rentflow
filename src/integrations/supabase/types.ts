@@ -20133,6 +20133,7 @@ export type Database = {
           _offset?: number
           _role: Database["public"]["Enums"]["app_role"]
           _search?: string
+          _stage?: string
         }
         Returns: {
           agent_type: string
@@ -20148,6 +20149,7 @@ export type Database = {
           national_id: string
           phone: string
           region: string
+          stage: string
           tenant_status: string
           territory: string
           total_matched: number
@@ -20159,6 +20161,10 @@ export type Database = {
         Returns: {
           active30d: number
           new30d: number
+          paid: number
+          processing: number
+          rent_request: number
+          stage_verified: number
           total: number
           verified: number
         }[]
