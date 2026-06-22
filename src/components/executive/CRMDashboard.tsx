@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
+import { CallScriptGuide } from './CallScriptGuide';
 import { MessageSquare, Clock, ThumbsUp, Users, AlertCircle, MailOpen } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -33,6 +34,8 @@ export function CRMDashboard() {
 
   return (
     <div className="space-y-6">
+      <CallScriptGuide />
+
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <KPICard title="Total Inquiries" value={rows.length} icon={MessageSquare} loading={isLoading} />
         <KPICard title="Unread" value={unread} icon={MailOpen} loading={isLoading} color="bg-destructive/10 text-destructive" />
