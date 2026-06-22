@@ -3937,18 +3937,26 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
 
   /* ─── Bulk-send the "Maturity Notice" email to every partner expiring soon. ─── */
   const [sendingNotices, setSendingNotices] = useState(false);
-  async function handleSendMaturityNotices() {
-    if (sendingNotices) return;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmPartnerIds, setConfirmPartnerIds] = useState<string[]>([]);
+
+  function openMaturityConfirm() {
     const partnerIds = Array.from(new Set(filtered.map(p => p.investorId).filter(Boolean)));
     if (partnerIds.length === 0) {
       toast.info('No partners to notify');
       return;
     }
-    if (!window.confirm(`Send the "Maturity Notice" email to ${partnerIds.length} partner(s) whose portfolios are expiring soon?`)) return;
+    setConfirmPartnerIds(partnerIds);
+    setConfirmOpen(true);
+  }
+
+  async function handleConfirmSend() {
+    setConfirmOpen(false);
+    if (sendingNotices || confirmPartnerIds.length === 0) return;
     setSendingNotices(true);
     try {
       const { data, error } = await supabase.functions.invoke('bulk-send-maturity-notice', {
-        body: { partnerIds },
+        body: { partnerIds: confirmPartnerIds },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -3963,6 +3971,7 @@ function ExpiringPortfoliosDialog({ open, onOpenChange, portfolios }: {
       toast.error(e?.message || 'Failed to send maturity notices');
     } finally {
       setSendingNotices(false);
+      setConfirmPartnerIds([]);
     }
   }
 
