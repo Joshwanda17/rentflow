@@ -2,6 +2,7 @@ import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayo
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import { CRMDashboard } from '@/components/executive/CRMDashboard';
 import { CRMDirectoryPanel } from '@/components/executive/CRMDirectoryPanel';
+import { CRMLandlordsPanel } from '@/components/executive/CRMLandlordsPanel';
 
 export default function CRMDashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('crm');
@@ -22,6 +23,13 @@ export default function CRMDashboardPage() {
             role="agent"
             title="All Agents"
             subtitle="Every agent on the platform with full profile details. Click a row to view more."
+          />
+        );
+      case 'all-landlords':
+        return (
+          <CRMLandlordsPanel
+            title="All Landlords"
+            subtitle="Every landlord on the platform with full details and payout info. Click a row to view more."
           />
         );
       default:
