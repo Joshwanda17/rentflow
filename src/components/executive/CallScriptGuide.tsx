@@ -96,7 +96,7 @@ const TONE_GUIDE: { icon: typeof Smile; label: string; desc: string }[] = [
 ];
 
 export function CallScriptGuide() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   return (
     <Card className="overflow-hidden border-primary/20">
