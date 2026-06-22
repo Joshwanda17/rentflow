@@ -36,6 +36,8 @@ function buildTemplateData(opts: {
   start_date: string;
   maturity_date: string;
   currency: string;
+  renew_url?: string;
+  redeem_url?: string;
 }) {
   return {
     partner_name: opts.partner_name,
@@ -48,6 +50,8 @@ function buildTemplateData(opts: {
     company_name: "Welile",
     logo_url: "https://welilereceipts.com/welile-logo.png",
     dashboard_url: "https://welilereceipts.com/auth",
+    renew_url: opts.renew_url || "",
+    redeem_url: opts.redeem_url || "",
     unsubscribe_url: "https://welile.com/unsubscribe",
     terms_url: "https://welilereceipts.com/partners-terms",
     privacy_url: "https://welilereceipts.com/privacy",
@@ -177,6 +181,8 @@ Deno.serve(async (req) => {
           start_date: fmtDate(now.toISOString()),
           maturity_date: fmtDate(maturity.toISOString()),
           currency: "UGX",
+          renew_url: "https://welilereceipts.com/portfolios/PF-TEST-001/renew",
+          redeem_url: "https://welilereceipts.com/portfolios/PF-TEST-001/redeem",
         }),
       });
       return json({ ok: ok === "sent", outcome: ok, test: true, recipient: testEmail }, ok === "sent" ? 200 : 502);
@@ -273,6 +279,8 @@ Deno.serve(async (req) => {
           start_date: fmtDate(p.created_at),
           maturity_date: fmtDate(p.maturity_date),
           currency: p.display_currency || "UGX",
+          renew_url: `https://welilereceipts.com/portfolios/${p.id}/renew`,
+          redeem_url: `https://welilereceipts.com/portfolios/${p.id}/redeem`,
         }),
       });
       if (outcome === "sent") counts.sent++;

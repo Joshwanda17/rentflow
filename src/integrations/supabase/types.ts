@@ -12471,6 +12471,68 @@ export type Database = {
           },
         ]
       }
+      portfolio_action_requests: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          maturity_date: string | null
+          message: string | null
+          partner_email: string | null
+          partner_id: string
+          partner_name: string | null
+          portfolio_code: string | null
+          portfolio_id: string
+          portfolio_name: string | null
+          portfolio_value: number
+          request_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          maturity_date?: string | null
+          message?: string | null
+          partner_email?: string | null
+          partner_id: string
+          partner_name?: string | null
+          portfolio_code?: string | null
+          portfolio_id: string
+          portfolio_name?: string | null
+          portfolio_value?: number
+          request_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          maturity_date?: string | null
+          message?: string | null
+          partner_email?: string | null
+          partner_id?: string
+          partner_name?: string | null
+          portfolio_code?: string | null
+          portfolio_id?: string
+          portfolio_name?: string | null
+          portfolio_value?: number
+          request_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_action_requests_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "investor_portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portfolio_renewals: {
         Row: {
           created_at: string

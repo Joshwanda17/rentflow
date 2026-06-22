@@ -13,6 +13,8 @@ interface PartnershipMaturityNoticeProps {
   company_name?: string
   logo_url?: string
   dashboard_url?: string
+  renew_url?: string
+  redeem_url?: string
   unsubscribe_url?: string
   privacy_url?: string
   terms_url?: string
@@ -65,11 +67,16 @@ export function PartnershipMaturityNotice({
   company_name = 'Welile',
   logo_url = 'https://welilereceipts.com/welile-logo.png',
   dashboard_url = 'https://welilereceipts.com/dashboard/funder',
+  renew_url = '',
+  redeem_url = '',
   unsubscribe_url = 'https://welile.com/unsubscribe',
   privacy_url = 'https://welile.com/company-profile',
   terms_url = 'https://welile.com/company-profile',
 }: PartnershipMaturityNoticeProps) {
   const fmtAmount = formatAmount(partnership_amount, currency)
+  const portfolioPath = encodeURIComponent(portfolio_id || '')
+  const renewHref = renew_url || `https://welilereceipts.com/portfolios/${portfolioPath}/renew`
+  const redeemHref = redeem_url || `https://welilereceipts.com/portfolios/${portfolioPath}/redeem`
 
   return (
     <Html>
@@ -244,7 +251,7 @@ export function PartnershipMaturityNotice({
                                   <table border={0} cellPadding={0} cellSpacing={0} role="presentation">
                                     <tbody><tr>
                                       <td style={{ backgroundColor: '#7b19d4', backgroundImage: 'linear-gradient(135deg, #7b19d4 0%, #9333ea 100%)', borderRadius: '8px' }}>
-                                        <a href={dashboard_url} style={{ display: 'inline-block', padding: '11px 26px', color: '#ffffff', fontSize: '13px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.4px' }}>
+                                        <a href={renewHref} style={{ display: 'inline-block', padding: '11px 26px', color: '#ffffff', fontSize: '13px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.4px' }}>
                                           Renew Partnership
                                         </a>
                                       </td>
@@ -288,7 +295,7 @@ export function PartnershipMaturityNotice({
                                   <table border={0} cellPadding={0} cellSpacing={0} role="presentation">
                                     <tbody><tr>
                                       <td style={{ backgroundColor: '#21C45D', backgroundImage: 'linear-gradient(135deg, #16a34a 0%, #21C45D 100%)', borderRadius: '8px' }}>
-                                        <a href={dashboard_url} style={{ display: 'inline-block', padding: '11px 26px', color: '#ffffff', fontSize: '13px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.4px' }}>
+                                        <a href={redeemHref} style={{ display: 'inline-block', padding: '11px 26px', color: '#ffffff', fontSize: '13px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.4px' }}>
                                           Redeem Capital
                                         </a>
                                       </td>
