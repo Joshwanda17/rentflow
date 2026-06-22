@@ -252,9 +252,9 @@ export function PartnerPortfolioCompounded({
                 {timeline.length > 0 && (
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
-                    <Text style={timelineTitle}>Compounding breakdown</Text>
+                    <Text style={timelineTitle}>Projected compounding schedule</Text>
                     <Text style={timelineSubtitle}>
-                      Here is how your portfolio has compounded at the rate of ({roiLabel}).
+                      This is projected from your new portfolio value ({formattedNewTotal}) at the rate of ({roiLabel}) for the remaining months of your portfolio.
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
                       <tbody>
@@ -269,7 +269,7 @@ export function PartnerPortfolioCompounded({
                               <td valign="top" style={{ ...timelineRowCell, ...(isLast ? { paddingBottom: 4 } : {}) }}>
                                 <Text style={timelineCycleLabel}>
                                   {row.cycleLabel}
-                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Latest</span>}
+                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Next</span>}
                                   {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
                                 </Text>
                                 <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
