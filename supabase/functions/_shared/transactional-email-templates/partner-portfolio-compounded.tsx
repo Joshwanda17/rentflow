@@ -94,40 +94,26 @@ export function PartnerPortfolioCompounded({
   dashboard_url = 'https://welilereceipts.com/auth',
 }: PartnerPortfolioCompoundedProps) {
   const year = new Date().getFullYear()
-  // For a new compounding portfolio the principal is the initial contribution.
-  const principalNum = Number(String(principal !== undefined && principal !== '' ? principal : initial_partnership_amount).replace(/,/g, '')) || 0
-  const initNum = Number(String(initial_partnership_amount).replace(/,/g, '')) || 0
+  // Existing-partner compound event: the portfolio earned a return and was
+  // compounded into a new total. Show what was earned this cycle.
+  const principalNum = Number(String(initial_partnership_amount).replace(/,/g, ''))
+    || Number(String(principal).replace(/,/g, '')) || 0
   const retNum = Number(String(return_amount).replace(/,/g, '')) || 0
-  const newTotalNum = Number(String(new_total_partnership_value).replace(/,/g, '')) || 0
+  const newTotalNum = Number(String(new_total_partnership_value).replace(/,/g, '')) || (principalNum + retNum)
 
-  // Headline value: prefer an explicit new total, otherwise fall back to principal.
-  const headlineNum = newTotalNum > 0 ? newTotalNum : (principalNum > 0 ? principalNum : initNum)
-  const formattedNewTotal = formatAmount(Math.round(headlineNum), currency)
-  const formattedPrincipal = formatAmount(Math.round(principalNum > 0 ? principalNum : initNum), currency)
+  const formattedInitial = formatAmount(Math.round(principalNum), currency)
+  const formattedReturn = formatAmount(Math.round(retNum), currency)
+  const formattedNewTotal = formatAmount(Math.round(newTotalNum), currency)
   const roiLabel = resolveRoiLabel(roi_percentage, roi_return, principalNum)
 
-  const creationDateLabel = creation_date || compound_date || contribution_date || 'the date shown above'
-
-  const timeline = Array.isArray(compound_history) && compound_history.length > 0
-    ? compound_history.map((row, index) => ({
-      cycleLabel: row.month_name
-        ? `Month ${row.cycle || index + 1} — ${row.month_name}`
-        : `Month ${row.cycle || index + 1}`,
-      dateLabel: row.date,
-      before: Number(String(row.balance_before ?? 0).replace(/,/g, '')) || 0,
-      earned: Number(String(row.return_amount ?? 0).replace(/,/g, '')) || 0,
-      after: Number(String(row.balance_after ?? 0).replace(/,/g, '')) || 0,
-      // Forward projection — first upcoming month is highlighted as "Next".
-      isCurrent: index === 0,
-    }))
-    : []
+  const compoundDateLabel = compound_date || contribution_date || creation_date || 'the date shown above'
 
   return (
     <Html>
       <Head>
         <style>{clientOverrides}</style>
       </Head>
-      <Preview>New portfolio account active — value {formattedNewTotal}</Preview>
+      <Preview>Portfolio compounded — new value {formattedNewTotal}</Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
           <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
@@ -144,7 +130,7 @@ export function PartnerPortfolioCompounded({
                           <Img src={logo_url} alt={`${company_name} Technologies Limited`} width="130" style={logoImg} />
                         </td>
                         <td align="right" valign="middle" className="hide-mobile" style={secureLabel}>
-                          New Portfolio
+                          Compounding Confirmation
                         </td>
                       </tr></tbody>
                     </table>
@@ -153,15 +139,19 @@ export function PartnerPortfolioCompounded({
 
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '40px 40px 20px 40px' }}>
-                    <Heading style={heroH1}>New Portfolio Account Created</Heading>
+                    <Heading style={heroH1}>Portfolio Successfully Compounded</Heading>
                   </td>
                 </tr>
 
                 <tr>
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
                     <Text style={greetingText}>Dear {partner_name},</Text>
+                    <Text style={introText}>I hope this message finds you well.</Text>
+                    <Text style={introText}>
+                      We are pleased to confirm the successful compounding of your portfolio (<span style={portfolioIdAccent}>{portfolio_id}</span>) with {company_name} Technologies Limited.
+                    </Text>
                     <Text style={{ ...introText, margin: 0 }}>
-                      We are pleased to confirm that your Compounding Portfolio has been successfully created on <strong>{creationDateLabel}</strong> and is now active.
+                      On the <strong>{compoundDateLabel}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedInitial}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedNewTotal}</strong>.
                     </Text>
                   </td>
                 </tr>
@@ -171,91 +161,20 @@ export function PartnerPortfolioCompounded({
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={highlightCard}>
                       <tbody>
                         <tr>
+                          <td align="center" style={returnCardInner}>
+                            <Text style={returnEyebrow}>Return Earned ({roiLabel})</Text>
+                            <Text style={returnValue}>+{formattedReturn}</Text>
+                          </td>
+                        </tr>
+                        <tr>
                           <td align="center" style={highlightInner}>
-                            <Text style={highlightEyebrow}>Portfolio Value</Text>
+                            <Text style={highlightEyebrow}>New Total Partnership Value</Text>
                             <Text style={highlightValue}>{formattedNewTotal}</Text>
+                            <Text style={highlightSub}>Your portfolio has been compounded accordingly.</Text>
                           </td>
                         </tr>
                       </tbody>
                     </table>
-                  </td>
-                </tr>
-
-                {timeline.length > 0 && (
-                <tr>
-                  <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
-                    <Text style={timelineTitle}>Projected compounding schedule</Text>
-                    <Text style={timelineSubtitle}>
-                      This is projected basing on your Principal ({formattedPrincipal}) at the rate of ({roiLabel}).
-                    </Text>
-                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={timelineCard}>
-                      <tbody>
-                        {timeline.map((row, i) => {
-                          const isLast = i === timeline.length - 1
-                          return (
-                            <tr key={i}>
-                              <td width={28} valign="top" style={timelineRailCell}>
-                                <div style={{ ...timelineDot, ...(row.isCurrent ? timelineDotCurrent : {}) }} />
-                                {!isLast && <div style={timelineLine} />}
-                              </td>
-                              <td valign="top" style={{ ...timelineRowCell, ...(isLast ? { paddingBottom: 4 } : {}) }}>
-                                <Text style={timelineCycleLabel}>
-                                  {row.cycleLabel}
-                                  {row.isCurrent && <span style={timelineCurrentTag}>&nbsp;· Next</span>}
-                                  {row.dateLabel && <span style={timelineDateLabel}>&nbsp;· {row.dateLabel}</span>}
-                                </Text>
-                                <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginTop: 6 }}>
-                                  <tbody>
-                                    <tr>
-                                      <td style={timelineKvLabel}>Opening principal</td>
-                                      <td align="right" style={timelineKvValue}>{formatAmount(row.before, currency)}</td>
-                                    </tr>
-                                    <tr>
-                                      <td style={timelineKvLabel}>Return compounded ({roiLabel})</td>
-                                      <td align="right" style={timelineKvEarned}>+{formatAmount(row.earned, currency)}</td>
-                                    </tr>
-                                    <tr>
-                                      <td style={timelineKvLabelStrong}>Principal after compound</td>
-                                      <td align="right" style={timelineKvAfter}>{formatAmount(row.after, currency)}</td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                    <Text style={timelineFootnote}>Projection assumes the portfolio continues compounding at the same monthly return through maturity. Actual values may vary if you withdraw, top up, or change the portfolio.</Text>
-                  </td>
-                </tr>
-                )}
-
-                <tr>
-                  <td align="left" className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
-                    <Text style={sectionTitle}>What Happens Next?</Text>
-                    <Text style={sectionBody}>
-                      Your portfolio is configured to automatically compound eligible returns according to the terms of your selected portfolio strategy. This means that qualifying returns may be topped-up to support long-term portfolio growth over the life of the portfolio.
-                    </Text>
-
-                    <Text style={{ ...sectionTitle, marginTop: '25px' }}>Manage Your Portfolio</Text>
-                    <Text style={sectionBody}>
-                      You can monitor your portfolio performance, review compounding activity, track projected growth, and manage your portfolio settings directly from your dashboard.
-                    </Text>
-
-                    <table border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ margin: '18px 0 18px 0' }}>
-                      <tbody><tr>
-                        <td align="center" style={{ borderRadius: '8px', backgroundColor: '#7b19d4' }}>
-                          <Link href={dashboard_url} style={ctaLink}>
-                            Access Dashboard
-                          </Link>
-                        </td>
-                      </tr></tbody>
-                    </table>
-
-                    <Text style={sectionBody}>
-                      If your account is currently managed by an authorized proxy agent, they may also assist in monitoring and managing the portfolio on your behalf.
-                    </Text>
                   </td>
                 </tr>
 
@@ -380,6 +299,11 @@ const highlightCard: React.CSSProperties = { border: `1px solid ${BORDER}`, bord
 const highlightInner: React.CSSProperties = { backgroundColor: ACCENT_BG, padding: '30px 20px' }
 const highlightEyebrow: React.CSSProperties = { margin: '0 0 10px 0', color: SUB, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px' }
 const highlightValue: React.CSSProperties = { margin: '0 0 5px 0', color: BRAND, fontSize: '34px', fontWeight: 800, letterSpacing: '-1px' }
+const highlightSub: React.CSSProperties = { margin: 0, color: MUTED, fontSize: '13px', fontWeight: 500 }
+const portfolioIdAccent: React.CSSProperties = { color: '#a855f7' }
+const returnCardInner: React.CSSProperties = { backgroundColor: SUCCESS_BG, padding: '30px 20px', borderBottom: `1px solid ${BORDER}` }
+const returnEyebrow: React.CSSProperties = { margin: '0 0 10px 0', color: SUCCESS, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px' }
+const returnValue: React.CSSProperties = { margin: '0 0 5px 0', color: SUCCESS, fontSize: '24px', fontWeight: 700, letterSpacing: '-0.5px' }
 
 const sectionTitle: React.CSSProperties = { margin: '0 0 12px 0', color: INK, fontSize: '18px', fontWeight: 800 }
 const sectionBody: React.CSSProperties = { margin: '0 0 15px 0', color: BODY, fontSize: '15px', lineHeight: '24px' }
@@ -424,25 +348,21 @@ export const template = {
     const principalNum = Number(String(data?.principal !== undefined ? data.principal : data?.initial_partnership_amount ?? 0).replace(/,/g, '')) || 0
     const newTotalNum = Number(String(data?.new_total_partnership_value ?? 0).replace(/,/g, '')) || 0
     const headline = newTotalNum > 0 ? newTotalNum : principalNum
-    return `New Portfolio Account Created — Value ${formatAmount(headline, currency)}`
+    return `Portfolio Compounded — New Value ${formatAmount(headline, currency)}`
   },
   displayName: 'Partner Portfolio Compounded (Existing Partner)',
   previewData: {
     partner_name: 'Sarah Nakato',
     portfolio_id: 'PF-1A2B3C4D',
     creation_date: '20th of April, 2026',
-    initial_partnership_amount: 5_000_000,
-    principal: 5_000_000,
+    compound_date: '20th of June, 2026',
+    initial_partnership_amount: 5_600_000,
+    principal: 5_600_000,
     roi_percentage: 12,
-    return_amount: 0,
-    new_total_partnership_value: 5_000_000,
-    payment_number: 1,
+    return_amount: 672_000,
+    new_total_partnership_value: 6_272_000,
+    payment_number: 2,
     contribution_date: '20 April 2026',
-    compound_history: [
-      { cycle: 1, date: '20 May 2026', balance_before: 5_000_000, return_amount: 600_000, balance_after: 5_600_000 },
-      { cycle: 2, date: '20 June 2026', balance_before: 5_600_000, return_amount: 672_000, balance_after: 6_272_000 },
-      { cycle: 3, date: '20 July 2026', balance_before: 6_272_000, return_amount: 752_640, balance_after: 7_024_640 },
-    ],
     currency: 'UGX',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
