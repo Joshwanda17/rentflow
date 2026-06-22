@@ -10,6 +10,7 @@ import { TenantOpsHub } from '@/components/executive/TenantOpsHub';
 import { LandlordOpsDashboard } from '@/components/executive/LandlordOpsDashboard';
 import { PartnersOpsDashboard } from '@/components/executive/PartnersOpsDashboard';
 import { CRMDashboard } from '@/components/executive/CRMDashboard';
+import { LocationManager } from '@/components/ops/LocationManager';
 
 const dashboards: Record<string, { title: string; component: React.FC }> = {
   ceo: { title: 'CEO Dashboard', component: CEODashboard },
@@ -20,6 +21,7 @@ const dashboards: Record<string, { title: string; component: React.FC }> = {
   'landlord-ops': { title: 'Landlord Operations', component: LandlordOpsDashboard },
   'partners-ops': { title: 'Partners Operations', component: PartnersOpsDashboard },
   crm: { title: 'CRM Dashboard', component: CRMDashboard },
+  locations: { title: 'Location Management', component: LocationManager },
 };
 
 export default function ExecutiveHub() {
