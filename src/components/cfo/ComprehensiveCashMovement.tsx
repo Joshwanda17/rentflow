@@ -1023,9 +1023,15 @@ function TreasuryWalletFlowSummary({
         // wallet-only agent float settlement). Never drop these.
         const isAlwaysToCompany = ALWAYS_WALLET_TO_COMPANY.has(w.category);
         if (w.direction === 'cash_in' && hasPlatformOut) {
-          const bucketCategory = (GENERIC_WALLET_CATEGORIES.has(w.category) && platformOutCategory)
+          let bucketCategory = (GENERIC_WALLET_CATEGORIES.has(w.category) && platformOutCategory)
             ? platformOutCategory
             : w.category;
+          // If the category is still generic (e.g. credit-draw / advance
+          // disbursements post both legs as `wallet_deposit`), recover the real
+          // purpose from the originating source table so it isn't lost to "Other".
+          if (GENERIC_WALLET_CATEGORIES.has(bucketCategory) && w.source_table && SOURCE_TABLE_CATEGORY[w.source_table]) {
+            bucketCategory = SOURCE_TABLE_CATEGORY[w.source_table];
+          }
           toWallets.push({ amount: amt, category: bucketCategory, party: w.user_id ?? null, date: w.transaction_date });
         } else if (w.direction === 'cash_out' && (hasPlatformIn || hasBridgeIn || isAlwaysToCompany)) {
           // Exclude personal wallet withdrawals — they are wallet → external, not wallet → company
