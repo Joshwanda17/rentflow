@@ -44,6 +44,7 @@ export function useRentPaymentStatusMutation(agentId?: string) {
       qc.invalidateQueries({ queryKey: ['agent-daily-eligibility'] });
       qc.invalidateQueries({ queryKey: ['agent-capacity'] });
       qc.invalidateQueries({ queryKey: ['agent-tenants'] });
+      qc.invalidateQueries({ queryKey: ['agent-dead-tenants'] });
     },
     onError: (err: any) => {
       const msg = err?.message || 'Could not update payment status.';
