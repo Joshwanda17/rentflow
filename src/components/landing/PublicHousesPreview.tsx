@@ -136,6 +136,8 @@ export function PublicHousesPreview({ authenticated = false }: PublicHousesPrevi
                   <img
                     src={house.image_urls[0]}
                     alt={house.title}
+                    width={176}
+                    height={112}
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />

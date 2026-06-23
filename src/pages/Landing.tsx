@@ -155,6 +155,8 @@ export default function Landing() {
         <motion.img
           src={welileLogo}
           alt="Welile"
+          width={640}
+          height={640}
           className="h-14 w-auto mx-auto"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
