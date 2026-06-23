@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 
 const ORIGIN = getPublicOrigin();
 const PAGE_URL = `${ORIGIN}/rent-money`;
@@ -95,6 +96,9 @@ Join now: ${shareLink}`;
 
   return (
     <>
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      </Helmet>
 
       <div className="min-h-screen bg-background">
         {/* Hero */}
