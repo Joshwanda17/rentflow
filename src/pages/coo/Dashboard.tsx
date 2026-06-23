@@ -260,6 +260,13 @@ export default function COODashboardPage() {
             <BusinessAdvanceQueue stage="coo" />
           </div>
         );
+      case 'scale-vision':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            <COOScaleVisionView />
+          </div>
+        );
       default:
         return (
           <div className="space-y-5">
