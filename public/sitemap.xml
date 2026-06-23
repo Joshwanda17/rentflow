@@ -66,6 +66,37 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://welilereceipts.com/auth</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://welilereceipts.com/onboarding</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://welilereceipts.com/unsubscribe</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://welilereceipts.com/stop-sms</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://welilereceipts.com/resume-sms</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://welilereceipts.com/house/BtGxR2</loc>
+    <lastmod>2026-06-23</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://welilereceipts.com/house/8YFnaE</loc>
     <lastmod>2026-06-23</lastmod>
     <changefreq>weekly</changefreq>
