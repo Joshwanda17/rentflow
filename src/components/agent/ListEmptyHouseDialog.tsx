@@ -22,6 +22,7 @@ import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import VerificationRequestDetailSheet from './VerificationRequestDetailSheet';
 import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
 import type { LandlordOption } from './LandlordSearchSelect';
+import { HouseLocationMapPreview } from './HouseLocationMapPreview';
 
 const APP_URL = 'https://welilereceipts.com';
 
