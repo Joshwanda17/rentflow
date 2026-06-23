@@ -23,6 +23,7 @@ import VerificationRequestDetailSheet from './VerificationRequestDetailSheet';
 import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
 import type { LandlordOption } from './LandlordSearchSelect';
 import { HouseLocationMapPreview } from './HouseLocationMapPreview';
+import { GpsQualityIndicator } from '@/components/shared/GpsQualityIndicator';
 
 const APP_URL = 'https://welilereceipts.com';
 
@@ -2143,6 +2144,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 <div className="mt-3 space-y-1.5">
                   <HouseLocationMapPreview
                     position={{ lat: geo.lat, lng: geo.lng }}
+                    accuracy={geo.accuracy}
                     onChange={({ lat, lng }) =>
                       setGeo((g) => {
                         setGeoConfirmed(false);
@@ -2151,8 +2153,20 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                     }
                     height={200}
                   />
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <GpsQualityIndicator
+                      latitude={geo.lat}
+                      longitude={geo.lng}
+                      accuracy={geo.accuracy}
+                    />
+                    {geo.accuracy != null && geo.accuracy > 100 && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-destructive">
+                        <AlertTriangle className="h-3.5 w-3.5" /> Low accuracy — move outdoors & re-pin
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Check the pin sits on the house. Drag it or tap the map to nudge it to the exact spot before submitting.
+                    The shaded circle shows the GPS accuracy radius. Check the pin sits on the house — drag it or tap the map to nudge it to the exact spot before submitting.
                   </p>
                   <label
                     className={`mt-1 flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer ${

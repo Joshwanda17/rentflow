@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -16,6 +16,8 @@ type LatLng = { lat: number; lng: number };
 interface HouseLocationMapPreviewProps {
   /** Current pin position. */
   position: LatLng;
+  /** Reported GPS accuracy radius in metres (drawn as a circle around the pin). */
+  accuracy?: number | null;
   /** Called when the agent drags the pin or taps the map to fine-tune the spot. */
   onChange?: (pos: LatLng) => void;
   /** Map height in px. */
@@ -46,8 +48,17 @@ function ClickToMove({ onMove }: { onMove: (pos: LatLng) => void }) {
  * the agent can visually confirm, and (when `onChange` is provided) lets them
  * drag the pin or tap the map to nudge it to the exact spot before submitting.
  */
-export function HouseLocationMapPreview({ position, onChange, height = 200 }: HouseLocationMapPreviewProps) {
+export function HouseLocationMapPreview({ position, accuracy, onChange, height = 200 }: HouseLocationMapPreviewProps) {
   const interactive = !!onChange;
+  // Colour the accuracy ring by quality: green ≤25m, amber ≤100m, red beyond.
+  const ringColor =
+    accuracy == null
+      ? '#3b82f6'
+      : accuracy <= 25
+      ? '#10b981'
+      : accuracy <= 100
+      ? '#f59e0b'
+      : '#ef4444';
   return (
     <div className="overflow-hidden rounded-lg border border-border" style={{ height }}>
       <MapContainer
@@ -64,6 +75,13 @@ export function HouseLocationMapPreview({ position, onChange, height = 200 }: Ho
         />
         <Recenter pos={position} />
         {interactive && <ClickToMove onMove={onChange!} />}
+        {accuracy != null && accuracy > 0 && (
+          <Circle
+            center={[position.lat, position.lng]}
+            radius={accuracy}
+            pathOptions={{ color: ringColor, fillColor: ringColor, fillOpacity: 0.12, weight: 1.5 }}
+          />
+        )}
         <Marker
           position={[position.lat, position.lng]}
           draggable={interactive}
