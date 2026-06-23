@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import {
   Search, User, Mail, Calendar, RefreshCw, Wallet, Clock, CheckCircle2,
-  XCircle, Loader2, Hash, MessageSquare, Inbox,
+  XCircle, Loader2, Hash, MessageSquare, Inbox, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
