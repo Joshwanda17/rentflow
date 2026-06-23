@@ -185,6 +185,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // gets its own coordinates instead of a shared/blank location.
   const [geo, setGeo] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
   const [capturingGeo, setCapturingGeo] = useState(false);
+  // Agent must explicitly confirm the pinned GPS location is correct before submitting.
+  const [geoConfirmed, setGeoConfirmed] = useState(false);
   // Location quick-search (search & choose a specific known area).
   const [locQuery, setLocQuery] = useState('');
   const [locFocused, setLocFocused] = useState(false);
@@ -204,6 +206,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         setGeo({ lat: latitude, lng: longitude, accuracy: accuracy ?? null });
+        setGeoConfirmed(false);
         setCapturingGeo(false);
         toast.success('Exact location pinned for this house');
       },
@@ -214,6 +217,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           (pos) => {
             const { latitude, longitude, accuracy } = pos.coords;
             setGeo({ lat: latitude, lng: longitude, accuracy: accuracy ?? null });
+            setGeoConfirmed(false);
             setCapturingGeo(false);
             toast.success('Location pinned for this house');
           },
@@ -844,6 +848,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Pin the exact GPS location of this house');
         return false;
       }
+      // The agent must explicitly confirm the pinned location is correct.
+      if (!geoConfirmed) {
+        toast.error('Confirm the GPS location is correct before continuing');
+        return false;
+      }
     }
     if (s === 2) {
       // Photos are required.
@@ -906,6 +915,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   preflightGates.push({ label: 'Address', ok: !!form.address.trim(), hint: 'Enter the property address', step: 1 });
   preflightGates.push({ label: 'Village / Zone', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 1 });
   preflightGates.push({ label: 'GPS location pinned', ok: !!geo, hint: 'Stand at the house and pin its exact GPS coordinates', step: 1 });
+  preflightGates.push({ label: 'GPS location confirmed', ok: !!geo && geoConfirmed, hint: 'Tick the box confirming the pin sits on the house', step: 1 });
   preflightGates.push({ label: 'At least one photo', ok: images.length > 0, hint: 'Add at least one photo of the house', step: 2 });
   preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 3 });
   if (form.caretaker_type === 'other') {
@@ -1221,6 +1231,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setPhoneMatch(null);
     setGeo(null);
     setCapturingGeo(false);
+    setGeoConfirmed(false);
     setCheckingPhone(false);
     setStep(1);
     setImages([]);
@@ -2133,13 +2144,30 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   <HouseLocationMapPreview
                     position={{ lat: geo.lat, lng: geo.lng }}
                     onChange={({ lat, lng }) =>
-                      setGeo((g) => ({ lat, lng, accuracy: g?.accuracy ?? null }))
+                      setGeo((g) => {
+                        setGeoConfirmed(false);
+                        return { lat, lng, accuracy: g?.accuracy ?? null };
+                      })
                     }
                     height={200}
                   />
                   <p className="text-[11px] text-muted-foreground">
                     Check the pin sits on the house. Drag it or tap the map to nudge it to the exact spot before submitting.
                   </p>
+                  <label
+                    className={`mt-1 flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer ${
+                      attempted && !geoConfirmed ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={geoConfirmed}
+                      onCheckedChange={(v) => setGeoConfirmed(v === true)}
+                      className="mt-0.5"
+                    />
+                    <span className="text-xs font-medium leading-snug">
+                      I confirm this GPS location is correct and the pin sits on the actual house. *
+                    </span>
+                  </label>
                 </div>
               )}
             </div>
