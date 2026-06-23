@@ -22437,6 +22437,9 @@ export type Database = {
         | "house_listings.region_normalized"
         | "agent.contact_location_captured"
         | "listing_photo_added"
+        | "agent.allocation_return.requested"
+        | "agent.allocation_return.approved"
+        | "agent.allocation_return.rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -22702,6 +22705,9 @@ export const Constants = {
         "house_listings.region_normalized",
         "agent.contact_location_captured",
         "listing_photo_added",
+        "agent.allocation_return.requested",
+        "agent.allocation_return.approved",
+        "agent.allocation_return.rejected",
       ],
     },
   },
