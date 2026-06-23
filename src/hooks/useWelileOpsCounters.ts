@@ -79,12 +79,32 @@ export function counterLevel(path: CounterPath): CounterLevel {
 // today", matching what ops staff on the ground expect.
 const KAMPALA_OFFSET_MS = 3 * 60 * 60 * 1000;
 
-/** Start of the Kampala (UTC+3) calendar day that is `daysAgo` days before today, as a UTC Date. */
-function kampalaDayStart(daysAgo = 0, now: Date = new Date()): Date {
-  const shifted = new Date(now.getTime() + KAMPALA_OFFSET_MS);
+// Which timezone the day-window boundaries snap to.
+export type DayBoundary = 'kampala' | 'utc';
+const BOUNDARY_OFFSET_MS: Record<DayBoundary, number> = {
+  kampala: KAMPALA_OFFSET_MS,
+  utc: 0,
+};
+
+/** Start of the calendar day (in the given timezone) that is `daysAgo` days before today, as a UTC Date. */
+function tzDayStart(daysAgo = 0, boundary: DayBoundary = 'kampala', now: Date = new Date()): Date {
+  const offset = BOUNDARY_OFFSET_MS[boundary];
+  const shifted = new Date(now.getTime() + offset);
   shifted.setUTCHours(0, 0, 0, 0);
   shifted.setUTCDate(shifted.getUTCDate() - daysAgo);
-  return new Date(shifted.getTime() - KAMPALA_OFFSET_MS);
+  return new Date(shifted.getTime() - offset);
+}
+
+/**
+ * Converts a day-preset window (e.g. "1d", "7d") into an explicit `custom:<ISO>`
+ * window anchored to the chosen timezone's calendar-day boundary. Non-day
+ * windows ("all", "custom:…") are returned unchanged.
+ */
+export function applyDayBoundary(w: CounterWindow, boundary: DayBoundary): CounterWindow {
+  const m = /^(\d+)d$/.exec(w);
+  if (!m) return w;
+  const days = parseInt(m[1], 10);
+  return `custom:${tzDayStart(days - 1, boundary).toISOString()}` as CounterWindow;
 }
 
 export function windowToISO(w: CounterWindow): string | null {
@@ -97,7 +117,7 @@ export function windowToISO(w: CounterWindow): string | null {
   if (m) {
     const days = parseInt(m[1], 10);
     // "1d" = today (since Kampala midnight), "Nd" = last N Kampala calendar days.
-    return kampalaDayStart(days - 1).toISOString();
+    return tzDayStart(days - 1, 'kampala').toISOString();
   }
   return null;
 }
