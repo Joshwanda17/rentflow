@@ -17,7 +17,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Landmark, Loader2, CheckCircle2, Phone, ArrowRight,
-  Clock, User2, Home, ShieldCheck, RefreshCw, AlertTriangle, Timer
+  Clock, User2, Home, ShieldCheck, RefreshCw, AlertTriangle, Timer, RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -62,6 +62,11 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const [newPhoneReq, setNewPhoneReq] = useState('');
   const [phoneReqNote, setPhoneReqNote] = useState('');
   const [submittingPhoneReq, setSubmittingPhoneReq] = useState(false);
+  // "Resubmit to CFO" — return the allocated (not-yet-paid) landlord float back
+  // to the CFO for re-routing. Requires a reason and CFO approval.
+  const [showReturnPanel, setShowReturnPanel] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [submittingReturn, setSubmittingReturn] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
   // Incrementing resend cooldown: first send = 30s, each subsequent send +30s.
@@ -164,6 +169,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setShowPhoneChangeReq(false);
     setNewPhoneReq('');
     setPhoneReqNote('');
+    setShowReturnPanel(false);
+    setReturnReason('');
     cooldownStepRef.current = 0;
     autoSendRef.current = null;
     allocationPrepRef.current = null;
@@ -318,6 +325,43 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setAmountInput(String(r?.rent_amount ?? ''));
     setPhoneOverride('');
     setStep('otp');
+  };
+
+  // Resubmit to CFO — return the ring-fenced (not-yet-paid) landlord float for
+  // this allocation back to the CFO. The agent gives a reason; a CFO must
+  // approve. On approval the money goes back to the CFO and the landlord
+  // returns to Landlord Ops.
+  const submitAllocationReturn = async () => {
+    const allocId = allocation?.id || (selectedRequest as any)?.__allocationId;
+    if (!allocId) {
+      toast.error('This payout was not opened from a landlord allocation, so it cannot be resubmitted.');
+      return;
+    }
+    if (returnReason.trim().length < 10) {
+      toast.error('Add a reason (10+ characters)');
+      return;
+    }
+    setSubmittingReturn(true);
+    try {
+      const { data, error } = await supabase.rpc('request_allocation_return' as any, {
+        p_allocation_id: allocId,
+        p_reason: returnReason.trim(),
+      });
+      if (error || (data as any)?.success === false) {
+        throw new Error(error?.message || (data as any)?.error || 'Could not submit the request');
+      }
+      toast.success('Sent to CFO for approval', {
+        description: 'Once approved, the money returns to the CFO and the landlord goes back to Landlord Ops.',
+      });
+      qc.invalidateQueries({ queryKey: ['landlord-float-allocations'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
+      qc.invalidateQueries({ queryKey: ['agent-float-payout-requests'] });
+      handleClose();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not submit the request');
+    } finally {
+      setSubmittingReturn(false);
+    }
   };
 
   // Verified landlords have a locked number — send the requested change back to
@@ -833,14 +877,70 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                 <p className="text-xs text-destructive text-center">{disburseError}</p>
               )}
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full"
-                onClick={() => { if (allocation) { handleClose(); } else { resetForm(); } }}
-              >
-                {allocation ? '← Close' : '← Back to list'}
-              </Button>
+              {(allocation || (selectedRequest as any)?.__allocationId) && showReturnPanel && (
+                <div className="space-y-2 rounded-xl border-2 border-destructive/30 bg-destructive/5 p-3">
+                  <p className="text-xs font-semibold text-destructive">
+                    Send this landlord's allocated money back to the CFO
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    The CFO must approve. Once approved, the money returns to the CFO and the
+                    landlord goes back to Landlord Ops.
+                  </p>
+                  <Textarea
+                    value={returnReason}
+                    onChange={(e) => setReturnReason(e.target.value)}
+                    placeholder="Reason for sending it back (required, 10+ characters)"
+                    rows={3}
+                    maxLength={500}
+                    className="text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground text-right">
+                    {returnReason.trim().length}/10
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1"
+                      disabled={submittingReturn}
+                      onClick={() => { setShowReturnPanel(false); setReturnReason(''); }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="flex-1 gap-1.5"
+                      disabled={submittingReturn || returnReason.trim().length < 10}
+                      onClick={submitAllocationReturn}
+                    >
+                      {submittingReturn ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                      Send to CFO
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => { if (allocation) { handleClose(); } else { resetForm(); } }}
+                >
+                  {allocation ? '← Close' : '← Back to list'}
+                </Button>
+                {(allocation || (selectedRequest as any)?.__allocationId) && !showReturnPanel && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+                    onClick={() => setShowReturnPanel(true)}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Resubmit to CFO
+                  </Button>
+                )}
+              </div>
             </motion.div>
           )}
 
