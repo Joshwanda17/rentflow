@@ -380,7 +380,7 @@ export function WelileMissionBoard() {
                       title="View the exact houses & unlisted landlords matching this date range"
                     >
                       <CalendarDays className="h-3 w-3 -translate-y-px" />
-                      {windowDateRangeLabel(win, receivables?.earliest_date)}
+                      {windowDateRangeLabel(effectiveWin, receivables?.earliest_date)}
                       <ChevronRight className="h-3 w-3" />
                     </button>
                   )}
