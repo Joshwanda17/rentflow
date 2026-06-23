@@ -178,6 +178,7 @@ const COOTenantOpsReport = lazy(() => import('./pages/coo/reports/TenantOpsRepor
 const COOFinancialOpsReport = lazy(() => import('./pages/coo/reports/FinancialOpsReport'));
 const WelileAIPage = lazy(() => import('./components/ai-chat/WelileAIChatButton').then(m => ({ default: m.WelileAIPage })));
 const Terms = lazy(() => import('./pages/Terms'));
+const SeoResults = lazy(() => import('./pages/SeoResults'));
 const PartnersTerms = lazy(() => import('./pages/PartnersTerms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const ShareLocation = lazy(() => import('./pages/ShareLocation'));
