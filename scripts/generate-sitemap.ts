@@ -29,6 +29,11 @@ const staticEntries: SitemapEntry[] = [
   { path: '/ai', changefreq: 'weekly', priority: '0.7' },
   { path: '/terms', changefreq: 'monthly', priority: '0.3' },
   { path: '/privacy', changefreq: 'monthly', priority: '0.3' },
+  { path: '/auth', changefreq: 'monthly', priority: '0.4' },
+  { path: '/onboarding', changefreq: 'monthly', priority: '0.4' },
+  { path: '/unsubscribe', changefreq: 'yearly', priority: '0.2' },
+  { path: '/stop-sms', changefreq: 'yearly', priority: '0.2' },
+  { path: '/resume-sms', changefreq: 'yearly', priority: '0.2' },
 ];
 
 /** Minimal .env reader so the standalone script picks up Supabase creds. */
