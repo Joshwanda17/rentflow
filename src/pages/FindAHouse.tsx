@@ -111,11 +111,11 @@ function HouseImageCarousel({ images, title, onImageClick, layout = 'vertical' }
       </button>
       {images.length > 1 && (
         <>
-          <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
+          <button type="button" aria-label="Previous photo" onClick={(e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
             className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/45 backdrop-blur-md text-white rounded-full p-2 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 transition-transform">
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); }}
+          <button type="button" aria-label="Next photo" onClick={(e) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); }}
             className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/45 backdrop-blur-md text-white rounded-full p-2 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 transition-transform">
             <ChevronRight className="h-5 w-5" />
           </button>

@@ -174,6 +174,14 @@ export default function Landing() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         />
+        <motion.h1
+          className="text-foreground text-xl font-bold mt-3 max-w-[280px] mx-auto leading-snug"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+        >
+          Welile — Housing &amp; funding instantly
+        </motion.h1>
         <motion.p
           className="text-muted-foreground text-sm mt-2 max-w-[260px] mx-auto leading-relaxed"
           initial={{ opacity: 0 }}
