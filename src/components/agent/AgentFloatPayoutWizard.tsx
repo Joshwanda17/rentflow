@@ -56,8 +56,16 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const [resendCooldown, setResendCooldown] = useState(0);
   const [amountInput, setAmountInput] = useState<string>('');
   const [phoneOverride, setPhoneOverride] = useState<string>('');
+  // Landlord-Ops-verified landlords lock the phone number; agents request a
+  // change via Landlord Ops instead of editing it inline.
+  const [showPhoneChangeReq, setShowPhoneChangeReq] = useState(false);
+  const [newPhoneReq, setNewPhoneReq] = useState('');
+  const [phoneReqNote, setPhoneReqNote] = useState('');
+  const [submittingPhoneReq, setSubmittingPhoneReq] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
+  // Incrementing resend cooldown: first send = 30s, each subsequent send +30s.
+  const cooldownStepRef = useRef(0);
   const autoSendRef = useRef<string | null>(null);
   const allocationPrepRef = useRef<string | null>(null);
   // Landlords this agent has already sent an OTP to in this session. Once an
@@ -72,6 +80,12 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     }
     return () => clearTimeout(cooldownRef.current);
   }, [resendCooldown]);
+
+  // Bump the resend cooldown by another 30s step (30 → 60 → 90 …).
+  const bumpCooldown = () => {
+    cooldownStepRef.current += 1;
+    setResendCooldown(30 * cooldownStepRef.current);
+  };
 
   // While the payout wizard is open, suppress iOS PWA full-cache
   // invalidation and service-worker skipWaiting so dipping out to MoMo
@@ -123,7 +137,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
 
       const enriched = await Promise.all((data || []).map(async (r: any) => {
         const [{ data: landlord }, { data: tenant }, { data: existing }] = await Promise.all([
-          supabase.from('landlords').select('id, name, phone, mobile_money_number, latitude, longitude').eq('id', r.landlord_id).single(),
+          supabase.from('landlords').select('id, name, phone, mobile_money_number, latitude, longitude, verification_status, verified').eq('id', r.landlord_id).single(),
           supabase.from('profiles').select('id, full_name, phone').eq('id', r.tenant_id).single(),
           supabase.from('agent_float_withdrawals').select('id').eq('rent_request_id', r.id).eq('agent_id', user.id).maybeSingle(),
         ]);
@@ -147,6 +161,10 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setResendCooldown(0);
     setAmountInput('');
     setPhoneOverride('');
+    setShowPhoneChangeReq(false);
+    setNewPhoneReq('');
+    setPhoneReqNote('');
+    cooldownStepRef.current = 0;
     autoSendRef.current = null;
     allocationPrepRef.current = null;
     landlordOtp.resetOtp();
@@ -161,7 +179,14 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
 
   const defaultLandlordPhone =
     selectedRequest?.landlord?.mobile_money_number || selectedRequest?.landlord?.phone || '';
-  const landlordPhone = (phoneOverride.trim() || defaultLandlordPhone).trim();
+  // A landlord verified by Landlord Ops has a locked number — agents can't
+  // override it inline; they must send a change request back to Landlord Ops.
+  const landlordVerified =
+    selectedRequest?.landlord?.verification_status === 'verified' ||
+    selectedRequest?.landlord?.verified === true;
+  const landlordPhone = (
+    landlordVerified ? defaultLandlordPhone : (phoneOverride.trim() || defaultLandlordPhone)
+  ).trim();
 
   const parsedAmount = Number((amountInput || '').toString().replace(/[^\d.]/g, ''));
   const effectiveAmount =
@@ -225,7 +250,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     });
 
     if (challengeId) {
-      setResendCooldown(60);
+      bumpCooldown();
       toast.success(source === 'auto' ? 'OTP auto-sent to landlord\'s phone' : 'OTP sent to landlord\'s phone');
     } else {
       // Send failed — release the lock so the agent can legitimately retry.
@@ -283,7 +308,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setOtpCode('');
     const ok = await landlordOtp.resendPayoutOtp();
     if (ok) {
-      setResendCooldown(60);
+      bumpCooldown();
       toast.success('OTP resent to landlord\'s phone');
     }
   };
@@ -293,6 +318,43 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setAmountInput(String(r?.rent_amount ?? ''));
     setPhoneOverride('');
     setStep('otp');
+  };
+
+  // Verified landlords have a locked number — send the requested change back to
+  // Landlord Ops via a verification request instead of editing it here.
+  const submitPhoneChangeRequest = async () => {
+    if (!user || !selectedRequest) return;
+    const cleaned = newPhoneReq.replace(/\s+/g, '');
+    if (!/^(?:\+?256|0)?\d{9}$/.test(cleaned)) {
+      toast.error('Enter a valid Ugandan phone number');
+      return;
+    }
+    if (phoneReqNote.trim().length < 5) {
+      toast.error('Add a short reason for the change');
+      return;
+    }
+    setSubmittingPhoneReq(true);
+    try {
+      const { error } = await supabase.from('landlord_verification_requests').insert({
+        landlord_id: selectedRequest.landlord_id,
+        landlord_name: selectedRequest.landlord?.name ?? null,
+        landlord_phone: newPhoneReq.trim(),
+        requested_by: user.id,
+        note: `Phone change request from agent. New: ${newPhoneReq.trim()} · On file: ${defaultLandlordPhone || 'none'} · Reason: ${phoneReqNote.trim()}`,
+        status: 'pending',
+      } as any);
+      if (error) throw error;
+      toast.success('Sent to Landlord Ops', {
+        description: 'They will review and update the verified number.',
+      });
+      setShowPhoneChangeReq(false);
+      setNewPhoneReq('');
+      setPhoneReqNote('');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not send the request');
+    } finally {
+      setSubmittingPhoneReq(false);
+    }
   };
 
   // When the agent drilled in from the per-tenant allocations list, scope the
@@ -316,7 +378,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
           allocation.landlord_id
             ? supabase
                 .from('landlords')
-                .select('id, name, phone, mobile_money_number, latitude, longitude')
+                .select('id, name, phone, mobile_money_number, latitude, longitude, verification_status, verified')
                 .eq('id', allocation.landlord_id)
                 .maybeSingle()
             : Promise.resolve({ data: null } as any),
@@ -599,18 +661,80 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                     <Input
                       id="payout-phone"
                       inputMode="tel"
-                      value={phoneOverride || defaultLandlordPhone}
-                      onChange={(e) => setPhoneOverride(e.target.value)}
+                      readOnly={landlordVerified}
+                      value={landlordVerified ? defaultLandlordPhone : (phoneOverride || defaultLandlordPhone)}
+                      onChange={(e) => { if (!landlordVerified) setPhoneOverride(e.target.value); }}
                       placeholder="07XXXXXXXX"
-                      className="h-10 font-mono"
+                      className={`h-10 font-mono ${landlordVerified ? 'bg-muted/60 cursor-not-allowed text-muted-foreground' : ''}`}
                     />
-                    <p className="text-[11px] text-muted-foreground">
-                      {phoneOverride.trim() && phoneOverride.trim() !== defaultLandlordPhone
-                        ? 'Using overridden number — original on file: ' + (defaultLandlordPhone || 'none')
-                        : 'Edit if the number on file is wrong or out of service.'}
-                    </p>
-                    {!phoneValid && (
-                      <p className="text-[11px] text-destructive">Enter a valid Ugandan phone number.</p>
+                    {landlordVerified ? (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3 text-success" />
+                          Verified by Landlord Ops — this number is locked. To change it, send a request back to Landlord Ops.
+                        </p>
+                        {!showPhoneChangeReq ? (
+                          <button
+                            type="button"
+                            onClick={() => setShowPhoneChangeReq(true)}
+                            className="text-[11px] text-chart-4 font-medium inline-flex items-center gap-1"
+                          >
+                            <RefreshCw className="h-3 w-3" /> Request number change from Landlord Ops
+                          </button>
+                        ) : (
+                          <div className="space-y-2 rounded-lg border p-2 bg-muted/30">
+                            <Input
+                              value={newPhoneReq}
+                              onChange={(e) => setNewPhoneReq(e.target.value)}
+                              placeholder="New number e.g. 07XXXXXXXX"
+                              inputMode="tel"
+                              className="h-9 font-mono"
+                            />
+                            <Textarea
+                              value={phoneReqNote}
+                              onChange={(e) => setPhoneReqNote(e.target.value)}
+                              placeholder="Reason for the change (required)"
+                              rows={2}
+                              className="text-xs"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="flex-1 h-8"
+                                disabled={
+                                  submittingPhoneReq ||
+                                  !/^(?:\+?256|0)?\d{9}$/.test(newPhoneReq.replace(/\s+/g, '')) ||
+                                  phoneReqNote.trim().length < 5
+                                }
+                                onClick={submitPhoneChangeRequest}
+                              >
+                                {submittingPhoneReq ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Send to Landlord Ops'}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8"
+                                onClick={() => setShowPhoneChangeReq(false)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-[11px] text-muted-foreground">
+                          {phoneOverride.trim() && phoneOverride.trim() !== defaultLandlordPhone
+                            ? 'Using overridden number — original on file: ' + (defaultLandlordPhone || 'none')
+                            : 'Edit if the number on file is wrong or out of service.'}
+                        </p>
+                        {!phoneValid && (
+                          <p className="text-[11px] text-destructive">Enter a valid Ugandan phone number.</p>
+                        )}
+                      </>
                     )}
                   </div>
               </div>
