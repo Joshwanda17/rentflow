@@ -142,6 +142,19 @@ export function PartnersOpsDashboard() {
 
   const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
 
+  // ═══ MATURITY REQUESTS pending badge ═══
+  const { data: maturityPending = 0 } = useQuery({
+    queryKey: ['maturity-requests-pending-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('portfolio_action_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      return count || 0;
+    },
+    staleTime: 30000,
+  });
+
   // ═══ TABS CONFIG ═══
   const tabs: { key: Tab; label: string; icon: any; badge?: number }[] = [
     { key: 'portfolios', label: 'Portfolios', icon: Wallet },
@@ -149,6 +162,7 @@ export function PartnersOpsDashboard() {
     { key: 'roi', label: 'Returns Payouts', icon: TrendingUp },
     { key: 'topups', label: 'Top-ups', icon: PlusCircle },
     { key: 'promissory', label: 'Promissory Notes', icon: FileText },
+    { key: 'maturity', label: 'Maturity Requests', icon: CalendarClock, badge: maturityPending },
     { key: 'withdrawals', label: 'Withdrawals', icon: Banknote },
     { key: 'proxy-agents', label: 'Proxy Agents', icon: UserCog },
   ];
@@ -171,6 +185,7 @@ export function PartnersOpsDashboard() {
       case 'topups': return <PendingPortfolioTopUps />;
       case 'activity': return <PartnerFinancialActivity />;
       case 'promissory': return <PromissoryNotesQueue />;
+      case 'maturity': return <MaturityRequestsQueue />;
       case 'withdrawals': return (
         <div className="space-y-6">
           <PartnerOpsWithdrawalQueue />
