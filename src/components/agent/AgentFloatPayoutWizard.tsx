@@ -378,7 +378,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
           allocation.landlord_id
             ? supabase
                 .from('landlords')
-                .select('id, name, phone, mobile_money_number, latitude, longitude')
+                .select('id, name, phone, mobile_money_number, latitude, longitude, verification_status, verified')
                 .eq('id', allocation.landlord_id)
                 .maybeSingle()
             : Promise.resolve({ data: null } as any),
