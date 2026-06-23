@@ -8,6 +8,22 @@ const POLL_INTERVAL_MS = 2000;
 const POLL_MAX_ATTEMPTS = 15;
 const DEFAULT_COOLDOWN_SECONDS = 60;
 
+// Safely extract the JSON body from a Supabase FunctionsError. `error.context`
+// is only a Response (with `.json()`) for FunctionsHttpError — for relay/fetch
+// errors it can be undefined or a plain object, so calling `.json()` blindly
+// throws "context.json is not a function". This guards against that.
+async function readErrorPayload(error: any): Promise<any | null> {
+  const ctx = error?.context;
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      return await ctx.json();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 interface PayoutOtpPayload {
   landlord_id: string;
   landlord_name: string;
@@ -108,9 +124,7 @@ export function useLandlordOtp() {
       });
       if (error) {
         let payload: any = null;
-        if (error?.context) {
-          payload = await error.context.json().catch(() => null);
-        }
+        payload = await readErrorPayload(error);
         const errMsg = payload?.error || error.message;
         if (typeof payload?.retry_after === 'number') {
           startCooldown(payload.retry_after);
@@ -153,9 +167,8 @@ export function useLandlordOtp() {
         body: { action: 'verify', phone: cleanPhoneNumber(phone), otp },
       });
       if (error) {
-        const errMsg = error?.context ?
-          await error.context.json().then((r: any) => r.error).catch(() => error.message)
-          : error.message;
+        const payload = await readErrorPayload(error);
+        const errMsg = payload?.error || error.message;
         setOtpError(errMsg || 'Verification failed');
         return false;
       }
@@ -187,9 +200,7 @@ export function useLandlordOtp() {
       });
       if (error) {
         let payload: any = null;
-        if (error?.context) {
-          payload = await error.context.json().catch(() => null);
-        }
+        payload = await readErrorPayload(error);
         const errMsg = payload?.error || error.message;
         if (typeof payload?.retry_after === 'number') {
           startCooldown(payload.retry_after);
@@ -238,9 +249,7 @@ export function useLandlordOtp() {
       });
       if (error) {
         let payload: any = null;
-        if (error?.context) {
-          payload = await error.context.json().catch(() => null);
-        }
+        payload = await readErrorPayload(error);
         const errMsg = payload?.error || error.message;
         if (typeof payload?.retry_after === 'number') {
           startCooldown(payload.retry_after);
@@ -283,9 +292,7 @@ export function useLandlordOtp() {
       });
       if (error) {
         let payload: any = null;
-        if (error?.context) {
-          payload = await error.context.json().catch(() => null);
-        }
+        payload = await readErrorPayload(error);
         const errMsg = payload?.error || error.message;
         setOtpError(errMsg || 'Verification failed');
         return null;
