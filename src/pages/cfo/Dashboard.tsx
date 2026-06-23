@@ -54,6 +54,7 @@ import { CFOWalletActivities } from '@/components/cfo/CFOWalletActivities';
 import { AgentAllocationTracesPanel } from '@/components/cfo/AgentAllocationTracesPanel';
 import { PhantomCorrectionDriftPanel } from '@/components/cfo/PhantomCorrectionDriftPanel';
 import { CFOUnfundingApprovals } from '@/components/cfo/CFOUnfundingApprovals';
+import { CFOAllocationReturnApprovals } from '@/components/cfo/CFOAllocationReturnApprovals';
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
 import { AlreadyFundedLandlordsPanel } from '@/components/cfo/AlreadyFundedLandlordsPanel';
@@ -200,7 +201,12 @@ export default function CFODashboardPage() {
       case 'retractions':
         return <WalletRetractionsFeed />;
       case 'unfunding-approvals':
-        return <CFOUnfundingApprovals />;
+        return (
+          <div className="space-y-6">
+            <CFOAllocationReturnApprovals />
+            <CFOUnfundingApprovals />
+          </div>
+        );
       case 'advances':
         return (
           <div className="space-y-6">
