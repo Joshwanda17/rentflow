@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -152,6 +153,68 @@ export default function BusinessAdvanceTrack() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/10 to-background p-4">
+      <Helmet>
+        <title>Rent Business Advance — Track & Apply | Welile</title>
+        <meta
+          name="description"
+          content="Track or apply for a Welile Rent Business Advance up to UGX 30,000,000. Your verified rent history is your collateral — fast, fair working capital for Ugandan business owners."
+        />
+        <link rel="canonical" href="https://welilereceipts.com/business-advance/track" />
+        <meta property="og:title" content="Welile Rent Business Advance — Track & Apply" />
+        <meta
+          property="og:description"
+          content="Get working capital up to UGX 30,000,000 with your rent history as collateral. Track every stage live."
+        />
+        <meta property="og:url" content="https://welilereceipts.com/business-advance/track" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: [
+              {
+                '@type': 'Question',
+                name: 'How can I access up to UGX 30,000,000?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Your access grows with your verified rent history on Welile. Starter limits begin around UGX 50,000 and climb as you build a clean record of on-time payments, longer tenancy, and trusted landlord relationships — up to UGX 30,000,000 for established business owners.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'What does "rent history is your collateral" mean?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Every rent payment you make through Welile is recorded, verified, and scored. Instead of demanding land titles or vehicles, we use that proven track record as proof you can repay. Pay rent on time and unlock more working capital.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'How fast will I get the money?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Most approved advances move from application to disbursement within 24–72 hours. You can track every stage live and get SMS or email updates the moment something changes.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'How do I repay?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Repayments flow automatically through your Welile wallet alongside your normal rent. On-time repayment further increases your future limit.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'Is my business information safe?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Yes. Welile is built on a fully audited, double-entry ledger with bank-grade security. Only you, your assigned agent, and authorized operations staff can view your file.',
+                },
+              },
+            ],
+          })}
+        </script>
+      </Helmet>
       <div className="max-w-md mx-auto space-y-4 pt-6">
         {/* Marketing hero — modern, professional, business-owner focused */}
         <Card className="relative overflow-hidden border-primary/20 shadow-xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground">
