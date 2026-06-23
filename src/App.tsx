@@ -447,6 +447,7 @@ function AppRoutes() {
           <Route path="/share" element={<Index />} />
           <Route path="/ai" element={<WelileAIPage />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/seo-results" element={<SeoResults />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/partners-terms" element={<PartnersTerms />} />
           <Route path="/privacy-policy" element={<Privacy />} />
