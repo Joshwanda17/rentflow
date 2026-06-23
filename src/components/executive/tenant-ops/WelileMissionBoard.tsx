@@ -26,6 +26,7 @@ import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
 } from '@/hooks/useWelileOpsCounters';
+import { applyDayBoundary, type DayBoundary } from '@/hooks/useWelileOpsCounters';
 import { useLandlordPriorityBreakdown, type LandlordPriorityBucket } from '@/hooks/useWelileOpsCounters';
 import { useMissionReceivables } from '@/hooks/useWelileOpsCounters';
 import { useMissionLandlordReceivables, type MissionLandlordReceivable } from '@/hooks/useWelileOpsCounters';
@@ -122,6 +123,7 @@ function recommend(s: MissionSummary): { key: PriorityKey; text: string; severit
 export function WelileMissionBoard() {
   const navigate = useNavigate();
   const [win, setWin] = useState<CounterWindow>('7d');
+  const [dayBoundary, setDayBoundary] = useState<DayBoundary>('kampala');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(true);
@@ -139,6 +141,11 @@ export function WelileMissionBoard() {
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const queryClient = useQueryClient();
+
+  // Day-window boundaries snap to the chosen timezone (Kampala UTC+3 vs UTC).
+  // Only day presets ("1d", "7d", …) are affected; "all" and custom ranges pass through.
+  const effectiveWin = useMemo(() => applyDayBoundary(win, dayBoundary), [win, dayBoundary]);
+  const isDayPreset = /^\d+d$/.test(win);
 
   // Live-refresh Priority 1 (and the funnel) whenever a new empty house / landlord
   // is listed or a rent request is posted, so the 33% projection reflects immediately.
@@ -158,12 +165,12 @@ export function WelileMissionBoard() {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
-  const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(win, showAgents, intervalMs);
+  const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(effectiveWin, intervalMs);
+  const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(effectiveWin, showAgents, intervalMs);
   const agents: MissionAgentRow[] = agentData ?? [];
-  const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(win, intervalMs);
-  const { data: receivables } = useMissionReceivables(win, intervalMs);
-  const { data: landlordBreakdown } = useLandlordPriorityBreakdown(win, intervalMs);
+  const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(effectiveWin, intervalMs);
+  const { data: receivables } = useMissionReceivables(effectiveWin, intervalMs);
+  const { data: landlordBreakdown } = useLandlordPriorityBreakdown(effectiveWin, intervalMs);
 
   // ROI payable OUT to funders in the next cycle (~next 31 days).
   // Drives the "ROI payable next cycle" figure on Priority 3 (Onboard funders).
@@ -249,6 +256,26 @@ export function WelileMissionBoard() {
               {autoRefresh ? 'Live' : 'Auto'}
             </span>
             <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} className="scale-75" />
+          </div>
+          {/* Day-boundary timezone toggle (affects day presets like "1 day" / "7 days") */}
+          <div
+            className={cn('flex rounded-lg border border-border overflow-hidden', !isDayPreset && 'opacity-50')}
+            title={isDayPreset
+              ? 'Switch which timezone the day starts in'
+              : 'Day-boundary timezone applies to day presets (1–30 days)'}
+          >
+            {(['kampala', 'utc'] as DayBoundary[]).map((b) => (
+              <button
+                key={b}
+                type="button"
+                disabled={!isDayPreset}
+                onClick={() => setDayBoundary(b)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition disabled:cursor-not-allowed',
+                  dayBoundary === b ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {b === 'kampala' ? 'EAT' : 'UTC'}
+              </button>
+            ))}
           </div>
           <div className="flex rounded-lg border border-border overflow-hidden">
             {WINDOWS.map((w) => (
@@ -353,7 +380,7 @@ export function WelileMissionBoard() {
                       title="View the exact houses & unlisted landlords matching this date range"
                     >
                       <CalendarDays className="h-3 w-3 -translate-y-px" />
-                      {windowDateRangeLabel(win, receivables?.earliest_date)}
+                      {windowDateRangeLabel(effectiveWin, receivables?.earliest_date)}
                       <ChevronRight className="h-3 w-3" />
                     </button>
                   )}
@@ -564,7 +591,7 @@ export function WelileMissionBoard() {
       {/* Landlords-by-agents drill-down (folded into Priority 1 / Priority 2 cards above) */}
       <LandlordBucketDialog
         bucket={landlordBucket}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         onClose={() => setLandlordBucket(null)}
         onOpenLandlord={(id) => { setLandlordBucket(null); setDrawer({ landlordId: id, tab: 'landlord' }); }}
@@ -666,7 +693,7 @@ export function WelileMissionBoard() {
 
       <EmptyHousesDialog
         open={emptyOpen}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         onClose={() => setEmptyOpen(false)}
         onOpenLandlord={(id) => { setEmptyOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
@@ -675,7 +702,7 @@ export function WelileMissionBoard() {
 
       <PlacedTenantsDialog
         open={placedOpen}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         onClose={() => setPlacedOpen(false)}
         onOpenLandlord={(id) => { setPlacedOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
@@ -684,7 +711,7 @@ export function WelileMissionBoard() {
 
       <FundersDialog
         open={fundersOpen}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         onClose={() => setFundersOpen(false)}
         onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
@@ -705,7 +732,7 @@ export function WelileMissionBoard() {
       <AgentNetworkDriverDialog
         driver={driverOpen?.key ?? null}
         label={driverOpen?.label ?? ''}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         open={!!driverOpen}
         onClose={() => setDriverOpen(null)}
