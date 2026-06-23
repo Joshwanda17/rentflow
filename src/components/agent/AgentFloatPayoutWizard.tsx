@@ -56,8 +56,16 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
   const [resendCooldown, setResendCooldown] = useState(0);
   const [amountInput, setAmountInput] = useState<string>('');
   const [phoneOverride, setPhoneOverride] = useState<string>('');
+  // Landlord-Ops-verified landlords lock the phone number; agents request a
+  // change via Landlord Ops instead of editing it inline.
+  const [showPhoneChangeReq, setShowPhoneChangeReq] = useState(false);
+  const [newPhoneReq, setNewPhoneReq] = useState('');
+  const [phoneReqNote, setPhoneReqNote] = useState('');
+  const [submittingPhoneReq, setSubmittingPhoneReq] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
+  // Incrementing resend cooldown: first send = 30s, each subsequent send +30s.
+  const cooldownStepRef = useRef(0);
   const autoSendRef = useRef<string | null>(null);
   const allocationPrepRef = useRef<string | null>(null);
   // Landlords this agent has already sent an OTP to in this session. Once an
@@ -72,6 +80,12 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     }
     return () => clearTimeout(cooldownRef.current);
   }, [resendCooldown]);
+
+  // Bump the resend cooldown by another 30s step (30 → 60 → 90 …).
+  const bumpCooldown = () => {
+    cooldownStepRef.current += 1;
+    setResendCooldown(30 * cooldownStepRef.current);
+  };
 
   // While the payout wizard is open, suppress iOS PWA full-cache
   // invalidation and service-worker skipWaiting so dipping out to MoMo
