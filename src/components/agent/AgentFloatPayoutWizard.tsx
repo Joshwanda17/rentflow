@@ -179,7 +179,14 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
 
   const defaultLandlordPhone =
     selectedRequest?.landlord?.mobile_money_number || selectedRequest?.landlord?.phone || '';
-  const landlordPhone = (phoneOverride.trim() || defaultLandlordPhone).trim();
+  // A landlord verified by Landlord Ops has a locked number — agents can't
+  // override it inline; they must send a change request back to Landlord Ops.
+  const landlordVerified =
+    selectedRequest?.landlord?.verification_status === 'verified' ||
+    selectedRequest?.landlord?.verified === true;
+  const landlordPhone = (
+    landlordVerified ? defaultLandlordPhone : (phoneOverride.trim() || defaultLandlordPhone)
+  ).trim();
 
   const parsedAmount = Number((amountInput || '').toString().replace(/[^\d.]/g, ''));
   const effectiveAmount =
