@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera, Cloud, HardDrive } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle, Image as ImageIcon, Camera, Cloud, HardDrive, RotateCcw } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { formatTenantSync } from '@/lib/tenantFilterSyncFormat';
 import { toast as sonnerToast } from 'sonner';
@@ -678,6 +678,20 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
       const lc1Map = new Map((lc1Res.data || []).map(l => [l.id, l]));
 
+      // Flag rent plans that came back here via a CFO-approved allocation return
+      // (agent "Resubmit to CFO" → CFO approved → reverted to this stage).
+      const requestIds = data.map(r => r.id);
+      const { data: returnReqs } = requestIds.length > 0
+        ? await supabase
+            .from('agent_allocation_return_requests' as any)
+            .select('rent_request_id')
+            .eq('status', 'approved')
+            .in('rent_request_id', requestIds)
+        : { data: [] as any[] };
+      const resubmittedSet = new Set(
+        ((returnReqs as any[]) || []).map(r => r.rent_request_id).filter(Boolean),
+      );
+
       return data.map(r => {
         const agentProfile = r.assigned_agent_id
           ? profileMap.get(r.assigned_agent_id)
@@ -686,6 +700,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             : null;
         return {
           ...r,
+          is_resubmitted: resubmittedSet.has(r.id),
           tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown',
           tenant_phone: profileMap.get(r.tenant_id)?.phone || '',
           agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unassigned') : 'Unassigned',
@@ -1085,6 +1100,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                           <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 shrink-0">
                             <AlertCircle className="h-2.5 w-2.5" />
                             Outstanding
+                          </span>
+                        )}
+                        {req.is_resubmitted && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-700 border border-violet-500/30 shrink-0">
+                            <RotateCcw className="h-2.5 w-2.5" />
+                            Resubmitted
                           </span>
                         )}
                       </div>
