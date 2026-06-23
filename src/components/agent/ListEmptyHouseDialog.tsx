@@ -838,6 +838,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Village / Zone is required');
         return false;
       }
+      // Every listed house MUST carry its own GPS pin.
+      if (!geo) {
+        toast.error('Pin the exact GPS location of this house');
+        return false;
+      }
     }
     if (s === 2) {
       // Photos are required.
