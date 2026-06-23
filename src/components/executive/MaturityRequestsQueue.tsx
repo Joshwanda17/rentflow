@@ -44,6 +44,7 @@ export function MaturityRequestsQueue() {
   const [statusFilter, setStatusFilter] = useState<string>('pending');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: requests = [], isLoading, refetch } = useQuery({
     queryKey: ['maturity-requests-queue'],
