@@ -269,6 +269,20 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Account Settings | Welile</title>
+        <meta
+          name="description"
+          content="Manage your Welile account settings — profile, security, language, currency, notifications, and app preferences in one place."
+        />
+        <link rel="canonical" href="https://welilereceipts.com/settings" />
+        <meta property="og:title" content="Account Settings | Welile" />
+        <meta
+          property="og:description"
+          content="Manage your Welile profile, security, and app preferences."
+        />
+        <meta property="og:url" content="https://welilereceipts.com/settings" />
+      </Helmet>
       <div className="container mx-auto px-4 py-4 max-w-2xl pb-24">
         {/* Header */}
         <div className="sticky top-0 z-30 bg-background -mx-4 px-4 border-b border-border/30 mb-2">
