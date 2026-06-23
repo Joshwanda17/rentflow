@@ -616,6 +616,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <AgentAgreementBanner />
         <AgentPaymentEditAlert agentId={user.id} />
 
+        {/* Landlord verification rejections — edit & resubmit, or dismiss */}
+        <AgentRejectedLandlordsPanel />
+
         {/* Linked-but-uncredited deposits — surfaces stuck float receipts */}
         <AgentPendingReceiptPanel />
 
