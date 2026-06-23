@@ -678,6 +678,20 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
       const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
       const lc1Map = new Map((lc1Res.data || []).map(l => [l.id, l]));
 
+      // Flag rent plans that came back here via a CFO-approved allocation return
+      // (agent "Resubmit to CFO" → CFO approved → reverted to this stage).
+      const requestIds = data.map(r => r.id);
+      const { data: returnReqs } = requestIds.length > 0
+        ? await supabase
+            .from('agent_allocation_return_requests' as any)
+            .select('rent_request_id')
+            .eq('status', 'approved')
+            .in('rent_request_id', requestIds)
+        : { data: [] as any[] };
+      const resubmittedSet = new Set(
+        ((returnReqs as any[]) || []).map(r => r.rent_request_id).filter(Boolean),
+      );
+
       return data.map(r => {
         const agentProfile = r.assigned_agent_id
           ? profileMap.get(r.assigned_agent_id)
@@ -686,6 +700,7 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
             : null;
         return {
           ...r,
+          is_resubmitted: resubmittedSet.has(r.id),
           tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown',
           tenant_phone: profileMap.get(r.tenant_id)?.phone || '',
           agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unassigned') : 'Unassigned',
