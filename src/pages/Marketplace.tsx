@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,35 @@ export default function Marketplace() {
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <Helmet>
+        <title>Marketplace — Shop Essentials | Welile</title>
+        <meta
+          name="description"
+          content="Browse the Welile Marketplace for everyday essentials, home goods, and more — shop trusted products and pay flexibly, delivered across Uganda."
+        />
+        <link rel="canonical" href="https://welilereceipts.com/marketplace" />
+        <meta property="og:title" content="Welile Marketplace — Shop Essentials" />
+        <meta
+          property="og:description"
+          content="Shop everyday essentials and home goods on the Welile Marketplace, with flexible payment options across Uganda."
+        />
+        <meta property="og:url" content="https://welilereceipts.com/marketplace" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'CollectionPage',
+            name: 'Welile Marketplace',
+            description:
+              'Browse everyday essentials, home goods, and more on the Welile Marketplace with flexible payment options across Uganda.',
+            url: 'https://welilereceipts.com/marketplace',
+            isPartOf: {
+              '@type': 'WebSite',
+              name: 'Welile.com',
+              url: 'https://welilereceipts.com/',
+            },
+          })}
+        </script>
+      </Helmet>
       {/* Header */}
       <motion.header 
         initial={{ y: -100 }}
