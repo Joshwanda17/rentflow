@@ -24,7 +24,6 @@ import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
 import type { LandlordOption } from './LandlordSearchSelect';
 
 const APP_URL = 'https://welilereceipts.com';
-const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
 
 interface ListEmptyHouseDialogProps {
   open: boolean;
