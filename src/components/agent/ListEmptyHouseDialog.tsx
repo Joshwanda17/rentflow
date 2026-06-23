@@ -22,6 +22,7 @@ import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import VerificationRequestDetailSheet from './VerificationRequestDetailSheet';
 import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
 import type { LandlordOption } from './LandlordSearchSelect';
+import { HouseLocationMapPreview } from './HouseLocationMapPreview';
 
 const APP_URL = 'https://welilereceipts.com';
 
@@ -2126,6 +2127,20 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-destructive">
                   <AlertTriangle className="h-3.5 w-3.5" /> GPS location is required to list this house
                 </span>
+              )}
+              {geo && (
+                <div className="mt-3 space-y-1.5">
+                  <HouseLocationMapPreview
+                    position={{ lat: geo.lat, lng: geo.lng }}
+                    onChange={({ lat, lng }) =>
+                      setGeo((g) => ({ lat, lng, accuracy: g?.accuracy ?? null }))
+                    }
+                    height={200}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Check the pin sits on the house. Drag it or tap the map to nudge it to the exact spot before submitting.
+                  </p>
+                </div>
               )}
             </div>
 
