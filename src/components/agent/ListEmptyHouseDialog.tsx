@@ -1231,6 +1231,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setPhoneMatch(null);
     setGeo(null);
     setCapturingGeo(false);
+    setGeoConfirmed(false);
     setCheckingPhone(false);
     setStep(1);
     setImages([]);
