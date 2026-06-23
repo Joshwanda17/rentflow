@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 
 export default function Privacy() {
@@ -7,6 +8,20 @@ export default function Privacy() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Privacy Policy | Welile</title>
+        <meta
+          name="description"
+          content="Learn how Welile collects, uses, shares, and protects your personal information, including identity, transaction, and location data on our rent platform."
+        />
+        <link rel="canonical" href="https://welilereceipts.com/privacy" />
+        <meta property="og:title" content="Privacy Policy | Welile" />
+        <meta
+          property="og:description"
+          content="How Welile handles and protects your personal data."
+        />
+        <meta property="og:url" content="https://welilereceipts.com/privacy" />
+      </Helmet>
       <div className="max-w-2xl mx-auto px-4 py-8">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-6 gap-2">
           <ArrowLeft className="h-4 w-4" />
