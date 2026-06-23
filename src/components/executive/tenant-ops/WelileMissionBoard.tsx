@@ -165,12 +165,12 @@ export function WelileMissionBoard() {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(win, intervalMs);
-  const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(win, showAgents, intervalMs);
+  const { data: summary, isLoading, isFetching, refetch } = useMissionSummary(effectiveWin, intervalMs);
+  const { data: agentData, isLoading: agentsLoading } = useMissionLeaderboard(effectiveWin, showAgents, intervalMs);
   const agents: MissionAgentRow[] = agentData ?? [];
-  const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(win, intervalMs);
-  const { data: receivables } = useMissionReceivables(win, intervalMs);
-  const { data: landlordBreakdown } = useLandlordPriorityBreakdown(win, intervalMs);
+  const { data: network, isLoading: networkLoading } = useMissionAgentNetwork(effectiveWin, intervalMs);
+  const { data: receivables } = useMissionReceivables(effectiveWin, intervalMs);
+  const { data: landlordBreakdown } = useLandlordPriorityBreakdown(effectiveWin, intervalMs);
 
   // ROI payable OUT to funders in the next cycle (~next 31 days).
   // Drives the "ROI payable next cycle" figure on Priority 3 (Onboard funders).
