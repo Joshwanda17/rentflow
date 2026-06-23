@@ -23,6 +23,7 @@ import VerificationRequestDetailSheet from './VerificationRequestDetailSheet';
 import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
 import type { LandlordOption } from './LandlordSearchSelect';
 import { HouseLocationMapPreview } from './HouseLocationMapPreview';
+import { GpsQualityIndicator } from '@/components/shared/GpsQualityIndicator';
 
 const APP_URL = 'https://welilereceipts.com';
 
