@@ -546,6 +546,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
       qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
       qc.invalidateQueries({ queryKey: ['agent-float-payout-requests'] });
       qc.invalidateQueries({ queryKey: ['agent-float-pending-count'] });
+      qc.invalidateQueries({ queryKey: ['landlord-float-allocations'] });
       toast.success('Landlord payment submitted for verification!');
     },
     onError: (e: any) => toast.error(e.message || 'Failed to submit'),
