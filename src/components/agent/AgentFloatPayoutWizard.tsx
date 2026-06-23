@@ -546,6 +546,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
       qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
       qc.invalidateQueries({ queryKey: ['agent-float-payout-requests'] });
       qc.invalidateQueries({ queryKey: ['agent-float-pending-count'] });
+      qc.invalidateQueries({ queryKey: ['landlord-float-allocations'] });
       toast.success('Landlord payment submitted for verification!');
     },
     onError: (e: any) => toast.error(e.message || 'Failed to submit'),
@@ -849,9 +850,11 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
                 payoutId={activePayoutId}
                 landlordName={req.landlord?.name || 'Landlord'}
                 onDone={(status) => {
-                  if (status === 'completed') {
+                  if (['completed', 'pending_finops_disbursement', 'awaiting_agent_receipt'].includes(status)) {
                     qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
                     qc.invalidateQueries({ queryKey: ['agent-float-payout-requests'] });
+                    // Landlord is now paid out → drop it from the ready-to-pay allocations list.
+                    qc.invalidateQueries({ queryKey: ['landlord-float-allocations'] });
                     setTimeout(() => setStep('done'), 1500);
                   }
                 }}

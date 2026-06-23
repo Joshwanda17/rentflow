@@ -9055,6 +9055,7 @@ export type Database = {
           agent_id: string
           agent_latitude: number | null
           agent_longitude: number | null
+          allocation_applied_id: string | null
           amount: number
           attempts: number
           created_at: string
@@ -9092,6 +9093,7 @@ export type Database = {
           agent_id: string
           agent_latitude?: number | null
           agent_longitude?: number | null
+          allocation_applied_id?: string | null
           amount: number
           attempts?: number
           created_at?: string
@@ -9129,6 +9131,7 @@ export type Database = {
           agent_id?: string
           agent_latitude?: number | null
           agent_longitude?: number | null
+          allocation_applied_id?: string | null
           amount?: number
           attempts?: number
           created_at?: string
