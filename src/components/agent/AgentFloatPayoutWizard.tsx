@@ -161,6 +161,10 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setResendCooldown(0);
     setAmountInput('');
     setPhoneOverride('');
+    setShowPhoneChangeReq(false);
+    setNewPhoneReq('');
+    setPhoneReqNote('');
+    cooldownStepRef.current = 0;
     autoSendRef.current = null;
     allocationPrepRef.current = null;
     landlordOtp.resetOtp();
