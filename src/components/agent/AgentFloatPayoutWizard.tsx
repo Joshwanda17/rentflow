@@ -123,7 +123,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
 
       const enriched = await Promise.all((data || []).map(async (r: any) => {
         const [{ data: landlord }, { data: tenant }, { data: existing }] = await Promise.all([
-          supabase.from('landlords').select('id, name, phone, mobile_money_number, latitude, longitude').eq('id', r.landlord_id).single(),
+          supabase.from('landlords').select('id, name, phone, mobile_money_number, latitude, longitude, verification_status, verified').eq('id', r.landlord_id).single(),
           supabase.from('profiles').select('id, full_name, phone').eq('id', r.tenant_id).single(),
           supabase.from('agent_float_withdrawals').select('id').eq('rent_request_id', r.id).eq('agent_id', user.id).maybeSingle(),
         ]);
