@@ -74,6 +74,19 @@ export function counterLevel(path: CounterPath): CounterLevel {
   return 'agent';
 }
 
+// Uganda runs on EAT (UTC+3) year-round with no DST. Day-based windows are
+// anchored to Kampala calendar days so "1 day" means "since local midnight
+// today", matching what ops staff on the ground expect.
+const KAMPALA_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** Start of the Kampala (UTC+3) calendar day that is `daysAgo` days before today, as a UTC Date. */
+function kampalaDayStart(daysAgo = 0, now: Date = new Date()): Date {
+  const shifted = new Date(now.getTime() + KAMPALA_OFFSET_MS);
+  shifted.setUTCHours(0, 0, 0, 0);
+  shifted.setUTCDate(shifted.getUTCDate() - daysAgo);
+  return new Date(shifted.getTime() - KAMPALA_OFFSET_MS);
+}
+
 export function windowToISO(w: CounterWindow): string | null {
   if (w === 'all') return null;
   if (w.startsWith('custom:')) {
@@ -83,7 +96,8 @@ export function windowToISO(w: CounterWindow): string | null {
   const m = /^(\d+)d$/.exec(w);
   if (m) {
     const days = parseInt(m[1], 10);
-    return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    // "1d" = today (since Kampala midnight), "Nd" = last N Kampala calendar days.
+    return kampalaDayStart(days - 1).toISOString();
   }
   return null;
 }
