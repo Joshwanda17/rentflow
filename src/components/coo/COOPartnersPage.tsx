@@ -1118,10 +1118,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         setAutoAppliedTopUps(autoApplied);
       }
 
-      // For imported partners with no ledger entries, derive totals from portfolio records
-      const portfolioFunded = portfolios.reduce((s, p) => s + (p.investment_amount || 0), 0);
-      const totalFunded = ledgerFunded > 0 ? ledgerFunded : portfolioFunded;
-      const totalDeals = ledgerDeals > 0 ? ledgerDeals : portfolios.length;
+      // Principal is the authoritative outstanding capital across the partner's
+      // active portfolios. Prefer this over the ledger sum: a partner can have
+      // several portfolios while only some contributions were ledger-tagged with
+      // the tracked categories, which made the ledger-first figure stale (showing
+      // only the one recorded contribution instead of the full principal).
+      const portfolioFunded = portfolios
+        .filter(p => p.status === 'active' || p.status == null)
+        .reduce((s, p) => s + (p.investment_amount || 0), 0);
+      // Fall back to the ledger only for imported partners with no portfolio rows.
+      const totalFunded = portfolios.length > 0 ? portfolioFunded : ledgerFunded;
+      const totalDeals = portfolios.length > 0 ? portfolios.length : ledgerDeals;
 
       setDetailPartner({
         profile: profileRes.data as any,
