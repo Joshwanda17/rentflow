@@ -2091,10 +2091,10 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             </p>
 
             {/* Unique GPS pin for THIS house */}
-            <div className="rounded-lg border border-border bg-background p-3">
+            <div className={`rounded-lg border bg-background p-3 ${attempted && !geo ? 'border-destructive bg-destructive/5' : 'border-border'}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">Exact GPS location</p>
+                  <p className="text-sm font-semibold">Exact GPS location *</p>
                   <p className="text-[11px] text-muted-foreground">
                     {geo
                       ? `Pinned: ${geo.lat.toFixed(5)}, ${geo.lng.toFixed(5)}${geo.accuracy ? ` · ±${Math.round(geo.accuracy)}m` : ''}`
@@ -2120,6 +2120,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               {geo && (
                 <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-success">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Unique location captured for this house
+                </span>
+              )}
+              {attempted && !geo && (
+                <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5" /> GPS location is required to list this house
                 </span>
               )}
             </div>
