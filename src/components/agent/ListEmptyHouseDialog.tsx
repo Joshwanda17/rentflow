@@ -848,6 +848,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Pin the exact GPS location of this house');
         return false;
       }
+      // The agent must explicitly confirm the pinned location is correct.
+      if (!geoConfirmed) {
+        toast.error('Confirm the GPS location is correct before continuing');
+        return false;
+      }
     }
     if (s === 2) {
       // Photos are required.
