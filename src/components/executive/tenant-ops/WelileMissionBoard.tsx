@@ -123,6 +123,7 @@ function recommend(s: MissionSummary): { key: PriorityKey; text: string; severit
 export function WelileMissionBoard() {
   const navigate = useNavigate();
   const [win, setWin] = useState<CounterWindow>('7d');
+  const [dayBoundary, setDayBoundary] = useState<DayBoundary>('kampala');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [showAgents, setShowAgents] = useState(true);
@@ -140,6 +141,11 @@ export function WelileMissionBoard() {
 
   const intervalMs = autoRefresh ? 15_000 : false;
   const queryClient = useQueryClient();
+
+  // Day-window boundaries snap to the chosen timezone (Kampala UTC+3 vs UTC).
+  // Only day presets ("1d", "7d", …) are affected; "all" and custom ranges pass through.
+  const effectiveWin = useMemo(() => applyDayBoundary(win, dayBoundary), [win, dayBoundary]);
+  const isDayPreset = /^\d+d$/.test(win);
 
   // Live-refresh Priority 1 (and the funnel) whenever a new empty house / landlord
   // is listed or a rent request is posted, so the 33% projection reflects immediately.
