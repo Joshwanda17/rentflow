@@ -250,7 +250,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     });
 
     if (challengeId) {
-      setResendCooldown(60);
+      bumpCooldown();
       toast.success(source === 'auto' ? 'OTP auto-sent to landlord\'s phone' : 'OTP sent to landlord\'s phone');
     } else {
       // Send failed — release the lock so the agent can legitimately retry.
@@ -308,7 +308,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setOtpCode('');
     const ok = await landlordOtp.resendPayoutOtp();
     if (ok) {
-      setResendCooldown(60);
+      bumpCooldown();
       toast.success('OTP resent to landlord\'s phone');
     }
   };
