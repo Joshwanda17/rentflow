@@ -189,12 +189,6 @@ export default function HouseDetail() {
   }, [id]);
 
   const shareUrl = `${SITE_URL}/house/${listing?.short_code || id}`;
-  // Rich-preview link routed through the OG edge function so WhatsApp/Facebook
-  // show the house image + details, then redirect into the full house page.
-  const OG_FUNCTION_URL = `https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house`;
-  const ogShareUrl = listing?.short_code
-    ? `${OG_FUNCTION_URL}?c=${listing.short_code}`
-    : `${OG_FUNCTION_URL}?id=${id}`;
   const images = listing?.image_urls || [];
   const houseVideo = parseHouseVideo(listing?.video_url);
   const lightboxImages = useMemo(() =>
@@ -204,7 +198,7 @@ export default function HouseDetail() {
   );
 
   const handleShare = async () => {
-    const richUrl = listing ? ogShareUrl : shareUrl;
+    const richUrl = shareUrl;
     const shareData = {
       title: listing ? `${listing.title} — Daily Rent | Welile` : 'House for Rent | Welile',
       text: listing
@@ -220,7 +214,7 @@ export default function HouseDetail() {
   };
 
   const handleCopyLink = async () => {
-    const richUrl = listing ? ogShareUrl : shareUrl;
+    const richUrl = shareUrl;
     const shareText = listing
       ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
       : richUrl;
@@ -807,7 +801,7 @@ export default function HouseDetail() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={async () => {
-                  const richUrl = listing ? ogShareUrl : shareUrl;
+                  const richUrl = shareUrl;
                   const msg = listing
                     ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
                     : richUrl;
