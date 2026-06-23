@@ -185,6 +185,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // gets its own coordinates instead of a shared/blank location.
   const [geo, setGeo] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
   const [capturingGeo, setCapturingGeo] = useState(false);
+  // Agent must explicitly confirm the pinned GPS location is correct before submitting.
+  const [geoConfirmed, setGeoConfirmed] = useState(false);
   // Location quick-search (search & choose a specific known area).
   const [locQuery, setLocQuery] = useState('');
   const [locFocused, setLocFocused] = useState(false);
