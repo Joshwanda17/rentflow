@@ -167,9 +167,8 @@ export function useLandlordOtp() {
         body: { action: 'verify', phone: cleanPhoneNumber(phone), otp },
       });
       if (error) {
-        const errMsg = error?.context ?
-          await error.context.json().then((r: any) => r.error).catch(() => error.message)
-          : error.message;
+        const payload = await readErrorPayload(error);
+        const errMsg = payload?.error || error.message;
         setOtpError(errMsg || 'Verification failed');
         return false;
       }
