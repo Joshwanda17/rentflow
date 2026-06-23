@@ -257,6 +257,26 @@ export function WelileMissionBoard() {
             </span>
             <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} className="scale-75" />
           </div>
+          {/* Day-boundary timezone toggle (affects day presets like "1 day" / "7 days") */}
+          <div
+            className={cn('flex rounded-lg border border-border overflow-hidden', !isDayPreset && 'opacity-50')}
+            title={isDayPreset
+              ? 'Switch which timezone the day starts in'
+              : 'Day-boundary timezone applies to day presets (1–30 days)'}
+          >
+            {(['kampala', 'utc'] as DayBoundary[]).map((b) => (
+              <button
+                key={b}
+                type="button"
+                disabled={!isDayPreset}
+                onClick={() => setDayBoundary(b)}
+                className={cn('px-2 py-1 text-[10px] font-semibold transition disabled:cursor-not-allowed',
+                  dayBoundary === b ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-muted/40')}
+              >
+                {b === 'kampala' ? 'EAT' : 'UTC'}
+              </button>
+            ))}
+          </div>
           <div className="flex rounded-lg border border-border overflow-hidden">
             {WINDOWS.map((w) => (
               <button
