@@ -17,9 +17,14 @@ interface SitemapEntry {
 // Static, indexable marketing/public routes.
 const staticEntries: SitemapEntry[] = [
   { path: '/', changefreq: 'weekly', priority: '1.0' },
+  { path: '/welcome', changefreq: 'weekly', priority: '0.95' },
   { path: '/find-a-house', changefreq: 'daily', priority: '0.95' },
   { path: '/rent-money', changefreq: 'weekly', priority: '0.9' },
   { path: '/become-supporter', changefreq: 'weekly', priority: '0.8' },
+  { path: '/funder-onboarding', changefreq: 'weekly', priority: '0.8' },
+  { path: '/partner-onboarding', changefreq: 'weekly', priority: '0.7' },
+  { path: '/opportunities', changefreq: 'weekly', priority: '0.7' },
+  { path: '/internship', changefreq: 'monthly', priority: '0.6' },
   { path: '/rent-calculator', changefreq: 'monthly', priority: '0.7' },
   { path: '/ai', changefreq: 'weekly', priority: '0.7' },
   { path: '/terms', changefreq: 'monthly', priority: '0.3' },
