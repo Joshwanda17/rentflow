@@ -591,7 +591,7 @@ export function WelileMissionBoard() {
       {/* Landlords-by-agents drill-down (folded into Priority 1 / Priority 2 cards above) */}
       <LandlordBucketDialog
         bucket={landlordBucket}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         onClose={() => setLandlordBucket(null)}
         onOpenLandlord={(id) => { setLandlordBucket(null); setDrawer({ landlordId: id, tab: 'landlord' }); }}
@@ -693,7 +693,7 @@ export function WelileMissionBoard() {
 
       <EmptyHousesDialog
         open={emptyOpen}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         onClose={() => setEmptyOpen(false)}
         onOpenLandlord={(id) => { setEmptyOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
@@ -702,7 +702,7 @@ export function WelileMissionBoard() {
 
       <PlacedTenantsDialog
         open={placedOpen}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         onClose={() => setPlacedOpen(false)}
         onOpenLandlord={(id) => { setPlacedOpen(false); setDrawer({ landlordId: id, tab: 'landlord' }); }}
@@ -711,7 +711,7 @@ export function WelileMissionBoard() {
 
       <FundersDialog
         open={fundersOpen}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         onClose={() => setFundersOpen(false)}
         onOpenAgent={(id) => { setFundersOpen(false); setDrawer({ agentId: id, tab: 'agent' }); }}
@@ -732,7 +732,7 @@ export function WelileMissionBoard() {
       <AgentNetworkDriverDialog
         driver={driverOpen?.key ?? null}
         label={driverOpen?.label ?? ''}
-        win={win}
+        win={effectiveWin}
         refetchIntervalMs={intervalMs}
         open={!!driverOpen}
         onClose={() => setDriverOpen(null)}
