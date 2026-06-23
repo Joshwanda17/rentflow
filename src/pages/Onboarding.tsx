@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import {
@@ -883,6 +884,13 @@ export default function FunderOnboarding() {
   return (
     <div className="fixed inset-0 flex font-sans overflow-hidden bg-[#0E0820]">
       <Toaster position="top-center" />
+      <Helmet>
+        <title>Become a Welile Funder — Fund the Future of Housing</title>
+        <meta name="description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 20,000." />
+        <meta property="og:title" content="Become a Welile Funder — Fund the Future of Housing" />
+        <meta property="og:description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 20,000." />
+        <meta property="og:url" content="https://welilereceipts.com/funder-onboarding" />
+      </Helmet>
 
       {/* LEFT COLUMN (HERO IMAGE) */}
       <div className="hidden lg:flex lg:w-1/2 lg:shrink-0 h-full relative bg-slate-900 overflow-hidden items-center justify-center">

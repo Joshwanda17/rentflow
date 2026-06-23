@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import welileLogo from '@/assets/welile-logo.png';
 import { globalDeferredPrompt, clearGlobalPrompt } from '@/hooks/usePWAInstall';
 import { PublicHousesPreview } from '@/components/landing/PublicHousesPreview';
+import { Helmet } from 'react-helmet-async';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -150,6 +151,13 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <Helmet>
+        <title>Welile — Explore Housing & Funding Instantly</title>
+        <meta name="description" content="Browse verified homes for rent and discover funding opportunities across Africa — all from your phone." />
+        <meta property="og:title" content="Welile — Explore Housing & Funding Instantly" />
+        <meta property="og:description" content="Browse verified homes for rent and discover funding opportunities across Africa — all from your phone." />
+        <meta property="og:url" content="https://welilereceipts.com/welcome" />
+      </Helmet>
       {/* Hero — minimal, intent-first */}
       <header className="pt-safe-top px-5 pt-10 pb-6 text-center">
         <motion.img

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -101,6 +102,13 @@ export default function Internship() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Welile Internship — Learn, Earn & Grow</title>
+        <meta name="description" content="Join the Welile internship program. Gain real fintech experience, earn as you learn, and build a career across Africa." />
+        <meta property="og:title" content="Welile Internship — Learn, Earn & Grow" />
+        <meta property="og:description" content="Join the Welile internship program. Gain real fintech experience, earn as you learn, and build a career across Africa." />
+        <meta property="og:url" content="https://welilereceipts.com/internship" />
+      </Helmet>
       {/* Hero */}
       <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-background to-orange-500/10">
         <div className="max-w-lg mx-auto px-4 pt-8 pb-6 text-center">
