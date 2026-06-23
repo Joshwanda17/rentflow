@@ -1,4 +1,5 @@
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -323,6 +324,13 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Helmet>
+        <title>Sign In or Create Your Welile Account</title>
+        <meta name="description" content="Log in or sign up to access rent, fund tenants, and manage your Welile wallet securely." />
+        <meta property="og:title" content="Sign In or Create Your Welile Account" />
+        <meta property="og:description" content="Log in or sign up to access rent, fund tenants, and manage your Welile wallet securely." />
+        <meta property="og:url" content="https://welilereceipts.com/auth" />
+      </Helmet>
       <div className="w-full max-w-sm relative z-10">
 
         {/* Logo — compact */}
