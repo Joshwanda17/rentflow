@@ -915,6 +915,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   preflightGates.push({ label: 'Address', ok: !!form.address.trim(), hint: 'Enter the property address', step: 1 });
   preflightGates.push({ label: 'Village / Zone', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 1 });
   preflightGates.push({ label: 'GPS location pinned', ok: !!geo, hint: 'Stand at the house and pin its exact GPS coordinates', step: 1 });
+  preflightGates.push({ label: 'GPS location confirmed', ok: !!geo && geoConfirmed, hint: 'Tick the box confirming the pin sits on the house', step: 1 });
   preflightGates.push({ label: 'At least one photo', ok: images.length > 0, hint: 'Add at least one photo of the house', step: 2 });
   preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 3 });
   if (form.caretaker_type === 'other') {
