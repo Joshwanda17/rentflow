@@ -206,6 +206,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         setGeo({ lat: latitude, lng: longitude, accuracy: accuracy ?? null });
+        setGeoConfirmed(false);
         setCapturingGeo(false);
         toast.success('Exact location pinned for this house');
       },
@@ -216,6 +217,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           (pos) => {
             const { latitude, longitude, accuracy } = pos.coords;
             setGeo({ lat: latitude, lng: longitude, accuracy: accuracy ?? null });
+            setGeoConfirmed(false);
             setCapturingGeo(false);
             toast.success('Location pinned for this house');
           },
