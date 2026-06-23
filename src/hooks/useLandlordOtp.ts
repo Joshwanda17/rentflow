@@ -292,9 +292,7 @@ export function useLandlordOtp() {
       });
       if (error) {
         let payload: any = null;
-        if (error?.context) {
-          payload = await error.context.json().catch(() => null);
-        }
+        payload = await readErrorPayload(error);
         const errMsg = payload?.error || error.message;
         setOtpError(errMsg || 'Verification failed');
         return null;
