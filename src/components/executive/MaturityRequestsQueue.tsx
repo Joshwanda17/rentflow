@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import {
   Search, User, Mail, Calendar, RefreshCw, Wallet, Clock, CheckCircle2,
-  XCircle, Loader2, Hash, MessageSquare, Inbox,
+  XCircle, Loader2, Hash, MessageSquare, Inbox, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -44,6 +44,7 @@ export function MaturityRequestsQueue() {
   const [statusFilter, setStatusFilter] = useState<string>('pending');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: requests = [], isLoading, refetch } = useQuery({
     queryKey: ['maturity-requests-queue'],
@@ -225,10 +226,26 @@ export function MaturityRequestsQueue() {
                   </div>
 
                   {req.message && (
-                    <p className="text-xs bg-muted/40 rounded-md p-2 flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(expandedId === req.id ? null : req.id)}
+                      className="w-full text-left text-xs bg-muted/40 hover:bg-muted/60 transition-colors rounded-md p-2 flex gap-1.5"
+                      aria-expanded={expandedId === req.id}
+                    >
                       <MessageSquare className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
-                      <span className="line-clamp-3 whitespace-pre-wrap">{req.message}</span>
-                    </p>
+                      <span className="flex-1 min-w-0">
+                        <span className={cn('whitespace-pre-wrap block', expandedId !== req.id && 'line-clamp-2')}>
+                          {req.message}
+                        </span>
+                        <span className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-medium text-primary">
+                          {expandedId === req.id ? (
+                            <>Show less <ChevronUp className="h-3 w-3" /></>
+                          ) : (
+                            <>Read full message <ChevronDown className="h-3 w-3" /></>
+                          )}
+                        </span>
+                      </span>
+                    </button>
                   )}
 
                   {req.status !== 'completed' && req.status !== 'cancelled' && (
