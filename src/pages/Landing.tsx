@@ -157,6 +157,9 @@ export default function Landing() {
           alt="Welile"
           width={640}
           height={640}
+          fetchPriority="high"
+          loading="eager"
+          decoding="async"
           className="h-14 w-auto mx-auto"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
