@@ -1090,6 +1090,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
             <AgentDailyCardEmailPrompt />
             <AgentCapacityShareInline />
+            <AgentDeadTenantsBanner agentId={user.id} />
             <div
               className={cn(
                 "sticky z-10 -mx-4 px-3 sm:px-4 bg-background/95 backdrop-blur-md border-b border-border/40 overscroll-contain",
