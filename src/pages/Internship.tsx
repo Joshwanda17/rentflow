@@ -105,6 +105,7 @@ export default function Internship() {
       <Helmet>
         <title>Welile Internship — Learn, Earn & Grow</title>
         <meta name="description" content="Join the Welile internship program. Gain real fintech experience, earn as you learn, and build a career across Africa." />
+        <link rel="canonical" href="https://welilereceipts.com/internship" />
         <meta property="og:title" content="Welile Internship — Learn, Earn & Grow" />
         <meta property="og:description" content="Join the Welile internship program. Gain real fintech experience, earn as you learn, and build a career across Africa." />
         <meta property="og:url" content="https://welilereceipts.com/internship" />
