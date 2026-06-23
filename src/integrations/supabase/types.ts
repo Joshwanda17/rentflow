@@ -673,6 +673,68 @@ export type Database = {
           },
         ]
       }
+      agent_allocation_return_requests: {
+        Row: {
+          agent_id: string
+          allocation_id: string
+          amount: number
+          cfo_decision_at: string | null
+          cfo_id: string | null
+          cfo_note: string | null
+          created_at: string
+          id: string
+          landlord_id: string | null
+          landlord_name: string | null
+          reason: string
+          rent_request_id: string | null
+          reversal_transaction_group: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          allocation_id: string
+          amount: number
+          cfo_decision_at?: string | null
+          cfo_id?: string | null
+          cfo_note?: string | null
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string | null
+          reason: string
+          rent_request_id?: string | null
+          reversal_transaction_group?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          allocation_id?: string
+          amount?: number
+          cfo_decision_at?: string | null
+          cfo_id?: string | null
+          cfo_note?: string | null
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string | null
+          reason?: string
+          rent_request_id?: string | null
+          reversal_transaction_group?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_allocation_return_requests_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "agent_landlord_float_allocations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_allocation_traces: {
         Row: {
           agent_id: string
@@ -19601,6 +19663,10 @@ export type Database = {
         Args: { p_cfo_note?: string; p_decision: string; p_request_id: string }
         Returns: Json
       }
+      cfo_decide_allocation_return: {
+        Args: { p_cfo_note?: string; p_decision: string; p_request_id: string }
+        Returns: Json
+      }
       check_archived_account_by_email: {
         Args: { p_email: string }
         Returns: {
@@ -21620,6 +21686,10 @@ export type Database = {
           p_reason: string
           p_rent_request_id: string
         }
+        Returns: Json
+      }
+      request_allocation_return: {
+        Args: { p_allocation_id: string; p_reason: string }
         Returns: Json
       }
       requeue_dead_letter_batch: {
