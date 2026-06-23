@@ -8,6 +8,22 @@ const POLL_INTERVAL_MS = 2000;
 const POLL_MAX_ATTEMPTS = 15;
 const DEFAULT_COOLDOWN_SECONDS = 60;
 
+// Safely extract the JSON body from a Supabase FunctionsError. `error.context`
+// is only a Response (with `.json()`) for FunctionsHttpError — for relay/fetch
+// errors it can be undefined or a plain object, so calling `.json()` blindly
+// throws "context.json is not a function". This guards against that.
+async function readErrorPayload(error: any): Promise<any | null> {
+  const ctx = error?.context;
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      return await ctx.json();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 interface PayoutOtpPayload {
   landlord_id: string;
   landlord_name: string;
