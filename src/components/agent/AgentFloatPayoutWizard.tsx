@@ -320,6 +320,43 @@ export function AgentFloatPayoutWizard({ open, onOpenChange, allocation }: Agent
     setStep('otp');
   };
 
+  // Verified landlords have a locked number — send the requested change back to
+  // Landlord Ops via a verification request instead of editing it here.
+  const submitPhoneChangeRequest = async () => {
+    if (!user || !selectedRequest) return;
+    const cleaned = newPhoneReq.replace(/\s+/g, '');
+    if (!/^(?:\+?256|0)?\d{9}$/.test(cleaned)) {
+      toast.error('Enter a valid Ugandan phone number');
+      return;
+    }
+    if (phoneReqNote.trim().length < 5) {
+      toast.error('Add a short reason for the change');
+      return;
+    }
+    setSubmittingPhoneReq(true);
+    try {
+      const { error } = await supabase.from('landlord_verification_requests').insert({
+        landlord_id: selectedRequest.landlord_id,
+        landlord_name: selectedRequest.landlord?.name ?? null,
+        landlord_phone: newPhoneReq.trim(),
+        requested_by: user.id,
+        note: `Phone change request from agent. New: ${newPhoneReq.trim()} · On file: ${defaultLandlordPhone || 'none'} · Reason: ${phoneReqNote.trim()}`,
+        status: 'pending',
+      } as any);
+      if (error) throw error;
+      toast.success('Sent to Landlord Ops', {
+        description: 'They will review and update the verified number.',
+      });
+      setShowPhoneChangeReq(false);
+      setNewPhoneReq('');
+      setPhoneReqNote('');
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not send the request');
+    } finally {
+      setSubmittingPhoneReq(false);
+    }
+  };
+
   // When the agent drilled in from the per-tenant allocations list, scope the
   // payout to THAT exact ring-fenced allocation. We build a synthetic request
   // from the allocation (capped at its remaining amount) and jump straight to
