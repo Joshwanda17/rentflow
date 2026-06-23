@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
@@ -244,6 +245,20 @@ export default function BecomeSupporter() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
+      <Helmet>
+        <title>Become a Supporter — Earn Returns | Welile</title>
+        <meta
+          name="description"
+          content="Become a Welile Supporter: fund tenants' rent, earn monthly returns on your capital, and withdraw flexibly while helping people stay housed in Uganda."
+        />
+        <link rel="canonical" href="https://welilereceipts.com/become-supporter" />
+        <meta property="og:title" content="Become a Welile Supporter — Earn Returns" />
+        <meta
+          property="og:description"
+          content="Fund tenants' rent and earn monthly returns while helping people stay housed across Uganda."
+        />
+        <meta property="og:url" content="https://welilereceipts.com/become-supporter" />
+      </Helmet>
       {/* Background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-20 w-72 h-72 bg-success/10 rounded-full blur-3xl" />

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -96,6 +97,20 @@ export default function PublicRentCalculator() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
+      <Helmet>
+        <title>Rent Calculator — Estimate Repayments | Welile</title>
+        <meta
+          name="description"
+          content="Use Welile's free rent calculator to estimate your rent advance repayments, daily amounts, and access fees before you apply. Plan with confidence in Uganda."
+        />
+        <link rel="canonical" href="https://welilereceipts.com/rent-calculator" />
+        <meta property="og:title" content="Welile Rent Calculator — Estimate Repayments" />
+        <meta
+          property="og:description"
+          content="Estimate your rent advance repayments and daily amounts before you apply, free with Welile."
+        />
+        <meta property="og:url" content="https://welilereceipts.com/rent-calculator" />
+      </Helmet>
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-6 px-4">
         <div className="max-w-lg mx-auto">
