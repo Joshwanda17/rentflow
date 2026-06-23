@@ -24,7 +24,6 @@ import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
 import type { LandlordOption } from './LandlordSearchSelect';
 
 const APP_URL = 'https://welilereceipts.com';
-const OG_FUNCTION_URL = 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house';
 
 interface ListEmptyHouseDialogProps {
   open: boolean;
@@ -1224,14 +1223,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   };
 
   const buildShare = () => {
-    if (!successListing) return { url: '', message: '', ogUrl: '' };
+    if (!successListing) return { url: '', message: '' };
     const ref = successListing.shortCode || successListing.id;
     const url = `${APP_URL}/house/${ref}`;
-    const ogUrl = successListing.shortCode
-      ? `${OG_FUNCTION_URL}?c=${successListing.shortCode}`
-      : `${OG_FUNCTION_URL}?id=${successListing.id}`;
-    const message = `🏠 New rental on Welile!\n\n*${successListing.title}*\n📍 ${successListing.region}\n💰 ${formatUGX(successListing.dailyRate)}/day\n\n👉 ${ogUrl}`;
-    return { url, message, ogUrl };
+    const message = `🏠 New rental on Welile!\n\n*${successListing.title}*\n📍 ${successListing.region}\n💰 ${formatUGX(successListing.dailyRate)}/day\n\n👉 ${url}`;
+    return { url, message };
   };
 
   const handleWhatsApp = () => {

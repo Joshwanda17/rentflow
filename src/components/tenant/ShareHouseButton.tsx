@@ -6,7 +6,6 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { supabase } from '@/integrations/supabase/client';
 
 const APP_URL = 'https://welilereceipts.com';
-const OG_FUNCTION_URL = `https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house`;
 
 interface ShareHouseButtonProps {
   listingId: string;
@@ -43,10 +42,6 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
     })();
   };
 
-  // OG link goes through edge function for rich previews (image in WhatsApp), then redirects to app
-  const ogUrl = shortCode
-    ? `${OG_FUNCTION_URL}?c=${shortCode}`
-    : `${OG_FUNCTION_URL}?id=${listingId}`;
   const shareUrl = shortCode
     ? `${APP_URL}/house/${shortCode}`
     : `${APP_URL}/house/${listingId}`;
