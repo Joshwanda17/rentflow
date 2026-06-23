@@ -29,8 +29,9 @@ import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 import { NewPartnersPanel } from './NewPartnersPanel';
 import { PendingPartnerRequests } from './PendingPartnerRequests';
 import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
+import { MaturityRequestsQueue } from './MaturityRequestsQueue';
 
-type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'withdrawals' | 'proxy-agents';
+type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'maturity' | 'withdrawals' | 'proxy-agents';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
