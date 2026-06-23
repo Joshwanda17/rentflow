@@ -2143,13 +2143,30 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   <HouseLocationMapPreview
                     position={{ lat: geo.lat, lng: geo.lng }}
                     onChange={({ lat, lng }) =>
-                      setGeo((g) => ({ lat, lng, accuracy: g?.accuracy ?? null }))
+                      setGeo((g) => {
+                        setGeoConfirmed(false);
+                        return { lat, lng, accuracy: g?.accuracy ?? null };
+                      })
                     }
                     height={200}
                   />
                   <p className="text-[11px] text-muted-foreground">
                     Check the pin sits on the house. Drag it or tap the map to nudge it to the exact spot before submitting.
                   </p>
+                  <label
+                    className={`mt-1 flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer ${
+                      attempted && !geoConfirmed ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={geoConfirmed}
+                      onCheckedChange={(v) => setGeoConfirmed(v === true)}
+                      className="mt-0.5"
+                    />
+                    <span className="text-xs font-medium leading-snug">
+                      I confirm this GPS location is correct and the pin sits on the actual house. *
+                    </span>
+                  </label>
                 </div>
               )}
             </div>
