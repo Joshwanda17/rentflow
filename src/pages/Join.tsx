@@ -89,6 +89,7 @@ export default function Join() {
   // Show welcome page when no params
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex flex-col items-center justify-center p-4">
+      <h1 className="sr-only">Join Welile</h1>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
