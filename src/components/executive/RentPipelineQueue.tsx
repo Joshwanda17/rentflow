@@ -1102,6 +1102,12 @@ export function RentPipelineQueue({ stage, additionalStatuses = [] }: RentPipeli
                             Outstanding
                           </span>
                         )}
+                        {req.is_resubmitted && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-700 border border-violet-500/30 shrink-0">
+                            <RotateCcw className="h-2.5 w-2.5" />
+                            Resubmitted
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground flex-wrap min-w-0">
                         {req.landlord_id ? (
