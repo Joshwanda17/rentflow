@@ -2128,6 +2128,20 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                   <AlertTriangle className="h-3.5 w-3.5" /> GPS location is required to list this house
                 </span>
               )}
+              {geo && (
+                <div className="mt-3 space-y-1.5">
+                  <HouseLocationMapPreview
+                    position={{ lat: geo.lat, lng: geo.lng }}
+                    onChange={({ lat, lng }) =>
+                      setGeo((g) => ({ lat, lng, accuracy: g?.accuracy ?? null }))
+                    }
+                    height={200}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Check the pin sits on the house. Drag it or tap the map to nudge it to the exact spot before submitting.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
