@@ -204,7 +204,7 @@ export default function HouseDetail() {
   );
 
   const handleShare = async () => {
-    const richUrl = listing ? ogShareUrl : shareUrl;
+    const richUrl = shareUrl;
     const shareData = {
       title: listing ? `${listing.title} — Daily Rent | Welile` : 'House for Rent | Welile',
       text: listing
@@ -220,7 +220,7 @@ export default function HouseDetail() {
   };
 
   const handleCopyLink = async () => {
-    const richUrl = listing ? ogShareUrl : shareUrl;
+    const richUrl = shareUrl;
     const shareText = listing
       ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
       : richUrl;
@@ -807,7 +807,7 @@ export default function HouseDetail() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={async () => {
-                  const richUrl = listing ? ogShareUrl : shareUrl;
+                  const richUrl = shareUrl;
                   const msg = listing
                     ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${richUrl}`
                     : richUrl;
