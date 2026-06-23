@@ -73,6 +73,7 @@ import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/co
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { AgentPaymentEditAlert } from '@/components/agent/AgentPaymentEditAlert';
+import { AgentRejectedLandlordsPanel } from '@/components/agent/AgentRejectedLandlordsPanel';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
