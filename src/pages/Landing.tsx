@@ -154,6 +154,7 @@ export default function Landing() {
       <Helmet>
         <title>Welile — Explore Housing & Funding Instantly</title>
         <meta name="description" content="Browse verified homes for rent and discover funding opportunities across Africa — all from your phone." />
+        <link rel="canonical" href="https://welilereceipts.com/welcome" />
         <meta property="og:title" content="Welile — Explore Housing & Funding Instantly" />
         <meta property="og:description" content="Browse verified homes for rent and discover funding opportunities across Africa — all from your phone." />
         <meta property="og:url" content="https://welilereceipts.com/welcome" />

@@ -99,6 +99,7 @@ Join now: ${shareLink}`;
       <Helmet>
         <title>Rent Money by Welile — Your Wallet for Rent</title>
         <meta name="description" content="Deposit, send, withdraw and pay rent from your phone with Welile Rent Money. Works on MTN & Airtel Mobile Money." />
+        <link rel="canonical" href={PAGE_URL} />
         <meta property="og:title" content="Rent Money by Welile — Your Wallet for Rent" />
         <meta property="og:description" content="Deposit, send, withdraw and pay rent from your phone with Welile Rent Money. Works on MTN & Airtel Mobile Money." />
         <meta property="og:url" content={PAGE_URL} />
