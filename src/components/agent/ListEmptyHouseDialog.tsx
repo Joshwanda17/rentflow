@@ -1490,12 +1490,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <FormStepHeader
             icon={User}
             stepLabel="Step 3 of 3"
-            title="Landlord phone"
-            subtitle="Just the phone number is a must — the rest can come later."
+            title="Landlord & LC1"
+            subtitle="Landlord name, phone and the LC1 chairperson are all required to list."
           />
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal text-destructive">(phone required)</span></p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal text-destructive">(name & phone required)</span></p>
 
             {/* Step 1 — search the system for a verified landlord */}
             {!selectedLandlord && !manualLandlord && (
