@@ -176,11 +176,36 @@ export function LocationCaptureGate() {
       });
 
       const { latitude, longitude, accuracy } = position.coords;
-      setStatus("saving");
-
       const admin = await reverseGeocodeAdmin(latitude, longitude);
-      setCaptured(admin);
 
+      // Show the captured point + its quality and let the user review/confirm
+      // before saving — especially important when the signal is weak.
+      setPending({ latitude, longitude, accuracy: accuracy ?? null, admin });
+      setStatus("review");
+    } catch (err: unknown) {
+      const code = (err as GeolocationPositionError)?.code;
+      if (code === 1) {
+        toast.error("Location permission denied. Please enable it in your browser settings.");
+      } else if (code === 2) {
+        toast.error("Location unavailable. Please try again.");
+      } else if (code === 3) {
+        toast.error("Location request timed out. Please try again.");
+      } else {
+        toast.error("Could not get your location. Please try again.");
+      }
+      setStatus("idle");
+      // GPS failed — offer manual entry as a fallback.
+      setMode("manual");
+    }
+  }, [user]);
+
+  // Persist the reviewed GPS fix to the database.
+  const persistFix = useCallback(async () => {
+    if (!user || !pending) return;
+    const { latitude, longitude, accuracy, admin } = pending;
+    setStatus("saving");
+    setCaptured(admin);
+    try {
       // 1) Append a tracking record (history of captures)
       await supabase.from("user_locations").insert({
         user_id: user.id,
@@ -216,22 +241,11 @@ export function LocationCaptureGate() {
       setStatus("success");
       toast.success("Location shared. Thank you!");
       setTimeout(() => setOpen(false), 1800);
-    } catch (err: unknown) {
-      const code = (err as GeolocationPositionError)?.code;
-      if (code === 1) {
-        toast.error("Location permission denied. Please enable it in your browser settings.");
-      } else if (code === 2) {
-        toast.error("Location unavailable. Please try again.");
-      } else if (code === 3) {
-        toast.error("Location request timed out. Please try again.");
-      } else {
-        toast.error("Could not get your location. Please try again.");
-      }
-      setStatus("idle");
-      // GPS failed — offer manual entry as a fallback.
-      setMode("manual");
+    } catch {
+      toast.error("Could not save your location. Please try again.");
+      setStatus("review");
     }
-  }, [user]);
+  }, [user, pending]);
 
   const filteredLocations = useMemo(() => {
     const q = query.trim().toLowerCase();
