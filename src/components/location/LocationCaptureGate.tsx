@@ -8,7 +8,19 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapPin, Navigation, Loader2, ShieldCheck, Check, Search, X } from "lucide-react";
+import {
+  MapPin,
+  Navigation,
+  Loader2,
+  ShieldCheck,
+  Check,
+  Search,
+  X,
+  AlertTriangle,
+  SignalHigh,
+  SignalMedium,
+  SignalLow,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +46,37 @@ type AdminLocation = {
   country: string | null;
   address: string | null;
 };
+
+type PendingFix = {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  admin: AdminLocation;
+};
+
+type GpsQuality = {
+  label: string;
+  tone: "good" | "fair" | "weak";
+  weak: boolean;
+  Icon: typeof SignalHigh;
+};
+
+/** Map a GPS accuracy radius (meters) to a human quality rating. */
+function gpsQuality(accuracy: number | null): GpsQuality {
+  if (accuracy == null) {
+    return { label: "Unknown accuracy", tone: "weak", weak: true, Icon: SignalLow };
+  }
+  if (accuracy <= 30) {
+    return { label: "Excellent signal", tone: "good", weak: false, Icon: SignalHigh };
+  }
+  if (accuracy <= 75) {
+    return { label: "Good signal", tone: "good", weak: false, Icon: SignalHigh };
+  }
+  if (accuracy <= 150) {
+    return { label: "Fair signal", tone: "fair", weak: false, Icon: SignalMedium };
+  }
+  return { label: "Weak signal", tone: "weak", weak: true, Icon: SignalLow };
+}
 
 async function reverseGeocodeAdmin(lat: number, lng: number): Promise<AdminLocation> {
   const fallback: AdminLocation = { district: null, city: null, country: null, address: null };
