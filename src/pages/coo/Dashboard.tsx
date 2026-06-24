@@ -283,7 +283,9 @@ export default function COODashboardPage() {
             {/* HERO: Welile Operations — manage every user category */}
             <button
               onClick={() => handleNavTo('welile-operations')}
-              className="w-full rounded-xl border-2 border-[#9234EA]/50 bg-gradient-to-r from-[#9234EA]/10 via-[#9234EA]/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform shadow-sm"
+              role="link"
+              aria-label="Open Welile Operations hub"
+              className="group w-full cursor-pointer rounded-xl border-2 border-[#9234EA]/50 bg-gradient-to-r from-[#9234EA]/10 via-[#9234EA]/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation hover:border-[#9234EA] hover:shadow-md active:scale-[0.98] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9234EA]/60"
             >
               <div className="p-2 rounded-lg bg-[#9234EA]/15">
                 <Landmark className="h-5 w-5 text-[#9234EA] shrink-0" />
@@ -292,7 +294,10 @@ export default function COODashboardPage() {
                 <p className="font-bold text-sm text-foreground leading-tight">Welile Operations</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Manage every user category — tenants, landlords, agents &amp; partners with deep profiles</p>
               </div>
-              <ChevronRight className="h-5 w-5 text-[#9234EA] shrink-0" />
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#9234EA] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm group-hover:bg-[#7d27cc] transition-colors">
+                Open hub
+                <ChevronRight className="h-3.5 w-3.5" />
+              </span>
             </button>
 
             {/* Priority: Rent Approval Queue */}
