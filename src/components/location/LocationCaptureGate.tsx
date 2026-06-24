@@ -562,11 +562,21 @@ export function LocationCaptureGate() {
               <Button
                 onClick={persistFix}
                 size="lg"
+                disabled={regeocoding}
                 variant={gpsQuality(pending.accuracy).weak ? "outline" : "default"}
                 className="w-full gap-2"
               >
-                <Check className="h-4 w-4" />
-                {gpsQuality(pending.accuracy).weak ? "Save anyway" : "Save this location"}
+                {regeocoding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Updating area…
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    {gpsQuality(pending.accuracy).weak ? "Save anyway" : "Save this location"}
+                  </>
+                )}
               </Button>
               <Button
                 onClick={() => {
