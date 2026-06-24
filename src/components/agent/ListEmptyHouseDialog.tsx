@@ -22,7 +22,7 @@ import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import VerificationRequestDetailSheet from './VerificationRequestDetailSheet';
 import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
 import type { LandlordOption } from './LandlordSearchSelect';
-import { HouseLocationMapPreview } from './HouseLocationMapPreview';
+import { reverseGeocode } from '@/lib/reverseGeocode';
 import { GpsQualityIndicator } from '@/components/shared/GpsQualityIndicator';
 
 const APP_URL = 'https://welilereceipts.com';
@@ -188,6 +188,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [capturingGeo, setCapturingGeo] = useState(false);
   // Agent must explicitly confirm the pinned GPS location is correct before submitting.
   const [geoConfirmed, setGeoConfirmed] = useState(false);
+  // Human-readable place name resolved from the pinned coordinates.
+  const [resolvedPlace, setResolvedPlace] = useState<string | null>(null);
+  const [resolvingPlace, setResolvingPlace] = useState(false);
   // Location quick-search (search & choose a specific known area).
   const [locQuery, setLocQuery] = useState('');
   const [locFocused, setLocFocused] = useState(false);
@@ -229,6 +232,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 },
     );
   };
+
+  // Resolve the pinned coordinates to a readable location name.
+  useEffect(() => {
+    if (!geo) {
+      setResolvedPlace(null);
+      return;
+    }
+    let active = true;
+    setResolvingPlace(true);
+    setResolvedPlace(null);
+    reverseGeocode(geo.lat, geo.lng)
+      .then((res) => {
+        if (active) setResolvedPlace(res?.address ?? null);
+      })
+      .finally(() => {
+        if (active) setResolvingPlace(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [geo?.lat, geo?.lng]);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -2142,17 +2166,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
               {geo && (
                 <div className="mt-3 space-y-1.5">
-                  <HouseLocationMapPreview
-                    position={{ lat: geo.lat, lng: geo.lng }}
-                    accuracy={geo.accuracy}
-                    onChange={({ lat, lng }) =>
-                      setGeo((g) => {
-                        setGeoConfirmed(false);
-                        return { lat, lng, accuracy: g?.accuracy ?? null };
-                      })
-                    }
-                    height={200}
-                  />
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+                    <p className="text-[11px] font-medium text-muted-foreground">Coordinates</p>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
+                    </p>
+                    <p className="mt-2 text-[11px] font-medium text-muted-foreground">Resolved location</p>
+                    <p className="text-sm">
+                      {resolvingPlace
+                        ? 'Resolving location name…'
+                        : resolvedPlace || 'Location name unavailable'}
+                    </p>
+                  </div>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <GpsQualityIndicator
                       latitude={geo.lat}
@@ -2165,9 +2190,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    The shaded circle shows the GPS accuracy radius. Check the pin sits on the house — drag it or tap the map to nudge it to the exact spot before submitting.
-                  </p>
                   <label
                     className={`mt-1 flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer ${
                       attempted && !geoConfirmed ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
