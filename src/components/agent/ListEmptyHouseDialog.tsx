@@ -206,7 +206,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setCapturingGeo(true);
     try {
       const result = await captureSmartLocation();
-      if (!result.ok) {
+      if (result.ok !== true) {
         if (result.reason === 'denied') {
           toast.error('Location permission is blocked. Enable location access for this site and tap Pin location again.');
         } else if (result.reason === 'unsupported') {
