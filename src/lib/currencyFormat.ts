@@ -90,6 +90,7 @@ export function formatDynamic(amountInUGX: unknown): string {
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: code,
+      currencyDisplay: code === 'UGX' ? 'code' : 'symbol',
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(converted);
