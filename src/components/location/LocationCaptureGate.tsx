@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_LOCATIONS } from "@/lib/ugandaLocations";
 import type { UgandaLocation } from "@/lib/ugandaLocations";
+
+// Lazy so Leaflet only loads when the review step actually shows the map.
+const HouseLocationMapPreview = lazy(
+  () => import("@/components/agent/HouseLocationMapPreview"),
+);
 
 /**
  * LocationCaptureGate — a modern, prominent popup shown to every signed-in
