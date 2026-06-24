@@ -44,7 +44,7 @@ const registerUser = async (payload: {
   } catch { /* non-fatal */ }
   return { status: 'success', data: { access_token: '', user: newUser } };
 };
-const useCurrency = () => ({ symbol: 'USh', code: 'UGX' });
+const useCurrency = () => ({ symbol: 'UGX', code: 'UGX' });
 const formatCurrencyCompact = (val: number, currency: { symbol: string }) => {
   if (val >= 1_000_000) return `${currency.symbol} ${(val / 1_000_000).toFixed(1)}M`;
   if (val >= 1_000) return `${currency.symbol} ${(val / 1_000).toFixed(1)}K`;
