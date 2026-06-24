@@ -110,8 +110,11 @@ async function reverseGeocodeAdmin(lat: number, lng: number): Promise<AdminLocat
 export function LocationCaptureGate() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<"idle" | "capturing" | "saving" | "success">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "capturing" | "review" | "saving" | "success"
+  >("idle");
   const [captured, setCaptured] = useState<AdminLocation | null>(null);
+  const [pending, setPending] = useState<PendingFix | null>(null);
   const [mode, setMode] = useState<"gps" | "manual">("gps");
   const [query, setQuery] = useState("");
   const checkedRef = useRef(false);
