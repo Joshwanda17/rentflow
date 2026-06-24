@@ -206,23 +206,25 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     setCapturingGeo(true);
     try {
       const result = await captureSmartLocation();
-      if (result.ok) {
-        setGeo({ lat: result.latitude, lng: result.longitude, accuracy: result.accuracy ?? null });
-        setGeoConfirmed(false);
-        toast.success(
-          result.source === 'high'
-            ? 'Exact location pinned for this house'
-            : 'Location pinned (approximate) — move outdoors & re-pin for a sharper fix',
-        );
-      } else if (result.reason === 'denied') {
-        toast.error('Location permission is blocked. Enable location access for this site and tap Pin location again.');
-      } else if (result.reason === 'unsupported') {
-        toast.error('GPS is not supported on this device');
-      } else if (result.reason === 'timeout') {
-        toast.error('GPS took too long. Stand outside with a clear view of the sky and tap Pin location again.');
-      } else {
-        toast.error('Could not get your location. Check that location/GPS is turned on and try again.');
+      if (!result.ok) {
+        if (result.reason === 'denied') {
+          toast.error('Location permission is blocked. Enable location access for this site and tap Pin location again.');
+        } else if (result.reason === 'unsupported') {
+          toast.error('GPS is not supported on this device');
+        } else if (result.reason === 'timeout') {
+          toast.error('GPS took too long. Stand outside with a clear view of the sky and tap Pin location again.');
+        } else {
+          toast.error('Could not get your location. Check that location/GPS is turned on and try again.');
+        }
+        return;
       }
+      setGeo({ lat: result.latitude, lng: result.longitude, accuracy: result.accuracy ?? null });
+      setGeoConfirmed(false);
+      toast.success(
+        result.source === 'high'
+          ? 'Exact location pinned for this house'
+          : 'Location pinned (approximate) — move outdoors & re-pin for a sharper fix',
+      );
     } finally {
       // Guaranteed to run — the spinner always resets even on an unexpected error.
       setCapturingGeo(false);
