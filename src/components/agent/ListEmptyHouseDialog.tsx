@@ -24,6 +24,7 @@ import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
 import type { LandlordOption } from './LandlordSearchSelect';
 import { reverseGeocode } from '@/lib/reverseGeocode';
 import { GpsQualityIndicator } from '@/components/shared/GpsQualityIndicator';
+import { captureSmartLocation } from '@/hooks/useSmartLocation';
 
 const APP_URL = 'https://welilereceipts.com';
 
@@ -196,41 +197,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [locFocused, setLocFocused] = useState(false);
 
   // Capture a fresh, unique GPS pin for this house from the device.
-  const captureGeo = () => {
-    if (!navigator.geolocation) {
-      toast.error('GPS is not supported on this device');
-      return;
-    }
+  // Uses the resilient smart-location helper: high-accuracy first, automatic
+  // low-accuracy fallback, and a HARD timeout ceiling so the spinner can never
+  // hang forever (some Android phones never fire getCurrentPosition's success
+  // OR error callback, leaving agents stuck on a spinning "Pin location").
+  const captureGeo = async () => {
+    if (capturingGeo) return;
     setCapturingGeo(true);
-    const onError = () => {
+    try {
+      const result = await captureSmartLocation();
+      if (result.ok !== true) {
+        if (result.reason === 'denied') {
+          toast.error('Location permission is blocked. Enable location access for this site and tap Pin location again.');
+        } else if (result.reason === 'unsupported') {
+          toast.error('GPS is not supported on this device');
+        } else if (result.reason === 'timeout') {
+          toast.error('GPS took too long. Stand outside with a clear view of the sky and tap Pin location again.');
+        } else {
+          toast.error('Could not get your location. Check that location/GPS is turned on and try again.');
+        }
+        return;
+      }
+      setGeo({ lat: result.latitude, lng: result.longitude, accuracy: result.accuracy ?? null });
+      setGeoConfirmed(false);
+      toast.success(
+        result.source === 'high'
+          ? 'Exact location pinned for this house'
+          : 'Location pinned (approximate) — move outdoors & re-pin for a sharper fix',
+      );
+    } finally {
+      // Guaranteed to run — the spinner always resets even on an unexpected error.
       setCapturingGeo(false);
-      toast.error('Could not get your location. Allow location access and try again.');
-    };
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
-        setGeo({ lat: latitude, lng: longitude, accuracy: accuracy ?? null });
-        setGeoConfirmed(false);
-        setCapturingGeo(false);
-        toast.success('Exact location pinned for this house');
-      },
-      // Fall back to a lower-accuracy fix if high-accuracy times out (works
-      // better indoors / on cheaper phones).
-      () => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const { latitude, longitude, accuracy } = pos.coords;
-            setGeo({ lat: latitude, lng: longitude, accuracy: accuracy ?? null });
-            setGeoConfirmed(false);
-            setCapturingGeo(false);
-            toast.success('Location pinned for this house');
-          },
-          onError,
-          { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
-        );
-      },
-      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 },
-    );
+    }
   };
 
   // Resolve the pinned coordinates to a readable location name.
