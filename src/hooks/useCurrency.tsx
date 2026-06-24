@@ -400,6 +400,7 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
       const formatted = new Intl.NumberFormat(currency.locale, {
         style: showSymbol ? 'currency' : 'decimal',
         currency: currency.code,
+        currencyDisplay: currency.code === 'UGX' ? 'code' : 'symbol',
         minimumFractionDigits: currency.code === 'UGX' || currency.code === 'JPY' || currency.code === 'KRW' ? 0 : 2,
         maximumFractionDigits: currency.code === 'UGX' || currency.code === 'JPY' || currency.code === 'KRW' ? 0 : 2,
       }).format(converted);
