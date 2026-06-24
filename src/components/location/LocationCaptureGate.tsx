@@ -8,7 +8,19 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapPin, Navigation, Loader2, ShieldCheck, Check, Search, X } from "lucide-react";
+import {
+  MapPin,
+  Navigation,
+  Loader2,
+  ShieldCheck,
+  Check,
+  Search,
+  X,
+  AlertTriangle,
+  SignalHigh,
+  SignalMedium,
+  SignalLow,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +46,37 @@ type AdminLocation = {
   country: string | null;
   address: string | null;
 };
+
+type PendingFix = {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  admin: AdminLocation;
+};
+
+type GpsQuality = {
+  label: string;
+  tone: "good" | "fair" | "weak";
+  weak: boolean;
+  Icon: typeof SignalHigh;
+};
+
+/** Map a GPS accuracy radius (meters) to a human quality rating. */
+function gpsQuality(accuracy: number | null): GpsQuality {
+  if (accuracy == null) {
+    return { label: "Unknown accuracy", tone: "weak", weak: true, Icon: SignalLow };
+  }
+  if (accuracy <= 30) {
+    return { label: "Excellent signal", tone: "good", weak: false, Icon: SignalHigh };
+  }
+  if (accuracy <= 75) {
+    return { label: "Good signal", tone: "good", weak: false, Icon: SignalHigh };
+  }
+  if (accuracy <= 150) {
+    return { label: "Fair signal", tone: "fair", weak: false, Icon: SignalMedium };
+  }
+  return { label: "Weak signal", tone: "weak", weak: true, Icon: SignalLow };
+}
 
 async function reverseGeocodeAdmin(lat: number, lng: number): Promise<AdminLocation> {
   const fallback: AdminLocation = { district: null, city: null, country: null, address: null };
@@ -67,8 +110,11 @@ async function reverseGeocodeAdmin(lat: number, lng: number): Promise<AdminLocat
 export function LocationCaptureGate() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<"idle" | "capturing" | "saving" | "success">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "capturing" | "review" | "saving" | "success"
+  >("idle");
   const [captured, setCaptured] = useState<AdminLocation | null>(null);
+  const [pending, setPending] = useState<PendingFix | null>(null);
   const [mode, setMode] = useState<"gps" | "manual">("gps");
   const [query, setQuery] = useState("");
   const checkedRef = useRef(false);
@@ -130,11 +176,36 @@ export function LocationCaptureGate() {
       });
 
       const { latitude, longitude, accuracy } = position.coords;
-      setStatus("saving");
-
       const admin = await reverseGeocodeAdmin(latitude, longitude);
-      setCaptured(admin);
 
+      // Show the captured point + its quality and let the user review/confirm
+      // before saving — especially important when the signal is weak.
+      setPending({ latitude, longitude, accuracy: accuracy ?? null, admin });
+      setStatus("review");
+    } catch (err: unknown) {
+      const code = (err as GeolocationPositionError)?.code;
+      if (code === 1) {
+        toast.error("Location permission denied. Please enable it in your browser settings.");
+      } else if (code === 2) {
+        toast.error("Location unavailable. Please try again.");
+      } else if (code === 3) {
+        toast.error("Location request timed out. Please try again.");
+      } else {
+        toast.error("Could not get your location. Please try again.");
+      }
+      setStatus("idle");
+      // GPS failed — offer manual entry as a fallback.
+      setMode("manual");
+    }
+  }, [user]);
+
+  // Persist the reviewed GPS fix to the database.
+  const persistFix = useCallback(async () => {
+    if (!user || !pending) return;
+    const { latitude, longitude, accuracy, admin } = pending;
+    setStatus("saving");
+    setCaptured(admin);
+    try {
       // 1) Append a tracking record (history of captures)
       await supabase.from("user_locations").insert({
         user_id: user.id,
@@ -170,22 +241,11 @@ export function LocationCaptureGate() {
       setStatus("success");
       toast.success("Location shared. Thank you!");
       setTimeout(() => setOpen(false), 1800);
-    } catch (err: unknown) {
-      const code = (err as GeolocationPositionError)?.code;
-      if (code === 1) {
-        toast.error("Location permission denied. Please enable it in your browser settings.");
-      } else if (code === 2) {
-        toast.error("Location unavailable. Please try again.");
-      } else if (code === 3) {
-        toast.error("Location request timed out. Please try again.");
-      } else {
-        toast.error("Could not get your location. Please try again.");
-      }
-      setStatus("idle");
-      // GPS failed — offer manual entry as a fallback.
-      setMode("manual");
+    } catch {
+      toast.error("Could not save your location. Please try again.");
+      setStatus("review");
     }
-  }, [user]);
+  }, [user, pending]);
 
   const filteredLocations = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -284,21 +344,76 @@ export function LocationCaptureGate() {
           </div>
           <DialogHeader className="space-y-1">
             <DialogTitle className="text-primary-foreground text-lg font-bold">
-              {status === "success" ? "Location shared!" : "Share your location"}
+              {status === "success"
+                ? "Location shared!"
+                : status === "review"
+                  ? "Confirm your location"
+                  : "Share your location"}
             </DialogTitle>
             <DialogDescription className="text-primary-foreground/80 text-sm">
               {status === "success"
                 ? captured?.district || captured?.city
                   ? `We've recorded ${[captured?.city, captured?.district].filter(Boolean).join(", ")}.`
                   : "Your location has been recorded."
-                : "Help us serve you better with accurate, local services."}
+                : status === "review"
+                  ? "Check the signal quality below before saving."
+                  : "Help us serve you better with accurate, local services."}
             </DialogDescription>
           </DialogHeader>
         </div>
 
         {/* Body */}
         <div className="px-6 -mt-4">
-          {mode === "manual" && status !== "success" ? (
+          {status === "review" && pending ? (
+            (() => {
+              const q = gpsQuality(pending.accuracy);
+              const toneClasses =
+                q.tone === "good"
+                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                  : q.tone === "fair"
+                    ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                    : "bg-destructive/10 text-destructive border-destructive/20";
+              return (
+                <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+                  <div className={`flex items-center gap-3 rounded-lg border p-3 ${toneClasses}`}>
+                    <q.Icon className="h-5 w-5 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold leading-tight">{q.label}</p>
+                      <p className="text-xs opacity-80">
+                        {pending.accuracy != null
+                          ? `Accurate to about ±${Math.round(pending.accuracy)} m`
+                          : "Accuracy could not be measured"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-sm">
+                    <p className="text-muted-foreground">
+                      Captured area:{" "}
+                      <span className="font-medium text-foreground">
+                        {[pending.admin.city, pending.admin.district, pending.admin.country]
+                          .filter(Boolean)
+                          .join(", ") || "Unknown area"}
+                      </span>
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-muted-foreground">
+                      {pending.latitude.toFixed(5)}, {pending.longitude.toFixed(5)}
+                    </p>
+                  </div>
+
+                  {q.weak && (
+                    <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p className="text-xs">
+                        This signal is weak, so the pin may be off by a large distance. For best
+                        results, move outdoors or near a window and try again before saving.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()
+          ) : mode === "manual" && status !== "success" ? (
             <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
               <p className="text-sm text-muted-foreground">
                 Can't use GPS? Choose your <span className="font-medium text-foreground">district or town</span> below.
@@ -365,7 +480,40 @@ export function LocationCaptureGate() {
 
         {/* Actions */}
         <div className="px-6 pb-6 pt-4 space-y-2">
-          {status !== "success" && (
+          {status === "review" && pending ? (
+            <>
+              <Button
+                onClick={persistFix}
+                size="lg"
+                variant={gpsQuality(pending.accuracy).weak ? "outline" : "default"}
+                className="w-full gap-2"
+              >
+                <Check className="h-4 w-4" />
+                {gpsQuality(pending.accuracy).weak ? "Save anyway" : "Save this location"}
+              </Button>
+              <Button
+                onClick={() => {
+                  setPending(null);
+                  setStatus("idle");
+                  handleShare();
+                }}
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+              >
+                <Navigation className="mr-1 h-4 w-4" />
+                Re-capture GPS
+              </Button>
+              <Button
+                onClick={handleSnooze}
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+              >
+                Not now
+              </Button>
+            </>
+          ) : status !== "success" ? (
             <>
               {mode === "gps" ? (
                 <Button
@@ -422,7 +570,7 @@ export function LocationCaptureGate() {
                 Not now
               </Button>
             </>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
