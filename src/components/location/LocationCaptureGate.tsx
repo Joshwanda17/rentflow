@@ -7,10 +7,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, Loader2, ShieldCheck, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MapPin, Navigation, Loader2, ShieldCheck, Check, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { UGANDA_LOCATIONS } from "@/lib/ugandaLocations";
+import type { UgandaLocation } from "@/lib/ugandaLocations";
 
 /**
  * LocationCaptureGate — a modern, prominent popup shown to every signed-in
@@ -66,6 +69,8 @@ export function LocationCaptureGate() {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "capturing" | "saving" | "success">("idle");
   const [captured, setCaptured] = useState<AdminLocation | null>(null);
+  const [mode, setMode] = useState<"gps" | "manual">("gps");
+  const [query, setQuery] = useState("");
   const checkedRef = useRef(false);
 
   const snoozed = useMemo(() => {
@@ -111,6 +116,7 @@ export function LocationCaptureGate() {
     if (!user) return;
     if (!navigator.geolocation) {
       toast.error("Your device does not support location services.");
+      setMode("manual");
       return;
     }
     setStatus("capturing");
@@ -176,8 +182,80 @@ export function LocationCaptureGate() {
         toast.error("Could not get your location. Please try again.");
       }
       setStatus("idle");
+      // GPS failed — offer manual entry as a fallback.
+      setMode("manual");
     }
   }, [user]);
+
+  const filteredLocations = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return UGANDA_LOCATIONS;
+    return UGANDA_LOCATIONS.filter(
+      (l) => l.name.toLowerCase().includes(q) || l.region.toLowerCase().includes(q),
+    );
+  }, [query]);
+
+  const handleManualSelect = useCallback(
+    async (loc: UgandaLocation) => {
+      if (!user) return;
+      setStatus("saving");
+      const admin: AdminLocation = {
+        district: loc.name,
+        city: loc.name,
+        country: "Uganda",
+        address: `${loc.name}, ${loc.region}, Uganda`,
+      };
+      setCaptured(admin);
+      try {
+        // 1) Append a tracking record (history of captures)
+        await supabase.from("user_locations").insert({
+          user_id: user.id,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          accuracy: null,
+          address: admin.address,
+          city: admin.city,
+          country: admin.country,
+        });
+
+        // 2) Update the canonical profile location
+        await supabase
+          .from("profiles")
+          .update({
+            residence_lat: loc.latitude,
+            residence_lng: loc.longitude,
+            country: admin.country,
+            city: admin.city,
+            district: admin.district,
+            region: loc.region,
+          })
+          .eq("id", user.id);
+
+        // 3) Capture a trust signal (best-effort, non-blocking)
+        try {
+          await supabase.rpc("capture_trust_signal" as never, {
+            p_user_id: user.id,
+            p_signal_type: "location_shared",
+            p_metadata: {
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              source: "manual",
+            } as never,
+          } as never);
+        } catch {
+          /* trust signal is best-effort */
+        }
+
+        setStatus("success");
+        toast.success("Location saved. Thank you!");
+        setTimeout(() => setOpen(false), 1800);
+      } catch {
+        toast.error("Could not save your location. Please try again.");
+        setStatus("idle");
+      }
+    },
+    [user],
+  );
 
   const handleSnooze = useCallback(() => {
     try {
@@ -220,6 +298,52 @@ export function LocationCaptureGate() {
 
         {/* Body */}
         <div className="px-6 -mt-4">
+          {mode === "manual" && status !== "success" ? (
+            <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Can't use GPS? Choose your <span className="font-medium text-foreground">district or town</span> below.
+              </p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search district or town…"
+                  className="h-11 pl-9"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="max-h-56 overflow-y-auto -mx-1 px-1 space-y-1">
+                {filteredLocations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    No areas match "{query}".
+                  </p>
+                ) : (
+                  filteredLocations.map((loc) => (
+                    <button
+                      key={loc.name}
+                      type="button"
+                      disabled={status === "saving"}
+                      onClick={() => handleManualSelect(loc)}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm text-left transition-colors hover:bg-muted disabled:opacity-50 touch-manipulation"
+                    >
+                      <span className="font-medium text-foreground">{loc.name}</span>
+                      <span className="text-xs text-muted-foreground">{loc.region}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
           <div className="rounded-xl border bg-card p-4 shadow-sm">
             <div className="space-y-3 text-sm">
               <div className="flex items-start gap-3">
@@ -236,30 +360,58 @@ export function LocationCaptureGate() {
               </div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="px-6 pb-6 pt-4 space-y-2">
           {status !== "success" && (
             <>
-              <Button
-                onClick={handleShare}
-                disabled={status === "capturing" || status === "saving"}
-                size="lg"
-                className="w-full gap-2"
-              >
-                {status === "capturing" || status === "saving" ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {status === "capturing" ? "Getting location…" : "Saving…"}
-                  </>
-                ) : (
-                  <>
-                    <Navigation className="h-4 w-4" />
-                    Share my location
-                  </>
-                )}
-              </Button>
+              {mode === "gps" ? (
+                <Button
+                  onClick={handleShare}
+                  disabled={status === "capturing" || status === "saving"}
+                  size="lg"
+                  className="w-full gap-2"
+                >
+                  {status === "capturing" || status === "saving" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {status === "capturing" ? "Getting location…" : "Saving…"}
+                    </>
+                  ) : (
+                    <>
+                      <Navigation className="h-4 w-4" />
+                      Share my location
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setMode("gps");
+                    handleShare();
+                  }}
+                  variant="outline"
+                  size="lg"
+                  disabled={status === "saving"}
+                  className="w-full gap-2"
+                >
+                  <Navigation className="h-4 w-4" />
+                  Try GPS again
+                </Button>
+              )}
+              {mode === "gps" && (
+                <Button
+                  onClick={() => setMode("manual")}
+                  variant="ghost"
+                  size="sm"
+                  disabled={status === "capturing" || status === "saving"}
+                  className="w-full text-muted-foreground"
+                >
+                  Enter location manually
+                </Button>
+              )}
               <Button
                 onClick={handleSnooze}
                 variant="ghost"
