@@ -1016,7 +1016,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                   </Label>
                   <div className="relative flex items-center">
                     <span className="pointer-events-none absolute left-4 text-lg font-bold text-muted-foreground">
-                      USh
+                      UGX
                     </span>
                     <Input
                       id="amount"
