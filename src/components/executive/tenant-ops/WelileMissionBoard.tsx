@@ -22,6 +22,7 @@ import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import { TenantBalanceEditPanel } from '@/components/executive/tenant-ops/TenantBalanceEditPanel';
 import { ListingPhotoGallery } from '@/components/executive/tenant-ops/ListingPhotoGallery';
 import { LandlordBucketDialog } from '@/components/executive/tenant-ops/LandlordPriorityClassification';
+import { AgentNetworkBadge } from '@/components/executive/tenant-ops/AgentNetworkBadge';
 import {
   useMissionSummary, useMissionLeaderboard, type CounterWindow,
   type MissionSummary, type MissionAgentRow,
