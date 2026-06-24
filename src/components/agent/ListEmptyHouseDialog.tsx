@@ -988,6 +988,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Add at least one photo of the house');
       return;
     }
+    // Landlord name is mandatory for every listing.
+    if (!form.landlord_name.trim() && !selectedLandlord?.name) {
+      failWith('Landlord name is required');
+      return;
+    }
     // Landlord phone is mandatory for every listing.
     if (!form.landlord_phone.trim()) {
       failWith('Landlord phone number is required');
@@ -997,8 +1002,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Enter the caretaker name and phone');
       return;
     }
-    // LC1 is optional — only validate if the agent began filling it in.
-    if (lc1Selection) {
+    // LC1 chairperson is mandatory for every listing.
+    {
       const lc1Err = validateLc1Selection(lc1Selection);
       if (lc1Err) { failWith(lc1Err); return; }
     }
