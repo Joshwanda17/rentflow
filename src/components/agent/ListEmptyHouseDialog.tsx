@@ -2428,11 +2428,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <FormStepHeader
             icon={CheckCircle2}
             title="Almost done"
-            subtitle="LC1 chairperson is optional — list the house whenever you're ready."
+            subtitle="The LC1 chairperson is required to list the house."
           />
-          {/* LC1 Chairperson — optional, but registering one earns UGX 5,000 */}
+          {/* LC1 Chairperson — required; registering a new one earns UGX 5,000 */}
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">LC1 Chairperson <span className="normal-case text-[10px] font-normal">(optional · earns UGX 5,000)</span></p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase">LC1 Chairperson <span className="normal-case text-[10px] font-normal text-destructive">(required · earns UGX 5,000)</span></p>
           </div>
           <Lc1ChairpersonPicker
             value={lc1Selection}
@@ -2440,7 +2440,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             defaultRegion={form.region}
             defaultDistrict={form.district}
             defaultVillage={form.village}
-            attempted={attempted && !!lc1Selection}
+            attempted={attempted}
           />
 
           {/* Amenities */}
