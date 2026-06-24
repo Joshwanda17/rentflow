@@ -344,14 +344,20 @@ export function LocationCaptureGate() {
           </div>
           <DialogHeader className="space-y-1">
             <DialogTitle className="text-primary-foreground text-lg font-bold">
-              {status === "success" ? "Location shared!" : "Share your location"}
+              {status === "success"
+                ? "Location shared!"
+                : status === "review"
+                  ? "Confirm your location"
+                  : "Share your location"}
             </DialogTitle>
             <DialogDescription className="text-primary-foreground/80 text-sm">
               {status === "success"
                 ? captured?.district || captured?.city
                   ? `We've recorded ${[captured?.city, captured?.district].filter(Boolean).join(", ")}.`
                   : "Your location has been recorded."
-                : "Help us serve you better with accurate, local services."}
+                : status === "review"
+                  ? "Check the signal quality below before saving."
+                  : "Help us serve you better with accurate, local services."}
             </DialogDescription>
           </DialogHeader>
         </div>
