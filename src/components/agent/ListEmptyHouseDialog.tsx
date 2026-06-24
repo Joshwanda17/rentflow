@@ -188,6 +188,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   const [capturingGeo, setCapturingGeo] = useState(false);
   // Agent must explicitly confirm the pinned GPS location is correct before submitting.
   const [geoConfirmed, setGeoConfirmed] = useState(false);
+  // Human-readable place name resolved from the pinned coordinates.
+  const [resolvedPlace, setResolvedPlace] = useState<string | null>(null);
+  const [resolvingPlace, setResolvingPlace] = useState(false);
   // Location quick-search (search & choose a specific known area).
   const [locQuery, setLocQuery] = useState('');
   const [locFocused, setLocFocused] = useState(false);
@@ -229,6 +232,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 },
     );
   };
+
+  // Resolve the pinned coordinates to a readable location name.
+  useEffect(() => {
+    if (!geo) {
+      setResolvedPlace(null);
+      return;
+    }
+    let active = true;
+    setResolvingPlace(true);
+    setResolvedPlace(null);
+    reverseGeocode(geo.lat, geo.lng)
+      .then((res) => {
+        if (active) setResolvedPlace(res?.address ?? null);
+      })
+      .finally(() => {
+        if (active) setResolvingPlace(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [geo?.lat, geo?.lng]);
   const [form, setForm] = useState({
     title: '',
     description: '',
