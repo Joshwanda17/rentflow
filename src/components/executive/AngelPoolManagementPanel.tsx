@@ -215,7 +215,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
   };
 
   const exportCSV = () => {
-    const headers = ['#', 'Name', 'Reference IDs', 'Shares', 'Amount (USh)', 'Pool %', 'Company %', 'Date', 'Status'];
+    const headers = ['#', 'Name', 'Reference IDs', 'Shares', 'Amount (UGX)', 'Pool %', 'Company %', 'Date', 'Status'];
     const rows = sorted.map((inv, i) => [
       i + 1, inv.name, `"${inv.reference_ids.join('; ')}"`, inv.total_shares, inv.total_amount, inv.pool_pct.toFixed(4),
       inv.company_pct.toFixed(4), format(new Date(inv.latest_date), 'yyyy-MM-dd'), inv.status,
