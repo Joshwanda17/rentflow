@@ -187,6 +187,8 @@ export function LocationCaptureGate() {
       const { latitude, longitude, accuracy } = position.coords;
       const admin = await reverseGeocodeAdmin(latitude, longitude);
 
+      // Remember what we just geocoded so a pin drag re-resolves the area.
+      lastGeocodedRef.current = { lat: latitude, lng: longitude };
       // Show the captured point + its quality and let the user review/confirm
       // before saving — especially important when the signal is weak.
       setPending({ latitude, longitude, accuracy: accuracy ?? null, admin });
