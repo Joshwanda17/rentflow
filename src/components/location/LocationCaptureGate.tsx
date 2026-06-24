@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_LOCATIONS } from "@/lib/ugandaLocations";
 import type { UgandaLocation } from "@/lib/ugandaLocations";
+
+// Lazy so Leaflet only loads when the review step actually shows the map.
+const HouseLocationMapPreview = lazy(
+  () => import("@/components/agent/HouseLocationMapPreview"),
+);
 
 /**
  * LocationCaptureGate — a modern, prominent popup shown to every signed-in
@@ -398,6 +403,31 @@ export function LocationCaptureGate() {
                     </p>
                     <p className="mt-1 font-mono text-xs text-muted-foreground">
                       {pending.latitude.toFixed(5)}, {pending.longitude.toFixed(5)}
+                    </p>
+                  </div>
+
+                  {/* Interactive map preview — drag the pin or tap to fine-tune */}
+                  <div className="space-y-1">
+                    <Suspense
+                      fallback={
+                        <div className="flex h-[180px] items-center justify-center rounded-lg border border-border bg-muted/30">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        </div>
+                      }
+                    >
+                      <HouseLocationMapPreview
+                        position={{ lat: pending.latitude, lng: pending.longitude }}
+                        accuracy={pending.accuracy}
+                        height={180}
+                        onChange={(pos) =>
+                          setPending((p) =>
+                            p ? { ...p, latitude: pos.lat, longitude: pos.lng } : p,
+                          )
+                        }
+                      />
+                    </Suspense>
+                    <p className="text-center text-[11px] text-muted-foreground">
+                      Drag the pin or tap the map to fine-tune the exact spot.
                     </p>
                   </div>
 
