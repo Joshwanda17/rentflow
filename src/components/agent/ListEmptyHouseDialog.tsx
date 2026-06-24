@@ -885,6 +885,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       }
     }
     if (s === 3) {
+      // Landlord name is mandatory — every listing must carry a named landlord.
+      if (!form.landlord_name.trim() && !selectedLandlord?.name) {
+        toast.error('Landlord name is required');
+        return false;
+      }
       // Landlord phone is mandatory — every listing must carry a reachable landlord number.
       const phoneErr = validateLandlordPhone(form.landlord_phone);
       if (phoneErr) {
@@ -896,12 +901,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
         toast.error('Enter the caretaker name and phone');
         return false;
       }
-      if (lc1Selection) {
-        const lc1Err = validateLc1Selection(lc1Selection);
-        if (lc1Err) {
-          toast.error(lc1Err);
-          return false;
-        }
+      // LC1 chairperson is mandatory for every listing.
+      const lc1Err = validateLc1Selection(lc1Selection);
+      if (lc1Err) {
+        toast.error(lc1Err);
+        return false;
       }
     }
     return true;
@@ -929,8 +933,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // submit. Each gate carries the wizard step the agent should go back to.
   type PreflightGate = { label: string; ok: boolean; hint: string; step: number };
   const caretakerOk = form.caretaker_type !== 'other' || (!!form.caretaker_name.trim() && !!form.caretaker_phone.trim());
-  // LC1 is optional — only flag it as incomplete once the agent starts filling it in.
-  const lc1PartialErr = lc1Selection ? validateLc1Selection(lc1Selection) : null;
+  // LC1 is mandatory — flag it as incomplete until a valid chairperson is set.
+  const lc1PartialErr = validateLc1Selection(lc1Selection);
   const preflightGates: PreflightGate[] = [
     { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 1 },
     { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
@@ -940,13 +944,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   preflightGates.push({ label: 'GPS location pinned', ok: !!geo, hint: 'Stand at the house and pin its exact GPS coordinates', step: 1 });
   preflightGates.push({ label: 'GPS location confirmed', ok: !!geo && geoConfirmed, hint: 'Tick the box confirming the pin sits on the house', step: 1 });
   preflightGates.push({ label: 'At least one photo', ok: images.length > 0, hint: 'Add at least one photo of the house', step: 2 });
+  preflightGates.push({ label: 'Landlord name', ok: !!(form.landlord_name.trim() || selectedLandlord?.name), hint: 'Enter the landlord name', step: 3 });
   preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 3 });
   if (form.caretaker_type === 'other') {
     preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 3 });
   }
-  if (lc1Selection) {
-    preflightGates.push({ label: 'LC1 chairperson details', ok: !lc1PartialErr, hint: lc1PartialErr || 'Complete the LC1 chairperson details', step: 3 });
-  }
+  preflightGates.push({ label: 'LC1 chairperson details', ok: !lc1PartialErr, hint: lc1PartialErr || 'Complete the LC1 chairperson details', step: 3 });
   const missingGates = preflightGates.filter((g) => !g.ok);
   const allGatesPass = missingGates.length === 0;
 
@@ -985,6 +988,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Add at least one photo of the house');
       return;
     }
+    // Landlord name is mandatory for every listing.
+    if (!form.landlord_name.trim() && !selectedLandlord?.name) {
+      failWith('Landlord name is required');
+      return;
+    }
     // Landlord phone is mandatory for every listing.
     if (!form.landlord_phone.trim()) {
       failWith('Landlord phone number is required');
@@ -994,8 +1002,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Enter the caretaker name and phone');
       return;
     }
-    // LC1 is optional — only validate if the agent began filling it in.
-    if (lc1Selection) {
+    // LC1 chairperson is mandatory for every listing.
+    {
       const lc1Err = validateLc1Selection(lc1Selection);
       if (lc1Err) { failWith(lc1Err); return; }
     }
@@ -1482,12 +1490,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <FormStepHeader
             icon={User}
             stepLabel="Step 3 of 3"
-            title="Landlord phone"
-            subtitle="Just the phone number is a must — the rest can come later."
+            title="Landlord & LC1"
+            subtitle="Landlord name, phone and the LC1 chairperson are all required to list."
           />
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal text-destructive">(phone required)</span></p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details <span className="normal-case text-[10px] font-normal text-destructive">(name & phone required)</span></p>
 
             {/* Step 1 — search the system for a verified landlord */}
             {!selectedLandlord && !manualLandlord && (
@@ -1703,7 +1711,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               <div className="space-y-3">
                 <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <Label className="text-sm font-medium">Landlord Name</Label>
+                    <Label className="text-sm font-medium">Landlord Name <span className="text-destructive">*</span></Label>
                     <LandlordAutocompleteInput
                       field="name"
                       placeholder="Name — type to find an existing landlord"
@@ -2420,11 +2428,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <FormStepHeader
             icon={CheckCircle2}
             title="Almost done"
-            subtitle="LC1 chairperson is optional — list the house whenever you're ready."
+            subtitle="The LC1 chairperson is required to list the house."
           />
-          {/* LC1 Chairperson — optional, but registering one earns UGX 5,000 */}
+          {/* LC1 Chairperson — required; registering a new one earns UGX 5,000 */}
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">LC1 Chairperson <span className="normal-case text-[10px] font-normal">(optional · earns UGX 5,000)</span></p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase">LC1 Chairperson <span className="normal-case text-[10px] font-normal text-destructive">(required · earns UGX 5,000)</span></p>
           </div>
           <Lc1ChairpersonPicker
             value={lc1Selection}
@@ -2432,7 +2440,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             defaultRegion={form.region}
             defaultDistrict={form.district}
             defaultVillage={form.village}
-            attempted={attempted && !!lc1Selection}
+            attempted={attempted}
           />
 
           {/* Amenities */}
