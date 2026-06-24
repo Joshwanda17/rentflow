@@ -122,7 +122,11 @@ export function LocationCaptureGate() {
   const [pending, setPending] = useState<PendingFix | null>(null);
   const [mode, setMode] = useState<"gps" | "manual">("gps");
   const [query, setQuery] = useState("");
+  const [regeocoding, setRegeocoding] = useState(false);
   const checkedRef = useRef(false);
+  // Coords of the most recently reverse-geocoded point, so dragging the pin
+  // re-resolves the area but the initial capture is not geocoded twice.
+  const lastGeocodedRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const snoozed = useMemo(() => {
     try {
