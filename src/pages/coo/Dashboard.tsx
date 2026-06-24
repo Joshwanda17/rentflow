@@ -28,10 +28,11 @@ import DailyCollectionMonitoringDashboard from '@/components/shared/DailyCollect
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { COOScaleVisionView } from '@/components/coo/COOScaleVisionView';
+import { WelileOperationsHub } from '@/components/executive/WelileOperationsHub';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck, UserPlus,
-  TrendingUp, ArrowLeft, ChevronRight, Receipt, Home, CalendarCheck, Megaphone, Globe2
+  TrendingUp, ArrowLeft, ChevronRight, Receipt, Home, CalendarCheck, Megaphone, Globe2, Landmark
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -267,9 +268,33 @@ export default function COODashboardPage() {
             <COOScaleVisionView />
           </div>
         );
+      case 'welile-operations':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            {renderSectionHeader('Welile Operations', Landmark)}
+            <p className="text-sm text-muted-foreground -mt-2">Manage every user category — tenants, landlords, agents &amp; partners with deep profiles.</p>
+            <WelileOperationsHub />
+          </div>
+        );
       default:
         return (
           <div className="space-y-5">
+            {/* HERO: Welile Operations — manage every user category */}
+            <button
+              onClick={() => handleNavTo('welile-operations')}
+              className="w-full rounded-xl border-2 border-[#9234EA]/50 bg-gradient-to-r from-[#9234EA]/10 via-[#9234EA]/5 to-transparent p-3.5 flex items-center gap-3 text-left min-h-[64px] touch-manipulation active:scale-[0.98] transition-transform shadow-sm"
+            >
+              <div className="p-2 rounded-lg bg-[#9234EA]/15">
+                <Landmark className="h-5 w-5 text-[#9234EA] shrink-0" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm text-foreground leading-tight">Welile Operations</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Manage every user category — tenants, landlords, agents &amp; partners with deep profiles</p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-[#9234EA] shrink-0" />
+            </button>
+
             {/* Priority: Rent Approval Queue */}
             <RentPipelineQueue stage="landlord_ops_approved" />
             <RejectedRequestsQueue stageFilter="landlord_ops_approved" title="Rejected at COO" />
