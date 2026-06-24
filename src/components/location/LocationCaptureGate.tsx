@@ -358,7 +358,56 @@ export function LocationCaptureGate() {
 
         {/* Body */}
         <div className="px-6 -mt-4">
-          {mode === "manual" && status !== "success" ? (
+          {status === "review" && pending ? (
+            (() => {
+              const q = gpsQuality(pending.accuracy);
+              const toneClasses =
+                q.tone === "good"
+                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                  : q.tone === "fair"
+                    ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                    : "bg-destructive/10 text-destructive border-destructive/20";
+              return (
+                <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+                  <div className={`flex items-center gap-3 rounded-lg border p-3 ${toneClasses}`}>
+                    <q.Icon className="h-5 w-5 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold leading-tight">{q.label}</p>
+                      <p className="text-xs opacity-80">
+                        {pending.accuracy != null
+                          ? `Accurate to about ±${Math.round(pending.accuracy)} m`
+                          : "Accuracy could not be measured"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-sm">
+                    <p className="text-muted-foreground">
+                      Captured area:{" "}
+                      <span className="font-medium text-foreground">
+                        {[pending.admin.city, pending.admin.district, pending.admin.country]
+                          .filter(Boolean)
+                          .join(", ") || "Unknown area"}
+                      </span>
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-muted-foreground">
+                      {pending.latitude.toFixed(5)}, {pending.longitude.toFixed(5)}
+                    </p>
+                  </div>
+
+                  {q.weak && (
+                    <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p className="text-xs">
+                        This signal is weak, so the pin may be off by a large distance. For best
+                        results, move outdoors or near a window and try again before saving.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()
+          ) : mode === "manual" && status !== "success" ? (
             <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
               <p className="text-sm text-muted-foreground">
                 Can't use GPS? Choose your <span className="font-medium text-foreground">district or town</span> below.
