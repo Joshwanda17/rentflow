@@ -53,6 +53,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { AddSubAgentSearch } from '@/components/agent/AddSubAgentSearch';
+import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { SetTeamGoalDialog } from '@/components/agent/SetTeamGoalDialog';
 import { TeamGoalProgress } from '@/components/agent/TeamGoalProgress';
@@ -2224,6 +2225,16 @@ export default function SubAgentAnalytics() {
                 setInviteSheetOpen(false);
               }}
             />
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            {/* Shareable short invite link — clicking it and registering auto-links
+                the new user as a sub-agent of the inviting agent. */}
+            <ShareSubAgentLink />
 
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-border" />
