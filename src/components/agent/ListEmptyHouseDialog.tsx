@@ -24,6 +24,7 @@ import { LandlordAutocompleteInput } from './LandlordAutocompleteInput';
 import type { LandlordOption } from './LandlordSearchSelect';
 import { reverseGeocode } from '@/lib/reverseGeocode';
 import { GpsQualityIndicator } from '@/components/shared/GpsQualityIndicator';
+import { captureSmartLocation } from '@/hooks/useSmartLocation';
 
 const APP_URL = 'https://welilereceipts.com';
 
