@@ -137,7 +137,7 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
               <Gift className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-sm leading-tight">Invite & Earn 500/=</h3>
+              <h3 className="font-bold text-sm leading-tight">Invite & Earn UGX 500</h3>
               <p className="text-xs text-muted-foreground">
                 Share your link. Earn for every friend who joins.
               </p>
