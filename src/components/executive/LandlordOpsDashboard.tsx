@@ -2966,8 +2966,8 @@ export function LandlordOpsDashboard() {
                     )}
                   </div>
                 )}
-                {/* LC1 */}
-                {house.lc1_chairperson_name && (
+                {/* LC1 — always shown on every card, even when none is linked */}
+                {house.lc1_chairperson_name ? (
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-amber-500/5 px-3 py-2">
                     <div className="min-w-0">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">LC1 Chairperson</p>
@@ -2981,6 +2981,14 @@ export function LandlordOpsDashboard() {
                     {house.lc1_chairperson_phone && (
                       <PhoneLinks phone={house.lc1_chairperson_phone} name={house.lc1_chairperson_name} />
                     )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-lg bg-amber-500/5 px-3 py-2">
+                    <ShieldCheck className="h-4 w-4 text-amber-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">LC1 Chairperson</p>
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-300">No LC1 chairperson linked to this listing</p>
+                    </div>
                   </div>
                 )}
                 {/* GPS */}
