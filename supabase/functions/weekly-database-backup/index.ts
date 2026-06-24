@@ -7,9 +7,14 @@ const corsHeaders = {
 
 const RECIPIENTS = ["joshwanda17@gmail.com", "weliletechnologies@gmail.com"];
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
-// Stop generating well before the worker's hard CPU/wall limit so we always
-// close the stream and persist a valid file instead of being killed (546).
-const SOFT_DEADLINE_MS = 110_000;
+// The worker is killed on CPU time (546 WORKER_RESOURCE_LIMIT), which is hit far
+// sooner than wall time when serializing huge tables. Stop generating well before
+// the CPU budget runs out so we always close the stream and persist a valid file.
+const SOFT_DEADLINE_MS = 20_000;
+// Hard cap on rows serialized per run so a single huge table (e.g. general_ledger
+// at 40M+ scale) can never exhaust the CPU budget and crash the worker.
+const MAX_TOTAL_ROWS = 200_000;
+const MAX_ROWS_PER_TABLE = 50_000;
 
 const TABLES = [
   "ledger_account_groups", "ledger_accounts", "profiles", "user_roles", "wallets",
@@ -75,7 +80,7 @@ Deno.serve(async (req) => {
           push(`DO $$ BEGIN CREATE TYPE public.app_role AS ENUM ('admin','moderator','user'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;\n\n`);
 
           for (const tableName of TABLES) {
-            if (Date.now() - startedAt.getTime() > SOFT_DEADLINE_MS) {
+            if (Date.now() - startedAt.getTime() > SOFT_DEADLINE_MS || totalRows >= MAX_TOTAL_ROWS) {
               truncated = true;
               push(`\n-- !! Time budget reached before processing "${tableName}". Remaining tables were skipped to keep this backup valid.\n\n`);
               break;
@@ -89,7 +94,11 @@ Deno.serve(async (req) => {
             let headerWritten = false;
 
             while (hasMore) {
-              if (Date.now() - startedAt.getTime() > SOFT_DEADLINE_MS) {
+              if (
+                Date.now() - startedAt.getTime() > SOFT_DEADLINE_MS ||
+                totalRows >= MAX_TOTAL_ROWS ||
+                tableRowCount >= MAX_ROWS_PER_TABLE
+              ) {
                 truncated = true;
                 push(`-- !! Time budget reached mid-table "${tableName}" after ${tableRowCount} rows; remaining rows skipped.\n`);
                 hasMore = false; break;
