@@ -1712,6 +1712,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                 <div className="grid grid-cols-1 gap-3">
                   <div>
                     <Label className="text-sm font-medium">Landlord Name</Label>
+                    <Label className="text-sm font-medium">Landlord Name <span className="text-destructive">*</span></Label>
                     <LandlordAutocompleteInput
                       field="name"
                       placeholder="Name — type to find an existing landlord"
