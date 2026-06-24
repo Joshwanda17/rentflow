@@ -907,8 +907,8 @@ function AgentNetworkCard({
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-3 mt-2">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-          <Network className="h-3.5 w-3.5 text-primary" /> Agent network — the driving force
+        <span className="text-[11px] font-extrabold uppercase tracking-wide flex items-center gap-1.5 rounded-md bg-[#9234EA] text-white px-2 py-1 shadow-sm">
+          <Network className="h-3.5 w-3.5 text-white" /> Agent network — the driving force
         </span>
         <div className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5">
           <Zap className="h-3 w-3 text-primary" />
