@@ -441,6 +441,12 @@ export function LocationCaptureGate() {
                           .filter(Boolean)
                           .join(", ") || "Unknown area"}
                       </span>
+                      {regeocoding && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Updating area…
+                        </span>
+                      )}
                     </p>
                     <p className="mt-1 font-mono text-xs text-muted-foreground">
                       {pending.latitude.toFixed(5)}, {pending.longitude.toFixed(5)}
