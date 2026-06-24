@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
 
   const startedAt = new Date();
   const stamp = startedAt.toISOString().replace(/[:.]/g, "-");
-  const fileName = `welile_export_${stamp}.sql`;
+  const fileName = `welile_export_${stamp}.csv`;
   const storagePath = `${startedAt.getUTCFullYear()}/${fileName}`;
 
   let totalRows = 0;
