@@ -7,14 +7,16 @@ const corsHeaders = {
 
 const RECIPIENTS = ["joshwanda17@gmail.com", "weliletechnologies@gmail.com"];
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
-// The worker is killed on CPU time (546 WORKER_RESOURCE_LIMIT), which is hit far
-// sooner than wall time when serializing huge tables. Stop generating well before
-// the CPU budget runs out so we always close the stream and persist a valid file.
-const SOFT_DEADLINE_MS = 20_000;
-// Hard cap on rows serialized per run so a single huge table (e.g. general_ledger
-// at 40M+ scale) can never exhaust the CPU budget and crash the worker.
-const MAX_TOTAL_ROWS = 200_000;
-const MAX_ROWS_PER_TABLE = 50_000;
+// Previously this function built every INSERT statement row-by-row in JS, which
+// burned the worker CPU budget (546 WORKER_RESOURCE_LIMIT) and forced a 20s soft
+// deadline that truncated the dump to ~39 tables. We now stream CSV straight from
+// PostgREST so Postgres does the serialization and the worker only copies bytes —
+// this is near-zero CPU and lets the full dump complete.
+const SOFT_DEADLINE_MS = 55_000;
+// Safety caps so a single huge table (e.g. general_ledger at 40M+ scale) can never
+// produce an unbounded file. Streaming bytes is cheap, so these can be generous.
+const MAX_TOTAL_ROWS = 3_000_000;
+const MAX_ROWS_PER_TABLE = 1_000_000;
 
 const TABLES = [
   "ledger_account_groups", "ledger_accounts", "profiles", "user_roles", "wallets",
@@ -58,7 +60,7 @@ Deno.serve(async (req) => {
 
   const startedAt = new Date();
   const stamp = startedAt.toISOString().replace(/[:.]/g, "-");
-  const fileName = `welile_export_${stamp}.sql`;
+  const fileName = `welile_export_${stamp}.csv`;
   const storagePath = `${startedAt.getUTCFullYear()}/${fileName}`;
 
   let totalRows = 0;
@@ -67,6 +69,8 @@ Deno.serve(async (req) => {
   let truncated = false;
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -75,9 +79,13 @@ Deno.serve(async (req) => {
           sizeBytes += b.byteLength;
           controller.enqueue(b);
         };
+        const pushBytes = (b: Uint8Array) => {
+          sizeBytes += b.byteLength;
+          controller.enqueue(b);
+        };
         try {
-          push(`-- Welile Weekly Database Backup\n-- Generated: ${startedAt.toISOString()}\n\nBEGIN;\n\n`);
-          push(`DO $$ BEGIN CREATE TYPE public.app_role AS ENUM ('admin','moderator','user'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;\n\n`);
+          push(`-- Welile Weekly Database Backup (CSV bundle)\n-- Generated: ${startedAt.toISOString()}\n`);
+          push(`-- Format: one CSV section per table. Restore each section with: \\copy public.<table> FROM '...' WITH (FORMAT csv, HEADER true)\n\n`);
 
           for (const tableName of TABLES) {
             if (Date.now() - startedAt.getTime() > SOFT_DEADLINE_MS || totalRows >= MAX_TOTAL_ROWS) {
@@ -86,55 +94,53 @@ Deno.serve(async (req) => {
               break;
             }
             tablesProcessed++;
-            let offset = 0;
-            const pageSize = 500;
-            let hasMore = true;
-            let tableRowCount = 0;
-            let cols: string[] | null = null;
-            let headerWritten = false;
 
-            while (hasMore) {
-              if (
-                Date.now() - startedAt.getTime() > SOFT_DEADLINE_MS ||
-                totalRows >= MAX_TOTAL_ROWS ||
-                tableRowCount >= MAX_ROWS_PER_TABLE
-              ) {
-                truncated = true;
-                push(`-- !! Time budget reached mid-table "${tableName}" after ${tableRowCount} rows; remaining rows skipped.\n`);
-                hasMore = false; break;
-              }
-              const { data: rows, error } = await supabase
-                .from(tableName).select("*").range(offset, offset + pageSize - 1);
-              if (error) {
-                push(`-- Error reading ${tableName}: ${error.message}\n\n`);
-                hasMore = false; break;
-              }
-              if (!rows || rows.length === 0) { hasMore = false; break; }
-              if (!cols) cols = Object.keys(rows[0]);
-              if (!headerWritten) {
-                push(`-- Table: ${tableName}\n`);
-                headerWritten = true;
-              }
-              for (const row of rows) {
-                const values = cols!.map(c => {
-                  const v = row[c];
-                  if (v === null || v === undefined) return "NULL";
-                  if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
-                  if (typeof v === "number") return String(v);
-                  if (typeof v === "object") return `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`;
-                  return `'${String(v).replace(/'/g, "''")}'`;
-                });
-                push(`INSERT INTO public.${tableName} (${cols!.map(c => `"${c}"`).join(", ")}) VALUES (${values.join(", ")}) ON CONFLICT DO NOTHING;\n`);
-              }
-              tableRowCount += rows.length;
-              totalRows += rows.length;
-              offset += pageSize;
-              hasMore = rows.length === pageSize;
+            // Stream the whole table as CSV directly from PostgREST. Postgres builds
+            // the CSV, so the worker only forwards bytes (near-zero CPU).
+            const resp = await fetch(
+              `${supabaseUrl}/rest/v1/${tableName}?select=*`,
+              {
+                headers: {
+                  apikey: serviceKey,
+                  Authorization: `Bearer ${serviceKey}`,
+                  Accept: "text/csv",
+                  "Range-Unit": "items",
+                  Range: `0-${MAX_ROWS_PER_TABLE - 1}`,
+                  Prefer: "count=exact",
+                },
+              },
+            );
+
+            if (!resp.ok) {
+              const txt = await resp.text().catch(() => "");
+              push(`-- Error reading ${tableName}: ${resp.status} ${txt}\n\n`);
+              continue;
             }
-            if (!headerWritten) push(`-- Table: ${tableName} (0 rows)\n\n`);
-            else push(`-- (${tableRowCount} rows)\n\n`);
+
+            // Content-Range looks like "0-499/12345" — grab the exact total.
+            const cr = resp.headers.get("content-range") || "";
+            const totalForTable = Number(cr.split("/")[1]) || 0;
+            const fetchedForTable = Math.min(totalForTable, MAX_ROWS_PER_TABLE);
+            totalRows += fetchedForTable;
+
+            push(`\n-- ===== TABLE: ${tableName} (${fetchedForTable}${totalForTable > fetchedForTable ? ` of ${totalForTable}` : ""} rows) =====\n`);
+
+            if (resp.body) {
+              const reader = resp.body.getReader();
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (value) pushBytes(value);
+              }
+            }
+            push(`\n`);
+
+            if (totalForTable > fetchedForTable) {
+              truncated = true;
+              push(`-- !! "${tableName}" has ${totalForTable} rows; capped at ${MAX_ROWS_PER_TABLE}.\n`);
+            }
           }
-          push(`COMMIT;\n`);
+          push(`\n-- End of backup.\n`);
           controller.close();
         } catch (e) {
           controller.error(e);
@@ -142,8 +148,6 @@ Deno.serve(async (req) => {
       },
     });
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const uploadResp = await fetch(
       `${supabaseUrl}/storage/v1/object/db-backups/${storagePath}`,
       {
@@ -151,7 +155,7 @@ Deno.serve(async (req) => {
         headers: {
           Authorization: `Bearer ${serviceKey}`,
           apikey: serviceKey,
-          "Content-Type": "application/sql",
+          "Content-Type": "text/csv",
           "x-upsert": "false",
         },
         body: stream,
