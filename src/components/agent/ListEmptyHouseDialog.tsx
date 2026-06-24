@@ -933,8 +933,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   // submit. Each gate carries the wizard step the agent should go back to.
   type PreflightGate = { label: string; ok: boolean; hint: string; step: number };
   const caretakerOk = form.caretaker_type !== 'other' || (!!form.caretaker_name.trim() && !!form.caretaker_phone.trim());
-  // LC1 is optional — only flag it as incomplete once the agent starts filling it in.
-  const lc1PartialErr = lc1Selection ? validateLc1Selection(lc1Selection) : null;
+  // LC1 is mandatory — flag it as incomplete until a valid chairperson is set.
+  const lc1PartialErr = validateLc1Selection(lc1Selection);
   const preflightGates: PreflightGate[] = [
     { label: 'Monthly rent (min UGX 10,000)', ok: !!monthlyRent && monthlyRent >= 10000, hint: 'Enter a monthly rent of at least UGX 10,000', step: 1 },
     { label: 'Region selected', ok: !!form.region, hint: 'Choose the region', step: 1 },
@@ -944,13 +944,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   preflightGates.push({ label: 'GPS location pinned', ok: !!geo, hint: 'Stand at the house and pin its exact GPS coordinates', step: 1 });
   preflightGates.push({ label: 'GPS location confirmed', ok: !!geo && geoConfirmed, hint: 'Tick the box confirming the pin sits on the house', step: 1 });
   preflightGates.push({ label: 'At least one photo', ok: images.length > 0, hint: 'Add at least one photo of the house', step: 2 });
+  preflightGates.push({ label: 'Landlord name', ok: !!(form.landlord_name.trim() || selectedLandlord?.name), hint: 'Enter the landlord name', step: 3 });
   preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 3 });
   if (form.caretaker_type === 'other') {
     preflightGates.push({ label: 'Caretaker details', ok: caretakerOk, hint: 'Enter the caretaker name and phone', step: 3 });
   }
-  if (lc1Selection) {
-    preflightGates.push({ label: 'LC1 chairperson details', ok: !lc1PartialErr, hint: lc1PartialErr || 'Complete the LC1 chairperson details', step: 3 });
-  }
+  preflightGates.push({ label: 'LC1 chairperson details', ok: !lc1PartialErr, hint: lc1PartialErr || 'Complete the LC1 chairperson details', step: 3 });
   const missingGates = preflightGates.filter((g) => !g.ok);
   const allGatesPass = missingGates.length === 0;
 
