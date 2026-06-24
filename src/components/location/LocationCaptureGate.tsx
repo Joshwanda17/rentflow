@@ -122,7 +122,11 @@ export function LocationCaptureGate() {
   const [pending, setPending] = useState<PendingFix | null>(null);
   const [mode, setMode] = useState<"gps" | "manual">("gps");
   const [query, setQuery] = useState("");
+  const [regeocoding, setRegeocoding] = useState(false);
   const checkedRef = useRef(false);
+  // Coords of the most recently reverse-geocoded point, so dragging the pin
+  // re-resolves the area but the initial capture is not geocoded twice.
+  const lastGeocodedRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const snoozed = useMemo(() => {
     try {
@@ -183,6 +187,8 @@ export function LocationCaptureGate() {
       const { latitude, longitude, accuracy } = position.coords;
       const admin = await reverseGeocodeAdmin(latitude, longitude);
 
+      // Remember what we just geocoded so a pin drag re-resolves the area.
+      lastGeocodedRef.current = { lat: latitude, lng: longitude };
       // Show the captured point + its quality and let the user review/confirm
       // before saving — especially important when the signal is weak.
       setPending({ latitude, longitude, accuracy: accuracy ?? null, admin });
@@ -203,6 +209,41 @@ export function LocationCaptureGate() {
       setMode("manual");
     }
   }, [user]);
+
+  // When the user drags/taps the pin during review, re-resolve the
+  // district / city / country for the new spot (debounced).
+  useEffect(() => {
+    if (status !== "review" || !pending) return;
+    const { latitude, longitude } = pending;
+    const last = lastGeocodedRef.current;
+    // Skip if these coords were already geocoded (initial capture or no real move).
+    if (
+      last &&
+      Math.abs(last.lat - latitude) < 1e-6 &&
+      Math.abs(last.lng - longitude) < 1e-6
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    setRegeocoding(true);
+    const handle = setTimeout(async () => {
+      const admin = await reverseGeocodeAdmin(latitude, longitude);
+      if (cancelled) return;
+      lastGeocodedRef.current = { lat: latitude, lng: longitude };
+      setPending((p) =>
+        p && p.latitude === latitude && p.longitude === longitude
+          ? { ...p, admin }
+          : p,
+      );
+      setRegeocoding(false);
+    }, 700);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [status, pending]);
 
   // Persist the reviewed GPS fix to the database.
   const persistFix = useCallback(async () => {
@@ -400,6 +441,12 @@ export function LocationCaptureGate() {
                           .filter(Boolean)
                           .join(", ") || "Unknown area"}
                       </span>
+                      {regeocoding && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Updating area…
+                        </span>
+                      )}
                     </p>
                     <p className="mt-1 font-mono text-xs text-muted-foreground">
                       {pending.latitude.toFixed(5)}, {pending.longitude.toFixed(5)}
@@ -515,11 +562,21 @@ export function LocationCaptureGate() {
               <Button
                 onClick={persistFix}
                 size="lg"
+                disabled={regeocoding}
                 variant={gpsQuality(pending.accuracy).weak ? "outline" : "default"}
                 className="w-full gap-2"
               >
-                <Check className="h-4 w-4" />
-                {gpsQuality(pending.accuracy).weak ? "Save anyway" : "Save this location"}
+                {regeocoding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Updating area…
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    {gpsQuality(pending.accuracy).weak ? "Save anyway" : "Save this location"}
+                  </>
+                )}
               </Button>
               <Button
                 onClick={() => {
