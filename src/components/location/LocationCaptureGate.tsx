@@ -474,7 +474,40 @@ export function LocationCaptureGate() {
 
         {/* Actions */}
         <div className="px-6 pb-6 pt-4 space-y-2">
-          {status !== "success" && (
+          {status === "review" && pending ? (
+            <>
+              <Button
+                onClick={persistFix}
+                size="lg"
+                variant={gpsQuality(pending.accuracy).weak ? "outline" : "default"}
+                className="w-full gap-2"
+              >
+                <Check className="h-4 w-4" />
+                {gpsQuality(pending.accuracy).weak ? "Save anyway" : "Save this location"}
+              </Button>
+              <Button
+                onClick={() => {
+                  setPending(null);
+                  setStatus("idle");
+                  handleShare();
+                }}
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+              >
+                <Navigation className="mr-1 h-4 w-4" />
+                Re-capture GPS
+              </Button>
+              <Button
+                onClick={handleSnooze}
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+              >
+                Not now
+              </Button>
+            </>
+          ) : status !== "success" ? (
             <>
               {mode === "gps" ? (
                 <Button
@@ -531,7 +564,7 @@ export function LocationCaptureGate() {
                 Not now
               </Button>
             </>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
