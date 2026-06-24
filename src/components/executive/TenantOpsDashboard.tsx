@@ -26,6 +26,7 @@ import { LocationBrowser } from './landlord-ops/LocationBrowser';
 import { TenantLocationBrowser } from './tenant-ops/TenantLocationBrowser';
 import { GlobalVerificationHub } from './GlobalVerificationHub';
 import { WelileOperationsHub } from './WelileOperationsHub';
+import { AgentNetworkBadge } from './tenant-ops/AgentNetworkBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1356,6 +1357,7 @@ export function TenantOpsDashboard() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-sm text-foreground leading-tight">Welile Operations</p>
+                <AgentNetworkBadge className="mt-1" />
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Manage every user category — tenants, landlords, agents &amp; partners with deep profiles</p>
               </div>
               <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#9234EA] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm group-hover:bg-[#7d27cc] transition-colors">

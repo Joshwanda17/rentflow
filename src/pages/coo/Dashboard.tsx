@@ -29,6 +29,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { COOScaleVisionView } from '@/components/coo/COOScaleVisionView';
 import { WelileOperationsHub } from '@/components/executive/WelileOperationsHub';
+import { AgentNetworkBadge } from '@/components/executive/tenant-ops/AgentNetworkBadge';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck, UserPlus,
@@ -292,6 +293,7 @@ export default function COODashboardPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-sm text-foreground leading-tight">Welile Operations</p>
+                <AgentNetworkBadge className="mt-1" />
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Manage every user category — tenants, landlords, agents &amp; partners with deep profiles</p>
               </div>
               <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#9234EA] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm group-hover:bg-[#7d27cc] transition-colors">
