@@ -7,6 +7,9 @@ const corsHeaders = {
 
 const RECIPIENTS = ["joshwanda17@gmail.com", "weliletechnologies@gmail.com"];
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+// Stop generating well before the worker's hard CPU/wall limit so we always
+// close the stream and persist a valid file instead of being killed (546).
+const SOFT_DEADLINE_MS = 110_000;
 
 const TABLES = [
   "ledger_account_groups", "ledger_accounts", "profiles", "user_roles", "wallets",
@@ -56,6 +59,7 @@ Deno.serve(async (req) => {
   let totalRows = 0;
   let tablesProcessed = 0;
   let sizeBytes = 0;
+  let truncated = false;
 
   try {
     const encoder = new TextEncoder();
@@ -71,6 +75,11 @@ Deno.serve(async (req) => {
           push(`DO $$ BEGIN CREATE TYPE public.app_role AS ENUM ('admin','moderator','user'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;\n\n`);
 
           for (const tableName of TABLES) {
+            if (Date.now() - startedAt.getTime() > SOFT_DEADLINE_MS) {
+              truncated = true;
+              push(`\n-- !! Time budget reached before processing "${tableName}". Remaining tables were skipped to keep this backup valid.\n\n`);
+              break;
+            }
             tablesProcessed++;
             let offset = 0;
             const pageSize = 500;
@@ -80,6 +89,11 @@ Deno.serve(async (req) => {
             let headerWritten = false;
 
             while (hasMore) {
+              if (Date.now() - startedAt.getTime() > SOFT_DEADLINE_MS) {
+                truncated = true;
+                push(`-- !! Time budget reached mid-table "${tableName}" after ${tableRowCount} rows; remaining rows skipped.\n`);
+                hasMore = false; break;
+              }
               const { data: rows, error } = await supabase
                 .from(tableName).select("*").range(offset, offset + pageSize - 1);
               if (error) {
@@ -178,12 +192,13 @@ Deno.serve(async (req) => {
       size_bytes: sizeBytes,
       table_count: tablesProcessed,
       row_count: totalRows,
-      status: "success",
+      status: truncated ? "partial" : "success",
       recipients: RECIPIENTS,
     });
 
     return new Response(JSON.stringify({
       success: true,
+      truncated,
       storagePath,
       signedUrl: signed.signedUrl,
       fileName,
