@@ -2166,17 +2166,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               )}
               {geo && (
                 <div className="mt-3 space-y-1.5">
-                  <HouseLocationMapPreview
-                    position={{ lat: geo.lat, lng: geo.lng }}
-                    accuracy={geo.accuracy}
-                    onChange={({ lat, lng }) =>
-                      setGeo((g) => {
-                        setGeoConfirmed(false);
-                        return { lat, lng, accuracy: g?.accuracy ?? null };
-                      })
-                    }
-                    height={200}
-                  />
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+                    <p className="text-[11px] font-medium text-muted-foreground">Coordinates</p>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {geo.lat.toFixed(6)}, {geo.lng.toFixed(6)}
+                    </p>
+                    <p className="mt-2 text-[11px] font-medium text-muted-foreground">Resolved location</p>
+                    <p className="text-sm">
+                      {resolvingPlace
+                        ? 'Resolving location name…'
+                        : resolvedPlace || 'Location name unavailable'}
+                    </p>
+                  </div>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <GpsQualityIndicator
                       latitude={geo.lat}
@@ -2189,9 +2190,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    The shaded circle shows the GPS accuracy radius. Check the pin sits on the house — drag it or tap the map to nudge it to the exact spot before submitting.
-                  </p>
                   <label
                     className={`mt-1 flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer ${
                       attempted && !geoConfirmed ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
