@@ -406,6 +406,31 @@ export function LocationCaptureGate() {
                     </p>
                   </div>
 
+                  {/* Interactive map preview — drag the pin or tap to fine-tune */}
+                  <div className="space-y-1">
+                    <Suspense
+                      fallback={
+                        <div className="flex h-[180px] items-center justify-center rounded-lg border border-border bg-muted/30">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        </div>
+                      }
+                    >
+                      <HouseLocationMapPreview
+                        position={{ lat: pending.latitude, lng: pending.longitude }}
+                        accuracy={pending.accuracy}
+                        height={180}
+                        onChange={(pos) =>
+                          setPending((p) =>
+                            p ? { ...p, latitude: pos.lat, longitude: pos.lng } : p,
+                          )
+                        }
+                      />
+                    </Suspense>
+                    <p className="text-center text-[11px] text-muted-foreground">
+                      Drag the pin or tap the map to fine-tune the exact spot.
+                    </p>
+                  </div>
+
                   {q.weak && (
                     <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive">
                       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
