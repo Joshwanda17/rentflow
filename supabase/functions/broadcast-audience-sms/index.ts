@@ -1,0 +1,290 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const ALLOWED_ROLES = ['coo', 'ceo', 'cto', 'cmo', 'crm', 'super_admin', 'manager'];
+const VALID_AUDIENCES = ['tenant', 'agent', 'landlord'] as const;
+type Audience = (typeof VALID_AUDIENCES)[number];
+
+function formatPhoneInternational(phone: string): string {
+  const digits = (phone || '').replace(/[^0-9]/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('256')) return `+${digits}`;
+  if (digits.startsWith('0')) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return `+${digits}`;
+}
+
+function isValidPhone(p: string | null | undefined): boolean {
+  if (!p) return false;
+  const t = String(p).trim();
+  if (!t || t === '-') return false;
+  return t.replace(/\D/g, '').length >= 7;
+}
+
+const toBareDigits = (p: string) => formatPhoneInternational(p).replace(/^\+/, '');
+
+type SmsResult = { accepted: boolean; provider?: string; reason?: string };
+
+async function sendViaYoola(phone: string, message: string): Promise<SmsResult> {
+  const apiKey = Deno.env.get('YOOLA_SMS_API_KEY')?.trim();
+  if (!apiKey) return { accepted: false, reason: 'yoola_not_configured' };
+  try {
+    const res = await fetch('https://yoolasms.com/api/v1/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ phone: toBareDigits(phone), message, api_key: apiKey }),
+    });
+    const text = await res.text();
+    let data: any = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const status = String(data?.status ?? '').toLowerCase();
+    if (res.ok && (status === 'success' || status === 'ok' || status === 'sent' || status === 'queued')) {
+      return { accepted: true, provider: 'yoola' };
+    }
+    if (res.ok && !data?.error && status === '') return { accepted: true, provider: 'yoola' };
+    return { accepted: false, reason: `yoola_${res.status}_${status || 'rejected'}` };
+  } catch (e) {
+    return { accepted: false, reason: (e as Error).message };
+  }
+}
+
+async function sendViaAfricasTalking(phone: string, message: string): Promise<SmsResult> {
+  const apiKey = Deno.env.get('AFRICASTALKING_API_KEY');
+  const username = Deno.env.get('AFRICASTALKING_USERNAME');
+  if (!apiKey || !username) return { accepted: false, reason: 'missing_credentials' };
+  const isSandbox = username.toLowerCase() === 'sandbox';
+  const url = isSandbox
+    ? 'https://api.sandbox.africastalking.com/version1/messaging'
+    : 'https://api.africastalking.com/version1/messaging';
+  const params = new URLSearchParams({ username, to: formatPhoneInternational(phone), message, from: 'WELILE' });
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', apiKey, Accept: 'application/json' },
+      body: params.toString(),
+    });
+    const data = await res.json().catch(() => null);
+    const recipients = data?.SMSMessageData?.Recipients;
+    if (recipients && recipients.length > 0) {
+      const s = recipients[0].statusCode;
+      if (s === 101 || s === 100 || s === 102) return { accepted: true, provider: 'africastalking' };
+      return { accepted: false, reason: `at_status_${s}` };
+    }
+    return { accepted: false, reason: 'at_no_recipients' };
+  } catch (e) {
+    return { accepted: false, reason: (e as Error).message };
+  }
+}
+
+async function sendViaLana(phone: string, message: string): Promise<SmsResult> {
+  const apiKey = Deno.env.get('LANA_SMS_API_KEY')?.trim();
+  if (!apiKey) return { accepted: false, reason: 'lana_not_configured' };
+  try {
+    const res = await fetch('https://api.lanasms.com/v1/send', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ phone: toBareDigits(phone), message }),
+    });
+    const text = await res.text();
+    let data: any = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON */ }
+    const raw = data?.status;
+    const s = String(raw ?? '').toLowerCase();
+    if (res.ok && (raw === true || s === 'success' || s === 'true' || s === 'ok' || s === 'sent' || s === 'queued')) {
+      return { accepted: true, provider: 'lana' };
+    }
+    return { accepted: false, reason: `lana_${res.status}_rejected` };
+  } catch (e) {
+    return { accepted: false, reason: (e as Error).message };
+  }
+}
+
+async function sendSMS(phone: string, message: string): Promise<SmsResult> {
+  const yoola = await sendViaYoola(phone, message);
+  if (yoola.accepted) return yoola;
+  const at = await sendViaAfricasTalking(phone, message);
+  if (at.accepted) return at;
+  const lana = await sendViaLana(phone, message);
+  if (lana.accepted) return lana;
+  if (yoola.reason && yoola.reason !== 'yoola_not_configured') return yoola;
+  if (at.reason && at.reason !== 'missing_credentials') return at;
+  return lana;
+}
+
+async function fetchRoleUserPhones(admin: any, role: Audience): Promise<{ user_id: string; phone: string }[]> {
+  const out: { user_id: string; phone: string }[] = [];
+  const PAGE = 1000;
+  let from = 0;
+  const userIds: string[] = [];
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await admin
+      .from('user_roles').select('user_id').eq('role', role).range(from, from + PAGE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    for (const r of data) if (r.user_id) userIds.push(r.user_id);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  const uniq = Array.from(new Set(userIds));
+  const CHUNK = 200;
+  for (let i = 0; i < uniq.length; i += CHUNK) {
+    const slice = uniq.slice(i, i + CHUNK);
+    const { data: profs } = await admin.from('profiles').select('id, phone').in('id', slice);
+    for (const p of profs || []) out.push({ user_id: p.id, phone: p.phone });
+  }
+  return out;
+}
+
+async function fetchLandlordTablePhones(admin: any): Promise<{ user_id: string; phone: string }[]> {
+  const out: { user_id: string; phone: string }[] = [];
+  const PAGE = 1000;
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await admin
+      .from('landlords').select('id, phone').range(from, from + PAGE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    for (const r of data) out.push({ user_id: r.id, phone: r.phone });
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return out;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing auth' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const admin = createClient(supabaseUrl, serviceKey);
+
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    const { data: userData, error: userErr } = await admin.auth.getUser(token);
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const caller = userData.user;
+
+    const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', caller.id);
+    const allowed = (roles || []).some((r: any) => ALLOWED_ROLES.includes(r.role));
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Insufficient permissions' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const message = (body.message || '').toString().trim();
+    const dryRun = !!body.dry_run;
+    const testPhoneRaw = (body.test_phone || '').toString().trim();
+    const isTest = !!testPhoneRaw;
+    const audiences: Audience[] = Array.isArray(body.audiences)
+      ? body.audiences.filter((a: string) => VALID_AUDIENCES.includes(a as Audience))
+      : [];
+
+    if (!isTest && audiences.length === 0) {
+      return new Response(JSON.stringify({ error: 'Select at least one audience' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (!isTest && !dryRun && (!message || message.length < 2)) {
+      return new Response(JSON.stringify({ error: 'Message body is required' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (message.length > 800) {
+      return new Response(JSON.stringify({ error: 'Message too long (max 800 chars / 5 SMS segments)' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const phones = new Set<string>();
+    const recipients: { user_id: string; phone: string }[] = [];
+
+    if (isTest) {
+      const p = formatPhoneInternational(testPhoneRaw);
+      if (!p || p.replace(/\D/g, '').length < 9) {
+        return new Response(JSON.stringify({ error: 'Invalid test phone' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      recipients.push({ user_id: caller.id, phone: p });
+    } else {
+      const raw: { user_id: string; phone: string }[] = [];
+      for (const aud of audiences) {
+        raw.push(...await fetchRoleUserPhones(admin, aud));
+        if (aud === 'landlord') raw.push(...await fetchLandlordTablePhones(admin));
+      }
+      for (const r of raw) {
+        if (!isValidPhone(r.phone)) continue;
+        const intl = formatPhoneInternational(r.phone);
+        if (!intl || phones.has(intl)) continue;
+        phones.add(intl);
+        recipients.push({ user_id: r.user_id, phone: intl });
+      }
+    }
+
+    if (dryRun) {
+      return new Response(JSON.stringify({ success: true, dry_run: true, recipient_count: recipients.length }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Honour SMS exceptions (block list)
+    if (!isTest) {
+      const { data: exRows } = await admin
+        .from('sms_message_exceptions').select('phone')
+        .in('message_type', ['all', 'partner_broadcast']);
+      const blocked = new Set((exRows || []).map((r: any) => formatPhoneInternational(r.phone)));
+      if (blocked.size > 0) {
+        for (let i = recipients.length - 1; i >= 0; i--) {
+          if (blocked.has(recipients[i].phone)) recipients.splice(i, 1);
+        }
+      }
+    }
+
+    const BATCH = 50;
+    let sent = 0, failed = 0;
+    const errors: string[] = [];
+    for (let i = 0; i < recipients.length; i += BATCH) {
+      const batch = recipients.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map((r) => sendSMS(r.phone, message)));
+      for (const result of results) {
+        if (result.accepted) sent++;
+        else { failed++; if (result.reason) errors.push(result.reason); }
+      }
+    }
+
+    // Log broadcast as a system event (fire-and-forget)
+    admin.from('system_events').insert({
+      event_type: 'audience_sms_broadcast',
+      actor_id: caller.id,
+      metadata: { audiences, sent, failed, total: recipients.length },
+    }).then(() => {}).catch(() => {});
+
+    return new Response(JSON.stringify({
+      success: true, sent, failed, total: recipients.length,
+      sample_errors: Array.from(new Set(errors)).slice(0, 5),
+    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
