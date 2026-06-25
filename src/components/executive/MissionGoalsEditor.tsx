@@ -107,6 +107,15 @@ export function MissionGoalsEditor() {
 
   return (
     <div className="space-y-5 max-w-3xl">
+      <MissionsHistoryList
+        onSelect={(role, p) => {
+          setDashboardRole(role);
+          setPeriod(p);
+        }}
+        activeRole={dashboardRole}
+        activePeriod={period}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
