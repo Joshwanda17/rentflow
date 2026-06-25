@@ -64,12 +64,12 @@ export function MissionBanner({ dashboardRole, className }: MissionBannerProps) 
               {mission.goals.map((g, i) => (
                 <li
                   key={i}
-                  className="flex items-start gap-2.5 rounded-xl bg-primary-foreground/10 px-3 py-2.5 backdrop-blur-sm ring-1 ring-primary-foreground/10"
+                  className="flex items-start gap-2 sm:gap-2.5 rounded-xl bg-primary-foreground/10 px-2.5 py-2 sm:px-3 sm:py-2.5 backdrop-blur-sm ring-1 ring-primary-foreground/10"
                 >
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-foreground/25 text-[11px] font-extrabold">
                     {i + 1}
                   </span>
-                  <span className="text-sm font-medium leading-snug text-primary-foreground/95">{g}</span>
+                  <span className="text-[13px] sm:text-sm font-medium leading-snug text-primary-foreground/95">{g}</span>
                 </li>
               ))}
             </ul>
