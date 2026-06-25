@@ -52,6 +52,8 @@ export function MissionGoalsEditor() {
   const [responsivePreview, setResponsivePreview] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [rollingBack, setRollingBack] = useState(false);
 
   // Load existing mission for the selected dashboard + month
   const { data: existing, isFetching } = useQuery({
