@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Target, Plus, X, Save, Loader2 } from 'lucide-react';
+import { Target, Plus, X, Save, Loader2, Info } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
