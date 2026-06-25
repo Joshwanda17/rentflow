@@ -116,7 +116,7 @@ export function MissionGoalsEditor() {
     setConfirmOpen(false);
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { data: saved, error } = await supabase
         .from('dashboard_missions')
         .upsert(
           {
@@ -130,13 +130,29 @@ export function MissionGoalsEditor() {
             created_by: user?.id ?? null,
           },
           { onConflict: 'dashboard_role,period_month' },
-        );
+        )
+        .select('id')
+        .single();
       if (error) throw error;
+
+      // Record a publish audit entry (when + who + "Posted by" name).
+      const { error: auditError } = await supabase.from('mission_publish_audit').insert({
+        mission_id: saved?.id ?? null,
+        dashboard_role: dashboardRole,
+        period_month: period,
+        mission: mission.trim() || null,
+        goals_count: cleanGoals.length,
+        posted_by_name: postedByName.trim() || null,
+        published_by: user?.id ?? null,
+      });
+      if (auditError) console.error('Failed to record mission publish audit', auditError);
+
       toast.success(`Mission published for ${missionDashboardLabel(dashboardRole)} — ${monthLabel(period)}`);
       setIsDraft(false);
       queryClient.invalidateQueries({ queryKey: ['mission-editor'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-mission'] });
       queryClient.invalidateQueries({ queryKey: ['missions-history'] });
+      queryClient.invalidateQueries({ queryKey: ['mission-publish-audit'] });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to save mission');
     } finally {
