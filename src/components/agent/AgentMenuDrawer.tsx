@@ -68,6 +68,7 @@ interface AgentMenuDrawerProps {
   onListEmptyHouse?: () => void;
   onViewMyListings?: () => void;
   onViewSubAgents?: () => void;
+  onViewLandlords?: () => void;
   onShareSubAgentLink?: () => void;
   onManageFunders?: () => void;
   onOpenPartnerDashboard?: () => void;
