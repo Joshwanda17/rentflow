@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { MISSION_ALL_KEY, monthKey, isMissionRestricted, type DashboardMission } from '@/lib/dashboardMissions';
+import { monthKey, isMissionRestricted, type DashboardMission } from '@/lib/dashboardMissions';
 
 function normalize(row: any): DashboardMission | null {
   if (!row) return null;
@@ -20,7 +20,8 @@ function normalize(row: any): DashboardMission | null {
 
 /**
  * Returns the active mission for the given dashboard for the current month.
- * Falls back to the company-wide ("all") mission when no role-specific one is set.
+ * Each dashboard shows ONLY its own unique mission — there is no shared or
+ * company-wide fallback, so the CEO must author a distinct mission per dashboard.
  */
 export function useDashboardMission(dashboardRole: string | undefined) {
   const month = monthKey();
@@ -32,26 +33,16 @@ export function useDashboardMission(dashboardRole: string | undefined) {
       // End-user / field dashboards never display a mission (CEO can't author them).
       if (isMissionRestricted(dashboardRole as string)) return null;
       const role = dashboardRole as string;
-      // Ops dashboards fall back to the shared "all ops" mission, then company-wide.
-      const isOps = role.endsWith('-ops');
-      const roles = role === MISSION_ALL_KEY
-        ? [MISSION_ALL_KEY]
-        : isOps
-          ? [role, 'ops-all', MISSION_ALL_KEY]
-          : [role, MISSION_ALL_KEY];
+      // Each dashboard surfaces only the mission authored specifically for it.
       const { data, error } = await supabase
         .from('dashboard_missions')
         .select('*')
-        .in('dashboard_role', roles)
+        .eq('dashboard_role', role)
         .eq('period_month', month)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .maybeSingle();
       if (error) throw error;
-      const rows = (data || []).map(normalize).filter(Boolean) as DashboardMission[];
-      // Prefer role-specific, then "all ops" (for ops dashboards), then company-wide.
-      const specific = rows.find((r) => r.dashboard_role === role);
-      const opsFallback = isOps ? rows.find((r) => r.dashboard_role === 'ops-all') : undefined;
-      const fallback = rows.find((r) => r.dashboard_role === MISSION_ALL_KEY);
-      return specific || opsFallback || fallback || null;
+      return normalize(data);
     },
   });
 }
