@@ -10,6 +10,7 @@ import { SidebarSkeleton, TopBarSkeleton } from '@/components/skeletons/SectionS
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
 import type { SidebarSection } from './executiveSidebarConfig';
 import { GlossaryButton } from '@/components/shared/GlossaryButton';
+import { MissionBanner } from '@/components/mission/MissionBanner';
 
 
 interface ExecutiveDashboardLayoutProps {
@@ -320,6 +321,9 @@ export default function ExecutiveDashboardLayout({
 
         {/* Main Content */}
         <main className="flex-1 min-w-0 p-2 sm:p-4 lg:p-6 max-w-7xl mx-auto w-full overflow-y-auto overflow-x-hidden">
+          {activeTab !== 'mission-goals' && (
+            <MissionBanner dashboardRole={role} className="mb-4" />
+          )}
           {children}
         </main>
       </div>
