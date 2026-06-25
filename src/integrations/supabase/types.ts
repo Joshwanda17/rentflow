@@ -5716,6 +5716,7 @@ export type Database = {
           is_active: boolean
           mission: string | null
           period_month: string
+          posted_by_name: string | null
           updated_at: string
         }
         Insert: {
@@ -5728,6 +5729,7 @@ export type Database = {
           is_active?: boolean
           mission?: string | null
           period_month: string
+          posted_by_name?: string | null
           updated_at?: string
         }
         Update: {
@@ -5740,6 +5742,7 @@ export type Database = {
           is_active?: boolean
           mission?: string | null
           period_month?: string
+          posted_by_name?: string | null
           updated_at?: string
         }
         Relationships: []
