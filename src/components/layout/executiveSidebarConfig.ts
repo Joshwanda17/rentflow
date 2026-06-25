@@ -188,6 +188,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Financial Health', icon: Shield, id: 'financial' },
         { label: 'Staff Performance', icon: UserCheck, id: 'staff-performance' },
         { label: 'Angel Pool', icon: Layers, id: 'angel-pool' },
+        { label: 'Mission & Goals', icon: Target, id: 'mission-goals' },
       ],
     },
   ],

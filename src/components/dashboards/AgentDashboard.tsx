@@ -183,6 +183,7 @@ import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentColle
 import { AgentDepositCashDialog } from '@/components/agent/AgentDepositCashDialog';
 import { AgentCashPayoutsTab } from '@/components/agent/AgentCashPayoutsTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MissionBanner } from '@/components/mission/MissionBanner';
 
 interface AgentDashboardProps {
   user: User;
@@ -617,6 +618,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         )}
 
         <AgentAgreementBanner />
+        <MissionBanner dashboardRole="agent" />
         <AgentPaymentEditAlert agentId={user.id} />
 
         {/* Landlord verification rejections — edit & resubmit, or dismiss */}

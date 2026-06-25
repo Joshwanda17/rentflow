@@ -68,6 +68,7 @@ import { useInactivityLock } from '@/hooks/useInactivityLock';
 import { SupporterInactivityLock } from '@/components/supporter/SupporterInactivityLock';
 import { WidgetErrorBoundary } from '@/components/shared/WidgetErrorBoundary';
 import {
+import { MissionBanner } from '@/components/mission/MissionBanner';
   WalletHeroSkeleton,
   WidgetCardSkeleton,
   ListSectionSkeleton,
@@ -450,7 +451,8 @@ export default function SupporterDashboard({
 
       <div className="flex-1 min-h-0 overflow-y-auto pb-nav overscroll-contain">
         <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-5 max-w-lg mx-auto">
-          
+          <MissionBanner dashboardRole="supporter" />
+
           {/* ═══ INLINE GREETING BAR ═══ */}
           <div className="flex flex-col items-center gap-2 py-2">
             <button onClick={() => navigate('/settings')} className="shrink-0 min-h-[44px] min-w-[44px]">

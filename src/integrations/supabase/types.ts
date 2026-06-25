@@ -5705,6 +5705,42 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_missions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dashboard_role: string
+          goals: Json
+          id: string
+          is_active: boolean
+          mission: string | null
+          period_month: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dashboard_role: string
+          goals?: Json
+          id?: string
+          is_active?: boolean
+          mission?: string | null
+          period_month: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dashboard_role?: string
+          goals?: Json
+          id?: string
+          is_active?: boolean
+          mission?: string | null
+          period_month?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       default_recovery_ledger: {
         Row: {
           agent_id: string | null

@@ -37,6 +37,7 @@ import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { FunderQuickActions } from '@/components/supporter/FunderQuickActions';
+import { MissionBanner } from '@/components/mission/MissionBanner';
 
 interface LandlordDashboardProps {
   user: User;
@@ -84,6 +85,8 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
 
       <div className="flex-1 overflow-y-auto pb-nav">
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
+
+          <MissionBanner dashboardRole="landlord" />
 
           {/* Portfolio Hero Card */}
           <UnifiedWalletHeroCard

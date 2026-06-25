@@ -80,6 +80,7 @@ import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { FunderQuickActions } from '@/components/supporter/FunderQuickActions';
+import { MissionBanner } from '@/components/mission/MissionBanner';
 
 interface TenantDashboardProps {
   user: User;
@@ -384,6 +385,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
           {/* Terms Acceptance Notice */}
           <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
+
+          <MissionBanner dashboardRole="tenant" />
 
           {/* Profile Row */}
           <div className="animate-fade-in flex items-center gap-3">
