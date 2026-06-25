@@ -5710,6 +5710,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           dashboard_role: string
+          font_family: string | null
           goals: Json
           id: string
           is_active: boolean
@@ -5721,6 +5722,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           dashboard_role: string
+          font_family?: string | null
           goals?: Json
           id?: string
           is_active?: boolean
@@ -5732,6 +5734,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           dashboard_role?: string
+          font_family?: string | null
           goals?: Json
           id?: string
           is_active?: boolean

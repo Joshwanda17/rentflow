@@ -16,6 +16,9 @@ import {
   monthKey,
   monthLabel,
   missionDashboardLabel,
+  MISSION_FONTS,
+  MISSION_DEFAULT_FONT,
+  missionFontStack,
 } from '@/lib/dashboardMissions';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 
@@ -28,6 +31,7 @@ export function MissionGoalsEditor() {
   const [period, setPeriod] = useState<string>(monthKey());
   const [mission, setMission] = useState('');
   const [goals, setGoals] = useState<string[]>(['']);
+  const [fontFamily, setFontFamily] = useState<string>(MISSION_DEFAULT_FONT);
   const [saving, setSaving] = useState(false);
 
   // Load existing mission for the selected dashboard + month
@@ -51,9 +55,11 @@ export function MissionGoalsEditor() {
       setMission(existing.mission || '');
       const g = Array.isArray(existing.goals) ? (existing.goals as unknown[]).filter((x) => typeof x === 'string') as string[] : [];
       setGoals(g.length ? g : ['']);
+      setFontFamily((existing as any).font_family || MISSION_DEFAULT_FONT);
     } else {
       setMission('');
       setGoals(['']);
+      setFontFamily(MISSION_DEFAULT_FONT);
     }
   }, [existing, dashboardRole, period]);
 
@@ -77,6 +83,7 @@ export function MissionGoalsEditor() {
             period_month: period,
             mission: mission.trim() || null,
             goals: cleanGoals,
+            font_family: fontFamily,
             is_active: true,
             created_by: user?.id ?? null,
           },
@@ -144,6 +151,21 @@ export function MissionGoalsEditor() {
             />
           </div>
 
+          <div className="space-y-1.5">
+            <Label>Mission font</Label>
+            <Select value={fontFamily} onValueChange={setFontFamily}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MISSION_FONTS.map((f) => (
+                  <SelectItem key={f.key} value={f.key}>
+                    <span style={{ fontFamily: f.stack }}>{f.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Choose the font the mission statement is displayed in across dashboards.</p>
+          </div>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Goals</Label>
@@ -191,7 +213,12 @@ export function MissionGoalsEditor() {
               <span className="text-[11px] font-semibold text-muted-foreground">{monthLabel(period)}</span>
             </div>
             {mission.trim() && (
-              <p className="mt-3 text-sm sm:text-base font-semibold leading-relaxed text-foreground">{mission}</p>
+              <p
+                className="mt-3 text-sm sm:text-base font-semibold leading-relaxed text-foreground"
+                style={missionFontStack(fontFamily) ? { fontFamily: missionFontStack(fontFamily) } : undefined}
+              >
+                {mission}
+              </p>
             )}
             {goals.some((g) => g.trim()) && (
               <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
