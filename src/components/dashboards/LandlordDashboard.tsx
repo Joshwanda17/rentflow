@@ -37,6 +37,7 @@ import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { FunderQuickActions } from '@/components/supporter/FunderQuickActions';
+import { MissionBanner } from '@/components/mission/MissionBanner';
 
 interface LandlordDashboardProps {
   user: User;

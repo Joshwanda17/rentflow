@@ -68,6 +68,7 @@ import { useInactivityLock } from '@/hooks/useInactivityLock';
 import { SupporterInactivityLock } from '@/components/supporter/SupporterInactivityLock';
 import { WidgetErrorBoundary } from '@/components/shared/WidgetErrorBoundary';
 import {
+import { MissionBanner } from '@/components/mission/MissionBanner';
   WalletHeroSkeleton,
   WidgetCardSkeleton,
   ListSectionSkeleton,

@@ -80,6 +80,7 @@ import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { FunderQuickActions } from '@/components/supporter/FunderQuickActions';
+import { MissionBanner } from '@/components/mission/MissionBanner';
 
 interface TenantDashboardProps {
   user: User;
