@@ -216,6 +216,7 @@ export function MissionGoalsEditor() {
         {responsivePreview ? (
           <MissionBannerPreview
             dashboardRole={dashboardRole}
+            persistKey={`${dashboardRole}:${period}`}
             missionOverride={{
               mission: mission.trim() || null,
               goals: goals.map((g) => g.trim()).filter(Boolean),
