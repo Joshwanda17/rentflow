@@ -177,6 +177,8 @@ export function MissionGoalsEditor() {
         period_month: period,
         mission: mission.trim() || null,
         goals_count: cleanGoals.length,
+        goals: cleanGoals,
+        font_family: fontFamily,
         posted_by_name: postedByName.trim() || null,
         published_by: user?.id ?? null,
       });
