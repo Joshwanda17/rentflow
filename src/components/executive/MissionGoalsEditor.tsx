@@ -20,6 +20,7 @@ import {
   MISSION_FONTS,
   MISSION_DEFAULT_FONT,
   missionFontStack,
+  nextMonthKey,
 } from '@/lib/dashboardMissions';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 import { MissionBannerPreview } from '@/components/mission/MissionBannerPreview';
@@ -37,6 +38,7 @@ export function MissionGoalsEditor() {
   const [fontFamily, setFontFamily] = useState<string>(MISSION_DEFAULT_FONT);
   const [saving, setSaving] = useState(false);
   const [responsivePreview, setResponsivePreview] = useState(false);
+  const [isDraft, setIsDraft] = useState(false);
 
   // Load existing mission for the selected dashboard + month
   const { data: existing, isFetching } = useQuery({
@@ -71,6 +73,16 @@ export function MissionGoalsEditor() {
   const addGoal = () => setGoals((p) => [...p, '']);
   const removeGoal = (i: number) => setGoals((p) => (p.length === 1 ? [''] : p.filter((_, idx) => idx !== i)));
 
+  const startNewMission = () => {
+    const next = nextMonthKey();
+    setPeriod(next);
+    setMission('');
+    setGoals(['']);
+    setFontFamily(MISSION_DEFAULT_FONT);
+    setIsDraft(true);
+    toast.success(`New mission draft started for ${monthLabel(next)} — edit and publish when ready.`);
+  };
+
   const handleSave = async () => {
     const cleanGoals = goals.map((g) => g.trim()).filter(Boolean);
     if (!mission.trim() && cleanGoals.length === 0) {
@@ -95,6 +107,7 @@ export function MissionGoalsEditor() {
         );
       if (error) throw error;
       toast.success(`Mission published for ${missionDashboardLabel(dashboardRole)} — ${monthLabel(period)}`);
+      setIsDraft(false);
       queryClient.invalidateQueries({ queryKey: ['mission-editor'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-mission'] });
       queryClient.invalidateQueries({ queryKey: ['missions-history'] });
