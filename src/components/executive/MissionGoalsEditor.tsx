@@ -302,6 +302,10 @@ export function MissionGoalsEditor() {
               <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Dashboard</span>
               <span className="font-semibold text-foreground">{missionDashboardLabel(dashboardRole)}</span>
             </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Posted by</span>
+              <span className="font-semibold text-foreground">{postedByName.trim() || '—'}</span>
+            </div>
             {mission.trim() && (
               <div className="space-y-1">
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Mission</span>
