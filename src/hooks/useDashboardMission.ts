@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { MISSION_ALL_KEY, monthKey, isMissionRestricted, type DashboardMission } from '@/lib/dashboardMissions';
+import { monthKey, isMissionRestricted, type DashboardMission } from '@/lib/dashboardMissions';
 
 function normalize(row: any): DashboardMission | null {
   if (!row) return null;
