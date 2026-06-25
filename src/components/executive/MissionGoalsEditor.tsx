@@ -101,6 +101,40 @@ export function MissionGoalsEditor() {
 
   const cleanGoals = goals.map((g) => g.trim()).filter(Boolean);
 
+  // Build a field-by-field diff between the saved record and what will be published.
+  const existingGoals: string[] = Array.isArray(existing?.goals)
+    ? ((existing!.goals as unknown[]).filter((x) => typeof x === 'string' && (x as string).trim()) as string[])
+    : [];
+  const fontLabel = (key: string | null | undefined) =>
+    MISSION_FONTS.find((f) => f.key === (key || MISSION_DEFAULT_FONT))?.label ?? (key || MISSION_DEFAULT_FONT);
+  const publishDiff = [
+    {
+      label: 'Mission statement',
+      before: existing ? (existing.mission || '—') : '—',
+      after: mission.trim() || '—',
+      changed: (existing?.mission || '') !== (mission.trim() || ''),
+    },
+    {
+      label: 'Font',
+      before: existing ? fontLabel((existing as any).font_family) : '—',
+      after: fontLabel(fontFamily),
+      changed: ((existing as any)?.font_family || MISSION_DEFAULT_FONT) !== (fontFamily || MISSION_DEFAULT_FONT),
+    },
+    {
+      label: 'Posted by',
+      before: existing ? ((existing as any).posted_by_name || '—') : '—',
+      after: postedByName.trim() || '—',
+      changed: (((existing as any)?.posted_by_name) || '') !== (postedByName.trim() || ''),
+    },
+    {
+      label: 'Goals',
+      before: existing && existingGoals.length ? existingGoals.join(' • ') : '—',
+      after: cleanGoals.length ? cleanGoals.join(' • ') : '—',
+      changed: JSON.stringify(existingGoals) !== JSON.stringify(cleanGoals),
+    },
+  ];
+  const changedCount = publishDiff.filter((d) => d.changed).length;
+
   const requestPublish = () => {
     if (!mission.trim() && cleanGoals.length === 0) {
       toast.error('Write a mission statement or at least one goal.');
@@ -347,6 +381,42 @@ export function MissionGoalsEditor() {
                 <p className="text-muted-foreground">No goals added.</p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2 rounded-lg border bg-background p-4 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                Changes ({changedCount})
+              </span>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {existing ? 'Updating existing mission' : 'New mission'}
+              </span>
+            </div>
+            {changedCount === 0 ? (
+              <p className="text-muted-foreground">No field changes — publishing will re-confirm the current values.</p>
+            ) : (
+              <ul className="space-y-2.5">
+                {publishDiff.filter((d) => d.changed).map((d) => (
+                  <li key={d.label} className="space-y-1">
+                    <span className="text-xs font-bold uppercase tracking-wide text-foreground">{d.label}</span>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5">
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-rose-600">Before</span>
+                        <span className="block whitespace-pre-wrap break-words text-rose-700 dark:text-rose-400 line-through decoration-rose-500/40">
+                          {d.before}
+                        </span>
+                      </div>
+                      <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5">
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-emerald-600">After</span>
+                        <span className="block whitespace-pre-wrap break-words font-medium text-emerald-700 dark:text-emerald-400">
+                          {d.after}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
