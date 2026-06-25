@@ -137,6 +137,7 @@ import { AgentLandlordPromoBanner } from '@/components/agent/AgentLandlordPromoB
 import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
 import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
 import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
+import { MyLandlordsSheet } from '@/components/agent/MyLandlordsSheet';
 import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
 import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
 import { ShareLandlordLinkDialog } from '@/components/agent/ShareLandlordLinkDialog';
@@ -371,6 +372,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [applyingToSell, setApplyingToSell] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
   const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
+  const [landlordsSheetOpen, setLandlordsSheetOpen] = useState(false);
   const [managedUsersOpen, setManagedUsersOpen] = useState(false);
   const [shareLinkOpen, setShareLinkOpen] = useState(false);
   const [funderSheetOpen, setFunderSheetOpen] = useState(false);
@@ -1261,6 +1263,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onListEmptyHouse={() => { setMenuOpen(false); setListHouseFromPromo(false); setListHouseOpen(true); }}
         onViewMyListings={() => { setMenuOpen(false); setMyListingsVacantOnly(false); setMyListingsOpen(true); }}
         onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
+        onViewLandlords={() => { setMenuOpen(false); setLandlordsSheetOpen(true); }}
         onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
         onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
         onOpenPartnerDashboard={() => { setMenuOpen(false); setPartnerDashboardOpen(true); }}
@@ -1487,6 +1490,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
+      <MyLandlordsSheet open={landlordsSheetOpen} onOpenChange={setLandlordsSheetOpen} />
       <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
       <ShareLandlordLinkDialog open={shareLandlordOpen} onOpenChange={setShareLandlordOpen} />
       <FunderManagementSheet open={funderSheetOpen} onOpenChange={setFunderSheetOpen} />
