@@ -1,4 +1,4 @@
-import { Target, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Target, Sparkles } from 'lucide-react';
 import { useDashboardMission } from '@/hooks/useDashboardMission';
 import { monthLabel, monthKey } from '@/lib/dashboardMissions';
 import { cn } from '@/lib/utils';
