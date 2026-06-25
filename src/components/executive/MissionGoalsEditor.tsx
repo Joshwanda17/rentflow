@@ -46,6 +46,7 @@ export function MissionGoalsEditor() {
   const [mission, setMission] = useState('');
   const [goals, setGoals] = useState<string[]>(['']);
   const [fontFamily, setFontFamily] = useState<string>(MISSION_DEFAULT_FONT);
+  const [postedByName, setPostedByName] = useState('');
   const [saving, setSaving] = useState(false);
   const [responsivePreview, setResponsivePreview] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
@@ -73,11 +74,13 @@ export function MissionGoalsEditor() {
       const g = Array.isArray(existing.goals) ? (existing.goals as unknown[]).filter((x) => typeof x === 'string') as string[] : [];
       setGoals(g.length ? g : ['']);
       setFontFamily((existing as any).font_family || MISSION_DEFAULT_FONT);
+      setPostedByName((existing as any).posted_by_name || '');
       setIsDraft(false);
     } else {
       setMission('');
       setGoals(['']);
       setFontFamily(MISSION_DEFAULT_FONT);
+      setPostedByName('');
     }
   }, [existing, dashboardRole, period]);
 
@@ -102,6 +105,10 @@ export function MissionGoalsEditor() {
       toast.error('Write a mission statement or at least one goal.');
       return;
     }
+    if (!postedByName.trim()) {
+      toast.error('Enter your name so it can be shown as "Posted by" on the mission.');
+      return;
+    }
     setConfirmOpen(true);
   };
 
@@ -118,6 +125,7 @@ export function MissionGoalsEditor() {
             mission: mission.trim() || null,
             goals: cleanGoals,
             font_family: fontFamily,
+            posted_by_name: postedByName.trim() || null,
             is_active: true,
             created_by: user?.id ?? null,
           },
