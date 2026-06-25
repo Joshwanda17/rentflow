@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Target, Plus, X, Save, Loader2, Info } from 'lucide-react';
+import { Target, Plus, X, Save, Loader2, Info, RotateCcw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -52,6 +52,8 @@ export function MissionGoalsEditor() {
   const [responsivePreview, setResponsivePreview] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [rollingBack, setRollingBack] = useState(false);
 
   // Load existing mission for the selected dashboard + month
   const { data: existing, isFetching } = useQuery({
@@ -68,6 +70,26 @@ export function MissionGoalsEditor() {
     },
     staleTime: 0,
   });
+
+  // The two most recent publish-log snapshots for this dashboard + period. The
+  // newest is the live version; the one before it is what a rollback restores.
+  const { data: auditHistory } = useQuery({
+    queryKey: ['mission-rollback', dashboardRole, period],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mission_publish_audit')
+        .select('*')
+        .eq('dashboard_role', dashboardRole)
+        .eq('period_month', period)
+        .order('published_at', { ascending: false })
+        .limit(2);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 0,
+  });
+
+  const previousVersion = (auditHistory && auditHistory.length > 1) ? auditHistory[1] : null;
 
   useEffect(() => {
     if (existing) {
@@ -177,6 +199,8 @@ export function MissionGoalsEditor() {
         period_month: period,
         mission: mission.trim() || null,
         goals_count: cleanGoals.length,
+        goals: cleanGoals,
+        font_family: fontFamily,
         posted_by_name: postedByName.trim() || null,
         published_by: user?.id ?? null,
       });
@@ -192,6 +216,71 @@ export function MissionGoalsEditor() {
       toast.error(e?.message || 'Failed to save mission');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRollback = async () => {
+    if (!previousVersion) return;
+    setRollbackOpen(false);
+    setRollingBack(true);
+    try {
+      const prevGoals: string[] = Array.isArray((previousVersion as any).goals)
+        ? ((previousVersion as any).goals as unknown[]).filter((x) => typeof x === 'string' && (x as string).trim()) as string[]
+        : [];
+      const prevMission = (previousVersion as any).mission || null;
+      const prevFont = (previousVersion as any).font_family || MISSION_DEFAULT_FONT;
+      const prevPostedBy = (previousVersion as any).posted_by_name || null;
+
+      const { data: saved, error } = await supabase
+        .from('dashboard_missions')
+        .upsert(
+          {
+            dashboard_role: dashboardRole,
+            period_month: period,
+            mission: prevMission,
+            goals: prevGoals,
+            font_family: prevFont,
+            posted_by_name: prevPostedBy,
+            is_active: true,
+            created_by: user?.id ?? null,
+          },
+          { onConflict: 'dashboard_role,period_month' },
+        )
+        .select('id')
+        .single();
+      if (error) throw error;
+
+      // Log the rollback as a new publish entry so history stays consistent.
+      const { error: auditError } = await supabase.from('mission_publish_audit').insert({
+        mission_id: saved?.id ?? null,
+        dashboard_role: dashboardRole,
+        period_month: period,
+        mission: prevMission,
+        goals_count: prevGoals.length,
+        goals: prevGoals,
+        font_family: prevFont,
+        posted_by_name: prevPostedBy,
+        published_by: user?.id ?? null,
+      });
+      if (auditError) console.error('Failed to record rollback audit', auditError);
+
+      // Reflect restored values in the form.
+      setMission(prevMission || '');
+      setGoals(prevGoals.length ? prevGoals : ['']);
+      setFontFamily(prevFont);
+      setPostedByName(prevPostedBy || '');
+      setIsDraft(false);
+
+      toast.success(`Reverted ${missionDashboardLabel(dashboardRole)} — ${monthLabel(period)} to the previous version.`);
+      queryClient.invalidateQueries({ queryKey: ['mission-editor'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-mission'] });
+      queryClient.invalidateQueries({ queryKey: ['missions-history'] });
+      queryClient.invalidateQueries({ queryKey: ['mission-publish-audit'] });
+      queryClient.invalidateQueries({ queryKey: ['mission-rollback'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to roll back mission');
+    } finally {
+      setRollingBack(false);
     }
   };
 
@@ -324,10 +413,28 @@ export function MissionGoalsEditor() {
             ))}
           </div>
 
-          <Button onClick={requestPublish} disabled={saving || isFetching} className="gap-2">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {existing ? 'Update mission' : 'Publish mission'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={requestPublish} disabled={saving || isFetching || rollingBack} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {existing ? 'Update mission' : 'Publish mission'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRollbackOpen(true)}
+              disabled={!previousVersion || saving || rollingBack || isFetching}
+              className="gap-2"
+              title={previousVersion ? 'Revert to the previously published version' : 'No previous version to revert to'}
+            >
+              {rollingBack ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+              Revert to previous
+            </Button>
+          </div>
+          {!previousVersion && (
+            <p className="text-xs text-muted-foreground">
+              Rollback becomes available once this dashboard has at least two published versions for {monthLabel(period)}.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -433,6 +540,53 @@ export function MissionGoalsEditor() {
             <AlertDialogAction onClick={handleSave} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {existing ? 'Confirm update' : 'Confirm & publish'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={rollbackOpen} onOpenChange={setRollbackOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              Revert to previous version
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This restores the previously published mission for{' '}
+              <strong>{missionDashboardLabel(dashboardRole)}</strong> — <strong>{monthLabel(period)}</strong>. Only this
+              dashboard and period are affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {previousVersion && (
+            <div className="space-y-2 rounded-lg border bg-muted/30 p-4 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Published</span>
+                <span className="font-semibold text-foreground">
+                  {new Date((previousVersion as any).published_at).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Posted by</span>
+                <span className="font-semibold text-foreground">{(previousVersion as any).posted_by_name || '—'}</span>
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Mission</span>
+                <p className="leading-relaxed text-foreground">{(previousVersion as any).mission || '—'}</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Goals</span>
+                <span className="font-semibold text-foreground">{(previousVersion as any).goals_count ?? 0}</span>
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rollingBack}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRollback} disabled={rollingBack} className="gap-2">
+              {rollingBack ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+              Confirm rollback
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
