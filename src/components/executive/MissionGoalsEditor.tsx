@@ -23,6 +23,7 @@ import {
 } from '@/lib/dashboardMissions';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 import { MissionBannerPreview } from '@/components/mission/MissionBannerPreview';
+import { MissionsHistoryList } from '@/components/executive/MissionsHistoryList';
 
 export function MissionGoalsEditor() {
   const { user } = useAuth();
@@ -96,6 +97,7 @@ export function MissionGoalsEditor() {
       toast.success(`Mission published for ${missionDashboardLabel(dashboardRole)} — ${monthLabel(period)}`);
       queryClient.invalidateQueries({ queryKey: ['mission-editor'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-mission'] });
+      queryClient.invalidateQueries({ queryKey: ['missions-history'] });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to save mission');
     } finally {
@@ -105,6 +107,15 @@ export function MissionGoalsEditor() {
 
   return (
     <div className="space-y-5 max-w-3xl">
+      <MissionsHistoryList
+        onSelect={(role, p) => {
+          setDashboardRole(role);
+          setPeriod(p);
+        }}
+        activeRole={dashboardRole}
+        activePeriod={period}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
