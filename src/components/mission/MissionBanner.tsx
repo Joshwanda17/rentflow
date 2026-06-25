@@ -53,7 +53,7 @@ export function MissionBanner({ dashboardRole, className }: MissionBannerProps) 
         {mission.mission && (
           <p
             className="mt-3 sm:mt-4 text-base sm:text-2xl font-extrabold leading-snug tracking-tight drop-shadow-sm [text-wrap:balance]"
-            style={fontStack ? { fontFamily: fontStack } : undefined}
+            style={{ fontFamily: fontStack }}
           >
             {mission.mission}
           </p>
