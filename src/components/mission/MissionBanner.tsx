@@ -23,40 +23,53 @@ export function MissionBanner({ dashboardRole, className }: MissionBannerProps) 
     <section
       aria-label="Monthly mission and goals"
       className={cn(
-        'relative overflow-hidden rounded-2xl border border-primary/30 shadow-sm',
-        'bg-gradient-to-br from-primary/10 via-primary/5 to-transparent',
+        'group relative overflow-hidden rounded-3xl border border-primary/40 shadow-lg',
+        'bg-gradient-to-br from-primary via-primary/90 to-primary/70 text-primary-foreground',
         className,
       )}
     >
-      <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-primary/10 blur-2xl" aria-hidden />
-      <div className="relative p-4 sm:p-5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-primary-foreground">
-            <Target className="h-3 w-3" />
+      {/* Decorative glows */}
+      <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-primary-foreground/20 blur-3xl" aria-hidden />
+      <div className="pointer-events-none absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-primary-foreground/10 blur-3xl" aria-hidden />
+      {/* Subtle moving shimmer */}
+      <div
+        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-primary-foreground/15 to-transparent transition-transform duration-1000 ease-out group-hover:translate-x-full"
+        aria-hidden
+      />
+
+      <div className="relative p-5 sm:p-7">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] backdrop-blur-sm">
+            <Target className="h-3.5 w-3.5" />
             Mission this month
           </span>
-          <span className="text-[11px] font-semibold text-muted-foreground">
+          <span className="text-xs font-bold uppercase tracking-wide text-primary-foreground/80">
             {monthLabel(mission.period_month || monthKey())}
           </span>
         </div>
 
         {mission.mission && (
-          <p className="mt-3 text-sm sm:text-base font-semibold leading-relaxed text-foreground">
+          <p className="mt-4 text-lg sm:text-2xl font-extrabold leading-snug tracking-tight drop-shadow-sm">
             {mission.mission}
           </p>
         )}
 
         {mission.goals.length > 0 && (
-          <div className="mt-3">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
+          <div className="mt-5">
+            <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary-foreground/85">
+              <Sparkles className="h-4 w-4" />
               Goals
             </p>
-            <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+            <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
               {mission.goals.map((g, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-foreground/90">
-                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                  <span className="leading-snug">{g}</span>
+                <li
+                  key={i}
+                  className="flex items-start gap-2.5 rounded-xl bg-primary-foreground/10 px-3 py-2.5 backdrop-blur-sm ring-1 ring-primary-foreground/10"
+                >
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-foreground/25 text-[11px] font-extrabold">
+                    {i + 1}
+                  </span>
+                  <span className="text-sm font-medium leading-snug text-primary-foreground/95">{g}</span>
                 </li>
               ))}
             </ul>
