@@ -219,6 +219,71 @@ export function MissionGoalsEditor() {
     }
   };
 
+  const handleRollback = async () => {
+    if (!previousVersion) return;
+    setRollbackOpen(false);
+    setRollingBack(true);
+    try {
+      const prevGoals: string[] = Array.isArray((previousVersion as any).goals)
+        ? ((previousVersion as any).goals as unknown[]).filter((x) => typeof x === 'string' && (x as string).trim()) as string[]
+        : [];
+      const prevMission = (previousVersion as any).mission || null;
+      const prevFont = (previousVersion as any).font_family || MISSION_DEFAULT_FONT;
+      const prevPostedBy = (previousVersion as any).posted_by_name || null;
+
+      const { data: saved, error } = await supabase
+        .from('dashboard_missions')
+        .upsert(
+          {
+            dashboard_role: dashboardRole,
+            period_month: period,
+            mission: prevMission,
+            goals: prevGoals,
+            font_family: prevFont,
+            posted_by_name: prevPostedBy,
+            is_active: true,
+            created_by: user?.id ?? null,
+          },
+          { onConflict: 'dashboard_role,period_month' },
+        )
+        .select('id')
+        .single();
+      if (error) throw error;
+
+      // Log the rollback as a new publish entry so history stays consistent.
+      const { error: auditError } = await supabase.from('mission_publish_audit').insert({
+        mission_id: saved?.id ?? null,
+        dashboard_role: dashboardRole,
+        period_month: period,
+        mission: prevMission,
+        goals_count: prevGoals.length,
+        goals: prevGoals,
+        font_family: prevFont,
+        posted_by_name: prevPostedBy,
+        published_by: user?.id ?? null,
+      });
+      if (auditError) console.error('Failed to record rollback audit', auditError);
+
+      // Reflect restored values in the form.
+      setMission(prevMission || '');
+      setGoals(prevGoals.length ? prevGoals : ['']);
+      setFontFamily(prevFont);
+      setPostedByName(prevPostedBy || '');
+      setIsDraft(false);
+
+      toast.success(`Reverted ${missionDashboardLabel(dashboardRole)} — ${monthLabel(period)} to the previous version.`);
+      queryClient.invalidateQueries({ queryKey: ['mission-editor'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-mission'] });
+      queryClient.invalidateQueries({ queryKey: ['missions-history'] });
+      queryClient.invalidateQueries({ queryKey: ['mission-publish-audit'] });
+      queryClient.invalidateQueries({ queryKey: ['mission-rollback'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to roll back mission');
+    } finally {
+      setRollingBack(false);
+    }
+  };
+
   return (
     <div className="space-y-5 max-w-3xl">
       <MissionsHistoryList
