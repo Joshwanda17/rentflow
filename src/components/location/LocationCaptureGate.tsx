@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { UGANDA_LOCATIONS } from "@/lib/ugandaLocations";
 import type { UgandaLocation } from "@/lib/ugandaLocations";
+import { captureSmartLocation } from "@/hooks/useSmartLocation";
 
 // Lazy so Leaflet only loads when the review step actually shows the map.
 const HouseLocationMapPreview = lazy(
@@ -175,39 +176,37 @@ export function LocationCaptureGate() {
       return;
     }
     setStatus("capturing");
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 20000,
-          maximumAge: 0,
-        });
-      });
-
-      const { latitude, longitude, accuracy } = position.coords;
-      const admin = await reverseGeocodeAdmin(latitude, longitude);
-
-      // Remember what we just geocoded so a pin drag re-resolves the area.
-      lastGeocodedRef.current = { lat: latitude, lng: longitude };
-      // Show the captured point + its quality and let the user review/confirm
-      // before saving — especially important when the signal is weak.
-      setPending({ latitude, longitude, accuracy: accuracy ?? null, admin });
-      setStatus("review");
-    } catch (err: unknown) {
-      const code = (err as GeolocationPositionError)?.code;
-      if (code === 1) {
-        toast.error("Location permission denied. Please enable it in your browser settings.");
-      } else if (code === 2) {
-        toast.error("Location unavailable. Please try again.");
-      } else if (code === 3) {
-        toast.error("Location request timed out. Please try again.");
+    // Resilient capture: high-accuracy first, automatic low-accuracy fallback,
+    // and a HARD timeout ceiling so the spinner can never hang forever. Many
+    // phones (notably Android in-app / WhatsApp browsers) never fire the raw
+    // high-accuracy callback, which previously left users stuck on "capturing"
+    // with no reaction at all.
+    const result = await captureSmartLocation();
+    if (result.ok !== true) {
+      if (result.reason === "denied") {
+        toast.error("Location permission is blocked. Enable location access for this site, or enter it manually.");
+      } else if (result.reason === "unsupported") {
+        toast.error("Your device does not support location services. Please enter it manually.");
+      } else if (result.reason === "timeout") {
+        toast.error("GPS took too long. Move outdoors with a clear view of the sky, or enter it manually.");
       } else {
-        toast.error("Could not get your location. Please try again.");
+        toast.error("Could not get your location. Check that GPS is on, or enter it manually.");
       }
       setStatus("idle");
       // GPS failed — offer manual entry as a fallback.
       setMode("manual");
+      return;
     }
+
+    const { latitude, longitude, accuracy } = result;
+    const admin = await reverseGeocodeAdmin(latitude, longitude);
+
+    // Remember what we just geocoded so a pin drag re-resolves the area.
+    lastGeocodedRef.current = { lat: latitude, lng: longitude };
+    // Show the captured point + its quality and let the user review/confirm
+    // before saving — especially important when the signal is weak.
+    setPending({ latitude, longitude, accuracy: accuracy ?? null, admin });
+    setStatus("review");
   }, [user]);
 
   // When the user drags/taps the pin during review, re-resolve the
