@@ -71,15 +71,58 @@ interface MissionBannerPreviewProps {
   dashboardRole: string;
   /** Draft mission data to preview; falls back to the saved mission when null. */
   missionOverride?: MissionBannerData | null;
+  /**
+   * Unique key (e.g. dashboard role + month) used to remember the chosen device
+   * and font size per mission draft across sessions.
+   */
+  persistKey?: string;
+}
+
+type DeviceKey = (typeof DEVICES)[number]['key'];
+type SizeKey = (typeof FONT_SIZES)[number]['key'];
+
+const STORAGE_PREFIX = 'mission-preview-prefs:';
+
+function loadPrefs(persistKey?: string): { device: DeviceKey; size: SizeKey } {
+  const fallback = { device: 'mobile' as DeviceKey, size: 'default' as SizeKey };
+  if (!persistKey || typeof window === 'undefined') return fallback;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_PREFIX + persistKey);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<{ device: DeviceKey; size: SizeKey }>;
+    return {
+      device: DEVICES.some((d) => d.key === parsed.device) ? (parsed.device as DeviceKey) : fallback.device,
+      size: FONT_SIZES.some((s) => s.key === parsed.size) ? (parsed.size as SizeKey) : fallback.size,
+    };
+  } catch {
+    return fallback;
+  }
 }
 
 /**
  * Interactive live preview of the mission banner with device-breakpoint and
  * font-size toggles, so the CEO can check readability before saving.
  */
-export function MissionBannerPreview({ dashboardRole, missionOverride }: MissionBannerPreviewProps) {
-  const [device, setDevice] = useState<(typeof DEVICES)[number]['key']>('mobile');
-  const [size, setSize] = useState<(typeof FONT_SIZES)[number]['key']>('default');
+export function MissionBannerPreview({ dashboardRole, missionOverride, persistKey }: MissionBannerPreviewProps) {
+  const [device, setDevice] = useState<DeviceKey>(() => loadPrefs(persistKey).device);
+  const [size, setSize] = useState<SizeKey>(() => loadPrefs(persistKey).size);
+
+  // Re-load saved selections whenever the draft (persistKey) changes.
+  useEffect(() => {
+    const prefs = loadPrefs(persistKey);
+    setDevice(prefs.device);
+    setSize(prefs.size);
+  }, [persistKey]);
+
+  // Persist selections per draft.
+  useEffect(() => {
+    if (!persistKey || typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(STORAGE_PREFIX + persistKey, JSON.stringify({ device, size }));
+    } catch {
+      /* ignore storage failures (private mode, quota) */
+    }
+  }, [persistKey, device, size]);
 
   const activeDevice = DEVICES.find((d) => d.key === device)!;
   const activeSize = FONT_SIZES.find((s) => s.key === size)!;
