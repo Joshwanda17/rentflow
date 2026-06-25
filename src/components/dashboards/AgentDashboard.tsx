@@ -617,6 +617,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         )}
 
         <AgentAgreementBanner />
+        <MissionBanner dashboardRole="agent" />
         <AgentPaymentEditAlert agentId={user.id} />
 
         {/* Landlord verification rejections — edit & resubmit, or dismiss */}
