@@ -233,6 +233,17 @@ export function MissionGoalsEditor() {
             <p className="text-xs text-muted-foreground">Choose the font the mission statement is displayed in across dashboards.</p>
           </div>
 
+          <div className="space-y-1.5">
+            <Label>Your name (shown as “Posted by”)</Label>
+            <Input
+              value={postedByName}
+              onChange={(e) => setPostedByName(e.target.value)}
+              placeholder="e.g. Jane Doe, CEO"
+              disabled={isFetching}
+            />
+            <p className="text-xs text-muted-foreground">Displayed at the bottom of the mission banner on the dashboard.</p>
+          </div>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Goals</Label>
