@@ -128,6 +128,7 @@ export function AgentMenuDrawer({
   onListEmptyHouse,
   onViewMyListings,
   onViewSubAgents,
+  onViewLandlords,
   onShareSubAgentLink,
   onManageFunders,
   onOpenPartnerDashboard,
