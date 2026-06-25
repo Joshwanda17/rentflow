@@ -125,14 +125,9 @@ export default function Settings() {
   const otp = useOtpVerification();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /** Mirrors the edge-function normalizePhone exactly for client-side preview */
-  const previewNormalizePhone = (raw: string): string => {
-    const trimmed = raw.trim().replace(/[\s-]/g, '');
-    if (trimmed.startsWith('+')) return trimmed;
-    if (trimmed.startsWith('0')) return '+256' + trimmed.slice(1);
-    if (/^\d{9,15}$/.test(trimmed)) return '+' + trimmed;
-    return trimmed;
-  };
+  /** Mirrors the edge-function + DB normalizer exactly for client-side preview.
+   * Returns '' when the number is malformed so the preview/validation can warn. */
+  const previewNormalizePhone = (raw: string): string => normalizeE164OrNull(raw) ?? '';
 
   /** Pretty-print E.164 like +256 783 673 998 when possible */
   const formatPhonePreview = (e164: string): string => {
@@ -143,10 +138,12 @@ export default function Settings() {
     return e164;
   };
 
-  const normalizedPreview = useMemo(() => {
-    const n = previewNormalizePhone(phone);
-    return /\+\d{9,15}/.test(n) ? n : '';
-  }, [phone]);
+  const normalizedPreview = useMemo(() => normalizeE164OrNull(phone) ?? '', [phone]);
+  // True when the user has typed something that isn't a valid phone number.
+  const phoneInvalid = useMemo(
+    () => phone.trim().length > 0 && normalizeE164OrNull(phone) === null,
+    [phone],
+  );
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
