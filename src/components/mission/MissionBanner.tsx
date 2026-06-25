@@ -23,7 +23,7 @@ export function MissionBanner({ dashboardRole, className }: MissionBannerProps) 
     <section
       aria-label="Monthly mission and goals"
       className={cn(
-        'group relative overflow-hidden rounded-3xl border border-primary/40 shadow-lg',
+        'group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-primary/40 shadow-lg',
         'bg-gradient-to-br from-primary via-primary/90 to-primary/70 text-primary-foreground',
         className,
       )}
@@ -37,30 +37,30 @@ export function MissionBanner({ dashboardRole, className }: MissionBannerProps) 
         aria-hidden
       />
 
-      <div className="relative p-5 sm:p-7">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] backdrop-blur-sm">
+      <div className="relative p-4 sm:p-7">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/20 px-2.5 py-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.18em] backdrop-blur-sm">
             <Target className="h-3.5 w-3.5" />
             Mission this month
           </span>
-          <span className="text-xs font-bold uppercase tracking-wide text-primary-foreground/80">
+          <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-primary-foreground/80">
             {monthLabel(mission.period_month || monthKey())}
           </span>
         </div>
 
         {mission.mission && (
-          <p className="mt-4 text-lg sm:text-2xl font-extrabold leading-snug tracking-tight drop-shadow-sm">
+          <p className="mt-3 sm:mt-4 text-base sm:text-2xl font-extrabold leading-snug tracking-tight drop-shadow-sm [text-wrap:balance]">
             {mission.mission}
           </p>
         )}
 
         {mission.goals.length > 0 && (
-          <div className="mt-5">
-            <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary-foreground/85">
+          <div className="mt-4 sm:mt-5">
+            <p className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.18em] text-primary-foreground/85">
               <Sparkles className="h-4 w-4" />
               Goals
             </p>
-            <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            <ul className="mt-2.5 sm:mt-3 grid gap-2 sm:gap-2.5 sm:grid-cols-2">
               {mission.goals.map((g, i) => (
                 <li
                   key={i}
