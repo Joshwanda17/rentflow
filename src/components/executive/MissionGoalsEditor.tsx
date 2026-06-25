@@ -545,6 +545,53 @@ export function MissionGoalsEditor() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={rollbackOpen} onOpenChange={setRollbackOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              Revert to previous version
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This restores the previously published mission for{' '}
+              <strong>{missionDashboardLabel(dashboardRole)}</strong> — <strong>{monthLabel(period)}</strong>. Only this
+              dashboard and period are affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {previousVersion && (
+            <div className="space-y-2 rounded-lg border bg-muted/30 p-4 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Published</span>
+                <span className="font-semibold text-foreground">
+                  {new Date((previousVersion as any).published_at).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Posted by</span>
+                <span className="font-semibold text-foreground">{(previousVersion as any).posted_by_name || '—'}</span>
+              </div>
+              <div className="space-y-1">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Mission</span>
+                <p className="leading-relaxed text-foreground">{(previousVersion as any).mission || '—'}</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Goals</span>
+                <span className="font-semibold text-foreground">{(previousVersion as any).goals_count ?? 0}</span>
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rollingBack}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRollback} disabled={rollingBack} className="gap-2">
+              {rollingBack ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+              Confirm rollback
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Live preview</p>
