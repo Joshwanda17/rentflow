@@ -413,10 +413,28 @@ export function MissionGoalsEditor() {
             ))}
           </div>
 
-          <Button onClick={requestPublish} disabled={saving || isFetching} className="gap-2">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {existing ? 'Update mission' : 'Publish mission'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={requestPublish} disabled={saving || isFetching || rollingBack} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {existing ? 'Update mission' : 'Publish mission'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRollbackOpen(true)}
+              disabled={!previousVersion || saving || rollingBack || isFetching}
+              className="gap-2"
+              title={previousVersion ? 'Revert to the previously published version' : 'No previous version to revert to'}
+            >
+              {rollingBack ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+              Revert to previous
+            </Button>
+          </div>
+          {!previousVersion && (
+            <p className="text-xs text-muted-foreground">
+              Rollback becomes available once this dashboard has at least two published versions for {monthLabel(period)}.
+            </p>
+          )}
         </CardContent>
       </Card>
 
