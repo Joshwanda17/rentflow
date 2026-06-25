@@ -3,10 +3,23 @@ import { useDashboardMission } from '@/hooks/useDashboardMission';
 import { monthLabel, monthKey, missionFontStack } from '@/lib/dashboardMissions';
 import { cn } from '@/lib/utils';
 
+/** Minimal shape the banner needs to render — used for live previews of unsaved drafts. */
+export interface MissionBannerData {
+  mission: string | null;
+  goals: string[];
+  font_family?: string | null;
+  period_month?: string | null;
+}
+
 interface MissionBannerProps {
   /** Dashboard role key, e.g. 'ceo', 'agent', 'tenant'. */
   dashboardRole: string;
   className?: string;
+  /**
+   * When provided, the banner renders this data instead of fetching from the
+   * database. Used by the editor's live preview to show unsaved changes.
+   */
+  missionOverride?: MissionBannerData | null;
 }
 
 /**
@@ -14,8 +27,9 @@ interface MissionBannerProps {
  * Rendered at the top of every operator and executive dashboard.
  * Renders nothing until a mission for the current month exists.
  */
-export function MissionBanner({ dashboardRole, className }: MissionBannerProps) {
-  const { data: mission } = useDashboardMission(dashboardRole);
+export function MissionBanner({ dashboardRole, className, missionOverride }: MissionBannerProps) {
+  const { data: fetched } = useDashboardMission(dashboardRole);
+  const mission = missionOverride !== undefined ? missionOverride : fetched;
 
   if (!mission || (!mission.mission && mission.goals.length === 0)) return null;
 
