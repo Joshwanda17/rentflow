@@ -18,6 +18,7 @@ import { Loader2 } from 'lucide-react';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 import RentAccessLimitParamsPanel from '@/components/admin/RentAccessLimitParamsPanel';
 import RunGscVerifyButton from '@/components/admin/RunGscVerifyButton';
+import { CFOJulyMissionCard } from '@/components/cfo/CFOJulyMissionCard';
 
 interface DashboardCard {
   label: string;
