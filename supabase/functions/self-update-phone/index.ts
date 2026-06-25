@@ -6,12 +6,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function normalizePhone(raw: string): string {
-  const trimmed = raw.trim().replace(/[\s-]/g, "");
-  if (trimmed.startsWith("+")) return trimmed;
-  if (trimmed.startsWith("0")) return "+256" + trimmed.slice(1);
-  if (/^\d{9,15}$/.test(trimmed)) return "+" + trimmed;
-  return trimmed;
+/**
+ * Strict canonical normalization — mirrors public.normalize_e164_phone in the DB.
+ * Returns a valid E.164 string, or null when the input cannot be coerced to a
+ * valid number (e.g. malformed 11-digit local entries like "07827277378").
+ */
+function normalizePhone(raw: string): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  if (!s) return null;
+  const hadPlus = s.startsWith("+");
+  const d = s.replace(/\D/g, "");
+  if (!d) return null;
+
+  // Ugandan local form: leading 0, no country code (e.g. 0771234567)
+  if (!hadPlus && d.startsWith("0")) {
+    const national = d.slice(1).replace(/^0+/, "");
+    return national.length === 9 ? `+256${national}` : null;
+  }
+  // Uganda country code, with or without + (e.g. 256771234567)
+  if (d.startsWith("256")) {
+    const national = d.slice(3).replace(/^0+/, "");
+    return national.length === 9 ? `+256${national}` : null;
+  }
+  // Bare 9-digit Ugandan number without any prefix (e.g. 771234567)
+  if (!hadPlus && d.length === 9) return `+256${d}`;
+  // Explicit international number: + followed by 9-15 digits
+  if (hadPlus && d.length >= 9 && d.length <= 15) return `+${d}`;
+  return null;
 }
 
 function json(body: unknown, status = 200) {
@@ -42,8 +64,8 @@ serve(async (req) => {
     if (!rawPhone.trim()) return json({ error: "Phone number is required" }, 400);
 
     const normalized = normalizePhone(rawPhone);
-    // Basic E.164 sanity: + followed by 9-15 digits
-    if (!/^\+\d{9,15}$/.test(normalized)) {
+    // Reject anything that can't be coerced to a valid canonical number.
+    if (!normalized || !/^\+\d{9,15}$/.test(normalized)) {
       return json({ error: "Please enter a valid phone number" }, 400);
     }
     const authPhone = normalized.replace(/^\+/, "");

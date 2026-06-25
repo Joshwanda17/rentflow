@@ -21182,6 +21182,7 @@ export type Database = {
         }
         Returns: number
       }
+      normalize_e164_phone: { Args: { raw: string }; Returns: string }
       normalize_momo_tid: { Args: { p_tid: string }; Returns: string }
       normalize_phone: { Args: { p: string }; Returns: string }
       normalize_phone_last9: { Args: { phone: string }; Returns: string }

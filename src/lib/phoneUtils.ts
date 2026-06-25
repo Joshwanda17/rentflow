@@ -160,6 +160,39 @@ export function cleanPhoneNumber(phone: string): string {
 }
 
 /**
+ * Strict canonical normalization — the single source of truth shared by the
+ * client, the `self-update-phone` edge function, and the database trigger
+ * `public.normalize_e164_phone`. Returns a valid E.164 string (e.g.
+ * `+256771234567`) or `null` when the input cannot be coerced to a valid
+ * number, so malformed entries (like the 11-digit local `07827277378`) are
+ * rejected instead of being silently mangled into a broken `+256…` value.
+ */
+export function normalizeE164OrNull(raw: string): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  if (!s) return null;
+  const hadPlus = s.startsWith('+');
+  const d = s.replace(/\D/g, '');
+  if (!d) return null;
+
+  // Ugandan local form: leading 0, no country code (e.g. 0771234567)
+  if (!hadPlus && d.startsWith('0')) {
+    const national = d.slice(1).replace(/^0+/, '');
+    return national.length === 9 ? `+256${national}` : null;
+  }
+  // Uganda country code, with or without + (e.g. 256771234567)
+  if (d.startsWith('256')) {
+    const national = d.slice(3).replace(/^0+/, '');
+    return national.length === 9 ? `+256${national}` : null;
+  }
+  // Bare 9-digit Ugandan number without any prefix (e.g. 771234567)
+  if (!hadPlus && d.length === 9) return `+256${d}`;
+  // Explicit international number: + followed by 9-15 digits
+  if (hadPlus && d.length >= 9 && d.length <= 15) return `+${d}`;
+  return null;
+}
+
+/**
  * Generate all possible email variants for a phone number
  * This helps users who may have registered with different formats
  * Returns objects with email and display format
