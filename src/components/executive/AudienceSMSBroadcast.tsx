@@ -29,8 +29,12 @@ const AUDIENCE_META: { id: Audience; label: string; icon: typeof Home; desc: str
   { id: 'landlord', label: 'Landlords', icon: Building2, desc: 'Registered landlords' },
 ];
 
+// Default check-in message pre-filled in the composer; staff can edit before sending.
+const DEFAULT_MESSAGE =
+  'WELILE - Our Dear client hope you are doing well, we would like to know how you are finding our services if there is any thing you want us to help you with kindly contact us on +256748747134';
+
 export function AudienceSMSBroadcast() {
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [audiences, setAudiences] = useState<Audience[]>([]);
   const [testPhone, setTestPhone] = useState('');
   const [recipientCount, setRecipientCount] = useState<number | null>(null);
