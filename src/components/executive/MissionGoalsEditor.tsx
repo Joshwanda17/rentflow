@@ -349,6 +349,15 @@ export function MissionGoalsEditor() {
             </div>
           </div>
 
+          <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p className="text-amber-700 dark:text-amber-400">
+              Publishing updates <strong>only the {missionDashboardLabel(dashboardRole)} dashboard</strong> for{' '}
+              <strong>{monthLabel(period)}</strong>. No other dashboard or month is affected — each dashboard keeps its
+              own separate mission.
+            </p>
+          </div>
+
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>Back to edit</AlertDialogCancel>
             <AlertDialogAction onClick={handleSave} disabled={saving} className="gap-2">
