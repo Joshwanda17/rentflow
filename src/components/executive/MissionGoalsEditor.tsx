@@ -35,6 +35,7 @@ import {
 import { MissionBanner } from '@/components/mission/MissionBanner';
 import { MissionBannerPreview } from '@/components/mission/MissionBannerPreview';
 import { MissionsHistoryList } from '@/components/executive/MissionsHistoryList';
+import { MissionPublishAuditLog } from '@/components/executive/MissionPublishAuditLog';
 
 export function MissionGoalsEditor() {
   const { user } = useAuth();
