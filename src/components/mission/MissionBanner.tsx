@@ -9,6 +9,7 @@ export interface MissionBannerData {
   goals: string[];
   font_family?: string | null;
   period_month?: string | null;
+  posted_by_name?: string | null;
 }
 
 interface MissionBannerProps {
@@ -93,6 +94,12 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
               ))}
             </ul>
           </div>
+        )}
+
+        {mission.posted_by_name && (
+          <p className="mt-4 sm:mt-5 text-[11px] sm:text-xs font-semibold italic text-white/80">
+            Posted by: {mission.posted_by_name}
+          </p>
         )}
       </div>
     </section>
