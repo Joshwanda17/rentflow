@@ -137,5 +137,6 @@ export interface DashboardMission {
   goals: string[];
   is_active: boolean;
   font_family: string | null;
+  posted_by_name: string | null;
   updated_at: string;
 }
