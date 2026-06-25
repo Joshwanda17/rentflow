@@ -131,10 +131,19 @@ export function MissionGoalsEditor() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            Monthly Mission & Goals
-          </CardTitle>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Monthly Mission & Goals
+            </CardTitle>
+            <Button
+              type="button"
+              onClick={startNewMission}
+              className="gap-2 shadow-sm"
+            >
+              <Plus className="h-4 w-4" /> New mission
+            </Button>
+          </div>
           <CardDescription>
             Write the mission and goals for each dashboard, each month. They appear prominently at
             the top of that dashboard for every operator and executive. Use “Company-wide” to set a
@@ -144,7 +153,12 @@ export function MissionGoalsEditor() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Dashboard</Label>
+              <div className="flex items-center gap-2">
+                <Label>Dashboard</Label>
+                {isDraft && (
+                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-600">Draft</span>
+                )}
+              </div>
               <Select value={dashboardRole} onValueChange={setDashboardRole}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
