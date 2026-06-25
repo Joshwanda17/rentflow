@@ -1,6 +1,6 @@
 import { Target, Sparkles } from 'lucide-react';
 import { useDashboardMission } from '@/hooks/useDashboardMission';
-import { monthLabel, monthKey } from '@/lib/dashboardMissions';
+import { monthLabel, monthKey, missionFontStack } from '@/lib/dashboardMissions';
 import { cn } from '@/lib/utils';
 
 interface MissionBannerProps {
@@ -18,6 +18,8 @@ export function MissionBanner({ dashboardRole, className }: MissionBannerProps) 
   const { data: mission } = useDashboardMission(dashboardRole);
 
   if (!mission || (!mission.mission && mission.goals.length === 0)) return null;
+
+  const fontStack = missionFontStack(mission.font_family);
 
   return (
     <section
@@ -49,7 +51,10 @@ export function MissionBanner({ dashboardRole, className }: MissionBannerProps) 
         </div>
 
         {mission.mission && (
-          <p className="mt-3 sm:mt-4 text-base sm:text-2xl font-extrabold leading-snug tracking-tight drop-shadow-sm [text-wrap:balance]">
+          <p
+            className="mt-3 sm:mt-4 text-base sm:text-2xl font-extrabold leading-snug tracking-tight drop-shadow-sm [text-wrap:balance]"
+            style={fontStack ? { fontFamily: fontStack } : undefined}
+          >
             {mission.mission}
           </p>
         )}
