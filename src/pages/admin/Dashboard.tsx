@@ -157,22 +157,24 @@ export default function AdminDashboardPage() {
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Executive Dashboards</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {visibleExecutive.map((d) => (
-                <button
-                  key={d.label}
-                  onClick={() => navigate(d.route)}
-                  className={cn(
-                    'flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99]',
-                    d.color
-                  )}
-                >
-                  <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-background/60">
-                    <d.icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm">{d.label} Dashboard</p>
-                    <p className="text-xs text-muted-foreground truncate">{d.description}</p>
-                  </div>
-                </button>
+                <div key={d.label} className={cn('space-y-2', d.permissionKey === 'cfo' && 'sm:col-span-2 lg:col-span-3')}>
+                  <button
+                    onClick={() => navigate(d.route)}
+                    className={cn(
+                      'w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99]',
+                      d.color
+                    )}
+                  >
+                    <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-background/60">
+                      <d.icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm">{d.label} Dashboard</p>
+                      <p className="text-xs text-muted-foreground truncate">{d.description}</p>
+                    </div>
+                  </button>
+                  {d.permissionKey === 'cfo' && <CFOJulyMissionCard />}
+                </div>
               ))}
             </div>
           </div>
