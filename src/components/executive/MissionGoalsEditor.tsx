@@ -407,6 +407,8 @@ export function MissionGoalsEditor() {
           <MissionBanner dashboardRole={dashboardRole} />
         )}
       </div>
+
+      <MissionPublishAuditLog />
     </div>
   );
 }
