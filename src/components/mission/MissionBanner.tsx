@@ -66,7 +66,7 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
 
         {mission.mission && (
           <p
-            className="mt-3 sm:mt-4 text-base sm:text-2xl font-extrabold leading-snug tracking-tight drop-shadow-sm [text-wrap:balance]"
+            className="mt-3 sm:mt-4 text-lg sm:text-3xl font-bold leading-relaxed sm:leading-snug tracking-normal drop-shadow-sm [text-wrap:balance]"
             style={{ fontFamily: fontStack }}
           >
             {mission.mission}
@@ -88,7 +88,7 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/25 text-[11px] font-extrabold">
                     {i + 1}
                   </span>
-                  <span className="text-[13px] sm:text-sm font-medium leading-snug text-white/95">{g}</span>
+                  <span className="text-sm sm:text-base font-semibold leading-relaxed text-white/95">{g}</span>
                 </li>
               ))}
             </ul>
