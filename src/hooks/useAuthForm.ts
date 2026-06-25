@@ -494,7 +494,10 @@ export function useAuthForm() {
       // Short-TTL cache: repeated logins on the same device should not
       // re-pay the 300–3000ms RPC cost. Keyed by phone last-9, cached
       // for 7 days. Cleared on auth errors below if it goes stale.
-      const cacheKey = `welile_phone_email_cache_${last9}`;
+      // v2: the lookup now prioritizes the real Supabase Auth login email over
+      // the profile display email. Version the cache so devices holding the old
+      // profile-only result do not keep failing after an admin password reset.
+      const cacheKey = `welile_phone_email_cache_v2_${last9}`;
       const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
       try {
         const raw = localStorage.getItem(cacheKey);
@@ -616,7 +619,10 @@ export function useAuthForm() {
     // If we relied on a cached RPC result and still failed every attempt,
     // drop the cache so the next try re-fetches a fresh email list.
     if (!loginSuccess && (metrics as any).rpcCacheHit) {
-      try { localStorage.removeItem(`welile_phone_email_cache_${last9}`); } catch { /* non-critical */ }
+      try {
+        localStorage.removeItem(`welile_phone_email_cache_v2_${last9}`);
+        localStorage.removeItem(`welile_phone_email_cache_${last9}`);
+      } catch { /* non-critical */ }
     }
 
     metrics.totalMs = Math.round(performance.now() - t0);
