@@ -192,6 +192,10 @@ export default function Settings() {
     if (!user || !profile) return;
     if (!fullName.trim()) { toast.error('Full name is required'); return; }
     if (!phone.trim()) { toast.error('Phone number is required'); return; }
+    if (normalizeE164OrNull(phone) === null) {
+      toast.error('Please enter a valid phone number (e.g. 0771234567 or +256771234567)');
+      return;
+    }
     setSaving(true);
     const trimmedName = fullName.trim();
     const trimmedPhone = phone.trim();
