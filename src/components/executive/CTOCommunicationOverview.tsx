@@ -200,7 +200,7 @@ export function CTOCommunicationOverview() {
         />
       </div>
 
-      <Tabs defaultValue="sms" className="w-full">
+      <Tabs defaultValue="broadcast" className="w-full">
         <TabsList variant="underline" className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="broadcast" variant="underline" className="gap-2">
             <Megaphone className="h-4 w-4" />
