@@ -11027,6 +11027,8 @@ export type Database = {
       mission_publish_audit: {
         Row: {
           dashboard_role: string
+          font_family: string | null
+          goals: Json
           goals_count: number
           id: string
           mission: string | null
@@ -11038,6 +11040,8 @@ export type Database = {
         }
         Insert: {
           dashboard_role: string
+          font_family?: string | null
+          goals?: Json
           goals_count?: number
           id?: string
           mission?: string | null
@@ -11049,6 +11053,8 @@ export type Database = {
         }
         Update: {
           dashboard_role?: string
+          font_family?: string | null
+          goals?: Json
           goals_count?: number
           id?: string
           mission?: string | null
