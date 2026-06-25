@@ -63,9 +63,12 @@ export const MISSION_FONTS: MissionFontOption[] = [
   { key: 'system', label: 'System (native)', stack: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
 ];
 
-export function missionFontStack(key: string | null | undefined): string | undefined {
-  if (!key) return undefined;
-  return MISSION_FONTS.find((f) => f.key === key)?.stack;
+/** Always returns a valid CSS font-family stack, falling back to the default
+ *  when the key is missing, null, or unrecognized so the banner never breaks. */
+export function missionFontStack(key: string | null | undefined): string {
+  const fallback = MISSION_FONTS.find((f) => f.key === MISSION_DEFAULT_FONT)!.stack;
+  if (!key) return fallback;
+  return MISSION_FONTS.find((f) => f.key === key)?.stack ?? fallback;
 }
 
 /** First day of a month as `YYYY-MM-01` (local time). */
