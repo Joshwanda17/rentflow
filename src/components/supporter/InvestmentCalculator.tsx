@@ -1219,7 +1219,7 @@ export function InvestmentCalculator() {
             {/* Disclaimer */}
             <div className="text-center pt-2 border-t border-border/50 space-y-2">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-relaxed">
-                <strong>Disclaimer:</strong>&nbsp;Rewards or returns are paid-out monthly or compounding basing on the contribution mode selected.&nbsp;Welile Technologies Ltd is not a licensed financial institution, bank, or deposit-taking entity.
+                <strong>Disclaimer:</strong>&nbsp;Welile Technologies is a pioneering technology platform that connects tenants seeking rent support with thoroughly verified supporters, enabling seamless facilitation of their housing needs. As a neutral facilitation marketplace only, Welile Technologies is NOT a financial institution, lender, or deposit-taking entity. We don't provide credit, or engage in regulated financial activities.
               </p>
               
               <div className="pt-2">
