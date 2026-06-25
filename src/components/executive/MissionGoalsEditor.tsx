@@ -20,6 +20,7 @@ import {
   MISSION_FONTS,
   MISSION_DEFAULT_FONT,
   missionFontStack,
+  nextMonthKey,
 } from '@/lib/dashboardMissions';
 import { MissionBanner } from '@/components/mission/MissionBanner';
 import { MissionBannerPreview } from '@/components/mission/MissionBannerPreview';
@@ -37,6 +38,7 @@ export function MissionGoalsEditor() {
   const [fontFamily, setFontFamily] = useState<string>(MISSION_DEFAULT_FONT);
   const [saving, setSaving] = useState(false);
   const [responsivePreview, setResponsivePreview] = useState(false);
+  const [isDraft, setIsDraft] = useState(false);
 
   // Load existing mission for the selected dashboard + month
   const { data: existing, isFetching } = useQuery({
@@ -60,6 +62,7 @@ export function MissionGoalsEditor() {
       const g = Array.isArray(existing.goals) ? (existing.goals as unknown[]).filter((x) => typeof x === 'string') as string[] : [];
       setGoals(g.length ? g : ['']);
       setFontFamily((existing as any).font_family || MISSION_DEFAULT_FONT);
+      setIsDraft(false);
     } else {
       setMission('');
       setGoals(['']);
@@ -70,6 +73,16 @@ export function MissionGoalsEditor() {
   const setGoal = (i: number, v: string) => setGoals((p) => p.map((g, idx) => (idx === i ? v : g)));
   const addGoal = () => setGoals((p) => [...p, '']);
   const removeGoal = (i: number) => setGoals((p) => (p.length === 1 ? [''] : p.filter((_, idx) => idx !== i)));
+
+  const startNewMission = () => {
+    const next = nextMonthKey();
+    setPeriod(next);
+    setMission('');
+    setGoals(['']);
+    setFontFamily(MISSION_DEFAULT_FONT);
+    setIsDraft(true);
+    toast.success(`New mission draft started for ${monthLabel(next)} — edit and publish when ready.`);
+  };
 
   const handleSave = async () => {
     const cleanGoals = goals.map((g) => g.trim()).filter(Boolean);
@@ -95,6 +108,7 @@ export function MissionGoalsEditor() {
         );
       if (error) throw error;
       toast.success(`Mission published for ${missionDashboardLabel(dashboardRole)} — ${monthLabel(period)}`);
+      setIsDraft(false);
       queryClient.invalidateQueries({ queryKey: ['mission-editor'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-mission'] });
       queryClient.invalidateQueries({ queryKey: ['missions-history'] });
@@ -118,10 +132,19 @@ export function MissionGoalsEditor() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            Monthly Mission & Goals
-          </CardTitle>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Monthly Mission & Goals
+            </CardTitle>
+            <Button
+              type="button"
+              onClick={startNewMission}
+              className="gap-2 shadow-sm"
+            >
+              <Plus className="h-4 w-4" /> New mission
+            </Button>
+          </div>
           <CardDescription>
             Write the mission and goals for each dashboard, each month. They appear prominently at
             the top of that dashboard for every operator and executive. Use “Company-wide” to set a
@@ -131,7 +154,12 @@ export function MissionGoalsEditor() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Dashboard</Label>
+              <div className="flex items-center gap-2">
+                <Label>Dashboard</Label>
+                {isDraft && (
+                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-600">Draft</span>
+                )}
+              </div>
               <Select value={dashboardRole} onValueChange={setDashboardRole}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>

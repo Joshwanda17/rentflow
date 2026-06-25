@@ -78,6 +78,19 @@ export function monthKey(date: Date = new Date()): string {
   return `${y}-${m}-01`;
 }
 
+/** First day of the month after the given month key (or today). */
+export function nextMonthKey(fromKey?: string): string {
+  let base: Date;
+  if (fromKey) {
+    const [y, m] = fromKey.split('-').map(Number);
+    base = new Date(y, (m - 1) + 1, 1);
+  } else {
+    const now = new Date();
+    base = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  }
+  return monthKey(base);
+}
+
 /** Human label for a `YYYY-MM-01` month key, e.g. "June 2026". */
 export function monthLabel(key: string): string {
   const [y, m] = key.split('-').map(Number);
