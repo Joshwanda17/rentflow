@@ -12,6 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Target, Plus, X, Save, Loader2 } from 'lucide-react';
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+import {
   MISSION_DASHBOARDS,
   buildMonthOptions,
   monthKey,
@@ -39,6 +49,7 @@ export function MissionGoalsEditor() {
   const [saving, setSaving] = useState(false);
   const [responsivePreview, setResponsivePreview] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Load existing mission for the selected dashboard + month
   const { data: existing, isFetching } = useQuery({
@@ -84,12 +95,18 @@ export function MissionGoalsEditor() {
     toast.success(`New mission draft started for ${monthLabel(next)} — edit and publish when ready.`);
   };
 
-  const handleSave = async () => {
-    const cleanGoals = goals.map((g) => g.trim()).filter(Boolean);
+  const cleanGoals = goals.map((g) => g.trim()).filter(Boolean);
+
+  const requestPublish = () => {
     if (!mission.trim() && cleanGoals.length === 0) {
       toast.error('Write a mission statement or at least one goal.');
       return;
     }
+    setConfirmOpen(true);
+  };
+
+  const handleSave = async () => {
+    setConfirmOpen(false);
     setSaving(true);
     try {
       const { error } = await supabase
@@ -237,12 +254,70 @@ export function MissionGoalsEditor() {
             ))}
           </div>
 
-          <Button onClick={handleSave} disabled={saving || isFetching} className="gap-2">
+          <Button onClick={requestPublish} disabled={saving || isFetching} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {existing ? 'Update mission' : 'Publish mission'}
           </Button>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              {existing ? 'Confirm mission update' : 'Confirm publish'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Review the summary below. Once you confirm, this mission goes live on the{' '}
+              <strong>{missionDashboardLabel(dashboardRole)}</strong> dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-3 rounded-lg border bg-muted/30 p-4 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Month</span>
+              <span className="font-semibold text-foreground">{monthLabel(period)}</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Dashboard</span>
+              <span className="font-semibold text-foreground">{missionDashboardLabel(dashboardRole)}</span>
+            </div>
+            {mission.trim() && (
+              <div className="space-y-1">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Mission</span>
+                <p className="leading-relaxed text-foreground" style={{ fontFamily: missionFontStack(fontFamily) }}>
+                  {mission.trim()}
+                </p>
+              </div>
+            )}
+            <div className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                Key targets ({cleanGoals.length})
+              </span>
+              {cleanGoals.length ? (
+                <ul className="grid gap-1">
+                  {cleanGoals.map((g, i) => (
+                    <li key={i} className="flex gap-2 text-foreground/90">
+                      <span className="font-bold text-primary">{i + 1}.</span> {g}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">No goals added.</p>
+              )}
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Back to edit</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSave} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {existing ? 'Confirm update' : 'Confirm & publish'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
