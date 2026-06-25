@@ -13,6 +13,7 @@ function normalize(row: any): DashboardMission | null {
     mission: row.mission ?? null,
     goals,
     is_active: !!row.is_active,
+    font_family: row.font_family ?? null,
     updated_at: row.updated_at,
   };
 }
