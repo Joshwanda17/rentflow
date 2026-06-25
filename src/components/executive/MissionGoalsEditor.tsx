@@ -355,6 +355,7 @@ export function MissionGoalsEditor() {
               goals: goals.map((g) => g.trim()).filter(Boolean),
               font_family: fontFamily,
               period_month: period,
+              posted_by_name: postedByName.trim() || null,
             }}
           />
         ) : (mission.trim() || goals.some((g) => g.trim())) ? (
