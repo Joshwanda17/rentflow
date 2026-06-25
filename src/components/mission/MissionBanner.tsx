@@ -9,6 +9,7 @@ export interface MissionBannerData {
   goals: string[];
   font_family?: string | null;
   period_month?: string | null;
+  posted_by_name?: string | null;
 }
 
 interface MissionBannerProps {
