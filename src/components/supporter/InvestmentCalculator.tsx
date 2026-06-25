@@ -16,6 +16,7 @@ import { toast } from '@/hooks/use-toast';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { useCurrency } from '@/hooks/useCurrency';
 import { formatDistanceToNow } from 'date-fns';
+import welileWordmark from '@/assets/welile-wordmark.png.asset.json';
 
 const REWARD_RATE = 0.15; // 15% monthly platform rewards
 
