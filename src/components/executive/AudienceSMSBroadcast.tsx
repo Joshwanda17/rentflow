@@ -77,7 +77,7 @@ export function AudienceSMSBroadcast() {
         ? `${data.failed} numbers failed at the gateway.`
         : `Delivered to ${data.total} recipient${data.total === 1 ? '' : 's'}.`,
     });
-    setMessage('');
+    setMessage(DEFAULT_MESSAGE);
   };
 
   const handleTest = async () => {
