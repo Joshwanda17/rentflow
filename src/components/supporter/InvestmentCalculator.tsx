@@ -977,7 +977,7 @@ export function InvestmentCalculator() {
         <div className="p-3 sm:p-6 border-b border-border bg-gradient-to-r from-primary/10 to-primary/5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg sm:text-2xl font-bold text-primary" style={{ fontFamily: "'Chewy', cursive" }}>Welile</h2>
+              <img src={welileWordmark.url} alt="Welile" className="h-6 sm:h-9 w-auto" />
               <p className="text-[10px] sm:text-xs text-muted-foreground">Earnings Projection</p>
             </div>
             <div className="text-right text-[10px] sm:text-sm text-muted-foreground">
