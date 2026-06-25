@@ -71,6 +71,26 @@ export function MissionGoalsEditor() {
     staleTime: 0,
   });
 
+  // The two most recent publish-log snapshots for this dashboard + period. The
+  // newest is the live version; the one before it is what a rollback restores.
+  const { data: auditHistory } = useQuery({
+    queryKey: ['mission-rollback', dashboardRole, period],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mission_publish_audit')
+        .select('*')
+        .eq('dashboard_role', dashboardRole)
+        .eq('period_month', period)
+        .order('published_at', { ascending: false })
+        .limit(2);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 0,
+  });
+
+  const previousVersion = (auditHistory && auditHistory.length > 1) ? auditHistory[1] : null;
+
   useEffect(() => {
     if (existing) {
       setMission(existing.mission || '');
