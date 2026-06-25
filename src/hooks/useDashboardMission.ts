@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { MISSION_ALL_KEY, monthKey, type DashboardMission } from '@/lib/dashboardMissions';
+import { MISSION_ALL_KEY, monthKey, isMissionRestricted, type DashboardMission } from '@/lib/dashboardMissions';
 
 function normalize(row: any): DashboardMission | null {
   if (!row) return null;
@@ -26,9 +26,11 @@ export function useDashboardMission(dashboardRole: string | undefined) {
   const month = monthKey();
   return useQuery({
     queryKey: ['dashboard-mission', dashboardRole, month],
-    enabled: !!dashboardRole,
+    enabled: !!dashboardRole && !isMissionRestricted(dashboardRole as string),
     staleTime: 300000,
     queryFn: async (): Promise<DashboardMission | null> => {
+      // End-user / field dashboards never display a mission (CEO can't author them).
+      if (isMissionRestricted(dashboardRole as string)) return null;
       const roles = dashboardRole === MISSION_ALL_KEY
         ? [MISSION_ALL_KEY]
         : [dashboardRole as string, MISSION_ALL_KEY];

@@ -10,6 +10,7 @@ import {
   monthLabel,
   missionDashboardLabel,
   missionFontStack,
+  isMissionRestricted,
 } from '@/lib/dashboardMissions';
 import { cn } from '@/lib/utils';
 
@@ -55,7 +56,7 @@ export function MissionsHistoryList({ onSelect, activeRole, activePeriod }: Miss
   });
 
   const grouped = useMemo(() => {
-    const rows = data ?? [];
+    const rows = (data ?? []).filter((r) => !isMissionRestricted(r.dashboard_role));
     const visible = showAll ? rows : rows.filter((r) => r.period_month >= current).concat(
       rows.filter((r) => r.period_month < current).slice(0, 4),
     );
@@ -68,7 +69,7 @@ export function MissionsHistoryList({ onSelect, activeRole, activePeriod }: Miss
     return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [data, showAll, current]);
 
-  const total = data?.length ?? 0;
+  const total = (data ?? []).filter((r) => !isMissionRestricted(r.dashboard_role)).length;
 
   return (
     <Card>

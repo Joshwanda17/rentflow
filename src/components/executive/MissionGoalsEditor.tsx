@@ -22,7 +22,7 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 import {
-  MISSION_DASHBOARDS,
+  MISSION_EDITABLE_DASHBOARDS,
   buildMonthOptions,
   monthKey,
   monthLabel,
@@ -41,7 +41,7 @@ export function MissionGoalsEditor() {
   const queryClient = useQueryClient();
   const monthOptions = buildMonthOptions();
 
-  const [dashboardRole, setDashboardRole] = useState<string>(MISSION_DASHBOARDS[0].key);
+  const [dashboardRole, setDashboardRole] = useState<string>(MISSION_EDITABLE_DASHBOARDS[0].key);
   const [period, setPeriod] = useState<string>(monthKey());
   const [mission, setMission] = useState('');
   const [goals, setGoals] = useState<string[]>(['']);
@@ -180,7 +180,7 @@ export function MissionGoalsEditor() {
               <Select value={dashboardRole} onValueChange={setDashboardRole}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {MISSION_DASHBOARDS.map((d) => (
+                  {MISSION_EDITABLE_DASHBOARDS.map((d) => (
                     <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>
                   ))}
                 </SelectContent>

@@ -44,6 +44,21 @@ export function missionDashboardLabel(key: string): string {
 }
 
 /**
+ * Dashboards the CEO is NOT allowed to author missions for. These end-user /
+ * field dashboards never display a mission (not even the company-wide fallback).
+ */
+export const MISSION_RESTRICTED_DASHBOARDS = ['agent', 'tenant', 'landlord', 'supporter'] as const;
+
+export function isMissionRestricted(key: string): boolean {
+  return (MISSION_RESTRICTED_DASHBOARDS as readonly string[]).includes(key);
+}
+
+/** Dashboards the CEO can actually target in the editor. */
+export const MISSION_EDITABLE_DASHBOARDS: DashboardMissionTarget[] = MISSION_DASHBOARDS.filter(
+  (d) => !isMissionRestricted(d.key),
+);
+
+/**
  * Font choices the CEO can apply to the mission statement. The `stack` is the
  * CSS font-family value applied inline to the mission text.
  */
