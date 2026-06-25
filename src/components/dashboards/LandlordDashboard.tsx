@@ -85,6 +85,8 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       <div className="flex-1 overflow-y-auto pb-nav">
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
 
+          <MissionBanner dashboardRole="landlord" />
+
           {/* Portfolio Hero Card */}
           <UnifiedWalletHeroCard
             balance={wallet?.balance ?? 0}
