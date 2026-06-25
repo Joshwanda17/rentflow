@@ -11024,6 +11024,50 @@ export type Database = {
           },
         ]
       }
+      mission_publish_audit: {
+        Row: {
+          dashboard_role: string
+          goals_count: number
+          id: string
+          mission: string | null
+          mission_id: string | null
+          period_month: string
+          posted_by_name: string | null
+          published_at: string
+          published_by: string | null
+        }
+        Insert: {
+          dashboard_role: string
+          goals_count?: number
+          id?: string
+          mission?: string | null
+          mission_id?: string | null
+          period_month: string
+          posted_by_name?: string | null
+          published_at?: string
+          published_by?: string | null
+        }
+        Update: {
+          dashboard_role?: string
+          goals_count?: number
+          id?: string
+          mission?: string | null
+          mission_id?: string | null
+          period_month?: string
+          posted_by_name?: string | null
+          published_at?: string
+          published_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_publish_audit_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mobile_rollout_config: {
         Row: {
           created_at: string
