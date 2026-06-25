@@ -370,6 +370,12 @@ export default function Settings() {
                         </div>
                       )}
                       {profile && phone.trim() !== (profile.phone ?? '').trim() && phone.trim() && (
+                      {phoneInvalid && (
+                        <p className="text-[11px] text-destructive mt-1">
+                          That doesn't look like a valid phone number. Use a Ugandan number (e.g. 0771234567 / +256771234567) or an international number as +&lt;country code&gt;&lt;number&gt;.
+                        </p>
+                      )}
+                      {profile && phone.trim() !== (profile.phone ?? '').trim() && phone.trim() && !phoneInvalid && (
                         <div className="pt-2">
                           <OtpVerificationStep
                             phone={phone.trim()}
