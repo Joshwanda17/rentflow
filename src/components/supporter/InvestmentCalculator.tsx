@@ -1219,9 +1219,7 @@ export function InvestmentCalculator() {
             {/* Disclaimer */}
             <div className="text-center pt-2 border-t border-border/50 space-y-2">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-relaxed">
-                <strong>Disclaimer:</strong> This projection is for illustrative purposes only and does not constitute financial advice or a guarantee of earnings. 
-                Platform rewards are variable and subject to the performance of the rent facilitation pool. 
-                Welile Technologies Ltd is not a licensed financial institution, bank, or deposit-taking entity.
+                <strong>Disclaimer:</strong>&nbsp;Rewards or returns are paid-out monthly or compounding basing on the contribution mode selected.&nbsp;Welile Technologies Ltd is not a licensed financial institution, bank, or deposit-taking entity.
               </p>
               
               <div className="pt-2">
