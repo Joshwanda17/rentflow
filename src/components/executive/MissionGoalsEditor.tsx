@@ -215,7 +215,7 @@ export function MissionGoalsEditor() {
             {mission.trim() && (
               <p
                 className="mt-3 text-sm sm:text-base font-semibold leading-relaxed text-foreground"
-                style={missionFontStack(fontFamily) ? { fontFamily: missionFontStack(fontFamily) } : undefined}
+                style={{ fontFamily: missionFontStack(fontFamily) }}
               >
                 {mission}
               </p>
