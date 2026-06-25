@@ -28,6 +28,7 @@ import { useAppPreferences } from '@/hooks/useAppPreferences';
 import { playNotificationSound } from '@/lib/notificationSound';
 import { cn } from '@/lib/utils';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
+import { normalizeE164OrNull } from '@/lib/phoneUtils';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 
 const WalletCard = lazy(() => import('@/components/wallet/WalletCard').then(m => ({ default: m.WalletCard })));
