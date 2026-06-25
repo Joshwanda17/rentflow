@@ -101,6 +101,40 @@ export function MissionGoalsEditor() {
 
   const cleanGoals = goals.map((g) => g.trim()).filter(Boolean);
 
+  // Build a field-by-field diff between the saved record and what will be published.
+  const existingGoals: string[] = Array.isArray(existing?.goals)
+    ? ((existing!.goals as unknown[]).filter((x) => typeof x === 'string' && (x as string).trim()) as string[])
+    : [];
+  const fontLabel = (key: string | null | undefined) =>
+    MISSION_FONTS.find((f) => f.key === (key || MISSION_DEFAULT_FONT))?.label ?? (key || MISSION_DEFAULT_FONT);
+  const publishDiff = [
+    {
+      label: 'Mission statement',
+      before: existing ? (existing.mission || '—') : '—',
+      after: mission.trim() || '—',
+      changed: (existing?.mission || '') !== (mission.trim() || ''),
+    },
+    {
+      label: 'Font',
+      before: existing ? fontLabel((existing as any).font_family) : '—',
+      after: fontLabel(fontFamily),
+      changed: ((existing as any)?.font_family || MISSION_DEFAULT_FONT) !== (fontFamily || MISSION_DEFAULT_FONT),
+    },
+    {
+      label: 'Posted by',
+      before: existing ? ((existing as any).posted_by_name || '—') : '—',
+      after: postedByName.trim() || '—',
+      changed: (((existing as any)?.posted_by_name) || '') !== (postedByName.trim() || ''),
+    },
+    {
+      label: 'Goals',
+      before: existing && existingGoals.length ? existingGoals.join(' • ') : '—',
+      after: cleanGoals.length ? cleanGoals.join(' • ') : '—',
+      changed: JSON.stringify(existingGoals) !== JSON.stringify(cleanGoals),
+    },
+  ];
+  const changedCount = publishDiff.filter((d) => d.changed).length;
+
   const requestPublish = () => {
     if (!mission.trim() && cleanGoals.length === 0) {
       toast.error('Write a mission statement or at least one goal.');
