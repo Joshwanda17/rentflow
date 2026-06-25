@@ -11,16 +11,17 @@ import { LandlordOpsDashboard } from '@/components/executive/LandlordOpsDashboar
 import { PartnersOpsDashboard } from '@/components/executive/PartnersOpsDashboard';
 import { CRMDashboard } from '@/components/executive/CRMDashboard';
 import { LocationManager } from '@/components/ops/LocationManager';
+import { MissionBanner } from '@/components/mission/MissionBanner';
 
-const dashboards: Record<string, { title: string; component: React.FC }> = {
-  ceo: { title: 'CEO Dashboard', component: CEODashboard },
-  cto: { title: 'CTO Dashboard', component: CTODashboard },
-  cmo: { title: 'CMO Dashboard', component: CMODashboard },
-  'agent-ops': { title: 'Agent Operations', component: AgentOpsDashboard },
-  'tenant-ops': { title: 'Tenant Operations', component: TenantOpsHub },
-  'landlord-ops': { title: 'Landlord Operations', component: LandlordOpsDashboard },
-  'partners-ops': { title: 'Partners Operations', component: PartnersOpsDashboard },
-  crm: { title: 'CRM Dashboard', component: CRMDashboard },
+const dashboards: Record<string, { title: string; component: React.FC; missionRole?: string }> = {
+  ceo: { title: 'CEO Dashboard', component: CEODashboard, missionRole: 'ceo' },
+  cto: { title: 'CTO Dashboard', component: CTODashboard, missionRole: 'cto' },
+  cmo: { title: 'CMO Dashboard', component: CMODashboard, missionRole: 'cmo' },
+  'agent-ops': { title: 'Agent Operations', component: AgentOpsDashboard, missionRole: 'agent-ops' },
+  'tenant-ops': { title: 'Tenant Operations', component: TenantOpsHub, missionRole: 'tenant-ops' },
+  'landlord-ops': { title: 'Landlord Operations', component: LandlordOpsDashboard, missionRole: 'landlord-ops' },
+  'partners-ops': { title: 'Partners Operations', component: PartnersOpsDashboard, missionRole: 'partners-ops' },
+  crm: { title: 'CRM Dashboard', component: CRMDashboard, missionRole: 'crm' },
   locations: { title: 'Location Management', component: LocationManager },
 };
 
@@ -65,6 +66,7 @@ export default function ExecutiveHub() {
       </header>
       <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div className="max-w-7xl mx-auto p-4 pb-24">
+          {current.missionRole && <MissionBanner dashboardRole={current.missionRole} className="mb-4" />}
           <DashboardComponent />
         </div>
       </div>

@@ -31,9 +31,14 @@ export function useDashboardMission(dashboardRole: string | undefined) {
     queryFn: async (): Promise<DashboardMission | null> => {
       // End-user / field dashboards never display a mission (CEO can't author them).
       if (isMissionRestricted(dashboardRole as string)) return null;
-      const roles = dashboardRole === MISSION_ALL_KEY
+      const role = dashboardRole as string;
+      // Ops dashboards fall back to the shared "all ops" mission, then company-wide.
+      const isOps = role.endsWith('-ops');
+      const roles = role === MISSION_ALL_KEY
         ? [MISSION_ALL_KEY]
-        : [dashboardRole as string, MISSION_ALL_KEY];
+        : isOps
+          ? [role, 'ops-all', MISSION_ALL_KEY]
+          : [role, MISSION_ALL_KEY];
       const { data, error } = await supabase
         .from('dashboard_missions')
         .select('*')
@@ -42,10 +47,11 @@ export function useDashboardMission(dashboardRole: string | undefined) {
         .eq('is_active', true);
       if (error) throw error;
       const rows = (data || []).map(normalize).filter(Boolean) as DashboardMission[];
-      // Prefer the role-specific mission; fall back to company-wide.
-      const specific = rows.find((r) => r.dashboard_role === dashboardRole);
+      // Prefer role-specific, then "all ops" (for ops dashboards), then company-wide.
+      const specific = rows.find((r) => r.dashboard_role === role);
+      const opsFallback = isOps ? rows.find((r) => r.dashboard_role === 'ops-all') : undefined;
       const fallback = rows.find((r) => r.dashboard_role === MISSION_ALL_KEY);
-      return specific || fallback || null;
+      return specific || opsFallback || fallback || null;
     },
   });
 }
