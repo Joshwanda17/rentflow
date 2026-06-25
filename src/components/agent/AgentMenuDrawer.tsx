@@ -208,6 +208,7 @@ export function AgentMenuDrawer({
         { icon: UserPlus, label: 'Register User', description: 'Onboard tenants & landlords', onClick: onRegisterUser, accent: 'blue-500' },
         { icon: Users, label: 'My Tenants', description: 'Repayment schedules', onClick: onViewTenants, accent: 'primary' },
         { icon: ClipboardList, label: 'Registrations', description: 'Invite status & links', path: '/agent-registrations', accent: 'blue-600' },
+        { icon: Building2, label: 'My Landlords', description: 'Registered & referred status', onClick: onViewLandlords, accent: 'emerald-600', badge: '🏠' },
         { icon: ScrollText, label: 'Rent Requests', description: 'Verify posted requests', onClick: onViewMyRentRequests, accent: 'indigo-500' },
         { icon: FileText, label: 'Saved Rent Drafts', description: 'Drafts waiting to unlock', onClick: onViewSavedDrafts, accent: 'amber-500', badge: '💾' },
         { icon: Calendar, label: 'Schedules', description: 'PDF & WhatsApp', onClick: onViewMyRentRequests, accent: 'primary', badge: 'PDF' },
