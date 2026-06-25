@@ -39,27 +39,27 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
     <section
       aria-label="Monthly mission and goals"
       className={cn(
-        'group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-primary/40 shadow-lg',
-        'bg-gradient-to-br from-primary via-primary/90 to-primary/70 text-primary-foreground',
+        'group relative overflow-hidden rounded-2xl sm:rounded-3xl border border-purple-400/40 shadow-lg',
+        'bg-gradient-to-br from-purple-700 via-purple-600 to-purple-500 text-white',
         className,
       )}
     >
       {/* Decorative glows */}
-      <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-primary-foreground/20 blur-3xl" aria-hidden />
-      <div className="pointer-events-none absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-primary-foreground/10 blur-3xl" aria-hidden />
+      <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/20 blur-3xl" aria-hidden />
+      <div className="pointer-events-none absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-white/10 blur-3xl" aria-hidden />
       {/* Subtle moving shimmer */}
       <div
-        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-primary-foreground/15 to-transparent transition-transform duration-1000 ease-out group-hover:translate-x-full"
+        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-1000 ease-out group-hover:translate-x-full"
         aria-hidden
       />
 
       <div className="relative p-4 sm:p-7">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-foreground/20 px-2.5 py-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.18em] backdrop-blur-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.18em] backdrop-blur-sm">
             <Target className="h-3.5 w-3.5" />
             Mission this month
           </span>
-          <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-primary-foreground/80">
+          <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-white/80">
             {monthLabel(mission.period_month || monthKey())}
           </span>
         </div>
@@ -75,7 +75,7 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
 
         {mission.goals.length > 0 && (
           <div className="mt-4 sm:mt-5">
-            <p className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.18em] text-primary-foreground/85">
+            <p className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.18em] text-white/85">
               <Sparkles className="h-4 w-4" />
               Goals
             </p>
@@ -83,12 +83,12 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
               {mission.goals.map((g, i) => (
                 <li
                   key={i}
-                  className="flex items-start gap-2 sm:gap-2.5 rounded-xl bg-primary-foreground/10 px-2.5 py-2 sm:px-3 sm:py-2.5 backdrop-blur-sm ring-1 ring-primary-foreground/10"
+                  className="flex items-start gap-2 sm:gap-2.5 rounded-xl bg-white/10 px-2.5 py-2 sm:px-3 sm:py-2.5 backdrop-blur-sm ring-1 ring-white/10"
                 >
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-foreground/25 text-[11px] font-extrabold">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/25 text-[11px] font-extrabold">
                     {i + 1}
                   </span>
-                  <span className="text-[13px] sm:text-sm font-medium leading-snug text-primary-foreground/95">{g}</span>
+                  <span className="text-[13px] sm:text-sm font-medium leading-snug text-white/95">{g}</span>
                 </li>
               ))}
             </ul>
