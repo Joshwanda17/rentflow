@@ -43,6 +43,31 @@ export function missionDashboardLabel(key: string): string {
   return MISSION_DASHBOARDS.find((d) => d.key === key)?.label ?? key;
 }
 
+/**
+ * Font choices the CEO can apply to the mission statement. The `stack` is the
+ * CSS font-family value applied inline to the mission text.
+ */
+export interface MissionFontOption {
+  key: string;
+  label: string;
+  stack: string;
+}
+
+export const MISSION_DEFAULT_FONT = 'default';
+
+export const MISSION_FONTS: MissionFontOption[] = [
+  { key: 'default', label: 'Default (Plus Jakarta Sans)', stack: "'Plus Jakarta Sans', system-ui, sans-serif" },
+  { key: 'dm-sans', label: 'DM Sans (clean)', stack: "'DM Sans', system-ui, sans-serif" },
+  { key: 'serif', label: 'Serif (classic)', stack: "Georgia, 'Times New Roman', serif" },
+  { key: 'mono', label: 'Monospace (technical)', stack: "'Courier New', ui-monospace, monospace" },
+  { key: 'system', label: 'System (native)', stack: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+];
+
+export function missionFontStack(key: string | null | undefined): string | undefined {
+  if (!key) return undefined;
+  return MISSION_FONTS.find((f) => f.key === key)?.stack;
+}
+
 /** First day of a month as `YYYY-MM-01` (local time). */
 export function monthKey(date: Date = new Date()): string {
   const y = date.getFullYear();
@@ -74,5 +99,6 @@ export interface DashboardMission {
   mission: string | null;
   goals: string[];
   is_active: boolean;
+  font_family: string | null;
   updated_at: string;
 }
