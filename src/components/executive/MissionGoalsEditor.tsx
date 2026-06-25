@@ -383,6 +383,42 @@ export function MissionGoalsEditor() {
             </div>
           </div>
 
+          <div className="space-y-2 rounded-lg border bg-background p-4 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                Changes ({changedCount})
+              </span>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {existing ? 'Updating existing mission' : 'New mission'}
+              </span>
+            </div>
+            {changedCount === 0 ? (
+              <p className="text-muted-foreground">No field changes — publishing will re-confirm the current values.</p>
+            ) : (
+              <ul className="space-y-2.5">
+                {publishDiff.filter((d) => d.changed).map((d) => (
+                  <li key={d.label} className="space-y-1">
+                    <span className="text-xs font-bold uppercase tracking-wide text-foreground">{d.label}</span>
+                    <div className="grid gap-1 sm:grid-cols-2">
+                      <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5">
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-rose-600">Before</span>
+                        <span className="block whitespace-pre-wrap break-words text-rose-700 dark:text-rose-400 line-through decoration-rose-500/40">
+                          {d.before}
+                        </span>
+                      </div>
+                      <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5">
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-emerald-600">After</span>
+                        <span className="block whitespace-pre-wrap break-words font-medium text-emerald-700 dark:text-emerald-400">
+                          {d.after}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <p className="text-amber-700 dark:text-amber-400">
