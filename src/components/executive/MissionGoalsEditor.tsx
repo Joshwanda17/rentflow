@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Target, Plus, X, Save, Loader2 } from 'lucide-react';
 import {
   MISSION_DASHBOARDS,
@@ -21,6 +22,7 @@ import {
   missionFontStack,
 } from '@/lib/dashboardMissions';
 import { MissionBanner } from '@/components/mission/MissionBanner';
+import { MissionBannerPreview } from '@/components/mission/MissionBannerPreview';
 
 export function MissionGoalsEditor() {
   const { user } = useAuth();
@@ -33,6 +35,7 @@ export function MissionGoalsEditor() {
   const [goals, setGoals] = useState<string[]>(['']);
   const [fontFamily, setFontFamily] = useState<string>(MISSION_DEFAULT_FONT);
   const [saving, setSaving] = useState(false);
+  const [responsivePreview, setResponsivePreview] = useState(false);
 
   // Load existing mission for the selected dashboard + month
   const { data: existing, isFetching } = useQuery({
@@ -202,9 +205,25 @@ export function MissionGoalsEditor() {
         </CardContent>
       </Card>
 
-      <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Live preview</p>
-        {(mission.trim() || goals.some((g) => g.trim())) ? (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Live preview</p>
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Switch checked={responsivePreview} onCheckedChange={setResponsivePreview} />
+            Responsive preview (font sizes &amp; breakpoints)
+          </label>
+        </div>
+        {responsivePreview ? (
+          <MissionBannerPreview
+            dashboardRole={dashboardRole}
+            missionOverride={{
+              mission: mission.trim() || null,
+              goals: goals.map((g) => g.trim()).filter(Boolean),
+              font_family: fontFamily,
+              period_month: period,
+            }}
+          />
+        ) : (mission.trim() || goals.some((g) => g.trim())) ? (
           <section className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 sm:p-5">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-primary-foreground">
