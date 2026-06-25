@@ -62,6 +62,7 @@ export function MissionGoalsEditor() {
       const g = Array.isArray(existing.goals) ? (existing.goals as unknown[]).filter((x) => typeof x === 'string') as string[] : [];
       setGoals(g.length ? g : ['']);
       setFontFamily((existing as any).font_family || MISSION_DEFAULT_FONT);
+      setIsDraft(false);
     } else {
       setMission('');
       setGoals(['']);
