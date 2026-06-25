@@ -12,6 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Target, Plus, X, Save, Loader2 } from 'lucide-react';
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+import {
   MISSION_DASHBOARDS,
   buildMonthOptions,
   monthKey,
@@ -39,6 +49,7 @@ export function MissionGoalsEditor() {
   const [saving, setSaving] = useState(false);
   const [responsivePreview, setResponsivePreview] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Load existing mission for the selected dashboard + month
   const { data: existing, isFetching } = useQuery({
@@ -84,12 +95,18 @@ export function MissionGoalsEditor() {
     toast.success(`New mission draft started for ${monthLabel(next)} — edit and publish when ready.`);
   };
 
-  const handleSave = async () => {
-    const cleanGoals = goals.map((g) => g.trim()).filter(Boolean);
+  const cleanGoals = goals.map((g) => g.trim()).filter(Boolean);
+
+  const requestPublish = () => {
     if (!mission.trim() && cleanGoals.length === 0) {
       toast.error('Write a mission statement or at least one goal.');
       return;
     }
+    setConfirmOpen(true);
+  };
+
+  const handleSave = async () => {
+    setConfirmOpen(false);
     setSaving(true);
     try {
       const { error } = await supabase
