@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { CTOEmailsOverview } from './CTOEmailsOverview';
 import { PartnerSMSBroadcast } from './PartnerSMSBroadcast';
+import { AudienceSMSBroadcast } from './AudienceSMSBroadcast';
 import { COOPartnerBroadcast } from '@/components/coo/COOPartnerBroadcast';
-import { MessageSquare, Mail, Search, Users, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { MessageSquare, Mail, Search, Users, AlertTriangle, ShieldCheck, Megaphone } from 'lucide-react';
 import { KPICard } from './KPICard';
 import { format } from 'date-fns';
 
@@ -201,6 +202,10 @@ export function CTOCommunicationOverview() {
 
       <Tabs defaultValue="sms" className="w-full">
         <TabsList variant="underline" className="w-full justify-start overflow-x-auto">
+          <TabsTrigger value="broadcast" variant="underline" className="gap-2">
+            <Megaphone className="h-4 w-4" />
+            Broadcast
+          </TabsTrigger>
           <TabsTrigger value="sms" variant="underline" className="gap-2">
             <MessageSquare className="h-4 w-4" />
             SMS
@@ -216,6 +221,10 @@ export function CTOCommunicationOverview() {
             </Badge>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="broadcast" className="space-y-3">
+          <AudienceSMSBroadcast />
+        </TabsContent>
 
         <TabsContent value="sms" className="space-y-3">
           <PartnerSMSBroadcast />
