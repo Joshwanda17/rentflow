@@ -859,7 +859,7 @@ export default function LandlordRegistrationForm({
             <LandlordAutocompleteInput
               field="name"
               value={landlordName}
-              onChange={(v) => { setLandlordName(v); clearError('landlordName'); clearSubmitError(); }}
+              onChange={(v) => { setLandlordName(v); clearError('landlordName'); clearSubmitError(); setPhoneVerified(false); }}
               onBlur={(e) => validateField('landlordName', e.target.value)}
               onSelect={handleLandlordPick}
               placeholder="e.g. John Bosco Ssentamu — as on National ID"
