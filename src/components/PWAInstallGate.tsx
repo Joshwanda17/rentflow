@@ -3,29 +3,12 @@ import { Download, Share, Smartphone, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
+import { usePWAInstall, globalDeferredPrompt } from '@/hooks/usePWAInstall';
 import welileLogo from '@/assets/welile-logo.png';
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
-let deferredPrompt: BeforeInstallPromptEvent | null = null;
-const promptListeners = new Set<() => void>();
-
-function notifyPromptListeners() {
-  promptListeners.forEach(fn => fn());
-}
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeinstallprompt', (e: Event) => {
-    e.preventDefault();
-    deferredPrompt = e as BeforeInstallPromptEvent;
-    notifyPromptListeners();
-  });
-}
-
 export default function PWAInstallGate({ children }: { children: React.ReactNode }) {
+  // Single source of truth for the captured install prompt + install action.
+  const { hasPrompt: promptReady, isInstalled, promptInstall } = usePWAInstall();
   const [isStandalone, setIsStandalone] = useState(true);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
@@ -33,7 +16,6 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const [showMenuGuide, setShowMenuGuide] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<'accepted' | 'dismissed' | null>(null);
-  const [promptReady, setPromptReady] = useState(!!deferredPrompt);
   const [skipped, setSkipped] = useState(false);
   const tapLockRef = useRef(0);
 
@@ -70,23 +52,15 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
     setIsIOS(iOS || isIPadOS);
     setIsAndroid(/Android/i.test(ua));
+  }, []);
 
-    const onPromptReady = () => setPromptReady(true);
-    promptListeners.add(onPromptReady);
-    if (deferredPrompt) setPromptReady(true);
-
-    const onInstalled = () => {
+  // Reflect installs detected by the shared hook (e.g. appinstalled event).
+  useEffect(() => {
+    if (isInstalled) {
       setIsStandalone(true);
       setInstallResult('accepted');
-    };
-
-    window.addEventListener('appinstalled', onInstalled);
-
-    return () => {
-      promptListeners.delete(onPromptReady);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
+    }
+  }, [isInstalled]);
 
   const handleInstall = useCallback(() => {
     hapticTap();
@@ -101,20 +75,16 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     setShowIOSGuide(false);
     setShowMenuGuide(false);
 
-    const prompt = deferredPrompt;
-
-    if (!prompt) {
+    if (!globalDeferredPrompt) {
       setShowMenuGuide(true);
       return;
     }
 
     setInstalling(true);
 
-    prompt
-      .prompt()
-      .then(() => prompt.userChoice)
-      .then(({ outcome }) => {
-        if (outcome === 'accepted') {
+    promptInstall()
+      .then((accepted) => {
+        if (accepted) {
           setIsStandalone(true);
           setInstallResult('accepted');
           localStorage.setItem('welile_pwa_installed', 'true');
@@ -123,18 +93,13 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           setInstallResult('dismissed');
           setShowMenuGuide(true);
         }
-
-        deferredPrompt = null;
-        setPromptReady(false);
         setInstalling(false);
       })
       .catch(() => {
-        deferredPrompt = null;
-        setPromptReady(false);
         setShowMenuGuide(true);
         setInstalling(false);
       });
-  }, [isIOS]);
+  }, [isIOS, promptInstall]);
 
   const handleButtonClick = useCallback(() => {
     const now = Date.now();
