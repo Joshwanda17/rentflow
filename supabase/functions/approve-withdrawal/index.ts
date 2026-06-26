@@ -134,17 +134,14 @@ Deno.serve(async (req) => {
       hasStaffRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
     }
 
-    // Also check if caller is an active cashout agent
-    let isCashoutAgent = false;
-    if (!hasStaffRole) {
-      const { data: agentRow } = await admin
-        .from("cashout_agents")
-        .select("id")
-        .eq("agent_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle();
-      isCashoutAgent = !!agentRow;
-    }
+    // Also check if caller is an active cashout agent (regardless of hasStaffRole)
+    const { data: agentRow } = await admin
+      .from("cashout_agents")
+      .select("id")
+      .eq("agent_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    const isCashoutAgent = !!agentRow;
 
     if (!hasStaffRole && !isCashoutAgent) {
       return new Response(JSON.stringify({ error: "Forbidden: insufficient role" }), {
