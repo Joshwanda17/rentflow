@@ -137,9 +137,11 @@ export default function Auth() {
     }
   }, [authLoading, user, authRoles, navigate, searchParams]);
 
-  // Login mode: defaults to the user's saved preference (OTP-first out of the
-  // box). 'password' (phone+pw) and 'email' remain available as backups.
-  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>(() => getPreferredLoginMethod());
+  // Login mode: phone + password is the default tab on /auth. The user's saved
+  // OTP preference still wins if they explicitly chose it; 'email' is a backup.
+  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>(() =>
+    getPreferredLoginMethod() === 'otp' ? 'otp' : 'password',
+  );
   const [emailLoginAddress, setEmailLoginAddress] = useState('');
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
   const [otpLoginCode, setOtpLoginCode] = useState('');
