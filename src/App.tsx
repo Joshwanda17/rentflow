@@ -386,6 +386,7 @@ function AppRoutes() {
           <Route path="/landlord-welile-homes" element={<LandlordWelileHomesPage />} />
           <Route path="/try-calculator" element={<TryCalculator />} />
           <Route path="/rent-calculator" element={<PublicRentCalculator />} />
+          <Route path="/guides/pay-rent-in-installments-uganda" element={<PayRentInstallmentsGuide />} />
           <Route path="/find-a-house" element={<FindAHouse />} />
           <Route path="/house/:id" element={<HouseDetail />} />
           
