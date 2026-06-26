@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,7 +15,7 @@ import { format, startOfMonth, subDays } from 'date-fns';
 import {
   Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck, Coins,
-  CalendarIcon, X,
+  CalendarIcon, X, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -85,6 +85,14 @@ export function AgentCashPayoutsTab() {
     setTypeVisible(TYPE_PAGE);
     setDayVisible(DAY_PAGE);
   }, [fromKey, toKey]);
+
+  // Sorting controls for the breakdown tables.
+  const [daySort, setDaySort] = useState<{ key: 'date' | 'total'; dir: 'asc' | 'desc' }>({ key: 'date', dir: 'desc' });
+  const [typeSort, setTypeSort] = useState<{ key: 'type' | 'total'; dir: 'asc' | 'desc' }>({ key: 'total', dir: 'desc' });
+  const toggleDaySort = (key: 'date' | 'total') =>
+    setDaySort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' }));
+  const toggleTypeSort = (key: 'type' | 'total') =>
+    setTypeSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' }));
 
   // Per-request submission locks. The refs guard SYNCHRONOUSLY on tap (before any
   // re-render) so a rapid double-tap can never fire the same mutation twice; the
@@ -300,6 +308,24 @@ export function AgentCashPayoutsTab() {
     enabled: !!user && !!isCashoutAgent?.id,
     staleTime: 60_000,
   });
+
+  const sortedDayRows = useMemo(() => {
+    const rows = [...(commissionBreakdown?.rows ?? [])];
+    rows.sort((a, b) => {
+      const cmp = daySort.key === 'date' ? (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) : a.total - b.total;
+      return daySort.dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [commissionBreakdown?.rows, daySort]);
+
+  const sortedTypeRows = useMemo(() => {
+    const rows = [...(commissionBreakdown?.typeRows ?? [])];
+    rows.sort((a, b) => {
+      const cmp = typeSort.key === 'type' ? a.type.localeCompare(b.type) : a.total - b.total;
+      return typeSort.dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [commissionBreakdown?.typeRows, typeSort]);
 
   // Realtime subscription
   useEffect(() => {
@@ -637,11 +663,37 @@ export function AgentCashPayoutsTab() {
               {/* By payout category / type */}
               {(commissionBreakdown?.typeRows?.length ?? 0) > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    By payout type
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      By payout type
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleTypeSort('type')}
+                        className={cn(
+                          'flex items-center gap-0.5 text-[11px] font-semibold rounded-md px-1.5 py-0.5 transition-colors',
+                          typeSort.key === 'type' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        Type
+                        {typeSort.key === 'type' && (typeSort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleTypeSort('total')}
+                        className={cn(
+                          'flex items-center gap-0.5 text-[11px] font-semibold rounded-md px-1.5 py-0.5 transition-colors',
+                          typeSort.key === 'total' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        Total
+                        {typeSort.key === 'total' && (typeSort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                      </button>
+                    </div>
+                  </div>
                   <div className="space-y-1.5">
-                    {commissionBreakdown!.typeRows.slice(0, typeVisible).map((t) => (
+                    {sortedTypeRows.slice(0, typeVisible).map((t) => (
                       <div
                         key={t.type}
                         className="flex items-center justify-between gap-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15 px-3 py-2.5"
@@ -656,15 +708,15 @@ export function AgentCashPayoutsTab() {
                       </div>
                     ))}
                   </div>
-                  {commissionBreakdown!.typeRows.length > TYPE_PAGE && (
+                  {sortedTypeRows.length > TYPE_PAGE && (
                     <div className="flex items-center justify-center gap-3 pt-0.5">
-                      {typeVisible < commissionBreakdown!.typeRows.length && (
+                      {typeVisible < sortedTypeRows.length && (
                         <button
                           type="button"
                           onClick={() => setTypeVisible((v) => v + TYPE_PAGE)}
                           className="text-xs font-semibold text-emerald-600 hover:underline"
                         >
-                          Show more ({commissionBreakdown!.typeRows.length - typeVisible})
+                          Show more ({sortedTypeRows.length - typeVisible})
                         </button>
                       )}
                       {typeVisible > TYPE_PAGE && (
@@ -682,11 +734,37 @@ export function AgentCashPayoutsTab() {
               )}
 
               {/* By day */}
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground pt-1">
-                By day
-              </p>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  By day
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleDaySort('date')}
+                    className={cn(
+                      'flex items-center gap-0.5 text-[11px] font-semibold rounded-md px-1.5 py-0.5 transition-colors',
+                      daySort.key === 'date' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Date
+                    {daySort.key === 'date' && (daySort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleDaySort('total')}
+                    className={cn(
+                      'flex items-center gap-0.5 text-[11px] font-semibold rounded-md px-1.5 py-0.5 transition-colors',
+                      daySort.key === 'total' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Total
+                    {daySort.key === 'total' && (daySort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                  </button>
+                </div>
+              </div>
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
-              {commissionBreakdown!.rows.slice(0, dayVisible).map((r) => (
+              {sortedDayRows.slice(0, dayVisible).map((r) => (
                 <div
                   key={r.date}
                   className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5"
@@ -703,15 +781,15 @@ export function AgentCashPayoutsTab() {
                 </div>
               ))}
             </div>
-            {commissionBreakdown!.rows.length > DAY_PAGE && (
+            {sortedDayRows.length > DAY_PAGE && (
               <div className="flex items-center justify-center gap-3 pt-0.5">
-                {dayVisible < commissionBreakdown!.rows.length && (
+                {dayVisible < sortedDayRows.length && (
                   <button
                     type="button"
                     onClick={() => setDayVisible((v) => v + DAY_PAGE)}
                     className="text-xs font-semibold text-emerald-600 hover:underline"
                   >
-                    Show more ({commissionBreakdown!.rows.length - dayVisible})
+                    Show more ({sortedDayRows.length - dayVisible})
                   </button>
                 )}
                 {dayVisible > DAY_PAGE && (
