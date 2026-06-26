@@ -318,6 +318,8 @@ export function AgentCashPayoutsTab() {
       const baseMsg = `✅ Payout completed — ${formatUGX(data?.amount || 0)} sent`;
       toast.success(commission > 0 ? `${baseMsg} · You earned ${formatUGX(commission)} (0.5%)` : baseMsg);
       qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
     },
     onError: (e: any) => toast.error(e.message),
     onSettled: (_d, _e, vars) => {
