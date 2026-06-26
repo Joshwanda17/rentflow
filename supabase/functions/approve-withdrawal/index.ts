@@ -1520,12 +1520,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Cashout agent 0.5% commission (only when caller is a non-staff cashout agent).
+    // Cashout agent 0.5% commission (when caller is an active cashout agent, including staff roles).
     // Company funds (platform cash_out) move INSTANTLY into the agent's own
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
     // routing), then we SMS the agent to confirm the earning.
     let cashoutCommission = 0;
-    if (isCashoutAgent && !hasStaffRole) {
+    if (isCashoutAgent) {
       cashoutCommission = Math.round(amount * 0.005);
       if (cashoutCommission > 0) {
         try {
