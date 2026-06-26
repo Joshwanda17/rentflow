@@ -68,10 +68,15 @@ export function AgentDailyCapacityStrip() {
         <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
           <div className={`h-full ${barTone} transition-all`} style={{ width: `${todayPct}%` }} />
         </div>
-        <p className="text-xs text-muted-foreground mt-1.5">
-          {todayPct}% of today&apos;s target
-          {remaining > 0 && <> · <strong className="text-foreground">{formatUGX(remaining)}</strong> to go</>}
-        </p>
+        <div className="flex items-center justify-between gap-2 mt-1.5">
+          <p className="text-xs text-muted-foreground">
+            {todayPct}% of today&apos;s target
+            {remaining > 0 && <> · <strong className="text-foreground">{formatUGX(remaining)}</strong> to go</>}
+          </p>
+          <p className="text-xs font-semibold text-muted-foreground shrink-0 tabular-nums">
+            {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+          </p>
+        </div>
       </div>
 
       <div
