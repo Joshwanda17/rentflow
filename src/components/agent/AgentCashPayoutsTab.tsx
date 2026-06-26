@@ -89,6 +89,14 @@ export function AgentCashPayoutsTab() {
   // Sorting controls for the breakdown tables.
   const [daySort, setDaySort] = useState<{ key: 'date' | 'total'; dir: 'asc' | 'desc' }>({ key: 'date', dir: 'desc' });
   const [typeSort, setTypeSort] = useState<{ key: 'type' | 'total'; dir: 'asc' | 'desc' }>({ key: 'total', dir: 'desc' });
+
+  // Reset each breakdown list to the first page whenever its sort changes.
+  useEffect(() => {
+    setTypeVisible(TYPE_PAGE);
+  }, [typeSort]);
+  useEffect(() => {
+    setDayVisible(DAY_PAGE);
+  }, [daySort]);
   const toggleDaySort = (key: 'date' | 'total') =>
     setDaySort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' }));
   const toggleTypeSort = (key: 'type' | 'total') =>
