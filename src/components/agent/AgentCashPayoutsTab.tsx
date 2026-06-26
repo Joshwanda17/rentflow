@@ -458,6 +458,58 @@ export function AgentCashPayoutsTab() {
         </CardContent>
       </Card>
 
+      {/* Commission breakdown — totals by date for all approved payouts */}
+      <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Coins className="h-4 w-4 text-emerald-600" />
+            Commission Earned · 0.5% per payout
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Paid instantly into your withdrawable wallet for every payout you confirm.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-3">
+          <div className="flex items-end justify-between gap-3 pb-3 border-b border-border/60">
+            <div>
+              <p className="text-xs text-muted-foreground">Total earned</p>
+              <p className="text-2xl font-bold text-emerald-600 tabular-nums leading-tight">
+                {formatUGX(commissionBreakdown?.grandTotal ?? 0)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Payouts</p>
+              <p className="text-lg font-bold text-foreground tabular-nums">{commissionBreakdown?.grandCount ?? 0}</p>
+            </div>
+          </div>
+
+          {(commissionBreakdown?.rows?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No commission earned yet. Confirm a payout to start earning.
+            </p>
+          ) : (
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {commissionBreakdown!.rows.map((r) => (
+                <div
+                  key={r.date}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {format(new Date(`${r.date}T00:00:00`), 'EEE, MMM d, yyyy')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.count} payout{r.count !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <p className="font-bold text-emerald-600 tabular-nums shrink-0">{formatUGX(r.total)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Live status banner */}
       {totalPending > 0 && (
         <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
