@@ -336,6 +336,7 @@ export function AgentTenantCollectDialog({
 
   const handleClose = () => {
     if (result || draftSaved) onSuccess?.();
+    setLocationSkipped(false);
     onOpenChange(false);
   };
 
