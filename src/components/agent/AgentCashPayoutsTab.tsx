@@ -781,15 +781,15 @@ export function AgentCashPayoutsTab() {
                 </div>
               ))}
             </div>
-            {commissionBreakdown!.rows.length > DAY_PAGE && (
+            {sortedDayRows.length > DAY_PAGE && (
               <div className="flex items-center justify-center gap-3 pt-0.5">
-                {dayVisible < commissionBreakdown!.rows.length && (
+                {dayVisible < sortedDayRows.length && (
                   <button
                     type="button"
                     onClick={() => setDayVisible((v) => v + DAY_PAGE)}
                     className="text-xs font-semibold text-emerald-600 hover:underline"
                   >
-                    Show more ({commissionBreakdown!.rows.length - dayVisible})
+                    Show more ({sortedDayRows.length - dayVisible})
                   </button>
                 )}
                 {dayVisible > DAY_PAGE && (
