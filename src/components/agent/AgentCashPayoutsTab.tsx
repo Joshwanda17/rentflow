@@ -65,6 +65,12 @@ export function AgentCashPayoutsTab() {
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
 
+  // Date range filter for the commission breakdown.
+  const [rangeFrom, setRangeFrom] = useState<Date | undefined>(undefined);
+  const [rangeTo, setRangeTo] = useState<Date | undefined>(undefined);
+  const fromKey = rangeFrom ? format(rangeFrom, 'yyyy-MM-dd') : '';
+  const toKey = rangeTo ? format(rangeTo, 'yyyy-MM-dd') : '';
+
   // Per-request submission locks. The refs guard SYNCHRONOUSLY on tap (before any
   // re-render) so a rapid double-tap can never fire the same mutation twice; the
   // state mirrors them only to drive the disabled/loading UI.
