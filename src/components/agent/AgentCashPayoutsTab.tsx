@@ -518,6 +518,88 @@ export function AgentCashPayoutsTab() {
           <p className="text-xs text-muted-foreground mt-1">
             Paid instantly into your withdrawable wallet for every payout you confirm.
           </p>
+          {/* Date range filter */}
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn('h-8 justify-start text-left font-normal gap-1.5', !rangeFrom && 'text-muted-foreground')}
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {rangeFrom ? format(rangeFrom, 'MMM d, yyyy') : 'From'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={rangeFrom}
+                  onSelect={setRangeFrom}
+                  disabled={(d) => (rangeTo ? d > rangeTo : false) || d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+            <span className="text-xs text-muted-foreground">→</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn('h-8 justify-start text-left font-normal gap-1.5', !rangeTo && 'text-muted-foreground')}
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {rangeTo ? format(rangeTo, 'MMM d, yyyy') : 'To'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={rangeTo}
+                  onSelect={setRangeTo}
+                  disabled={(d) => (rangeFrom ? d < rangeFrom : false) || d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+            {(rangeFrom || rangeTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground"
+                onClick={() => { setRangeFrom(undefined); setRangeTo(undefined); }}
+              >
+                <X className="h-3.5 w-3.5 mr-1" /> Clear
+              </Button>
+            )}
+          </div>
+          {/* Quick presets */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            <Button variant="secondary" size="sm" className="h-7 text-xs px-2.5"
+              onClick={() => { const t = new Date(); setRangeFrom(t); setRangeTo(t); }}>
+              Today
+            </Button>
+            <Button variant="secondary" size="sm" className="h-7 text-xs px-2.5"
+              onClick={() => { setRangeFrom(subDays(new Date(), 6)); setRangeTo(new Date()); }}>
+              Last 7 days
+            </Button>
+            <Button variant="secondary" size="sm" className="h-7 text-xs px-2.5"
+              onClick={() => { setRangeFrom(subDays(new Date(), 29)); setRangeTo(new Date()); }}>
+              Last 30 days
+            </Button>
+            <Button variant="secondary" size="sm" className="h-7 text-xs px-2.5"
+              onClick={() => { setRangeFrom(startOfMonth(new Date())); setRangeTo(new Date()); }}>
+              This month
+            </Button>
+          </div>
+          {(rangeFrom || rangeTo) && (
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Showing {rangeFrom ? format(rangeFrom, 'MMM d, yyyy') : 'the start'} – {rangeTo ? format(rangeTo, 'MMM d, yyyy') : 'today'}
+            </p>
+          )}
         </CardHeader>
         <CardContent className="pt-0 space-y-3">
           <div className="flex items-end justify-between gap-3 pb-3 border-b border-border/60">
