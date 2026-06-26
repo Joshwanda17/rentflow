@@ -242,6 +242,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Push notification (fire-and-forget) ──────────────────────────────
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        userIds: [targetUserId],
+        payload: {
+          title: "💸 Funds Now Withdrawable",
+          body: `UGX ${amount.toLocaleString()} moved to your withdrawable balance.`,
+          url: "/dashboard/agent",
+          type: "success",
+        },
+      }),
+    }).catch(() => {});
+
     return json({
       success: true,
       reference_id: refId,

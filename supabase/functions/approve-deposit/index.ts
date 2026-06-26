@@ -1187,10 +1187,13 @@ Deno.serve(async (req) => {
                     Authorization: `Bearer ${supabaseServiceKey}`,
                   },
                   body: JSON.stringify({
-                    user_id: depositRequest.agent_id,
-                    title: "Tenant Debt Cleared! ✅",
-                    body: `${tenantName}'s debt of UGX ${debtCleared.toLocaleString()} auto-cleared from deposit.`,
-                    url: "/dashboard/agent",
+                    userIds: [depositRequest.agent_id],
+                    payload: {
+                      title: "Tenant Debt Cleared! ✅",
+                      body: `${tenantName}'s debt of UGX ${debtCleared.toLocaleString()} auto-cleared from deposit.`,
+                      url: "/dashboard/agent",
+                      type: "success",
+                    },
                   }),
                 });
               } catch (pushErr) {

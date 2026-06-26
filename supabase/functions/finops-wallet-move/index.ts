@@ -364,6 +364,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Push notification (fire-and-forget) ──────────────────────────────
+    if (mode === "user_to_user" && destUserId) {
+      fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({
+          userIds: [destUserId],
+          payload: {
+            title: "💰 Money Received",
+            body: `${fmt} was added to your wallet.`,
+            url: "/dashboard/agent",
+            type: "success",
+          },
+        }),
+      }).catch(() => {});
+    }
+
     return json({
       success: true,
       mode,
