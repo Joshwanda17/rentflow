@@ -242,6 +242,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Push notification (fire-and-forget) ──────────────────────────────
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        userIds: [targetUserId],
+        payload: {
+          title: "🔄 Balance Moved to Float",
+          body: `UGX ${amount.toLocaleString()} moved to your float balance.`,
+          url: "/dashboard/agent",
+          type: "info",
+        },
+      }),
+    }).catch(() => {});
+
     return json({
       success: true,
       reference_id: refId,
