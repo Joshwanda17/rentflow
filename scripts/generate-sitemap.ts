@@ -26,6 +26,7 @@ const staticEntries: SitemapEntry[] = [
   { path: '/opportunities', changefreq: 'weekly', priority: '0.7' },
   { path: '/internship', changefreq: 'monthly', priority: '0.6' },
   { path: '/rent-calculator', changefreq: 'monthly', priority: '0.7' },
+  { path: '/guides/pay-rent-in-installments-uganda', changefreq: 'monthly', priority: '0.7' },
   { path: '/ai', changefreq: 'weekly', priority: '0.7' },
   { path: '/terms', changefreq: 'monthly', priority: '0.3' },
   { path: '/privacy', changefreq: 'monthly', priority: '0.3' },
