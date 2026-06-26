@@ -34,6 +34,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<'accepted' | 'dismissed' | null>(null);
   const [promptReady, setPromptReady] = useState(!!deferredPrompt);
+  const [skipped, setSkipped] = useState(false);
   const tapLockRef = useRef(0);
 
   useEffect(() => {
@@ -58,6 +59,11 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
       || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
       || localStorage.getItem('welile_pwa_installed') === 'true';
     setIsStandalone(standalone);
+
+    // Respect a prior "continue in browser" choice so users are never locked out.
+    if (localStorage.getItem('welile_install_skipped') === 'true') {
+      setSkipped(true);
+    }
 
     const ua = navigator.userAgent;
     const iOS = /iPad|iPhone|iPod/.test(ua) && !(window as Window & { MSStream?: unknown }).MSStream;
@@ -145,10 +151,20 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     handleInstall();
   }, [handleInstall]);
 
+  const handleSkip = useCallback(() => {
+    hapticTap();
+    try {
+      localStorage.setItem('welile_install_skipped', 'true');
+    } catch {
+      /* ignore storage errors */
+    }
+    setSkipped(true);
+  }, []);
+
   // Desktop browsers pass through (install is optional there). On phones the gate
-  // is unavoidable — there is no way to dismiss it until the app is installed.
+  // is offered but never blocking — users can always continue in the browser.
   const isMobile = isIOS || isAndroid;
-  if (isStandalone || !isMobile) {
+  if (isStandalone || !isMobile || skipped) {
     return <>{children}</>;
   }
 
@@ -194,6 +210,14 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
         >
           {isIOS ? <Share className="h-5 w-5" /> : <Download className="h-5 w-5" />}
           {buttonLabel}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSkip}
+          className="mt-4 text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+        >
+          Continue in browser
         </button>
 
         {!promptReady && !isIOS && !showMenuGuide && (
