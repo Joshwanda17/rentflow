@@ -1523,10 +1523,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Cashout agent 1% commission (only when caller is a non-staff cashout agent)
+    // Cashout agent 0.5% commission (only when caller is a non-staff cashout agent).
+    // Company funds (platform cash_out) move INSTANTLY into the agent's own
+    // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
+    // routing), then we SMS the agent to confirm the earning.
     let cashoutCommission = 0;
     if (isCashoutAgent && !hasStaffRole) {
-      cashoutCommission = Math.round(amount * 0.01);
+      cashoutCommission = Math.round(amount * 0.005);
       if (cashoutCommission > 0) {
         try {
           const txDate = new Date().toISOString();
@@ -1536,14 +1539,15 @@ Deno.serve(async (req) => {
                 user_id: user.id, ledger_scope: "platform", direction: "cash_out",
                 amount: cashoutCommission, category: "agent_commission_earned",
                 source_table: "withdrawal_requests", source_id: withdrawal_id,
-                description: `Cashout payout commission expense (1%) for withdrawal ${withdrawal_id}`,
+                description: `Cashout payout commission expense (0.5%) for withdrawal ${withdrawal_id}`,
                 currency: "UGX", reference_id: `${withdrawal_id}-cashout-commission`, transaction_date: txDate,
               },
               {
                 user_id: user.id, ledger_scope: "wallet", direction: "cash_in",
                 amount: cashoutCommission, category: "agent_commission_earned",
+                recipient_type: "user", wallet_bucket: "withdrawable",
                 source_table: "withdrawal_requests", source_id: withdrawal_id,
-                description: `Cashout payout commission (1%) for withdrawal ${withdrawal_id}`,
+                description: `Cashout payout commission (0.5%) for withdrawal ${withdrawal_id}`,
                 currency: "UGX", reference_id: `${withdrawal_id}-cashout-commission`, transaction_date: txDate,
               },
             ],
@@ -1555,6 +1559,28 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("[approve-withdrawal] Cashout commission exception:", e);
           cashoutCommission = 0;
+        }
+      }
+
+      // ── Cashout agent commission SMS (paid into withdrawable) ──────────
+      if (cashoutCommission > 0) {
+        try {
+          const { data: agentProfile } = await admin
+            .from("profiles")
+            .select("phone, full_name")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (agentProfile?.phone) {
+            const commMsg =
+              `WELILE: You earned a payout commission of UGX ${cashoutCommission.toLocaleString()} ` +
+              `(0.5%) for processing a UGX ${amount.toLocaleString()} payout. ` +
+              `It has been added to your withdrawable wallet. Thank you for your service.`;
+            sendSMS(agentProfile.phone, commMsg).catch((e) =>
+              console.error("[approve-withdrawal] cashout commission SMS failed:", e),
+            );
+          }
+        } catch (e) {
+          console.error("[approve-withdrawal] cashout commission SMS exception:", e);
         }
       }
     }
