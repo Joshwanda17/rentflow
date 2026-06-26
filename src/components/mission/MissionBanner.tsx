@@ -10,6 +10,8 @@ export interface MissionBannerData {
   font_family?: string | null;
   period_month?: string | null;
   posted_by_name?: string | null;
+  /** ISO timestamp of when the mission was last posted/updated. */
+  updated_at?: string | null;
 }
 
 interface MissionBannerProps {
