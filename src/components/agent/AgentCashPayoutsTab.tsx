@@ -75,6 +75,17 @@ export function AgentCashPayoutsTab() {
   const fromKey = rangeFrom ? format(rangeFrom, 'yyyy-MM-dd') : '';
   const toKey = rangeTo ? format(rangeTo, 'yyyy-MM-dd') : '';
 
+  // Incremental pagination for the breakdown lists so large datasets stay light.
+  const TYPE_PAGE = 6;
+  const DAY_PAGE = 10;
+  const [typeVisible, setTypeVisible] = useState(TYPE_PAGE);
+  const [dayVisible, setDayVisible] = useState(DAY_PAGE);
+  // Reset visible counts whenever the date range changes.
+  useEffect(() => {
+    setTypeVisible(TYPE_PAGE);
+    setDayVisible(DAY_PAGE);
+  }, [fromKey, toKey]);
+
   // Per-request submission locks. The refs guard SYNCHRONOUSLY on tap (before any
   // re-render) so a rapid double-tap can never fire the same mutation twice; the
   // state mirrors them only to drive the disabled/loading UI.
