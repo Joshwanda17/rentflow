@@ -172,6 +172,7 @@ export default function PublicRentCalculator() {
         </div>
 
         {/* Calculator Tabs */}
+        <h2 className="text-base font-semibold text-foreground">Choose your repayment plan</h2>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="daily">Daily Earners</TabsTrigger>
