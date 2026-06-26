@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, Calendar, Wallet, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Calendar, Wallet, ShieldCheck, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -51,8 +51,6 @@ const steps = [
     body: 'Every on-time payment raises your trust score, unlocking larger rent coverage and longer repayment periods over time.',
   },
 ];
-
-import { Home } from 'lucide-react';
 
 export default function PayRentInstallmentsGuide() {
   const navigate = useNavigate();
