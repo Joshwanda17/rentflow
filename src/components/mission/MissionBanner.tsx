@@ -45,14 +45,9 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
         className,
       )}
     >
-      {/* Decorative glows */}
-      <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/20 blur-3xl" aria-hidden />
+      {/* Decorative glows — kept behind content so they never wash over the text */}
+      <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-white/10 blur-3xl" aria-hidden />
-      {/* Subtle moving shimmer */}
-      <div
-        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-1000 ease-out group-hover:translate-x-full"
-        aria-hidden
-      />
 
       <div className="relative p-4 sm:p-7">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
@@ -67,7 +62,7 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
 
         {mission.mission && (
           <p
-            className="mt-3 sm:mt-4 text-lg sm:text-3xl font-bold leading-relaxed sm:leading-snug tracking-normal drop-shadow-sm [text-wrap:balance]"
+            className="mt-3 sm:mt-4 text-xl sm:text-3xl font-bold leading-snug tracking-normal text-white [text-wrap:balance]"
             style={{ fontFamily: fontStack }}
           >
             {mission.mission}
@@ -84,12 +79,12 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
               {mission.goals.map((g, i) => (
                 <li
                   key={i}
-                  className="flex items-start gap-2 sm:gap-2.5 rounded-xl bg-white/10 px-2.5 py-2 sm:px-3 sm:py-2.5 backdrop-blur-sm ring-1 ring-white/10"
+                  className="flex items-start gap-2 sm:gap-2.5 rounded-xl bg-white/15 px-2.5 py-2 sm:px-3 sm:py-2.5 ring-1 ring-white/20"
                 >
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/25 text-[11px] font-extrabold">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/30 text-[11px] font-extrabold text-white">
                     {i + 1}
                   </span>
-                  <span className="text-sm sm:text-base font-semibold leading-relaxed text-white/95">{g}</span>
+                  <span className="text-sm sm:text-base font-semibold leading-relaxed text-white">{g}</span>
                 </li>
               ))}
             </ul>
