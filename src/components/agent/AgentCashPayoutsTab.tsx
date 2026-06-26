@@ -663,11 +663,37 @@ export function AgentCashPayoutsTab() {
               {/* By payout category / type */}
               {(commissionBreakdown?.typeRows?.length ?? 0) > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    By payout type
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      By payout type
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleTypeSort('type')}
+                        className={cn(
+                          'flex items-center gap-0.5 text-[11px] font-semibold rounded-md px-1.5 py-0.5 transition-colors',
+                          typeSort.key === 'type' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        Type
+                        {typeSort.key === 'type' && (typeSort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleTypeSort('total')}
+                        className={cn(
+                          'flex items-center gap-0.5 text-[11px] font-semibold rounded-md px-1.5 py-0.5 transition-colors',
+                          typeSort.key === 'total' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        Total
+                        {typeSort.key === 'total' && (typeSort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                      </button>
+                    </div>
+                  </div>
                   <div className="space-y-1.5">
-                    {commissionBreakdown!.typeRows.slice(0, typeVisible).map((t) => (
+                    {sortedTypeRows.slice(0, typeVisible).map((t) => (
                       <div
                         key={t.type}
                         className="flex items-center justify-between gap-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15 px-3 py-2.5"
@@ -682,15 +708,15 @@ export function AgentCashPayoutsTab() {
                       </div>
                     ))}
                   </div>
-                  {commissionBreakdown!.typeRows.length > TYPE_PAGE && (
+                  {sortedTypeRows.length > TYPE_PAGE && (
                     <div className="flex items-center justify-center gap-3 pt-0.5">
-                      {typeVisible < commissionBreakdown!.typeRows.length && (
+                      {typeVisible < sortedTypeRows.length && (
                         <button
                           type="button"
                           onClick={() => setTypeVisible((v) => v + TYPE_PAGE)}
                           className="text-xs font-semibold text-emerald-600 hover:underline"
                         >
-                          Show more ({commissionBreakdown!.typeRows.length - typeVisible})
+                          Show more ({sortedTypeRows.length - typeVisible})
                         </button>
                       )}
                       {typeVisible > TYPE_PAGE && (
@@ -708,11 +734,37 @@ export function AgentCashPayoutsTab() {
               )}
 
               {/* By day */}
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground pt-1">
-                By day
-              </p>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  By day
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleDaySort('date')}
+                    className={cn(
+                      'flex items-center gap-0.5 text-[11px] font-semibold rounded-md px-1.5 py-0.5 transition-colors',
+                      daySort.key === 'date' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Date
+                    {daySort.key === 'date' && (daySort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleDaySort('total')}
+                    className={cn(
+                      'flex items-center gap-0.5 text-[11px] font-semibold rounded-md px-1.5 py-0.5 transition-colors',
+                      daySort.key === 'total' ? 'bg-emerald-500/10 text-emerald-600' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Total
+                    {daySort.key === 'total' && (daySort.dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                  </button>
+                </div>
+              </div>
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
-              {commissionBreakdown!.rows.slice(0, dayVisible).map((r) => (
+              {sortedDayRows.slice(0, dayVisible).map((r) => (
                 <div
                   key={r.date}
                   className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5"
