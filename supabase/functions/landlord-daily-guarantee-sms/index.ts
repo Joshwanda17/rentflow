@@ -10,12 +10,8 @@ const corsHeaders = {
 const ALLOWED_ROLES = ["coo", "ceo", "cto", "cmo", "super_admin", "manager"];
 
 // Daily marketing message to every landlord.
-const WHATSAPP = "+256748747134";
-const LIST_LINK = "https://welilereceipts.com/landlord-signup";
-const STOP_LINK = "https://welilereceipts.com/stop-sms";
-// Kept to a single SMS part (<=160 chars) to cut SMS credit cost.
 const MESSAGE =
-  `WELILE guarantees your monthly rent. List house: ${LIST_LINK} WhatsApp ${WHATSAPP}. Stop: ${STOP_LINK}`;
+  `Your house shouldn't stay empty. Your rent shouldn't be delayed. WELILE connects you to verified tenants and guarantees your monthly rent. List your property now: welilereceipts.com/landlord-signup WhatsApp: +256 748 747134`;
 
 const SMS_ATTEMPT_TIMEOUT_MS = 5000;
 const SMS_MAX_ATTEMPTS = 2;
