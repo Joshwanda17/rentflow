@@ -94,9 +94,16 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
         )}
 
         {mission.posted_by_name && (
-          <p className="mt-4 sm:mt-5 text-[11px] sm:text-xs font-semibold italic leading-relaxed text-white/80 break-words">
-            Posted by: {mission.posted_by_name}
-          </p>
+          <div className="mt-4 sm:mt-5">
+            <p className="text-[11px] sm:text-xs font-semibold italic leading-relaxed text-white/80 break-words">
+              Posted by: {mission.posted_by_name}
+            </p>
+            {mission.updated_at && (
+              <p className="mt-0.5 text-[10px] sm:text-[11px] font-medium not-italic leading-relaxed text-white/65 break-words">
+                {formatPostedAt(mission.updated_at)}
+              </p>
+            )}
+          </div>
         )}
       </div>
     </section>
