@@ -3,6 +3,22 @@ import { useDashboardMission } from '@/hooks/useDashboardMission';
 import { monthLabel, monthKey, missionFontStack } from '@/lib/dashboardMissions';
 import { cn } from '@/lib/utils';
 
+/** Formats the posted timestamp in Uganda time (EAT, UTC+3), e.g. "Posted 26 Jun 2026, 1:25 PM EAT". */
+function formatPostedAt(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const formatted = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Kampala',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(d);
+  return `Posted ${formatted} EAT`;
+}
+
 /** Minimal shape the banner needs to render — used for live previews of unsaved drafts. */
 export interface MissionBannerData {
   mission: string | null;
@@ -10,6 +26,8 @@ export interface MissionBannerData {
   font_family?: string | null;
   period_month?: string | null;
   posted_by_name?: string | null;
+  /** ISO timestamp of when the mission was last posted/updated. */
+  updated_at?: string | null;
 }
 
 interface MissionBannerProps {
@@ -92,9 +110,16 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
         )}
 
         {mission.posted_by_name && (
-          <p className="mt-4 sm:mt-5 text-[11px] sm:text-xs font-semibold italic leading-relaxed text-white/80 break-words">
-            Posted by: {mission.posted_by_name}
-          </p>
+          <div className="mt-4 sm:mt-5">
+            <p className="text-[11px] sm:text-xs font-semibold italic leading-relaxed text-white/80 break-words">
+              Posted by: {mission.posted_by_name}
+            </p>
+            {mission.updated_at && (
+              <p className="mt-0.5 text-[10px] sm:text-[11px] font-medium not-italic leading-relaxed text-white/65 break-words">
+                {formatPostedAt(mission.updated_at)}
+              </p>
+            )}
+          </div>
         )}
       </div>
     </section>
