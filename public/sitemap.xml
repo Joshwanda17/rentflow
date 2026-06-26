@@ -51,6 +51,11 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://welilereceipts.com/guides/pay-rent-in-installments-uganda</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://welilereceipts.com/ai</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
