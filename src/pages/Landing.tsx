@@ -163,7 +163,7 @@ export default function Landing() {
       <header className="pt-safe-top px-5 pt-10 pb-6 text-center">
         <motion.img
           src={welileLogo}
-          alt="Welile"
+          alt="Welile - Housing and Funding Instantly"
           width={640}
           height={640}
           fetchPriority="high"
