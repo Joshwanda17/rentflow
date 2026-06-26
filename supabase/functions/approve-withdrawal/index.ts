@@ -134,17 +134,14 @@ Deno.serve(async (req) => {
       hasStaffRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
     }
 
-    // Also check if caller is an active cashout agent
-    let isCashoutAgent = false;
-    if (!hasStaffRole) {
-      const { data: agentRow } = await admin
-        .from("cashout_agents")
-        .select("id")
-        .eq("agent_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle();
-      isCashoutAgent = !!agentRow;
-    }
+    // Also check if caller is an active cashout agent (regardless of hasStaffRole)
+    const { data: agentRow } = await admin
+      .from("cashout_agents")
+      .select("id")
+      .eq("agent_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    const isCashoutAgent = !!agentRow;
 
     if (!hasStaffRole && !isCashoutAgent) {
       return new Response(JSON.stringify({ error: "Forbidden: insufficient role" }), {
@@ -1523,12 +1520,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Cashout agent 0.5% commission (only when caller is a non-staff cashout agent).
+    // Cashout agent 0.5% commission (when caller is an active cashout agent, including staff roles).
     // Company funds (platform cash_out) move INSTANTLY into the agent's own
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
     // routing), then we SMS the agent to confirm the earning.
     let cashoutCommission = 0;
-    if (isCashoutAgent && !hasStaffRole) {
+    if (isCashoutAgent) {
       cashoutCommission = Math.round(amount * 0.005);
       if (cashoutCommission > 0) {
         try {
