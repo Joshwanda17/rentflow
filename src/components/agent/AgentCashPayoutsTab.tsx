@@ -641,7 +641,7 @@ export function AgentCashPayoutsTab() {
                     By payout type
                   </p>
                   <div className="space-y-1.5">
-                    {commissionBreakdown!.typeRows.map((t) => (
+                    {commissionBreakdown!.typeRows.slice(0, typeVisible).map((t) => (
                       <div
                         key={t.type}
                         className="flex items-center justify-between gap-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15 px-3 py-2.5"
@@ -656,6 +656,28 @@ export function AgentCashPayoutsTab() {
                       </div>
                     ))}
                   </div>
+                  {commissionBreakdown!.typeRows.length > TYPE_PAGE && (
+                    <div className="flex items-center justify-center gap-3 pt-0.5">
+                      {typeVisible < commissionBreakdown!.typeRows.length && (
+                        <button
+                          type="button"
+                          onClick={() => setTypeVisible((v) => v + TYPE_PAGE)}
+                          className="text-xs font-semibold text-emerald-600 hover:underline"
+                        >
+                          Show more ({commissionBreakdown!.typeRows.length - typeVisible})
+                        </button>
+                      )}
+                      {typeVisible > TYPE_PAGE && (
+                        <button
+                          type="button"
+                          onClick={() => setTypeVisible(TYPE_PAGE)}
+                          className="text-xs font-semibold text-muted-foreground hover:underline"
+                        >
+                          Show less
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -664,7 +686,7 @@ export function AgentCashPayoutsTab() {
                 By day
               </p>
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
-              {commissionBreakdown!.rows.map((r) => (
+              {commissionBreakdown!.rows.slice(0, dayVisible).map((r) => (
                 <div
                   key={r.date}
                   className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5"
@@ -681,6 +703,28 @@ export function AgentCashPayoutsTab() {
                 </div>
               ))}
             </div>
+            {commissionBreakdown!.rows.length > DAY_PAGE && (
+              <div className="flex items-center justify-center gap-3 pt-0.5">
+                {dayVisible < commissionBreakdown!.rows.length && (
+                  <button
+                    type="button"
+                    onClick={() => setDayVisible((v) => v + DAY_PAGE)}
+                    className="text-xs font-semibold text-emerald-600 hover:underline"
+                  >
+                    Show more ({commissionBreakdown!.rows.length - dayVisible})
+                  </button>
+                )}
+                {dayVisible > DAY_PAGE && (
+                  <button
+                    type="button"
+                    onClick={() => setDayVisible(DAY_PAGE)}
+                    className="text-xs font-semibold text-muted-foreground hover:underline"
+                  >
+                    Show less
+                  </button>
+                )}
+              </div>
+            )}
             </>
           )}
         </CardContent>
