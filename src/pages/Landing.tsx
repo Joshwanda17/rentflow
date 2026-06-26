@@ -260,14 +260,14 @@ export default function Landing() {
         {/* Live preview of real listed houses — visible to new visitors before signup */}
         <PublicHousesPreview />
 
-        <motion.p
+        <motion.h2
           className="text-center text-foreground font-semibold text-lg mb-5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
           What do you need?
-        </motion.p>
+        </motion.h2>
 
         <motion.div
           className="space-y-3"
@@ -326,6 +326,7 @@ export default function Landing() {
         </motion.div>
 
         {/* Trust signals */}
+        <h2 className="sr-only">Why choose Welile</h2>
         <motion.div
           className="mt-8 flex items-center justify-center gap-6 text-muted-foreground"
           initial={{ opacity: 0 }}
