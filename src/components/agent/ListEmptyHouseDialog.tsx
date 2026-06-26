@@ -459,7 +459,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }, 500);
     return () => { cancelled = true; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.landlord_phone, manualLandlord, selectedLandlord]);
+  }, [form.landlord_phone, form.landlord_name, manualLandlord, selectedLandlord]);
 
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
