@@ -49,10 +49,10 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
       <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-white/10 blur-3xl" aria-hidden />
 
-      <div className="relative p-4 sm:p-7">
+      <div className="relative p-4 sm:p-6 md:p-7">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.18em] backdrop-blur-sm">
-            <Target className="h-3.5 w-3.5" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.1em] sm:tracking-[0.16em] backdrop-blur-sm">
+            <Target className="h-3.5 w-3.5 shrink-0" />
             Mission this month
           </span>
           <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-white/80">
@@ -62,7 +62,7 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
 
         {mission.mission && (
           <p
-            className="mt-3 sm:mt-4 text-xl sm:text-3xl font-bold leading-snug tracking-normal text-white [text-wrap:balance]"
+            className="mt-3 sm:mt-4 text-[clamp(1.15rem,4.5vw,1.875rem)] font-bold leading-[1.3] sm:leading-snug tracking-normal text-white break-words hyphens-auto [text-wrap:balance]"
             style={{ fontFamily: fontStack }}
           >
             {mission.mission}
@@ -71,11 +71,11 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
 
         {mission.goals.length > 0 && (
           <div className="mt-4 sm:mt-5">
-            <p className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.12em] sm:tracking-[0.18em] text-white/85">
-              <Sparkles className="h-4 w-4" />
+            <p className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.1em] sm:tracking-[0.16em] text-white/85">
+              <Sparkles className="h-4 w-4 shrink-0" />
               Goals
             </p>
-            <ul className="mt-2.5 sm:mt-3 grid gap-2 sm:gap-2.5 sm:grid-cols-2">
+            <ul className="mt-2.5 sm:mt-3 grid gap-2 sm:gap-2.5 grid-cols-1 md:grid-cols-2">
               {mission.goals.map((g, i) => (
                 <li
                   key={i}
@@ -84,7 +84,7 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/30 text-[11px] font-extrabold text-white">
                     {i + 1}
                   </span>
-                  <span className="text-sm sm:text-base font-semibold leading-relaxed text-white">{g}</span>
+                  <span className="min-w-0 text-[clamp(0.875rem,2.5vw,1rem)] font-semibold leading-relaxed text-white break-words">{g}</span>
                 </li>
               ))}
             </ul>
@@ -92,7 +92,7 @@ export function MissionBanner({ dashboardRole, className, missionOverride }: Mis
         )}
 
         {mission.posted_by_name && (
-          <p className="mt-4 sm:mt-5 text-[11px] sm:text-xs font-semibold italic text-white/80">
+          <p className="mt-4 sm:mt-5 text-[11px] sm:text-xs font-semibold italic leading-relaxed text-white/80 break-words">
             Posted by: {mission.posted_by_name}
           </p>
         )}
