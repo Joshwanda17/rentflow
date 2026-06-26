@@ -211,18 +211,20 @@ export function AgentCashPayoutsTab() {
   // agent's withdrawable wallet via general_ledger). We read the wallet-scope
   // cash_in legs tagged as the cashout commission and group them by day.
   const { data: commissionBreakdown } = useQuery({
-    queryKey: ['cashout-agent-commission-breakdown', user?.id],
+    queryKey: ['cashout-agent-commission-breakdown', user?.id, fromKey, toKey],
     queryFn: async () => {
       if (!user) return { rows: [] as { date: string; count: number; total: number }[], typeRows: [] as { type: string; count: number; total: number }[], grandTotal: 0, grandCount: 0 };
-      const { data, error } = await supabase
+      let q = supabase
         .from('general_ledger')
         .select('amount, transaction_date, created_at, reference_id')
         .eq('user_id', user.id)
         .eq('ledger_scope', 'wallet')
         .eq('direction', 'cash_in')
         .eq('category', 'agent_commission_earned')
-        .like('reference_id', '%-cashout-commission')
-        .order('transaction_date', { ascending: false });
+        .like('reference_id', '%-cashout-commission');
+      if (fromKey) q = q.gte('transaction_date', fromKey);
+      if (toKey) q = q.lte('transaction_date', toKey);
+      const { data, error } = await q.order('transaction_date', { ascending: false });
       if (error) throw error;
 
       // Resolve the payout method/type for each commission by stripping the
