@@ -506,21 +506,33 @@ export default function LandlordRegistrationForm({
     const momoNumberClean = cleanPhoneNumber(momoNumber);
 
     try {
-      setProgressMsg('Checking the phone number…');
+      setProgressMsg('Checking for duplicates…');
       const { data: existingMatches } = await supabase
-        .rpc('find_landlord_by_phone', { p_phone: landlordPhoneClean });
+        .rpc('find_landlord_duplicate', {
+          p_name: landlordName.trim(),
+          p_phone: landlordPhoneClean,
+        });
 
       if (Array.isArray(existingMatches) && existingMatches.length > 0) {
+        const match = existingMatches[0] as { name?: string; matched_on?: string };
+        const matchedOn = match.matched_on ?? 'phone';
+        const who = match.name ? `"${match.name}"` : 'This landlord';
+        const byName = matchedOn === 'name';
+        const detail =
+          matchedOn === 'name'
+            ? `${who} already exists. Search and reuse them instead of registering a duplicate.`
+            : matchedOn === 'both'
+              ? `${who} is already registered with this phone. Reuse the existing landlord instead of creating a duplicate.`
+              : 'A landlord with this phone number already exists.';
         setErrors((prev) => ({
           ...prev,
-          landlordPhone:
-            'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
+          [byName ? 'landlordName' : 'landlordPhone']: detail,
         }));
-        setSubmitError('A landlord with this phone number already exists.');
+        setSubmitError(detail);
         hapticWarning();
         setStep(1);
-        focusField('landlordPhone');
-        toastFn({ title: 'Already Exists', description: 'A landlord with this phone number already exists.', variant: 'destructive' });
+        focusField(byName ? 'landlordName' : 'landlordPhone');
+        toastFn({ title: 'Already Exists', description: detail, variant: 'destructive' });
         setLoading(false);
         setProgressMsg('');
         return;
