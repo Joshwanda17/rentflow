@@ -29,8 +29,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Welile';
   const options = {
     body: data.body || '',
-    icon: data.icon || '/manifest-icon-192.png',
-    badge: data.badge || '/manifest-icon-192.png',
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
     tag: data.tag || data.notificationId || undefined,
     data: {
       url: data.url || '/',
