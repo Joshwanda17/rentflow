@@ -410,7 +410,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     const t = setTimeout(async () => {
       try {
         const canonical = toUgandaLocalDigits(phone);
-        const { data: matches } = await supabase.rpc('find_landlord_by_phone', { p_phone: canonical });
+        // Match on phone OR case-insensitive name so an existing landlord is
+        // surfaced for reuse instead of being duplicated.
+        const { data: matches } = await supabase.rpc('find_landlord_duplicate', {
+          p_name: form.landlord_name.trim(),
+          p_phone: canonical,
+        });
         const m = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
         if (!m?.id) {
           if (!cancelled) setPhoneMatch(null);
