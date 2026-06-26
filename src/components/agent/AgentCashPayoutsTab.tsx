@@ -86,6 +86,32 @@ export function AgentCashPayoutsTab() {
     setDayVisible(DAY_PAGE);
   }, [fromKey, toKey]);
 
+  // Sorting controls for the breakdown tables.
+  const [daySort, setDaySort] = useState<{ key: 'date' | 'total'; dir: 'asc' | 'desc' }>({ key: 'date', dir: 'desc' });
+  const [typeSort, setTypeSort] = useState<{ key: 'type' | 'total'; dir: 'asc' | 'desc' }>({ key: 'total', dir: 'desc' });
+  const toggleDaySort = (key: 'date' | 'total') =>
+    setDaySort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' }));
+  const toggleTypeSort = (key: 'type' | 'total') =>
+    setTypeSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' }));
+
+  const sortedDayRows = useMemo(() => {
+    const rows = [...(commissionBreakdown?.rows ?? [])];
+    rows.sort((a, b) => {
+      const cmp = daySort.key === 'date' ? (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) : a.total - b.total;
+      return daySort.dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [commissionBreakdown?.rows, daySort]);
+
+  const sortedTypeRows = useMemo(() => {
+    const rows = [...(commissionBreakdown?.typeRows ?? [])];
+    rows.sort((a, b) => {
+      const cmp = typeSort.key === 'type' ? a.type.localeCompare(b.type) : a.total - b.total;
+      return typeSort.dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [commissionBreakdown?.typeRows, typeSort]);
+
   // Per-request submission locks. The refs guard SYNCHRONOUSLY on tap (before any
   // re-render) so a rapid double-tap can never fire the same mutation twice; the
   // state mirrors them only to drive the disabled/loading UI.
