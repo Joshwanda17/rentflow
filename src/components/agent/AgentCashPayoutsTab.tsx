@@ -7,11 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { format, startOfMonth, subDays } from 'date-fns';
 import {
   Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck, Coins,
+  CalendarIcon, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -64,6 +68,12 @@ export function AgentCashPayoutsTab() {
   const [payoutCode, setPayoutCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
+
+  // Date range filter for the commission breakdown.
+  const [rangeFrom, setRangeFrom] = useState<Date | undefined>(undefined);
+  const [rangeTo, setRangeTo] = useState<Date | undefined>(undefined);
+  const fromKey = rangeFrom ? format(rangeFrom, 'yyyy-MM-dd') : '';
+  const toKey = rangeTo ? format(rangeTo, 'yyyy-MM-dd') : '';
 
   // Per-request submission locks. The refs guard SYNCHRONOUSLY on tap (before any
   // re-render) so a rapid double-tap can never fire the same mutation twice; the
@@ -205,18 +215,20 @@ export function AgentCashPayoutsTab() {
   // agent's withdrawable wallet via general_ledger). We read the wallet-scope
   // cash_in legs tagged as the cashout commission and group them by day.
   const { data: commissionBreakdown } = useQuery({
-    queryKey: ['cashout-agent-commission-breakdown', user?.id],
+    queryKey: ['cashout-agent-commission-breakdown', user?.id, fromKey, toKey],
     queryFn: async () => {
       if (!user) return { rows: [] as { date: string; count: number; total: number }[], typeRows: [] as { type: string; count: number; total: number }[], grandTotal: 0, grandCount: 0 };
-      const { data, error } = await supabase
+      let q = supabase
         .from('general_ledger')
         .select('amount, transaction_date, created_at, reference_id')
         .eq('user_id', user.id)
         .eq('ledger_scope', 'wallet')
         .eq('direction', 'cash_in')
         .eq('category', 'agent_commission_earned')
-        .like('reference_id', '%-cashout-commission')
-        .order('transaction_date', { ascending: false });
+        .like('reference_id', '%-cashout-commission');
+      if (fromKey) q = q.gte('transaction_date', fromKey);
+      if (toKey) q = q.lte('transaction_date', toKey);
+      const { data, error } = await q.order('transaction_date', { ascending: false });
       if (error) throw error;
 
       // Resolve the payout method/type for each commission by stripping the
@@ -506,6 +518,88 @@ export function AgentCashPayoutsTab() {
           <p className="text-xs text-muted-foreground mt-1">
             Paid instantly into your withdrawable wallet for every payout you confirm.
           </p>
+          {/* Date range filter */}
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn('h-8 justify-start text-left font-normal gap-1.5', !rangeFrom && 'text-muted-foreground')}
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {rangeFrom ? format(rangeFrom, 'MMM d, yyyy') : 'From'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={rangeFrom}
+                  onSelect={setRangeFrom}
+                  disabled={(d) => (rangeTo ? d > rangeTo : false) || d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+            <span className="text-xs text-muted-foreground">→</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn('h-8 justify-start text-left font-normal gap-1.5', !rangeTo && 'text-muted-foreground')}
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {rangeTo ? format(rangeTo, 'MMM d, yyyy') : 'To'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={rangeTo}
+                  onSelect={setRangeTo}
+                  disabled={(d) => (rangeFrom ? d < rangeFrom : false) || d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+            {(rangeFrom || rangeTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground"
+                onClick={() => { setRangeFrom(undefined); setRangeTo(undefined); }}
+              >
+                <X className="h-3.5 w-3.5 mr-1" /> Clear
+              </Button>
+            )}
+          </div>
+          {/* Quick presets */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            <Button variant="secondary" size="sm" className="h-7 text-xs px-2.5"
+              onClick={() => { const t = new Date(); setRangeFrom(t); setRangeTo(t); }}>
+              Today
+            </Button>
+            <Button variant="secondary" size="sm" className="h-7 text-xs px-2.5"
+              onClick={() => { setRangeFrom(subDays(new Date(), 6)); setRangeTo(new Date()); }}>
+              Last 7 days
+            </Button>
+            <Button variant="secondary" size="sm" className="h-7 text-xs px-2.5"
+              onClick={() => { setRangeFrom(subDays(new Date(), 29)); setRangeTo(new Date()); }}>
+              Last 30 days
+            </Button>
+            <Button variant="secondary" size="sm" className="h-7 text-xs px-2.5"
+              onClick={() => { setRangeFrom(startOfMonth(new Date())); setRangeTo(new Date()); }}>
+              This month
+            </Button>
+          </div>
+          {(rangeFrom || rangeTo) && (
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Showing {rangeFrom ? format(rangeFrom, 'MMM d, yyyy') : 'the start'} – {rangeTo ? format(rangeTo, 'MMM d, yyyy') : 'today'}
+            </p>
+          )}
         </CardHeader>
         <CardContent className="pt-0 space-y-3">
           <div className="flex items-end justify-between gap-3 pb-3 border-b border-border/60">
@@ -523,7 +617,9 @@ export function AgentCashPayoutsTab() {
 
           {(commissionBreakdown?.rows?.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No commission earned yet. Confirm a payout to start earning.
+              {(rangeFrom || rangeTo)
+                ? 'No commission earned in the selected period.'
+                : 'No commission earned yet. Confirm a payout to start earning.'}
             </p>
           ) : (
             <>
