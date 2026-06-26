@@ -19,7 +19,6 @@ import { SIGNUP_PAUSED } from '@/components/SignupPauseBanner';
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
-import { getPreferredLoginMethod } from '@/hooks/useAppPreferences';
 import { setDeviceTrust } from '@/lib/deviceTrust';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -137,9 +136,9 @@ export default function Auth() {
     }
   }, [authLoading, user, authRoles, navigate, searchParams]);
 
-  // Login mode: defaults to the user's saved preference (OTP-first out of the
-  // box). 'password' (phone+pw) and 'email' remain available as backups.
-  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>(() => getPreferredLoginMethod());
+  // Login mode: phone + password is the default tab on /auth. 'otp' (SMS code)
+  // and 'email' remain available as backups via the in-form switchers.
+  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('password');
   const [emailLoginAddress, setEmailLoginAddress] = useState('');
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
   const [otpLoginCode, setOtpLoginCode] = useState('');
