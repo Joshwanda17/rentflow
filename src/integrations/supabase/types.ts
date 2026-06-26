@@ -20114,6 +20114,15 @@ export type Database = {
           phone: string
         }[]
       }
+      find_landlord_duplicate: {
+        Args: { p_name: string; p_phone: string }
+        Returns: {
+          id: string
+          matched_on: string
+          name: string
+          phone: string
+        }[]
+      }
       find_nearby_houses: {
         Args: {
           category_filter?: string
