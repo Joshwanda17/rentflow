@@ -309,6 +309,24 @@ export function AgentCashPayoutsTab() {
     staleTime: 60_000,
   });
 
+  const sortedDayRows = useMemo(() => {
+    const rows = [...(commissionBreakdown?.rows ?? [])];
+    rows.sort((a, b) => {
+      const cmp = daySort.key === 'date' ? (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) : a.total - b.total;
+      return daySort.dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [commissionBreakdown?.rows, daySort]);
+
+  const sortedTypeRows = useMemo(() => {
+    const rows = [...(commissionBreakdown?.typeRows ?? [])];
+    rows.sort((a, b) => {
+      const cmp = typeSort.key === 'type' ? a.type.localeCompare(b.type) : a.total - b.total;
+      return typeSort.dir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [commissionBreakdown?.typeRows, typeSort]);
+
   // Realtime subscription
   useEffect(() => {
     if (!isCashoutAgent) return;
