@@ -617,7 +617,9 @@ export function AgentCashPayoutsTab() {
 
           {(commissionBreakdown?.rows?.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No commission earned yet. Confirm a payout to start earning.
+              {(rangeFrom || rangeTo)
+                ? 'No commission earned in the selected period.'
+                : 'No commission earned yet. Confirm a payout to start earning.'}
             </p>
           ) : (
             <>
