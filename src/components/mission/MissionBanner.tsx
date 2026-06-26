@@ -3,6 +3,22 @@ import { useDashboardMission } from '@/hooks/useDashboardMission';
 import { monthLabel, monthKey, missionFontStack } from '@/lib/dashboardMissions';
 import { cn } from '@/lib/utils';
 
+/** Formats the posted timestamp in Uganda time (EAT, UTC+3), e.g. "Posted 26 Jun 2026, 1:25 PM EAT". */
+function formatPostedAt(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const formatted = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Kampala',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(d);
+  return `Posted ${formatted} EAT`;
+}
+
 /** Minimal shape the banner needs to render — used for live previews of unsaved drafts. */
 export interface MissionBannerData {
   mission: string | null;
