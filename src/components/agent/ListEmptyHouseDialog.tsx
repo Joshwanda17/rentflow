@@ -1021,12 +1021,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       } else if (form.landlord_phone) {
         // Canonical, format-agnostic lookup (same normalizer as the search RPC).
         const canonicalPhone = toUgandaLocalDigits(form.landlord_phone);
+        // Match on BOTH phone AND case-insensitive name so we never create a
+        // duplicate landlord record — reuse the existing one and tell the agent.
         const { data: matches } = await supabase
-          .rpc('find_landlord_by_phone', { p_phone: canonicalPhone });
+          .rpc('find_landlord_duplicate', {
+            p_name: form.landlord_name.trim(),
+            p_phone: canonicalPhone,
+          });
         const landlord = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
 
         if (landlord?.id) {
           landlordId = landlord.id;
+          const matchedOn = (landlord as { matched_on?: string }).matched_on;
+          if (matchedOn === 'name') {
+            toast.info(`Linked to existing landlord "${landlord.name}"`, {
+              description: 'A landlord with this name already existed — reused to avoid a duplicate.',
+            });
+          }
         } else if (form.landlord_name.trim()) {
           // Landlord doesn't exist yet — create one so the listing links properly
           const { data: newLandlord } = await supabase
