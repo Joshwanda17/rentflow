@@ -180,7 +180,7 @@ export default function Landing() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.3 }}
         >
-          Welile — Housing &amp; funding instantly
+          Welile — Enter a house for now
         </motion.h1>
         <motion.p
           className="text-muted-foreground text-sm mt-2 max-w-[260px] mx-auto leading-relaxed"
