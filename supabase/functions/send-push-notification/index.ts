@@ -53,12 +53,12 @@ function concatBytes(...arrays: Uint8Array[]): Uint8Array {
 async function hmacSha256(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key,
+    key as BufferSource,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign'],
   );
-  const sig = await crypto.subtle.sign('HMAC', cryptoKey, data);
+  const sig = await crypto.subtle.sign('HMAC', cryptoKey, data as BufferSource);
   return new Uint8Array(sig);
 }
 
@@ -88,7 +88,7 @@ async function encryptPayload(
 
   const uaPublicKey = await crypto.subtle.importKey(
     'raw',
-    uaPublic,
+    uaPublic as BufferSource,
     { name: 'ECDH', namedCurve: 'P-256' },
     false,
     [],
@@ -131,16 +131,16 @@ async function encryptPayload(
   const record = concatBytes(plaintext, new Uint8Array([2]));
   const aesKey = await crypto.subtle.importKey(
     'raw',
-    cek,
+    cek as BufferSource,
     { name: 'AES-GCM' },
     false,
     ['encrypt'],
   );
   const ciphertext = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: nonce, tagLength: 128 },
+      { name: 'AES-GCM', iv: nonce as BufferSource, tagLength: 128 },
       aesKey,
-      record,
+      record as BufferSource,
     ),
   );
 
