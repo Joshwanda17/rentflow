@@ -207,7 +207,7 @@ export function AgentCashPayoutsTab() {
   const { data: commissionBreakdown } = useQuery({
     queryKey: ['cashout-agent-commission-breakdown', user?.id],
     queryFn: async () => {
-      if (!user) return { rows: [] as { date: string; count: number; total: number }[], grandTotal: 0, grandCount: 0 };
+      if (!user) return { rows: [] as { date: string; count: number; total: number }[], typeRows: [] as { type: string; count: number; total: number }[], grandTotal: 0, grandCount: 0 };
       const { data, error } = await supabase
         .from('general_ledger')
         .select('amount, transaction_date, created_at, reference_id')
@@ -218,7 +218,38 @@ export function AgentCashPayoutsTab() {
         .like('reference_id', '%-cashout-commission')
         .order('transaction_date', { ascending: false });
       if (error) throw error;
+
+      // Resolve the payout method/type for each commission by stripping the
+      // withdrawal id from the reference_id and batch-fetching the withdrawals.
+      const withdrawalIds = Array.from(
+        new Set(
+          (data || [])
+            .map((r: any) => String(r.reference_id || '').replace('-cashout-commission', ''))
+            .filter(Boolean),
+        ),
+      );
+      const methodById = new Map<string, string>();
+      if (withdrawalIds.length > 0) {
+        const { data: wrs } = await supabase
+          .from('withdrawal_requests')
+          .select('id, payout_method')
+          .in('id', withdrawalIds);
+        for (const w of (wrs || []) as any[]) {
+          methodById.set(String(w.id), String(w.payout_method || ''));
+        }
+      }
+      const prettyType = (m: string) => {
+        const key = (m || '').toLowerCase();
+        if (!key) return 'Other payout';
+        if (key.includes('momo') || key.includes('mobile')) return 'Mobile Money';
+        if (key.includes('bank')) return 'Bank Transfer';
+        if (key.includes('cash')) return 'Cash Pickup';
+        if (key.includes('wallet')) return 'Wallet';
+        return m.charAt(0).toUpperCase() + m.slice(1);
+      };
+
       const byDate = new Map<string, { count: number; total: number }>();
+      const byType = new Map<string, { count: number; total: number }>();
       let grandTotal = 0;
       let grandCount = 0;
       for (const r of (data || []) as any[]) {
@@ -228,13 +259,20 @@ export function AgentCashPayoutsTab() {
         const amt = Number(r.amount || 0);
         const prev = byDate.get(day) || { count: 0, total: 0 };
         byDate.set(day, { count: prev.count + 1, total: prev.total + amt });
+        const wid = String(r.reference_id || '').replace('-cashout-commission', '');
+        const type = prettyType(methodById.get(wid) || '');
+        const prevT = byType.get(type) || { count: 0, total: 0 };
+        byType.set(type, { count: prevT.count + 1, total: prevT.total + amt });
         grandTotal += amt;
         grandCount += 1;
       }
       const rows = Array.from(byDate.entries())
         .map(([date, v]) => ({ date, count: v.count, total: v.total }))
         .sort((a, b) => (a.date < b.date ? 1 : -1));
-      return { rows, grandTotal, grandCount };
+      const typeRows = Array.from(byType.entries())
+        .map(([type, v]) => ({ type, count: v.count, total: v.total }))
+        .sort((a, b) => b.total - a.total);
+      return { rows, typeRows, grandTotal, grandCount };
     },
     enabled: !!user && !!isCashoutAgent?.id,
     staleTime: 60_000,
