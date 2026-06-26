@@ -50,7 +50,6 @@ const CreditLoadingDebugPanel = optionalLazyWithRetry(() => import("@/components
 const DeferredExtras = optionalLazyWithRetry(() => import("@/components/DeferredExtras"), "DeferredExtras");
 const FloatingToolbar = optionalLazyWithRetry(() => import("@/components/FloatingToolbar"), "FloatingToolbar");
 const PWAInstallPrompt = optionalLazyWithRetry(() => import("@/components/PWAInstallPrompt"), "PWAInstallPrompt");
-const OpenInAppBanner = optionalLazyWithRetry(() => import("@/components/OpenInAppBanner"), "OpenInAppBanner");
 const AgentNavFAB = optionalLazyWithRetry(() => import("@/components/agent/AgentNavFAB"), "AgentNavFAB");
 
 
@@ -584,7 +583,6 @@ const App = () => {
                           <FloatingToolbar />
                           <AgentNavFAB />
                           <PWAInstallPrompt />
-                          <OpenInAppBanner />
                           <Toaster />
                           <SonnerToaster />
                           <ProfileCompletionGate />

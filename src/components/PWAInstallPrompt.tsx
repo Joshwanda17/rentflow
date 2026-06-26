@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, Share } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,23 +9,6 @@ export default function PWAInstallPrompt() {
   const { canShow, isInstalled, isIOS, hasPrompt, promptInstall } = usePWAInstall();
   const [visible, setVisible] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
-  const autoPromptedRef = useRef(false);
-
-  // Auto-trigger the native browser install prompt on first visit
-  useEffect(() => {
-    if (isInstalled || !hasPrompt || autoPromptedRef.current) return;
-    autoPromptedRef.current = true;
-
-    const timer = setTimeout(async () => {
-      const accepted = await promptInstall();
-      if (accepted) {
-        toast.success('App installed!');
-      }
-      // If dismissed, the floating banner will appear via the canShow logic below
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [isInstalled, hasPrompt, promptInstall]);
 
   useEffect(() => {
     if (isInstalled) { setVisible(false); return; }
