@@ -11,7 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Banknote, QrCode, Search, CheckCircle2, Loader2,
-  Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck,
+  Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck, Coins,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -200,6 +200,46 @@ export function AgentCashPayoutsTab() {
     staleTime: 60_000,
   });
 
+  // Commission breakdown — totals by date for ALL payouts this agent has
+  // processed (every confirmed payout credits a 0.5% commission into the
+  // agent's withdrawable wallet via general_ledger). We read the wallet-scope
+  // cash_in legs tagged as the cashout commission and group them by day.
+  const { data: commissionBreakdown } = useQuery({
+    queryKey: ['cashout-agent-commission-breakdown', user?.id],
+    queryFn: async () => {
+      if (!user) return { rows: [] as { date: string; count: number; total: number }[], grandTotal: 0, grandCount: 0 };
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount, transaction_date, created_at, reference_id')
+        .eq('user_id', user.id)
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_in')
+        .eq('category', 'agent_commission_earned')
+        .like('reference_id', '%-cashout-commission')
+        .order('transaction_date', { ascending: false });
+      if (error) throw error;
+      const byDate = new Map<string, { count: number; total: number }>();
+      let grandTotal = 0;
+      let grandCount = 0;
+      for (const r of (data || []) as any[]) {
+        const ts = r.transaction_date || r.created_at;
+        if (!ts) continue;
+        const day = new Date(ts).toISOString().slice(0, 10);
+        const amt = Number(r.amount || 0);
+        const prev = byDate.get(day) || { count: 0, total: 0 };
+        byDate.set(day, { count: prev.count + 1, total: prev.total + amt });
+        grandTotal += amt;
+        grandCount += 1;
+      }
+      const rows = Array.from(byDate.entries())
+        .map(([date, v]) => ({ date, count: v.count, total: v.total }))
+        .sort((a, b) => (a.date < b.date ? 1 : -1));
+      return { rows, grandTotal, grandCount };
+    },
+    enabled: !!user && !!isCashoutAgent?.id,
+    staleTime: 60_000,
+  });
+
   // Realtime subscription
   useEffect(() => {
     if (!isCashoutAgent) return;
@@ -278,6 +318,8 @@ export function AgentCashPayoutsTab() {
       const baseMsg = `✅ Payout completed — ${formatUGX(data?.amount || 0)} sent`;
       toast.success(commission > 0 ? `${baseMsg} · You earned ${formatUGX(commission)} (0.5%)` : baseMsg);
       qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
     },
     onError: (e: any) => toast.error(e.message),
     onSettled: (_d, _e, vars) => {
@@ -413,6 +455,58 @@ export function AgentCashPayoutsTab() {
               {dailyStats?.avgMinutes ? `${Math.round(dailyStats.avgMinutes)}m` : '—'}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Commission breakdown — totals by date for all approved payouts */}
+      <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Coins className="h-4 w-4 text-emerald-600" />
+            Commission Earned · 0.5% per payout
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Paid instantly into your withdrawable wallet for every payout you confirm.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-3">
+          <div className="flex items-end justify-between gap-3 pb-3 border-b border-border/60">
+            <div>
+              <p className="text-xs text-muted-foreground">Total earned</p>
+              <p className="text-2xl font-bold text-emerald-600 tabular-nums leading-tight">
+                {formatUGX(commissionBreakdown?.grandTotal ?? 0)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Payouts</p>
+              <p className="text-lg font-bold text-foreground tabular-nums">{commissionBreakdown?.grandCount ?? 0}</p>
+            </div>
+          </div>
+
+          {(commissionBreakdown?.rows?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No commission earned yet. Confirm a payout to start earning.
+            </p>
+          ) : (
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {commissionBreakdown!.rows.map((r) => (
+                <div
+                  key={r.date}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {format(new Date(`${r.date}T00:00:00`), 'EEE, MMM d, yyyy')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.count} payout{r.count !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <p className="font-bold text-emerald-600 tabular-nums shrink-0">{formatUGX(r.total)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
