@@ -200,6 +200,46 @@ export function AgentCashPayoutsTab() {
     staleTime: 60_000,
   });
 
+  // Commission breakdown — totals by date for ALL payouts this agent has
+  // processed (every confirmed payout credits a 0.5% commission into the
+  // agent's withdrawable wallet via general_ledger). We read the wallet-scope
+  // cash_in legs tagged as the cashout commission and group them by day.
+  const { data: commissionBreakdown } = useQuery({
+    queryKey: ['cashout-agent-commission-breakdown', user?.id],
+    queryFn: async () => {
+      if (!user) return { rows: [] as { date: string; count: number; total: number }[], grandTotal: 0, grandCount: 0 };
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount, transaction_date, created_at, reference_id')
+        .eq('user_id', user.id)
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_in')
+        .eq('category', 'agent_commission_earned')
+        .like('reference_id', '%-cashout-commission')
+        .order('transaction_date', { ascending: false });
+      if (error) throw error;
+      const byDate = new Map<string, { count: number; total: number }>();
+      let grandTotal = 0;
+      let grandCount = 0;
+      for (const r of (data || []) as any[]) {
+        const ts = r.transaction_date || r.created_at;
+        if (!ts) continue;
+        const day = new Date(ts).toISOString().slice(0, 10);
+        const amt = Number(r.amount || 0);
+        const prev = byDate.get(day) || { count: 0, total: 0 };
+        byDate.set(day, { count: prev.count + 1, total: prev.total + amt });
+        grandTotal += amt;
+        grandCount += 1;
+      }
+      const rows = Array.from(byDate.entries())
+        .map(([date, v]) => ({ date, count: v.count, total: v.total }))
+        .sort((a, b) => (a.date < b.date ? 1 : -1));
+      return { rows, grandTotal, grandCount };
+    },
+    enabled: !!user && !!isCashoutAgent?.id,
+    staleTime: 60_000,
+  });
+
   // Realtime subscription
   useEffect(() => {
     if (!isCashoutAgent) return;
