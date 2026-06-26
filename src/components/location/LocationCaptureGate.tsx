@@ -375,7 +375,10 @@ export function LocationCaptureGate() {
 
   return (
     <Dialog open={open} onOpenChange={(o) => (!o ? handleSnooze() : setOpen(o))}>
-      <DialogContent className="max-w-sm rounded-2xl border-0 p-0 overflow-hidden">
+      <DialogContent
+        className="max-w-sm rounded-2xl border-0 p-0 overflow-hidden"
+        overlayClassName="backdrop-blur-0 bg-background/60"
+      >
         {/* Hero */}
         <div className="relative bg-gradient-to-br from-primary to-primary/70 px-6 pt-8 pb-10 text-center">
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-primary-foreground/15 ring-4 ring-primary-foreground/10">

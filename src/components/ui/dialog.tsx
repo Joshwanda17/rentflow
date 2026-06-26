@@ -35,18 +35,20 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   /** Disable zoom animations to prevent form input shaking on mobile */
   stable?: boolean;
+  /** Override classes applied to the backdrop overlay (e.g. to soften/remove blur). */
+  overlayClassName?: string;
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, stable = false, ...props }, ref) => {
+>(({ className, children, stable = false, overlayClassName, ...props }, ref) => {
   // Guard against Radix leaving <body> stuck at pointer-events:none when this
   // dialog is closed while/after a nested modal (confirm) was stacked on top.
   useRestoreBodyPointerEvents();
   return (
   <DialogPortal>
-    <DialogOverlay />
+    <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
