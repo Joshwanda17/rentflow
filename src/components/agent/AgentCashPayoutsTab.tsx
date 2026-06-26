@@ -526,6 +526,36 @@ export function AgentCashPayoutsTab() {
               No commission earned yet. Confirm a payout to start earning.
             </p>
           ) : (
+            <>
+              {/* By payout category / type */}
+              {(commissionBreakdown?.typeRows?.length ?? 0) > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    By payout type
+                  </p>
+                  <div className="space-y-1.5">
+                    {commissionBreakdown!.typeRows.map((t) => (
+                      <div
+                        key={t.type}
+                        className="flex items-center justify-between gap-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15 px-3 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{t.type}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {t.count} payout{t.count !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                        <p className="font-bold text-emerald-600 tabular-nums shrink-0">{formatUGX(t.total)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* By day */}
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground pt-1">
+                By day
+              </p>
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
               {commissionBreakdown!.rows.map((r) => (
                 <div
@@ -544,6 +574,7 @@ export function AgentCashPayoutsTab() {
                 </div>
               ))}
             </div>
+            </>
           )}
         </CardContent>
       </Card>
