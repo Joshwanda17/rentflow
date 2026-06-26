@@ -144,9 +144,11 @@ export default function LandlordRegistrationForm({
 
   const clearSubmitError = () => setSubmitError('');
 
-  // Pre-save check: verify the landlord phone isn't already registered BEFORE
-  // the agent taps Register, surfacing the exact field error inline.
-  // Returns true when the number is free to use.
+  // Pre-save check: verify the landlord isn't already registered BEFORE the
+  // agent taps Register. Matches on BOTH the phone number AND the landlord's
+  // name (case-insensitive, whitespace-normalized) so duplicate records are
+  // never created. Surfaces the exact field error inline.
+  // Returns true when the landlord is free to register.
   const checkPhoneAvailable = async (rawValue: string): Promise<boolean> => {
     const formatError = validateField('landlordPhone', toUgandaLocalDigits(rawValue));
     if (formatError) {
@@ -158,17 +160,33 @@ export default function LandlordRegistrationForm({
     setPhoneVerified(false);
     try {
       const { data, error } = await supabase
-        .rpc('find_landlord_by_phone', { p_phone: phoneClean });
+        .rpc('find_landlord_duplicate', {
+          p_name: landlordName.trim(),
+          p_phone: phoneClean,
+        });
       if (error) {
         // Network/DB hiccup — don't block; the submit-time check is the backstop.
         return true;
       }
       if (Array.isArray(data) && data.length > 0) {
-        setErrors((prev) => ({
-          ...prev,
-          landlordPhone:
-            'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
-        }));
+        const match = data[0] as { name?: string; matched_on?: string };
+        const matchedOn = match.matched_on ?? 'phone';
+        const who = match.name ? `"${match.name}"` : 'this landlord';
+        if (matchedOn === 'name') {
+          setErrors((prev) => ({
+            ...prev,
+            landlordName:
+              `A landlord named ${who} already exists. Search and reuse them instead of registering a duplicate.`,
+          }));
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            landlordPhone:
+              matchedOn === 'both'
+                ? `${who} is already registered with this phone. Reuse the existing landlord instead of creating a duplicate.`
+                : 'This phone is already registered. Enter a different number, or this landlord may already be in the system.',
+          }));
+        }
         setPhoneVerified(false);
         return false;
       }
