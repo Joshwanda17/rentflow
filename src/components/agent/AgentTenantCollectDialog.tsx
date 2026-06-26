@@ -94,6 +94,9 @@ export function AgentTenantCollectDialog({
   const [celebrationData, setCelebrationData] = useState<{ commission: number; amount: number } | null>(null);
   const [draftSaved, setDraftSaved] = useState<{ provisional_receipt_no: string; amount: number } | null>(null);
   const [rpcError, setRpcError] = useState<string | null>(null);
+  // When the agent taps "Do it later" on the location gate, we let them
+  // proceed to the allocation form instead of closing the whole flow.
+  const [locationSkipped, setLocationSkipped] = useState(false);
   // Best-effort tenant SMS status for the allocation notification, so the
   // agent can see if it failed and manually resend from the success view.
   const [smsStatus, setSmsStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
@@ -431,7 +434,9 @@ export function AgentTenantCollectDialog({
   if (!tenant) return null;
 
   // Force agent to capture the tenant's location BEFORE the collect dialog mounts.
-  if (open && locGate.needsCapture) {
+  // "Do it later" skips the gate for this session so the agent can still
+  // allocate the tenant's repayment.
+  if (open && locGate.needsCapture && !locationSkipped) {
     return (
       <AgentContactLocationGate
         open
@@ -440,7 +445,7 @@ export function AgentTenantCollectDialog({
         targetName={tenant.full_name}
         blocking={false}
         onComplete={() => locGate.onCaptured()}
-        onCancel={() => onOpenChange(false)}
+        onCancel={() => setLocationSkipped(true)}
       />
     );
   }
