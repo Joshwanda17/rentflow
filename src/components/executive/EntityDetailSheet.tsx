@@ -122,11 +122,14 @@ export function EntityDetailSheet({
       <SheetContent
         side="bottom"
         className={cn(
-          'overflow-y-auto',
+          // z-[160] keeps this above dialogs (z-[150]) so the profile opens
+          // on top of the find-house dialog instead of behind it.
+          'z-[160] overflow-y-auto',
           fullScreen
             ? 'h-[100dvh] max-h-[100dvh] rounded-none'
             : 'max-h-[90vh] rounded-t-2xl',
         )}
+        overlayClassName="z-[155]"
         onTouchStart={fullScreen ? handleTouchStart : undefined}
         onTouchMove={fullScreen ? handleTouchMove : undefined}
         onTouchEnd={fullScreen ? handleTouchEnd : undefined}
