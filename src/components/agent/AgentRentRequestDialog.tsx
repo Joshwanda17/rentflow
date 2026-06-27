@@ -15,6 +15,7 @@ import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useE
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
+import { EntityDetailSheet } from '@/components/executive/EntityDetailSheet';
 import {
   Dialog,
   DialogContent,
