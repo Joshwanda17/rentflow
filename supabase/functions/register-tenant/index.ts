@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { validateFullName, FULL_NAME_ERROR } from "../_shared/validateFullName.ts";
+import { validateUgandaPhone } from "../_shared/ugandaPhone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
