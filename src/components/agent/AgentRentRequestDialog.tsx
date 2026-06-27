@@ -5482,7 +5482,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <span className="font-semibold text-right min-w-0 break-words">{tenantName || '—'}</span>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <span className="text-muted-foreground shrink-0">Rent amount</span>
+                    <span className="text-muted-foreground shrink-0">{incomeType === 'weekly-monthly' && earnerCycle === 'weekly' ? '1 month rent' : 'Rent amount'}</span>
                     <span className="font-semibold text-right min-w-0 break-words">{amount ? formatUGX(amount) : '—'}</span>
                   </div>
                   <div className="flex justify-between gap-2">
