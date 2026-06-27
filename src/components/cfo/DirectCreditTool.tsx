@@ -1046,8 +1046,8 @@ export function DirectCreditTool() {
               <PayoutAutomationToggle
                 enabled={automateEnabled}
                 onToggle={setAutomateEnabled}
-                dayOfMonth={automateDay}
-                onDayChange={setAutomateDay}
+                config={automateConfig}
+                onConfigChange={setAutomateConfig}
               />
             )}
 
@@ -1084,7 +1084,7 @@ export function DirectCreditTool() {
                   {automateEnabled && (
                     <>
                       <span className="text-muted-foreground">Recurrence:</span>
-                      <span>🔁 Monthly on day {automateDay}</span>
+                      <span>🔁 {describeSchedule(automateConfig)}</span>
                     </>
                   )}
                 </div>
