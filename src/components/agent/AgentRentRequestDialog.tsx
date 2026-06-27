@@ -422,7 +422,9 @@ export function PhoneContactActions({
 function formatCurrencyInput(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   if (!digits) return '';
-  return Number(digits).toLocaleString('en-UG');
+  // Group with thousands separators. Build manually so the result is
+  // identical across environments/locales (en-UG can fall back inconsistently).
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 /* ===== Automatic input formatting =====
@@ -4244,13 +4246,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         : 'Let Welile pay this today'}
                     </p>
                     {/* FIX #7: Currency formatting */}
-                    <Input
-                      value={formatCurrencyInput(rentAmount)}
-                      onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="500,000"
-                      className={`h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl ${hasFieldError('rentAmount') ? 'border-destructive' : ''}`}
-                      required
-                    />
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-extrabold text-primary/60">
+                        UGX
+                      </span>
+                      <Input
+                        inputMode="numeric"
+                        value={formatCurrencyInput(rentAmount)}
+                        onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="500,000"
+                        className={`h-12 pl-14 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl ${hasFieldError('rentAmount') ? 'border-destructive' : ''}`}
+                        required
+                      />
+                    </div>
                     <FieldError
                       message={
                         incomeType === 'weekly-monthly' && earnerCycle === 'weekly'
