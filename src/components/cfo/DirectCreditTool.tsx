@@ -566,7 +566,7 @@ export function DirectCreditTool() {
       if (data?.error) throw new Error(data.error);
 
       if (automateEnabled && selectedUser) {
-        const { error: schedErr } = await supabase.from('scheduled_payouts').insert({
+        const { data: schedRow, error: schedErr } = await supabase.from('scheduled_payouts').insert({
           created_by: (await supabase.auth.getUser()).data.user?.id,
           target_user_id: selectedUser.id,
           amount: amt,
@@ -579,11 +579,20 @@ export function DirectCreditTool() {
           interval_days: automateConfig.frequency === 'interval' ? automateConfig.intervalDays : null,
           enabled: true,
           next_run_at: getNextRunDate(automateConfig),
-        });
+        }).select('id').maybeSingle();
         if (schedErr) {
           console.error('[DirectCreditTool] Failed to save schedule:', schedErr);
           toast({ title: '⚠️ Payout succeeded but schedule failed', description: schedErr.message, variant: 'destructive' });
         } else {
+          await logStandingOrderAction({
+            scheduledPayoutId: (schedRow as any)?.id ?? null,
+            action: 'create',
+            targetUserId: selectedUser.id,
+            recipientName: selectedUser.full_name ?? selectedUser.name ?? null,
+            amount: amt,
+            reason,
+            scheduleDescription: describeSchedule(automateConfig),
+          });
           toast({ title: '🔁 Standing order saved', description: `Will auto-pay: ${describeSchedule(automateConfig)}` });
         }
       }
