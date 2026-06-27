@@ -207,6 +207,15 @@ Deno.serve(async (req) => {
         { retries: 3, baseDelayMs: 500 },
       );
       smsSent = smsResult.ok && smsResult.value === true;
+      await recordStatus("sms", {
+        status: smsSent ? "sent" : "failed",
+        attempts: smsResult.attempts,
+        last_error: smsSent ? null : (smsResult.lastError ?? "SMS not accepted by gateway"),
+        last_sent_at: smsSent ? new Date().toISOString() : null,
+        recipient: profile.phone,
+      });
+    } else {
+      await recordStatus("sms", { status: "skipped", last_error: "No phone number on profile" });
     }
 
     // 2) Email to the recipient (skip synthetic @welile.user addresses).
@@ -241,6 +250,19 @@ Deno.serve(async (req) => {
         { retries: 3, baseDelayMs: 500 },
       );
       emailSent = emailResult.ok && emailResult.value === true;
+      await recordStatus("email", {
+        status: emailSent ? "sent" : "failed",
+        attempts: emailResult.attempts,
+        last_error: emailSent ? null : (emailResult.lastError ?? "Email enqueue failed"),
+        last_sent_at: emailSent ? new Date().toISOString() : null,
+        recipient: profile.email,
+      });
+    } else {
+      await recordStatus("email", {
+        status: "skipped",
+        last_error: profile.email ? "Synthetic @welile.user address" : "No email on profile",
+        recipient: profile.email ?? null,
+      });
     }
 
     return new Response(JSON.stringify({ success: true, sms_sent: smsSent, email_sent: emailSent }), {
