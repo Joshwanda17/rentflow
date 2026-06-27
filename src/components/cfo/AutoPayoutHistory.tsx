@@ -1,0 +1,165 @@
+import * as React from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { UserSearchPicker } from './UserSearchPicker';
+import { History, RefreshCw, Loader2, CheckCircle2, XCircle, Wallet } from 'lucide-react';
+
+interface RunEntry {
+  id: string;
+  recipient_name: string | null;
+  amount: number | null;
+  reason: string | null;
+  category_id: string | null;
+  status: 'success' | 'failed';
+  error_message: string | null;
+  ran_at: string;
+}
+
+interface PickedUser { id: string; full_name: string; phone?: string | null }
+
+const PAGE_SIZE = 12;
+
+function formatTs(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+export function AutoPayoutHistory() {
+  const { toast } = useToast();
+  const [user, setUser] = useState<PickedUser | null>(null);
+  const [entries, setEntries] = useState<RunEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [totalPaid, setTotalPaid] = useState(0);
+
+  const load = useCallback(async (uid: string, p: number) => {
+    setLoading(true);
+    const from = p * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const { data, error, count } = await supabase
+      .from('scheduled_payout_runs')
+      .select('id, recipient_name, amount, reason, category_id, status, error_message, ran_at', { count: 'exact' })
+      .eq('target_user_id', uid)
+      .order('ran_at', { ascending: false })
+      .range(from, to);
+    if (error) {
+      console.error('[AutoPayoutHistory] load failed:', error);
+      toast({ title: 'Could not load history', description: error.message, variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
+    setEntries((data ?? []) as RunEntry[]);
+    setTotal(count ?? 0);
+
+    // Sum of successful auto payouts to this individual.
+    const { data: sumRows } = await supabase
+      .from('scheduled_payout_runs')
+      .select('amount')
+      .eq('target_user_id', uid)
+      .eq('status', 'success');
+    setTotalPaid((sumRows ?? []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0));
+    setLoading(false);
+  }, [toast]);
+
+  useEffect(() => {
+    if (user) load(user.id, page);
+  }, [user, page, load]);
+
+  const onSelect = (u: PickedUser | null) => {
+    setPage(0);
+    setUser(u);
+    if (!u) { setEntries([]); setTotal(0); setTotalPaid(0); }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <History className="h-4 w-4 text-primary" />
+            Auto Payout History (Per Individual)
+          </CardTitle>
+          {user && (
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => load(user.id, page)} disabled={loading}>
+              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">Search a person to see every automated payout that landed in their wallet.</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <UserSearchPicker
+          label="Recipient"
+          placeholder="Search by name or phone…"
+          selectedUser={user as any}
+          onSelect={onSelect as any}
+        />
+
+        {user && (
+          <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/10">
+            <div className="text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">{user.full_name}</span> · {total} run{total === 1 ? '' : 's'}
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total auto-paid</p>
+              <p className="text-sm font-bold flex items-center gap-1 justify-end"><Wallet className="h-3.5 w-3.5 text-primary" /> UGX {totalPaid.toLocaleString()}</p>
+            </div>
+          </div>
+        )}
+
+        {!user ? (
+          <p className="text-xs text-muted-foreground italic py-4 text-center">Pick a recipient above to view their auto payout history.</p>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-6 text-muted-foreground text-xs gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : entries.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic py-4 text-center">No automated payouts have run for this person yet.</p>
+        ) : (
+          <>
+            {entries.map(e => (
+              <div key={e.id} className="rounded-lg border p-3 space-y-1 bg-muted/10">
+                <div className="flex items-start justify-between gap-2">
+                  {e.status === 'success' ? (
+                    <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] gap-1"><CheckCircle2 className="h-3 w-3" /> Paid</Badge>
+                  ) : (
+                    <Badge className="bg-destructive hover:bg-destructive text-destructive-foreground text-[10px] gap-1"><XCircle className="h-3 w-3" /> Failed</Badge>
+                  )}
+                  {e.amount != null && (
+                    <span className="text-sm font-bold whitespace-nowrap">UGX {Number(e.amount).toLocaleString()}</span>
+                  )}
+                </div>
+                {(e.reason || e.category_id) && (
+                  <p className="text-[11px] text-muted-foreground truncate">{[e.reason, e.category_id].filter(Boolean).join(' · ')}</p>
+                )}
+                {e.status === 'failed' && e.error_message && (
+                  <p className="text-[11px] text-destructive truncate">{e.error_message}</p>
+                )}
+                <p className="text-[11px] text-muted-foreground">{formatTs(e.ran_at)}</p>
+              </div>
+            ))}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-1">
+                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page === 0 || loading} onClick={() => setPage(p => Math.max(0, p - 1))}>
+                  Previous
+                </Button>
+                <span className="text-[11px] text-muted-foreground">Page {page + 1} of {totalPages}</span>
+                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={page + 1 >= totalPages || loading} onClick={() => setPage(p => p + 1)}>
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

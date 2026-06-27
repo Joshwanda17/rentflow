@@ -15188,6 +15188,45 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_payout_runs: {
+        Row: {
+          amount: number | null
+          category_id: string | null
+          error_message: string | null
+          id: string
+          ran_at: string
+          reason: string | null
+          recipient_name: string | null
+          scheduled_payout_id: string | null
+          status: string
+          target_user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          category_id?: string | null
+          error_message?: string | null
+          id?: string
+          ran_at?: string
+          reason?: string | null
+          recipient_name?: string | null
+          scheduled_payout_id?: string | null
+          status?: string
+          target_user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          category_id?: string | null
+          error_message?: string | null
+          id?: string
+          ran_at?: string
+          reason?: string | null
+          recipient_name?: string | null
+          scheduled_payout_id?: string | null
+          status?: string
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       scheduled_payouts: {
         Row: {
           amount: number

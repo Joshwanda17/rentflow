@@ -13,6 +13,7 @@ import { describeSchedule, type PayoutScheduleConfig } from './PayoutAutomationT
 import { Pause, Play, Trash2, RefreshCw, CalendarClock, Loader2 } from 'lucide-react';
 import { logStandingOrderAction } from '@/lib/standingOrderAudit';
 import { StandingOrderAuditLog } from './StandingOrderAuditLog';
+import { AutoPayoutHistory } from './AutoPayoutHistory';
 
 interface StandingOrder {
   id: string;
@@ -231,6 +232,7 @@ export function StandingOrdersManager() {
         )}
       </CardContent>
     </Card>
+    <AutoPayoutHistory />
     <StandingOrderAuditLog />
     </div>
   );
