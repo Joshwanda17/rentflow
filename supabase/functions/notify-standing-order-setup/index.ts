@@ -139,6 +139,39 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Persist per-channel delivery status so staff can see what was delivered.
+    const recordStatus = async (
+      channel: "sms" | "email",
+      fields: {
+        status: "pending" | "sent" | "failed" | "skipped";
+        attempts?: number;
+        last_error?: string | null;
+        last_sent_at?: string | null;
+        recipient?: string | null;
+      },
+    ) => {
+      try {
+        await adminClient
+          .from("standing_order_setup_notifications")
+          .upsert(
+            {
+              scheduled_payout_id: scheduled_payout_id ?? null,
+              target_user_id,
+              channel,
+              status: fields.status,
+              attempts: fields.attempts ?? 0,
+              last_error: fields.last_error ?? null,
+              last_sent_at: fields.last_sent_at ?? null,
+              recipient: fields.recipient ?? null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "scheduled_payout_id,channel" },
+          );
+      } catch (e) {
+        console.error(`[notify-standing-order-setup] failed to record ${channel} status:`, e);
+      }
+    };
+
     const { data: profile } = await adminClient
       .from("profiles")
       .select("full_name, phone, email")
