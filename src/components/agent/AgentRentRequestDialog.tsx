@@ -3925,15 +3925,26 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           </p>
                         ) : null}
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs flex-shrink-0"
-                        onClick={clearSelectedHouse}
-                      >
-                        <X className="h-3.5 w-3.5 mr-1" /> Change
-                      </Button>
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={undoSelectHouse}
+                        >
+                          <Undo2 className="h-3.5 w-3.5 mr-1" /> Undo
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={clearSelectedHouse}
+                        >
+                          <X className="h-3.5 w-3.5 mr-1" /> Change
+                        </Button>
+                      </div>
                     </div>
                     {houseConflict && (
                       <div className="mt-2 rounded-lg border border-destructive/50 bg-destructive/10 p-2.5">
