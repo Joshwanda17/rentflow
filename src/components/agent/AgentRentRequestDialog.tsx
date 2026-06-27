@@ -671,6 +671,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [houseSearching, setHouseSearching] = useState(false);
   const [houseSearchedOnce, setHouseSearchedOnce] = useState(false);
   const [selectedHouse, setSelectedHouse] = useState<AvailableHouse | null>(null);
+  // Landlord profile peek from a picker result (does not select the house).
+  const [landlordProfile, setLandlordProfile] = useState<AvailableHouse | null>(null);
   const [showListHouse, setShowListHouse] = useState(false);
   // Live conflict check: true when the selected house has been reserved /
   // occupied / hidden by another agent since it was picked.
