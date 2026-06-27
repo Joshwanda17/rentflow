@@ -4245,6 +4245,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </p>
                     )}
                   </div>
+                  {/* Weekly repayment auto-calc: (rent + 33%) ÷ 4 */}
+                  {incomeType === 'weekly-monthly' && earnerCycle === 'weekly' && amount > 0 && (
+                    <div className="p-4 rounded-2xl bg-success/10 border-2 border-success/40 text-center space-y-1">
+                      <p className="text-xs text-success/80 font-medium">Weekly repayment</p>
+                      <p className="text-3xl font-black text-success font-mono">
+                        {formatUGX(Math.ceil((amount * 1.33) / 4))}<span className="text-base font-bold">/week</span>
+                      </p>
+                      <p className="text-[11px] text-success/70 font-medium">
+                        {formatUGX(amount)} + 33% = {formatUGX(Math.round(amount * 1.33))}, divided by 4 weeks
+                      </p>
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label className="font-semibold text-primary/80">
                       {incomeType === 'daily' ? 'Duration' : earnerCycle === 'monthly' ? 'Monthly Repayment Period' : 'Weekly Repayment Period'} *
