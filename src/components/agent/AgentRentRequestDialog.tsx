@@ -2303,8 +2303,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const fees = calculateFees();
 
   // ===== Weekly earner submit gate =====
-  // The form must stay un-submittable until the landlord's total rent need is a
-  // valid UGX number AND the weekly repayment ((total + 33%) ÷ 4) is computed.
+  // The form must stay un-submittable until the 1 month rent is a
+  // valid UGX number AND the weekly repayment ((1 month + 33%) ÷ 4) is computed.
   const isWeeklyEarner = incomeType === 'weekly-monthly' && earnerCycle === 'weekly';
   const weeklyRepayment = isWeeklyEarner && amount > 0 ? Math.ceil((amount * 1.33) / 4) : 0;
   const weeklyEarnerBlocksSubmit =
