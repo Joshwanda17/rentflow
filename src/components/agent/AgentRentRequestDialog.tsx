@@ -3990,6 +3990,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                             <span className="truncate">{formatPhoneInput(selectedHouse.landlord_phone)}</span>
                           </p>
                         )}
+                        {selectedHouse.landlord_phone && (
+                          <PhoneContactActions phone={selectedHouse.landlord_phone} className="mt-2" />
+                        )}
                         {selectedHouse.monthly_rent ? (
                           <p className="text-xs mt-0.5 flex items-center gap-1">
                             <Banknote className="h-3 w-3 flex-shrink-0 text-emerald-700 dark:text-emerald-400" />
