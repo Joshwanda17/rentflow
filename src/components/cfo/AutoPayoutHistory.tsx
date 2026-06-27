@@ -134,6 +134,41 @@ export function AutoPayoutHistory() {
           </div>
         )}
 
+        {user && (
+          <div className="rounded-lg border p-3 space-y-2 bg-muted/5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold flex items-center gap-1 text-muted-foreground uppercase tracking-wide">
+                <Filter className="h-3 w-3" /> Filters
+              </span>
+              {hasFilter && (
+                <Button variant="ghost" size="sm" className="h-6 text-[11px] px-2" onClick={clearFilters}>Clear</Button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Status</Label>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="success">Success</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">From</Label>
+                <Input type="date" value={fromDate} max={toDate || undefined} onChange={(e) => setFromDate(e.target.value)} className="h-9 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">To</Label>
+                <Input type="date" value={toDate} min={fromDate || undefined} onChange={(e) => setToDate(e.target.value)} className="h-9 text-xs" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {!user ? (
           <p className="text-xs text-muted-foreground italic py-4 text-center">Pick a recipient above to view their auto payout history.</p>
         ) : loading ? (
@@ -151,6 +186,8 @@ export function AutoPayoutHistory() {
                 <div className="flex items-start justify-between gap-2">
                   {e.status === 'success' ? (
                     <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] gap-1"><CheckCircle2 className="h-3 w-3" /> Paid</Badge>
+                  ) : e.status === 'cancelled' ? (
+                    <Badge className="bg-amber-500 hover:bg-amber-500 text-white text-[10px] gap-1"><Ban className="h-3 w-3" /> Cancelled</Badge>
                   ) : (
                     <Badge className="bg-destructive hover:bg-destructive text-destructive-foreground text-[10px] gap-1"><XCircle className="h-3 w-3" /> Failed</Badge>
                   )}
