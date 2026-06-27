@@ -78,6 +78,7 @@ import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
 import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
+import { validateUgandaPhone } from '@/lib/ugandaPhone';
 import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
 import { useIsMobile } from '@/hooks/use-mobile';
 
