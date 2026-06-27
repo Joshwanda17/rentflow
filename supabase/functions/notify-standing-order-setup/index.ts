@@ -148,6 +148,7 @@ Deno.serve(async (req) => {
       schedule,
       reason,
       next_run_at,
+      channel: requestedChannel,
     } = await req.json();
 
     if (!target_user_id || amount == null) {
@@ -156,6 +157,11 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // When a single channel is requested (manual resend), only that channel runs.
+    // Omitting `channel` (initial setup) sends both SMS and email.
+    const doSms = !requestedChannel || requestedChannel === "sms";
+    const doEmail = !requestedChannel || requestedChannel === "email";
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -249,7 +255,7 @@ Deno.serve(async (req) => {
 
     // 1) SMS to the recipient confirming the standing order is set.
     let smsSent = false;
-    if (profile.phone) {
+    if (doSms && profile.phone) {
       const msg = `Hi ${firstName}, WELILE has set up an automatic payout of ${amountStr} to your wallet (${scheduleLabel}). You'll get a message each time it runs. welilereceipts.com`;
       const smsResult = await withRetry(
         "sms",
@@ -274,7 +280,7 @@ Deno.serve(async (req) => {
         last_sent_at: smsSent ? new Date().toISOString() : null,
         recipient: profile.phone,
       });
-    } else {
+    } else if (doSms) {
       await recordStatus("sms", { status: "skipped", last_error: "No phone number on profile" });
       await recordAttempt("sms", {
         attempt_number: 1,
@@ -285,7 +291,7 @@ Deno.serve(async (req) => {
 
     // 2) Email to the recipient (skip synthetic @welile.user addresses).
     let emailSent = false;
-    if (profile.email && !profile.email.endsWith("@welile.user")) {
+    if (doEmail && profile.email && !profile.email.endsWith("@welile.user")) {
       // The same idempotencyKey across retries means the email pipeline de-dupes
       // if an earlier attempt actually succeeded before the error surfaced.
       const emailResult = await withRetry(
@@ -332,7 +338,7 @@ Deno.serve(async (req) => {
         last_sent_at: emailSent ? new Date().toISOString() : null,
         recipient: profile.email,
       });
-    } else {
+    } else if (doEmail) {
       await recordStatus("email", {
         status: "skipped",
         last_error: profile.email ? "Synthetic @welile.user address" : "No email on profile",
