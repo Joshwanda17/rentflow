@@ -367,6 +367,64 @@ function formatPhoneInput(raw: string): string {
   return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
 }
 
+/* Normalise a Ugandan number to an international dialling string (no '+').
+ * Handles local 0XXXXXXXXX, bare 9-digit (7XXXXXXXX) and already-prefixed
+ * 256... inputs so tel:/wa.me links work from any device. */
+function toInternationalPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let digits = raw.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('256')) {
+    // already international
+  } else if (digits.startsWith('0')) {
+    digits = `256${digits.slice(1)}`;
+  } else if (digits.length === 9) {
+    digits = `256${digits}`;
+  } else if (digits.length === 10 && digits.startsWith('0')) {
+    digits = `256${digits.slice(1)}`;
+  } else {
+    digits = `256${digits}`;
+  }
+  return digits;
+}
+
+/* Inline Call + WhatsApp actions for a landlord phone number. Lets an agent
+ * reach the landlord before confirming the selection. */
+function PhoneContactActions({
+  phone,
+  className,
+}: {
+  phone: string | null | undefined;
+  className?: string;
+}) {
+  const intl = toInternationalPhone(phone);
+  if (!intl) return null;
+  return (
+    <div className={`flex items-center gap-2 ${className ?? ''}`}>
+      <a
+        href={`tel:+${intl}`}
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+        aria-label={`Call ${formatPhoneInput(phone || '')}`}
+      >
+        <Phone className="h-3.5 w-3.5" />
+        Call
+      </a>
+      <a
+        href={`https://wa.me/${intl}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-green-600/40 bg-green-600/10 px-2 py-1.5 text-[11px] font-semibold text-green-700 dark:text-green-400 hover:bg-green-600/20 transition-colors"
+        aria-label={`WhatsApp ${formatPhoneInput(phone || '')}`}
+      >
+        <MessageCircle className="h-3.5 w-3.5" />
+        WhatsApp
+      </a>
+    </div>
+  );
+}
+
 // ===== FIX #7: Currency display formatting =====
 function formatCurrencyInput(raw: string): string {
   const digits = raw.replace(/\D/g, '');
