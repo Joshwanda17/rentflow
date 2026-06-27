@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { EntityDetailSheet } from '@/components/executive/EntityDetailSheet';
-import { Loader2, UserRound, MessageSquare, Mail, CheckCircle2, XCircle, MinusCircle, Clock } from 'lucide-react';
+import { Loader2, UserRound, MessageSquare, Mail, CheckCircle2, XCircle, MinusCircle, Clock, RotateCw } from 'lucide-react';
 
 interface ProfileData {
   full_name: string | null;
