@@ -195,6 +195,33 @@ Deno.serve(async (req) => {
       }
     };
 
+    // Append one row per individual delivery attempt so staff can see a full
+    // retry timeline (each attempt's time, outcome, and error).
+    const recordAttempt = async (
+      channel: "sms" | "email",
+      info: {
+        attempt_number: number;
+        outcome: "success" | "transient_failure" | "permanent_failure" | "skipped";
+        error?: string | null;
+        recipient?: string | null;
+      },
+    ) => {
+      try {
+        await adminClient.from("standing_order_notification_attempts").insert({
+          scheduled_payout_id: scheduled_payout_id ?? null,
+          target_user_id,
+          channel,
+          attempt_number: info.attempt_number,
+          outcome: info.outcome,
+          error: info.error ?? null,
+          recipient: info.recipient ?? null,
+          attempted_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.error(`[notify-standing-order-setup] failed to record ${channel} attempt:`, e);
+      }
+    };
+
     const { data: profile } = await adminClient
       .from("profiles")
       .select("full_name, phone, email")
