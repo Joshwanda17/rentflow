@@ -572,16 +572,18 @@ export function DirectCreditTool() {
           category_id: selectedCategoryId,
           sub_category: selectedSubCategoryId || null,
           reason,
-          frequency: 'monthly',
-          day_of_month: automateDay,
+          frequency: automateConfig.frequency,
+          day_of_month: automateConfig.frequency === 'monthly' ? automateConfig.dayOfMonth : null,
+          day_of_week: automateConfig.frequency === 'weekly' ? automateConfig.dayOfWeek : null,
+          interval_days: automateConfig.frequency === 'interval' ? automateConfig.intervalDays : null,
           enabled: true,
-          next_run_at: getNextRunDate(automateDay),
+          next_run_at: getNextRunDate(automateConfig),
         });
         if (schedErr) {
           console.error('[DirectCreditTool] Failed to save schedule:', schedErr);
           toast({ title: '⚠️ Payout succeeded but schedule failed', description: schedErr.message, variant: 'destructive' });
         } else {
-          toast({ title: '🔁 Recurring payout saved', description: `Will auto-pay on day ${automateDay} every month` });
+          toast({ title: '🔁 Standing order saved', description: `Will auto-pay: ${describeSchedule(automateConfig)}` });
         }
       }
 
