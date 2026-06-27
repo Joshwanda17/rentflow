@@ -195,7 +195,28 @@ export function StandingOrderProfileSheet({ open, onClose, scheduledPayoutId, ta
       <div className="mt-3 border-t pt-3">
         <p className="text-xs font-semibold text-muted-foreground mb-2">Setup notification delivery</p>
         {notifs.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No delivery records yet.</p>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">No delivery records yet.</p>
+            <div className="flex gap-2">
+              {(['sms', 'email'] as const).map((ch) => (
+                <Button
+                  key={ch}
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={resending !== null}
+                  onClick={() => handleResend(ch)}
+                >
+                  {resending === ch ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                  Send {ch}
+                </Button>
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="space-y-2">
             {notifs.map((n) => {
