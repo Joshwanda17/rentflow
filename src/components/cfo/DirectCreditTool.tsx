@@ -323,7 +323,12 @@ export function DirectCreditTool() {
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
   const [recipientType, setRecipientType] = useState<RecipientType | ''>('');
   const [automateEnabled, setAutomateEnabled] = useState(false);
-  const [automateDay, setAutomateDay] = useState(1);
+  const [automateConfig, setAutomateConfig] = useState<PayoutScheduleConfig>({
+    frequency: 'monthly',
+    dayOfMonth: 1,
+    dayOfWeek: 1,
+    intervalDays: 7,
+  });
   // Float (Operational Wallet) sends require an explicit confirmation step —
   // no transaction ID is collected, the CFO simply confirms the float movement.
   const [floatConfirmOpen, setFloatConfirmOpen] = useState(false);
