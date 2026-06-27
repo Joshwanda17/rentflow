@@ -15874,6 +15874,56 @@ export type Database = {
         }
         Relationships: []
       }
+      standing_order_setup_notifications: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          id: string
+          last_error: string | null
+          last_sent_at: string | null
+          recipient: string | null
+          scheduled_payout_id: string | null
+          status: string
+          target_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          channel: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_sent_at?: string | null
+          recipient?: string | null
+          scheduled_payout_id?: string | null
+          status?: string
+          target_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_sent_at?: string | null
+          recipient?: string | null
+          scheduled_payout_id?: string | null
+          status?: string
+          target_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standing_order_setup_notifications_scheduled_payout_id_fkey"
+            columns: ["scheduled_payout_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_charge_logs: {
         Row: {
           amount_deducted: number
