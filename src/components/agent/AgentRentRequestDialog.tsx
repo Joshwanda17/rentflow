@@ -819,8 +819,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (h.latitude != null && h.longitude != null) {
         setGpsLocation({ lat: Number(h.latitude), lng: Number(h.longitude), accuracy: 0 });
       }
-      toast.success('House selected', {
-        description: 'Landlord and property details filled in automatically.',
+      const locParts = [h.address, h.region, h.district].filter(Boolean).join(', ');
+      toast.success(`Selected: ${h.title || 'House'}`, {
+        description: [
+          locParts ? `📍 ${locParts}` : null,
+          h.landlord_name ? `👤 ${h.landlord_name}${h.landlord_phone ? ` · ${formatPhoneInput(h.landlord_phone)}` : ''}` : null,
+          h.monthly_rent ? `💰 ${formatUGX(h.monthly_rent)}/mo` : null,
+        ].filter(Boolean).join('\n'),
       });
     },
     [],
@@ -3856,6 +3861,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
                 {selectedHouse ? (
                   <div className="rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 p-3 space-y-1">
+                    <p className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                      <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                      Landlord & house selected
+                    </p>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -3876,19 +3885,30 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                             <span className="truncate">
                               {selectedHouse.address}
                               {selectedHouse.region ? `, ${selectedHouse.region}` : ''}
+                              {selectedHouse.district ? `, ${selectedHouse.district}` : ''}
                             </span>
                           </p>
                         )}
-                        <p className="text-xs mt-1">
-                          {selectedHouse.landlord_name && (
-                            <span className="font-semibold">{selectedHouse.landlord_name}</span>
-                          )}
-                          {selectedHouse.monthly_rent ? (
-                            <span className="text-emerald-700 dark:text-emerald-400 font-bold ml-2">
+                        {selectedHouse.landlord_name && (
+                          <p className="text-xs mt-1 flex items-center gap-1 text-muted-foreground">
+                            <User className="h-3 w-3 flex-shrink-0" />
+                            <span className="font-semibold text-foreground truncate">{selectedHouse.landlord_name}</span>
+                          </p>
+                        )}
+                        {selectedHouse.landlord_phone && (
+                          <p className="text-xs mt-0.5 flex items-center gap-1 text-muted-foreground">
+                            <Phone className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{formatPhoneInput(selectedHouse.landlord_phone)}</span>
+                          </p>
+                        )}
+                        {selectedHouse.monthly_rent ? (
+                          <p className="text-xs mt-0.5 flex items-center gap-1">
+                            <Banknote className="h-3 w-3 flex-shrink-0 text-emerald-700 dark:text-emerald-400" />
+                            <span className="text-emerald-700 dark:text-emerald-400 font-bold">
                               {formatUGX(selectedHouse.monthly_rent)}/mo
                             </span>
-                          ) : null}
-                        </p>
+                          </p>
+                        ) : null}
                       </div>
                       <Button
                         type="button"
