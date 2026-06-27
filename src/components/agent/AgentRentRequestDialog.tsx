@@ -78,6 +78,7 @@ import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { hapticSuccess } from '@/lib/haptics';
 import { normalizeDistrict, districtWarning } from '@/lib/ugandaDistricts';
+import { validateUgandaPhone } from '@/lib/ugandaPhone';
 import { generateRentRequestFormPdf } from '@/lib/rentRequestFormPdf';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -367,29 +368,12 @@ function formatPhoneInput(raw: string): string {
   return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
 }
 
-/* Normalise a Ugandan number to an international dialling string (no '+').
- * Handles local 0XXXXXXXXX, bare 9-digit (7XXXXXXXX) and already-prefixed
- * 256... inputs so tel:/wa.me links work from any device. */
-function toInternationalPhone(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  let digits = raw.replace(/\D/g, '');
-  if (!digits) return null;
-  if (digits.startsWith('256')) {
-    // already international
-  } else if (digits.startsWith('0')) {
-    digits = `256${digits.slice(1)}`;
-  } else if (digits.length === 9) {
-    digits = `256${digits}`;
-  } else if (digits.length === 10 && digits.startsWith('0')) {
-    digits = `256${digits.slice(1)}`;
-  } else {
-    digits = `256${digits}`;
-  }
-  return digits;
-}
-
 /* Inline Call + WhatsApp actions for a landlord phone number. Lets an agent
- * reach the landlord before confirming the selection. */
+ * reach the landlord before confirming the selection.
+ *
+ * The actions are only ENABLED when the number passes the shared Ugandan phone
+ * validation (client-side guard). Invalid/missing numbers render a disabled
+ * hint instead of a broken tel:/wa.me link. */
 function PhoneContactActions({
   phone,
   className,
@@ -397,12 +381,21 @@ function PhoneContactActions({
   phone: string | null | undefined;
   className?: string;
 }) {
-  const intl = toInternationalPhone(phone);
-  if (!intl) return null;
+  const { valid, e164, error } = validateUgandaPhone(phone);
+  if (!valid || !e164) {
+    return (
+      <div className={`flex items-center gap-1.5 ${className ?? ''}`}>
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          {error || 'No valid number to call'}
+        </span>
+      </div>
+    );
+  }
   return (
     <div className={`flex items-center gap-2 ${className ?? ''}`}>
       <a
-        href={`tel:+${intl}`}
+        href={`tel:+${e164}`}
         onClick={(e) => e.stopPropagation()}
         className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
         aria-label={`Call ${formatPhoneInput(phone || '')}`}
@@ -411,7 +404,7 @@ function PhoneContactActions({
         Call
       </a>
       <a
-        href={`https://wa.me/${intl}`}
+        href={`https://wa.me/${e164}`}
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
