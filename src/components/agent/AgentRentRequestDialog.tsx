@@ -819,8 +819,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (h.latitude != null && h.longitude != null) {
         setGpsLocation({ lat: Number(h.latitude), lng: Number(h.longitude), accuracy: 0 });
       }
-      toast.success('House selected', {
-        description: 'Landlord and property details filled in automatically.',
+      const locParts = [h.address, h.region, h.district].filter(Boolean).join(', ');
+      toast.success(`Selected: ${h.title || 'House'}`, {
+        description: [
+          locParts ? `📍 ${locParts}` : null,
+          h.landlord_name ? `👤 ${h.landlord_name}${h.landlord_phone ? ` · ${formatPhoneInput(h.landlord_phone)}` : ''}` : null,
+          h.monthly_rent ? `💰 ${formatUGX(h.monthly_rent)}/mo` : null,
+        ].filter(Boolean).join('\n'),
       });
     },
     [],
