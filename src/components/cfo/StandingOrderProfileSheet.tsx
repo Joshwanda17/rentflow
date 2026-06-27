@@ -36,6 +36,14 @@ interface NotifStatus {
   last_sent_at: string | null;
 }
 
+interface NotifAttempt {
+  channel: 'sms' | 'email';
+  attempt_number: number;
+  outcome: 'success' | 'transient_failure' | 'permanent_failure' | 'skipped';
+  error: string | null;
+  attempted_at: string;
+}
+
 function fmt(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('en-GB', {
@@ -50,10 +58,18 @@ const STATUS_META: Record<NotifStatus['status'], { icon: typeof CheckCircle2; cl
   pending: { icon: Clock, cls: 'text-amber-600', label: 'Pending' },
 };
 
+const OUTCOME_META: Record<NotifAttempt['outcome'], { icon: typeof CheckCircle2; cls: string; label: string }> = {
+  success: { icon: CheckCircle2, cls: 'text-emerald-600', label: 'Sent' },
+  transient_failure: { icon: RotateCw, cls: 'text-amber-600', label: 'Retrying' },
+  permanent_failure: { icon: XCircle, cls: 'text-destructive', label: 'Failed' },
+  skipped: { icon: MinusCircle, cls: 'text-muted-foreground', label: 'Skipped' },
+};
+
 export function StandingOrderProfileSheet({ open, onClose, scheduledPayoutId, targetUserId, recipientName, createdAt, schedule, amount }: Props) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(false);
   const [notifs, setNotifs] = useState<NotifStatus[]>([]);
+  const [attempts, setAttempts] = useState<NotifAttempt[]>([]);
 
   useEffect(() => {
     if (!open || !targetUserId) { setProfile(null); return; }
@@ -79,6 +95,21 @@ export function StandingOrderProfileSheet({ open, onClose, scheduledPayoutId, ta
       .eq('scheduled_payout_id', scheduledPayoutId)
       .then(({ data }) => {
         if (active) setNotifs((data ?? []) as NotifStatus[]);
+      });
+    return () => { active = false; };
+  }, [open, scheduledPayoutId]);
+
+  useEffect(() => {
+    if (!open || !scheduledPayoutId) { setAttempts([]); return; }
+    let active = true;
+    supabase
+      .from('standing_order_notification_attempts')
+      .select('channel, attempt_number, outcome, error, attempted_at')
+      .eq('scheduled_payout_id', scheduledPayoutId)
+      .order('channel', { ascending: true })
+      .order('attempt_number', { ascending: true })
+      .then(({ data }) => {
+        if (active) setAttempts((data ?? []) as NotifAttempt[]);
       });
     return () => { active = false; };
   }, [open, scheduledPayoutId]);
