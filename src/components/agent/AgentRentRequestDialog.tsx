@@ -841,12 +841,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setHouseConflict(false);
   }, []);
 
-  // Quick revert: clear the current selection and re-open the picker, re-running
-  // the previous search so the agent can immediately pick a different house.
+  // Quick revert: fully clear the current selection (house + every field that
+  // selectHouse auto-filled) and re-open the picker, re-running the previous
+  // search so the agent can immediately pick a different house. This keeps all
+  // related inline details in sync — no stale landlord/rent/location lingers.
   const undoSelectHouse = useCallback(() => {
     setSelectedHouse(null);
     setHouseConflict(false);
+    // Reset every field populated by selectHouse so nothing carries over.
+    setSelectedLandlord(null);
+    setRentAmount('');
+    setLandlordName('');
+    setLandlordPhone('');
+    setPropertyAddress('');
+    setPropertyDistrict('');
+    setPropertyCity('');
+    setHouseCategory('');
+    setGpsLocation(null);
     toast.info('Selection undone — pick another house');
+    // Preserve and re-run the previous picker search query.
     if (houseQuery.trim()) {
       searchAvailableHouses();
     }
