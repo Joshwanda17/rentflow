@@ -4342,6 +4342,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </SelectContent>
                       </Select>
                     )}
+                    {earnerCycle === 'weekly' && incomeType !== 'daily' && (
+                      <Button
+                        type="button"
+                        variant={repaymentPeriod === '364' ? 'default' : 'outline'}
+                        onClick={() => setRepaymentPeriod('364')}
+                        className="w-full mt-2 h-11 rounded-xl font-bold border-2 border-primary/40"
+                      >
+                        <Calendar className="h-4 w-4 mr-2" />
+                        All weeks (1 year · 52 weeks)
+                      </Button>
+                    )}
                   </div>
                 </div>
                 
