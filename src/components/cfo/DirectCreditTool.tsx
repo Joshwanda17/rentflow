@@ -1216,7 +1216,16 @@ function getNextRunDate(config: PayoutScheduleConfig): string {
     }
     case 'monthly':
     default: {
-      const next = new Date(now.getFullYear(), now.getMonth(), config.dayOfMonth);
+      // Preserve the exact time-of-day the standing order was created so it
+      // keeps paying out at that same moment each month.
+      const next = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        config.dayOfMonth,
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+      );
       if (next <= now) next.setMonth(next.getMonth() + 1);
       return next.toISOString();
     }
