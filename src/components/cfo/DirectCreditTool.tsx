@@ -1183,11 +1183,32 @@ export function DirectCreditTool() {
   );
 }
 
-function getNextRunDate(dayOfMonth: number): string {
+function getNextRunDate(config: PayoutScheduleConfig): string {
   const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), dayOfMonth);
-  if (next <= now) {
-    next.setMonth(next.getMonth() + 1);
+  switch (config.frequency) {
+    case 'daily': {
+      const next = new Date(now);
+      next.setDate(next.getDate() + 1);
+      return next.toISOString();
+    }
+    case 'weekly': {
+      const next = new Date(now);
+      const target = ((config.dayOfWeek % 7) + 7) % 7;
+      let diff = (target - next.getDay() + 7) % 7;
+      if (diff === 0) diff = 7;
+      next.setDate(next.getDate() + diff);
+      return next.toISOString();
+    }
+    case 'interval': {
+      const next = new Date(now);
+      next.setDate(next.getDate() + Math.max(1, config.intervalDays));
+      return next.toISOString();
+    }
+    case 'monthly':
+    default: {
+      const next = new Date(now.getFullYear(), now.getMonth(), config.dayOfMonth);
+      if (next <= now) next.setMonth(next.getMonth() + 1);
+      return next.toISOString();
+    }
   }
-  return next.toISOString();
 }
