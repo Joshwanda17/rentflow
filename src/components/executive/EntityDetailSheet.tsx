@@ -1,5 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Link2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -39,6 +39,27 @@ export function EntityDetailSheet({
   const [copied, setCopied] = useState(false);
   const isMobile = useIsMobile();
   const fullScreen = fullScreenOnMobile && isMobile;
+
+  // Focus return: remember whatever element opened the sheet (e.g. the
+  // "View landlord profile" button) and restore focus to it on any dismiss
+  // path — swipe-down, Escape, Close button, backdrop, or confirm.
+  const triggerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open) {
+      triggerRef.current = document.activeElement as HTMLElement | null;
+      return;
+    }
+    const el = triggerRef.current;
+    triggerRef.current = null;
+    if (!el) return;
+    // Wait for the sheet to unmount so focus isn't stolen back, then restore
+    // focus only if the trigger is still in the DOM and focusable.
+    requestAnimationFrame(() => {
+      if (el.isConnected && typeof el.focus === 'function') {
+        el.focus();
+      }
+    });
+  }, [open]);
 
   // Swipe-down-to-close for the full-screen mobile view.
   const touchStart = useRef<{ x: number; y: number; t: number } | null>(null);
