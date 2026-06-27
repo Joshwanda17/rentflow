@@ -1,5 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -40,6 +40,42 @@ export function EntityDetailSheet({
   const isMobile = useIsMobile();
   const fullScreen = fullScreenOnMobile && isMobile;
 
+  // Swipe-down-to-close for the full-screen mobile view.
+  const touchStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  const [dragY, setDragY] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Only start a drag when the scroll container is at the top, so the
+    // gesture never fights with normal content scrolling.
+    if (e.currentTarget.scrollTop > 0) {
+      touchStart.current = null;
+      return;
+    }
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const t = e.touches[0];
+    const dy = t.clientY - touchStart.current.y;
+    const dx = t.clientX - touchStart.current.x;
+    // Ignore mostly-horizontal moves and upward drags.
+    if (dy <= 0 || Math.abs(dx) > Math.abs(dy)) {
+      setDragY(0);
+      return;
+    }
+    setDragY(dy);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart.current) return;
+    const dropped = dragY;
+    touchStart.current = null;
+    setDragY(0);
+    if (dropped > 120) onClose();
+  };
+
   const handleShare = async () => {
     if (!shareUrl) return;
     try {
@@ -70,7 +106,18 @@ export function EntityDetailSheet({
             ? 'h-[100dvh] max-h-[100dvh] rounded-none'
             : 'max-h-[90vh] rounded-t-2xl',
         )}
+        onTouchStart={fullScreen ? handleTouchStart : undefined}
+        onTouchMove={fullScreen ? handleTouchMove : undefined}
+        onTouchEnd={fullScreen ? handleTouchEnd : undefined}
+        style={
+          fullScreen && dragY > 0
+            ? { transform: `translateY(${dragY}px)`, transition: 'none' }
+            : undefined
+        }
       >
+        {fullScreen && (
+          <div className="mx-auto -mt-1 mb-2 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/30" />
+        )}
         <SheetHeader className="text-left">
           <SheetTitle className="flex items-center gap-2 text-base">
             {icon}
