@@ -127,6 +127,14 @@ Deno.serve(async (req) => {
         const catConfig = catMap[payout.category_id] || catMap['operational_expense'];
         const subLabel = payout.sub_category ? ` → ${payout.sub_category}` : '';
 
+        // Resolve recipient name for run history + SMS.
+        const { data: recipientProfile } = await adminClient
+          .from("profiles")
+          .select("phone, full_name")
+          .eq("id", payout.target_user_id)
+          .maybeSingle();
+        const recipientName = recipientProfile?.full_name ?? null;
+
         // Call cfo-direct-credit via internal fetch with service role
         const res = await fetch(`${supabaseUrl}/functions/v1/cfo-direct-credit`, {
           method: "POST",
@@ -150,17 +158,34 @@ Deno.serve(async (req) => {
         if (!res.ok) {
           const errBody = await res.text();
           console.error(`[process-scheduled-payouts] Failed for payout ${payout.id}:`, errBody);
+          await adminClient.from("scheduled_payout_runs").insert({
+            scheduled_payout_id: payout.id,
+            target_user_id: payout.target_user_id,
+            recipient_name: recipientName,
+            amount: Number(payout.amount),
+            reason: payout.reason,
+            category_id: payout.category_id,
+            status: 'failed',
+            error_message: errBody?.slice(0, 500) ?? 'Unknown error',
+          });
           failed++;
           continue;
         }
 
+        // Record the successful automated run for per-individual history.
+        await adminClient.from("scheduled_payout_runs").insert({
+          scheduled_payout_id: payout.id,
+          target_user_id: payout.target_user_id,
+          recipient_name: recipientName,
+          amount: Number(payout.amount),
+          reason: payout.reason,
+          category_id: payout.category_id,
+          status: 'success',
+        });
+
         // Notify the recipient via SMS to pull them onto the platform/wallet.
         try {
-          const { data: profile } = await adminClient
-            .from("profiles")
-            .select("phone, full_name")
-            .eq("id", payout.target_user_id)
-            .maybeSingle();
+          const profile = recipientProfile;
           if (profile?.phone) {
             const firstName = (profile.full_name || "there").split(" ")[0];
             const amountStr = Number(payout.amount).toLocaleString();
