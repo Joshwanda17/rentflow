@@ -4326,13 +4326,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     ) : (
                       <Select value={repaymentPeriod} onValueChange={(v) => setRepaymentPeriod(v as RepaymentPeriod)}>
                         <SelectTrigger className="h-12 text-base font-semibold border-2 border-primary/30 rounded-xl"><SelectValue /></SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-72">
                           {earnerCycle === 'weekly' ? (
-                            <>
-                              <SelectItem value="7">7 Days (1 Week)</SelectItem>
-                              <SelectItem value="14">14 Days (2 Weeks)</SelectItem>
-                              <SelectItem value="21">21 Days (3 Weeks)</SelectItem>
-                            </>
+                            Array.from({ length: 52 }, (_, i) => i + 1).map((w) => (
+                              <SelectItem key={w} value={String(w * 7)}>
+                                {w} Week{w > 1 ? 's' : ''} ({w * 7} Days){w === 52 ? ' · 1 Year' : ''}
+                              </SelectItem>
+                            ))
                           ) : (
                             <>
                               <SelectItem value="30">30 Days (1 Month)</SelectItem>
