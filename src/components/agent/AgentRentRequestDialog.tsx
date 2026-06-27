@@ -826,6 +826,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           h.landlord_name ? `👤 ${h.landlord_name}${h.landlord_phone ? ` · ${formatPhoneInput(h.landlord_phone)}` : ''}` : null,
           h.monthly_rent ? `💰 ${formatUGX(h.monthly_rent)}/mo` : null,
         ].filter(Boolean).join('\n'),
+        action: {
+          label: 'Undo',
+          onClick: () => undoSelectHouse(),
+        },
       });
     },
     [],
@@ -835,6 +839,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setSelectedHouse(null);
     setHouseConflict(false);
   }, []);
+
+  // Quick revert: clear the current selection and re-open the picker, re-running
+  // the previous search so the agent can immediately pick a different house.
+  const undoSelectHouse = useCallback(() => {
+    setSelectedHouse(null);
+    setHouseConflict(false);
+    toast.info('Selection undone — pick another house');
+    if (houseQuery.trim()) {
+      searchAvailableHouses();
+    }
+  }, [houseQuery, searchAvailableHouses]);
 
   // "Swap tenant" entry point: when the dialog is opened with a preselected
   // house (the one just vacated), select it automatically so the agent skips
