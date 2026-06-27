@@ -15874,6 +15874,45 @@ export type Database = {
         }
         Relationships: []
       }
+      standing_order_notification_attempts: {
+        Row: {
+          attempt_number: number
+          attempted_at: string
+          channel: string
+          created_at: string
+          error: string | null
+          id: string
+          outcome: string
+          recipient: string | null
+          scheduled_payout_id: string | null
+          target_user_id: string
+        }
+        Insert: {
+          attempt_number: number
+          attempted_at?: string
+          channel: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          outcome: string
+          recipient?: string | null
+          scheduled_payout_id?: string | null
+          target_user_id: string
+        }
+        Update: {
+          attempt_number?: number
+          attempted_at?: string
+          channel?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          outcome?: string
+          recipient?: string | null
+          scheduled_payout_id?: string | null
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       standing_order_setup_notifications: {
         Row: {
           attempts: number
