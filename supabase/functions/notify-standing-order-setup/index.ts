@@ -27,25 +27,27 @@ async function withRetry<T>(
   label: string,
   fn: (attempt: number) => Promise<T>,
   opts: { retries?: number; baseDelayMs?: number; maxDelayMs?: number } = {},
-): Promise<{ value: T | null; attempts: number; ok: boolean }> {
+): Promise<{ value: T | null; attempts: number; ok: boolean; lastError: string | null }> {
   const retries = opts.retries ?? 3;
   const baseDelayMs = opts.baseDelayMs ?? 500;
   const maxDelayMs = opts.maxDelayMs ?? 8000;
   let attempt = 0;
   let lastValue: T | null = null;
+  let lastError: string | null = null;
   while (attempt <= retries) {
     attempt++;
     try {
       lastValue = await fn(attempt);
-      return { value: lastValue, attempts: attempt, ok: true };
+      return { value: lastValue, attempts: attempt, ok: true, lastError: null };
     } catch (err) {
       const transient = err instanceof TransientError;
+      lastError = err instanceof Error ? err.message : String(err);
       console.error(
         `[notify-standing-order-setup] ${label} attempt ${attempt} failed (transient=${transient}):`,
         err instanceof Error ? err.message : err,
       );
       if (!transient || attempt > retries) {
-        return { value: lastValue, attempts: attempt, ok: false };
+        return { value: lastValue, attempts: attempt, ok: false, lastError };
       }
       // Exponential backoff with full jitter.
       const backoff = Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
@@ -53,7 +55,7 @@ async function withRetry<T>(
       await sleep(delay);
     }
   }
-  return { value: lastValue, attempts: attempt, ok: false };
+  return { value: lastValue, attempts: attempt, ok: false, lastError };
 }
 
 async function sendSMSOnce(phone: string, message: string): Promise<boolean> {
@@ -137,6 +139,39 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Persist per-channel delivery status so staff can see what was delivered.
+    const recordStatus = async (
+      channel: "sms" | "email",
+      fields: {
+        status: "pending" | "sent" | "failed" | "skipped";
+        attempts?: number;
+        last_error?: string | null;
+        last_sent_at?: string | null;
+        recipient?: string | null;
+      },
+    ) => {
+      try {
+        await adminClient
+          .from("standing_order_setup_notifications")
+          .upsert(
+            {
+              scheduled_payout_id: scheduled_payout_id ?? null,
+              target_user_id,
+              channel,
+              status: fields.status,
+              attempts: fields.attempts ?? 0,
+              last_error: fields.last_error ?? null,
+              last_sent_at: fields.last_sent_at ?? null,
+              recipient: fields.recipient ?? null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "scheduled_payout_id,channel" },
+          );
+      } catch (e) {
+        console.error(`[notify-standing-order-setup] failed to record ${channel} status:`, e);
+      }
+    };
+
     const { data: profile } = await adminClient
       .from("profiles")
       .select("full_name, phone, email")
@@ -172,6 +207,15 @@ Deno.serve(async (req) => {
         { retries: 3, baseDelayMs: 500 },
       );
       smsSent = smsResult.ok && smsResult.value === true;
+      await recordStatus("sms", {
+        status: smsSent ? "sent" : "failed",
+        attempts: smsResult.attempts,
+        last_error: smsSent ? null : (smsResult.lastError ?? "SMS not accepted by gateway"),
+        last_sent_at: smsSent ? new Date().toISOString() : null,
+        recipient: profile.phone,
+      });
+    } else {
+      await recordStatus("sms", { status: "skipped", last_error: "No phone number on profile" });
     }
 
     // 2) Email to the recipient (skip synthetic @welile.user addresses).
@@ -206,6 +250,19 @@ Deno.serve(async (req) => {
         { retries: 3, baseDelayMs: 500 },
       );
       emailSent = emailResult.ok && emailResult.value === true;
+      await recordStatus("email", {
+        status: emailSent ? "sent" : "failed",
+        attempts: emailResult.attempts,
+        last_error: emailSent ? null : (emailResult.lastError ?? "Email enqueue failed"),
+        last_sent_at: emailSent ? new Date().toISOString() : null,
+        recipient: profile.email,
+      });
+    } else {
+      await recordStatus("email", {
+        status: "skipped",
+        last_error: profile.email ? "Synthetic @welile.user address" : "No email on profile",
+        recipient: profile.email ?? null,
+      });
     }
 
     return new Response(JSON.stringify({ success: true, sms_sent: smsSent, email_sent: emailSent }), {

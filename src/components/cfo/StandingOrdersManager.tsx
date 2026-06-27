@@ -246,6 +246,7 @@ export function StandingOrdersManager() {
     <StandingOrderProfileSheet
       open={!!profileOrder}
       onClose={() => setProfileOrder(null)}
+      scheduledPayoutId={profileOrder?.id ?? null}
       targetUserId={profileOrder?.target_user_id ?? null}
       recipientName={profileOrder?.recipient_name ?? null}
       createdAt={profileOrder?.created_at ?? null}
