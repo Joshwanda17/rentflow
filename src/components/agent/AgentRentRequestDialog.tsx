@@ -1540,7 +1540,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const buildDraftPayload = () => ({
     incomeType, tenantName, tenantPhone, tenantNationalId, preferredLanguage,
-    rentAmount, outstandingBalance, duration, repaymentPeriod,
+    rentAmount, outstandingBalance, duration, repaymentPeriod, earnerCycle,
     landlordName, landlordPhone, propertyAddress,
     lc1Name, lc1Phone, lc1Village, propertyCity, propertyDistrict,
     houseCategory, landlordPayoutDay, outstandingHouseCategory,
