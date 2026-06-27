@@ -3933,7 +3933,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                             searchAvailableHouses();
                           }
                         }}
-                        placeholder="Landlord name, region, or description"
+                        placeholder="Landlord name, phone, region, or description"
                         className="flex-1"
                       />
                       <Button
