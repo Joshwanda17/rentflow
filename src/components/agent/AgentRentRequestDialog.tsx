@@ -69,7 +69,8 @@ import {
   UserPlus,
   X,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Undo2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
@@ -826,6 +827,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           h.landlord_name ? `👤 ${h.landlord_name}${h.landlord_phone ? ` · ${formatPhoneInput(h.landlord_phone)}` : ''}` : null,
           h.monthly_rent ? `💰 ${formatUGX(h.monthly_rent)}/mo` : null,
         ].filter(Boolean).join('\n'),
+        action: {
+          label: 'Undo',
+          onClick: () => undoSelectHouse(),
+        },
       });
     },
     [],
@@ -835,6 +840,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setSelectedHouse(null);
     setHouseConflict(false);
   }, []);
+
+  // Quick revert: clear the current selection and re-open the picker, re-running
+  // the previous search so the agent can immediately pick a different house.
+  const undoSelectHouse = useCallback(() => {
+    setSelectedHouse(null);
+    setHouseConflict(false);
+    toast.info('Selection undone — pick another house');
+    if (houseQuery.trim()) {
+      searchAvailableHouses();
+    }
+  }, [houseQuery, searchAvailableHouses]);
 
   // "Swap tenant" entry point: when the dialog is opened with a preselected
   // house (the one just vacated), select it automatically so the agent skips
@@ -3910,15 +3926,26 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           </p>
                         ) : null}
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs flex-shrink-0"
-                        onClick={clearSelectedHouse}
-                      >
-                        <X className="h-3.5 w-3.5 mr-1" /> Change
-                      </Button>
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={undoSelectHouse}
+                        >
+                          <Undo2 className="h-3.5 w-3.5 mr-1" /> Undo
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={clearSelectedHouse}
+                        >
+                          <X className="h-3.5 w-3.5 mr-1" /> Change
+                        </Button>
+                      </div>
                     </div>
                     {houseConflict && (
                       <div className="mt-2 rounded-lg border border-destructive/50 bg-destructive/10 p-2.5">
