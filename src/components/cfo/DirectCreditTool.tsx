@@ -595,6 +595,22 @@ export function DirectCreditTool() {
             scheduleDescription: describeSchedule(automateConfig),
           });
           toast({ title: '🔁 Standing order saved', description: `Will auto-pay: ${describeSchedule(automateConfig)}` });
+
+          // Notify the recipient that a recurring payout has been set up (SMS + email).
+          try {
+            await supabase.functions.invoke('notify-standing-order-setup', {
+              body: {
+                target_user_id: selectedUser.id,
+                scheduled_payout_id: (schedRow as any)?.id ?? null,
+                amount: amt,
+                schedule: describeSchedule(automateConfig),
+                reason,
+                next_run_at: getNextRunDate(automateConfig),
+              },
+            });
+          } catch (notifyErr) {
+            console.error('[DirectCreditTool] standing order notify failed:', notifyErr);
+          }
         }
       }
 
