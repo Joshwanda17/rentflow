@@ -480,13 +480,13 @@ function vAmount(value: string): string | null {
   return null;
 }
 /**
- * Validator for the landlord's total rent need (weekly earner flow).
+ * Validator for the landlord's ONE-MONTH rent amount (weekly earner flow).
  * Unlike vAmount it is strict: it errors when empty or non-numeric so the
  * weekly repayment can always be computed from a valid UGX figure.
  */
 function vRentNeed(raw: string): string | null {
   const trimmed = (raw ?? '').trim();
-  if (!trimmed) return "Enter the landlord's total rent need";
+  if (!trimmed) return "Enter the landlord's monthly rent amount";
   const digits = trimmed.replace(/[^0-9]/g, '');
   if (!digits) return 'Use numbers only, e.g. 500,000';
   if (Number(digits) <= 0) return 'Enter an amount above 0, e.g. 500,000';
@@ -4242,12 +4242,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label className="font-semibold text-primary/80">
                       {incomeType === 'weekly-monthly' && earnerCycle === 'weekly'
-                        ? "Landlord's Total Rent Need (UGX) *"
+                        ? "Landlord's Monthly Rent (UGX) *"
                         : 'Rent Amount (UGX) *'}
                     </Label>
                     <p className="text-[10px] font-bold text-primary/60 italic">
                       {incomeType === 'weekly-monthly' && earnerCycle === 'weekly'
-                        ? 'Enter the full amount the landlord needs — weekly repayment is computed automatically'
+                        ? 'Enter ONE month\u2019s rent only \u2014 Welile pays the landlord this every month; the tenant repays weekly at the one-month rate'
                         : 'Let Welile pay this today'}
                     </p>
                     {/* FIX #7: Currency formatting */}
@@ -4301,7 +4301,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         {formatUGX(Math.ceil((amount * 1.33) / 4))}<span className="text-base font-bold">/week</span>
                       </p>
                       <p className="text-[11px] text-success/70 font-medium">
-                        {formatUGX(amount)} + 33% = {formatUGX(Math.round(amount * 1.33))}, divided by 4 weeks
+                        {formatUGX(amount)} (1 month) + 33% = {formatUGX(Math.round(amount * 1.33))}, divided by 4 weeks
+                      </p>
+                      <p className="text-[10px] text-success/60 font-medium pt-1">
+                        Welile pays the landlord {formatUGX(amount)} every month. Extra weeks just extend how long Welile keeps paying — the weekly rate stays the same.
                       </p>
                     </div>
                   )}
