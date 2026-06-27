@@ -62,7 +62,8 @@ for (const id of INVALID) {
     await expect(card.locator('a[href^="tel:"]')).toHaveCount(0);
     await expect(card.locator('a[href^="https://wa.me/"]')).toHaveCount(0);
 
-    // The disabled-state hint is shown instead.
-    await expect(card.getByText(/valid number/i)).toBeVisible();
+    // The disabled-state hint is shown instead ("required" for empty/null,
+    // "valid Ugandan phone number" for malformed input).
+    await expect(card.getByText(/required|valid Ugandan/i)).toBeVisible();
   });
 }
