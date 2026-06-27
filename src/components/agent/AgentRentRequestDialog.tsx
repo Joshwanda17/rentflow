@@ -119,7 +119,7 @@ interface AgentRentRequestDialogProps {
 }
 
 type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
-type RepaymentPeriod = '7' | '14' | '21' | '30' | '120';
+type RepaymentPeriod = string;
 
 const HOUSE_CATEGORIES = [
   { value: 'single-room', label: 'Single Room', emoji: '🚪' },
