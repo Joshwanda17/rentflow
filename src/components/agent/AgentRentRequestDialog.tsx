@@ -2300,6 +2300,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const fees = calculateFees();
 
+  // ===== Weekly earner submit gate =====
+  // The form must stay un-submittable until the landlord's total rent need is a
+  // valid UGX number AND the weekly repayment ((total + 33%) ÷ 4) is computed.
+  const isWeeklyEarner = incomeType === 'weekly-monthly' && earnerCycle === 'weekly';
+  const weeklyRepayment = isWeeklyEarner && amount > 0 ? Math.ceil((amount * 1.33) / 4) : 0;
+  const weeklyEarnerBlocksSubmit =
+    isWeeklyEarner && (vRentNeed(rentAmount) !== null || weeklyRepayment <= 0);
+
   // ===== FIX #1: Phone validation helper =====
   const collectValidationErrors = (isOutstanding: boolean): string[] => {
     const errors: string[] = [];
@@ -5894,7 +5902,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     onClick={submitQueued ? promptCancelQueued : requestSubmit}
                     className="flex-1"
                     variant={submitQueued ? 'secondary' : 'default'}
-                    disabled={loading || !amount || amount < 50000 || landlordCheck !== 'registered'}
+                    disabled={loading || !amount || amount < 50000 || landlordCheck !== 'registered' || weeklyEarnerBlocksSubmit}
                   >
                     {loading ? (
                       <>
@@ -5915,6 +5923,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               {detailStep === DETAIL_STEPS.length - 1 && amount > 0 && amount < 50000 && (
                 <p className="text-xs font-semibold text-warning text-center -mt-1">
                   Rent amount must be at least UGX 50,000 to post.
+                </p>
+              )}
+              {detailStep === DETAIL_STEPS.length - 1 && weeklyEarnerBlocksSubmit && (
+                <p className="text-xs font-semibold text-warning text-center -mt-1">
+                  Enter a valid landlord rent need so the weekly repayment can be computed before submitting.
                 </p>
               )}
               {loading && (
