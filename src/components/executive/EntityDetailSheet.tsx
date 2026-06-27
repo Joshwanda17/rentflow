@@ -2,6 +2,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useState } from 'react';
 import { Check, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 export interface DetailField {
   label: string;
@@ -17,6 +19,8 @@ interface EntityDetailSheetProps {
   fields?: DetailField[];
   /** When provided, a "Copy link" button shares this deep link to the record */
   shareUrl?: string;
+  /** Render as a full smartphone-height screen on mobile devices */
+  fullScreenOnMobile?: boolean;
   /** Extra content (e.g. contact CTAs, tenant lists) shown below the fields */
   children?: React.ReactNode;
 }
@@ -29,9 +33,12 @@ export function EntityDetailSheet({
   icon,
   fields = [],
   shareUrl,
+  fullScreenOnMobile = false,
   children,
 }: EntityDetailSheetProps) {
   const [copied, setCopied] = useState(false);
+  const isMobile = useIsMobile();
+  const fullScreen = fullScreenOnMobile && isMobile;
 
   const handleShare = async () => {
     if (!shareUrl) return;
@@ -55,7 +62,15 @@ export function EntityDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-2xl">
+      <SheetContent
+        side="bottom"
+        className={cn(
+          'overflow-y-auto',
+          fullScreen
+            ? 'h-[100dvh] max-h-[100dvh] rounded-none'
+            : 'max-h-[90vh] rounded-t-2xl',
+        )}
+      >
         <SheetHeader className="text-left">
           <SheetTitle className="flex items-center gap-2 text-base">
             {icon}
