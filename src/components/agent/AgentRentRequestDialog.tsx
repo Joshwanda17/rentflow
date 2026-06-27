@@ -3848,7 +3848,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   🏠 Find the House
                 </h4>
                 <p className="text-xs text-muted-foreground -mt-1">
-                  Search an available house by landlord name, region, or any description, then select it.
+                  Search an available house by landlord name, landlord phone, region, or any description, then select it.
                 </p>
 
                 {selectedHouse ? (
