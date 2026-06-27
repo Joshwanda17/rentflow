@@ -27,25 +27,27 @@ async function withRetry<T>(
   label: string,
   fn: (attempt: number) => Promise<T>,
   opts: { retries?: number; baseDelayMs?: number; maxDelayMs?: number } = {},
-): Promise<{ value: T | null; attempts: number; ok: boolean }> {
+): Promise<{ value: T | null; attempts: number; ok: boolean; lastError: string | null }> {
   const retries = opts.retries ?? 3;
   const baseDelayMs = opts.baseDelayMs ?? 500;
   const maxDelayMs = opts.maxDelayMs ?? 8000;
   let attempt = 0;
   let lastValue: T | null = null;
+  let lastError: string | null = null;
   while (attempt <= retries) {
     attempt++;
     try {
       lastValue = await fn(attempt);
-      return { value: lastValue, attempts: attempt, ok: true };
+      return { value: lastValue, attempts: attempt, ok: true, lastError: null };
     } catch (err) {
       const transient = err instanceof TransientError;
+      lastError = err instanceof Error ? err.message : String(err);
       console.error(
         `[notify-standing-order-setup] ${label} attempt ${attempt} failed (transient=${transient}):`,
         err instanceof Error ? err.message : err,
       );
       if (!transient || attempt > retries) {
-        return { value: lastValue, attempts: attempt, ok: false };
+        return { value: lastValue, attempts: attempt, ok: false, lastError };
       }
       // Exponential backoff with full jitter.
       const backoff = Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
@@ -53,7 +55,7 @@ async function withRetry<T>(
       await sleep(delay);
     }
   }
-  return { value: lastValue, attempts: attempt, ok: false };
+  return { value: lastValue, attempts: attempt, ok: false, lastError };
 }
 
 async function sendSMSOnce(phone: string, message: string): Promise<boolean> {
