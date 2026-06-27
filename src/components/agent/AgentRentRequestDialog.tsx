@@ -4212,8 +4212,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 </h4>
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <Label className="font-semibold text-primary/80">Rent Amount (UGX) *</Label>
-                    <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
+                    <Label className="font-semibold text-primary/80">
+                      {incomeType === 'weekly-monthly' && earnerCycle === 'weekly'
+                        ? "Landlord's Total Rent Need (UGX) *"
+                        : 'Rent Amount (UGX) *'}
+                    </Label>
+                    <p className="text-[10px] font-bold text-primary/60 italic">
+                      {incomeType === 'weekly-monthly' && earnerCycle === 'weekly'
+                        ? 'Enter the full amount the landlord needs — weekly repayment is computed automatically'
+                        : 'Let Welile pay this today'}
+                    </p>
                     {/* FIX #7: Currency formatting */}
                     <Input
                       value={formatCurrencyInput(rentAmount)}
