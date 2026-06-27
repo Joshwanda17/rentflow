@@ -3987,6 +3987,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                                 {h.landlord_name && (
                                   <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                                     Landlord: {h.landlord_name}
+                                    {h.landlord_phone ? (
+                                      <span className="ml-1 font-medium text-foreground/80">
+                                        · {formatPhoneInput(h.landlord_phone)}
+                                      </span>
+                                    ) : null}
                                   </p>
                                 )}
                               </div>
