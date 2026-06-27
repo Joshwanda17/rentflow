@@ -6061,6 +6061,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         { label: 'Monthly rent', value: landlordProfile?.monthly_rent ? `${formatUGX(landlordProfile.monthly_rent)}/mo` : '—' },
       ]}
     >
+      {landlordProfile?.landlord_phone && (
+        <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+          <p className="text-xs font-medium text-muted-foreground mb-2">
+            Contact the landlord before confirming
+          </p>
+          <PhoneContactActions phone={landlordProfile.landlord_phone} />
+        </div>
+      )}
       <Button
         type="button"
         className="mt-4 w-full gap-2"
