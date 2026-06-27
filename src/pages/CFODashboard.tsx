@@ -145,6 +145,7 @@ export default function CFODashboard() {
               </p>
               <DirectCreditTool />
             </div>
+            <StandingOrdersManager />
           </TabsContent>
 
           {/* ROI Requests Tab */}
