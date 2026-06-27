@@ -26,6 +26,7 @@ import { template as subAgentInviteTemplate } from './sub-agent-invite.tsx'
 import { template as residenceVerificationStatusTemplate } from './residence-verification-status.tsx'
 import { template as portfolioRequestConfirmationTemplate } from './portfolio-request-confirmation.tsx'
 import { template as portfolioRequestTeamAlertTemplate } from './portfolio-request-team-alert.tsx'
+import { template as standingOrderCreatedTemplate } from './standing-order-created.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -57,4 +58,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'residence-verification-status': residenceVerificationStatusTemplate,
   'portfolio-request-confirmation': portfolioRequestConfirmationTemplate,
   'portfolio-request-team-alert': portfolioRequestTeamAlertTemplate,
+  'standing-order-created': standingOrderCreatedTemplate,
 }
