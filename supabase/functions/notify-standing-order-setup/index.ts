@@ -254,7 +254,17 @@ Deno.serve(async (req) => {
       const smsResult = await withRetry(
         "sms",
         () => sendSMSOnce(profile.phone!, msg),
-        { retries: 3, baseDelayMs: 500 },
+        {
+          retries: 3,
+          baseDelayMs: 500,
+          onAttempt: (info) =>
+            recordAttempt("sms", {
+              attempt_number: info.attempt,
+              outcome: info.outcome,
+              error: info.error,
+              recipient: profile.phone,
+            }),
+        },
       );
       smsSent = smsResult.ok && smsResult.value === true;
       await recordStatus("sms", {
@@ -266,6 +276,11 @@ Deno.serve(async (req) => {
       });
     } else {
       await recordStatus("sms", { status: "skipped", last_error: "No phone number on profile" });
+      await recordAttempt("sms", {
+        attempt_number: 1,
+        outcome: "skipped",
+        error: "No phone number on profile",
+      });
     }
 
     // 2) Email to the recipient (skip synthetic @welile.user addresses).
@@ -297,7 +312,17 @@ Deno.serve(async (req) => {
           }
           return true;
         },
-        { retries: 3, baseDelayMs: 500 },
+        {
+          retries: 3,
+          baseDelayMs: 500,
+          onAttempt: (info) =>
+            recordAttempt("email", {
+              attempt_number: info.attempt,
+              outcome: info.outcome,
+              error: info.error,
+              recipient: profile.email,
+            }),
+        },
       );
       emailSent = emailResult.ok && emailResult.value === true;
       await recordStatus("email", {
@@ -311,6 +336,12 @@ Deno.serve(async (req) => {
       await recordStatus("email", {
         status: "skipped",
         last_error: profile.email ? "Synthetic @welile.user address" : "No email on profile",
+        recipient: profile.email ?? null,
+      });
+      await recordAttempt("email", {
+        attempt_number: 1,
+        outcome: "skipped",
+        error: profile.email ? "Synthetic @welile.user address" : "No email on profile",
         recipient: profile.email ?? null,
       });
     }
