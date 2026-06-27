@@ -15790,6 +15790,51 @@ export type Database = {
         }
         Relationships: []
       }
+      standing_order_audit_log: {
+        Row: {
+          acted_by: string | null
+          acted_by_name: string | null
+          action: string
+          amount: number | null
+          created_at: string
+          details: Json
+          id: string
+          reason: string | null
+          recipient_name: string | null
+          schedule_description: string | null
+          scheduled_payout_id: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          acted_by?: string | null
+          acted_by_name?: string | null
+          action: string
+          amount?: number | null
+          created_at?: string
+          details?: Json
+          id?: string
+          reason?: string | null
+          recipient_name?: string | null
+          schedule_description?: string | null
+          scheduled_payout_id?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          acted_by?: string | null
+          acted_by_name?: string | null
+          action?: string
+          amount?: number | null
+          created_at?: string
+          details?: Json
+          id?: string
+          reason?: string | null
+          recipient_name?: string | null
+          schedule_description?: string | null
+          scheduled_payout_id?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       subscription_charge_logs: {
         Row: {
           amount_deducted: number

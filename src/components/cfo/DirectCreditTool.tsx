@@ -31,6 +31,7 @@ import { ROIPayoutQueue } from './ROIPayoutQueue';
 import { PayoutAutomationToggle, describeSchedule, type PayoutScheduleConfig } from './PayoutAutomationToggle';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CFO_PAYOUT_LABELS, CFO_PAYOUT_VERB, CFO_PAYOUT_TOAST } from '@/lib/cfoPayoutLabels';
+import { logStandingOrderAction } from '@/lib/standingOrderAudit';
 
 type Operation = 'credit' | 'debit' | 'withdraw';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
@@ -565,7 +566,7 @@ export function DirectCreditTool() {
       if (data?.error) throw new Error(data.error);
 
       if (automateEnabled && selectedUser) {
-        const { error: schedErr } = await supabase.from('scheduled_payouts').insert({
+        const { data: schedRow, error: schedErr } = await supabase.from('scheduled_payouts').insert({
           created_by: (await supabase.auth.getUser()).data.user?.id,
           target_user_id: selectedUser.id,
           amount: amt,
@@ -578,11 +579,20 @@ export function DirectCreditTool() {
           interval_days: automateConfig.frequency === 'interval' ? automateConfig.intervalDays : null,
           enabled: true,
           next_run_at: getNextRunDate(automateConfig),
-        });
+        }).select('id').maybeSingle();
         if (schedErr) {
           console.error('[DirectCreditTool] Failed to save schedule:', schedErr);
           toast({ title: '⚠️ Payout succeeded but schedule failed', description: schedErr.message, variant: 'destructive' });
         } else {
+          await logStandingOrderAction({
+            scheduledPayoutId: (schedRow as any)?.id ?? null,
+            action: 'create',
+            targetUserId: selectedUser.id,
+            recipientName: selectedUser.full_name ?? selectedUser.name ?? null,
+            amount: amt,
+            reason,
+            scheduleDescription: describeSchedule(automateConfig),
+          });
           toast({ title: '🔁 Standing order saved', description: `Will auto-pay: ${describeSchedule(automateConfig)}` });
         }
       }

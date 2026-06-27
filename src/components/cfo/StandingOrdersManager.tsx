@@ -11,6 +11,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { describeSchedule, type PayoutScheduleConfig } from './PayoutAutomationToggle';
 import { Pause, Play, Trash2, RefreshCw, CalendarClock, Loader2 } from 'lucide-react';
+import { logStandingOrderAction } from '@/lib/standingOrderAudit';
+import { StandingOrderAuditLog } from './StandingOrderAuditLog';
 
 interface StandingOrder {
   id: string;
@@ -92,6 +94,15 @@ export function StandingOrdersManager() {
       return;
     }
     setOrders(prev => prev.map(x => (x.id === o.id ? { ...x, enabled: next } : x)));
+    await logStandingOrderAction({
+      scheduledPayoutId: o.id,
+      action: next ? 'resume' : 'pause',
+      targetUserId: o.target_user_id,
+      recipientName: o.recipient_name ?? null,
+      amount: o.amount,
+      reason: o.reason,
+      scheduleDescription: describeSchedule(toConfig(o)),
+    });
     toast({
       title: next ? '▶️ Standing order resumed' : '⏸️ Standing order paused',
       description: next ? 'Future payouts will run on schedule.' : 'No further payouts will run until you resume.',
@@ -110,10 +121,20 @@ export function StandingOrdersManager() {
       return;
     }
     setOrders(prev => prev.filter(x => x.id !== o.id));
+    await logStandingOrderAction({
+      scheduledPayoutId: o.id,
+      action: 'cancel',
+      targetUserId: o.target_user_id,
+      recipientName: o.recipient_name ?? null,
+      amount: o.amount,
+      reason: o.reason,
+      scheduleDescription: describeSchedule(toConfig(o)),
+    });
     toast({ title: '🗑️ Standing order cancelled', description: 'This recurring payout was removed.' });
   };
 
   return (
+    <div className="space-y-4">
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
@@ -210,5 +231,7 @@ export function StandingOrdersManager() {
         )}
       </CardContent>
     </Card>
+    <StandingOrderAuditLog />
+    </div>
   );
 }
