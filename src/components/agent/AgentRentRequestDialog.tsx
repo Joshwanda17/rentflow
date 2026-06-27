@@ -5925,6 +5925,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   Rent amount must be at least UGX 50,000 to post.
                 </p>
               )}
+              {detailStep === DETAIL_STEPS.length - 1 && weeklyEarnerBlocksSubmit && (
+                <p className="text-xs font-semibold text-warning text-center -mt-1">
+                  Enter a valid landlord rent need so the weekly repayment can be computed before submitting.
+                </p>
+              )}
               {loading && (
                 <p
                   role="status"
