@@ -83,4 +83,22 @@ describe('EntityDetailSheet — swipe-down to close (full-screen mobile)', () =>
 
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('closes when the Escape key is pressed', () => {
+    const onClose = vi.fn();
+    const sheet = renderSheet(onClose);
+
+    fireEvent.keyDown(sheet, { key: 'Escape', code: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes when the in-header Close button is tapped', () => {
+    const onClose = vi.fn();
+    renderSheet(onClose);
+
+    fireEvent.click(screen.getByRole('button', { name: /close profile/i }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

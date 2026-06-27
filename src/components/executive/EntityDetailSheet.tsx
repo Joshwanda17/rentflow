@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useRef, useState } from 'react';
-import { Check, Link2 } from 'lucide-react';
+import { Check, Link2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -109,6 +109,7 @@ export function EntityDetailSheet({
         onTouchStart={fullScreen ? handleTouchStart : undefined}
         onTouchMove={fullScreen ? handleTouchMove : undefined}
         onTouchEnd={fullScreen ? handleTouchEnd : undefined}
+        onEscapeKeyDown={(e) => { e.preventDefault(); onClose(); }}
         style={
           fullScreen && dragY > 0
             ? { transform: `translateY(${dragY}px)`, transition: 'none' }
@@ -116,7 +117,18 @@ export function EntityDetailSheet({
         }
       >
         {fullScreen && (
-          <div className="mx-auto -mt-1 mb-2 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/30" />
+          <>
+            <div className="mx-auto -mt-1 mb-2 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/30" />
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close profile"
+              className="mb-2 flex items-center gap-1.5 self-start rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted active:scale-[0.99] touch-manipulation"
+            >
+              <X className="h-3.5 w-3.5" />
+              Close
+            </button>
+          </>
         )}
         <SheetHeader className="text-left">
           <SheetTitle className="flex items-center gap-2 text-base">
