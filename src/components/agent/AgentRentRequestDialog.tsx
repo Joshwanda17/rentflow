@@ -4139,6 +4139,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               <ExternalLink className="h-3 w-3 ml-auto opacity-60" />
                             </button>
                           )}
+                          {h.landlord_phone && (
+                            <div className="border-t border-border px-3 py-2">
+                              <p className="text-[10px] text-muted-foreground mb-1.5">
+                                Reach the landlord before confirming
+                              </p>
+                              <PhoneContactActions phone={h.landlord_phone} />
+                            </div>
+                          )}
                           </div>
                         ))
                       ) : houseSearchedOnce ? (
