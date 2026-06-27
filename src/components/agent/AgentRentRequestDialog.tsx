@@ -4301,7 +4301,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         {formatUGX(Math.ceil((amount * 1.33) / 4))}<span className="text-base font-bold">/week</span>
                       </p>
                       <p className="text-[11px] text-success/70 font-medium">
-                        {formatUGX(amount)} + 33% = {formatUGX(Math.round(amount * 1.33))}, divided by 4 weeks
+                        {formatUGX(amount)} (1 month) + 33% = {formatUGX(Math.round(amount * 1.33))}, divided by 4 weeks
+                      </p>
+                      <p className="text-[10px] text-success/60 font-medium pt-1">
+                        Welile pays the landlord {formatUGX(amount)} every month. Extra weeks just extend how long Welile keeps paying — the weekly rate stays the same.
                       </p>
                     </div>
                   )}
