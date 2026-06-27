@@ -28,7 +28,7 @@ import { RentDisbursementQueue } from './RentDisbursementQueue';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { CreditDrawApprovalQueue } from './CreditDrawApprovalQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
-import { PayoutAutomationToggle } from './PayoutAutomationToggle';
+import { PayoutAutomationToggle, describeSchedule, type PayoutScheduleConfig } from './PayoutAutomationToggle';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CFO_PAYOUT_LABELS, CFO_PAYOUT_VERB, CFO_PAYOUT_TOAST } from '@/lib/cfoPayoutLabels';
 
@@ -323,7 +323,12 @@ export function DirectCreditTool() {
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
   const [recipientType, setRecipientType] = useState<RecipientType | ''>('');
   const [automateEnabled, setAutomateEnabled] = useState(false);
-  const [automateDay, setAutomateDay] = useState(1);
+  const [automateConfig, setAutomateConfig] = useState<PayoutScheduleConfig>({
+    frequency: 'monthly',
+    dayOfMonth: 1,
+    dayOfWeek: 1,
+    intervalDays: 7,
+  });
   // Float (Operational Wallet) sends require an explicit confirmation step —
   // no transaction ID is collected, the CFO simply confirms the float movement.
   const [floatConfirmOpen, setFloatConfirmOpen] = useState(false);
@@ -567,16 +572,18 @@ export function DirectCreditTool() {
           category_id: selectedCategoryId,
           sub_category: selectedSubCategoryId || null,
           reason,
-          frequency: 'monthly',
-          day_of_month: automateDay,
+          frequency: automateConfig.frequency,
+          day_of_month: automateConfig.frequency === 'monthly' ? automateConfig.dayOfMonth : null,
+          day_of_week: automateConfig.frequency === 'weekly' ? automateConfig.dayOfWeek : null,
+          interval_days: automateConfig.frequency === 'interval' ? automateConfig.intervalDays : null,
           enabled: true,
-          next_run_at: getNextRunDate(automateDay),
+          next_run_at: getNextRunDate(automateConfig),
         });
         if (schedErr) {
           console.error('[DirectCreditTool] Failed to save schedule:', schedErr);
           toast({ title: '⚠️ Payout succeeded but schedule failed', description: schedErr.message, variant: 'destructive' });
         } else {
-          toast({ title: '🔁 Recurring payout saved', description: `Will auto-pay on day ${automateDay} every month` });
+          toast({ title: '🔁 Standing order saved', description: `Will auto-pay: ${describeSchedule(automateConfig)}` });
         }
       }
 
@@ -1039,8 +1046,8 @@ export function DirectCreditTool() {
               <PayoutAutomationToggle
                 enabled={automateEnabled}
                 onToggle={setAutomateEnabled}
-                dayOfMonth={automateDay}
-                onDayChange={setAutomateDay}
+                config={automateConfig}
+                onConfigChange={setAutomateConfig}
               />
             )}
 
@@ -1077,7 +1084,7 @@ export function DirectCreditTool() {
                   {automateEnabled && (
                     <>
                       <span className="text-muted-foreground">Recurrence:</span>
-                      <span>🔁 Monthly on day {automateDay}</span>
+                      <span>🔁 {describeSchedule(automateConfig)}</span>
                     </>
                   )}
                 </div>
@@ -1176,11 +1183,32 @@ export function DirectCreditTool() {
   );
 }
 
-function getNextRunDate(dayOfMonth: number): string {
+function getNextRunDate(config: PayoutScheduleConfig): string {
   const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), dayOfMonth);
-  if (next <= now) {
-    next.setMonth(next.getMonth() + 1);
+  switch (config.frequency) {
+    case 'daily': {
+      const next = new Date(now);
+      next.setDate(next.getDate() + 1);
+      return next.toISOString();
+    }
+    case 'weekly': {
+      const next = new Date(now);
+      const target = ((config.dayOfWeek % 7) + 7) % 7;
+      let diff = (target - next.getDay() + 7) % 7;
+      if (diff === 0) diff = 7;
+      next.setDate(next.getDate() + diff);
+      return next.toISOString();
+    }
+    case 'interval': {
+      const next = new Date(now);
+      next.setDate(next.getDate() + Math.max(1, config.intervalDays));
+      return next.toISOString();
+    }
+    case 'monthly':
+    default: {
+      const next = new Date(now.getFullYear(), now.getMonth(), config.dayOfMonth);
+      if (next <= now) next.setMonth(next.getMonth() + 1);
+      return next.toISOString();
+    }
   }
-  return next.toISOString();
 }

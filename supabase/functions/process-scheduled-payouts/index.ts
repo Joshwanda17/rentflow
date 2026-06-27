@@ -6,6 +6,76 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function formatPhoneInternational(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return `+${digits}`;
+}
+
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) {
+    console.error("[process-scheduled-payouts] Missing AT credentials");
+    return false;
+  }
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  try {
+    const body = new URLSearchParams({
+      username,
+      to: formatPhoneInternational(phone),
+      message,
+      from: "WELILE",
+    });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        apiKey,
+        Accept: "application/json",
+      },
+      body: body.toString(),
+    });
+    const raw = await res.text();
+    let data: any;
+    try { data = JSON.parse(raw); } catch { return false; }
+    const recipients = data?.SMSMessageData?.Recipients || [];
+    return recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+  } catch (err) {
+    console.error("[process-scheduled-payouts] SMS error:", err);
+    return false;
+  }
+}
+
+// Compute the next run timestamp from the current run time + recurrence config.
+function computeNextRun(from: Date, payout: any): Date {
+  const next = new Date(from);
+  switch (payout.frequency) {
+    case "daily":
+      next.setDate(next.getDate() + 1);
+      return next;
+    case "weekly": {
+      const target = ((Number(payout.day_of_week ?? 1) % 7) + 7) % 7;
+      let diff = (target - next.getDay() + 7) % 7;
+      if (diff === 0) diff = 7;
+      next.setDate(next.getDate() + diff);
+      return next;
+    }
+    case "interval":
+      next.setDate(next.getDate() + Math.max(1, Number(payout.interval_days ?? 1)));
+      return next;
+    case "monthly":
+    default:
+      next.setMonth(next.getMonth() + 1);
+      return next;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -84,9 +154,25 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Advance next_run_at by one month
-        const nextRun = new Date(payout.next_run_at);
-        nextRun.setMonth(nextRun.getMonth() + 1);
+        // Notify the recipient via SMS to pull them onto the platform/wallet.
+        try {
+          const { data: profile } = await adminClient
+            .from("profiles")
+            .select("phone, full_name")
+            .eq("id", payout.target_user_id)
+            .maybeSingle();
+          if (profile?.phone) {
+            const firstName = (profile.full_name || "there").split(" ")[0];
+            const amountStr = Number(payout.amount).toLocaleString();
+            const msg = `Hi ${firstName}, UGX ${amountStr} has landed in your WELILE wallet (${payout.reason}). Log in to view & cash out: welilereceipts.com`;
+            await sendSMS(profile.phone, msg);
+          }
+        } catch (smsErr) {
+          console.error(`[process-scheduled-payouts] SMS notify failed for ${payout.id}:`, smsErr);
+        }
+
+        // Advance next_run_at based on the schedule frequency.
+        const nextRun = computeNextRun(new Date(payout.next_run_at), payout);
 
         await adminClient.from("scheduled_payouts").update({
           last_run_at: now.toISOString(),
