@@ -134,6 +134,7 @@ export function StandingOrdersManager() {
   };
 
   return (
+    <div className="space-y-4">
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
@@ -230,5 +231,7 @@ export function StandingOrdersManager() {
         )}
       </CardContent>
     </Card>
+    <StandingOrderAuditLog />
+    </div>
   );
 }
