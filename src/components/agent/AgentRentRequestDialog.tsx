@@ -2124,6 +2124,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setOutstandingBalance('');
     setDuration('30');
     setRepaymentPeriod('7');
+    setEarnerCycle('weekly');
     setLandlordName('');
     setLandlordPhone('');
     setPropertyAddress('');
