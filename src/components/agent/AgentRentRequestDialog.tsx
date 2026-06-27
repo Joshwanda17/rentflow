@@ -69,7 +69,8 @@ import {
   UserPlus,
   X,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Undo2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { notifyVerificationCreated } from '@/lib/landlordVerificationNotify';
