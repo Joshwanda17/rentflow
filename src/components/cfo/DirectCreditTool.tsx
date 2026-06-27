@@ -31,6 +31,7 @@ import { ROIPayoutQueue } from './ROIPayoutQueue';
 import { PayoutAutomationToggle, describeSchedule, type PayoutScheduleConfig } from './PayoutAutomationToggle';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CFO_PAYOUT_LABELS, CFO_PAYOUT_VERB, CFO_PAYOUT_TOAST } from '@/lib/cfoPayoutLabels';
+import { logStandingOrderAction } from '@/lib/standingOrderAudit';
 
 type Operation = 'credit' | 'debit' | 'withdraw';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
