@@ -51,8 +51,15 @@ for (const vp of MOBILE_VIEWPORTS) {
     // Sheet content (full-screen on mobile) must be on top — its title visible.
     await expect(sheet.getByText('Jane Landlord')).toBeVisible();
     await expect(sheet.getByText('UGX 300,000')).toBeVisible();
-    // The Close affordance only renders in the full-screen mobile branch.
-    await expect(sheet.getByRole('button', { name: /close profile/i })).toBeVisible();
+    // The "Close profile" affordance only renders in the full-screen mobile
+    // branch (viewport width < 768px). Wider landscape viewports fall back to
+    // the side-sheet, but the sheet must still stack above the dialog.
+    const MOBILE_BREAKPOINT = 768;
+    if (vp.width < MOBILE_BREAKPOINT) {
+      await expect(
+        sheet.getByRole('button', { name: /close profile/i }),
+      ).toBeVisible();
+    }
 
     // Settle animations before snapshotting.
     await page.waitForTimeout(400);
