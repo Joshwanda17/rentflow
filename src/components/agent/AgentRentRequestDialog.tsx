@@ -367,6 +367,64 @@ function formatPhoneInput(raw: string): string {
   return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
 }
 
+/* Normalise a Ugandan number to an international dialling string (no '+').
+ * Handles local 0XXXXXXXXX, bare 9-digit (7XXXXXXXX) and already-prefixed
+ * 256... inputs so tel:/wa.me links work from any device. */
+function toInternationalPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let digits = raw.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('256')) {
+    // already international
+  } else if (digits.startsWith('0')) {
+    digits = `256${digits.slice(1)}`;
+  } else if (digits.length === 9) {
+    digits = `256${digits}`;
+  } else if (digits.length === 10 && digits.startsWith('0')) {
+    digits = `256${digits.slice(1)}`;
+  } else {
+    digits = `256${digits}`;
+  }
+  return digits;
+}
+
+/* Inline Call + WhatsApp actions for a landlord phone number. Lets an agent
+ * reach the landlord before confirming the selection. */
+function PhoneContactActions({
+  phone,
+  className,
+}: {
+  phone: string | null | undefined;
+  className?: string;
+}) {
+  const intl = toInternationalPhone(phone);
+  if (!intl) return null;
+  return (
+    <div className={`flex items-center gap-2 ${className ?? ''}`}>
+      <a
+        href={`tel:+${intl}`}
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+        aria-label={`Call ${formatPhoneInput(phone || '')}`}
+      >
+        <Phone className="h-3.5 w-3.5" />
+        Call
+      </a>
+      <a
+        href={`https://wa.me/${intl}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-green-600/40 bg-green-600/10 px-2 py-1.5 text-[11px] font-semibold text-green-700 dark:text-green-400 hover:bg-green-600/20 transition-colors"
+        aria-label={`WhatsApp ${formatPhoneInput(phone || '')}`}
+      >
+        <MessageCircle className="h-3.5 w-3.5" />
+        WhatsApp
+      </a>
+    </div>
+  );
+}
+
 // ===== FIX #7: Currency display formatting =====
 function formatCurrencyInput(raw: string): string {
   const digits = raw.replace(/\D/g, '');
@@ -3932,6 +3990,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                             <span className="truncate">{formatPhoneInput(selectedHouse.landlord_phone)}</span>
                           </p>
                         )}
+                        {selectedHouse.landlord_phone && (
+                          <PhoneContactActions phone={selectedHouse.landlord_phone} className="mt-2" />
+                        )}
                         {selectedHouse.monthly_rent ? (
                           <p className="text-xs mt-0.5 flex items-center gap-1">
                             <Banknote className="h-3 w-3 flex-shrink-0 text-emerald-700 dark:text-emerald-400" />
@@ -4080,6 +4141,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               View landlord profile
                               <ExternalLink className="h-3 w-3 ml-auto opacity-60" />
                             </button>
+                          )}
+                          {h.landlord_phone && (
+                            <div className="border-t border-border px-3 py-2">
+                              <p className="text-[10px] text-muted-foreground mb-1.5">
+                                Reach the landlord before confirming
+                              </p>
+                              <PhoneContactActions phone={h.landlord_phone} />
+                            </div>
                           )}
                           </div>
                         ))
@@ -5992,6 +6061,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         { label: 'Monthly rent', value: landlordProfile?.monthly_rent ? `${formatUGX(landlordProfile.monthly_rent)}/mo` : '—' },
       ]}
     >
+      {landlordProfile?.landlord_phone && (
+        <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+          <p className="text-xs font-medium text-muted-foreground mb-2">
+            Contact the landlord before confirming
+          </p>
+          <PhoneContactActions phone={landlordProfile.landlord_phone} />
+        </div>
+      )}
       <Button
         type="button"
         className="mt-4 w-full gap-2"
