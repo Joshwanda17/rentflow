@@ -15194,10 +15194,12 @@ export type Database = {
           category_id: string
           created_at: string
           created_by: string
-          day_of_month: number
+          day_of_month: number | null
+          day_of_week: number | null
           enabled: boolean
           frequency: string
           id: string
+          interval_days: number | null
           last_run_at: string | null
           next_run_at: string | null
           reason: string
@@ -15210,10 +15212,12 @@ export type Database = {
           category_id: string
           created_at?: string
           created_by: string
-          day_of_month: number
+          day_of_month?: number | null
+          day_of_week?: number | null
           enabled?: boolean
           frequency?: string
           id?: string
+          interval_days?: number | null
           last_run_at?: string | null
           next_run_at?: string | null
           reason: string
@@ -15226,10 +15230,12 @@ export type Database = {
           category_id?: string
           created_at?: string
           created_by?: string
-          day_of_month?: number
+          day_of_month?: number | null
+          day_of_week?: number | null
           enabled?: boolean
           frequency?: string
           id?: string
+          interval_days?: number | null
           last_run_at?: string | null
           next_run_at?: string | null
           reason?: string
