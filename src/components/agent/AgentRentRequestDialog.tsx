@@ -422,7 +422,9 @@ export function PhoneContactActions({
 function formatCurrencyInput(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   if (!digits) return '';
-  return Number(digits).toLocaleString('en-UG');
+  // Group with thousands separators. Build manually so the result is
+  // identical across environments/locales (en-UG can fall back inconsistently).
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 /* ===== Automatic input formatting =====
