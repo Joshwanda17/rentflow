@@ -29,6 +29,7 @@ import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQ
 import { CreditDrawApprovalQueue } from './CreditDrawApprovalQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
 import { PayoutAutomationToggle, describeSchedule, type PayoutScheduleConfig } from './PayoutAutomationToggle';
+import { getNextRunDate } from '@/lib/standingOrderSchedule';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 import { CFO_PAYOUT_LABELS, CFO_PAYOUT_VERB, CFO_PAYOUT_TOAST } from '@/lib/cfoPayoutLabels';
 import { logStandingOrderAction } from '@/lib/standingOrderAudit';
@@ -1193,41 +1194,3 @@ export function DirectCreditTool() {
   );
 }
 
-function getNextRunDate(config: PayoutScheduleConfig): string {
-  const now = new Date();
-  switch (config.frequency) {
-    case 'daily': {
-      const next = new Date(now);
-      next.setDate(next.getDate() + 1);
-      return next.toISOString();
-    }
-    case 'weekly': {
-      const next = new Date(now);
-      const target = ((config.dayOfWeek % 7) + 7) % 7;
-      let diff = (target - next.getDay() + 7) % 7;
-      if (diff === 0) diff = 7;
-      next.setDate(next.getDate() + diff);
-      return next.toISOString();
-    }
-    case 'interval': {
-      const next = new Date(now);
-      next.setDate(next.getDate() + Math.max(1, config.intervalDays));
-      return next.toISOString();
-    }
-    case 'monthly':
-    default: {
-      // Preserve the exact time-of-day the standing order was created so it
-      // keeps paying out at that same moment each month.
-      const next = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        config.dayOfMonth,
-        now.getHours(),
-        now.getMinutes(),
-        now.getSeconds(),
-      );
-      if (next <= now) next.setMonth(next.getMonth() + 1);
-      return next.toISOString();
-    }
-  }
-}
