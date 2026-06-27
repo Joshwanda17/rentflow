@@ -671,6 +671,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [outstandingBalance, setOutstandingBalance] = useState('');
   const [duration, setDuration] = useState<'30' | '60' | '90'>('30');
   const [repaymentPeriod, setRepaymentPeriod] = useState<RepaymentPeriod>('7');
+  // Sub-cycle for the weekly-monthly income type so agents can pick "Weekly"
+  // or "Monthly" as separate options on the type-selection page.
+  const [earnerCycle, setEarnerCycle] = useState<'weekly' | 'monthly'>('weekly');
   
   // Landlord info
   const [landlordName, setLandlordName] = useState('');
