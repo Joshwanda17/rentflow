@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { addDays, format } from 'date-fns';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { computeUndoSelection } from '@/lib/undoHouseSelection';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { optimizeImage } from '@/lib/imageOptimizer';
@@ -846,21 +847,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // search so the agent can immediately pick a different house. This keeps all
   // related inline details in sync — no stale landlord/rent/location lingers.
   const undoSelectHouse = useCallback(() => {
-    setSelectedHouse(null);
-    setHouseConflict(false);
+    const { snapshot, rerunSearch } = computeUndoSelection({ houseQuery });
+    setSelectedHouse(snapshot.selectedHouse as AvailableHouse | null);
+    setHouseConflict(snapshot.houseConflict);
     // Reset every field populated by selectHouse so nothing carries over.
-    setSelectedLandlord(null);
-    setRentAmount('');
-    setLandlordName('');
-    setLandlordPhone('');
-    setPropertyAddress('');
-    setPropertyDistrict('');
-    setPropertyCity('');
-    setHouseCategory('');
-    setGpsLocation(null);
+    setSelectedLandlord(snapshot.selectedLandlord as LandlordOption | null);
+    setRentAmount(snapshot.fields.rentAmount);
+    setLandlordName(snapshot.fields.landlordName);
+    setLandlordPhone(snapshot.fields.landlordPhone);
+    setPropertyAddress(snapshot.fields.propertyAddress);
+    setPropertyDistrict(snapshot.fields.propertyDistrict);
+    setPropertyCity(snapshot.fields.propertyCity);
+    setHouseCategory(snapshot.fields.houseCategory);
+    setGpsLocation(snapshot.fields.gpsLocation);
     toast.info('Selection undone — pick another house');
     // Preserve and re-run the previous picker search query.
-    if (houseQuery.trim()) {
+    if (rerunSearch) {
       searchAvailableHouses();
     }
   }, [houseQuery, searchAvailableHouses]);
