@@ -671,6 +671,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [outstandingBalance, setOutstandingBalance] = useState('');
   const [duration, setDuration] = useState<'30' | '60' | '90'>('30');
   const [repaymentPeriod, setRepaymentPeriod] = useState<RepaymentPeriod>('7');
+  // Sub-cycle for the weekly-monthly income type so agents can pick "Weekly"
+  // or "Monthly" as separate options on the type-selection page.
+  const [earnerCycle, setEarnerCycle] = useState<'weekly' | 'monthly'>('weekly');
   
   // Landlord info
   const [landlordName, setLandlordName] = useState('');
@@ -1516,6 +1519,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (p.outstandingBalance) setOutstandingBalance(p.outstandingBalance);
     if (p.duration) setDuration(p.duration);
     if (p.repaymentPeriod) setRepaymentPeriod(p.repaymentPeriod);
+    if (p.earnerCycle) setEarnerCycle(p.earnerCycle);
+    else if (p.repaymentPeriod) setEarnerCycle(p.repaymentPeriod === '30' || p.repaymentPeriod === '120' ? 'monthly' : 'weekly');
     if (p.landlordName) setLandlordName(p.landlordName);
     if (p.landlordPhone) setLandlordPhone(p.landlordPhone);
     if (p.propertyAddress) setPropertyAddress(p.propertyAddress);
@@ -1535,7 +1540,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const buildDraftPayload = () => ({
     incomeType, tenantName, tenantPhone, tenantNationalId, preferredLanguage,
-    rentAmount, outstandingBalance, duration, repaymentPeriod,
+    rentAmount, outstandingBalance, duration, repaymentPeriod, earnerCycle,
     landlordName, landlordPhone, propertyAddress,
     lc1Name, lc1Phone, lc1Village, propertyCity, propertyDistrict,
     houseCategory, landlordPayoutDay, outstandingHouseCategory,
@@ -1595,6 +1600,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (p.rentAmount) setRentAmount(p.rentAmount);
       if (p.duration) setDuration(p.duration);
       if (p.repaymentPeriod) setRepaymentPeriod(p.repaymentPeriod);
+      if (p.earnerCycle) setEarnerCycle(p.earnerCycle);
+      else if (p.repaymentPeriod) setEarnerCycle(p.repaymentPeriod === '30' || p.repaymentPeriod === '120' ? 'monthly' : 'weekly');
       if (p.landlordName) setLandlordName(p.landlordName);
       if (p.landlordPhone) setLandlordPhone(p.landlordPhone);
       if (p.propertyAddress) setPropertyAddress(p.propertyAddress);
@@ -2117,6 +2124,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setOutstandingBalance('');
     setDuration('30');
     setRepaymentPeriod('7');
+    setEarnerCycle('weekly');
     setLandlordName('');
     setLandlordPhone('');
     setPropertyAddress('');
@@ -3307,6 +3315,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <button
                   onClick={() => {
                     setIncomeType('weekly-monthly');
+                    setEarnerCycle('weekly');
+                    setRepaymentPeriod('7');
                     setDetailStep(0);
                     setValidationErrors([]);
                     setFieldErrors({});
@@ -3319,8 +3329,31 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <Banknote className="h-5 w-5 text-success" />
                     </div>
                     <div>
-                      <p className="font-semibold">Weekly/Monthly Earner</p>
-                      <p className="text-xs text-muted-foreground">Pays back in 1-4 weeks or 4 months</p>
+                      <p className="font-semibold">Weekly Earner</p>
+                      <p className="text-xs text-muted-foreground">Pays back in 1-3 weeks</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIncomeType('weekly-monthly');
+                    setEarnerCycle('monthly');
+                    setRepaymentPeriod('30');
+                    setDetailStep(0);
+                    setValidationErrors([]);
+                    setFieldErrors({});
+                    setStep('details');
+                  }}
+                  className="p-4 rounded-xl border-2 border-muted hover:border-success hover:bg-success/5 transition-all text-left group active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-success/10 group-hover:bg-success/20">
+                      <Calendar className="h-5 w-5 text-success" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Monthly Earner</p>
+                      <p className="text-xs text-muted-foreground">Pays back after 1 month or 4 months</p>
                     </div>
                   </div>
                 </button>
@@ -4214,7 +4247,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                   <div className="space-y-1">
                     <Label className="font-semibold text-primary/80">
-                      {incomeType === 'daily' ? 'Duration' : 'Repayment Period'} *
+                      {incomeType === 'daily' ? 'Duration' : earnerCycle === 'monthly' ? 'Monthly Repayment Period' : 'Weekly Repayment Period'} *
                     </Label>
                     <p className="text-[10px] text-muted-foreground">
                       {incomeType === 'daily'
@@ -4234,11 +4267,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <Select value={repaymentPeriod} onValueChange={(v) => setRepaymentPeriod(v as RepaymentPeriod)}>
                         <SelectTrigger className="h-12 text-base font-semibold border-2 border-primary/30 rounded-xl"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="7">7 Days</SelectItem>
-                          <SelectItem value="14">14 Days</SelectItem>
-                          <SelectItem value="21">21 Days</SelectItem>
-                          <SelectItem value="30">30 Days</SelectItem>
-                          <SelectItem value="120">120 Days</SelectItem>
+                          {earnerCycle === 'weekly' ? (
+                            <>
+                              <SelectItem value="7">7 Days (1 Week)</SelectItem>
+                              <SelectItem value="14">14 Days (2 Weeks)</SelectItem>
+                              <SelectItem value="21">21 Days (3 Weeks)</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value="30">30 Days (1 Month)</SelectItem>
+                              <SelectItem value="120">120 Days (4 Months)</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                     )}
