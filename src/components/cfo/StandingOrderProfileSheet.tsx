@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { EntityDetailSheet } from '@/components/executive/EntityDetailSheet';
-import { Loader2, UserRound, MessageSquare, Mail, CheckCircle2, XCircle, MinusCircle, Clock } from 'lucide-react';
+import { Loader2, UserRound, MessageSquare, Mail, CheckCircle2, XCircle, MinusCircle, Clock, RotateCw } from 'lucide-react';
 
 interface ProfileData {
   full_name: string | null;
@@ -36,6 +36,14 @@ interface NotifStatus {
   last_sent_at: string | null;
 }
 
+interface NotifAttempt {
+  channel: 'sms' | 'email';
+  attempt_number: number;
+  outcome: 'success' | 'transient_failure' | 'permanent_failure' | 'skipped';
+  error: string | null;
+  attempted_at: string;
+}
+
 function fmt(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('en-GB', {
@@ -50,10 +58,18 @@ const STATUS_META: Record<NotifStatus['status'], { icon: typeof CheckCircle2; cl
   pending: { icon: Clock, cls: 'text-amber-600', label: 'Pending' },
 };
 
+const OUTCOME_META: Record<NotifAttempt['outcome'], { icon: typeof CheckCircle2; cls: string; label: string }> = {
+  success: { icon: CheckCircle2, cls: 'text-emerald-600', label: 'Sent' },
+  transient_failure: { icon: RotateCw, cls: 'text-amber-600', label: 'Retrying' },
+  permanent_failure: { icon: XCircle, cls: 'text-destructive', label: 'Failed' },
+  skipped: { icon: MinusCircle, cls: 'text-muted-foreground', label: 'Skipped' },
+};
+
 export function StandingOrderProfileSheet({ open, onClose, scheduledPayoutId, targetUserId, recipientName, createdAt, schedule, amount }: Props) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(false);
   const [notifs, setNotifs] = useState<NotifStatus[]>([]);
+  const [attempts, setAttempts] = useState<NotifAttempt[]>([]);
 
   useEffect(() => {
     if (!open || !targetUserId) { setProfile(null); return; }
@@ -79,6 +95,21 @@ export function StandingOrderProfileSheet({ open, onClose, scheduledPayoutId, ta
       .eq('scheduled_payout_id', scheduledPayoutId)
       .then(({ data }) => {
         if (active) setNotifs((data ?? []) as NotifStatus[]);
+      });
+    return () => { active = false; };
+  }, [open, scheduledPayoutId]);
+
+  useEffect(() => {
+    if (!open || !scheduledPayoutId) { setAttempts([]); return; }
+    let active = true;
+    supabase
+      .from('standing_order_notification_attempts')
+      .select('channel, attempt_number, outcome, error, attempted_at')
+      .eq('scheduled_payout_id', scheduledPayoutId)
+      .order('channel', { ascending: true })
+      .order('attempt_number', { ascending: true })
+      .then(({ data }) => {
+        if (active) setAttempts((data ?? []) as NotifAttempt[]);
       });
     return () => { active = false; };
   }, [open, scheduledPayoutId]);
@@ -147,6 +178,48 @@ export function StandingOrderProfileSheet({ open, onClose, scheduledPayoutId, ta
               );
             })}
           </div>
+        )}
+      </div>
+
+      <div className="mt-3 border-t pt-3">
+        <p className="text-xs font-semibold text-muted-foreground mb-2">Delivery attempt timeline</p>
+        {attempts.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No attempt history yet.</p>
+        ) : (
+          (['sms', 'email'] as const).map((ch) => {
+            const chAttempts = attempts.filter((a) => a.channel === ch);
+            if (chAttempts.length === 0) return null;
+            const ChannelIcon = ch === 'sms' ? MessageSquare : Mail;
+            return (
+              <div key={ch} className="mb-3 last:mb-0">
+                <p className="flex items-center gap-1.5 text-xs font-medium capitalize mb-1.5">
+                  <ChannelIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  {ch}
+                </p>
+                <ol className="relative border-l border-border ml-1 pl-3 space-y-2">
+                  {chAttempts.map((a) => {
+                    const meta = OUTCOME_META[a.outcome];
+                    const Icon = meta.icon;
+                    return (
+                      <li key={`${a.channel}-${a.attempt_number}`} className="relative">
+                        <span className={`absolute -left-[17px] top-0.5 h-3 w-3 rounded-full bg-background border-2 ${meta.cls.replace('text-', 'border-')}`} />
+                        <div className="flex items-start gap-1.5 text-xs">
+                          <Icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${meta.cls}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">
+                              Attempt {a.attempt_number} · <span className={meta.cls}>{meta.label}</span>
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">{fmt(a.attempted_at)}</p>
+                            {a.error && <p className="mt-0.5 text-destructive break-words">{a.error}</p>}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            );
+          })
         )}
       </div>
     </EntityDetailSheet>

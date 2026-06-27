@@ -26,11 +26,21 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function withRetry<T>(
   label: string,
   fn: (attempt: number) => Promise<T>,
-  opts: { retries?: number; baseDelayMs?: number; maxDelayMs?: number } = {},
+  opts: {
+    retries?: number;
+    baseDelayMs?: number;
+    maxDelayMs?: number;
+    onAttempt?: (info: {
+      attempt: number;
+      outcome: "success" | "transient_failure" | "permanent_failure";
+      error: string | null;
+    }) => Promise<void> | void;
+  } = {},
 ): Promise<{ value: T | null; attempts: number; ok: boolean; lastError: string | null }> {
   const retries = opts.retries ?? 3;
   const baseDelayMs = opts.baseDelayMs ?? 500;
   const maxDelayMs = opts.maxDelayMs ?? 8000;
+  const onAttempt = opts.onAttempt;
   let attempt = 0;
   let lastValue: T | null = null;
   let lastError: string | null = null;
@@ -38,6 +48,13 @@ async function withRetry<T>(
     attempt++;
     try {
       lastValue = await fn(attempt);
+      // A falsy return is a permanent rejection (e.g. bad number), not success.
+      const ok = !!lastValue;
+      await onAttempt?.({
+        attempt,
+        outcome: ok ? "success" : "permanent_failure",
+        error: ok ? null : `${label} rejected (no retry)`,
+      });
       return { value: lastValue, attempts: attempt, ok: true, lastError: null };
     } catch (err) {
       const transient = err instanceof TransientError;
@@ -46,6 +63,12 @@ async function withRetry<T>(
         `[notify-standing-order-setup] ${label} attempt ${attempt} failed (transient=${transient}):`,
         err instanceof Error ? err.message : err,
       );
+      const willRetry = transient && attempt <= retries;
+      await onAttempt?.({
+        attempt,
+        outcome: willRetry ? "transient_failure" : "permanent_failure",
+        error: lastError,
+      });
       if (!transient || attempt > retries) {
         return { value: lastValue, attempts: attempt, ok: false, lastError };
       }
@@ -172,6 +195,33 @@ Deno.serve(async (req) => {
       }
     };
 
+    // Append one row per individual delivery attempt so staff can see a full
+    // retry timeline (each attempt's time, outcome, and error).
+    const recordAttempt = async (
+      channel: "sms" | "email",
+      info: {
+        attempt_number: number;
+        outcome: "success" | "transient_failure" | "permanent_failure" | "skipped";
+        error?: string | null;
+        recipient?: string | null;
+      },
+    ) => {
+      try {
+        await adminClient.from("standing_order_notification_attempts").insert({
+          scheduled_payout_id: scheduled_payout_id ?? null,
+          target_user_id,
+          channel,
+          attempt_number: info.attempt_number,
+          outcome: info.outcome,
+          error: info.error ?? null,
+          recipient: info.recipient ?? null,
+          attempted_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.error(`[notify-standing-order-setup] failed to record ${channel} attempt:`, e);
+      }
+    };
+
     const { data: profile } = await adminClient
       .from("profiles")
       .select("full_name, phone, email")
@@ -204,7 +254,17 @@ Deno.serve(async (req) => {
       const smsResult = await withRetry(
         "sms",
         () => sendSMSOnce(profile.phone!, msg),
-        { retries: 3, baseDelayMs: 500 },
+        {
+          retries: 3,
+          baseDelayMs: 500,
+          onAttempt: (info) =>
+            recordAttempt("sms", {
+              attempt_number: info.attempt,
+              outcome: info.outcome,
+              error: info.error,
+              recipient: profile.phone,
+            }),
+        },
       );
       smsSent = smsResult.ok && smsResult.value === true;
       await recordStatus("sms", {
@@ -216,6 +276,11 @@ Deno.serve(async (req) => {
       });
     } else {
       await recordStatus("sms", { status: "skipped", last_error: "No phone number on profile" });
+      await recordAttempt("sms", {
+        attempt_number: 1,
+        outcome: "skipped",
+        error: "No phone number on profile",
+      });
     }
 
     // 2) Email to the recipient (skip synthetic @welile.user addresses).
@@ -247,7 +312,17 @@ Deno.serve(async (req) => {
           }
           return true;
         },
-        { retries: 3, baseDelayMs: 500 },
+        {
+          retries: 3,
+          baseDelayMs: 500,
+          onAttempt: (info) =>
+            recordAttempt("email", {
+              attempt_number: info.attempt,
+              outcome: info.outcome,
+              error: info.error,
+              recipient: profile.email,
+            }),
+        },
       );
       emailSent = emailResult.ok && emailResult.value === true;
       await recordStatus("email", {
@@ -261,6 +336,12 @@ Deno.serve(async (req) => {
       await recordStatus("email", {
         status: "skipped",
         last_error: profile.email ? "Synthetic @welile.user address" : "No email on profile",
+        recipient: profile.email ?? null,
+      });
+      await recordAttempt("email", {
+        attempt_number: 1,
+        outcome: "skipped",
+        error: profile.email ? "Synthetic @welile.user address" : "No email on profile",
         recipient: profile.email ?? null,
       });
     }
