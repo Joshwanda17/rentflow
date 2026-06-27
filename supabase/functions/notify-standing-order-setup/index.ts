@@ -26,11 +26,21 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function withRetry<T>(
   label: string,
   fn: (attempt: number) => Promise<T>,
-  opts: { retries?: number; baseDelayMs?: number; maxDelayMs?: number } = {},
+  opts: {
+    retries?: number;
+    baseDelayMs?: number;
+    maxDelayMs?: number;
+    onAttempt?: (info: {
+      attempt: number;
+      outcome: "success" | "transient_failure" | "permanent_failure";
+      error: string | null;
+    }) => Promise<void> | void;
+  } = {},
 ): Promise<{ value: T | null; attempts: number; ok: boolean; lastError: string | null }> {
   const retries = opts.retries ?? 3;
   const baseDelayMs = opts.baseDelayMs ?? 500;
   const maxDelayMs = opts.maxDelayMs ?? 8000;
+  const onAttempt = opts.onAttempt;
   let attempt = 0;
   let lastValue: T | null = null;
   let lastError: string | null = null;
@@ -38,6 +48,13 @@ async function withRetry<T>(
     attempt++;
     try {
       lastValue = await fn(attempt);
+      // A falsy return is a permanent rejection (e.g. bad number), not success.
+      const ok = !!lastValue;
+      await onAttempt?.({
+        attempt,
+        outcome: ok ? "success" : "permanent_failure",
+        error: ok ? null : `${label} rejected (no retry)`,
+      });
       return { value: lastValue, attempts: attempt, ok: true, lastError: null };
     } catch (err) {
       const transient = err instanceof TransientError;
@@ -46,6 +63,12 @@ async function withRetry<T>(
         `[notify-standing-order-setup] ${label} attempt ${attempt} failed (transient=${transient}):`,
         err instanceof Error ? err.message : err,
       );
+      const willRetry = transient && attempt <= retries;
+      await onAttempt?.({
+        attempt,
+        outcome: willRetry ? "transient_failure" : "permanent_failure",
+        error: lastError,
+      });
       if (!transient || attempt > retries) {
         return { value: lastValue, attempts: attempt, ok: false, lastError };
       }
