@@ -4242,12 +4242,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label className="font-semibold text-primary/80">
                       {incomeType === 'weekly-monthly' && earnerCycle === 'weekly'
-                        ? "Landlord's Monthly Rent (UGX) *"
+                        ? '1 Month Rent (UGX) *'
                         : 'Rent Amount (UGX) *'}
                     </Label>
                     <p className="text-[10px] font-bold text-primary/60 italic">
                       {incomeType === 'weekly-monthly' && earnerCycle === 'weekly'
-                        ? 'Enter ONE month\u2019s rent only \u2014 Welile pays the landlord this every month; the tenant repays weekly at the one-month rate'
+                        ? 'Enter the 1 month rent only \u2014 Welile pays the landlord this every month; the tenant repays weekly at the 1 month rate'
                         : 'Let Welile pay this today'}
                     </p>
                     {/* FIX #7: Currency formatting */}
