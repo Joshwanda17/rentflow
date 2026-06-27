@@ -119,7 +119,7 @@ interface AgentRentRequestDialogProps {
 }
 
 type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
-type RepaymentPeriod = '7' | '14' | '21' | '30' | '120';
+type RepaymentPeriod = string;
 
 const HOUSE_CATEGORIES = [
   { value: 'single-room', label: 'Single Room', emoji: '🚪' },
@@ -3058,12 +3058,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const getPeriodLabel = (period: RepaymentPeriod) => {
     switch (period) {
-      case '7': return '7 Days (1 Week)';
-      case '14': return '14 Days (2 Weeks)';
-      case '21': return '21 Days (3 Weeks)';
       case '30': return '30 Days (1 Month)';
       case '120': return '120 Days (4 Months)';
     }
+    const days = parseInt(period, 10);
+    if (!Number.isFinite(days) || days <= 0) return period;
+    const weeks = Math.round(days / 7);
+    if (days % 7 === 0 && weeks > 0) {
+      if (weeks === 52) return `${days} Days (52 Weeks · 1 Year)`;
+      return `${days} Days (${weeks} Week${weeks > 1 ? 's' : ''})`;
+    }
+    return `${days} Days`;
   };
 
   // FIX #5: Outstanding min = 50,000 (matches regular flow)
@@ -4321,13 +4326,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     ) : (
                       <Select value={repaymentPeriod} onValueChange={(v) => setRepaymentPeriod(v as RepaymentPeriod)}>
                         <SelectTrigger className="h-12 text-base font-semibold border-2 border-primary/30 rounded-xl"><SelectValue /></SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-72">
                           {earnerCycle === 'weekly' ? (
-                            <>
-                              <SelectItem value="7">7 Days (1 Week)</SelectItem>
-                              <SelectItem value="14">14 Days (2 Weeks)</SelectItem>
-                              <SelectItem value="21">21 Days (3 Weeks)</SelectItem>
-                            </>
+                            Array.from({ length: 52 }, (_, i) => i + 1).map((w) => (
+                              <SelectItem key={w} value={String(w * 7)}>
+                                {w} Week{w > 1 ? 's' : ''} ({w * 7} Days){w === 52 ? ' · 1 Year' : ''}
+                              </SelectItem>
+                            ))
                           ) : (
                             <>
                               <SelectItem value="30">30 Days (1 Month)</SelectItem>
