@@ -23,6 +23,9 @@ import { CurrencyProvider } from "@/hooks/useCurrency";
 const BusinessAdvanceHarness = lazyWithRetry(
   () => import("@/pages/__e2e/BusinessAdvanceHarness"),
 );
+const LandlordSheetStackingHarness = lazyWithRetry(
+  () => import("@/pages/__e2e/LandlordSheetStackingHarness"),
+);
 
 // Deferred language — not needed for first paint
 const LanguageProvider = lazyWithRetry(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
@@ -328,6 +331,16 @@ function AppRoutes() {
               element={
                 <Suspense fallback={null}>
                   <BusinessAdvanceHarness />
+                </Suspense>
+              }
+            />
+          )}
+          {import.meta.env.DEV && (
+            <Route
+              path="/__e2e/landlord-sheet-stacking"
+              element={
+                <Suspense fallback={null}>
+                  <LandlordSheetStackingHarness />
                 </Suspense>
               }
             />
