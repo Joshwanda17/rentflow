@@ -1519,6 +1519,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (p.outstandingBalance) setOutstandingBalance(p.outstandingBalance);
     if (p.duration) setDuration(p.duration);
     if (p.repaymentPeriod) setRepaymentPeriod(p.repaymentPeriod);
+    if (p.earnerCycle) setEarnerCycle(p.earnerCycle);
+    else if (p.repaymentPeriod) setEarnerCycle(p.repaymentPeriod === '30' || p.repaymentPeriod === '120' ? 'monthly' : 'weekly');
     if (p.landlordName) setLandlordName(p.landlordName);
     if (p.landlordPhone) setLandlordPhone(p.landlordPhone);
     if (p.propertyAddress) setPropertyAddress(p.propertyAddress);
