@@ -26,6 +26,9 @@ const BusinessAdvanceHarness = lazyWithRetry(
 const LandlordSheetStackingHarness = lazyWithRetry(
   () => import("@/pages/__e2e/LandlordSheetStackingHarness"),
 );
+const PhoneContactActionsHarness = lazyWithRetry(
+  () => import("@/pages/__e2e/PhoneContactActionsHarness"),
+);
 
 // Deferred language — not needed for first paint
 const LanguageProvider = lazyWithRetry(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
@@ -341,6 +344,16 @@ function AppRoutes() {
               element={
                 <Suspense fallback={null}>
                   <LandlordSheetStackingHarness />
+                </Suspense>
+              }
+            />
+          )}
+          {import.meta.env.DEV && (
+            <Route
+              path="/__e2e/phone-contact-actions"
+              element={
+                <Suspense fallback={null}>
+                  <PhoneContactActionsHarness />
                 </Suspense>
               }
             />

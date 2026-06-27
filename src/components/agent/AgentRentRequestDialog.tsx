@@ -374,7 +374,7 @@ function formatPhoneInput(raw: string): string {
  * The actions are only ENABLED when the number passes the shared Ugandan phone
  * validation (client-side guard). Invalid/missing numbers render a disabled
  * hint instead of a broken tel:/wa.me link. */
-function PhoneContactActions({
+export function PhoneContactActions({
   phone,
   className,
 }: {
