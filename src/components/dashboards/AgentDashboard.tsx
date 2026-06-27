@@ -1058,6 +1058,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <div className="flex-1 text-left">
                 <div className="font-bold text-sm text-foreground">Lending Agent</div>
                 <div className="text-[11px] text-muted-foreground">Lend to Welile users from your wallet · Earn interest</div>
+                <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-emerald-600/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                  <ShieldCheck className="h-3 w-3" strokeWidth={2.4} />
+                  Principal 100% protected by Welile
+                </div>
               </div>
               <span className="text-xs font-bold text-emerald-700">→</span>
             </button>
