@@ -2303,8 +2303,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const fees = calculateFees();
 
   // ===== Weekly earner submit gate =====
-  // The form must stay un-submittable until the landlord's total rent need is a
-  // valid UGX number AND the weekly repayment ((total + 33%) ÷ 4) is computed.
+  // The form must stay un-submittable until the 1 month rent is a
+  // valid UGX number AND the weekly repayment ((1 month + 33%) ÷ 4) is computed.
   const isWeeklyEarner = incomeType === 'weekly-monthly' && earnerCycle === 'weekly';
   const weeklyRepayment = isWeeklyEarner && amount > 0 ? Math.ceil((amount * 1.33) / 4) : 0;
   const weeklyEarnerBlocksSubmit =
@@ -4242,12 +4242,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label className="font-semibold text-primary/80">
                       {incomeType === 'weekly-monthly' && earnerCycle === 'weekly'
-                        ? "Landlord's Monthly Rent (UGX) *"
+                        ? '1 Month Rent (UGX) *'
                         : 'Rent Amount (UGX) *'}
                     </Label>
                     <p className="text-[10px] font-bold text-primary/60 italic">
                       {incomeType === 'weekly-monthly' && earnerCycle === 'weekly'
-                        ? 'Enter ONE month\u2019s rent only \u2014 Welile pays the landlord this every month; the tenant repays weekly at the one-month rate'
+                        ? 'Enter the 1 month rent only \u2014 Welile pays the landlord this every month; the tenant repays weekly at the 1 month rate'
                         : 'Let Welile pay this today'}
                     </p>
                     {/* FIX #7: Currency formatting */}
@@ -5482,7 +5482,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <span className="font-semibold text-right min-w-0 break-words">{tenantName || '—'}</span>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <span className="text-muted-foreground shrink-0">Rent amount</span>
+                    <span className="text-muted-foreground shrink-0">{incomeType === 'weekly-monthly' && earnerCycle === 'weekly' ? '1 month rent' : 'Rent amount'}</span>
                     <span className="font-semibold text-right min-w-0 break-words">{amount ? formatUGX(amount) : '—'}</span>
                   </div>
                   <div className="flex justify-between gap-2">
@@ -5954,7 +5954,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               )}
               {detailStep === DETAIL_STEPS.length - 1 && weeklyEarnerBlocksSubmit && (
                 <p className="text-xs font-semibold text-warning text-center -mt-1">
-                  Enter a valid landlord rent need so the weekly repayment can be computed before submitting.
+                  Enter a valid 1 month rent so the weekly repayment can be computed before submitting.
                 </p>
               )}
               {loading && (
