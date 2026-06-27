@@ -15,6 +15,7 @@ import { useExistingTenantByPhone, type ExistingTenantMatch } from '@/hooks/useE
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentCapacityMap, DAILY_ELIGIBILITY_THRESHOLD, NEW_AGENT_TENANT_THRESHOLD, NEW_AGENT_RENT_CAP_UGX } from '@/hooks/useAgentCapacityMap';
 import { DailyRatingThresholdPopover } from '@/components/shared/DailyRatingThresholdPopover';
+import { EntityDetailSheet } from '@/components/executive/EntityDetailSheet';
 import {
   Dialog,
   DialogContent,
@@ -670,6 +671,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [houseSearching, setHouseSearching] = useState(false);
   const [houseSearchedOnce, setHouseSearchedOnce] = useState(false);
   const [selectedHouse, setSelectedHouse] = useState<AvailableHouse | null>(null);
+  // Landlord profile peek from a picker result (does not select the house).
+  const [landlordProfile, setLandlordProfile] = useState<AvailableHouse | null>(null);
   const [showListHouse, setShowListHouse] = useState(false);
   // Live conflict check: true when the selected house has been reserved /
   // occupied / hidden by another agent since it was picked.
@@ -3957,11 +3960,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </div>
                       ) : houseResults.length > 0 ? (
                        houseResults.map((h) => (
+                          <div
+                            key={h.id}
+                            className="rounded-xl border border-border bg-card hover:border-emerald-500/60 hover:bg-emerald-500/5 transition-colors"
+                          >
                           <button
                             type="button"
-                            key={h.id}
                             onClick={() => selectHouse(h)}
-                            className="w-full text-left rounded-xl border border-border bg-card hover:border-emerald-500/60 hover:bg-emerald-500/5 transition-colors p-3"
+                            className="w-full text-left p-3"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
@@ -4002,6 +4008,18 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                               ) : null}
                             </div>
                           </button>
+                          {h.landlord_id && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setLandlordProfile(h); }}
+                              className="flex w-full items-center gap-1 border-t border-border px-3 py-2 text-[11px] font-semibold text-primary hover:bg-primary/5 transition-colors"
+                            >
+                              <User className="h-3 w-3" />
+                              View landlord profile
+                              <ExternalLink className="h-3 w-3 ml-auto opacity-60" />
+                            </button>
+                          )}
+                          </div>
                         ))
                       ) : houseSearchedOnce ? (
                         <div className="text-center py-4 text-sm text-muted-foreground">
@@ -5896,6 +5914,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         </div>
       </DialogContent>
     </Dialog>
+    <EntityDetailSheet
+      open={!!landlordProfile}
+      onClose={() => setLandlordProfile(null)}
+      title={landlordProfile?.landlord_name || 'Landlord'}
+      subtitle={landlordProfile?.landlord_phone ? formatPhoneInput(landlordProfile.landlord_phone) : 'No phone on file'}
+      icon={<User className="h-4 w-4 text-primary" />}
+      fields={[
+        { label: 'Name', value: landlordProfile?.landlord_name || '—' },
+        { label: 'Phone', value: landlordProfile?.landlord_phone ? formatPhoneInput(landlordProfile.landlord_phone) : '—' },
+        { label: 'Property', value: landlordProfile?.title || '—' },
+        { label: 'Address', value: [landlordProfile?.address, landlordProfile?.region].filter(Boolean).join(', ') || '—' },
+        { label: 'District', value: landlordProfile?.district || '—' },
+        { label: 'Monthly rent', value: landlordProfile?.monthly_rent ? `${formatUGX(landlordProfile.monthly_rent)}/mo` : '—' },
+      ]}
+    />
     </>
   );
 }
