@@ -122,7 +122,9 @@ export function AutoPayoutHistory() {
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
           </div>
         ) : entries.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic py-4 text-center">No automated payouts have run for this person yet.</p>
+          <p className="text-xs text-muted-foreground italic py-4 text-center">
+            {hasFilter ? 'No payouts match the current filters.' : 'No automated payouts have run for this person yet.'}
+          </p>
         ) : (
           <>
             {entries.map(e => (
@@ -140,7 +142,7 @@ export function AutoPayoutHistory() {
                 {(e.reason || e.category_id) && (
                   <p className="text-[11px] text-muted-foreground truncate">{[e.reason, e.category_id].filter(Boolean).join(' · ')}</p>
                 )}
-                {e.status === 'failed' && e.error_message && (
+                {e.status !== 'success' && e.error_message && (
                   <p className="text-[11px] text-destructive truncate">{e.error_message}</p>
                 )}
                 <p className="text-[11px] text-muted-foreground">{formatTs(e.ran_at)}</p>
