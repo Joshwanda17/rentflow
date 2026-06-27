@@ -14,6 +14,7 @@ import { Pause, Play, Trash2, RefreshCw, CalendarClock, Loader2 } from 'lucide-r
 import { logStandingOrderAction } from '@/lib/standingOrderAudit';
 import { StandingOrderAuditLog } from './StandingOrderAuditLog';
 import { AutoPayoutHistory } from './AutoPayoutHistory';
+import { StandingOrderProfileSheet } from './StandingOrderProfileSheet';
 
 interface StandingOrder {
   id: string;
@@ -27,6 +28,7 @@ interface StandingOrder {
   enabled: boolean;
   next_run_at: string | null;
   last_run_at: string | null;
+  created_at?: string | null;
   recipient_name?: string | null;
 }
 
@@ -51,12 +53,13 @@ export function StandingOrdersManager() {
   const [orders, setOrders] = useState<StandingOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [profileOrder, setProfileOrder] = useState<StandingOrder | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('scheduled_payouts')
-      .select('id, target_user_id, amount, reason, frequency, day_of_month, day_of_week, interval_days, enabled, next_run_at, last_run_at')
+      .select('id, target_user_id, amount, reason, frequency, day_of_month, day_of_week, interval_days, enabled, next_run_at, last_run_at, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -162,7 +165,13 @@ export function StandingOrdersManager() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold truncate">{o.recipient_name || 'Unknown user'}</span>
+                    <button
+                      type="button"
+                      onClick={() => setProfileOrder(o)}
+                      className="text-sm font-semibold truncate text-primary underline-offset-2 hover:underline text-left"
+                    >
+                      {o.recipient_name || 'Unknown user'}
+                    </button>
                     {o.enabled ? (
                       <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px]">Active</Badge>
                     ) : (
@@ -234,6 +243,15 @@ export function StandingOrdersManager() {
     </Card>
     <AutoPayoutHistory />
     <StandingOrderAuditLog />
+    <StandingOrderProfileSheet
+      open={!!profileOrder}
+      onClose={() => setProfileOrder(null)}
+      targetUserId={profileOrder?.target_user_id ?? null}
+      recipientName={profileOrder?.recipient_name ?? null}
+      createdAt={profileOrder?.created_at ?? null}
+      schedule={profileOrder ? describeSchedule(toConfig(profileOrder)) : null}
+      amount={profileOrder?.amount ?? null}
+    />
     </div>
   );
 }
