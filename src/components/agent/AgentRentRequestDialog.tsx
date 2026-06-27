@@ -5928,7 +5928,19 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         { label: 'District', value: landlordProfile?.district || '—' },
         { label: 'Monthly rent', value: landlordProfile?.monthly_rent ? `${formatUGX(landlordProfile.monthly_rent)}/mo` : '—' },
       ]}
-    />
+    >
+      <Button
+        type="button"
+        className="mt-4 w-full gap-2"
+        onClick={() => {
+          if (landlordProfile) selectHouse(landlordProfile);
+          setLandlordProfile(null);
+        }}
+      >
+        <CheckCircle2 className="h-4 w-4" />
+        Confirm and select landlord
+      </Button>
+    </EntityDetailSheet>
     </>
   );
 }
