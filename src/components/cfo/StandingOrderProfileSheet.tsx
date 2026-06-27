@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { EntityDetailSheet } from '@/components/executive/EntityDetailSheet';
-import { Loader2, UserRound, MessageSquare, Mail, CheckCircle2, XCircle, MinusCircle, Clock, RotateCw } from 'lucide-react';
+import { Loader2, UserRound, MessageSquare, Mail, CheckCircle2, XCircle, MinusCircle, Clock, RotateCw, Send } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface ProfileData {
   full_name: string | null;
@@ -70,6 +72,51 @@ export function StandingOrderProfileSheet({ open, onClose, scheduledPayoutId, ta
   const [loading, setLoading] = useState(false);
   const [notifs, setNotifs] = useState<NotifStatus[]>([]);
   const [attempts, setAttempts] = useState<NotifAttempt[]>([]);
+  const [resending, setResending] = useState<'sms' | 'email' | null>(null);
+
+  const refreshDelivery = () => {
+    if (!scheduledPayoutId) return;
+    supabase
+      .from('standing_order_setup_notifications')
+      .select('channel, status, attempts, last_error, last_sent_at')
+      .eq('scheduled_payout_id', scheduledPayoutId)
+      .then(({ data }) => setNotifs((data ?? []) as NotifStatus[]));
+    supabase
+      .from('standing_order_notification_attempts')
+      .select('channel, attempt_number, outcome, error, attempted_at')
+      .eq('scheduled_payout_id', scheduledPayoutId)
+      .order('channel', { ascending: true })
+      .order('attempt_number', { ascending: true })
+      .then(({ data }) => setAttempts((data ?? []) as NotifAttempt[]));
+  };
+
+  const handleResend = async (channel: 'sms' | 'email') => {
+    if (!targetUserId || amount == null) return;
+    setResending(channel);
+    try {
+      const { data, error } = await supabase.functions.invoke('notify-standing-order-setup', {
+        body: {
+          target_user_id: targetUserId,
+          scheduled_payout_id: scheduledPayoutId,
+          amount,
+          schedule,
+          channel,
+        },
+      });
+      if (error) throw error;
+      const ok = channel === 'sms' ? data?.sms_sent : data?.email_sent;
+      if (ok) {
+        toast.success(`${channel === 'sms' ? 'SMS' : 'Email'} resent successfully`);
+      } else {
+        toast.error(`${channel === 'sms' ? 'SMS' : 'Email'} could not be delivered — check the timeline`);
+      }
+      refreshDelivery();
+    } catch (e) {
+      toast.error(`Failed to resend ${channel}: ${e instanceof Error ? e.message : 'unknown error'}`);
+    } finally {
+      setResending(null);
+    }
+  };
 
   useEffect(() => {
     if (!open || !targetUserId) { setProfile(null); return; }
@@ -148,7 +195,28 @@ export function StandingOrderProfileSheet({ open, onClose, scheduledPayoutId, ta
       <div className="mt-3 border-t pt-3">
         <p className="text-xs font-semibold text-muted-foreground mb-2">Setup notification delivery</p>
         {notifs.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No delivery records yet.</p>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">No delivery records yet.</p>
+            <div className="flex gap-2">
+              {(['sms', 'email'] as const).map((ch) => (
+                <Button
+                  key={ch}
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={resending !== null}
+                  onClick={() => handleResend(ch)}
+                >
+                  {resending === ch ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                  Send {ch}
+                </Button>
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="space-y-2">
             {notifs.map((n) => {
@@ -174,6 +242,22 @@ export function StandingOrderProfileSheet({ open, onClose, scheduledPayoutId, ta
                   {n.last_error && (
                     <p className="mt-1 text-destructive break-words">{n.last_error}</p>
                   )}
+                  <div className="mt-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled={resending !== null}
+                      onClick={() => handleResend(n.channel)}
+                    >
+                      {resending === n.channel ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Send className="h-3.5 w-3.5" />
+                      )}
+                      Resend {n.channel}
+                    </Button>
+                  </div>
                 </div>
               );
             })}
