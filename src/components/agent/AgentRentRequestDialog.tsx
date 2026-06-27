@@ -3058,12 +3058,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const getPeriodLabel = (period: RepaymentPeriod) => {
     switch (period) {
-      case '7': return '7 Days (1 Week)';
-      case '14': return '14 Days (2 Weeks)';
-      case '21': return '21 Days (3 Weeks)';
       case '30': return '30 Days (1 Month)';
       case '120': return '120 Days (4 Months)';
     }
+    const days = parseInt(period, 10);
+    if (!Number.isFinite(days) || days <= 0) return period;
+    const weeks = Math.round(days / 7);
+    if (days % 7 === 0 && weeks > 0) {
+      if (weeks === 52) return `${days} Days (52 Weeks · 1 Year)`;
+      return `${days} Days (${weeks} Week${weeks > 1 ? 's' : ''})`;
+    }
+    return `${days} Days`;
   };
 
   // FIX #5: Outstanding min = 50,000 (matches regular flow)
