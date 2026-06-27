@@ -3310,6 +3310,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <button
                   onClick={() => {
                     setIncomeType('weekly-monthly');
+                    setEarnerCycle('weekly');
+                    setRepaymentPeriod('7');
                     setDetailStep(0);
                     setValidationErrors([]);
                     setFieldErrors({});
@@ -3322,8 +3324,31 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <Banknote className="h-5 w-5 text-success" />
                     </div>
                     <div>
-                      <p className="font-semibold">Weekly/Monthly Earner</p>
-                      <p className="text-xs text-muted-foreground">Pays back in 1-4 weeks or 4 months</p>
+                      <p className="font-semibold">Weekly Earner</p>
+                      <p className="text-xs text-muted-foreground">Pays back in 1-3 weeks</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIncomeType('weekly-monthly');
+                    setEarnerCycle('monthly');
+                    setRepaymentPeriod('30');
+                    setDetailStep(0);
+                    setValidationErrors([]);
+                    setFieldErrors({});
+                    setStep('details');
+                  }}
+                  className="p-4 rounded-xl border-2 border-muted hover:border-success hover:bg-success/5 transition-all text-left group active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-success/10 group-hover:bg-success/20">
+                      <Calendar className="h-5 w-5 text-success" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Monthly Earner</p>
+                      <p className="text-xs text-muted-foreground">Pays back after 1 month or 4 months</p>
                     </div>
                   </div>
                 </button>
