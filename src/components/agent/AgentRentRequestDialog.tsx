@@ -5954,7 +5954,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               )}
               {detailStep === DETAIL_STEPS.length - 1 && weeklyEarnerBlocksSubmit && (
                 <p className="text-xs font-semibold text-warning text-center -mt-1">
-                  Enter a valid landlord rent need so the weekly repayment can be computed before submitting.
+                  Enter a valid 1 month rent so the weekly repayment can be computed before submitting.
                 </p>
               )}
               {loading && (
