@@ -166,33 +166,46 @@ Deno.serve(async (req) => {
     let smsSent = false;
     if (profile.phone) {
       const msg = `Hi ${firstName}, WELILE has set up an automatic payout of ${amountStr} to your wallet (${scheduleLabel}). You'll get a message each time it runs. welilereceipts.com`;
-      smsSent = await sendSMS(profile.phone, msg);
+      const smsResult = await withRetry(
+        "sms",
+        () => sendSMSOnce(profile.phone!, msg),
+        { retries: 3, baseDelayMs: 500 },
+      );
+      smsSent = smsResult.ok && smsResult.value === true;
     }
 
     // 2) Email to the recipient (skip synthetic @welile.user addresses).
     let emailSent = false;
     if (profile.email && !profile.email.endsWith("@welile.user")) {
-      try {
-        const { error: emailErr } = await adminClient.functions.invoke("send-transactional-email", {
-          body: {
-            templateName: "standing-order-created",
-            recipientEmail: profile.email,
-            idempotencyKey: `standing-order-created-${scheduled_payout_id ?? target_user_id}`,
-            templateData: {
-              recipient_name: profile.full_name || "there",
-              amount: Number(amount),
-              currency: "UGX",
-              schedule: scheduleLabel,
-              reason: reason || "",
-              next_run: nextRunLabel,
+      // The same idempotencyKey across retries means the email pipeline de-dupes
+      // if an earlier attempt actually succeeded before the error surfaced.
+      const emailResult = await withRetry(
+        "email",
+        async () => {
+          const { error: emailErr } = await adminClient.functions.invoke("send-transactional-email", {
+            body: {
+              templateName: "standing-order-created",
+              recipientEmail: profile.email,
+              idempotencyKey: `standing-order-created-${scheduled_payout_id ?? target_user_id}`,
+              templateData: {
+                recipient_name: profile.full_name || "there",
+                amount: Number(amount),
+                currency: "UGX",
+                schedule: scheduleLabel,
+                reason: reason || "",
+                next_run: nextRunLabel,
+              },
             },
-          },
-        });
-        emailSent = !emailErr;
-        if (emailErr) console.error("[notify-standing-order-setup] email invoke error:", emailErr);
-      } catch (e) {
-        console.error("[notify-standing-order-setup] email invoke failed:", e);
-      }
+          });
+          if (emailErr) {
+            // Edge invoke errors are network/5xx in practice → treat as transient.
+            throw new TransientError(emailErr.message ?? "email invoke error");
+          }
+          return true;
+        },
+        { retries: 3, baseDelayMs: 500 },
+      );
+      emailSent = emailResult.ok && emailResult.value === true;
     }
 
     return new Response(JSON.stringify({ success: true, sms_sent: smsSent, email_sent: emailSent }), {
