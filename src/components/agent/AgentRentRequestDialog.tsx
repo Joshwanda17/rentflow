@@ -480,13 +480,13 @@ function vAmount(value: string): string | null {
   return null;
 }
 /**
- * Validator for the landlord's total rent need (weekly earner flow).
+ * Validator for the landlord's ONE-MONTH rent amount (weekly earner flow).
  * Unlike vAmount it is strict: it errors when empty or non-numeric so the
  * weekly repayment can always be computed from a valid UGX figure.
  */
 function vRentNeed(raw: string): string | null {
   const trimmed = (raw ?? '').trim();
-  if (!trimmed) return "Enter the landlord's total rent need";
+  if (!trimmed) return "Enter the landlord's monthly rent amount";
   const digits = trimmed.replace(/[^0-9]/g, '');
   if (!digits) return 'Use numbers only, e.g. 500,000';
   if (Number(digits) <= 0) return 'Enter an amount above 0, e.g. 500,000';
