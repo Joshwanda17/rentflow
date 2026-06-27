@@ -14,11 +14,31 @@ import { test, expect, devices } from '@playwright/test';
  *   bunx playwright test landlord-sheet-stacking.visual --update-snapshots
  */
 
-const MOBILE_VIEWPORTS = [
+/**
+ * Base portrait viewports across a spread of mobile sizes (small → large).
+ * Each one is also exercised in landscape (width/height swapped) so the
+ * full-screen sheet stacking is verified in both orientations.
+ */
+const BASE_VIEWPORTS = [
   { name: 'iphone-12', ...devices['iPhone 12'].viewport },
+  { name: 'iphone-se', ...devices['iPhone SE'].viewport },
+  { name: 'iphone-14-pro-max', ...devices['iPhone 14 Pro Max'].viewport },
   { name: 'pixel-5', ...devices['Pixel 5'].viewport },
+  { name: 'pixel-7', ...devices['Pixel 7'].viewport },
+  { name: 'galaxy-s9', ...devices['Galaxy S9+'].viewport },
   { name: 'small-360', width: 360, height: 740 },
+  { name: 'tiny-320', width: 320, height: 568 },
 ];
+
+type Orientation = 'portrait' | 'landscape';
+
+const MOBILE_VIEWPORTS = BASE_VIEWPORTS.flatMap((vp) =>
+  (['portrait', 'landscape'] as Orientation[]).map((orientation) => ({
+    name: `${vp.name}-${orientation}`,
+    width: orientation === 'portrait' ? vp.width : vp.height,
+    height: orientation === 'portrait' ? vp.height : vp.width,
+  })),
+);
 
 for (const vp of MOBILE_VIEWPORTS) {
   test(`landlord sheet stacks above find-house dialog — ${vp.name}`, async ({ page }) => {
@@ -31,8 +51,15 @@ for (const vp of MOBILE_VIEWPORTS) {
     // Sheet content (full-screen on mobile) must be on top — its title visible.
     await expect(sheet.getByText('Jane Landlord')).toBeVisible();
     await expect(sheet.getByText('UGX 300,000')).toBeVisible();
-    // The Close affordance only renders in the full-screen mobile branch.
-    await expect(sheet.getByRole('button', { name: /close profile/i })).toBeVisible();
+    // The "Close profile" affordance only renders in the full-screen mobile
+    // branch (viewport width < 768px). Wider landscape viewports fall back to
+    // the side-sheet, but the sheet must still stack above the dialog.
+    const MOBILE_BREAKPOINT = 768;
+    if (vp.width < MOBILE_BREAKPOINT) {
+      await expect(
+        sheet.getByRole('button', { name: /close profile/i }),
+      ).toBeVisible();
+    }
 
     // Settle animations before snapshotting.
     await page.waitForTimeout(400);
