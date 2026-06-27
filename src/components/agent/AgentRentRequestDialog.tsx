@@ -5914,6 +5914,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         </div>
       </DialogContent>
     </Dialog>
+    <EntityDetailSheet
+      open={!!landlordProfile}
+      onClose={() => setLandlordProfile(null)}
+      title={landlordProfile?.landlord_name || 'Landlord'}
+      subtitle={landlordProfile?.landlord_phone ? formatPhoneInput(landlordProfile.landlord_phone) : 'No phone on file'}
+      icon={<User className="h-4 w-4 text-primary" />}
+      fields={[
+        { label: 'Name', value: landlordProfile?.landlord_name || '—' },
+        { label: 'Phone', value: landlordProfile?.landlord_phone ? formatPhoneInput(landlordProfile.landlord_phone) : '—' },
+        { label: 'Property', value: landlordProfile?.title || '—' },
+        { label: 'Address', value: [landlordProfile?.address, landlordProfile?.region].filter(Boolean).join(', ') || '—' },
+        { label: 'District', value: landlordProfile?.district || '—' },
+        { label: 'Monthly rent', value: landlordProfile?.monthly_rent ? `${formatUGX(landlordProfile.monthly_rent)}/mo` : '—' },
+      ]}
+    />
     </>
   );
 }
