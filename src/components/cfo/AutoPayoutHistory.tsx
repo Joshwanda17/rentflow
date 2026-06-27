@@ -28,6 +28,11 @@ const PAGE_SIZE = 12;
 
 type StatusFilter = 'all' | 'success' | 'failed' | 'cancelled';
 
+// Default filter values — what "Reset" restores and the initial state.
+const DEFAULT_STATUS: StatusFilter = 'all';
+const DEFAULT_FROM = '';
+const DEFAULT_TO = '';
+
 function formatTs(iso: string): string {
   return new Date(iso).toLocaleString('en-GB', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -42,9 +47,9 @@ export function AutoPayoutHistory() {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [totalPaid, setTotalPaid] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(DEFAULT_STATUS);
+  const [fromDate, setFromDate] = useState(DEFAULT_FROM);
+  const [toDate, setToDate] = useState(DEFAULT_TO);
 
   const load = useCallback(async (uid: string, p: number) => {
     setLoading(true);
@@ -95,8 +100,13 @@ export function AutoPayoutHistory() {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasFilter = statusFilter !== 'all' || !!fromDate || !!toDate;
-  const clearFilters = () => { setStatusFilter('all'); setFromDate(''); setToDate(''); };
+  const isDefault = statusFilter === DEFAULT_STATUS && fromDate === DEFAULT_FROM && toDate === DEFAULT_TO;
+  const hasFilter = !isDefault;
+  const resetFilters = () => {
+    setStatusFilter(DEFAULT_STATUS);
+    setFromDate(DEFAULT_FROM);
+    setToDate(DEFAULT_TO);
+  };
 
   return (
     <Card>
@@ -140,9 +150,15 @@ export function AutoPayoutHistory() {
               <span className="text-[11px] font-semibold flex items-center gap-1 text-muted-foreground uppercase tracking-wide">
                 <Filter className="h-3 w-3" /> Filters
               </span>
-              {hasFilter && (
-                <Button variant="ghost" size="sm" className="h-6 text-[11px] px-2" onClick={clearFilters}>Clear</Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[11px] px-2 gap-1"
+                onClick={resetFilters}
+                disabled={isDefault}
+              >
+                <RotateCcw className="h-3 w-3" /> Reset
+              </Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="space-y-1">
