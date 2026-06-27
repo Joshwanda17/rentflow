@@ -301,12 +301,23 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Validate the landlord phone server-side so only dialable Ugandan
+      // numbers are stored — this is what later powers the Call / WhatsApp
+      // actions, so an invalid number must never reach the table.
+      const landlordPhoneCheck = validateUgandaPhone(landlordPayload.phone);
+      if (!landlordPhoneCheck.valid || !landlordPhoneCheck.e164) {
+        await performRollback('invalid landlord.phone');
+        return new Response(JSON.stringify({ error: landlordPhoneCheck.error || 'Invalid landlord phone number' }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { data: landlordRow, error: landlordErr } = await supabaseAdmin
         .from('landlords')
         .insert({
           tenant_id: userId,
           name: String(landlordPayload.name ?? '').trim(),
-          phone: String(landlordPayload.phone ?? '').trim(),
+          phone: landlordPhoneCheck.e164,
           property_address: String(landlordPayload.property_address ?? '').trim(),
           monthly_rent: monthlyRentNum,
           mobile_money_number: landlordPayload.mobile_money_number ?? null,
