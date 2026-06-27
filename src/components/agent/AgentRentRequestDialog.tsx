@@ -4247,7 +4247,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   </div>
                   <div className="space-y-1">
                     <Label className="font-semibold text-primary/80">
-                      {incomeType === 'daily' ? 'Duration' : 'Repayment Period'} *
+                      {incomeType === 'daily' ? 'Duration' : earnerCycle === 'monthly' ? 'Monthly Repayment Period' : 'Weekly Repayment Period'} *
                     </Label>
                     <p className="text-[10px] text-muted-foreground">
                       {incomeType === 'daily'
