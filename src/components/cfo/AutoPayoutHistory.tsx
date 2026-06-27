@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { UserSearchPicker } from './UserSearchPicker';
-import { History, RefreshCw, Loader2, CheckCircle2, XCircle, Wallet } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { History, RefreshCw, Loader2, CheckCircle2, XCircle, Wallet, Ban, Filter } from 'lucide-react';
 
 interface RunEntry {
   id: string;
@@ -14,7 +17,7 @@ interface RunEntry {
   amount: number | null;
   reason: string | null;
   category_id: string | null;
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'cancelled';
   error_message: string | null;
   ran_at: string;
 }
@@ -22,6 +25,8 @@ interface RunEntry {
 interface PickedUser { id: string; full_name: string; phone?: string | null }
 
 const PAGE_SIZE = 12;
+
+type StatusFilter = 'all' | 'success' | 'failed' | 'cancelled';
 
 function formatTs(iso: string): string {
   return new Date(iso).toLocaleString('en-GB', {
@@ -37,15 +42,22 @@ export function AutoPayoutHistory() {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [totalPaid, setTotalPaid] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const load = useCallback(async (uid: string, p: number) => {
     setLoading(true);
     const from = p * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const { data, error, count } = await supabase
+    let q = supabase
       .from('scheduled_payout_runs')
       .select('id, recipient_name, amount, reason, category_id, status, error_message, ran_at', { count: 'exact' })
-      .eq('target_user_id', uid)
+      .eq('target_user_id', uid);
+    if (statusFilter !== 'all') q = q.eq('status', statusFilter);
+    if (fromDate) q = q.gte('ran_at', new Date(`${fromDate}T00:00:00`).toISOString());
+    if (toDate) q = q.lte('ran_at', new Date(`${toDate}T23:59:59`).toISOString());
+    const { data, error, count } = await q
       .order('ran_at', { ascending: false })
       .range(from, to);
     if (error) {
@@ -65,11 +77,16 @@ export function AutoPayoutHistory() {
       .eq('status', 'success');
     setTotalPaid((sumRows ?? []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0));
     setLoading(false);
-  }, [toast]);
+  }, [toast, statusFilter, fromDate, toDate]);
 
   useEffect(() => {
     if (user) load(user.id, page);
   }, [user, page, load]);
+
+  // Reset to first page whenever a filter changes.
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter, fromDate, toDate]);
 
   const onSelect = (u: PickedUser | null) => {
     setPage(0);
@@ -78,6 +95,8 @@ export function AutoPayoutHistory() {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasFilter = statusFilter !== 'all' || !!fromDate || !!toDate;
+  const clearFilters = () => { setStatusFilter('all'); setFromDate(''); setToDate(''); };
 
   return (
     <Card>
