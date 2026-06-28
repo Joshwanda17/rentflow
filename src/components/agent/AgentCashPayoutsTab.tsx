@@ -360,33 +360,92 @@ export function AgentCashPayoutsTab() {
     }
   };
 
-  // ALL pending/approved withdrawal requests
-  // NOTE: no FK exists between withdrawal_requests.user_id and profiles.id,
-  // so we cannot use a PostgREST embed. We fetch profiles separately and join client-side.
-  const { data: allWithdrawals = [], isLoading: loadingAll } = useQuery({
-    queryKey: ['cashout-agent-all-withdrawals'],
+  // Requests this agent has claimed and still needs to confirm. Kept as its own
+  // (small) query so it is never affected by the queue's filters or pagination.
+  const { data: myActiveClaims = [] } = useQuery({
+    queryKey: ['cashout-my-active-claims', isCashoutAgent?.id],
     queryFn: async () => {
-      await releaseExpiredClaims();
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
+        .eq('assigned_cashout_agent_id', isCashoutAgent!.id)
         .in('status', CASHOUT_QUEUE_STATUSES)
-        .order('created_at', { ascending: true });
+        .order('dispatched_at', { ascending: true });
       if (error) throw error;
-      const rows = data || [];
-      if (rows.length === 0) return rows;
+      return attachProfiles(data || []);
+    },
+    enabled: !!isCashoutAgent?.id,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
 
-      const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
-      const { data: profs } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', userIds);
-      const map = new Map((profs || []).map((p: any) => [p.id, p]));
-      return rows.map((r: any) => ({ ...r, profiles: map.get(r.user_id) || null }));
+  // Unfiltered count of all available (unclaimed/expired) requests — powers the
+  // "action required" badge and live banner regardless of active filters.
+  const { data: availableTotal = 0 } = useQuery({
+    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id],
+    queryFn: async () => {
+      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      const { count } = await supabase
+        .from('withdrawal_requests')
+        .select('id', { count: 'exact', head: true })
+        .in('status', CASHOUT_QUEUE_STATUSES)
+        .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
+      return count || 0;
     },
     enabled: !!isCashoutAgent,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
+  });
+
+  // Per-channel filtered counts (All / MoMo / Cash) for the tab badges.
+  const { data: queueCounts } = useQuery({
+    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch],
+    queryFn: async () => {
+      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
+      const base = {
+        cutoffIso, status: queueStatus, merchant: queueMerchant,
+        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(),
+      };
+      const mk = (channel: 'all' | 'momo' | 'cash') =>
+        applyQueueFilters(
+          supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }),
+          { ...base, channel },
+        ).then((r: any) => r.count || 0);
+      const [all, momo, cash] = await Promise.all([mk('all'), mk('momo'), mk('cash')]);
+      return { all, momo, cash };
+    },
+    enabled: !!isCashoutAgent,
+    staleTime: 15_000,
+    placeholderData: keepPreviousData,
+  });
+
+  // The current, server-paginated page of the Pending Queue for the active tab.
+  const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue } = useQuery({
+    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page],
+    queryFn: async () => {
+      await releaseExpiredClaims();
+      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
+      const opts: QueueFilterOpts = {
+        cutoffIso, status: queueStatus, merchant: queueMerchant,
+        minAmount, maxAmount, fromIso, toIso, channel: channelTab,
+        searchUserIds, searchTerm: debouncedSearch.trim(),
+      };
+      let q = applyQueueFilters(
+        supabase.from('withdrawal_requests').select('*', { count: 'exact' }),
+        opts,
+      );
+      q = applyQueueSort(q, queueSort);
+      const { data, error, count } = await q.range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+      if (error) throw error;
+      const rows = await attachProfiles(data || []);
+      return { rows, count: count || 0 };
+    },
+    enabled: !!isCashoutAgent,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
   });
 
   // Daily stats: ONLY count actual cash payouts handled by THIS cash-out agent today.
