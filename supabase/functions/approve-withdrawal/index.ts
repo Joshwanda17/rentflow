@@ -1880,6 +1880,36 @@ Deno.serve(async (req) => {
         recipientEmailForLog = (rp as any)?.email ?? null;
       } catch { /* non-fatal */ }
 
+      // Fallback receipt: if the SMS can't be delivered (no phone, provider
+      // rejection, or a thrown error) we email the user the SAME proof
+      // reference and updated wallet balance so they're never left in the
+      // dark. Fire-and-forget, idempotent per withdrawal, and only attempted
+      // when we actually have an email address on file.
+      let fallbackEmailSent = false;
+      const sendFallbackReceiptEmail = (reasonTag: string) => {
+        if (fallbackEmailSent) return;
+        if (!recipientEmailForLog || !/@/.test(recipientEmailForLog)) return;
+        fallbackEmailSent = true;
+        try {
+          const emailReq = buildWithdrawalPaidReceiptRequest({
+            recipientEmail: recipientEmailForLog,
+            recipientName: profile?.full_name ?? null,
+            withdrawalId: String(withdrawal_id),
+            amount,
+            paymentMethod: payment_method,
+            proofLabel,
+            proofReference: refUpper,
+            newBalance,
+          });
+          dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
+          console.log(
+            `[approve-withdrawal] SMS undeliverable (${reasonTag}); fallback receipt email queued to ${recipientEmailForLog}`,
+          );
+        } catch (e) {
+          console.error("[approve-withdrawal] fallback receipt email failed:", e);
+        }
+      };
+
       if (profile?.phone) {
         // 1) Record the SMS as "queued" up front so Financial Ops can see the
         //    delivery is in flight, then 2) flip it to "sent"/"failed" once the
@@ -1900,6 +1930,7 @@ Deno.serve(async (req) => {
             const logId = (logRow as any)?.id ?? null;
             sendSMS(profile.phone, smsMsg)
               .then((ok) => {
+                if (!ok) sendFallbackReceiptEmail("provider rejected");
                 if (!logId) return;
                 admin
                   .from("withdrawal_notification_log")
@@ -1912,6 +1943,7 @@ Deno.serve(async (req) => {
               })
               .catch((e) => {
                 console.error("[approve-withdrawal] paid SMS failed:", e);
+                sendFallbackReceiptEmail("send threw");
                 if (!logId) return;
                 admin
                   .from("withdrawal_notification_log")
@@ -1925,10 +1957,16 @@ Deno.serve(async (req) => {
           }, (e) => {
             console.error("[approve-withdrawal] notification log insert failed:", e);
             // Still attempt the SMS even if logging failed.
-            sendSMS(profile.phone, smsMsg).catch(() => {});
+            sendSMS(profile.phone, smsMsg)
+              .then((ok) => {
+                if (!ok) sendFallbackReceiptEmail("provider rejected (log insert failed)");
+              })
+              .catch(() => sendFallbackReceiptEmail("send threw (log insert failed)"));
           });
       } else {
         // No phone on file — still record that the user could not be SMS'd.
+        // Fall back to an email receipt so the user still gets confirmation.
+        sendFallbackReceiptEmail("no phone on file");
         admin
           .from("withdrawal_notification_log")
           .insert({
@@ -1937,7 +1975,9 @@ Deno.serve(async (req) => {
             recipient_email: recipientEmailForLog,
             amount,
             status: "failed",
-            error_message: "No phone number on file for the withdrawing user",
+            error_message:
+              "No phone number on file for the withdrawing user" +
+              (recipientEmailForLog ? " — fallback email receipt sent" : ""),
           })
           .then(() => {}, () => {});
       }
