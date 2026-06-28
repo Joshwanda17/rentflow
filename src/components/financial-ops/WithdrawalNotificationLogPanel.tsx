@@ -68,6 +68,7 @@ export function WithdrawalNotificationLogPanel() {
   const [maxAmount, setMaxAmount] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -77,12 +78,12 @@ export function WithdrawalNotificationLogPanel() {
   // Reset to first page whenever filters or sort change.
   useEffect(() => {
     setPage(0);
-  }, [debouncedRecipient, minAmount, maxAmount, fromDate, toDate, sortKey, sortDir]);
+  }, [debouncedRecipient, minAmount, maxAmount, fromDate, toDate, statusFilter, sortKey, sortDir]);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: [
       'withdrawal-notification-log',
-      debouncedRecipient, minAmount, maxAmount, fromDate, toDate,
+      debouncedRecipient, minAmount, maxAmount, fromDate, toDate, statusFilter,
       sortKey, sortDir, page,
     ],
     queryFn: async () => {
@@ -95,6 +96,7 @@ export function WithdrawalNotificationLogPanel() {
 
       const q = debouncedRecipient.trim();
       if (q) query = query.ilike('recipient_email', `%${q}%`);
+      if (statusFilter !== 'all') query = query.eq('status', statusFilter);
       const min = minAmount.trim() === '' ? null : Number(minAmount);
       const max = maxAmount.trim() === '' ? null : Number(maxAmount);
       if (min !== null && Number.isFinite(min)) query = query.gte('amount', min);
@@ -119,12 +121,14 @@ export function WithdrawalNotificationLogPanel() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const hasFilters = recipient || minAmount || maxAmount || fromDate || toDate;
+  const hasFilters = recipient || minAmount || maxAmount || fromDate || toDate || statusFilter !== 'all';
   const clearFilters = () => {
     setRecipient('');
     setMinAmount('');
     setMaxAmount('');
     setFromDate('');
     setToDate('');
+    setStatusFilter('all');
   };
 
   function toggleSort(key: SortKey) {
