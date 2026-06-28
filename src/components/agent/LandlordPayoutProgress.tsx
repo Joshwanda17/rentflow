@@ -52,7 +52,7 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
         (p) => {
           const next = p.new as PayoutRow;
           setPayout(next);
-          if (["completed", "failed", "escalated", "pending_finops_disbursement"].includes(next.status)) {
+          if (["completed", "failed", "escalated", "pending_finops_disbursement", "pending_merchant_payout", "awaiting_agent_receipt"].includes(next.status)) {
             onDone?.(next.status);
           }
         },
@@ -79,7 +79,7 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
 
   // Fire onDone if initial fetch lands in a terminal state
   useEffect(() => {
-    if (payout && ["completed", "failed", "escalated", "pending_finops_disbursement"].includes(payout.status)) {
+    if (payout && ["completed", "failed", "escalated", "pending_finops_disbursement", "pending_merchant_payout", "awaiting_agent_receipt"].includes(payout.status)) {
       onDone?.(payout.status);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
