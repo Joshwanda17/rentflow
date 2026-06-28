@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
+import { CashAgentSelector, type SelectedCashAgent } from './CashAgentSelector';
 
 interface WithdrawRequestDialogProps {
   open: boolean;
