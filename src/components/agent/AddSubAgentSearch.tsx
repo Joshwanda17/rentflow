@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,7 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { Search, Loader2, UserPlus, UsersRound, CheckCircle2, UserCheck } from 'lucide-react';
+import { Search, Loader2, UserPlus, UsersRound, CheckCircle2, UserCheck, Copy, Check, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface UserResult {
@@ -42,6 +43,9 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<UserResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+  const [sentInvite, setSentInvite] = useState<{ name: string; link: string; hasEmail: boolean } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const term = query.trim();
 
@@ -112,21 +116,36 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
     setSubmitting(true);
     try {
       const response = await supabase.functions.invoke('add-existing-subagent', {
-        body: { subAgentId: selected.id, origin: getPublicOrigin() },
+        body: { subAgentId: selected.id, origin: getPublicOrigin(), inviteMessage: message.trim() || undefined },
       });
       if (response.error || response.data?.error) {
         const msg = await extractEdgeFunctionError(response, 'Could not add sub-agent.');
         throw new Error(msg);
       }
-      toast({
-        title: response.data?.alreadyLinked ? 'Already your sub-agent' : 'Invitation sent!',
-        description: response.data?.alreadyLinked
-          ? `${selected.full_name || 'User'} is already your sub-agent.`
-          : `${selected.full_name || 'User'} has been sent an email and SMS with a link to accept.`,
-      });
-      setSelected(null);
-      setQuery('');
-      onAdded?.();
+      const name = selected.full_name || 'User';
+      if (response.data?.alreadyLinked) {
+        toast({
+          title: 'Already your sub-agent',
+          description: `${name} is already your sub-agent.`,
+        });
+        setSelected(null);
+        setQuery('');
+        setMessage('');
+        onAdded?.();
+      } else {
+        const hasEmail = !!response.data?.hasEmail;
+        toast({
+          title: 'Invitation created!',
+          description: hasEmail
+            ? `${name} will see it on their dashboard and get an email. You can also share the link below.`
+            : `${name} will see it on their dashboard. Share the link below with them too.`,
+        });
+        setSentInvite({ name, link: response.data?.acceptLink || '', hasEmail });
+        setSelected(null);
+        setQuery('');
+        setMessage('');
+        onAdded?.();
+      }
     } catch (err: any) {
       toast({
         title: 'Failed to add sub-agent',
@@ -136,6 +155,32 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCopyLink = async () => {
+    if (!sentInvite?.link) return;
+    try {
+      await navigator.clipboard.writeText(sentInvite.link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast({ title: 'Link copied!', description: 'Share it with your sub-agent.' });
+    } catch {
+      toast({ title: 'Could not copy', description: 'Please copy the link manually.', variant: 'destructive' });
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!sentInvite?.link) return;
+    const shareText = `I'm inviting you to become my sub-agent on Welile. Tap to accept: ${sentInvite.link}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Welile sub-agent invite', text: shareText, url: sentInvite.link });
+        return;
+      } catch {
+        /* user cancelled — fall through to WhatsApp */
+      }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
   };
 
   return (
@@ -148,7 +193,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
           <div>
             <h3 className="font-bold text-sm">Add an existing user as your sub-agent</h3>
             <p className="text-[11px] text-muted-foreground">
-              Search any registered user, then send them an invite to accept.
+              Search any registered user, then invite them. They'll see it on their dashboard and by email — or share the link yourself.
             </p>
           </div>
         </div>
@@ -196,7 +241,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
                   return 'This user is already linked to you. No invitation will be sent.';
                 }
                 if (isMine && link?.status === 'pending') {
-                  return 'You already sent an invite. Sending again will deliver a fresh SMS and email reminder.';
+                  return 'You already sent an invite. Sending again will refresh the dashboard invite and email reminder.';
                 }
                 if (isOther && link?.status === 'verified') {
                   return 'This user works under another agent. If you send an invite, they can choose to switch to you.';
@@ -204,7 +249,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
                 if (isOther) {
                   return 'Another agent already invited this user. If you send an invite, they can choose which agent to join.';
                 }
-                return 'No existing sub-agent link found. Sending an invite will deliver an SMS and email with an acceptance link.';
+                return 'No existing sub-agent link found. Inviting them shows the request on their dashboard and emails an acceptance link.';
               })();
 
               return (
@@ -298,6 +343,20 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
               </div>
               <Badge variant="outline" className="bg-background shrink-0">Selected</Badge>
             </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-muted-foreground">
+                Add a short message (optional)
+              </label>
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value.slice(0, 100))}
+                placeholder="e.g. Join my team — I'll help you get started!"
+                rows={2}
+                maxLength={100}
+                className="resize-none text-sm"
+              />
+              <div className="text-[10px] text-muted-foreground text-right">{message.length}/100</div>
+            </div>
             <Button
               onClick={handleAdd}
               disabled={submitting || existingLinks?.[selected.id]?.parent_agent_id === user?.id}
@@ -306,6 +365,38 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
               Send sub-agent invite
             </Button>
+          </div>
+        )}
+
+        {sentInvite && (
+          <div className="space-y-2 p-3 rounded-lg bg-green-500/5 border border-green-500/30">
+            <div className="flex items-start gap-2 text-xs text-green-800 dark:text-green-300">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                Invite created for <span className="font-semibold">{sentInvite.name}</span>.{' '}
+                {sentInvite.hasEmail
+                  ? 'They’ll see it on their dashboard and get an email.'
+                  : 'They’ll see it on their dashboard.'}{' '}
+                You can also share this link directly:
+              </span>
+            </div>
+            {sentInvite.link && (
+              <>
+                <div className="flex items-center gap-2 p-2 rounded-md bg-background border border-border">
+                  <code className="text-[11px] truncate flex-1 text-muted-foreground">{sentInvite.link}</code>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={handleCopyLink}>
+                    {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? 'Copied' : 'Copy link'}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={handleShareLink}>
+                    <Share2 className="h-3.5 w-3.5" />
+                    Share
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </CardContent>

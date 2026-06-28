@@ -8,6 +8,7 @@ interface Props {
   recipient_name?: string
   parent_name?: string
   accept_url?: string
+  invite_message?: string
 }
 
 const SITE_NAME = 'Welile'
@@ -16,6 +17,7 @@ export function SubAgentInvite({
   recipient_name = 'there',
   parent_name = 'A Welile agent',
   accept_url = 'https://welilereceipts.com/sub-agent-invite',
+  invite_message = '',
 }: Props) {
   return (
     <Html lang="en" dir="ltr">
@@ -32,6 +34,11 @@ export function SubAgentInvite({
               sub-agent on {SITE_NAME}. Accept the invitation to start earning and
               tracking your activity.
             </Text>
+            {invite_message ? (
+              <Text style={quote}>
+                "{invite_message}"
+              </Text>
+            ) : null}
           </Section>
           <Section style={{ padding: '8px 32px 8px 32px', textAlign: 'center' as const }}>
             <Button href={accept_url} style={ctaBtn}>Accept invitation</Button>
@@ -71,6 +78,7 @@ const accentBar: React.CSSProperties = { height: '6px', backgroundColor: BRAND }
 const h1: React.CSSProperties = { margin: '0 0 12px 0', color: INK, fontSize: '24px', fontWeight: 800 }
 const lead: React.CSSProperties = { margin: '0 0 8px 0', color: SUB, fontSize: '15px' }
 const body: React.CSSProperties = { margin: '0 0 16px 0', color: BODY, fontSize: '15px', lineHeight: '24px' }
+const quote: React.CSSProperties = { margin: '0 0 16px 0', padding: '12px 16px', color: INK, fontSize: '15px', lineHeight: '22px', fontStyle: 'italic', backgroundColor: '#f8f5ff', borderLeft: `3px solid ${BRAND}`, borderRadius: '6px' }
 const ctaBtn: React.CSSProperties = { backgroundColor: BRAND, color: '#ffffff', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 700, textDecoration: 'none', display: 'inline-block' }
 const fineprint: React.CSSProperties = { margin: '0 0 8px 0', color: SUB, fontSize: '12px', lineHeight: '18px', textAlign: 'center' as const }
 const link: React.CSSProperties = { color: BRAND, textDecoration: 'none', fontWeight: 700, wordBreak: 'break-all' as const }

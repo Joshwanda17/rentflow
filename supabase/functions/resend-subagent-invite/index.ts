@@ -12,50 +12,6 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-function formatPhoneInternational(phone: string): string {
-  const digits = (phone || "").replace(/[^0-9]/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("256")) return `+${digits}`;
-  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
-  if (digits.length === 9) return `+256${digits}`;
-  return `+${digits}`;
-}
-
-async function sendSMS(phone: string, message: string): Promise<boolean> {
-  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
-  const username = Deno.env.get("AFRICASTALKING_USERNAME");
-  if (!apiKey || !username) {
-    console.error("[resend-subagent-invite] Missing AT credentials");
-    return false;
-  }
-  const isSandbox = username.toLowerCase() === "sandbox";
-  const baseUrl = isSandbox
-    ? "https://api.sandbox.africastalking.com/version1/messaging"
-    : "https://api.africastalking.com/version1/messaging";
-  const to = formatPhoneInternational(phone);
-  if (!to) return false;
-  try {
-    const body = new URLSearchParams({ username, to, message, from: "WELILE" });
-    const res = await fetch(baseUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        apiKey,
-        Accept: "application/json",
-      },
-      body: body.toString(),
-    });
-    const raw = await res.text();
-    let data: any;
-    try { data = JSON.parse(raw); } catch { return false; }
-    const recipients = data?.SMSMessageData?.Recipients || [];
-    return recipients.some((r: any) => r.statusCode === 100 || r.statusCode === 101);
-  } catch (err) {
-    console.error("[resend-subagent-invite] SMS send failed:", err);
-    return false;
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -124,18 +80,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!targetProfile) return json({ error: "Sub-agent profile not found." }, 404);
 
-    // Send notifications
+    // Re-issue the invite. No SMS — email + in-app dialog + shareable link only.
+    // Carry over the personal message stored on the link, if any.
+    const { data: linkRow } = await adminClient
+      .from("agent_subagents")
+      .select("invite_message")
+      .eq("id", link.id)
+      .maybeSingle();
+    const inviteMessage = (linkRow?.invite_message as string | null) ?? null;
     const acceptLink = `${origin}/sub-agent-invite?token=${newToken}`;
-    const firstName = (targetProfile.full_name || "").trim().split(/\s+/)[0] || "there";
-    let smsSent = false;
     let emailSent = false;
-
-    if (targetProfile.phone) {
-      smsSent = await sendSMS(
-        targetProfile.phone,
-        `Hi ${firstName}, ${parentName} re-sent your sub-agent invite on Welile. Tap to accept: ${acceptLink}`,
-      );
-    }
 
     if (targetProfile.email && !targetProfile.email.endsWith("@welile.user")) {
       try {
@@ -148,6 +102,7 @@ Deno.serve(async (req) => {
               recipient_name: targetProfile.full_name || "there",
               parent_name: parentName,
               accept_url: acceptLink,
+              invite_message: inviteMessage || "",
             },
           },
         });
@@ -157,7 +112,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ ok: true, smsSent, emailSent, name: targetProfile.full_name });
+    return json({ ok: true, emailSent, acceptLink, name: targetProfile.full_name });
   } catch (err) {
     return json({ error: (err as Error)?.message || "Unexpected error" }, 500);
   }
