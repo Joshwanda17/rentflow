@@ -804,18 +804,19 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                       )}
 
                       {payoutMode === 'cash' && (
-                        <div className="p-4 rounded-xl bg-success/5 border border-success/20">
-                          <p className="text-sm font-bold text-foreground mb-2">💵 Cash Collection</p>
-                          <div className="space-y-2">
-                            {['Submit your request', 'Manager approves it', 'Collect at nearest agent with your ID'].map((step, i) => (
-                              <div key={i} className="flex items-center gap-2.5">
-                                <div className="w-6 h-6 rounded-full bg-success/15 flex items-center justify-center shrink-0">
-                                  <span className="text-[10px] font-bold text-success">{i + 1}</span>
-                                </div>
-                                <p className="text-xs text-muted-foreground">{step}</p>
-                              </div>
-                            ))}
-                          </div>
+                        <div className="space-y-3">
+                          <CashAgentSelector
+                            selected={selectedCashAgent}
+                            onSelect={setSelectedCashAgent}
+                          />
+                          {selectedCashAgent && (
+                            <div className="p-3 rounded-xl bg-success/5 border border-success/20">
+                              <p className="text-xs text-muted-foreground">
+                                Collect your cash from <strong className="text-foreground">{selectedCashAgent.agent_name}</strong>
+                                {selectedCashAgent.district ? ` in ${selectedCashAgent.district}` : ''} with your ID after approval.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
