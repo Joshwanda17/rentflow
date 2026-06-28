@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { formatDynamic } from '@/lib/currencyFormat';
@@ -27,16 +30,23 @@ type LogRow = {
   status: string | null;
   error_message: string | null;
   created_at: string;
+  updated_at: string | null;
 };
 
 type SortKey = 'recipient_email' | 'amount' | 'status' | 'created_at';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE = 25;
 
+const STATUS_OPTIONS = ['all', 'queued', 'sent', 'failed'] as const;
+type StatusFilter = typeof STATUS_OPTIONS[number];
+
 function statusColor(status?: string | null) {
   switch ((status || '').toLowerCase()) {
     case 'sent':
       return 'bg-emerald-500/10 text-emerald-600';
+    case 'queued':
+    case 'processing':
+      return 'bg-amber-500/10 text-amber-600';
     case 'failed':
     case 'error':
       return 'bg-destructive/10 text-destructive';
@@ -58,6 +68,7 @@ export function WithdrawalNotificationLogPanel() {
   const [maxAmount, setMaxAmount] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -67,12 +78,12 @@ export function WithdrawalNotificationLogPanel() {
   // Reset to first page whenever filters or sort change.
   useEffect(() => {
     setPage(0);
-  }, [debouncedRecipient, minAmount, maxAmount, fromDate, toDate, sortKey, sortDir]);
+  }, [debouncedRecipient, minAmount, maxAmount, fromDate, toDate, statusFilter, sortKey, sortDir]);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: [
       'withdrawal-notification-log',
-      debouncedRecipient, minAmount, maxAmount, fromDate, toDate,
+      debouncedRecipient, minAmount, maxAmount, fromDate, toDate, statusFilter,
       sortKey, sortDir, page,
     ],
     queryFn: async () => {
@@ -85,6 +96,7 @@ export function WithdrawalNotificationLogPanel() {
 
       const q = debouncedRecipient.trim();
       if (q) query = query.ilike('recipient_email', `%${q}%`);
+      if (statusFilter !== 'all') query = query.eq('status', statusFilter);
       const min = minAmount.trim() === '' ? null : Number(minAmount);
       const max = maxAmount.trim() === '' ? null : Number(maxAmount);
       if (min !== null && Number.isFinite(min)) query = query.gte('amount', min);
@@ -108,13 +120,14 @@ export function WithdrawalNotificationLogPanel() {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const hasFilters = recipient || minAmount || maxAmount || fromDate || toDate;
+  const hasFilters = recipient || minAmount || maxAmount || fromDate || toDate || statusFilter !== 'all';
   const clearFilters = () => {
     setRecipient('');
     setMinAmount('');
     setMaxAmount('');
     setFromDate('');
     setToDate('');
+    setStatusFilter('all');
   };
 
   function toggleSort(key: SortKey) {
@@ -141,7 +154,7 @@ export function WithdrawalNotificationLogPanel() {
           Withdrawal Notification Log
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Every merchant withdrawal alert and every paid-confirmation SMS sent to the withdrawing user (with withdrawal details &amp; new wallet balance) — search by recipient, amount range and date to trace delivery.
+          Every merchant withdrawal alert and every paid-confirmation SMS sent to the withdrawing user — with live delivery status (queued → sent / failed). Search by recipient, status, amount range and date to trace delivery.
         </p>
       </div>
 
@@ -167,6 +180,20 @@ export function WithdrawalNotificationLogPanel() {
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="text-xs text-muted-foreground mb-1 block">Delivery status</label>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="queued">Queued</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Min amount (UGX)</label>
               <Input inputMode="numeric" placeholder="0" value={minAmount} onChange={(e) => setMinAmount(e.target.value.replace(/[^0-9.]/g, ''))} className="h-11" />
@@ -236,6 +263,12 @@ export function WithdrawalNotificationLogPanel() {
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                         {format(new Date(r.created_at), 'dd MMM yyyy, HH:mm')}
+                        {r.updated_at && r.updated_at !== r.created_at && (r.status || '').toLowerCase() !== 'queued' && (
+                          <p className="text-[10px]">
+                            {(r.status || '').toLowerCase() === 'sent' ? 'Delivered' : 'Resolved'}{' '}
+                            {format(new Date(r.updated_at), 'HH:mm')}
+                          </p>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
