@@ -39,6 +39,7 @@ export function CashAgentSelector({ selected, onSelect }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [usedLocation, setUsedLocation] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   // Remember the coordinates used for the last fetch so the background
   // auto-refresh can re-query the same location without re-locating.
   const lastCoordsRef = useRef<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
@@ -117,6 +118,14 @@ export function CashAgentSelector({ selected, onSelect }: Props) {
       fetchAgents(lat, lng, true);
     }, 15000);
     return () => window.clearInterval(id);
+  }, [fetchAgents]);
+
+  // On-demand refresh of queue sizes using the last-used location.
+  const refreshQueues = useCallback(async () => {
+    setRefreshing(true);
+    const { lat, lng } = lastCoordsRef.current;
+    await fetchAgents(lat, lng, true);
+    setRefreshing(false);
   }, [fetchAgents]);
 
   if (loading || locating) {
