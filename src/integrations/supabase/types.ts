@@ -18779,6 +18779,7 @@ export type Database = {
           recipient_email: string
           recipient_id: string | null
           status: string
+          updated_at: string
           withdrawal_id: string | null
         }
         Insert: {
@@ -18789,6 +18790,7 @@ export type Database = {
           recipient_email: string
           recipient_id?: string | null
           status?: string
+          updated_at?: string
           withdrawal_id?: string | null
         }
         Update: {
@@ -18799,6 +18801,7 @@ export type Database = {
           recipient_email?: string
           recipient_id?: string | null
           status?: string
+          updated_at?: string
           withdrawal_id?: string | null
         }
         Relationships: []
