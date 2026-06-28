@@ -148,7 +148,9 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
             {isDone
               ? "Payment Sent ✓"
               : isPendingFinops
-                ? "Sent to Financial Ops ✓"
+                ? (payout.status === "pending_merchant_payout"
+                    ? "Sent to Merchant Payout Queue ✓"
+                    : "Payment in Progress ✓")
                 : isEscalated
                   ? "Escalated to Financial Ops"
                   : payout.status === "otp_verified"
@@ -160,7 +162,9 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
           </p>
           {isPendingFinops && (
             <p className="text-xs text-muted-foreground mt-2 max-w-xs mx-auto">
-              Float deducted. Financial Ops will release the money to the landlord shortly — you'll be notified.
+              {payout.status === "pending_merchant_payout"
+                ? "Float deducted. A merchant agent will pay the landlord from the Cash, Mobile Money & Bank payout queue — you'll be notified."
+                : "Float deducted. The money will be released to the landlord shortly — you'll be notified."}
             </p>
           )}
         </div>
