@@ -1404,6 +1404,60 @@ Deno.serve(async (req) => {
       // Ledger entry already exists — log but don't fail the user
     }
 
+    // ── Landlord-float payout completion ─────────────────────────────────
+    // When a merchant settles a landlord-float payout, advance the linked
+    // landlord_payouts row to 'awaiting_agent_receipt' (the same state FinOps
+    // used to set after disbursing) so the existing agent receipt-upload flow
+    // continues, SMS the landlord, and notify the agent.
+    if (isLandlordFloatPayout) {
+      try {
+        const landlordPayoutId = (wr as any).landlord_payout_id ?? null;
+        const momoRef = reference.trim().toUpperCase();
+        if (landlordPayoutId) {
+          const { data: lp } = await admin
+            .from("landlord_payouts")
+            .update({
+              status: "awaiting_agent_receipt",
+              finops_disbursed_by: user.id,
+              finops_disbursed_at: new Date().toISOString(),
+              momo_reference: momoRef,
+              disbursed_at: new Date().toISOString(),
+            } as any)
+            .eq("id", landlordPayoutId)
+            .eq("status", "pending_merchant_payout")
+            .select("id, agent_id, landlord_name, landlord_phone, mobile_money_provider, amount")
+            .maybeSingle();
+
+          if (lp) {
+            // SMS the landlord that they have been paid (best-effort).
+            if (lp.landlord_phone) {
+              admin.functions.invoke("sms-otp", {
+                body: {
+                  skipOtp: true,
+                  phone: lp.landlord_phone,
+                  message: `Welile sent ${formatUGXLocal(lp.amount)} to your ${lp.mobile_money_provider ?? "mobile money"} number. Ref: ${momoRef}`,
+                },
+              }).catch((e: unknown) =>
+                console.error("[approve-withdrawal] landlord SMS failed:", e),
+              );
+            }
+            // Notify the agent to upload the receipt (best-effort).
+            try {
+              await admin.from("notifications").insert({
+                user_id: lp.agent_id,
+                type: "landlord_payout_disbursed",
+                title: "Landlord paid",
+                message: `A merchant agent sent ${formatUGXLocal(lp.amount)} to ${lp.landlord_name ?? "the landlord"}. Please upload the receipt now.`,
+                metadata: { payout_id: lp.id, momo_reference: momoRef },
+              });
+            } catch { /* non-blocking */ }
+          }
+        }
+      } catch (lpEx) {
+        console.error("[approve-withdrawal] landlord payout completion failed:", lpEx);
+      }
+    }
+
     // Burn the WPO pickup code so it cannot be replayed for another
     // payout. We do this AFTER the withdrawal flips to 'completed' so a
     // late ledger failure doesn't strand the code in 'paid' while the
