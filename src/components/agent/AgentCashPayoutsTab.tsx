@@ -530,11 +530,22 @@ export function AgentCashPayoutsTab() {
 
   return (
     <div className="space-y-5">
-      {/* Role identity banner */}
-      <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20">
-        <Banknote className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-        <div className="text-sm text-foreground/80 leading-relaxed">
-          You are a <span className="font-semibold text-primary">Merchant Agent</span>. Claim a request, send the money via <span className="font-medium">Mobile Money, Bank, or Cash</span>, then enter the proof (TID or payout code) to confirm.
+      {/* Merchant console header */}
+      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-lg">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Merchant Agent Console</span>
+          <div className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-semibold text-emerald-400">Active</span>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 px-4 py-3.5">
+          <div className="shrink-0 rounded-xl bg-white/10 p-2">
+            <Banknote className="h-5 w-5 text-white" />
+          </div>
+          <p className="text-sm leading-relaxed text-slate-300">
+            Claim a request, pay via <span className="font-semibold text-white">Mobile Money, Bank, or Cash</span>, then enter the proof (TID or payout code) to confirm.
+          </p>
         </div>
       </div>
 
@@ -571,36 +582,24 @@ export function AgentCashPayoutsTab() {
         </Card>
       )}
 
-      {/* Daily summary */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent rounded-2xl">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Today's Payouts
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-3 gap-3 pt-0">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Hash className="h-3.5 w-3.5" /> Done
-            </div>
-            <div className="text-2xl font-bold text-foreground tabular-nums">{dailyStats?.codesCount ?? 0}</div>
+      {/* Today's payouts */}
+      <section className="space-y-3">
+        <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Today's Payouts</h2>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-2xl border border-border bg-muted/40 p-3.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-muted-foreground"><Hash className="h-3.5 w-3.5" /> Done</div>
+            <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">{dailyStats?.codesCount ?? 0}</p>
           </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <TrendingUp className="h-3.5 w-3.5" /> Paid
-            </div>
-            <div className="text-xl font-bold text-primary tabular-nums leading-tight">{formatUGX(dailyStats?.totalAmount ?? 0)}</div>
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-primary"><TrendingUp className="h-3.5 w-3.5" /> Paid</div>
+            <p className="mt-1.5 text-lg font-bold leading-tight tabular-nums text-primary">{formatUGX(dailyStats?.totalAmount ?? 0)}</p>
           </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" /> Avg
-            </div>
-            <div className="text-2xl font-bold text-foreground tabular-nums">
-              {dailyStats?.avgMinutes ? `${Math.round(dailyStats.avgMinutes)}m` : '—'}
-            </div>
+          <div className="rounded-2xl border border-border bg-muted/40 p-3.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Avg</div>
+            <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">{dailyStats?.avgMinutes ? `${Math.round(dailyStats.avgMinutes)}m` : '—'}</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* Commission breakdown — totals by date for all approved payouts */}
       <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
@@ -696,16 +695,16 @@ export function AgentCashPayoutsTab() {
           )}
         </CardHeader>
         <CardContent className="pt-0 space-y-3">
-          <div className="flex items-end justify-between gap-3 pb-3 border-b border-border/60">
+          <div className="flex items-end justify-between gap-3 rounded-2xl bg-slate-900 p-4 text-white">
             <div>
-              <p className="text-xs text-muted-foreground">Total earned</p>
-              <p className="text-2xl font-bold text-emerald-600 tabular-nums leading-tight">
+              <p className="text-xs font-medium text-slate-400">Total earned · 0.5%</p>
+              <p className="mt-1 text-2xl font-bold leading-tight tabular-nums text-emerald-400">
                 {formatUGX(commissionBreakdown?.grandTotal ?? 0)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Payouts</p>
-              <p className="text-lg font-bold text-foreground tabular-nums">{commissionBreakdown?.grandCount ?? 0}</p>
+              <p className="text-xs text-slate-400">Payouts</p>
+              <p className="text-lg font-bold tabular-nums text-white">{commissionBreakdown?.grandCount ?? 0}</p>
             </div>
           </div>
 
@@ -883,20 +882,19 @@ export function AgentCashPayoutsTab() {
           <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Only when a customer arrives in person with their 4-digit cash code. Entering it debits their withdrawable balance and records the payout. Otherwise claim from the queue below.</p>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              placeholder="4-digit code"
-              value={payoutCode}
-              inputMode="numeric"
-              maxLength={4}
-              onChange={e => setPayoutCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className="text-xl font-mono tracking-wider h-14 text-center"
-              onKeyDown={e => e.key === 'Enter' && handleVerify()}
-            />
-            <Button onClick={handleVerify} disabled={verifying || !payoutCode.trim()} className="h-14 px-6" aria-label="Verify code">
-              {verifying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
-            </Button>
-          </div>
+          <Input
+            placeholder="• • • •"
+            value={payoutCode}
+            inputMode="numeric"
+            maxLength={4}
+            onChange={e => setPayoutCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            className="h-16 text-center font-mono text-3xl tracking-[0.5em]"
+            onKeyDown={e => e.key === 'Enter' && handleVerify()}
+          />
+          <Button onClick={handleVerify} disabled={verifying || !payoutCode.trim()} className="h-12 w-full gap-2 font-bold" aria-label="Verify code">
+            {verifying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+            Verify &amp; Process
+          </Button>
           {verifiedPayout && (
             <Card className="border-green-500/30 bg-green-500/5 rounded-2xl">
               <CardContent className="p-4 space-y-4">
@@ -921,7 +919,16 @@ export function AgentCashPayoutsTab() {
       </Card>
 
       {/* Withdrawal Requests by channel — UNCLAIMED only */}
-      <Tabs defaultValue="all">
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">Pending Queue</h2>
+          {totalPending > 0 && (
+            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+              {totalPending} action required
+            </span>
+          )}
+        </div>
+        <Tabs defaultValue="all">
         <TabsList className="w-full h-12 p-1">
           <TabsTrigger value="all" className="flex-1 gap-1.5 text-sm h-10">
             <Wallet className="h-4 w-4" /> All
@@ -954,22 +961,29 @@ export function AgentCashPayoutsTab() {
                   const name = w.profiles?.full_name || 'Unknown';
                   const phone = getRecipientPhone(w);
                   return (
-                    <Card key={w.id} className="rounded-2xl">
+                    <Card key={w.id} className="rounded-2xl border-border transition-colors hover:border-primary/30">
                       <CardContent className="p-4 space-y-3.5">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-lg truncate leading-tight">{name}</p>
-                            <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5 mt-1">
-                              <Phone className="h-4 w-4" />
-                              <span className="font-mono">{phone}</span>
-                            </p>
+                          <div className="flex min-w-0 flex-1 items-start gap-3">
+                            <div className={cn(
+                              'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+                              isMoMo
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                                : 'bg-primary/10 text-primary',
+                            )}>
+                              <MethodIcon className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-bold leading-tight">{name}</p>
+                              <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Phone className="h-3.5 w-3.5" />
+                                <span className="font-mono">{phone}</span>
+                              </p>
+                              <p className="mt-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">{methodLabel} · pending</p>
+                            </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="font-bold text-xl text-primary tabular-nums leading-tight">{formatUGX(w.amount)}</p>
-                            <Badge variant="secondary" className="text-xs gap-1 h-5 px-2 mt-1.5">
-                              <MethodIcon className="h-3 w-3" />
-                              {methodLabel}
-                            </Badge>
+                          <div className="shrink-0 text-right">
+                            <p className="text-lg font-bold tabular-nums leading-tight text-foreground">{formatUGX(w.amount)}</p>
                           </div>
                         </div>
                         <Button
@@ -992,7 +1006,8 @@ export function AgentCashPayoutsTab() {
             </TabsContent>
           );
         })}
-      </Tabs>
+        </Tabs>
+      </section>
     </div>
   );
 }
