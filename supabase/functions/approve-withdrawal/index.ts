@@ -237,6 +237,24 @@ Deno.serve(async (req) => {
         }) => Promise<void>)
       | null = null;
     if (isCashPayout && !isSystemCall) {
+      // ── Chosen-merchant gate ─────────────────────────────────────────
+      // When the requester selected a specific merchant agent for in-person
+      // cash pickup, ONLY that merchant (or platform staff) may settle the
+      // code. A different cashout agent typing the code is rejected.
+      const preferredAgentId = (wr as any).preferred_cashout_agent_id ?? null;
+      if (preferredAgentId && !hasStaffRole) {
+        if (!agentRow || (agentRow as any).id !== preferredAgentId) {
+          return new Response(
+            JSON.stringify({
+              error: "WRONG_MERCHANT",
+              code: "wrong_merchant",
+              message:
+                "This customer chose a different merchant agent for cash pickup. Only the selected merchant can settle this payout code.",
+            }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
       // Audit logger for every WPO code verification attempt. Fire-and-forget
       // so audit DB hiccups never block a real payout decision.
       const ipAddress =
