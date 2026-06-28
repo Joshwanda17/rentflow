@@ -18770,6 +18770,39 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_notification_log: {
+        Row: {
+          amount: number
+          created_at: string
+          error_message: string | null
+          id: string
+          recipient_email: string
+          recipient_id: string | null
+          status: string
+          withdrawal_id: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_email: string
+          recipient_id?: string | null
+          status?: string
+          withdrawal_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_email?: string
+          recipient_id?: string | null
+          status?: string
+          withdrawal_id?: string | null
+        }
+        Relationships: []
+      }
       withdrawal_requests: {
         Row: {
           agent_id: string | null
