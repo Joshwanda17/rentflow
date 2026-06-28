@@ -35,6 +35,10 @@ Deno.serve(async (req) => {
     const origin = typeof reqBody?.origin === "string" && reqBody.origin.startsWith("http")
       ? reqBody.origin.replace(/\/+$/, "")
       : "https://welilereceipts.com";
+    // Optional short personal note shown to the invited user (max 100 chars).
+    const inviteMessage = typeof reqBody?.inviteMessage === "string"
+      ? reqBody.inviteMessage.trim().slice(0, 100)
+      : null;
     if (!subAgentId || typeof subAgentId !== "string") {
       return json({ error: "Missing subAgentId" }, 400);
     }
@@ -137,6 +141,7 @@ Deno.serve(async (req) => {
           acceptance_token: acceptanceToken,
           expires_at: inviteExpiresAt,
           rejection_reason: null,
+          invite_message: inviteMessage,
         })
         .eq("id", existingLink.id);
       if (updErr) return json({ error: updErr.message }, 500);
@@ -150,6 +155,7 @@ Deno.serve(async (req) => {
           status: "pending_acceptance",
           acceptance_token: acceptanceToken,
           expires_at: inviteExpiresAt,
+          invite_message: inviteMessage,
         })
         .select("id")
         .maybeSingle();
@@ -158,17 +164,11 @@ Deno.serve(async (req) => {
     }
 
     // Notify the new sub-agent with the acceptance link (best-effort).
+    // NOTE: No SMS is sent for sub-agent invites. The invited user is reached
+    // via email and an in-app dashboard dialog, and the inviter also gets a
+    // shareable link they can pass along directly.
     const acceptLink = `${origin}/sub-agent-invite?token=${effectiveToken}`;
-    const firstName = (targetProfile.full_name || "").trim().split(/\s+/)[0] || "there";
-    let smsSent = false;
     let emailSent = false;
-
-    if (targetProfile.phone) {
-      smsSent = await sendSMS(
-        targetProfile.phone,
-        `Hi ${firstName}, ${parentName} invited you to be their sub-agent on Welile. Tap to accept: ${acceptLink}`,
-      );
-    }
 
     if (targetProfile.email && !targetProfile.email.endsWith("@welile.user")) {
       try {
@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
               recipient_name: targetProfile.full_name || "there",
               parent_name: parentName,
               accept_url: acceptLink,
+              invite_message: inviteMessage || "",
             },
           },
         });
@@ -191,12 +192,12 @@ Deno.serve(async (req) => {
     }
 
     // Persist the invite delivery status so the agent can see whether the
-    // SMS/email reached the sub-agent and resend if it failed.
+    // email reached the sub-agent and resend if it failed. SMS is never used.
     if (linkRowId) {
       await adminClient
         .from("agent_subagents")
         .update({
-          invite_sms_status: targetProfile.phone ? (smsSent ? "sent" : "failed") : "not_sent",
+          invite_sms_status: "not_sent",
           invite_email_status:
             targetProfile.email && !targetProfile.email.endsWith("@welile.user")
               ? (emailSent ? "sent" : "failed")
@@ -206,7 +207,14 @@ Deno.serve(async (req) => {
         .eq("id", linkRowId);
     }
 
-    return json({ ok: true, pending: true, name: targetProfile.full_name, smsSent, emailSent });
+    return json({
+      ok: true,
+      pending: true,
+      name: targetProfile.full_name,
+      emailSent,
+      acceptLink,
+      hasEmail: !!(targetProfile.email && !targetProfile.email.endsWith("@welile.user")),
+    });
   } catch (err) {
     return json({ error: (err as Error)?.message || "Unexpected error" }, 500);
   }
