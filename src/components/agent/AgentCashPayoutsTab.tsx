@@ -425,34 +425,79 @@ export function AgentCashPayoutsTab() {
     },
   });
 
-  // Verify payout code
+  // Verify the 4-digit pickup code AND enforce the chosen-merchant gate.
   const handleVerify = async () => {
-    if (!payoutCode.trim()) return;
+    const code = payoutCode.trim().toUpperCase();
+    if (!code) return;
     setVerifying(true);
     try {
       const { data, error } = await supabase
         .from('payout_codes')
         .select('*, profiles:user_id(full_name, phone)')
-        .eq('code', payoutCode.trim().toUpperCase())
+        .eq('code', code)
         .eq('status', 'pending')
         .maybeSingle();
       if (error) throw error;
-      if (!data) { toast.error('Invalid or expired payout code'); setVerifiedPayout(null); return; }
+      if (!data) { toast.error('Invalid or already-used payout code'); setVerifiedPayout(null); return; }
       if (new Date(data.expires_at) < new Date()) { toast.error('This payout code has expired'); setVerifiedPayout(null); return; }
-      setVerifiedPayout(data);
-      toast.success('Payout code verified! ✅');
+
+      // Load the linked withdrawal request so we can enforce that only the
+      // merchant the customer chose may settle this cash pickup.
+      const { data: wr } = await supabase
+        .from('withdrawal_requests')
+        .select('id, status, preferred_cashout_agent_id')
+        .eq('id', (data as any).withdrawal_request_id)
+        .maybeSingle();
+
+      const preferred = (wr as any)?.preferred_cashout_agent_id ?? null;
+      if (preferred && preferred !== isCashoutAgent?.id) {
+        toast.error('This customer selected a different merchant agent for cash pickup. Only the chosen merchant can pay this code.');
+        setVerifiedPayout(null);
+        return;
+      }
+
+      setVerifiedPayout({ ...data, _isPreferred: !!preferred });
+      toast.success(preferred ? 'Code verified — you are the chosen merchant ✅' : 'Payout code verified! ✅');
     } catch (err: any) { toast.error(err.message); }
     finally { setVerifying(false); }
   };
 
-  // Complete payout via code
+  // Complete the cash payout via the ledger-backed edge function. This is the
+  // ONLY path that actually debits the customer's WITHDRAWABLE balance and
+  // posts the wallet movement to the general ledger — making it visible on the
+  // Financial Ops page. (The old path only flipped the code to 'paid' and never
+  // moved any money, so balances were never reduced and nothing was recorded.)
   const completePayout = useMutation({
-    mutationFn: async (codeId: string) => {
-      const { error } = await supabase.from('payout_codes').update({ status: 'paid', paid_by: user!.id, paid_at: new Date().toISOString() }).eq('id', codeId);
-      if (error) throw error;
-      await supabase.from('audit_logs').insert({ user_id: user!.id, action_type: 'cash_payout_completed', metadata: { payout_code_id: codeId, code: verifiedPayout?.code } });
+    mutationFn: async () => {
+      const vp = verifiedPayout;
+      if (!vp) throw new Error('Verify a code first.');
+      const withdrawalId = vp.withdrawal_request_id;
+      if (!withdrawalId) throw new Error('This code is not linked to a withdrawal request.');
+      const reference = `CASH-${String(withdrawalId).slice(0, 8).toUpperCase()}-${vp.code}`;
+      const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
+        body: {
+          withdrawal_id: withdrawalId,
+          reference,
+          payment_method: 'cash',
+          payout_code: vp.code,
+        },
+      });
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError({ data, error }, 'Failed to complete cash payout');
+        throw new Error(msg);
+      }
+      return data;
     },
-    onSuccess: () => { toast.success('Cash payout completed! 💰'); setVerifiedPayout(null); setPayoutCode(''); qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] }); },
+    onSuccess: (data) => {
+      const commission = Number(data?.cashout_commission || 0);
+      const amt = Number(data?.amount || verifiedPayout?.amount || 0);
+      const base = `💰 Cash paid — ${formatUGX(amt)} debited from the customer's withdrawable balance`;
+      toast.success(commission > 0 ? `${base} · You earned ${formatUGX(commission)} (0.5%)` : base);
+      setVerifiedPayout(null); setPayoutCode('');
+      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -831,14 +876,16 @@ export function AgentCashPayoutsTab() {
             <QrCode className="h-5 w-5 text-primary" />
             Verify Cash Pickup Code
           </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Only when a user arrives in person with a WPO-XXXXX code. Otherwise claim from the queue below.</p>
+          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Only when a customer arrives in person with their 4-digit cash code. Entering it debits their withdrawable balance and records the payout. Otherwise claim from the queue below.</p>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
             <Input
-              placeholder="WPO-XXXXX"
+              placeholder="4-digit code"
               value={payoutCode}
-              onChange={e => setPayoutCode(e.target.value.toUpperCase())}
+              inputMode="numeric"
+              maxLength={4}
+              onChange={e => setPayoutCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
               className="text-xl font-mono tracking-wider h-14 text-center"
               onKeyDown={e => e.key === 'Enter' && handleVerify()}
             />
@@ -859,7 +906,7 @@ export function AgentCashPayoutsTab() {
                   <div><p className="text-muted-foreground text-sm">Amount</p><p className="font-bold text-xl text-primary">{formatUGX(verifiedPayout.amount)}</p></div>
                   <div><p className="text-muted-foreground text-sm">Expires</p><p className="font-semibold">{format(new Date(verifiedPayout.expires_at), 'MMM d, HH:mm')}</p></div>
                 </div>
-                <Button className="w-full h-14 text-base font-bold" onClick={() => completePayout.mutate(verifiedPayout.id)} disabled={completePayout.isPending}>
+                <Button className="w-full h-14 text-base font-bold" onClick={() => completePayout.mutate()} disabled={completePayout.isPending}>
                   {completePayout.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Banknote className="h-5 w-5 mr-2" />}
                   Confirm Cash Paid — {formatUGX(verifiedPayout.amount)}
                 </Button>
