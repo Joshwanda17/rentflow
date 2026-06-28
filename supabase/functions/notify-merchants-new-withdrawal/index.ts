@@ -82,6 +82,22 @@ Deno.serve(async (req) => {
     let sent = 0;
     await Promise.all(
       recipients.map(async (p: any) => {
+        // 1) Log the email as "queued" before dispatch so Financial Ops sees it
+        //    in flight, then 2) flip to "sent"/"failed" once delivery resolves.
+        const { data: logRow } = await admin
+          .from("withdrawal_notification_log")
+          .insert({
+            withdrawal_id: w.id,
+            recipient_id: p.id,
+            recipient_email: p.email,
+            amount: Number(w.amount) || 0,
+            status: "queued",
+            error_message: null,
+          })
+          .select("id")
+          .single();
+        const logId = (logRow as any)?.id ?? null;
+
         const { error } = await admin.functions.invoke("send-transactional-email", {
           body: {
             templateName: "new-withdrawal-merchant-alert",
@@ -92,15 +108,16 @@ Deno.serve(async (req) => {
         });
         if (!error) sent++;
         else console.error(`[notify-merchants] email failed for ${p.id}:`, error.message);
-        // Audit log: record each notification email attempt for delivery troubleshooting
-        await admin.from("withdrawal_notification_log").insert({
-          withdrawal_id: w.id,
-          recipient_id: p.id,
-          recipient_email: p.email,
-          amount: Number(w.amount) || 0,
-          status: error ? "failed" : "sent",
-          error_message: error ? String(error.message || error) : null,
-        });
+
+        if (logId) {
+          await admin
+            .from("withdrawal_notification_log")
+            .update({
+              status: error ? "failed" : "sent",
+              error_message: error ? String(error.message || error) : null,
+            })
+            .eq("id", logId);
+        }
       }),
     );
 
