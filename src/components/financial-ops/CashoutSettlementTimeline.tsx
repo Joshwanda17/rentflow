@@ -6,12 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from '@/components/ui/sheet';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { format } from 'date-fns';
 import {
   ArrowLeftRight, Search, Loader2, RefreshCw, X,
   ChevronLeft, ChevronRight, Wallet, Coins, Banknote, User, Store,
+  ChevronRight as ChevronRightIcon, ArrowDownLeft, ArrowUpRight,
 } from 'lucide-react';
 
 type Row = {
@@ -29,6 +33,21 @@ type Row = {
   commission_amount: number | null;
   total_credited: number | null;
   total_count: number;
+};
+
+type LedgerRow = {
+  id: string;
+  transaction_date: string | null;
+  direction: string | null;
+  category: string | null;
+  ledger_scope: string | null;
+  wallet_bucket: string | null;
+  amount: number | null;
+  user_id: string | null;
+  party_name: string | null;
+  reference_id: string | null;
+  description: string | null;
+  leg: string | null;
 };
 
 const PAGE_SIZE = 25;
