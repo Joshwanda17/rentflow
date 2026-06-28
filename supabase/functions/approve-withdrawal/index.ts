@@ -3,6 +3,7 @@ import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 import {
   buildReturnsDisbursementRequest,
   dispatchTransactionalEmail,
+  buildWithdrawalPaidReceiptRequest,
 } from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
