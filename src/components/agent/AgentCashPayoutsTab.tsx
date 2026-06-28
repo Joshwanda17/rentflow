@@ -61,18 +61,6 @@ const getRecipientPhone = (withdrawal: any) => {
     : withdrawal.profiles?.phone || withdrawal.mobile_money_number || '—';
 };
 
-// Merchant/provider channel used by the Pending Queue advanced filters.
-const getMerchantKey = (withdrawal: any): string => {
-  const channel = getPayoutChannel(withdrawal);
-  if (channel === 'cash') {
-    return normalizePayoutMethod(withdrawal?.payout_method).includes('bank') ? 'bank' : 'cash';
-  }
-  const provider = String(withdrawal?.mobile_money_provider || '').toLowerCase();
-  if (provider.includes('mtn')) return 'mtn';
-  if (provider.includes('airtel')) return 'airtel';
-  return 'momo_other';
-};
-
 const MERCHANT_LABELS: Record<string, string> = {
   mtn: 'MTN MoMo',
   airtel: 'Airtel Money',
