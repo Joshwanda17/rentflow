@@ -120,7 +120,6 @@ export function WithdrawalNotificationLogPanel() {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const hasFilters = recipient || minAmount || maxAmount || fromDate || toDate;
   const hasFilters = recipient || minAmount || maxAmount || fromDate || toDate || statusFilter !== 'all';
   const clearFilters = () => {
     setRecipient('');
