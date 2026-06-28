@@ -20652,6 +20652,25 @@ export type Database = {
           tenant_ops_reviewed_at: string
         }[]
       }
+      get_cashout_settlement_timeline: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string }
+        Returns: {
+          commission_amount: number
+          customer_id: string
+          customer_name: string
+          customer_phone: string
+          merchant_id: string
+          merchant_name: string
+          merchant_phone: string
+          reimbursement_amount: number
+          settled_at: string
+          total_count: number
+          total_credited: number
+          withdrawal_amount: number
+          withdrawal_id: string
+          withdrawal_status: string
+        }[]
+      }
       get_cfo_ledger_trail: {
         Args: {
           p_categories?: string[]
