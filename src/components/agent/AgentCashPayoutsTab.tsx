@@ -425,34 +425,79 @@ export function AgentCashPayoutsTab() {
     },
   });
 
-  // Verify payout code
+  // Verify the 4-digit pickup code AND enforce the chosen-merchant gate.
   const handleVerify = async () => {
-    if (!payoutCode.trim()) return;
+    const code = payoutCode.trim().toUpperCase();
+    if (!code) return;
     setVerifying(true);
     try {
       const { data, error } = await supabase
         .from('payout_codes')
         .select('*, profiles:user_id(full_name, phone)')
-        .eq('code', payoutCode.trim().toUpperCase())
+        .eq('code', code)
         .eq('status', 'pending')
         .maybeSingle();
       if (error) throw error;
-      if (!data) { toast.error('Invalid or expired payout code'); setVerifiedPayout(null); return; }
+      if (!data) { toast.error('Invalid or already-used payout code'); setVerifiedPayout(null); return; }
       if (new Date(data.expires_at) < new Date()) { toast.error('This payout code has expired'); setVerifiedPayout(null); return; }
-      setVerifiedPayout(data);
-      toast.success('Payout code verified! ✅');
+
+      // Load the linked withdrawal request so we can enforce that only the
+      // merchant the customer chose may settle this cash pickup.
+      const { data: wr } = await supabase
+        .from('withdrawal_requests')
+        .select('id, status, preferred_cashout_agent_id')
+        .eq('id', (data as any).withdrawal_request_id)
+        .maybeSingle();
+
+      const preferred = (wr as any)?.preferred_cashout_agent_id ?? null;
+      if (preferred && preferred !== isCashoutAgent?.id) {
+        toast.error('This customer selected a different merchant agent for cash pickup. Only the chosen merchant can pay this code.');
+        setVerifiedPayout(null);
+        return;
+      }
+
+      setVerifiedPayout({ ...data, _isPreferred: !!preferred });
+      toast.success(preferred ? 'Code verified — you are the chosen merchant ✅' : 'Payout code verified! ✅');
     } catch (err: any) { toast.error(err.message); }
     finally { setVerifying(false); }
   };
 
-  // Complete payout via code
+  // Complete the cash payout via the ledger-backed edge function. This is the
+  // ONLY path that actually debits the customer's WITHDRAWABLE balance and
+  // posts the wallet movement to the general ledger — making it visible on the
+  // Financial Ops page. (The old path only flipped the code to 'paid' and never
+  // moved any money, so balances were never reduced and nothing was recorded.)
   const completePayout = useMutation({
-    mutationFn: async (codeId: string) => {
-      const { error } = await supabase.from('payout_codes').update({ status: 'paid', paid_by: user!.id, paid_at: new Date().toISOString() }).eq('id', codeId);
-      if (error) throw error;
-      await supabase.from('audit_logs').insert({ user_id: user!.id, action_type: 'cash_payout_completed', metadata: { payout_code_id: codeId, code: verifiedPayout?.code } });
+    mutationFn: async () => {
+      const vp = verifiedPayout;
+      if (!vp) throw new Error('Verify a code first.');
+      const withdrawalId = vp.withdrawal_request_id;
+      if (!withdrawalId) throw new Error('This code is not linked to a withdrawal request.');
+      const reference = `CASH-${String(withdrawalId).slice(0, 8).toUpperCase()}-${vp.code}`;
+      const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
+        body: {
+          withdrawal_id: withdrawalId,
+          reference,
+          payment_method: 'cash',
+          payout_code: vp.code,
+        },
+      });
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError({ data, error }, 'Failed to complete cash payout');
+        throw new Error(msg);
+      }
+      return data;
     },
-    onSuccess: () => { toast.success('Cash payout completed! 💰'); setVerifiedPayout(null); setPayoutCode(''); qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] }); },
+    onSuccess: (data) => {
+      const commission = Number(data?.cashout_commission || 0);
+      const amt = Number(data?.amount || verifiedPayout?.amount || 0);
+      const base = `💰 Cash paid — ${formatUGX(amt)} debited from the customer's withdrawable balance`;
+      toast.success(commission > 0 ? `${base} · You earned ${formatUGX(commission)} (0.5%)` : base);
+      setVerifiedPayout(null); setPayoutCode('');
+      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
