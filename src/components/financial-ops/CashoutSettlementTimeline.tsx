@@ -6,12 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from '@/components/ui/sheet';
 import { formatDynamic } from '@/lib/currencyFormat';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { format } from 'date-fns';
 import {
   ArrowLeftRight, Search, Loader2, RefreshCw, X,
   ChevronLeft, ChevronRight, Wallet, Coins, Banknote, User, Store,
+  ChevronRight as ChevronRightIcon, ArrowDownLeft, ArrowUpRight,
 } from 'lucide-react';
 
 type Row = {
@@ -31,6 +35,21 @@ type Row = {
   total_count: number;
 };
 
+type LedgerRow = {
+  id: string;
+  transaction_date: string | null;
+  direction: string | null;
+  category: string | null;
+  ledger_scope: string | null;
+  wallet_bucket: string | null;
+  amount: number | null;
+  user_id: string | null;
+  party_name: string | null;
+  reference_id: string | null;
+  description: string | null;
+  leg: string | null;
+};
+
 const PAGE_SIZE = 25;
 
 /**
@@ -45,6 +64,7 @@ export function CashoutSettlementTimeline() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const debouncedSearch = useDebouncedValue(search, 300);
+  const [selected, setSelected] = useState<Row | null>(null);
 
   useEffect(() => { setPage(0); }, [debouncedSearch]);
 
@@ -136,7 +156,12 @@ export function CashoutSettlementTimeline() {
               <ScrollArea className="max-h-[640px]">
                 <div className="divide-y divide-border">
                   {rows.map((r) => (
-                    <div key={r.withdrawal_id} className="p-4 space-y-3">
+                    <button
+                      key={r.withdrawal_id}
+                      type="button"
+                      onClick={() => setSelected(r)}
+                      className="w-full text-left p-4 space-y-3 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none transition-colors group"
+                    >
                       {/* Header: customer payout + when */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -148,15 +173,18 @@ export function CashoutSettlementTimeline() {
                             {r.customer_phone || '—'} · #{r.withdrawal_id.slice(0, 8)}
                           </p>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-[11px] text-muted-foreground">
-                            {r.settled_at ? format(new Date(r.settled_at), 'dd MMM yyyy, HH:mm') : '—'}
-                          </p>
-                          {r.withdrawal_status && (
-                            <Badge className="mt-0.5 text-[10px] px-1.5 py-0 border-0 bg-muted text-muted-foreground">
-                              {r.withdrawal_status.replace(/_/g, ' ')}
-                            </Badge>
-                          )}
+                        <div className="flex items-start gap-1.5 shrink-0">
+                          <div className="text-right">
+                            <p className="text-[11px] text-muted-foreground">
+                              {r.settled_at ? format(new Date(r.settled_at), 'dd MMM yyyy, HH:mm') : '—'}
+                            </p>
+                            {r.withdrawal_status && (
+                              <Badge className="mt-0.5 text-[10px] px-1.5 py-0 border-0 bg-muted text-muted-foreground">
+                                {r.withdrawal_status.replace(/_/g, ' ')}
+                              </Badge>
+                            )}
+                          </div>
+                          <ChevronRightIcon className="h-4 w-4 text-muted-foreground/60 mt-0.5 group-hover:text-foreground" />
                         </div>
                       </div>
 
@@ -195,7 +223,8 @@ export function CashoutSettlementTimeline() {
                         <span className="text-muted-foreground">Total credited to merchant wallet:</span>
                         <span className="font-semibold">{formatDynamic(Number(r.total_credited ?? 0))}</span>
                       </div>
-                    </div>
+                      <p className="text-[10px] text-muted-foreground/70 text-right">Tap to view exact ledger rows →</p>
+                    </button>
                   ))}
                 </div>
               </ScrollArea>
@@ -224,6 +253,8 @@ export function CashoutSettlementTimeline() {
           )}
         </CardContent>
       </Card>
+
+      <LedgerDrillDownSheet row={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
@@ -250,5 +281,114 @@ function LegTile({
       </div>
       <p className="mt-1.5 text-sm font-semibold tabular-nums">{formatDynamic(Number(amount ?? 0))}</p>
     </div>
+  );
+}
+
+const LEG_META: Record<string, { label: string; tone: string }> = {
+  withdrawal: { label: 'Customer withdrawal', tone: 'bg-muted text-muted-foreground' },
+  reimbursement: { label: 'Merchant reimbursement', tone: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
+  commission: { label: 'Cash-out commission (0.5%)', tone: 'bg-violet-500/10 text-violet-700 dark:text-violet-400' },
+};
+
+/**
+ * Click-through drill-down: shows every general_ledger row (each debit/credit
+ * leg) tied to a single cash-out withdrawal, grouped by leg, straight from the
+ * get_cashout_settlement_ledger_rows RPC so Financial Ops can audit the raw
+ * double-entry behind each settlement.
+ */
+function LedgerDrillDownSheet({ row, onClose }: { row: Row | null; onClose: () => void }) {
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['cashout-settlement-ledger-rows', row?.withdrawal_id],
+    enabled: !!row?.withdrawal_id,
+    queryFn: async () => {
+      const { data: result, error } = await supabase.rpc('get_cashout_settlement_ledger_rows', {
+        p_withdrawal_id: row!.withdrawal_id,
+      });
+      if (error) throw error;
+      return (result || []) as LedgerRow[];
+    },
+    staleTime: 30_000,
+  });
+
+  const ledgerRows = data ?? [];
+
+  return (
+    <Sheet open={!!row} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader className="text-left">
+          <SheetTitle className="flex items-center gap-2">
+            <ArrowLeftRight className="h-5 w-5 text-violet-600" />
+            Ledger rows
+          </SheetTitle>
+          <SheetDescription>
+            {row ? (
+              <>Exact debit/credit entries in <span className="font-medium text-foreground">general_ledger</span> for withdrawal #{row.withdrawal_id.slice(0, 8)} — {row.customer_name || 'Unknown customer'}.</>
+            ) : null}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-4 space-y-3">
+          {isLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+          ) : ledgerRows.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No ledger rows found for this withdrawal.
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>{ledgerRows.length} ledger {ledgerRows.length === 1 ? 'row' : 'rows'}</span>
+                {isFetching && <Loader2 className="h-3 w-3 animate-spin" />}
+              </div>
+              {ledgerRows.map((lr) => {
+                const meta = LEG_META[lr.leg || 'withdrawal'] ?? LEG_META.withdrawal;
+                const isCredit = lr.direction === 'cash_in';
+                return (
+                  <div key={lr.id} className="rounded-lg border border-border p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${meta.tone}`}>
+                        {meta.label}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={`gap-1 text-[10px] px-1.5 py-0 ${isCredit
+                          ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400'
+                          : 'border-rose-500/40 text-rose-700 dark:text-rose-400'}`}
+                      >
+                        {isCredit ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
+                        {lr.direction?.replace('_', ' ')}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-end justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold tabular-nums">{formatDynamic(Number(lr.amount ?? 0))}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{lr.description || '—'}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 capitalize">
+                          {lr.ledger_scope || '—'}{lr.wallet_bucket ? ` · ${lr.wallet_bucket}` : ''}
+                        </Badge>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {lr.transaction_date ? format(new Date(lr.transaction_date), 'dd MMM, HH:mm:ss') : '—'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <span className="rounded bg-muted px-1.5 py-0.5">{lr.category || 'uncategorised'}</span>
+                      {lr.party_name && (
+                        <span className="inline-flex items-center gap-1"><User className="h-3 w-3" />{lr.party_name}</span>
+                      )}
+                      <span className="font-mono opacity-70">#{lr.id.slice(0, 8)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
