@@ -322,6 +322,14 @@ export function AgentCashPayoutsTab() {
     completeWithdrawal.mutate(data);
   };
 
+  // Invalidate every Pending Queue query (page, counts, available total, my claims).
+  const invalidateQueue = () => {
+    qc.invalidateQueries({ queryKey: ['cashout-queue-page'] });
+    qc.invalidateQueries({ queryKey: ['cashout-queue-counts'] });
+    qc.invalidateQueries({ queryKey: ['cashout-queue-available-total'] });
+    qc.invalidateQueries({ queryKey: ['cashout-my-active-claims'] });
+  };
+
   // Check if this agent is a cashout agent
   const { data: isCashoutAgent, isLoading: cashoutAgentLoading } = useQuery({
     queryKey: ['is-cashout-agent', user?.id],
