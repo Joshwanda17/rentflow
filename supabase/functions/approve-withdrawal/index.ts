@@ -2020,6 +2020,7 @@ Deno.serve(async (req) => {
         target_user: targetName,
         txn_group_id: txnGroupId,
         cashout_commission: cashoutCommission,
+        merchant_reimbursed: merchantReimbursed,
         settled_available: settledAvailable,
       }),
       {
