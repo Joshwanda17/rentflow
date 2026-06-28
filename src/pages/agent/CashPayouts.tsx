@@ -25,7 +25,7 @@ export default function AgentCashPayoutsPage() {
               <Banknote className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg font-bold leading-tight truncate">Merchant Payouts</h1>
+              <h1 className="text-lg font-bold leading-tight truncate">Cash, Mobile Money &amp; Bank Payouts</h1>
               <p className="text-sm text-muted-foreground leading-tight">Claim · Pay · Confirm</p>
             </div>
           </div>
