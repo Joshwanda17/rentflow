@@ -80,18 +80,16 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!targetProfile) return json({ error: "Sub-agent profile not found." }, 404);
 
-    // Send notifications
+    // Re-issue the invite. No SMS — email + in-app dialog + shareable link only.
+    // Carry over the personal message stored on the link, if any.
+    const { data: linkRow } = await adminClient
+      .from("agent_subagents")
+      .select("invite_message")
+      .eq("id", link.id)
+      .maybeSingle();
+    const inviteMessage = (linkRow?.invite_message as string | null) ?? null;
     const acceptLink = `${origin}/sub-agent-invite?token=${newToken}`;
-    const firstName = (targetProfile.full_name || "").trim().split(/\s+/)[0] || "there";
-    let smsSent = false;
     let emailSent = false;
-
-    if (targetProfile.phone) {
-      smsSent = await sendSMS(
-        targetProfile.phone,
-        `Hi ${firstName}, ${parentName} re-sent your sub-agent invite on Welile. Tap to accept: ${acceptLink}`,
-      );
-    }
 
     if (targetProfile.email && !targetProfile.email.endsWith("@welile.user")) {
       try {
@@ -104,6 +102,7 @@ Deno.serve(async (req) => {
               recipient_name: targetProfile.full_name || "there",
               parent_name: parentName,
               accept_url: acceptLink,
+              invite_message: inviteMessage || "",
             },
           },
         });
@@ -113,7 +112,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ ok: true, smsSent, emailSent, name: targetProfile.full_name });
+    return json({ ok: true, emailSent, acceptLink, name: targetProfile.full_name });
   } catch (err) {
     return json({ error: (err as Error)?.message || "Unexpected error" }, 500);
   }
