@@ -572,11 +572,64 @@ export function AgentCashPayoutsTab() {
     (w: any) => !w.assigned_cashout_agent_id || isClaimExpired(w),
   );
 
+  // Distinct merchants/providers present in the queue (drives the merchant filter options).
+  const merchantOptions = Array.from(
+    new Set(availableWithdrawals.map((w: any) => getMerchantKey(w))),
+  ).sort();
+
+  // Apply advanced filters + sorting to the queue (plain compute — runs after the
+  // early return above, so it must not be a hook).
+  const minAmount = queueMin.trim() === '' ? null : Number(queueMin);
+  const maxAmount = queueMax.trim() === '' ? null : Number(queueMax);
+  const fromTime = queueFrom ? new Date(queueFrom.getFullYear(), queueFrom.getMonth(), queueFrom.getDate()).getTime() : null;
+  const toTime = queueTo ? new Date(queueTo.getFullYear(), queueTo.getMonth(), queueTo.getDate(), 23, 59, 59, 999).getTime() : null;
+  const searchTerm = queueSearch.trim().toLowerCase();
+
+  const filteredWithdrawals = availableWithdrawals
+    .filter((w: any) => {
+      // Status
+      if (queueStatus === 'landlord' && !isLandlordFloatPayout(w)) return false;
+      if (queueStatus === 'standard' && isLandlordFloatPayout(w)) return false;
+      // Merchant / provider
+      if (queueMerchant !== 'all' && getMerchantKey(w) !== queueMerchant) return false;
+      // Amount range
+      const amt = Number(w.amount || 0);
+      if (minAmount != null && !Number.isNaN(minAmount) && amt < minAmount) return false;
+      if (maxAmount != null && !Number.isNaN(maxAmount) && amt > maxAmount) return false;
+      // Date range (by request creation date)
+      const created = new Date(w.created_at).getTime();
+      if (fromTime != null && created < fromTime) return false;
+      if (toTime != null && created > toTime) return false;
+      // Search by name / phone
+      if (searchTerm) {
+        const name = (isLandlordFloatPayout(w) ? (w.mobile_money_name || '') : (w.profiles?.full_name || '')).toLowerCase();
+        const phone = String(getRecipientPhone(w) || '').toLowerCase();
+        if (!name.includes(searchTerm) && !phone.includes(searchTerm)) return false;
+      }
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      switch (queueSort) {
+        case 'date_asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'amount_desc':
+          return Number(b.amount || 0) - Number(a.amount || 0);
+        case 'amount_asc':
+          return Number(a.amount || 0) - Number(b.amount || 0);
+        case 'status':
+          return (isLandlordFloatPayout(b) ? 1 : 0) - (isLandlordFloatPayout(a) ? 1 : 0);
+        case 'date_desc':
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+
   // Split by method (queue only)
-  const momoWithdrawals = availableWithdrawals.filter((w: any) => getPayoutChannel(w) === 'momo');
-  const cashWithdrawals = availableWithdrawals.filter((w: any) => getPayoutChannel(w) === 'cash');
+  const momoWithdrawals = filteredWithdrawals.filter((w: any) => getPayoutChannel(w) === 'momo');
+  const cashWithdrawals = filteredWithdrawals.filter((w: any) => getPayoutChannel(w) === 'cash');
 
   const totalPending = availableWithdrawals.length;
+  const filteredPending = filteredWithdrawals.length;
 
   return (
     <div className="space-y-5">
