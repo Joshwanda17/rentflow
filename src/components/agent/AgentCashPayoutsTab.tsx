@@ -89,6 +89,125 @@ const MERCHANT_LABELS: Record<string, string> = {
 const isLandlordFloatPayout = (withdrawal: any) =>
   typeof withdrawal?.reason === 'string' && withdrawal.reason.startsWith('Landlord float payout');
 
+// ---- Server-side Pending Queue helpers (keeps the tab fast with many payouts) ----
+const PAGE_SIZE = 20;
+
+// Static merchant/provider options for the filter (server-side, so we don't need
+// to load the whole queue just to discover which merchants are present).
+const MERCHANT_OPTIONS = ['mtn', 'airtel', 'momo_other', 'bank', 'cash'];
+
+// Strip characters that are reserved inside a PostgREST `.or()` filter string.
+const sanitizeOrTerm = (t: string) => t.replace(/[(),*%]/g, ' ').trim();
+
+interface QueueFilterOpts {
+  cutoffIso: string;
+  status: 'all' | 'standard' | 'landlord';
+  merchant: string;
+  minAmount: number | null;
+  maxAmount: number | null;
+  fromIso: string | null;
+  toIso: string | null;
+  channel: 'all' | 'momo' | 'cash';
+  searchUserIds: string[] | null;
+  searchTerm: string;
+}
+
+/**
+ * Applies every Pending Queue filter directly to a PostgREST query builder so
+ * the database does the work and only the requested page travels over the wire.
+ * Each `.or()` group is ANDed with the others by PostgREST, which is exactly
+ * the semantics we want for combining independent filters.
+ */
+function applyQueueFilters(q: any, o: QueueFilterOpts) {
+  q = q.in('status', CASHOUT_QUEUE_STATUSES);
+  // Available = unclaimed OR a claim that has expired (>15 min). Excludes rows
+  // currently claimed by anyone (including me — those live in "Claimed by you").
+  q = q.or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${o.cutoffIso}`);
+
+  // Landlord float payout vs standard payout.
+  if (o.status === 'landlord') {
+    q = q.ilike('reason', 'Landlord float payout%');
+  } else if (o.status === 'standard') {
+    q = q.or('reason.is.null,reason.not.ilike.*Landlord float payout*');
+  }
+
+  // Amount range.
+  if (o.minAmount != null && !Number.isNaN(o.minAmount)) q = q.gte('amount', o.minAmount);
+  if (o.maxAmount != null && !Number.isNaN(o.maxAmount)) q = q.lte('amount', o.maxAmount);
+
+  // Request date range (created_at).
+  if (o.fromIso) q = q.gte('created_at', o.fromIso);
+  if (o.toIso) q = q.lte('created_at', o.toIso);
+
+  // Channel (MoMo vs Cash).
+  if (o.channel === 'momo') {
+    q = q.or('payout_method.ilike.*momo*,payout_method.ilike.*mobile*,payout_method.ilike.*mtn*,payout_method.ilike.*airtel*,mobile_money_number.not.is.null,mobile_money_provider.not.is.null');
+  } else if (o.channel === 'cash') {
+    q = q.or('payout_method.ilike.*cash*,payout_method.ilike.*bank*,payout_method.ilike.*pickup*');
+  }
+
+  // Merchant / provider.
+  if (o.merchant === 'mtn') q = q.ilike('mobile_money_provider', '%mtn%');
+  else if (o.merchant === 'airtel') q = q.ilike('mobile_money_provider', '%airtel%');
+  else if (o.merchant === 'bank') q = q.ilike('payout_method', '%bank%');
+  else if (o.merchant === 'cash') q = q.ilike('payout_method', '%cash%');
+  else if (o.merchant === 'momo_other') q = q.not('mobile_money_provider', 'is', null);
+
+  // Search by name / phone (name lives in profiles — resolved to user ids first).
+  if (o.searchTerm) {
+    const t = sanitizeOrTerm(o.searchTerm);
+    if (t) {
+      const parts: string[] = [];
+      if (o.searchUserIds && o.searchUserIds.length) parts.push(`user_id.in.(${o.searchUserIds.join(',')})`);
+      parts.push(`mobile_money_number.ilike.*${t}*`);
+      parts.push(`mobile_money_name.ilike.*${t}*`);
+      q = q.or(parts.join(','));
+    }
+  }
+  return q;
+}
+
+function applyQueueSort(q: any, sort: string) {
+  switch (sort) {
+    case 'date_asc':
+      return q.order('created_at', { ascending: true });
+    case 'amount_desc':
+      return q.order('amount', { ascending: false });
+    case 'amount_asc':
+      return q.order('amount', { ascending: true });
+    case 'status':
+      return q.order('reason', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
+    case 'date_desc':
+    default:
+      return q.order('created_at', { ascending: false });
+  }
+}
+
+/** Resolve profile ids whose name or phone match the search term. */
+async function resolveSearchUserIds(term: string): Promise<string[]> {
+  const t = sanitizeOrTerm(term);
+  if (!t) return [];
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .or(`full_name.ilike.*${t}*,phone.ilike.*${t}*`)
+    .limit(500);
+  return (data || []).map((p: any) => p.id);
+}
+
+/** Attach profile name/phone to a small page of withdrawal rows (no FK embed). */
+async function attachProfiles(rows: any[]) {
+  if (!rows || rows.length === 0) return rows || [];
+  const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
+  if (userIds.length === 0) return rows;
+  const { data: profs } = await supabase
+    .from('profiles')
+    .select('id, full_name, phone')
+    .in('id', userIds);
+  const map = new Map((profs || []).map((p: any) => [p.id, p]));
+  return rows.map((r: any) => ({ ...r, profiles: map.get(r.user_id) || null }));
+}
+
 export function AgentCashPayoutsTab() {
   const { user } = useAuth();
   const qc = useQueryClient();
