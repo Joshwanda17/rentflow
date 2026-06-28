@@ -604,7 +604,7 @@ export function AgentCashPayoutsTab() {
     const channel = supabase
       .channel('cashout-agent-withdrawals')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, (payload) => {
-        qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+        invalidateQueue();
         if (payload.eventType === 'INSERT') {
           const newRow = payload.new as any;
           toast.info(`🔔 New withdrawal: ${formatUGX(Number(newRow.amount || 0))} via ${newRow.payout_method || 'wallet'}`, { duration: 6000 });
@@ -619,7 +619,7 @@ export function AgentCashPayoutsTab() {
   useEffect(() => {
     if (!isCashoutAgent) return;
     const tick = setInterval(() => {
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
     }, 30_000);
     return () => clearInterval(tick);
   }, [isCashoutAgent, qc]);
@@ -646,12 +646,12 @@ export function AgentCashPayoutsTab() {
     },
     onSuccess: () => {
       toast.success('✅ Withdrawal claimed — proceed with payout');
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
     },
     onError: (e: any) => {
       toast.error(e.message);
       // Refresh so the lost-race row disappears from this agent's view immediately.
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
     },
     onSettled: (_d, _e, withdrawalId) => {
       claimLockRef.current.delete(withdrawalId);
@@ -681,7 +681,7 @@ export function AgentCashPayoutsTab() {
           ? `${baseMsg} · ${formatUGX(credited)} added to your withdrawable wallet${reimbursed > 0 ? ` (${formatUGX(reimbursed)} reimbursed + ${formatUGX(commission)} commission)` : ` (0.5% commission)`}`
           : baseMsg,
       );
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
     },
@@ -761,7 +761,7 @@ export function AgentCashPayoutsTab() {
           : base,
       );
       setVerifiedPayout(null); setPayoutCode('');
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
     },
