@@ -533,7 +533,7 @@ export function AgentCashPayoutsTab() {
       {/* Merchant console header */}
       <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-lg">
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Merchant Agent Console</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Cash, Mobile Money &amp; Bank Payouts</span>
           <div className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-semibold text-emerald-400">Active</span>
