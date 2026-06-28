@@ -876,14 +876,16 @@ export function AgentCashPayoutsTab() {
             <QrCode className="h-5 w-5 text-primary" />
             Verify Cash Pickup Code
           </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Only when a user arrives in person with a WPO-XXXXX code. Otherwise claim from the queue below.</p>
+          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Only when a customer arrives in person with their 4-digit cash code. Entering it debits their withdrawable balance and records the payout. Otherwise claim from the queue below.</p>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
             <Input
-              placeholder="WPO-XXXXX"
+              placeholder="4-digit code"
               value={payoutCode}
-              onChange={e => setPayoutCode(e.target.value.toUpperCase())}
+              inputMode="numeric"
+              maxLength={4}
+              onChange={e => setPayoutCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
               className="text-xl font-mono tracking-wider h-14 text-center"
               onKeyDown={e => e.key === 'Enter' && handleVerify()}
             />
