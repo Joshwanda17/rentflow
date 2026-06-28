@@ -136,6 +136,30 @@ export function AgentCashPayoutsTab() {
   const [claimingIds, setClaimingIds] = useState<Set<string>>(new Set());
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
 
+  // ---- Pending Queue advanced filters & sorting ----
+  const [queueSearch, setQueueSearch] = useState('');
+  const [queueStatus, setQueueStatus] = useState<'all' | 'standard' | 'landlord'>('all');
+  const [queueMerchant, setQueueMerchant] = useState<string>('all');
+  const [queueMin, setQueueMin] = useState('');
+  const [queueMax, setQueueMax] = useState('');
+  const [queueFrom, setQueueFrom] = useState<Date | undefined>(undefined);
+  const [queueTo, setQueueTo] = useState<Date | undefined>(undefined);
+  const [queueSort, setQueueSort] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc' | 'status'>('date_desc');
+
+  const queueFiltersActive =
+    queueSearch.trim() !== '' || queueStatus !== 'all' || queueMerchant !== 'all' ||
+    queueMin !== '' || queueMax !== '' || !!queueFrom || !!queueTo;
+
+  const resetQueueFilters = () => {
+    setQueueSearch('');
+    setQueueStatus('all');
+    setQueueMerchant('all');
+    setQueueMin('');
+    setQueueMax('');
+    setQueueFrom(undefined);
+    setQueueTo(undefined);
+  };
+
   const handleClaim = (id: string) => {
     if (claimLockRef.current.has(id)) return; // already submitting this request
     claimLockRef.current.add(id);
