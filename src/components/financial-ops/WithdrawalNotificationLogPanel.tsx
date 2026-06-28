@@ -263,6 +263,12 @@ export function WithdrawalNotificationLogPanel() {
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                         {format(new Date(r.created_at), 'dd MMM yyyy, HH:mm')}
+                        {r.updated_at && r.updated_at !== r.created_at && (r.status || '').toLowerCase() !== 'queued' && (
+                          <p className="text-[10px]">
+                            {(r.status || '').toLowerCase() === 'sent' ? 'Delivered' : 'Resolved'}{' '}
+                            {format(new Date(r.updated_at), 'HH:mm')}
+                          </p>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
