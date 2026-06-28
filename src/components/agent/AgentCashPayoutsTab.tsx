@@ -904,7 +904,7 @@ export function AgentCashPayoutsTab() {
                   <div><p className="text-muted-foreground text-sm">Amount</p><p className="font-bold text-xl text-primary">{formatUGX(verifiedPayout.amount)}</p></div>
                   <div><p className="text-muted-foreground text-sm">Expires</p><p className="font-semibold">{format(new Date(verifiedPayout.expires_at), 'MMM d, HH:mm')}</p></div>
                 </div>
-                <Button className="w-full h-14 text-base font-bold" onClick={() => completePayout.mutate(verifiedPayout.id)} disabled={completePayout.isPending}>
+                <Button className="w-full h-14 text-base font-bold" onClick={() => completePayout.mutate()} disabled={completePayout.isPending}>
                   {completePayout.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Banknote className="h-5 w-5 mr-2" />}
                   Confirm Cash Paid — {formatUGX(verifiedPayout.amount)}
                 </Button>
