@@ -1031,11 +1031,122 @@ export function AgentCashPayoutsTab() {
             </span>
           )}
         </div>
+
+        {/* Advanced filters & sorting */}
+        <div className="rounded-2xl border border-border bg-muted/30 p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <SlidersHorizontal className="h-3.5 w-3.5" /> Filters &amp; Sort
+            </span>
+            {queueFiltersActive && (
+              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={resetQueueFilters}>
+                <X className="h-3.5 w-3.5" /> Clear
+              </Button>
+            )}
+          </div>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={queueSearch}
+              onChange={(e) => setQueueSearch(e.target.value)}
+              placeholder="Search by name or phone"
+              className="h-10 pl-9"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {/* Status */}
+            <Select value={queueStatus} onValueChange={(v) => setQueueStatus(v as typeof queueStatus)}>
+              <SelectTrigger className="h-10"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="standard">Standard payout</SelectItem>
+                <SelectItem value="landlord">Landlord payout</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Merchant / provider */}
+            <Select value={queueMerchant} onValueChange={setQueueMerchant}>
+              <SelectTrigger className="h-10"><SelectValue placeholder="Merchant" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All merchants</SelectItem>
+                {merchantOptions.map((m) => (
+                  <SelectItem key={m} value={m}>{MERCHANT_LABELS[m] || m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Sort */}
+            <Select value={queueSort} onValueChange={(v) => setQueueSort(v as typeof queueSort)}>
+              <SelectTrigger className="h-10">
+                <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date_desc">Newest first</SelectItem>
+                <SelectItem value="date_asc">Oldest first</SelectItem>
+                <SelectItem value="amount_desc">Amount: high → low</SelectItem>
+                <SelectItem value="amount_asc">Amount: low → high</SelectItem>
+                <SelectItem value="status">Landlord payouts first</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Date range */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn('h-10 justify-start gap-2 px-3 text-left font-normal', !queueFrom && !queueTo && 'text-muted-foreground')}>
+                  <CalendarIcon className="h-4 w-4 shrink-0" />
+                  <span className="truncate text-xs">
+                    {queueFrom || queueTo
+                      ? `${queueFrom ? format(queueFrom, 'MMM d') : '…'} – ${queueTo ? format(queueTo, 'MMM d') : '…'}`
+                      : 'Date range'}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={{ from: queueFrom, to: queueTo }}
+                  onSelect={(range) => { setQueueFrom(range?.from); setQueueTo(range?.to); }}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Amount range */}
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              value={queueMin}
+              onChange={(e) => setQueueMin(e.target.value.replace(/[^\d]/g, ''))}
+              inputMode="numeric"
+              placeholder="Min amount (UGX)"
+              className="h-10"
+            />
+            <Input
+              value={queueMax}
+              onChange={(e) => setQueueMax(e.target.value.replace(/[^\d]/g, ''))}
+              inputMode="numeric"
+              placeholder="Max amount (UGX)"
+              className="h-10"
+            />
+          </div>
+
+          {queueFiltersActive && (
+            <p className="text-xs text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{filteredPending}</span> of {totalPending} pending
+            </p>
+          )}
+        </div>
+
         <Tabs defaultValue="all">
         <TabsList className="w-full h-12 p-1">
           <TabsTrigger value="all" className="flex-1 gap-1.5 text-sm h-10">
             <Wallet className="h-4 w-4" /> All
-            {totalPending > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{totalPending}</Badge>}
+            {filteredPending > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{filteredPending}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="momo" className="flex-1 gap-1.5 text-sm h-10">
             <Smartphone className="h-4 w-4" /> MoMo
@@ -1048,8 +1159,10 @@ export function AgentCashPayoutsTab() {
         </TabsList>
 
         {['all', 'momo', 'cash'].map(tab => {
-          const items = tab === 'all' ? availableWithdrawals : tab === 'momo' ? momoWithdrawals : cashWithdrawals;
-          const emptyMsg = tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
+          const items = tab === 'all' ? filteredWithdrawals : tab === 'momo' ? momoWithdrawals : cashWithdrawals;
+          const emptyMsg = queueFiltersActive
+            ? 'No withdrawals match these filters'
+            : tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
           return (
             <TabsContent key={tab} value={tab} className="space-y-2.5 mt-4">
               {loadingAll ? (
