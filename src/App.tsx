@@ -38,6 +38,7 @@ const PinAuthProvider = lazyWithRetry(() => import("@/hooks/usePinAuth").then(m 
 const BiometricAuthProvider = lazyWithRetry(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
 const ProfileCompletionGate = optionalLazyWithRetry(() => import("@/components/onboarding/ProfileCompletionGate"), "ProfileCompletionGate");
 const LocationCaptureGate = optionalLazyWithRetry(() => import("@/components/location/LocationCaptureGate"), "LocationCaptureGate");
+const SubAgentInviteGate = optionalLazyWithRetry(() => import("@/components/agent/SubAgentInviteGate"), "SubAgentInviteGate");
 
 // Deferred providers - loaded after first paint
 const CartProvider = lazyWithRetry(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
