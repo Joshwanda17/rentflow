@@ -22,7 +22,8 @@ blocked on one provider.
 
 ## 1. Yoola SMS (primary) — `YOOLA_SMS_API_KEY`
 - Endpoint: `POST https://yoolasms.com/api/v1/send`
-- Body (JSON): `{ "phone": "256XXXXXXXXX", "message": "...", "api_key": "<key>" }`
+- Body (JSON): `{ "phone": "256XXXXXXXXX", "message": "...", "api_key": "<key>", "sender": "WELILE" }`
+- **`sender` MUST be `"WELILE"`** in the body on every Yoola call site (set explicitly, not relying on the account default).
 - **Auth is the `api_key` field in the JSON body ONLY.** Do NOT add an
   `Authorization: Bearer` header — Yoola returns `403 invalidkey`.
 - Success body: `{ "status": "success", "code": 200, ... }`.
