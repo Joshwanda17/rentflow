@@ -206,6 +206,11 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [activeDuplicate, setActiveDuplicate] = useState<RecentRecipientEntry | null>(null);
   const [selectedCashAgent, setSelectedCashAgent] = useState<SelectedCashAgent | null>(null);
 
+  // Clear any chosen cash agent if the user switches payout method.
+  useEffect(() => {
+    if (payoutMode !== 'cash') setSelectedCashAgent(null);
+  }, [payoutMode]);
+
   // Prefill from proxy partner funds
   useEffect(() => {
     if (open && prefillAmount && prefillAmount > 0) {
