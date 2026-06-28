@@ -156,7 +156,12 @@ export function CashoutSettlementTimeline() {
               <ScrollArea className="max-h-[640px]">
                 <div className="divide-y divide-border">
                   {rows.map((r) => (
-                    <div key={r.withdrawal_id} className="p-4 space-y-3">
+                    <button
+                      key={r.withdrawal_id}
+                      type="button"
+                      onClick={() => setSelected(r)}
+                      className="w-full text-left p-4 space-y-3 hover:bg-muted/50 focus:bg-muted/50 focus:outline-none transition-colors group"
+                    >
                       {/* Header: customer payout + when */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -168,15 +173,18 @@ export function CashoutSettlementTimeline() {
                             {r.customer_phone || '—'} · #{r.withdrawal_id.slice(0, 8)}
                           </p>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-[11px] text-muted-foreground">
-                            {r.settled_at ? format(new Date(r.settled_at), 'dd MMM yyyy, HH:mm') : '—'}
-                          </p>
-                          {r.withdrawal_status && (
-                            <Badge className="mt-0.5 text-[10px] px-1.5 py-0 border-0 bg-muted text-muted-foreground">
-                              {r.withdrawal_status.replace(/_/g, ' ')}
-                            </Badge>
-                          )}
+                        <div className="flex items-start gap-1.5 shrink-0">
+                          <div className="text-right">
+                            <p className="text-[11px] text-muted-foreground">
+                              {r.settled_at ? format(new Date(r.settled_at), 'dd MMM yyyy, HH:mm') : '—'}
+                            </p>
+                            {r.withdrawal_status && (
+                              <Badge className="mt-0.5 text-[10px] px-1.5 py-0 border-0 bg-muted text-muted-foreground">
+                                {r.withdrawal_status.replace(/_/g, ' ')}
+                              </Badge>
+                            )}
+                          </div>
+                          <ChevronRightIcon className="h-4 w-4 text-muted-foreground/60 mt-0.5 group-hover:text-foreground" />
                         </div>
                       </div>
 
@@ -215,7 +223,8 @@ export function CashoutSettlementTimeline() {
                         <span className="text-muted-foreground">Total credited to merchant wallet:</span>
                         <span className="font-semibold">{formatDynamic(Number(r.total_credited ?? 0))}</span>
                       </div>
-                    </div>
+                      <p className="text-[10px] text-muted-foreground/70 text-right">Tap to view exact ledger rows →</p>
+                    </button>
                   ))}
                 </div>
               </ScrollArea>
