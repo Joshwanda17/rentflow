@@ -530,11 +530,22 @@ export function AgentCashPayoutsTab() {
 
   return (
     <div className="space-y-5">
-      {/* Role identity banner */}
-      <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20">
-        <Banknote className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-        <div className="text-sm text-foreground/80 leading-relaxed">
-          You are a <span className="font-semibold text-primary">Merchant Agent</span>. Claim a request, send the money via <span className="font-medium">Mobile Money, Bank, or Cash</span>, then enter the proof (TID or payout code) to confirm.
+      {/* Merchant console header */}
+      <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-lg">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Merchant Agent Console</span>
+          <div className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-semibold text-emerald-400">Active</span>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 px-4 py-3.5">
+          <div className="shrink-0 rounded-xl bg-white/10 p-2">
+            <Banknote className="h-5 w-5 text-white" />
+          </div>
+          <p className="text-sm leading-relaxed text-slate-300">
+            Claim a request, pay via <span className="font-semibold text-white">Mobile Money, Bank, or Cash</span>, then enter the proof (TID or payout code) to confirm.
+          </p>
         </div>
       </div>
 
