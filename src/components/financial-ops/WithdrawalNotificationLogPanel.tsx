@@ -141,7 +141,7 @@ export function WithdrawalNotificationLogPanel() {
           Withdrawal Notification Log
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Every merchant withdrawal-alert email — search by recipient, amount range and date to trace delivery failures.
+          Every merchant withdrawal alert and every paid-confirmation SMS sent to the withdrawing user (with withdrawal details &amp; new wallet balance) — search by recipient, amount range and date to trace delivery.
         </p>
       </div>
 
