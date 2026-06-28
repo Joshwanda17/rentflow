@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -39,10 +39,16 @@ export function CashAgentSelector({ selected, onSelect }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [usedLocation, setUsedLocation] = useState(false);
+  // Remember the coordinates used for the last fetch so the background
+  // auto-refresh can re-query the same location without re-locating.
+  const lastCoordsRef = useRef<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
 
-  const fetchAgents = useCallback(async (lat: number | null, lng: number | null) => {
-    setLoading(true);
-    setError(null);
+  const fetchAgents = useCallback(async (lat: number | null, lng: number | null, silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
+    lastCoordsRef.current = { lat, lng };
     try {
       const { data, error: rpcError } = await (supabase.rpc as any)('get_nearby_cashout_agents', {
         _lat: lat,
@@ -51,11 +57,15 @@ export function CashAgentSelector({ selected, onSelect }: Props) {
       if (rpcError) throw rpcError;
       setAgents((data || []) as NearbyAgent[]);
       setUsedLocation(lat != null && lng != null);
+      if (silent) setError(null);
     } catch (e: any) {
-      setError(e?.message || 'Could not load nearby agents');
-      setAgents([]);
+      // Silent refreshes keep the existing list rather than wiping it on a blip.
+      if (!silent) {
+        setError(e?.message || 'Could not load nearby agents');
+        setAgents([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -97,6 +107,17 @@ export function CashAgentSelector({ selected, onSelect }: Props) {
     locateAndFetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep queue sizes fresh while the user is choosing: silently re-query the
+  // last-used location every 15s. Pauses when the tab is hidden.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      const { lat, lng } = lastCoordsRef.current;
+      fetchAgents(lat, lng, true);
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, [fetchAgents]);
 
   if (loading || locating) {
     return (
