@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 interface PayoutRow {
   id: string;
-  status: "otp_verified" | "disbursing" | "pending_finops_disbursement" | "completed" | "failed" | "escalated";
+  status: "otp_verified" | "disbursing" | "pending_finops_disbursement" | "pending_merchant_payout" | "awaiting_agent_receipt" | "completed" | "failed" | "escalated";
   amount: number;
   attempts: number;
   last_error: string | null;
