@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,7 @@ import {
   Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck, Coins,
   CalendarIcon, X, ArrowUp, ArrowDown, SlidersHorizontal, ArrowUpDown,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -53,28 +54,11 @@ const getPayoutChannel = (withdrawal: any): PayoutChannel => {
   return 'cash';
 };
 
-const isClaimExpired = (withdrawal: any) => {
-  if (!withdrawal?.assigned_cashout_agent_id || !withdrawal?.dispatched_at) return false;
-  return Date.now() - new Date(withdrawal.dispatched_at).getTime() >= CLAIM_WINDOW_MS;
-};
-
 const getRecipientPhone = (withdrawal: any) => {
   const channel = getPayoutChannel(withdrawal);
   return channel === 'momo'
     ? withdrawal.mobile_money_number || withdrawal.profiles?.phone || '—'
     : withdrawal.profiles?.phone || withdrawal.mobile_money_number || '—';
-};
-
-// Merchant/provider channel used by the Pending Queue advanced filters.
-const getMerchantKey = (withdrawal: any): string => {
-  const channel = getPayoutChannel(withdrawal);
-  if (channel === 'cash') {
-    return normalizePayoutMethod(withdrawal?.payout_method).includes('bank') ? 'bank' : 'cash';
-  }
-  const provider = String(withdrawal?.mobile_money_provider || '').toLowerCase();
-  if (provider.includes('mtn')) return 'mtn';
-  if (provider.includes('airtel')) return 'airtel';
-  return 'momo_other';
 };
 
 const MERCHANT_LABELS: Record<string, string> = {
@@ -87,6 +71,125 @@ const MERCHANT_LABELS: Record<string, string> = {
 
 const isLandlordFloatPayout = (withdrawal: any) =>
   typeof withdrawal?.reason === 'string' && withdrawal.reason.startsWith('Landlord float payout');
+
+// ---- Server-side Pending Queue helpers (keeps the tab fast with many payouts) ----
+const PAGE_SIZE = 20;
+
+// Static merchant/provider options for the filter (server-side, so we don't need
+// to load the whole queue just to discover which merchants are present).
+const MERCHANT_OPTIONS = ['mtn', 'airtel', 'momo_other', 'bank', 'cash'];
+
+// Strip characters that are reserved inside a PostgREST `.or()` filter string.
+const sanitizeOrTerm = (t: string) => t.replace(/[(),*%]/g, ' ').trim();
+
+interface QueueFilterOpts {
+  cutoffIso: string;
+  status: 'all' | 'standard' | 'landlord';
+  merchant: string;
+  minAmount: number | null;
+  maxAmount: number | null;
+  fromIso: string | null;
+  toIso: string | null;
+  channel: 'all' | 'momo' | 'cash';
+  searchUserIds: string[] | null;
+  searchTerm: string;
+}
+
+/**
+ * Applies every Pending Queue filter directly to a PostgREST query builder so
+ * the database does the work and only the requested page travels over the wire.
+ * Each `.or()` group is ANDed with the others by PostgREST, which is exactly
+ * the semantics we want for combining independent filters.
+ */
+function applyQueueFilters(q: any, o: QueueFilterOpts) {
+  q = q.in('status', CASHOUT_QUEUE_STATUSES);
+  // Available = unclaimed OR a claim that has expired (>15 min). Excludes rows
+  // currently claimed by anyone (including me — those live in "Claimed by you").
+  q = q.or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${o.cutoffIso}`);
+
+  // Landlord float payout vs standard payout.
+  if (o.status === 'landlord') {
+    q = q.ilike('reason', 'Landlord float payout%');
+  } else if (o.status === 'standard') {
+    q = q.or('reason.is.null,reason.not.ilike.*Landlord float payout*');
+  }
+
+  // Amount range.
+  if (o.minAmount != null && !Number.isNaN(o.minAmount)) q = q.gte('amount', o.minAmount);
+  if (o.maxAmount != null && !Number.isNaN(o.maxAmount)) q = q.lte('amount', o.maxAmount);
+
+  // Request date range (created_at).
+  if (o.fromIso) q = q.gte('created_at', o.fromIso);
+  if (o.toIso) q = q.lte('created_at', o.toIso);
+
+  // Channel (MoMo vs Cash).
+  if (o.channel === 'momo') {
+    q = q.or('payout_method.ilike.*momo*,payout_method.ilike.*mobile*,payout_method.ilike.*mtn*,payout_method.ilike.*airtel*,mobile_money_number.not.is.null,mobile_money_provider.not.is.null');
+  } else if (o.channel === 'cash') {
+    q = q.or('payout_method.ilike.*cash*,payout_method.ilike.*bank*,payout_method.ilike.*pickup*');
+  }
+
+  // Merchant / provider.
+  if (o.merchant === 'mtn') q = q.ilike('mobile_money_provider', '%mtn%');
+  else if (o.merchant === 'airtel') q = q.ilike('mobile_money_provider', '%airtel%');
+  else if (o.merchant === 'bank') q = q.ilike('payout_method', '%bank%');
+  else if (o.merchant === 'cash') q = q.ilike('payout_method', '%cash%');
+  else if (o.merchant === 'momo_other') q = q.not('mobile_money_provider', 'is', null);
+
+  // Search by name / phone (name lives in profiles — resolved to user ids first).
+  if (o.searchTerm) {
+    const t = sanitizeOrTerm(o.searchTerm);
+    if (t) {
+      const parts: string[] = [];
+      if (o.searchUserIds && o.searchUserIds.length) parts.push(`user_id.in.(${o.searchUserIds.join(',')})`);
+      parts.push(`mobile_money_number.ilike.*${t}*`);
+      parts.push(`mobile_money_name.ilike.*${t}*`);
+      q = q.or(parts.join(','));
+    }
+  }
+  return q;
+}
+
+function applyQueueSort(q: any, sort: string) {
+  switch (sort) {
+    case 'date_asc':
+      return q.order('created_at', { ascending: true });
+    case 'amount_desc':
+      return q.order('amount', { ascending: false });
+    case 'amount_asc':
+      return q.order('amount', { ascending: true });
+    case 'status':
+      return q.order('reason', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
+    case 'date_desc':
+    default:
+      return q.order('created_at', { ascending: false });
+  }
+}
+
+/** Resolve profile ids whose name or phone match the search term. */
+async function resolveSearchUserIds(term: string): Promise<string[]> {
+  const t = sanitizeOrTerm(term);
+  if (!t) return [];
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .or(`full_name.ilike.*${t}*,phone.ilike.*${t}*`)
+    .limit(500);
+  return (data || []).map((p: any) => p.id);
+}
+
+/** Attach profile name/phone to a small page of withdrawal rows (no FK embed). */
+async function attachProfiles(rows: any[]) {
+  if (!rows || rows.length === 0) return rows || [];
+  const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
+  if (userIds.length === 0) return rows;
+  const { data: profs } = await supabase
+    .from('profiles')
+    .select('id, full_name, phone')
+    .in('id', userIds);
+  const map = new Map((profs || []).map((p: any) => [p.id, p]));
+  return rows.map((r: any) => ({ ...r, profiles: map.get(r.user_id) || null }));
+}
 
 export function AgentCashPayoutsTab() {
   const { user } = useAuth();
@@ -146,6 +249,32 @@ export function AgentCashPayoutsTab() {
   const [queueTo, setQueueTo] = useState<Date | undefined>(undefined);
   const [queueSort, setQueueSort] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc' | 'status'>('date_desc');
 
+  // Channel tab + server-side pagination state for the Pending Queue.
+  const [channelTab, setChannelTab] = useState<'all' | 'momo' | 'cash'>('all');
+  const [page, setPage] = useState(0);
+
+  // Debounce the search box so we don't fire a query on every keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(queueSearch), 300);
+    return () => clearTimeout(t);
+  }, [queueSearch]);
+
+  // Computed filter primitives shared by the page + count queries.
+  const minAmount = queueMin.trim() === '' ? null : Number(queueMin);
+  const maxAmount = queueMax.trim() === '' ? null : Number(queueMax);
+  const fromIso = queueFrom
+    ? new Date(queueFrom.getFullYear(), queueFrom.getMonth(), queueFrom.getDate()).toISOString()
+    : null;
+  const toIso = queueTo
+    ? new Date(queueTo.getFullYear(), queueTo.getMonth(), queueTo.getDate(), 23, 59, 59, 999).toISOString()
+    : null;
+
+  // Any filter/sort/tab change returns to the first page.
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, queueSort, channelTab]);
+
   const queueFiltersActive =
     queueSearch.trim() !== '' || queueStatus !== 'all' || queueMerchant !== 'all' ||
     queueMin !== '' || queueMax !== '' || !!queueFrom || !!queueTo;
@@ -174,6 +303,14 @@ export function AgentCashPayoutsTab() {
     setCompletingIds(new Set(completeLockRef.current));
     toast.info('Confirming payout… please wait', { id: `complete-${data.id}`, duration: 4000 });
     completeWithdrawal.mutate(data);
+  };
+
+  // Invalidate every Pending Queue query (page, counts, available total, my claims).
+  const invalidateQueue = () => {
+    qc.invalidateQueries({ queryKey: ['cashout-queue-page'] });
+    qc.invalidateQueries({ queryKey: ['cashout-queue-counts'] });
+    qc.invalidateQueries({ queryKey: ['cashout-queue-available-total'] });
+    qc.invalidateQueries({ queryKey: ['cashout-my-active-claims'] });
   };
 
   // Check if this agent is a cashout agent
@@ -206,33 +343,92 @@ export function AgentCashPayoutsTab() {
     }
   };
 
-  // ALL pending/approved withdrawal requests
-  // NOTE: no FK exists between withdrawal_requests.user_id and profiles.id,
-  // so we cannot use a PostgREST embed. We fetch profiles separately and join client-side.
-  const { data: allWithdrawals = [], isLoading: loadingAll } = useQuery({
-    queryKey: ['cashout-agent-all-withdrawals'],
+  // Requests this agent has claimed and still needs to confirm. Kept as its own
+  // (small) query so it is never affected by the queue's filters or pagination.
+  const { data: myActiveClaims = [] } = useQuery({
+    queryKey: ['cashout-my-active-claims', isCashoutAgent?.id],
     queryFn: async () => {
-      await releaseExpiredClaims();
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
+        .eq('assigned_cashout_agent_id', isCashoutAgent!.id)
         .in('status', CASHOUT_QUEUE_STATUSES)
-        .order('created_at', { ascending: true });
+        .order('dispatched_at', { ascending: true });
       if (error) throw error;
-      const rows = data || [];
-      if (rows.length === 0) return rows;
+      return attachProfiles(data || []);
+    },
+    enabled: !!isCashoutAgent?.id,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
 
-      const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
-      const { data: profs } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', userIds);
-      const map = new Map((profs || []).map((p: any) => [p.id, p]));
-      return rows.map((r: any) => ({ ...r, profiles: map.get(r.user_id) || null }));
+  // Unfiltered count of all available (unclaimed/expired) requests — powers the
+  // "action required" badge and live banner regardless of active filters.
+  const { data: availableTotal = 0 } = useQuery({
+    queryKey: ['cashout-queue-available-total', isCashoutAgent?.id],
+    queryFn: async () => {
+      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      const { count } = await supabase
+        .from('withdrawal_requests')
+        .select('id', { count: 'exact', head: true })
+        .in('status', CASHOUT_QUEUE_STATUSES)
+        .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`);
+      return count || 0;
     },
     enabled: !!isCashoutAgent,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
+  });
+
+  // Per-channel filtered counts (All / MoMo / Cash) for the tab badges.
+  const { data: queueCounts } = useQuery({
+    queryKey: ['cashout-queue-counts', isCashoutAgent?.id, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch],
+    queryFn: async () => {
+      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
+      const base = {
+        cutoffIso, status: queueStatus, merchant: queueMerchant,
+        minAmount, maxAmount, fromIso, toIso, searchUserIds, searchTerm: debouncedSearch.trim(),
+      };
+      const mk = (channel: 'all' | 'momo' | 'cash') =>
+        applyQueueFilters(
+          supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }),
+          { ...base, channel },
+        ).then((r: any) => r.count || 0);
+      const [all, momo, cash] = await Promise.all([mk('all'), mk('momo'), mk('cash')]);
+      return { all, momo, cash };
+    },
+    enabled: !!isCashoutAgent,
+    staleTime: 15_000,
+    placeholderData: keepPreviousData,
+  });
+
+  // The current, server-paginated page of the Pending Queue for the active tab.
+  const { data: queuePage, isLoading: loadingAll, isFetching: fetchingQueue } = useQuery({
+    queryKey: ['cashout-queue-page', isCashoutAgent?.id, channelTab, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, debouncedSearch, queueSort, page],
+    queryFn: async () => {
+      await releaseExpiredClaims();
+      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      const searchUserIds = debouncedSearch.trim() ? await resolveSearchUserIds(debouncedSearch) : null;
+      const opts: QueueFilterOpts = {
+        cutoffIso, status: queueStatus, merchant: queueMerchant,
+        minAmount, maxAmount, fromIso, toIso, channel: channelTab,
+        searchUserIds, searchTerm: debouncedSearch.trim(),
+      };
+      let q = applyQueueFilters(
+        supabase.from('withdrawal_requests').select('*', { count: 'exact' }),
+        opts,
+      );
+      q = applyQueueSort(q, queueSort);
+      const { data, error, count } = await q.range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+      if (error) throw error;
+      const rows = await attachProfiles(data || []);
+      return { rows, count: count || 0 };
+    },
+    enabled: !!isCashoutAgent,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
   });
 
   // Daily stats: ONLY count actual cash payouts handled by THIS cash-out agent today.
@@ -391,7 +587,7 @@ export function AgentCashPayoutsTab() {
     const channel = supabase
       .channel('cashout-agent-withdrawals')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, (payload) => {
-        qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+        invalidateQueue();
         if (payload.eventType === 'INSERT') {
           const newRow = payload.new as any;
           toast.info(`🔔 New withdrawal: ${formatUGX(Number(newRow.amount || 0))} via ${newRow.payout_method || 'wallet'}`, { duration: 6000 });
@@ -406,7 +602,7 @@ export function AgentCashPayoutsTab() {
   useEffect(() => {
     if (!isCashoutAgent) return;
     const tick = setInterval(() => {
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
     }, 30_000);
     return () => clearInterval(tick);
   }, [isCashoutAgent, qc]);
@@ -433,12 +629,12 @@ export function AgentCashPayoutsTab() {
     },
     onSuccess: () => {
       toast.success('✅ Withdrawal claimed — proceed with payout');
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
     },
     onError: (e: any) => {
       toast.error(e.message);
       // Refresh so the lost-race row disappears from this agent's view immediately.
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
     },
     onSettled: (_d, _e, withdrawalId) => {
       claimLockRef.current.delete(withdrawalId);
@@ -468,7 +664,7 @@ export function AgentCashPayoutsTab() {
           ? `${baseMsg} · ${formatUGX(credited)} added to your withdrawable wallet${reimbursed > 0 ? ` (${formatUGX(reimbursed)} reimbursed + ${formatUGX(commission)} commission)` : ` (0.5% commission)`}`
           : baseMsg,
       );
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
     },
@@ -548,7 +744,7 @@ export function AgentCashPayoutsTab() {
           : base,
       );
       setVerifiedPayout(null); setPayoutCode('');
-      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+      invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
     },
@@ -560,76 +756,16 @@ export function AgentCashPayoutsTab() {
   }
   if (!isCashoutAgent) return null;
 
-  // My ACTIVE claims (claimed by me, awaiting my confirmation) — shown separately
-  // at the top so I can complete them. They are EXCLUDED from the main queue and
-  // its pending count to prevent double-payment by me or Financial Ops.
-  const myActiveClaims = allWithdrawals.filter(
-    (w: any) => w.assigned_cashout_agent_id === isCashoutAgent?.id,
-  );
-
-  // Available queue: unclaimed withdrawals plus expired claims returning after 15 minutes.
-  const availableWithdrawals = allWithdrawals.filter(
-    (w: any) => !w.assigned_cashout_agent_id || isClaimExpired(w),
-  );
-
-  // Distinct merchants/providers present in the queue (drives the merchant filter options).
-  const merchantOptions = Array.from(
-    new Set(availableWithdrawals.map((w: any) => getMerchantKey(w))),
-  ).sort();
-
-  // Apply advanced filters + sorting to the queue (plain compute — runs after the
-  // early return above, so it must not be a hook).
-  const minAmount = queueMin.trim() === '' ? null : Number(queueMin);
-  const maxAmount = queueMax.trim() === '' ? null : Number(queueMax);
-  const fromTime = queueFrom ? new Date(queueFrom.getFullYear(), queueFrom.getMonth(), queueFrom.getDate()).getTime() : null;
-  const toTime = queueTo ? new Date(queueTo.getFullYear(), queueTo.getMonth(), queueTo.getDate(), 23, 59, 59, 999).getTime() : null;
-  const searchTerm = queueSearch.trim().toLowerCase();
-
-  const filteredWithdrawals = availableWithdrawals
-    .filter((w: any) => {
-      // Status
-      if (queueStatus === 'landlord' && !isLandlordFloatPayout(w)) return false;
-      if (queueStatus === 'standard' && isLandlordFloatPayout(w)) return false;
-      // Merchant / provider
-      if (queueMerchant !== 'all' && getMerchantKey(w) !== queueMerchant) return false;
-      // Amount range
-      const amt = Number(w.amount || 0);
-      if (minAmount != null && !Number.isNaN(minAmount) && amt < minAmount) return false;
-      if (maxAmount != null && !Number.isNaN(maxAmount) && amt > maxAmount) return false;
-      // Date range (by request creation date)
-      const created = new Date(w.created_at).getTime();
-      if (fromTime != null && created < fromTime) return false;
-      if (toTime != null && created > toTime) return false;
-      // Search by name / phone
-      if (searchTerm) {
-        const name = (isLandlordFloatPayout(w) ? (w.mobile_money_name || '') : (w.profiles?.full_name || '')).toLowerCase();
-        const phone = String(getRecipientPhone(w) || '').toLowerCase();
-        if (!name.includes(searchTerm) && !phone.includes(searchTerm)) return false;
-      }
-      return true;
-    })
-    .sort((a: any, b: any) => {
-      switch (queueSort) {
-        case 'date_asc':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case 'amount_desc':
-          return Number(b.amount || 0) - Number(a.amount || 0);
-        case 'amount_asc':
-          return Number(a.amount || 0) - Number(b.amount || 0);
-        case 'status':
-          return (isLandlordFloatPayout(b) ? 1 : 0) - (isLandlordFloatPayout(a) ? 1 : 0);
-        case 'date_desc':
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-    });
-
-  // Split by method (queue only)
-  const momoWithdrawals = filteredWithdrawals.filter((w: any) => getPayoutChannel(w) === 'momo');
-  const cashWithdrawals = filteredWithdrawals.filter((w: any) => getPayoutChannel(w) === 'cash');
-
-  const totalPending = availableWithdrawals.length;
-  const filteredPending = filteredWithdrawals.length;
+  // Server-driven queue values. The active tab's page comes from `queuePage`,
+  // counts come from `queueCounts`, and the unfiltered total from `availableTotal`.
+  const pageRows: any[] = queuePage?.rows ?? [];
+  const pageCount = queuePage?.count ?? 0;
+  const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0 };
+  const totalPending = availableTotal;
+  const filteredPending = channelCounts.all;
+  const totalPages = Math.max(1, Math.ceil(pageCount / PAGE_SIZE));
+  const rangeStart = pageCount === 0 ? 0 : page * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(pageCount, page * PAGE_SIZE + pageRows.length);
 
   return (
     <div className="space-y-5">
@@ -1072,7 +1208,7 @@ export function AgentCashPayoutsTab() {
               <SelectTrigger className="h-10"><SelectValue placeholder="Merchant" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All merchants</SelectItem>
-                {merchantOptions.map((m) => (
+                {MERCHANT_OPTIONS.map((m) => (
                   <SelectItem key={m} value={m}>{MERCHANT_LABELS[m] || m}</SelectItem>
                 ))}
               </SelectContent>
@@ -1142,35 +1278,42 @@ export function AgentCashPayoutsTab() {
           )}
         </div>
 
-        <Tabs defaultValue="all">
+        <Tabs value={channelTab} onValueChange={(v) => setChannelTab(v as 'all' | 'momo' | 'cash')}>
         <TabsList className="w-full h-12 p-1">
           <TabsTrigger value="all" className="flex-1 gap-1.5 text-sm h-10">
             <Wallet className="h-4 w-4" /> All
-            {filteredPending > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{filteredPending}</Badge>}
+            {channelCounts.all > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.all}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="momo" className="flex-1 gap-1.5 text-sm h-10">
             <Smartphone className="h-4 w-4" /> MoMo
-            {momoWithdrawals.length > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{momoWithdrawals.length}</Badge>}
+            {channelCounts.momo > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.momo}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="cash" className="flex-1 gap-1.5 text-sm h-10">
             <Banknote className="h-4 w-4" /> Cash
-            {cashWithdrawals.length > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{cashWithdrawals.length}</Badge>}
+            {channelCounts.cash > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.cash}</Badge>}
           </TabsTrigger>
         </TabsList>
 
-        {['all', 'momo', 'cash'].map(tab => {
-          const items = tab === 'all' ? filteredWithdrawals : tab === 'momo' ? momoWithdrawals : cashWithdrawals;
+        {(['all', 'momo', 'cash'] as const).map(tab => {
+          // Only the active tab fetches; the page query is keyed by `channelTab`.
+          const items = tab === channelTab ? pageRows : [];
           const emptyMsg = queueFiltersActive
             ? 'No withdrawals match these filters'
             : tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
           return (
             <TabsContent key={tab} value={tab} className="space-y-2.5 mt-4">
-              {loadingAll ? (
+              {loadingAll && items.length === 0 ? (
                 <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               ) : items.length === 0 ? (
                 <Card className="rounded-2xl"><CardContent className="py-12 text-center text-base text-muted-foreground">{emptyMsg}</CardContent></Card>
               ) : (
-                items.map((w: any) => {
+                <>
+                {fetchingQueue && (
+                  <div className="flex items-center justify-center gap-2 py-1 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Updating…
+                  </div>
+                )}
+                {items.map((w: any) => {
                   const isMoMo = getPayoutChannel(w) === 'momo';
                   const MethodIcon = isMoMo ? Smartphone : Banknote;
                   const methodLabel = isMoMo ? 'Mobile Money' : 'Cash';
@@ -1226,7 +1369,39 @@ export function AgentCashPayoutsTab() {
                       </CardContent>
                     </Card>
                   );
-                })
+                })}
+                {/* Server-side pagination controls */}
+                {pageCount > PAGE_SIZE && (
+                  <div className="flex items-center justify-between gap-3 pt-2">
+                    <span className="text-xs text-muted-foreground">
+                      {rangeStart}–{rangeEnd} of {pageCount}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 px-2.5"
+                        disabled={page === 0 || fetchingQueue}
+                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      >
+                        <ChevronLeft className="h-4 w-4" /> Prev
+                      </Button>
+                      <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                        Page {page + 1} / {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 px-2.5"
+                        disabled={page + 1 >= totalPages || fetchingQueue}
+                        onClick={() => setPage((p) => p + 1)}
+                      >
+                        Next <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                </>
               )}
             </TabsContent>
           );
