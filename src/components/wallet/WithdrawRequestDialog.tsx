@@ -454,7 +454,13 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           bank_name: payoutMode === 'bank' ? bankName : null,
           bank_account_name: payoutMode === 'bank' ? bankAccountName.trim() : null,
           bank_account_number: payoutMode === 'bank' ? bankAccountNumber.trim() : null,
-          agent_location: payoutMode === 'cash' ? 'Nearest Agent' : null,
+          agent_location: payoutMode === 'cash'
+            ? (selectedCashAgent
+                ? [selectedCashAgent.agent_name, selectedCashAgent.district]
+                    .filter(Boolean).join(' · ')
+                : 'Nearest Agent')
+            : null,
+          preferred_cashout_agent_id: payoutMode === 'cash' ? (selectedCashAgent?.cashout_agent_id ?? null) : null,
           reason: isProxy
             ? `[Proxy initiated by agent ${user.id}] ${reason.trim()}`
             : reason.trim(),
