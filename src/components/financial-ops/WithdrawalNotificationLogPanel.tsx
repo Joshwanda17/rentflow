@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { formatDynamic } from '@/lib/currencyFormat';
@@ -27,16 +30,23 @@ type LogRow = {
   status: string | null;
   error_message: string | null;
   created_at: string;
+  updated_at: string | null;
 };
 
 type SortKey = 'recipient_email' | 'amount' | 'status' | 'created_at';
 type SortDir = 'asc' | 'desc';
 const PAGE_SIZE = 25;
 
+const STATUS_OPTIONS = ['all', 'queued', 'sent', 'failed'] as const;
+type StatusFilter = typeof STATUS_OPTIONS[number];
+
 function statusColor(status?: string | null) {
   switch ((status || '').toLowerCase()) {
     case 'sent':
       return 'bg-emerald-500/10 text-emerald-600';
+    case 'queued':
+    case 'processing':
+      return 'bg-amber-500/10 text-amber-600';
     case 'failed':
     case 'error':
       return 'bg-destructive/10 text-destructive';
