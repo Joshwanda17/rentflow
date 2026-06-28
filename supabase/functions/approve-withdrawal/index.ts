@@ -1880,33 +1880,51 @@ Deno.serve(async (req) => {
       } catch { /* non-fatal */ }
 
       if (profile?.phone) {
-        sendSMS(profile.phone, smsMsg)
-          .then((ok) => {
-            admin
-              .from("withdrawal_notification_log")
-              .insert({
-                withdrawal_id,
-                recipient_id: beneficiaryUserId,
-                recipient_email: recipientEmailForLog ?? profile.phone ?? null,
-                amount,
-                status: ok ? "sent" : "failed",
-                error_message: ok ? null : "SMS provider rejected or unconfigured",
-              })
-              .then(() => {}, () => {});
+        // 1) Record the SMS as "queued" up front so Financial Ops can see the
+        //    delivery is in flight, then 2) flip it to "sent"/"failed" once the
+        //    provider responds. This gives a full queued → sent/failed lifecycle.
+        admin
+          .from("withdrawal_notification_log")
+          .insert({
+            withdrawal_id,
+            recipient_id: beneficiaryUserId,
+            recipient_email: recipientEmailForLog ?? profile.phone ?? null,
+            amount,
+            status: "queued",
+            error_message: null,
           })
-          .catch((e) => {
-            console.error("[approve-withdrawal] paid SMS failed:", e);
-            admin
-              .from("withdrawal_notification_log")
-              .insert({
-                withdrawal_id,
-                recipient_id: beneficiaryUserId,
-                recipient_email: recipientEmailForLog ?? profile?.phone ?? null,
-                amount,
-                status: "error",
-                error_message: e?.message ? String(e.message).slice(0, 500) : "SMS send threw",
+          .select("id")
+          .single()
+          .then(({ data: logRow }) => {
+            const logId = (logRow as any)?.id ?? null;
+            sendSMS(profile.phone, smsMsg)
+              .then((ok) => {
+                if (!logId) return;
+                admin
+                  .from("withdrawal_notification_log")
+                  .update({
+                    status: ok ? "sent" : "failed",
+                    error_message: ok ? null : "SMS provider rejected or unconfigured",
+                  })
+                  .eq("id", logId)
+                  .then(() => {}, () => {});
               })
-              .then(() => {}, () => {});
+              .catch((e) => {
+                console.error("[approve-withdrawal] paid SMS failed:", e);
+                if (!logId) return;
+                admin
+                  .from("withdrawal_notification_log")
+                  .update({
+                    status: "failed",
+                    error_message: e?.message ? String(e.message).slice(0, 500) : "SMS send threw",
+                  })
+                  .eq("id", logId)
+                  .then(() => {}, () => {});
+              });
+          }, (e) => {
+            console.error("[approve-withdrawal] notification log insert failed:", e);
+            // Still attempt the SMS even if logging failed.
+            sendSMS(profile.phone, smsMsg).catch(() => {});
           });
       } else {
         // No phone on file — still record that the user could not be SMS'd.
