@@ -41,6 +41,27 @@ Deno.serve(async (req) => {
     })
   }
 
+  // Auth gate: require a valid session so anonymous callers can't flood the
+  // support_diagnostic_reports table or spam the support inbox.
+  const authClient = createClient(supabaseUrl, serviceKey)
+  const authHeader = req.headers.get('Authorization')
+  const token = authHeader?.replace('Bearer ', '').trim() ?? ''
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+  if (token !== serviceKey) {
+    const { data: authData, error: authError } = await authClient.auth.getUser(token)
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+  }
+
   let report: string
   let metadata: Record<string, unknown> = {}
   let appOrigin = DEFAULT_APP_ORIGIN

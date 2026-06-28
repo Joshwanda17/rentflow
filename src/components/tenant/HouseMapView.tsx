@@ -42,15 +42,27 @@ function priceIcon(label: string, selected: boolean, approximate: boolean): L.Di
   });
 }
 
+// Escape user-controlled text before interpolating into popup innerHTML.
+// Listing title/address are agent-controlled, so they must be escaped to
+// prevent stored XSS in the map popup.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Build a popup DOM node with working "View details" + "Get directions" buttons.
 function buildPopup(l: MappableListing, onOpenDetails: (l: HouseListing) => void): HTMLElement {
   const root = document.createElement('div');
   root.style.width = '176px';
   const photo = l.image_urls?.find((u) => typeof u === 'string' && u.trim().length > 0);
   root.innerHTML = `
-    ${photo ? `<img src="${photo}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px;" loading="lazy" />` : ''}
-    <p style="font-weight:600;font-size:12px;line-height:1.2;margin:0 0 2px;">${l.title ?? ''}</p>
-    ${l.address ? `<p style="font-size:11px;color:#64748b;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${l.address}</p>` : ''}
+    ${photo ? `<img src="${escapeHtml(photo)}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px;" loading="lazy" />` : ''}
+    <p style="font-weight:600;font-size:12px;line-height:1.2;margin:0 0 2px;">${escapeHtml(l.title ?? '')}</p>
+    ${l.address ? `<p style="font-size:11px;color:#64748b;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(l.address)}</p>` : ''}
     ${l._approx ? `<p style="font-size:10px;color:#94a3b8;margin:0 0 2px;">Approximate area</p>` : ''}
     <p style="font-size:12px;font-weight:700;margin:0 0 6px;">${formatUGX(l.daily_rate)}/day</p>
   `;
