@@ -223,28 +223,27 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
               const link = existingLinks?.[u.id];
               const isMine = link?.parent_agent_id === user?.id;
               const isOther = link && !isMine;
+              // Any user already verified as a sub-agent (to anyone) cannot be invited.
+              const isVerifiedSubAgent = link?.status === 'verified';
               let badge: { label: string; variant: any; icon?: typeof UserCheck } = {
                 label: 'Eligible',
                 variant: 'success',
               };
-              if (isMine && link?.status === 'verified') {
-                badge = { label: 'Your sub-agent', variant: 'success' };
+              if (isVerifiedSubAgent) {
+                badge = { label: 'Sub-agent', variant: 'success', icon: UserCheck };
               } else if (isMine && link?.status === 'pending') {
                 badge = { label: 'Invite pending', variant: 'warning' };
-              } else if (isOther && link?.status === 'verified') {
-                badge = { label: "Another agent's sub-agent", variant: 'warning', icon: UserCheck };
               } else if (isOther) {
                 badge = { label: 'Invite pending', variant: 'warning', icon: UserCheck };
               }
               const tooltipText = (() => {
-                if (isMine && link?.status === 'verified') {
-                  return 'This user is already linked to you. No invitation will be sent.';
+                if (isVerifiedSubAgent) {
+                  return isMine
+                    ? 'This user is already your sub-agent, so they can’t be invited again.'
+                    : 'This user is already a sub-agent, so they can’t be invited.';
                 }
                 if (isMine && link?.status === 'pending') {
                   return 'You already sent an invite. Sending again will refresh the dashboard invite and email reminder.';
-                }
-                if (isOther && link?.status === 'verified') {
-                  return 'This user works under another agent. If you send an invite, they can choose to switch to you.';
                 }
                 if (isOther) {
                   return 'Another agent already invited this user. If you send an invite, they can choose which agent to join.';
@@ -255,8 +254,15 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
               return (
                 <button
                   key={u.id}
-                  onClick={() => setSelected(u)}
-                  className="w-full flex items-center gap-2 p-3 text-left text-sm border-b border-border last:border-b-0 hover:bg-accent transition-colors"
+                  type="button"
+                  disabled={isVerifiedSubAgent}
+                  onClick={() => { if (!isVerifiedSubAgent) setSelected(u); }}
+                  className={cn(
+                    'w-full flex items-center gap-2 p-3 text-left text-sm border-b border-border last:border-b-0 transition-colors',
+                    isVerifiedSubAgent
+                      ? 'opacity-60 cursor-not-allowed'
+                      : 'hover:bg-accent',
+                  )}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="font-medium truncate">{u.full_name || 'Unnamed'}</div>
