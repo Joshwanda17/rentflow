@@ -74,6 +74,47 @@ async function sendSMS(phone: string, message: string) {
 // the production landlord-payout OTP function), so we only POST /Messages.json.
 const TWILIO_GATEWAY_URL = "https://connector-gateway.lovable.dev/twilio";
 const TWILIO_SENDER = "WELILE";
+
+// Yoola — the PRIMARY production SMS provider. Posts JSON to /api/v1/send with
+// sender:"WELILE" so this is a true end-to-end check of the configured sender id.
+function toYoolaDigits(phone: string): string {
+  let d = phone.replace(/\D/g, "");
+  if (d.startsWith("0")) d = "256" + d.slice(1);
+  else if (d.length === 9) d = "256" + d;
+  return d;
+}
+async function sendYoolaSMS(phone: string, message: string) {
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
+  if (!apiKey) return { ok: false, reason: "Yoola not configured", provider: "yoola" };
+  const bareDigits = toYoolaDigits(phone);
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: bareDigits, message, api_key: apiKey, sender: "WELILE" }),
+    });
+    const rawText = await res.text();
+    let parsed: any = null;
+    try { parsed = JSON.parse(rawText); } catch { /* keep raw */ }
+    const status = String(parsed?.status ?? "").toLowerCase();
+    const accepted =
+      res.ok &&
+      (["success", "ok", "sent", "queued"].includes(status) ||
+        (status === "" && !parsed?.error));
+    return {
+      ok: accepted,
+      httpStatus: res.status,
+      formattedPhone: bareDigits,
+      sender: "WELILE",
+      status: parsed?.status ?? null,
+      reason: accepted ? undefined : (parsed?.error || parsed?.message || `Yoola status ${parsed?.status ?? res.status}`),
+      raw: parsed ?? rawText,
+      provider: "yoola",
+    };
+  } catch (e) {
+    return { ok: false, formattedPhone: bareDigits, reason: e instanceof Error ? e.message : "Yoola network error", provider: "yoola" };
+  }
+}
 async function sendTwilioSMS(phone: string, message: string) {
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
   const twilioKey = Deno.env.get("TWILIO_API_KEY");
@@ -154,7 +195,9 @@ Deno.serve(async (req) => {
 
     const startedAt = new Date().toISOString();
     const result =
-      provider === "twilio"
+      provider === "yoola"
+        ? { ...(await sendYoolaSMS(phone, message)), fallbackUsed: false, forced: "yoola" }
+        : provider === "twilio"
         ? { ...(await sendTwilioSMS(phone, message)), fallbackUsed: false, forced: "twilio" }
         : provider === "africastalking"
         ? { ...(await sendSMS(phone, message)), fallbackUsed: false, forced: "africastalking" }
