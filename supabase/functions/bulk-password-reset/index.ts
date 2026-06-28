@@ -19,26 +19,36 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Auth: verify caller is manager/cto/super_admin via JWT
+    // Auth: verify caller is manager/cto/super_admin via JWT.
+    // The Authorization header is mandatory — no unauthenticated bypass.
     const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace("Bearer ", "") ?? "";
-    let callerId = "service-role";
+    const token = authHeader?.replace("Bearer ", "").trim() ?? "";
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (token) {
+    let callerId = "service-role";
+    const isServiceRole = token === supabaseServiceKey;
+    if (!isServiceRole) {
       const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (!authError && authData?.user) {
-        callerId = authData.user.id;
-        const { data: roleData } = await supabaseAdmin
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", callerId)
-          .eq("enabled", true)
-          .in("role", ["manager", "cto", "super_admin"]);
-        if (!roleData?.length) {
-          return new Response(JSON.stringify({ error: "Forbidden" }), {
-            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+      if (authError || !authData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      callerId = authData.user.id;
+      const { data: roleData } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", callerId)
+        .eq("enabled", true)
+        .in("role", ["manager", "cto", "super_admin"]);
+      if (!roleData?.length) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
 
