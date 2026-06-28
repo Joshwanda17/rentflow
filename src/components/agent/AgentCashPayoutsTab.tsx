@@ -431,33 +431,25 @@ export function AgentCashPayoutsTab() {
     if (!code) return;
     setVerifying(true);
     try {
-      const { data, error } = await supabase
-        .from('payout_codes')
-        .select('*, profiles:user_id(full_name, phone)')
-        .eq('code', code)
-        .eq('status', 'pending')
-        .maybeSingle();
+      // Verify through a server-side, rate-limited RPC so the 4-digit code
+      // can't be brute-forced: it locks the merchant out after too many wrong
+      // codes in a short window and records every attempt server-side.
+      const { data, error } = await supabase.rpc('verify_payout_code_throttled', { p_code: code });
       if (error) throw error;
-      if (!data) { toast.error('Invalid or already-used payout code'); setVerifiedPayout(null); return; }
-      if (new Date(data.expires_at) < new Date()) { toast.error('This payout code has expired'); setVerifiedPayout(null); return; }
-
-      // Load the linked withdrawal request so we can enforce that only the
-      // merchant the customer chose may settle this cash pickup.
-      const { data: wr } = await supabase
-        .from('withdrawal_requests')
-        .select('id, status, preferred_cashout_agent_id')
-        .eq('id', (data as any).withdrawal_request_id)
-        .maybeSingle();
-
-      const preferred = (wr as any)?.preferred_cashout_agent_id ?? null;
-      if (preferred && preferred !== isCashoutAgent?.id) {
-        toast.error('This customer selected a different merchant agent for cash pickup. Only the chosen merchant can pay this code.');
+      const result = data as any;
+      if (!result || result.error) {
+        if (result?.error === 'rate_limited') {
+          toast.error(result.message || 'Too many incorrect codes. Please wait a few minutes and try again.');
+        } else if (result?.error === 'expired') {
+          toast.error(result.message || 'This payout code has expired');
+        } else {
+          toast.error(result?.message || 'Invalid or already-used payout code');
+        }
         setVerifiedPayout(null);
         return;
       }
-
-      setVerifiedPayout({ ...data, _isPreferred: !!preferred });
-      toast.success(preferred ? 'Code verified — you are the chosen merchant ✅' : 'Payout code verified! ✅');
+      setVerifiedPayout(result);
+      toast.success(result._isPreferred ? 'Code verified — you are the chosen merchant ✅' : 'Payout code verified! ✅');
     } catch (err: any) { toast.error(err.message); }
     finally { setVerifying(false); }
   };

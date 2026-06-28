@@ -307,6 +307,78 @@ Deno.serve(async (req) => {
         }
       };
 
+      // ── Brute-force gate (rate limit + retry limit) ─────────────────────
+      // A 4-digit code only has 10,000 combinations, so an unthrottled
+      // merchant could guess it in seconds. We cap failed code entries two
+      // ways, both read from the existing payout_code_audit_log:
+      //   1. Per withdrawal request: after MAX_FAILED_PER_REQUEST wrong codes
+      //      inside RETRY_WINDOW_MS, the code is frozen for everyone.
+      //   2. Per merchant (approver): after MAX_FAILED_PER_APPROVER wrong
+      //      codes across ANY request inside APPROVER_WINDOW_MS, that merchant
+      //      is throttled so they can't iterate across many requests.
+      // Only genuine "guesses" count: mismatches and missing-code rejections.
+      const FAILED_OUTCOMES = ["mismatch", "rejected", "rate_limited"];
+      const RETRY_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+      const MAX_FAILED_PER_REQUEST = 5;
+      const APPROVER_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+      const MAX_FAILED_PER_APPROVER = 20;
+
+      const retrySinceIso = new Date(Date.now() - RETRY_WINDOW_MS).toISOString();
+      const approverSinceIso = new Date(Date.now() - APPROVER_WINDOW_MS).toISOString();
+
+      try {
+        const [{ count: failedForRequest }, { count: failedForApprover }] =
+          await Promise.all([
+            admin
+              .from("payout_code_audit_log")
+              .select("id", { count: "exact", head: true })
+              .eq("withdrawal_request_id", withdrawal_id)
+              .in("outcome", FAILED_OUTCOMES)
+              .gte("created_at", retrySinceIso),
+            user?.id
+              ? admin
+                  .from("payout_code_audit_log")
+                  .select("id", { count: "exact", head: true })
+                  .eq("approver_id", user.id)
+                  .in("outcome", FAILED_OUTCOMES)
+                  .gte("created_at", approverSinceIso)
+              : Promise.resolve({ count: 0 } as any),
+          ]);
+
+        const requestLocked = (failedForRequest ?? 0) >= MAX_FAILED_PER_REQUEST;
+        const approverLocked = (failedForApprover ?? 0) >= MAX_FAILED_PER_APPROVER;
+
+        if (requestLocked || approverLocked) {
+          const scope = requestLocked ? "request" : "approver";
+          await logCodeAttempt({
+            outcome: "rate_limited",
+            errorCode: "CASH_CODE_RATE_LIMITED",
+            errorMessage:
+              `Too many failed code attempts (scope=${scope}, ` +
+              `request=${failedForRequest ?? 0}, approver=${failedForApprover ?? 0})`,
+            statusResult: "rejected",
+          });
+          const retryMinutes = requestLocked
+            ? Math.ceil(RETRY_WINDOW_MS / 60000)
+            : Math.ceil(APPROVER_WINDOW_MS / 60000);
+          return new Response(
+            JSON.stringify({
+              error: "CASH_CODE_RATE_LIMITED",
+              code: "cash_code_rate_limited",
+              retry_after: retryMinutes * 60,
+              message: requestLocked
+                ? `Too many incorrect codes were entered for this payout. It is locked for about ${retryMinutes} minutes to prevent guessing. Ask the customer to confirm the exact code, then try again later.`
+                : `You've entered too many incorrect codes recently. Please wait about ${retryMinutes} minutes before trying again.`,
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      } catch (e) {
+        // Fail open on a counter read error — never block a legitimate payout
+        // because the audit table hiccuped. Real code validation still runs.
+        console.warn("[approve-withdrawal] brute-force counter read failed", e);
+      }
+
       if (!payoutCodeNormalized) {
         await logCodeAttempt({
           outcome: "rejected",
