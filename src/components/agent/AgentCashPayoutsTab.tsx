@@ -882,20 +882,19 @@ export function AgentCashPayoutsTab() {
           <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Only when a customer arrives in person with their 4-digit cash code. Entering it debits their withdrawable balance and records the payout. Otherwise claim from the queue below.</p>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              placeholder="4-digit code"
-              value={payoutCode}
-              inputMode="numeric"
-              maxLength={4}
-              onChange={e => setPayoutCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              className="text-xl font-mono tracking-wider h-14 text-center"
-              onKeyDown={e => e.key === 'Enter' && handleVerify()}
-            />
-            <Button onClick={handleVerify} disabled={verifying || !payoutCode.trim()} className="h-14 px-6" aria-label="Verify code">
-              {verifying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
-            </Button>
-          </div>
+          <Input
+            placeholder="• • • •"
+            value={payoutCode}
+            inputMode="numeric"
+            maxLength={4}
+            onChange={e => setPayoutCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            className="h-16 text-center font-mono text-3xl tracking-[0.5em]"
+            onKeyDown={e => e.key === 'Enter' && handleVerify()}
+          />
+          <Button onClick={handleVerify} disabled={verifying || !payoutCode.trim()} className="h-12 w-full gap-2 font-bold" aria-label="Verify code">
+            {verifying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+            Verify &amp; Process
+          </Button>
           {verifiedPayout && (
             <Card className="border-green-500/30 bg-green-500/5 rounded-2xl">
               <CardContent className="p-4 space-y-4">
