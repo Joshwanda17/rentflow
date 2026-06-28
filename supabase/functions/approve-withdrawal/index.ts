@@ -1190,6 +1190,11 @@ Deno.serve(async (req) => {
         }
       : undefined;
 
+    // Landlord-float payouts skip the agent wallet debit entirely (float already
+    // deducted in agent_landlord_float). For all other payouts we post the
+    // standard withdrawable/float/pool debit legs.
+    let txnGroupId: any = null;
+    if (!isLandlordFloatPayout) {
     // POOL-FUNDED settlements debit FLOAT (company money) after an in-transaction
     // top-up; all other payouts debit withdrawable as before.
     const proxyFloatPortion = 0;
@@ -1316,7 +1321,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
+    const { data: _txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
       entries: [
         ...debitEntries,
         {
@@ -1342,6 +1347,7 @@ Deno.serve(async (req) => {
       // duplicate check; the strict gate above is the source of truth.
       skip_balance_check: true,
     });
+    txnGroupId = _txnGroupId;
 
     if (ledgerErr) {
       console.error("[approve-withdrawal] Ledger RPC error:", ledgerErr);
@@ -1374,6 +1380,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    } // end if (!isLandlordFloatPayout)
 
     // Update withdrawal request status
     const { error: updateErr } = await admin
