@@ -695,16 +695,16 @@ export function AgentCashPayoutsTab() {
           )}
         </CardHeader>
         <CardContent className="pt-0 space-y-3">
-          <div className="flex items-end justify-between gap-3 pb-3 border-b border-border/60">
+          <div className="flex items-end justify-between gap-3 rounded-2xl bg-slate-900 p-4 text-white">
             <div>
-              <p className="text-xs text-muted-foreground">Total earned</p>
-              <p className="text-2xl font-bold text-emerald-600 tabular-nums leading-tight">
+              <p className="text-xs font-medium text-slate-400">Total earned · 0.5%</p>
+              <p className="mt-1 text-2xl font-bold leading-tight tabular-nums text-emerald-400">
                 {formatUGX(commissionBreakdown?.grandTotal ?? 0)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Payouts</p>
-              <p className="text-lg font-bold text-foreground tabular-nums">{commissionBreakdown?.grandCount ?? 0}</p>
+              <p className="text-xs text-slate-400">Payouts</p>
+              <p className="text-lg font-bold tabular-nums text-white">{commissionBreakdown?.grandCount ?? 0}</p>
             </div>
           </div>
 
