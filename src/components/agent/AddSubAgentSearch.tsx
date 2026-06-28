@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,7 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { Search, Loader2, UserPlus, UsersRound, CheckCircle2, UserCheck } from 'lucide-react';
+import { Search, Loader2, UserPlus, UsersRound, CheckCircle2, UserCheck, Copy, Check, Share2, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface UserResult {
@@ -42,6 +43,9 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<UserResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+  const [sentInvite, setSentInvite] = useState<{ name: string; link: string; hasEmail: boolean } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const term = query.trim();
 
@@ -112,21 +116,36 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
     setSubmitting(true);
     try {
       const response = await supabase.functions.invoke('add-existing-subagent', {
-        body: { subAgentId: selected.id, origin: getPublicOrigin() },
+        body: { subAgentId: selected.id, origin: getPublicOrigin(), inviteMessage: message.trim() || undefined },
       });
       if (response.error || response.data?.error) {
         const msg = await extractEdgeFunctionError(response, 'Could not add sub-agent.');
         throw new Error(msg);
       }
-      toast({
-        title: response.data?.alreadyLinked ? 'Already your sub-agent' : 'Invitation sent!',
-        description: response.data?.alreadyLinked
-          ? `${selected.full_name || 'User'} is already your sub-agent.`
-          : `${selected.full_name || 'User'} has been sent an email and SMS with a link to accept.`,
-      });
-      setSelected(null);
-      setQuery('');
-      onAdded?.();
+      const name = selected.full_name || 'User';
+      if (response.data?.alreadyLinked) {
+        toast({
+          title: 'Already your sub-agent',
+          description: `${name} is already your sub-agent.`,
+        });
+        setSelected(null);
+        setQuery('');
+        setMessage('');
+        onAdded?.();
+      } else {
+        const hasEmail = !!response.data?.hasEmail;
+        toast({
+          title: 'Invitation created!',
+          description: hasEmail
+            ? `${name} will see it on their dashboard and get an email. You can also share the link below.`
+            : `${name} will see it on their dashboard. Share the link below with them too.`,
+        });
+        setSentInvite({ name, link: response.data?.acceptLink || '', hasEmail });
+        setSelected(null);
+        setQuery('');
+        setMessage('');
+        onAdded?.();
+      }
     } catch (err: any) {
       toast({
         title: 'Failed to add sub-agent',
@@ -136,6 +155,32 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCopyLink = async () => {
+    if (!sentInvite?.link) return;
+    try {
+      await navigator.clipboard.writeText(sentInvite.link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast({ title: 'Link copied!', description: 'Share it with your sub-agent.' });
+    } catch {
+      toast({ title: 'Could not copy', description: 'Please copy the link manually.', variant: 'destructive' });
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (!sentInvite?.link) return;
+    const shareText = `I'm inviting you to become my sub-agent on Welile. Tap to accept: ${sentInvite.link}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Welile sub-agent invite', text: shareText, url: sentInvite.link });
+        return;
+      } catch {
+        /* user cancelled — fall through to WhatsApp */
+      }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
   };
 
   return (
