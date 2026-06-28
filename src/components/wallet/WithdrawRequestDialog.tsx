@@ -549,6 +549,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     setAmount(0);
     setReason('');
     setSuccess(false);
+    setSelectedCashAgent(null);
     onOpenChange(false);
   };
 
