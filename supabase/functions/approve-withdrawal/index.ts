@@ -657,6 +657,14 @@ Deno.serve(async (req) => {
       typeof wr.reason === "string" &&
       wr.reason.includes("Proxy payout delivery for");
 
+    // Landlord-float payouts: an agent's CFO-funded landlord float is paid out
+    // by a merchant agent through this same queue. The float was already
+    // deducted at disburse time (agent_landlord_float), so we MUST NOT debit
+    // the agent's withdrawable wallet here. The merchant still gets the
+    // principal reimbursement + 0.5% commission like any other cash payout.
+    const isLandlordFloatPayout =
+      typeof wr.reason === "string" && wr.reason.startsWith("Landlord float payout");
+
     let proxyPartnerId =
       (wr as any).proxy_partner_id ||
       (wr.linked_party && wr.linked_party !== wr.user_id ? wr.linked_party : null) ||
