@@ -78,6 +78,7 @@ const accentBar: React.CSSProperties = { height: '6px', backgroundColor: BRAND }
 const h1: React.CSSProperties = { margin: '0 0 12px 0', color: INK, fontSize: '24px', fontWeight: 800 }
 const lead: React.CSSProperties = { margin: '0 0 8px 0', color: SUB, fontSize: '15px' }
 const body: React.CSSProperties = { margin: '0 0 16px 0', color: BODY, fontSize: '15px', lineHeight: '24px' }
+const quote: React.CSSProperties = { margin: '0 0 16px 0', padding: '12px 16px', color: INK, fontSize: '15px', lineHeight: '22px', fontStyle: 'italic', backgroundColor: '#f8f5ff', borderLeft: `3px solid ${BRAND}`, borderRadius: '6px' }
 const ctaBtn: React.CSSProperties = { backgroundColor: BRAND, color: '#ffffff', padding: '14px 28px', borderRadius: '10px', fontSize: '15px', fontWeight: 700, textDecoration: 'none', display: 'inline-block' }
 const fineprint: React.CSSProperties = { margin: '0 0 8px 0', color: SUB, fontSize: '12px', lineHeight: '18px', textAlign: 'center' as const }
 const link: React.CSSProperties = { color: BRAND, textDecoration: 'none', fontWeight: 700, wordBreak: 'break-all' as const }
