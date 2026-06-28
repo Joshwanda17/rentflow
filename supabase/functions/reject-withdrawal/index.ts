@@ -162,6 +162,69 @@ Deno.serve(async (req) => {
 
       const userId = withdrawal_type === 'float' ? wr.agent_id : wr.user_id;
 
+      // ── Landlord-float payout rejection ────────────────────────────────
+      // These rows live in withdrawal_requests but are funded from the
+      // dedicated agent_landlord_float ledger (deducted at disburse time, not
+      // general_ledger). Restore that float and fail the linked landlord_payout
+      // so it returns to Landlord Ops, then skip the standard wallet reversal.
+      const isLandlordFloatPayout =
+        withdrawal_type !== 'float' &&
+        typeof (wr as any).reason === 'string' &&
+        (wr as any).reason.startsWith('Landlord float payout');
+      if (isLandlordFloatPayout) {
+        let refunded = false;
+        const landlordPayoutId = (wr as any).landlord_payout_id ?? null;
+        if (landlordPayoutId) {
+          const { error: refundErr } = await admin.rpc('refund_agent_float_for_payout', {
+            p_payout_id: landlordPayoutId,
+          });
+          if (refundErr) {
+            console.error(`[reject-withdrawal] float refund failed for ${wId}:`, refundErr);
+          } else {
+            refunded = true;
+          }
+          await admin
+            .from('landlord_payouts')
+            .update({ status: 'failed', last_error: `Merchant rejected: ${String(reason).slice(0, 200)}` } as any)
+            .eq('id', landlordPayoutId)
+            .eq('status', 'pending_merchant_payout');
+        }
+
+        const { error: lpUpdateErr } = await admin
+          .from('withdrawal_requests')
+          .update({
+            status: 'rejected',
+            rejection_reason: reason,
+            processed_by: user.id,
+            processed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq('id', wId);
+        if (lpUpdateErr) {
+          console.error(`[reject-withdrawal] Failed to update ${wId}:`, lpUpdateErr);
+          results.push({ id: wId, status: 'update_failed', refunded });
+          continue;
+        }
+
+        try {
+          await admin.from('notifications').insert({
+            user_id: userId,
+            title: 'Landlord Payout Returned',
+            message: `A merchant agent could not pay UGX ${Number(wr.amount).toLocaleString()} to the landlord. Reason: ${reason}. The float has been restored — please retry from Landlord Ops.`,
+            type: 'financial',
+          });
+        } catch { /* non-blocking */ }
+
+        await admin.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'landlord_float_payout_rejected',
+          metadata: { withdrawal_id: wId, landlord_payout_id: landlordPayoutId, target_user: userId, amount: wr.amount, reason, refunded },
+        });
+        logSystemEvent(admin, 'landlord_float_payout_rejected', user.id, 'withdrawal_requests', wId, { amount: wr.amount, refunded });
+        results.push({ id: wId, status: 'rejected', refunded });
+        continue;
+      }
+
       // Per financial governance: rejection = NO ledger entry.
       // Nothing moved financially. The original withdrawal request's ledger entry
       // (if any deduction happened at request time) should be handled by the
