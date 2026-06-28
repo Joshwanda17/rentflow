@@ -92,6 +92,15 @@ Deno.serve(async (req) => {
         });
         if (!error) sent++;
         else console.error(`[notify-merchants] email failed for ${p.id}:`, error.message);
+        // Audit log: record each notification email attempt for delivery troubleshooting
+        await admin.from("withdrawal_notification_log").insert({
+          withdrawal_id: w.id,
+          recipient_id: p.id,
+          recipient_email: p.email,
+          amount: Number(w.amount) || 0,
+          status: error ? "failed" : "sent",
+          error_message: error ? String(error.message || error) : null,
+        });
       }),
     );
 
