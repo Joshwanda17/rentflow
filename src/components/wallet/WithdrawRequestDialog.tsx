@@ -204,6 +204,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [reason, setReason] = useState('');
   const [activeDuplicate, setActiveDuplicate] = useState<RecentRecipientEntry | null>(null);
+  const [selectedCashAgent, setSelectedCashAgent] = useState<SelectedCashAgent | null>(null);
 
   // Prefill from proxy partner funds
   useEffect(() => {
