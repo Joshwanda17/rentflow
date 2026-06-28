@@ -343,6 +343,20 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
               </div>
               <Badge variant="outline" className="bg-background shrink-0">Selected</Badge>
             </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-muted-foreground">
+                Add a short message (optional)
+              </label>
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value.slice(0, 100))}
+                placeholder="e.g. Join my team — I'll help you get started!"
+                rows={2}
+                maxLength={100}
+                className="resize-none text-sm"
+              />
+              <div className="text-[10px] text-muted-foreground text-right">{message.length}/100</div>
+            </div>
             <Button
               onClick={handleAdd}
               disabled={submitting || existingLinks?.[selected.id]?.parent_agent_id === user?.id}
@@ -351,6 +365,38 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
               Send sub-agent invite
             </Button>
+          </div>
+        )}
+
+        {sentInvite && (
+          <div className="space-y-2 p-3 rounded-lg bg-green-500/5 border border-green-500/30">
+            <div className="flex items-start gap-2 text-xs text-green-800 dark:text-green-300">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                Invite created for <span className="font-semibold">{sentInvite.name}</span>.{' '}
+                {sentInvite.hasEmail
+                  ? 'They’ll see it on their dashboard and get an email.'
+                  : 'They’ll see it on their dashboard.'}{' '}
+                You can also share this link directly:
+              </span>
+            </div>
+            {sentInvite.link && (
+              <>
+                <div className="flex items-center gap-2 p-2 rounded-md bg-background border border-border">
+                  <code className="text-[11px] truncate flex-1 text-muted-foreground">{sentInvite.link}</code>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={handleCopyLink}>
+                    {copied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? 'Copied' : 'Copy link'}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={handleShareLink}>
+                    <Share2 className="h-3.5 w-3.5" />
+                    Share
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </CardContent>
