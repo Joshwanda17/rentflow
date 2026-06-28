@@ -293,6 +293,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     }
     if (payoutMode === 'bank')
       return !!bankName && bankAccountName.trim().length >= 2 && bankAccountNumber.trim().length >= 5;
+    if (payoutMode === 'cash') return !!selectedCashAgent;
     return true;
   };
 
