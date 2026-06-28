@@ -1295,35 +1295,42 @@ export function AgentCashPayoutsTab() {
           )}
         </div>
 
-        <Tabs defaultValue="all">
+        <Tabs value={channelTab} onValueChange={(v) => setChannelTab(v as 'all' | 'momo' | 'cash')}>
         <TabsList className="w-full h-12 p-1">
           <TabsTrigger value="all" className="flex-1 gap-1.5 text-sm h-10">
             <Wallet className="h-4 w-4" /> All
-            {filteredPending > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{filteredPending}</Badge>}
+            {channelCounts.all > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.all}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="momo" className="flex-1 gap-1.5 text-sm h-10">
             <Smartphone className="h-4 w-4" /> MoMo
-            {momoWithdrawals.length > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{momoWithdrawals.length}</Badge>}
+            {channelCounts.momo > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.momo}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="cash" className="flex-1 gap-1.5 text-sm h-10">
             <Banknote className="h-4 w-4" /> Cash
-            {cashWithdrawals.length > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{cashWithdrawals.length}</Badge>}
+            {channelCounts.cash > 0 && <Badge variant="destructive" className="h-5 px-1.5 text-xs">{channelCounts.cash}</Badge>}
           </TabsTrigger>
         </TabsList>
 
-        {['all', 'momo', 'cash'].map(tab => {
-          const items = tab === 'all' ? filteredWithdrawals : tab === 'momo' ? momoWithdrawals : cashWithdrawals;
+        {(['all', 'momo', 'cash'] as const).map(tab => {
+          // Only the active tab fetches; the page query is keyed by `channelTab`.
+          const items = tab === channelTab ? pageRows : [];
           const emptyMsg = queueFiltersActive
             ? 'No withdrawals match these filters'
             : tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
           return (
             <TabsContent key={tab} value={tab} className="space-y-2.5 mt-4">
-              {loadingAll ? (
+              {loadingAll && items.length === 0 ? (
                 <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               ) : items.length === 0 ? (
                 <Card className="rounded-2xl"><CardContent className="py-12 text-center text-base text-muted-foreground">{emptyMsg}</CardContent></Card>
               ) : (
-                items.map((w: any) => {
+                <>
+                {fetchingQueue && (
+                  <div className="flex items-center justify-center gap-2 py-1 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Updating…
+                  </div>
+                )}
+                {items.map((w: any) => {
                   const isMoMo = getPayoutChannel(w) === 'momo';
                   const MethodIcon = isMoMo ? Smartphone : Banknote;
                   const methodLabel = isMoMo ? 'Mobile Money' : 'Cash';
@@ -1379,7 +1386,39 @@ export function AgentCashPayoutsTab() {
                       </CardContent>
                     </Card>
                   );
-                })
+                })}
+                {/* Server-side pagination controls */}
+                {pageCount > PAGE_SIZE && (
+                  <div className="flex items-center justify-between gap-3 pt-2">
+                    <span className="text-xs text-muted-foreground">
+                      {rangeStart}–{rangeEnd} of {pageCount}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 px-2.5"
+                        disabled={page === 0 || fetchingQueue}
+                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      >
+                        <ChevronLeft className="h-4 w-4" /> Prev
+                      </Button>
+                      <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                        Page {page + 1} / {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 px-2.5"
+                        disabled={page + 1 >= totalPages || fetchingQueue}
+                        onClick={() => setPage((p) => p + 1)}
+                      >
+                        Next <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                </>
               )}
             </TabsContent>
           );
