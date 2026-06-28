@@ -266,6 +266,32 @@ export function AgentCashPayoutsTab() {
   const [queueTo, setQueueTo] = useState<Date | undefined>(undefined);
   const [queueSort, setQueueSort] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc' | 'status'>('date_desc');
 
+  // Channel tab + server-side pagination state for the Pending Queue.
+  const [channelTab, setChannelTab] = useState<'all' | 'momo' | 'cash'>('all');
+  const [page, setPage] = useState(0);
+
+  // Debounce the search box so we don't fire a query on every keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(queueSearch), 300);
+    return () => clearTimeout(t);
+  }, [queueSearch]);
+
+  // Computed filter primitives shared by the page + count queries.
+  const minAmount = queueMin.trim() === '' ? null : Number(queueMin);
+  const maxAmount = queueMax.trim() === '' ? null : Number(queueMax);
+  const fromIso = queueFrom
+    ? new Date(queueFrom.getFullYear(), queueFrom.getMonth(), queueFrom.getDate()).toISOString()
+    : null;
+  const toIso = queueTo
+    ? new Date(queueTo.getFullYear(), queueTo.getMonth(), queueTo.getDate(), 23, 59, 59, 999).toISOString()
+    : null;
+
+  // Any filter/sort/tab change returns to the first page.
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedSearch, queueStatus, queueMerchant, minAmount, maxAmount, fromIso, toIso, queueSort, channelTab]);
+
   const queueFiltersActive =
     queueSearch.trim() !== '' || queueStatus !== 'all' || queueMerchant !== 'all' ||
     queueMin !== '' || queueMax !== '' || !!queueFrom || !!queueTo;
