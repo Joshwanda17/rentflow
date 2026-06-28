@@ -54,20 +54,15 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
     enabled: term.length >= 2,
     staleTime: 10_000,
     queryFn: async (): Promise<UserResult[]> => {
-      const cleaned = term.replace(/\D/g, '');
-      const isPhone = cleaned.length >= 3;
-      let q = supabase
-        .from('profiles')
-        .select('id, full_name, phone, email')
-        .limit(15);
-      if (isPhone) {
-        q = q.ilike('phone', `%${cleaned.slice(-9)}%`);
-      } else {
-        q = q.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
-      }
-      const { data, error } = await q;
+      // Use a SECURITY DEFINER RPC: a normal agent cannot read other users'
+      // profiles directly (RLS only exposes their own + managed tenants), so
+      // the client-side `profiles` query returned no results for them.
+      const { data, error } = await supabase.rpc('search_invitable_subagents', {
+        search_term: term,
+        result_limit: 15,
+      });
       if (error) throw error;
-      return (data || []).filter((p) => p.id !== user?.id);
+      return ((data || []) as UserResult[]).filter((p) => p.id !== user?.id);
     },
   });
 

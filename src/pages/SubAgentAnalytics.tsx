@@ -655,43 +655,49 @@ export default function SubAgentAnalytics() {
       const rentVolumePerSubAgent: Record<string, number> = {};
       const serviceFeesPerSubAgent: Record<string, number> = {};
 
+      // Batch all rent requests for every sub-agent in ONE query (avoids the
+      // previous N+1 pattern that ran 2 queries per sub-agent and made this
+      // page slow for agents with many sub-agents).
+      const { data: allRentRequests } = await supabase
+        .from('rent_requests')
+        .select('agent_id, tenant_id, total_repayment, request_fee')
+        .in('agent_id', subAgentIds);
+
+      const rentRequestsBySubAgent: Record<string, { tenant_id: string; total_repayment: number | null; request_fee: number | null }[]> = {};
+      const allTenantIdSet = new Set<string>();
+      (allRentRequests || []).forEach((rr) => {
+        const list = rentRequestsBySubAgent[rr.agent_id] || (rentRequestsBySubAgent[rr.agent_id] = []);
+        list.push(rr);
+        if (rr.tenant_id) allTenantIdSet.add(rr.tenant_id);
+      });
+
+      // Fetch every referenced tenant profile in ONE query.
+      const allTenantIds = [...allTenantIdSet];
+      const tenantProfileById: Record<string, { full_name: string; phone: string | null }> = {};
+      if (allTenantIds.length > 0) {
+        const { data: tenantProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', allTenantIds);
+        (tenantProfiles || []).forEach((tp) => {
+          tenantProfileById[tp.id] = { full_name: tp.full_name, phone: tp.phone ?? null };
+        });
+      }
+
       for (const subAgentId of subAgentIds) {
-        // Get rent requests for this sub-agent's tenants
-        const { data: rentRequests } = await supabase
-          .from('rent_requests')
-          .select('tenant_id, total_repayment, request_fee')
-          .eq('agent_id', subAgentId);
+        const rentRequests = rentRequestsBySubAgent[subAgentId] || [];
+        const tenantIds = [...new Set(rentRequests.map((rr) => rr.tenant_id).filter(Boolean))];
 
-        const tenantIds = [...new Set(rentRequests?.map(rr => rr.tenant_id) || [])];
-        
         // Sum facilitated rent volume and service fees
-        rentVolumePerSubAgent[subAgentId] = (rentRequests || []).reduce((sum, rr) => sum + Number(rr.total_repayment || 0), 0);
-        serviceFeesPerSubAgent[subAgentId] = (rentRequests || []).reduce((sum, rr) => sum + Number(rr.request_fee || 0), 0);
+        rentVolumePerSubAgent[subAgentId] = rentRequests.reduce((sum, rr) => sum + Number(rr.total_repayment || 0), 0);
+        serviceFeesPerSubAgent[subAgentId] = rentRequests.reduce((sum, rr) => sum + Number(rr.request_fee || 0), 0);
 
-        if (tenantIds.length > 0) {
-          // Get tenant profiles
-          const { data: tenantProfiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone')
-            .in('id', tenantIds);
-
-          // repayments table removed - use empty array
-          const repayments: any[] = [];
-
-          const tenantRepayments: Record<string, number> = {};
-          repayments?.forEach((r: any) => {
-            tenantRepayments[r.tenant_id] = (tenantRepayments[r.tenant_id] || 0) + Number(r.amount);
-          });
-
-          tenantsData[subAgentId] = tenantProfiles?.map(tp => ({
-            id: tp.id,
-            name: tp.full_name,
-            phone: tp.phone ?? null,
-            totalRepaid: tenantRepayments[tp.id] || 0,
-          })) || [];
-        } else {
-          tenantsData[subAgentId] = [];
-        }
+        tenantsData[subAgentId] = tenantIds.map((id) => ({
+          id,
+          name: tenantProfileById[id]?.full_name ?? 'Unnamed',
+          phone: tenantProfileById[id]?.phone ?? null,
+          totalRepaid: 0,
+        }));
 
         earningsPerSubAgent[subAgentId] = 0;
         monthlyEarningsPerSubAgent[subAgentId] = {};
