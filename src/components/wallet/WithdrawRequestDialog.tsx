@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
+import { CashAgentSelector, type SelectedCashAgent } from './CashAgentSelector';
 
 interface WithdrawRequestDialogProps {
   open: boolean;
@@ -203,6 +204,12 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [reason, setReason] = useState('');
   const [activeDuplicate, setActiveDuplicate] = useState<RecentRecipientEntry | null>(null);
+  const [selectedCashAgent, setSelectedCashAgent] = useState<SelectedCashAgent | null>(null);
+
+  // Clear any chosen cash agent if the user switches payout method.
+  useEffect(() => {
+    if (payoutMode !== 'cash') setSelectedCashAgent(null);
+  }, [payoutMode]);
 
   // Prefill from proxy partner funds
   useEffect(() => {
@@ -291,6 +298,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     }
     if (payoutMode === 'bank')
       return !!bankName && bankAccountName.trim().length >= 2 && bankAccountNumber.trim().length >= 5;
+    if (payoutMode === 'cash') return !!selectedCashAgent;
     return true;
   };
 
@@ -451,7 +459,13 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           bank_name: payoutMode === 'bank' ? bankName : null,
           bank_account_name: payoutMode === 'bank' ? bankAccountName.trim() : null,
           bank_account_number: payoutMode === 'bank' ? bankAccountNumber.trim() : null,
-          agent_location: payoutMode === 'cash' ? 'Nearest Agent' : null,
+          agent_location: payoutMode === 'cash'
+            ? (selectedCashAgent
+                ? [selectedCashAgent.agent_name, selectedCashAgent.district]
+                    .filter(Boolean).join(' · ')
+                : 'Nearest Agent')
+            : null,
+          preferred_cashout_agent_id: payoutMode === 'cash' ? (selectedCashAgent?.cashout_agent_id ?? null) : null,
           reason: isProxy
             ? `[Proxy initiated by agent ${user.id}] ${reason.trim()}`
             : reason.trim(),
@@ -540,6 +554,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     setAmount(0);
     setReason('');
     setSuccess(false);
+    setSelectedCashAgent(null);
     onOpenChange(false);
   };
 
@@ -794,18 +809,19 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                       )}
 
                       {payoutMode === 'cash' && (
-                        <div className="p-4 rounded-xl bg-success/5 border border-success/20">
-                          <p className="text-sm font-bold text-foreground mb-2">💵 Cash Collection</p>
-                          <div className="space-y-2">
-                            {['Submit your request', 'Manager approves it', 'Collect at nearest agent with your ID'].map((step, i) => (
-                              <div key={i} className="flex items-center gap-2.5">
-                                <div className="w-6 h-6 rounded-full bg-success/15 flex items-center justify-center shrink-0">
-                                  <span className="text-[10px] font-bold text-success">{i + 1}</span>
-                                </div>
-                                <p className="text-xs text-muted-foreground">{step}</p>
-                              </div>
-                            ))}
-                          </div>
+                        <div className="space-y-3">
+                          <CashAgentSelector
+                            selected={selectedCashAgent}
+                            onSelect={setSelectedCashAgent}
+                          />
+                          {selectedCashAgent && (
+                            <div className="p-3 rounded-xl bg-success/5 border border-success/20">
+                              <p className="text-xs text-muted-foreground">
+                                Collect your cash from <strong className="text-foreground">{selectedCashAgent.agent_name}</strong>
+                                {selectedCashAgent.district ? ` in ${selectedCashAgent.district}` : ''} with your ID after approval.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -925,7 +941,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                             <span className="text-[10px] text-muted-foreground">
                               {(payoutMode === 'mtn' || payoutMode === 'airtel') && momoNumber ? `📱 ${momoNumber}` : ''}
                               {payoutMode === 'bank' && bankName ? `🏦 ${bankName}` : ''}
-                              {payoutMode === 'cash' ? '💵 Cash at agent' : ''}
+                              {payoutMode === 'cash' ? `💵 ${selectedCashAgent?.agent_name || 'Cash at agent'}` : ''}
                             </span>
                             <span className="text-[10px] text-muted-foreground">
                               Remaining: {formatCurrency(walletBalance - amount)}
