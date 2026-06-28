@@ -64,6 +64,7 @@ export function CashoutSettlementTimeline() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const debouncedSearch = useDebouncedValue(search, 300);
+  const [selected, setSelected] = useState<Row | null>(null);
 
   useEffect(() => { setPage(0); }, [debouncedSearch]);
 
