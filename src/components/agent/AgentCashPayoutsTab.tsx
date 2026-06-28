@@ -582,36 +582,24 @@ export function AgentCashPayoutsTab() {
         </Card>
       )}
 
-      {/* Daily summary */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent rounded-2xl">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Today's Payouts
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-3 gap-3 pt-0">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Hash className="h-3.5 w-3.5" /> Done
-            </div>
-            <div className="text-2xl font-bold text-foreground tabular-nums">{dailyStats?.codesCount ?? 0}</div>
+      {/* Today's payouts */}
+      <section className="space-y-3">
+        <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Today's Payouts</h2>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-2xl border border-border bg-muted/40 p-3.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-muted-foreground"><Hash className="h-3.5 w-3.5" /> Done</div>
+            <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">{dailyStats?.codesCount ?? 0}</p>
           </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <TrendingUp className="h-3.5 w-3.5" /> Paid
-            </div>
-            <div className="text-xl font-bold text-primary tabular-nums leading-tight">{formatUGX(dailyStats?.totalAmount ?? 0)}</div>
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-primary"><TrendingUp className="h-3.5 w-3.5" /> Paid</div>
+            <p className="mt-1.5 text-lg font-bold leading-tight tabular-nums text-primary">{formatUGX(dailyStats?.totalAmount ?? 0)}</p>
           </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" /> Avg
-            </div>
-            <div className="text-2xl font-bold text-foreground tabular-nums">
-              {dailyStats?.avgMinutes ? `${Math.round(dailyStats.avgMinutes)}m` : '—'}
-            </div>
+          <div className="rounded-2xl border border-border bg-muted/40 p-3.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Avg</div>
+            <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">{dailyStats?.avgMinutes ? `${Math.round(dailyStats.avgMinutes)}m` : '—'}</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* Commission breakdown — totals by date for all approved payouts */}
       <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-2xl">
