@@ -1610,6 +1610,55 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Merchant-agent principal reimbursement ───────────────────────────
+    // A merchant agent pays the withdrawing user out of their OWN MTN/Airtel
+    // float when settling a cash payout. Welile therefore reimburses the
+    // merchant by crediting the EXACT payout amount into the merchant's own
+    // withdrawable wallet (company funds out → merchant wallet in). Net effect
+    // across both ledger transactions: the principal moves from the
+    // withdrawing user's withdrawable bucket into the merchant's withdrawable
+    // bucket. Only for standard cash payouts settled by a cashout agent — never
+    // for proxy/pool payouts, and never when the merchant is the requester.
+    let merchantReimbursed = 0;
+    if (
+      isCashoutAgent &&
+      !isProxyPayout &&
+      !poolFunded &&
+      user.id !== fundingUserId &&
+      amount > 0
+    ) {
+      try {
+        const txDate = new Date().toISOString();
+        const { error: reimbErr } = await admin.rpc("create_ledger_transaction", {
+          entries: [
+            {
+              user_id: user.id, ledger_scope: "platform", direction: "cash_out",
+              amount, category: "wallet_withdrawal",
+              source_table: "withdrawal_requests", source_id: withdrawal_id,
+              description: `Merchant cash-out reimbursement (principal) for withdrawal ${withdrawal_id}`,
+              currency: "UGX", reference_id: `${withdrawal_id}-merchant-reimbursement`, transaction_date: txDate,
+            },
+            {
+              user_id: user.id, ledger_scope: "wallet", direction: "cash_in",
+              amount, category: "wallet_withdrawal",
+              recipient_type: "user", wallet_bucket: "withdrawable",
+              source_table: "withdrawal_requests", source_id: withdrawal_id,
+              description: `Reimbursement for cash you paid the customer (withdrawal ${withdrawal_id})`,
+              currency: "UGX", reference_id: `${withdrawal_id}-merchant-reimbursement`, transaction_date: txDate,
+            },
+          ],
+          idempotency_key: `approve-withdrawal-merchant-reimbursement-${withdrawal_id}`,
+        });
+        if (reimbErr) {
+          console.error("[approve-withdrawal] Merchant reimbursement RPC error:", reimbErr);
+        } else {
+          merchantReimbursed = amount;
+        }
+      } catch (e) {
+        console.error("[approve-withdrawal] Merchant reimbursement exception:", e);
+      }
+    }
+
     // Cashout agent 0.5% commission (when caller is an active cashout agent, including staff roles).
     // Company funds (platform cash_out) move INSTANTLY into the agent's own
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
@@ -1649,8 +1698,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // ── Cashout agent commission SMS (paid into withdrawable) ──────────
-      if (cashoutCommission > 0) {
+      // ── Cashout agent reimbursement + commission SMS (into withdrawable) ──
+      if (merchantReimbursed > 0 || cashoutCommission > 0) {
         try {
           const { data: agentProfile } = await admin
             .from("profiles")
@@ -1658,16 +1707,23 @@ Deno.serve(async (req) => {
             .eq("id", user.id)
             .maybeSingle();
           if (agentProfile?.phone) {
+            const credited = merchantReimbursed + cashoutCommission;
             const commMsg =
-              `WELILE: You earned a payout commission of UGX ${cashoutCommission.toLocaleString()} ` +
-              `(0.5%) for processing a UGX ${amount.toLocaleString()} payout. ` +
-              `It has been added to your withdrawable wallet. Thank you for your service.`;
+              `WELILE: UGX ${credited.toLocaleString()} added to your withdrawable wallet for processing a ` +
+              `UGX ${amount.toLocaleString()} payout` +
+              (merchantReimbursed > 0
+                ? ` — UGX ${merchantReimbursed.toLocaleString()} reimburses the cash you paid out`
+                : ``) +
+              (cashoutCommission > 0
+                ? ` plus UGX ${cashoutCommission.toLocaleString()} commission (0.5%)`
+                : ``) +
+              `. Thank you for your service.`;
             sendSMS(agentProfile.phone, commMsg).catch((e) =>
-              console.error("[approve-withdrawal] cashout commission SMS failed:", e),
+              console.error("[approve-withdrawal] cashout reimbursement/commission SMS failed:", e),
             );
           }
         } catch (e) {
-          console.error("[approve-withdrawal] cashout commission SMS exception:", e);
+          console.error("[approve-withdrawal] cashout reimbursement/commission SMS exception:", e);
         }
       }
     }
@@ -1964,6 +2020,7 @@ Deno.serve(async (req) => {
         target_user: targetName,
         txn_group_id: txnGroupId,
         cashout_commission: cashoutCommission,
+        merchant_reimbursed: merchantReimbursed,
         settled_available: settledAvailable,
       }),
       {
