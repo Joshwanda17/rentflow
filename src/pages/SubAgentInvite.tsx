@@ -7,6 +7,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import {
+  savePendingSubAgentInvite,
+  clearPendingSubAgentInvite,
+} from '@/lib/pendingSubAgentInvite';
 import { Loader2, UsersRound, CheckCircle2, AlertTriangle, LogIn, Wallet, Users, TrendingUp, Info } from 'lucide-react';
 
 type Phase = 'idle' | 'accepting' | 'accepted' | 'error' | 'need-login';
@@ -85,6 +89,7 @@ export default function SubAgentInvite() {
         throw new Error(msg);
       }
       if (response.data?.parentName) setParentName(response.data.parentName);
+      clearPendingSubAgentInvite();
       setPhase('accepted');
     } catch (err: any) {
       setPhase('error');
@@ -95,6 +100,9 @@ export default function SubAgentInvite() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
+      // Persist the invite so it survives the sign-in round-trip even if the
+      // redirect param is lost (OAuth, PWA cold start, fresh tab, etc).
+      if (token) savePendingSubAgentInvite(token);
       setPhase('need-login');
     }
   }, [loading, user]);
