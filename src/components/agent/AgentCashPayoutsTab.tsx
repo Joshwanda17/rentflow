@@ -958,7 +958,11 @@ export function AgentCashPayoutsTab() {
                   const isMoMo = getPayoutChannel(w) === 'momo';
                   const MethodIcon = isMoMo ? Smartphone : Banknote;
                   const methodLabel = isMoMo ? 'Mobile Money' : 'Cash';
-                  const name = w.profiles?.full_name || 'Unknown';
+                  const isLandlordPayout =
+                    typeof w.reason === 'string' && w.reason.startsWith('Landlord float payout');
+                  const name = isLandlordPayout
+                    ? (w.mobile_money_name || 'Landlord')
+                    : (w.profiles?.full_name || 'Unknown');
                   const phone = getRecipientPhone(w);
                   return (
                     <Card key={w.id} className="rounded-2xl border-border transition-colors hover:border-primary/30">
@@ -975,6 +979,11 @@ export function AgentCashPayoutsTab() {
                             </div>
                             <div className="min-w-0">
                               <p className="truncate text-base font-bold leading-tight">{name}</p>
+                              {isLandlordPayout && (
+                                <span className="mt-0.5 inline-flex items-center rounded-md bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+                                  Landlord Payout
+                                </span>
+                              )}
                               <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <Phone className="h-3.5 w-3.5" />
                                 <span className="font-mono">{phone}</span>
