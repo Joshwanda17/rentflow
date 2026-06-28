@@ -99,7 +99,10 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
   const slaProgress = Math.min(100, ((300 - secondsLeft) / 300) * 100);
 
   const isDone = payout.status === "completed";
-  const isPendingFinops = payout.status === "pending_finops_disbursement";
+  const isPendingFinops =
+    payout.status === "pending_finops_disbursement" ||
+    payout.status === "pending_merchant_payout" ||
+    payout.status === "awaiting_agent_receipt";
   const isEscalated = payout.status === "escalated" || payout.status === "failed";
   const inFlight = payout.status === "otp_verified" || payout.status === "disbursing";
 
