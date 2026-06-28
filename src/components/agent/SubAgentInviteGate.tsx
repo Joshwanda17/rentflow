@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import {
+  getPendingSubAgentInvite,
+  clearPendingSubAgentInvite,
+} from '@/lib/pendingSubAgentInvite';
 import { UserPlus, Check, X, Loader2 } from 'lucide-react';
 
 interface PendingInvite {
@@ -30,9 +35,28 @@ interface PendingInvite {
 export function SubAgentInviteGate() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [invite, setInvite] = useState<PendingInvite | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<'accept' | 'decline' | null>(null);
+
+  // Resume a persisted invite once the user signs in: take them straight to the
+  // acceptance screen so they don't have to re-click the original link.
+  useEffect(() => {
+    if (!user?.id) return;
+    const pendingToken = getPendingSubAgentInvite();
+    if (!pendingToken) return;
+    const alreadyOnInvite =
+      location.pathname === '/sub-agent-invite' &&
+      new URLSearchParams(location.search).get('token') === pendingToken;
+    if (alreadyOnInvite) {
+      clearPendingSubAgentInvite();
+      return;
+    }
+    clearPendingSubAgentInvite();
+    navigate(`/sub-agent-invite?token=${encodeURIComponent(pendingToken)}`);
+  }, [user?.id, location.pathname, location.search, navigate]);
 
   const loadInvite = useCallback(async () => {
     if (!user?.id) return;
