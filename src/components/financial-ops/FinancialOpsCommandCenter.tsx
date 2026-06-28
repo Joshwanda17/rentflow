@@ -29,6 +29,7 @@ import { FloatToWithdrawablePanel } from './FloatToWithdrawablePanel';
 import { MomoSignupSmsTemplatePanel } from './MomoSignupSmsTemplatePanel';
 import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { UserWalletStatementsPanel } from './UserWalletStatementsPanel';
+import { WithdrawalNotificationLogPanel } from './WithdrawalNotificationLogPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -38,6 +39,7 @@ import {
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
+  , Bell
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -49,7 +51,8 @@ type Tool =
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics'
   | 'topup_audit'
-  | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements';
+  | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements'
+  | 'withdrawal_notif_log';
 
 
 /**
@@ -68,6 +71,7 @@ const moreActions: MoreAction[] = [
   { kind: 'view', id: 'offline_collections', label: 'Offline Collections', desc: 'Drafts agents submitted with proof', icon: WifiOff },
   { kind: 'tool', id: 'funded_tenants', label: 'Funded Landlords & Tenants', desc: 'Tenants whose landlords have been paid — share to agent on WhatsApp', icon: HomeIcon },
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
+  { kind: 'tool', id: 'withdrawal_notif_log', label: 'Withdrawal Notification Log', desc: 'Every merchant withdrawal-alert email — search by recipient, amount & date', icon: Bell },
   { kind: 'tool', id: 'topup_audit', label: 'Top-Up Audit Log', desc: 'Each partnership top-up: fund source, recipient routing & both ledger legs', icon: ScrollText },
   { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
   { kind: 'tool', id: 'ops', label: 'Ops Center', desc: 'Automation & monitoring', icon: Gauge },
@@ -242,6 +246,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'momo_sms_template' && <MomoSignupSmsTemplatePanel />}
         {activeTool === 'cash_codes' && <CashDepositCodesPanel />}
         {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
+        {activeTool === 'withdrawal_notif_log' && <WithdrawalNotificationLogPanel />}
       </div>
     );
   }
