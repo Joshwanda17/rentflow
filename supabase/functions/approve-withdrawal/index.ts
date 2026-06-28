@@ -657,6 +657,14 @@ Deno.serve(async (req) => {
       typeof wr.reason === "string" &&
       wr.reason.includes("Proxy payout delivery for");
 
+    // Landlord-float payouts: an agent's CFO-funded landlord float is paid out
+    // by a merchant agent through this same queue. The float was already
+    // deducted at disburse time (agent_landlord_float), so we MUST NOT debit
+    // the agent's withdrawable wallet here. The merchant still gets the
+    // principal reimbursement + 0.5% commission like any other cash payout.
+    const isLandlordFloatPayout =
+      typeof wr.reason === "string" && wr.reason.startsWith("Landlord float payout");
+
     let proxyPartnerId =
       (wr as any).proxy_partner_id ||
       (wr.linked_party && wr.linked_party !== wr.user_id ? wr.linked_party : null) ||
@@ -1094,7 +1102,7 @@ Deno.serve(async (req) => {
       }
     };
 
-    if (!poolFunded && (!wallet || totalSpendable < amount)) {
+    if (!poolFunded && !isLandlordFloatPayout && (!wallet || totalSpendable < amount)) {
       const failureReason = isProxyPayout
         ? `Insufficient proxy agent wallet balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout debits the assigned proxy agent wallet for the selected partner.`
         : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`;
@@ -1182,6 +1190,11 @@ Deno.serve(async (req) => {
         }
       : undefined;
 
+    // Landlord-float payouts skip the agent wallet debit entirely (float already
+    // deducted in agent_landlord_float). For all other payouts we post the
+    // standard withdrawable/float/pool debit legs.
+    let txnGroupId: any = null;
+    if (!isLandlordFloatPayout) {
     // POOL-FUNDED settlements debit FLOAT (company money) after an in-transaction
     // top-up; all other payouts debit withdrawable as before.
     const proxyFloatPortion = 0;
@@ -1308,7 +1321,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
+    const { data: _txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
       entries: [
         ...debitEntries,
         {
@@ -1334,6 +1347,7 @@ Deno.serve(async (req) => {
       // duplicate check; the strict gate above is the source of truth.
       skip_balance_check: true,
     });
+    txnGroupId = _txnGroupId;
 
     if (ledgerErr) {
       console.error("[approve-withdrawal] Ledger RPC error:", ledgerErr);
@@ -1366,6 +1380,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    } // end if (!isLandlordFloatPayout)
 
     // Update withdrawal request status
     const { error: updateErr } = await admin
@@ -1387,6 +1402,60 @@ Deno.serve(async (req) => {
     if (updateErr) {
       console.error("[approve-withdrawal] Update error:", updateErr);
       // Ledger entry already exists — log but don't fail the user
+    }
+
+    // ── Landlord-float payout completion ─────────────────────────────────
+    // When a merchant settles a landlord-float payout, advance the linked
+    // landlord_payouts row to 'awaiting_agent_receipt' (the same state FinOps
+    // used to set after disbursing) so the existing agent receipt-upload flow
+    // continues, SMS the landlord, and notify the agent.
+    if (isLandlordFloatPayout) {
+      try {
+        const landlordPayoutId = (wr as any).landlord_payout_id ?? null;
+        const momoRef = reference.trim().toUpperCase();
+        if (landlordPayoutId) {
+          const { data: lp } = await admin
+            .from("landlord_payouts")
+            .update({
+              status: "awaiting_agent_receipt",
+              finops_disbursed_by: user.id,
+              finops_disbursed_at: new Date().toISOString(),
+              momo_reference: momoRef,
+              disbursed_at: new Date().toISOString(),
+            } as any)
+            .eq("id", landlordPayoutId)
+            .eq("status", "pending_merchant_payout")
+            .select("id, agent_id, landlord_name, landlord_phone, mobile_money_provider, amount")
+            .maybeSingle();
+
+          if (lp) {
+            // SMS the landlord that they have been paid (best-effort).
+            if (lp.landlord_phone) {
+              admin.functions.invoke("sms-otp", {
+                body: {
+                  skipOtp: true,
+                  phone: lp.landlord_phone,
+                  message: `Welile sent UGX ${Number(lp.amount).toLocaleString()} to your ${lp.mobile_money_provider ?? "mobile money"} number. Ref: ${momoRef}`,
+                },
+              }).catch((e: unknown) =>
+                console.error("[approve-withdrawal] landlord SMS failed:", e),
+              );
+            }
+            // Notify the agent to upload the receipt (best-effort).
+            try {
+              await admin.from("notifications").insert({
+                user_id: lp.agent_id,
+                type: "landlord_payout_disbursed",
+                title: "Landlord paid",
+                message: `A merchant agent sent UGX ${Number(lp.amount).toLocaleString()} to ${lp.landlord_name ?? "the landlord"}. Please upload the receipt now.`,
+                metadata: { payout_id: lp.id, momo_reference: momoRef },
+              });
+            } catch { /* non-blocking */ }
+          }
+        }
+      } catch (lpEx) {
+        console.error("[approve-withdrawal] landlord payout completion failed:", lpEx);
+      }
     }
 
     // Burn the WPO pickup code so it cannot be replayed for another

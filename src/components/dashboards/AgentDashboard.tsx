@@ -1534,7 +1534,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <DialogHeader className="p-4 pb-3 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-6">
               <Banknote className="h-5 w-5 text-orange-500 shrink-0" />
-              <span className="truncate">Cash & Bank Payouts</span>
+              <span className="truncate">Cash, Mobile Money & Bank Payouts</span>
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4">

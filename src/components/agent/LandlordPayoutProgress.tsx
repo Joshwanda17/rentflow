@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 interface PayoutRow {
   id: string;
-  status: "otp_verified" | "disbursing" | "pending_finops_disbursement" | "completed" | "failed" | "escalated";
+  status: "otp_verified" | "disbursing" | "pending_finops_disbursement" | "pending_merchant_payout" | "awaiting_agent_receipt" | "completed" | "failed" | "escalated";
   amount: number;
   attempts: number;
   last_error: string | null;
@@ -52,7 +52,7 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
         (p) => {
           const next = p.new as PayoutRow;
           setPayout(next);
-          if (["completed", "failed", "escalated", "pending_finops_disbursement"].includes(next.status)) {
+          if (["completed", "failed", "escalated", "pending_finops_disbursement", "pending_merchant_payout", "awaiting_agent_receipt"].includes(next.status)) {
             onDone?.(next.status);
           }
         },
@@ -79,7 +79,7 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
 
   // Fire onDone if initial fetch lands in a terminal state
   useEffect(() => {
-    if (payout && ["completed", "failed", "escalated", "pending_finops_disbursement"].includes(payout.status)) {
+    if (payout && ["completed", "failed", "escalated", "pending_finops_disbursement", "pending_merchant_payout", "awaiting_agent_receipt"].includes(payout.status)) {
       onDone?.(payout.status);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,7 +99,10 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
   const slaProgress = Math.min(100, ((300 - secondsLeft) / 300) * 100);
 
   const isDone = payout.status === "completed";
-  const isPendingFinops = payout.status === "pending_finops_disbursement";
+  const isPendingFinops =
+    payout.status === "pending_finops_disbursement" ||
+    payout.status === "pending_merchant_payout" ||
+    payout.status === "awaiting_agent_receipt";
   const isEscalated = payout.status === "escalated" || payout.status === "failed";
   const inFlight = payout.status === "otp_verified" || payout.status === "disbursing";
 
@@ -145,7 +148,9 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
             {isDone
               ? "Payment Sent ✓"
               : isPendingFinops
-                ? "Sent to Financial Ops ✓"
+                ? (payout.status === "pending_merchant_payout"
+                    ? "Sent to Merchant Payout Queue ✓"
+                    : "Payment in Progress ✓")
                 : isEscalated
                   ? "Escalated to Financial Ops"
                   : payout.status === "otp_verified"
@@ -157,7 +162,9 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
           </p>
           {isPendingFinops && (
             <p className="text-xs text-muted-foreground mt-2 max-w-xs mx-auto">
-              Float deducted. Financial Ops will release the money to the landlord shortly — you'll be notified.
+              {payout.status === "pending_merchant_payout"
+                ? "Float deducted. A merchant agent will pay the landlord from the Cash, Mobile Money & Bank payout queue — you'll be notified."
+                : "Float deducted. The money will be released to the landlord shortly — you'll be notified."}
             </p>
           )}
         </div>

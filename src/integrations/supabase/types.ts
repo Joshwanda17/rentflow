@@ -18829,6 +18829,7 @@ export type Database = {
           fin_ops_verified_by: string | null
           id: string
           initiated_by: string | null
+          landlord_payout_id: string | null
           linked_party: string | null
           manager_approved_at: string | null
           manager_approved_by: string | null
@@ -18879,6 +18880,7 @@ export type Database = {
           fin_ops_verified_by?: string | null
           id?: string
           initiated_by?: string | null
+          landlord_payout_id?: string | null
           linked_party?: string | null
           manager_approved_at?: string | null
           manager_approved_by?: string | null
@@ -18929,6 +18931,7 @@ export type Database = {
           fin_ops_verified_by?: string | null
           id?: string
           initiated_by?: string | null
+          landlord_payout_id?: string | null
           linked_party?: string | null
           manager_approved_at?: string | null
           manager_approved_by?: string | null
