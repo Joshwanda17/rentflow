@@ -8,6 +8,7 @@ interface Props {
   recipient_name?: string
   parent_name?: string
   accept_url?: string
+  invite_message?: string
 }
 
 const SITE_NAME = 'Welile'
@@ -16,6 +17,7 @@ export function SubAgentInvite({
   recipient_name = 'there',
   parent_name = 'A Welile agent',
   accept_url = 'https://welilereceipts.com/sub-agent-invite',
+  invite_message = '',
 }: Props) {
   return (
     <Html lang="en" dir="ltr">
@@ -32,6 +34,11 @@ export function SubAgentInvite({
               sub-agent on {SITE_NAME}. Accept the invitation to start earning and
               tracking your activity.
             </Text>
+            {invite_message ? (
+              <Text style={quote}>
+                "{invite_message}"
+              </Text>
+            ) : null}
           </Section>
           <Section style={{ padding: '8px 32px 8px 32px', textAlign: 'center' as const }}>
             <Button href={accept_url} style={ctaBtn}>Accept invitation</Button>
