@@ -18839,6 +18839,7 @@ export type Database = {
           payout_method: string
           payout_proof: string | null
           payout_proof_type: string | null
+          preferred_cashout_agent_id: string | null
           priority_level: string | null
           processed_at: string | null
           processed_by: string | null
@@ -18888,6 +18889,7 @@ export type Database = {
           payout_method?: string
           payout_proof?: string | null
           payout_proof_type?: string | null
+          preferred_cashout_agent_id?: string | null
           priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
@@ -18937,6 +18939,7 @@ export type Database = {
           payout_method?: string
           payout_proof?: string | null
           payout_proof_type?: string | null
+          preferred_cashout_agent_id?: string | null
           priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
@@ -18955,6 +18958,13 @@ export type Database = {
           {
             foreignKeyName: "withdrawal_requests_assigned_cashout_agent_id_fkey"
             columns: ["assigned_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "cashout_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_preferred_cashout_agent_id_fkey"
+            columns: ["preferred_cashout_agent_id"]
             isOneToOne: false
             referencedRelation: "cashout_agents"
             referencedColumns: ["id"]
@@ -20972,6 +20982,23 @@ export type Database = {
       get_mission_leaderboard: { Args: { p_limit?: number }; Returns: Json }
       get_my_ai_id_summary: { Args: never; Returns: Json }
       get_my_listing_block: { Args: never; Returns: Json }
+      get_nearby_cashout_agents: {
+        Args: { _lat?: number; _lng?: number }
+        Returns: {
+          agent_id: string
+          agent_lat: number
+          agent_lng: number
+          agent_name: string
+          cashout_agent_id: string
+          city: string
+          distance_km: number
+          district: string
+          label: string
+          phone: string
+          queue_count: number
+          region: string
+        }[]
+      }
       get_outstanding_agent_float: {
         Args: never
         Returns: {
