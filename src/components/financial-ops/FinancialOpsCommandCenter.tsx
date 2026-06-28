@@ -30,6 +30,7 @@ import { MomoSignupSmsTemplatePanel } from './MomoSignupSmsTemplatePanel';
 import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { UserWalletStatementsPanel } from './UserWalletStatementsPanel';
 import { WithdrawalNotificationLogPanel } from './WithdrawalNotificationLogPanel';
+import { CashoutSettlementTimeline } from './CashoutSettlementTimeline';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
