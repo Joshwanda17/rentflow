@@ -289,6 +289,54 @@ export function buildReturnsDisbursementRequest(input: ReturnsDisbursementInput)
   };
 }
 
+export interface WithdrawalPaidReceiptInput {
+  recipientEmail: string;
+  recipientName?: string | null;
+  /** Used to scope the idempotency key (one fallback email per withdrawal). */
+  withdrawalId: string;
+  amount: number;
+  paymentMethod: string;
+  /** Friendly proof label, e.g. "Mobile Money transaction ID". */
+  proofLabel: string;
+  /** The actual proof reference the merchant entered. */
+  proofReference: string;
+  /** Post-debit withdrawable balance; null when it could not be resolved. */
+  newBalance?: number | null;
+}
+
+/**
+ * Fallback "withdrawal paid" receipt, sent ONLY when the SMS confirmation
+ * could not be delivered. Carries the same proof reference and updated wallet
+ * balance the SMS would have shown so the user is never left uninformed.
+ */
+export function buildWithdrawalPaidReceiptRequest(input: WithdrawalPaidReceiptInput) {
+  return {
+    templateName: "withdrawal-paid-receipt",
+    recipientEmail: input.recipientEmail,
+    idempotencyKey: `withdrawal-paid-receipt-${input.withdrawalId}`,
+    templateData: {
+      recipient_name: input.recipientName || "there",
+      amount: input.amount,
+      currency: CURRENCY,
+      payment_method: input.paymentMethod || "your selected method",
+      proof_label: input.proofLabel || "Transaction ID",
+      proof_reference: input.proofReference || "",
+      new_balance:
+        typeof input.newBalance === "number" && Number.isFinite(input.newBalance)
+          ? input.newBalance
+          : null,
+      date: new Date().toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }),
+      wallet_url: DASHBOARD_URL,
+      unsubscribe_url: UNSUBSCRIBE_URL,
+      contact_url: CONTACT_URL,
+    },
+  };
+}
+
 /**
  * Fire-and-forget POST to the send-transactional-email edge function.
  * Never throws — failures are logged to console only so the calling flow

@@ -28,6 +28,7 @@ import { template as portfolioRequestConfirmationTemplate } from './portfolio-re
 import { template as portfolioRequestTeamAlertTemplate } from './portfolio-request-team-alert.tsx'
 import { template as standingOrderCreatedTemplate } from './standing-order-created.tsx'
 import { template as newWithdrawalMerchantAlertTemplate } from './new-withdrawal-merchant-alert.tsx'
+import { template as withdrawalPaidReceiptTemplate } from './withdrawal-paid-receipt.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -61,4 +62,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portfolio-request-team-alert': portfolioRequestTeamAlertTemplate,
   'standing-order-created': standingOrderCreatedTemplate,
   'new-withdrawal-merchant-alert': newWithdrawalMerchantAlertTemplate,
+  'withdrawal-paid-receipt': withdrawalPaidReceiptTemplate,
 }
