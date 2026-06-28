@@ -253,6 +253,8 @@ export function CashoutSettlementTimeline() {
           )}
         </CardContent>
       </Card>
+
+      <LedgerDrillDownSheet row={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
