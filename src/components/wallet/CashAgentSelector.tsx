@@ -164,13 +164,23 @@ export function CashAgentSelector({ selected, onSelect }: Props) {
         <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
           <MapPin className="h-4 w-4 text-success" /> Choose a cash agent
         </p>
-        <button
-          type="button"
-          onClick={() => locateAndFetch()}
-          className="text-[11px] text-primary font-medium flex items-center gap-1 hover:underline"
-        >
-          <Navigation className="h-3 w-3" /> {usedLocation ? 'Refresh' : 'Use my location'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={refreshQueues}
+            disabled={refreshing}
+            className="text-[11px] text-primary font-medium flex items-center gap-1 hover:underline disabled:opacity-50"
+          >
+            <RefreshCw className={cn('h-3 w-3', refreshing && 'animate-spin')} /> Refresh queues
+          </button>
+          <button
+            type="button"
+            onClick={() => locateAndFetch()}
+            className="text-[11px] text-primary font-medium flex items-center gap-1 hover:underline"
+          >
+            <Navigation className="h-3 w-3" /> {usedLocation ? 'Re-locate' : 'Use my location'}
+          </button>
+        </div>
       </div>
       {!usedLocation && (
         <p className="text-[10px] text-muted-foreground -mt-1">
