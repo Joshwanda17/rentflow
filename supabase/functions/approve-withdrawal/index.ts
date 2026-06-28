@@ -1435,7 +1435,7 @@ Deno.serve(async (req) => {
                 body: {
                   skipOtp: true,
                   phone: lp.landlord_phone,
-                  message: `Welile sent ${formatUGXLocal(lp.amount)} to your ${lp.mobile_money_provider ?? "mobile money"} number. Ref: ${momoRef}`,
+                  message: `Welile sent UGX ${Number(lp.amount).toLocaleString()} to your ${lp.mobile_money_provider ?? "mobile money"} number. Ref: ${momoRef}`,
                 },
               }).catch((e: unknown) =>
                 console.error("[approve-withdrawal] landlord SMS failed:", e),
@@ -1447,7 +1447,7 @@ Deno.serve(async (req) => {
                 user_id: lp.agent_id,
                 type: "landlord_payout_disbursed",
                 title: "Landlord paid",
-                message: `A merchant agent sent ${formatUGXLocal(lp.amount)} to ${lp.landlord_name ?? "the landlord"}. Please upload the receipt now.`,
+                message: `A merchant agent sent UGX ${Number(lp.amount).toLocaleString()} to ${lp.landlord_name ?? "the landlord"}. Please upload the receipt now.`,
                 metadata: { payout_id: lp.id, momo_reference: momoRef },
               });
             } catch { /* non-blocking */ }
