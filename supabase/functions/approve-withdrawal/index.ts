@@ -1102,7 +1102,7 @@ Deno.serve(async (req) => {
       }
     };
 
-    if (!poolFunded && (!wallet || totalSpendable < amount)) {
+    if (!poolFunded && !isLandlordFloatPayout && (!wallet || totalSpendable < amount)) {
       const failureReason = isProxyPayout
         ? `Insufficient proxy agent wallet balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout debits the assigned proxy agent wallet for the selected partner.`
         : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`;
