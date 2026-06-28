@@ -105,7 +105,7 @@ export default function SubAgentInvite() {
       if (token) savePendingSubAgentInvite(token);
       setPhase('need-login');
     }
-  }, [loading, user]);
+  }, [loading, user, token]);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
