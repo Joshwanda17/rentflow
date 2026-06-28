@@ -18,6 +18,7 @@ interface NearbyAgent extends SelectedCashAgent {
   agent_id: string;
   label: string | null;
   city: string | null;
+  queue_count: number;
 }
 
 interface Props {
