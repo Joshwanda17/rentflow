@@ -193,7 +193,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
           <div>
             <h3 className="font-bold text-sm">Add an existing user as your sub-agent</h3>
             <p className="text-[11px] text-muted-foreground">
-              Search any registered user, then send them an invite to accept.
+              Search any registered user, then invite them. They'll see it on their dashboard and by email — or share the link yourself.
             </p>
           </div>
         </div>
