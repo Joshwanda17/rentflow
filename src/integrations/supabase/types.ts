@@ -22163,6 +22163,15 @@ export type Database = {
           phone: string
         }[]
       }
+      search_invitable_subagents: {
+        Args: { result_limit?: number; search_term?: string }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       search_landlords_fuzzy: {
         Args: { p_limit?: number; p_query?: string; p_threshold?: number }
         Returns: {
