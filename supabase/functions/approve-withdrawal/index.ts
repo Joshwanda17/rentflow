@@ -1826,17 +1826,102 @@ Deno.serve(async (req) => {
     }).catch(() => {});
 
     // ── User SMS alert (paid) ───────────────────────────────────────────
-    // Fire-and-forget so a telco hiccup never blocks the approval response.
-    if (profile?.phone) {
+    // Fired the moment the merchant agent enters the transaction proof
+    // (MoMo/airtel transaction ID, bank deposit reference, or cash receipt).
+    // The withdrawing user gets the full withdrawal details PLUS their new
+    // wallet balance so the wallet change is transparent. Fire-and-forget so
+    // a telco hiccup never blocks the approval response. The result is logged
+    // to `withdrawal_notification_log` so Financial Ops can see it.
+    {
       const refUpper = reference.trim().toUpperCase();
+
+      // Classify the proof the merchant entered for a clear, friendly label.
+      const pm = (payment_method || "").toString().toLowerCase();
+      let proofLabel = "Transaction ID";
+      if (pm.includes("bank")) proofLabel = "Bank deposit reference";
+      else if (pm.includes("cash")) proofLabel = "Cash receipt";
+      else if (pm.includes("mtn") || pm.includes("airtel") || pm.includes("momo") || pm.includes("mobile")) proofLabel = "Mobile Money transaction ID";
+
+      // Fetch the user's NEW withdrawable balance (post-debit) so the SMS can
+      // show the wallet change. Strict ledger-backed RPC — never inflated.
+      let newBalance: number | null = null;
+      try {
+        const { data: bal } = await admin.rpc("get_user_available_balance", {
+          p_user_id: beneficiaryUserId,
+        });
+        const n = Number(bal);
+        if (Number.isFinite(n)) newBalance = n;
+      } catch (e) {
+        console.error("[approve-withdrawal] balance fetch for SMS failed (non-fatal):", e);
+      }
+
+      const balanceLine =
+        newBalance !== null
+          ? ` New wallet balance: UGX ${Math.round(newBalance).toLocaleString()}.`
+          : "";
+
       const smsMsg =
         `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
-        `APPROVED & PAID via ${payment_method}. Ref: ${refUpper}. ` +
-        `You're always welcome to log in to view and manage your account ` +
-        `at https://welilereceipts.com/auth. Thank you for partnering with us.`;
-      sendSMS(profile.phone, smsMsg).catch((e) =>
-        console.error("[approve-withdrawal] paid SMS failed:", e),
-      );
+        `APPROVED & PAID via ${payment_method}. ${proofLabel}: ${refUpper}.` +
+        `${balanceLine} ` +
+        `Log in to view and manage your account at ` +
+        `https://welilereceipts.com/auth. Thank you for partnering with us.`;
+
+      // Resolve the recipient email so the Financial Ops notification log
+      // shows who was alerted.
+      let recipientEmailForLog: string | null = null;
+      try {
+        const { data: rp } = await admin
+          .from("profiles")
+          .select("email")
+          .eq("id", beneficiaryUserId)
+          .maybeSingle();
+        recipientEmailForLog = (rp as any)?.email ?? null;
+      } catch { /* non-fatal */ }
+
+      if (profile?.phone) {
+        sendSMS(profile.phone, smsMsg)
+          .then((ok) => {
+            admin
+              .from("withdrawal_notification_log")
+              .insert({
+                withdrawal_id,
+                recipient_id: beneficiaryUserId,
+                recipient_email: recipientEmailForLog ?? profile.phone ?? null,
+                amount,
+                status: ok ? "sent" : "failed",
+                error_message: ok ? null : "SMS provider rejected or unconfigured",
+              })
+              .then(() => {}, () => {});
+          })
+          .catch((e) => {
+            console.error("[approve-withdrawal] paid SMS failed:", e);
+            admin
+              .from("withdrawal_notification_log")
+              .insert({
+                withdrawal_id,
+                recipient_id: beneficiaryUserId,
+                recipient_email: recipientEmailForLog ?? profile?.phone ?? null,
+                amount,
+                status: "error",
+                error_message: e?.message ? String(e.message).slice(0, 500) : "SMS send threw",
+              })
+              .then(() => {}, () => {});
+          });
+      } else {
+        // No phone on file — still record that the user could not be SMS'd.
+        admin
+          .from("withdrawal_notification_log")
+          .insert({
+            withdrawal_id,
+            recipient_id: beneficiaryUserId,
+            recipient_email: recipientEmailForLog,
+            amount,
+            status: "failed",
+            error_message: "No phone number on file for the withdrawing user",
+          })
+          .then(() => {}, () => {});
+      }
     }
 
     // ── User in-app notification (paid) ─────────────────────────────────
