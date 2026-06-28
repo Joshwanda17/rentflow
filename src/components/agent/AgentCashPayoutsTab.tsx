@@ -919,7 +919,16 @@ export function AgentCashPayoutsTab() {
       </Card>
 
       {/* Withdrawal Requests by channel — UNCLAIMED only */}
-      <Tabs defaultValue="all">
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">Pending Queue</h2>
+          {totalPending > 0 && (
+            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+              {totalPending} action required
+            </span>
+          )}
+        </div>
+        <Tabs defaultValue="all">
         <TabsList className="w-full h-12 p-1">
           <TabsTrigger value="all" className="flex-1 gap-1.5 text-sm h-10">
             <Wallet className="h-4 w-4" /> All
@@ -952,22 +961,29 @@ export function AgentCashPayoutsTab() {
                   const name = w.profiles?.full_name || 'Unknown';
                   const phone = getRecipientPhone(w);
                   return (
-                    <Card key={w.id} className="rounded-2xl">
+                    <Card key={w.id} className="rounded-2xl border-border transition-colors hover:border-primary/30">
                       <CardContent className="p-4 space-y-3.5">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-lg truncate leading-tight">{name}</p>
-                            <p className="text-sm text-muted-foreground inline-flex items-center gap-1.5 mt-1">
-                              <Phone className="h-4 w-4" />
-                              <span className="font-mono">{phone}</span>
-                            </p>
+                          <div className="flex min-w-0 flex-1 items-start gap-3">
+                            <div className={cn(
+                              'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+                              isMoMo
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                                : 'bg-primary/10 text-primary',
+                            )}>
+                              <MethodIcon className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-bold leading-tight">{name}</p>
+                              <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Phone className="h-3.5 w-3.5" />
+                                <span className="font-mono">{phone}</span>
+                              </p>
+                              <p className="mt-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">{methodLabel} · pending</p>
+                            </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="font-bold text-xl text-primary tabular-nums leading-tight">{formatUGX(w.amount)}</p>
-                            <Badge variant="secondary" className="text-xs gap-1 h-5 px-2 mt-1.5">
-                              <MethodIcon className="h-3 w-3" />
-                              {methodLabel}
-                            </Badge>
+                          <div className="shrink-0 text-right">
+                            <p className="text-lg font-bold tabular-nums leading-tight text-foreground">{formatUGX(w.amount)}</p>
                           </div>
                         </div>
                         <Button
@@ -990,7 +1006,8 @@ export function AgentCashPayoutsTab() {
             </TabsContent>
           );
         })}
-      </Tabs>
+        </Tabs>
+      </section>
     </div>
   );
 }
