@@ -241,7 +241,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
                   return 'This user is already linked to you. No invitation will be sent.';
                 }
                 if (isMine && link?.status === 'pending') {
-                  return 'You already sent an invite. Sending again will deliver a fresh SMS and email reminder.';
+                  return 'You already sent an invite. Sending again will refresh the dashboard invite and email reminder.';
                 }
                 if (isOther && link?.status === 'verified') {
                   return 'This user works under another agent. If you send an invite, they can choose to switch to you.';
@@ -249,7 +249,7 @@ export function AddSubAgentSearch({ onAdded }: AddSubAgentSearchProps) {
                 if (isOther) {
                   return 'Another agent already invited this user. If you send an invite, they can choose which agent to join.';
                 }
-                return 'No existing sub-agent link found. Sending an invite will deliver an SMS and email with an acceptance link.';
+                return 'No existing sub-agent link found. Inviting them shows the request on their dashboard and emails an acceptance link.';
               })();
 
               return (
