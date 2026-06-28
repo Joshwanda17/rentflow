@@ -54,11 +54,6 @@ const getPayoutChannel = (withdrawal: any): PayoutChannel => {
   return 'cash';
 };
 
-const isClaimExpired = (withdrawal: any) => {
-  if (!withdrawal?.assigned_cashout_agent_id || !withdrawal?.dispatched_at) return false;
-  return Date.now() - new Date(withdrawal.dispatched_at).getTime() >= CLAIM_WINDOW_MS;
-};
-
 const getRecipientPhone = (withdrawal: any) => {
   const channel = getPayoutChannel(withdrawal);
   return channel === 'momo'
