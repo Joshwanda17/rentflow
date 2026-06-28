@@ -20652,6 +20652,23 @@ export type Database = {
           tenant_ops_reviewed_at: string
         }[]
       }
+      get_cashout_settlement_ledger_rows: {
+        Args: { p_withdrawal_id: string }
+        Returns: {
+          amount: number
+          category: string
+          description: string
+          direction: string
+          id: string
+          ledger_scope: string
+          leg: string
+          party_name: string
+          reference_id: string
+          transaction_date: string
+          user_id: string
+          wallet_bucket: string
+        }[]
+      }
       get_cashout_settlement_timeline: {
         Args: { p_limit?: number; p_offset?: number; p_search?: string }
         Returns: {
