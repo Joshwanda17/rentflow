@@ -936,7 +936,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                             <span className="text-[10px] text-muted-foreground">
                               {(payoutMode === 'mtn' || payoutMode === 'airtel') && momoNumber ? `📱 ${momoNumber}` : ''}
                               {payoutMode === 'bank' && bankName ? `🏦 ${bankName}` : ''}
-                              {payoutMode === 'cash' ? '💵 Cash at agent' : ''}
+                              {payoutMode === 'cash' ? `💵 ${selectedCashAgent?.agent_name || 'Cash at agent'}` : ''}
                             </span>
                             <span className="text-[10px] text-muted-foreground">
                               Remaining: {formatCurrency(walletBalance - amount)}
