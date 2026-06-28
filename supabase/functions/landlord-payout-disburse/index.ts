@@ -150,37 +150,79 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Phase 2: route to Financial Ops queue (no MoMo gateway call here).
+    // Phase 3: route the landlord payout into the merchant Cash, Mobile Money &
+    // Bank payout queue. A merchant agent will pay the landlord from their own
+    // MoMo float and then settle here — exactly like any other withdrawal. The
+    // float was already deducted above, so the withdrawal row is tagged with a
+    // "Landlord float payout" reason; DB guards skip the agent's withdrawable
+    // balance for these rows and never lock the agent's own wallet.
+    const payoutReason =
+      `Landlord float payout — ${landlord_name ?? "Landlord"} (${landlord_phone})`;
+    const { data: wrRow, error: wrErr } = await adminClient
+      .from("withdrawal_requests")
+      .insert({
+        user_id: agentId,
+        amount,
+        status: "pending",
+        payout_method: "mobile_money",
+        mobile_money_provider,
+        mobile_money_number: landlord_phone,
+        mobile_money_name: landlord_name ?? "Landlord",
+        reason: payoutReason,
+        landlord_payout_id: payout.id,
+      } as any)
+      .select("id")
+      .single();
+
+    if (wrErr || !wrRow) {
+      // Could not surface to the merchant queue — refund float and fail.
+      console.error("[landlord-payout-disburse] withdrawal_requests insert failed:", wrErr);
+      try {
+        await adminClient.rpc("refund_agent_float_for_payout", { p_payout_id: payout.id });
+      } catch (refundEx) {
+        console.error("[landlord-payout-disburse] float refund failed:", refundEx);
+      }
+      await adminClient.from("landlord_payouts").update({
+        status: "failed",
+        last_error: `Merchant queue insert failed: ${wrErr?.message ?? "unknown"}`,
+      }).eq("id", payout.id);
+      return new Response(
+        JSON.stringify({ error: `Failed to queue payout for merchant: ${wrErr?.message ?? "unknown"}`, payout_id: payout.id }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     await adminClient
       .from("landlord_payouts")
-      .update({ status: "pending_finops_disbursement" })
+      .update({ status: "pending_merchant_payout" })
       .eq("id", payout.id);
 
     await logSystemEvent(
       adminClient,
-      "landlord_payout_pending_finops",
+      "landlord_payout_pending_merchant",
       agentId,
       "landlord_payout",
       payout.id,
-      { amount, landlord_id, landlord_phone, mobile_money_provider },
+      { amount, landlord_id, landlord_phone, mobile_money_provider, withdrawal_request_id: wrRow.id },
     );
 
-    // Notify agent that the request is now with Financial Ops (best-effort)
+    // Notify agent that the request is now in the merchant payout queue (best-effort)
     try {
       await adminClient.from("notifications").insert({
         user_id: agentId,
-        type: "landlord_payout_pending_finops",
-        title: "Sent to Financial Ops",
-        message: `Your landlord payout of UGX ${Number(amount).toLocaleString()} for ${landlord_name ?? "landlord"} was sent to Financial Ops for disbursement.`,
-        metadata: { payout_id: payout.id, amount },
+        type: "landlord_payout_pending_merchant",
+        title: "Sent to merchant payout queue",
+        message: `Your landlord payout of UGX ${Number(amount).toLocaleString()} for ${landlord_name ?? "landlord"} is now in the Cash, Mobile Money & Bank payout queue for a merchant agent to fulfil.`,
+        metadata: { payout_id: payout.id, amount, withdrawal_request_id: wrRow.id },
       });
     } catch { /* non-blocking */ }
 
     return new Response(JSON.stringify({
       ok: true,
       payout_id: payout.id,
-      status: "pending_finops_disbursement",
-      message: "Sent to Financial Ops for disbursement. You'll be notified when the landlord is paid.",
+      withdrawal_request_id: wrRow.id,
+      status: "pending_merchant_payout",
+      message: "Sent to the merchant payout queue. You'll be notified when the landlord is paid.",
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
