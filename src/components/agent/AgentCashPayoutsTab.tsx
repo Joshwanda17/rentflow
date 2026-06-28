@@ -1225,7 +1225,7 @@ export function AgentCashPayoutsTab() {
               <SelectTrigger className="h-10"><SelectValue placeholder="Merchant" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All merchants</SelectItem>
-                {merchantOptions.map((m) => (
+                {MERCHANT_OPTIONS.map((m) => (
                   <SelectItem key={m} value={m}>{MERCHANT_LABELS[m] || m}</SelectItem>
                 ))}
               </SelectContent>
