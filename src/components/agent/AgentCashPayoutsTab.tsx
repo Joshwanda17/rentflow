@@ -410,8 +410,14 @@ export function AgentCashPayoutsTab() {
     },
     onSuccess: (data) => {
       const commission = Number(data?.cashout_commission || 0);
+      const reimbursed = Number(data?.merchant_reimbursed || 0);
       const baseMsg = `✅ Payout completed — ${formatUGX(data?.amount || 0)} sent`;
-      toast.success(commission > 0 ? `${baseMsg} · You earned ${formatUGX(commission)} (0.5%)` : baseMsg);
+      const credited = reimbursed + commission;
+      toast.success(
+        credited > 0
+          ? `${baseMsg} · ${formatUGX(credited)} added to your withdrawable wallet${reimbursed > 0 ? ` (${formatUGX(reimbursed)} reimbursed + ${formatUGX(commission)} commission)` : ` (0.5% commission)`}`
+          : baseMsg,
+      );
       qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
@@ -482,9 +488,15 @@ export function AgentCashPayoutsTab() {
     },
     onSuccess: (data) => {
       const commission = Number(data?.cashout_commission || 0);
+      const reimbursed = Number(data?.merchant_reimbursed || 0);
       const amt = Number(data?.amount || verifiedPayout?.amount || 0);
       const base = `💰 Cash paid — ${formatUGX(amt)} debited from the customer's withdrawable balance`;
-      toast.success(commission > 0 ? `${base} · You earned ${formatUGX(commission)} (0.5%)` : base);
+      const credited = reimbursed + commission;
+      toast.success(
+        credited > 0
+          ? `${base} · ${formatUGX(credited)} added to your withdrawable wallet${reimbursed > 0 ? ` (${formatUGX(reimbursed)} reimbursed + ${formatUGX(commission)} commission)` : ` (0.5% commission)`}`
+          : base,
+      );
       setVerifiedPayout(null); setPayoutCode('');
       qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
