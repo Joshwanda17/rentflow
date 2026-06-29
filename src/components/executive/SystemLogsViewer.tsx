@@ -307,6 +307,15 @@ export function SystemLogsViewer() {
           Default Role Events
           <Badge variant="secondary" className="ml-1 px-1.5 text-[10px]">{defaultRoleCount}</Badge>
         </Button>
+        <Button
+          variant={includeNoise ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setIncludeNoise(v => !v)}
+          className="gap-1.5"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          {includeNoise ? 'Hide automated events' : 'Show automated events'}
+        </Button>
         <Select value={defaultRoleValue} onValueChange={setDefaultRoleValue}>
           <SelectTrigger className="w-[170px]">
             <SelectValue placeholder="Any default role" />
