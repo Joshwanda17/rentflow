@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, Search, Share2, User, Home, Receipt, FileDown, UserCog } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './LandlordPayoutShareCard';
-import { buildBulkPayoutsPdfBlob, downloadBlob } from './landlordPayoutPdf';
+import { buildBulkPayoutsPdfBlob, buildBulkCardsPdfBlob, downloadBlob } from './landlordPayoutPdf';
 import { toast } from 'sonner';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { List, LayoutGrid } from 'lucide-react';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import {
   Select,
@@ -97,6 +99,7 @@ export function FundedTenantsList() {
   const [countryChipSearch, setCountryChipSearch] = useState('');
   const [share, setShare] = useState<LandlordPayoutShareData | null>(null);
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
+  const [exportMode, setExportMode] = useState<'list' | 'cards'>('list');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDays, setCustomDays] = useState<number>(14);
   const [countryFilter, setCountryFilter] = useState<string>('all');
@@ -349,14 +352,15 @@ export function FundedTenantsList() {
     }
     setBulk({ done: 0, total: filtered.length });
     try {
-      const blob = await buildBulkPayoutsPdfBlob(
+      const builder = exportMode === 'cards' ? buildBulkCardsPdfBlob : buildBulkPayoutsPdfBlob;
+      const blob = await builder(
         filtered.map(rowToShareData),
         (done, total) => setBulk({ done, total }),
       );
       const stamp = new Date().toISOString().slice(0, 10);
       downloadBlob(
         blob,
-        `welile-funded-landlord-payouts-${stamp}-${scopeSlug}-x${filtered.length}.pdf`,
+        `welile-funded-landlord-payouts-${stamp}-${scopeSlug}-${exportMode}-x${filtered.length}.pdf`,
       );
       toast.success(`Exported ${filtered.length} payouts${scopeText} to PDF`);
     } catch (e: any) {
@@ -406,6 +410,22 @@ export function FundedTenantsList() {
         <Badge variant="outline" className="shrink-0">
           {filtered.length} · {formatUGX(totalAmount)}
         </Badge>
+        <ToggleGroup
+          type="single"
+          value={exportMode}
+          onValueChange={(v) => v && setExportMode(v as 'list' | 'cards')}
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          aria-label="PDF export view"
+        >
+          <ToggleGroupItem value="list" className="gap-1.5 px-2.5" aria-label="Compact list view" title="Export as a compact list (many per page)">
+            <List className="h-3.5 w-3.5" /> List
+          </ToggleGroupItem>
+          <ToggleGroupItem value="cards" className="gap-1.5 px-2.5" aria-label="Card view" title="Export as branded receipt cards">
+            <LayoutGrid className="h-3.5 w-3.5" /> Cards
+          </ToggleGroupItem>
+        </ToggleGroup>
         <Button
           size="sm"
           variant="outline"
@@ -414,8 +434,8 @@ export function FundedTenantsList() {
           disabled={!filtered.length || !!bulk}
           title={
             scopeLabel
-              ? `Download ${filtered.length} payouts (${scopeLabel}) as one PDF — compact list`
-              : `Download all ${filtered.length} visible payouts as one PDF — compact list`
+              ? `Download ${filtered.length} payouts (${scopeLabel}) as one PDF — ${exportMode === 'cards' ? 'receipt cards' : 'compact list'}`
+              : `Download all ${filtered.length} visible payouts as one PDF — ${exportMode === 'cards' ? 'receipt cards' : 'compact list'}`
           }
         >
           {bulk ? (
