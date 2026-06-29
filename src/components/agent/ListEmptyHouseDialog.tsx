@@ -884,8 +884,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     if (s === 2) {
       // Photos are required.
-      if (images.length === 0) {
-        toast.error('Add at least one photo of the house');
+      if (images.length < 3) {
+        toast.error('Take at least 3 photos of the house');
         return false;
       }
     }
