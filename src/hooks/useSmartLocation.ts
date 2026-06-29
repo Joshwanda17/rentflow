@@ -47,29 +47,59 @@ function attempt(opts: PositionOptions): Promise<GeolocationPosition> {
     // Defensive: enforce hard ceiling so a misbehaving device cannot freeze us.
     const hardCeiling = (opts.timeout ?? 10_000) + 2_000;
     let settled = false;
+    let watchId: number | null = null;
+
+    const cleanup = () => {
+      if (watchId != null) {
+        try {
+          navigator.geolocation.clearWatch(watchId);
+        } catch {
+          /* ignore */
+        }
+        watchId = null;
+      }
+    };
+
+    // Hard ceiling so a misbehaving device cannot freeze us forever.
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
+      cleanup();
       const err = new Error('timeout') as any;
       err.code = 3;
       reject(err);
     }, hardCeiling);
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve(pos);
-      },
-      (err) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        reject(err);
-      },
-      opts,
-    );
+    // IMPORTANT (mobile reliability): On many Android Chrome builds and some
+    // in-app browsers, `getCurrentPosition` with high accuracy never fires
+    // EITHER callback — the request silently hangs, so the button "does
+    // nothing". `watchPosition` is the documented workaround: it reliably
+    // emits the first available fix. We take the first reading, then clear it.
+    try {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          cleanup();
+          resolve(pos);
+        },
+        (err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          cleanup();
+          reject(err);
+        },
+        opts,
+      );
+    } catch (err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      reject(err);
+    }
   });
 }
 
