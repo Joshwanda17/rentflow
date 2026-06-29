@@ -414,8 +414,8 @@ export function FundedTenantsList() {
           disabled={!filtered.length || !!bulk}
           title={
             scopeLabel
-              ? `Download ${filtered.length} payouts (${scopeLabel}) as one PDF — one card per page`
-              : `Download all ${filtered.length} visible payouts as one PDF — one card per page`
+              ? `Download ${filtered.length} payouts (${scopeLabel}) as one PDF — compact list`
+              : `Download all ${filtered.length} visible payouts as one PDF — compact list`
           }
         >
           {bulk ? (
