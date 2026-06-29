@@ -144,6 +144,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const isCashoutAgent = !!agentRow;
 
+    // Merchant compensation (principal reimbursement + 0.5% commission + SMS)
+    // must ONLY go to a genuine merchant agent who fronted their OWN MTN/Airtel
+    // cash to pay the customer. A staff member settling a payout from the
+    // Financial Ops desk (even if they happen to ALSO hold a cashout_agents
+    // row) is paying with platform funds — there is no cash to reimburse and no
+    // commission to earn. The same applies to system/bulk auto-settlement,
+    // which impersonates a super_admin. Gate all merchant payouts on this flag.
+    const actingAsMerchant = isCashoutAgent && !hasStaffRole && !isSystemCall;
+
     if (!hasStaffRole && !isCashoutAgent) {
       return new Response(JSON.stringify({ error: "Forbidden: insufficient role" }), {
         status: 403,
@@ -1691,7 +1700,7 @@ Deno.serve(async (req) => {
     // for proxy/pool payouts, and never when the merchant is the requester.
     let merchantReimbursed = 0;
     if (
-      isCashoutAgent &&
+      actingAsMerchant &&
       !isProxyPayout &&
       !poolFunded &&
       user.id !== fundingUserId &&
@@ -1734,7 +1743,7 @@ Deno.serve(async (req) => {
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
     // routing), then we SMS the agent to confirm the earning.
     let cashoutCommission = 0;
-    if (isCashoutAgent) {
+    if (actingAsMerchant) {
       cashoutCommission = Math.round(amount * 0.005);
       if (cashoutCommission > 0) {
         try {
