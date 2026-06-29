@@ -250,8 +250,9 @@ export function SystemLogsViewer() {
     setToDate(undefined);
     setActionFilter('all');
     setSearchTerm('');
+    setIncludeNoise(false);
   };
-  const anyFilter = defaultRoleOnly || defaultRoleValue !== 'all' || !!targetUser || !!fromDate || !!toDate || actionFilter !== 'all' || !!searchTerm;
+  const anyFilter = defaultRoleOnly || defaultRoleValue !== 'all' || !!targetUser || !!fromDate || !!toDate || actionFilter !== 'all' || !!searchTerm || includeNoise;
 
   return (
     <div className="space-y-4">
