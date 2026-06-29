@@ -166,12 +166,14 @@ export function SubAgentStatusBoard() {
         const ids = [...new Set(subs.map((s) => s.sub_agent_id))] as string[];
         const nameMap: Record<string, { full_name: string; phone: string | null; avatar_url: string | null }> = {};
         if (ids.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone, avatar_url')
-            .in('id', ids);
-          for (const p of profiles || []) {
-            nameMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone, avatar_url: p.avatar_url };
+          // SECURITY DEFINER RPC — lets the parent agent resolve their
+          // sub-agents' names/phones (profiles RLS blocks direct reads).
+          const { data: profiles } = await supabase.rpc('get_my_subagent_profiles');
+          const idSet = new Set(ids);
+          for (const p of (profiles as Array<{ id: string; full_name: string; phone: string | null; avatar_url: string | null }>) || []) {
+            if (idSet.has(p.id)) {
+              nameMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone, avatar_url: p.avatar_url };
+            }
           }
         }
 
