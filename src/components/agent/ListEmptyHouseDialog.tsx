@@ -2576,7 +2576,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </Button>
             )}
             {step < TOTAL_STEPS ? (
-              <Button type="button" className="h-14 flex-[2] min-w-0 text-base font-bold active:scale-95 touch-manipulation" onClick={goNext}>
+              <Button
+                type="button"
+                className="h-14 flex-[2] min-w-0 text-base font-bold active:scale-95 touch-manipulation"
+                onClick={goNext}
+                disabled={step === 2 && images.length < 3}
+              >
                 Next <ArrowRight className="h-5 w-5 ml-1 shrink-0" />
               </Button>
             ) : (
