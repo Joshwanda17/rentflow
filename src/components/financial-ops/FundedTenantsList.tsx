@@ -404,6 +404,16 @@ export function FundedTenantsList() {
     );
   };
 
+  // Keep export columns in the canonical registry order regardless of the
+  // order the user ticked the checkboxes.
+  const orderedCols = useMemo(
+    () =>
+      PAYOUT_COLUMNS.map((c) => c.key).filter((k) =>
+        exportCols.includes(k),
+      ) as PayoutColumnKey[],
+    [exportCols],
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
