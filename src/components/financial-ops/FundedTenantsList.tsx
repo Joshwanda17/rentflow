@@ -327,6 +327,7 @@ export function FundedTenantsList() {
     agent_phone: r.agent_profile?.phone ?? null,
     momo_reference: r.finops_momo_reference ?? r.external_reference ?? '—',
     paid_at: r.finops_disbursed_at ?? r.created_at,
+    country: r.country ?? null,
   });
 
   const scopeLabel = useMemo(() => {
