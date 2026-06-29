@@ -90,7 +90,6 @@ export default function CFODashboardPage() {
               <p className="text-sm text-muted-foreground mb-4">Search a user by name or phone number, enter the amount, and credit or debit their wallet instantly. Use “Share Payouts PDF” to send a list of everyone you've paid out via WhatsApp.</p>
               <DirectCreditTool />
             </div>
-            <StandingOrdersManager />
           </div>
         );
       case 'roi-requests':
