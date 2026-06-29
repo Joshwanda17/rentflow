@@ -259,17 +259,19 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
                 <Camera className="h-4 w-4 mr-2" />
                 Take Photo
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full border-dashed min-h-[44px]"
-                onClick={() => galleryInputRef.current?.click()}
-              >
-                <Image className="h-4 w-4 mr-2" />
-                Upload from Gallery
-              </Button>
-              {region && (
+              {!cameraOnly && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-dashed min-h-[44px]"
+                  onClick={() => galleryInputRef.current?.click()}
+                >
+                  <Image className="h-4 w-4 mr-2" />
+                  Upload from Gallery
+                </Button>
+              )}
+              {!cameraOnly && region && (
                 <Button
                   type="button"
                   variant="outline"
@@ -287,11 +289,13 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
       )}
 
       <p className="text-[10px] text-muted-foreground">
-        Photos help tenants find your listing · max 5MB each
+        {cameraOnly
+          ? `Take ${minImages > 0 ? `${minImages}–${maxImages}` : `up to ${maxImages}`} photos with your camera · max 5MB each`
+          : 'Photos help tenants find your listing · max 5MB each'}
       </p>
 
       {/* Existing photos dialog */}
-      {region && (
+      {!cameraOnly && region && (
         <ExistingPropertyPhotosDialog
           open={showExisting}
           onOpenChange={setShowExisting}
