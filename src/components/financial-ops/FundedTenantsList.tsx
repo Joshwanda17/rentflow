@@ -414,13 +414,15 @@ export function FundedTenantsList() {
           type="single"
           value={exportMode}
           onValueChange={(v) => v && setExportMode(v as 'list' | 'cards')}
+          variant="outline"
+          size="sm"
           className="shrink-0"
           aria-label="PDF export view"
         >
-          <ToggleGroupItem value="list" size="sm" className="gap-1.5 px-2.5" aria-label="Compact list view" title="Export as a compact list (many per page)">
+          <ToggleGroupItem value="list" className="gap-1.5 px-2.5" aria-label="Compact list view" title="Export as a compact list (many per page)">
             <List className="h-3.5 w-3.5" /> List
           </ToggleGroupItem>
-          <ToggleGroupItem value="cards" size="sm" className="gap-1.5 px-2.5" aria-label="Card view" title="Export as branded receipt cards">
+          <ToggleGroupItem value="cards" className="gap-1.5 px-2.5" aria-label="Card view" title="Export as branded receipt cards">
             <LayoutGrid className="h-3.5 w-3.5" /> Cards
           </ToggleGroupItem>
         </ToggleGroup>
