@@ -1,4 +1,5 @@
 import type { LandlordPayoutShareData } from './LandlordPayoutShareCard';
+import { downloadXlsx } from '@/lib/xlsxExport';
 
 // ───────────────────────────────────────────────────────────
 // Standalone PDF builder for landlord payout cards.
@@ -16,6 +17,79 @@ const CARD_CAPTURE_PIXEL_RATIO = 2.5;
 
 function formatUGX(n: number) {
   return `UGX ${Number(n).toLocaleString()}`;
+}
+
+// ───────────────────────────────────────────────────────────
+// Selectable export columns — shared by the PDF list export and
+// the spreadsheet (XLSX) export so both stay in lockstep.
+// ───────────────────────────────────────────────────────────
+export type PayoutColumnKey =
+  | 'date'
+  | 'landlord'
+  | 'momo'
+  | 'tenant'
+  | 'agent'
+  | 'agent_phone'
+  | 'tid'
+  | 'country'
+  | 'amount';
+
+export interface PayoutColumnDef {
+  key: PayoutColumnKey;
+  label: string;
+  /** Display string for the PDF cell. */
+  text: (d: LandlordPayoutShareData) => string;
+  /** Raw value for the spreadsheet cell (numbers stay numeric so sums work). */
+  raw?: (d: LandlordPayoutShareData) => string | number;
+  numeric?: boolean;
+  pdfWidth?: number;
+  pdfFontSize?: number;
+}
+
+export const PAYOUT_COLUMNS: PayoutColumnDef[] = [
+  {
+    key: 'date',
+    label: 'Date / Period',
+    text: (d) => new Date(d.paid_at).toLocaleDateString('en-UG'),
+    raw: (d) => new Date(d.paid_at).toLocaleDateString('en-UG'),
+    pdfWidth: 18,
+  },
+  { key: 'landlord', label: 'Landlord', text: (d) => d.landlord_name || '—' },
+  {
+    key: 'momo',
+    label: 'MoMo Number',
+    text: (d) => `${d.mobile_money_provider || ''} ${d.landlord_phone || ''}`.trim() || '—',
+  },
+  { key: 'tenant', label: 'Tenant', text: (d) => d.tenant_name || 'Unallocated' },
+  { key: 'agent', label: 'Agent', text: (d) => d.agent_name || '—' },
+  { key: 'agent_phone', label: 'Agent Phone', text: (d) => d.agent_phone || '—' },
+  { key: 'tid', label: 'MoMo TID', text: (d) => d.momo_reference || '—', pdfWidth: 26, pdfFontSize: 7 },
+  { key: 'country', label: 'Country', text: (d) => d.country || '—' },
+  {
+    key: 'amount',
+    label: 'Amount',
+    text: (d) => formatUGX(Number(d.amount || 0)),
+    raw: (d) => Number(d.amount || 0),
+    numeric: true,
+  },
+];
+
+export const DEFAULT_PAYOUT_COLUMNS: PayoutColumnKey[] = [
+  'date',
+  'landlord',
+  'momo',
+  'tenant',
+  'agent',
+  'tid',
+  'amount',
+];
+
+function resolveColumns(keys?: PayoutColumnKey[]): PayoutColumnDef[] {
+  const wanted = keys && keys.length ? keys : DEFAULT_PAYOUT_COLUMNS;
+  // Preserve the order the caller requested, ignoring unknown keys.
+  const byKey = new Map(PAYOUT_COLUMNS.map((c) => [c.key, c]));
+  const cols = wanted.map((k) => byKey.get(k)).filter(Boolean) as PayoutColumnDef[];
+  return cols.length ? cols : PAYOUT_COLUMNS.filter((c) => DEFAULT_PAYOUT_COLUMNS.includes(c.key));
 }
 
 function escapeHtml(s: string) {
