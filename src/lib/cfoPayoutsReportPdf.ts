@@ -12,6 +12,7 @@ export interface CfoPayoutRow {
   type: string;
   reference?: string;
   performedBy?: string;
+  reason?: string;
 }
 
 export interface CfoDateRange {
@@ -97,12 +98,13 @@ export async function generateCfoPayoutsPdf(
   doc.text(`Total: ${fmtUGX(total)}`, pageWidth - margin, y, { align: 'right' });
   y += 4;
 
-  const head = [['#', 'Date', 'Recipient', 'Type', 'Reference', 'Amount']];
+  const head = [['#', 'Date', 'Recipient', 'Type', 'Reason', 'Reference', 'Amount']];
   const body = rows.map((r, i) => [
     String(i + 1),
     typeof r.date === 'string' ? r.date : format(r.date, 'dd MMM yyyy'),
     r.recipient || '—',
     r.type || '—',
+    r.reason || '—',
     r.reference || '—',
     fmtUGX(Number(r.amount) || 0),
   ]);
@@ -120,9 +122,10 @@ export async function generateCfoPayoutsPdf(
       0: { cellWidth: 8, halign: 'right' },
       1: { cellWidth: 24 },
       2: { cellWidth: 'auto' },
-      3: { cellWidth: 32 },
-      4: { cellWidth: 32 },
-      5: { halign: 'right', fontStyle: 'bold', cellWidth: 30 },
+      3: { cellWidth: 28 },
+      4: { cellWidth: 34 },
+      5: { cellWidth: 28 },
+      6: { halign: 'right', fontStyle: 'bold', cellWidth: 26 },
     },
   });
 
