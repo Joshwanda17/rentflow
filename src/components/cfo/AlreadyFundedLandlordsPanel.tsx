@@ -4,12 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Landmark, Users, Phone, CheckCircle2, Search, Home } from 'lucide-react';
+import { Loader2, Landmark, Users, Phone, CheckCircle2, Search, Home, ChevronDown, ChevronRight } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(n || 0);
+
+type Period = '30d' | 'all';
 
 interface FundedLandlordRow {
   id: string;
@@ -32,6 +35,15 @@ interface FundedLandlordRow {
 
 export function AlreadyFundedLandlordsPanel() {
   const [search, setSearch] = useState('');
+  const [period, setPeriod] = useState<Period>('30d');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['cfo-already-funded-landlords'],
@@ -112,16 +124,21 @@ export function AlreadyFundedLandlordsPanel() {
   });
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return rows;
+    let base = rows;
+    if (period === '30d') {
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      base = base.filter((r) => new Date(r.created_at).getTime() >= cutoff);
+    }
+    if (!search.trim()) return base;
     const q = search.trim().toLowerCase();
-    return rows.filter(
+    return base.filter(
       (r) =>
         r.landlord_name.toLowerCase().includes(q) ||
         r.tenant_name.toLowerCase().includes(q) ||
         r.agent_name.toLowerCase().includes(q) ||
         (r.landlord_phone || '').includes(q),
     );
-  }, [rows, search]);
+  }, [rows, search, period]);
 
   const totals = useMemo(() => {
     const totalRent = filtered.reduce((s, r) => s + r.rent_amount, 0);
@@ -213,19 +230,43 @@ export function AlreadyFundedLandlordsPanel() {
                 </Badge>
               )}
             </CardTitle>
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search landlord, tenant, agent…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-8 text-xs"
-              />
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-md border overflow-hidden shrink-0">
+                <Button
+                  type="button"
+                  variant={period === '30d' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 rounded-none text-xs px-2"
+                  onClick={() => setPeriod('30d')}
+                >
+                  Last 30 days
+                </Button>
+                <Button
+                  type="button"
+                  variant={period === 'all' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-8 rounded-none text-xs px-2"
+                  onClick={() => setPeriod('all')}
+                >
+                  All time
+                </Button>
+              </div>
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search landlord, tenant, agent…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-8 text-xs"
+                />
+              </div>
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Landlords whose rent has already been funded by the CFO (status: funded, repaying, or completed).
+            Landlords whose rent has already been funded by the CFO (status: funded, repaying, or completed)
+            {period === '30d' ? ' in the last 30 days' : ''}.
             Shows payout float allocation and how much the agent has already forwarded to the landlord.
+            Tap a landlord to expand the tenants funded under them.
           </p>
         </CardHeader>
         <CardContent>
@@ -267,75 +308,89 @@ export function AlreadyFundedLandlordsPanel() {
                 </div>
               </div>
 
-              {/* Grouped by landlord */}
+              {/* Compact flat list — one row per landlord, expandable to tenants */}
               <ScrollArea className="max-h-[600px]">
-                <div className="space-y-3">
-                  {grouped.map((g) => (
-                    <div key={g.landlord_id} className="rounded-lg border">
-                      <div className="flex items-center justify-between px-3 py-2 bg-muted/40 rounded-t-lg">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <p className="font-semibold text-sm truncate">{g.landlord_name}</p>
-                          {g.landlord_phone && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                              <Phone className="h-2.5 w-2.5" />
-                              {g.landlord_phone}
-                            </span>
-                          )}
-                          <Badge variant="outline" className="text-[9px] px-1.5 py-0">
-                            {g.rows.length} tenant{g.rows.length === 1 ? '' : 's'}
-                          </Badge>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-bold text-sm text-primary">{fmt(g.totalRent)}</p>
-                          {g.totalPaid > 0 && (
-                            <p className="text-[10px] text-emerald-600">
-                              paid {fmt(g.totalPaid)} · remaining {fmt(g.totalRemaining)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="divide-y">
-                        {g.rows.map((r) => (
-                          <div
-                            key={r.id}
-                            className="flex items-start gap-2 px-3 py-2 text-xs hover:bg-muted/20 transition-colors"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Users className="h-3 w-3 text-muted-foreground shrink-0" />
-                                <p className="font-medium truncate">{r.tenant_name}</p>
-                                <span className="text-[10px] text-muted-foreground">via</span>
-                                <p className="font-medium truncate text-muted-foreground">{r.agent_name}</p>
-                              </div>
-                              <div className="flex items-center gap-2 flex-wrap mt-1 text-[10px] text-muted-foreground">
-                                <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${statusBadge(r.status)}`}>
-                                  {r.status}
-                                </Badge>
-                                {r.allocation_status && (
-                                  <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${allocBadge(r.allocation_status)}`}>
-                                    float: {r.allocation_status}
-                                  </Badge>
-                                )}
-                                <span>{format(new Date(r.created_at), 'dd MMM yyyy')}</span>
-                                <span className="text-muted-foreground/60">
-                                  {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="font-bold text-sm">{fmt(r.rent_amount)}</p>
-                              {r.remaining_amount != null && (
-                                <p className="text-[10px] text-muted-foreground">
-                                  {fmt(r.paid_out_amount ?? 0)} paid / {fmt(r.remaining_amount)} rem
-                                </p>
-                              )}
-                            </div>
+                <div className="divide-y rounded-lg border">
+                  {grouped.map((g) => {
+                    const isOpen = expanded.has(g.landlord_id);
+                    return (
+                      <div key={g.landlord_id}>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(g.landlord_id)}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/30 transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {isOpen ? (
+                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            ) : (
+                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            )}
+                            <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <p className="font-semibold text-sm truncate">{g.landlord_name}</p>
+                            {g.landlord_phone && (
+                              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Phone className="h-2.5 w-2.5" />
+                                {g.landlord_phone}
+                              </span>
+                            )}
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0">
+                              {g.rows.length} tenant{g.rows.length === 1 ? '' : 's'}
+                            </Badge>
                           </div>
-                        ))}
+                          <div className="text-right shrink-0">
+                            <p className="font-bold text-sm text-primary">{fmt(g.totalRent)}</p>
+                            {g.totalPaid > 0 && (
+                              <p className="text-[10px] text-emerald-600">
+                                paid {fmt(g.totalPaid)} · rem {fmt(g.totalRemaining)}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                        {isOpen && (
+                          <div className="divide-y bg-muted/10">
+                            {g.rows.map((r) => (
+                              <div
+                                key={r.id}
+                                className="flex items-start gap-2 pl-9 pr-3 py-2 text-xs hover:bg-muted/20 transition-colors"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Users className="h-3 w-3 text-muted-foreground shrink-0" />
+                                    <p className="font-medium truncate">{r.tenant_name}</p>
+                                    <span className="text-[10px] text-muted-foreground">via</span>
+                                    <p className="font-medium truncate text-muted-foreground">{r.agent_name}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-wrap mt-1 text-[10px] text-muted-foreground">
+                                    <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${statusBadge(r.status)}`}>
+                                      {r.status}
+                                    </Badge>
+                                    {r.allocation_status && (
+                                      <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${allocBadge(r.allocation_status)}`}>
+                                        float: {r.allocation_status}
+                                      </Badge>
+                                    )}
+                                    <span>{format(new Date(r.created_at), 'dd MMM yyyy')}</span>
+                                    <span className="text-muted-foreground/60">
+                                      {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="font-bold text-sm">{fmt(r.rent_amount)}</p>
+                                  {r.remaining_amount != null && (
+                                    <p className="text-[10px] text-muted-foreground">
+                                      {fmt(r.paid_out_amount ?? 0)} paid / {fmt(r.remaining_amount)} rem
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </div>
