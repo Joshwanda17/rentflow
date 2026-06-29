@@ -155,14 +155,24 @@ export async function buildBulkPayoutsPdfBlob(
     head: [['#', 'Date', 'Landlord', 'MoMo Number', 'Tenant', 'Agent', 'MoMo TID', 'Amount']],
     body,
     foot: [['', '', '', '', '', '', 'Total', formatUGX(total)]],
+    // Grand total only on the final page so per-page footers don't read as
+    // misleading "running" totals.
+    showFoot: 'lastPage',
     startY: margin + PDF_HEADER_MM,
-    margin: { left: margin, right: margin, bottom: PDF_FOOTER_MM + margin },
+    // top margin keeps the repeated table header clear of the page title band
+    // on pages 2+ (startY only applies to the first page).
+    margin: {
+      left: margin,
+      right: margin,
+      top: margin + PDF_HEADER_MM,
+      bottom: PDF_FOOTER_MM + margin,
+    },
     styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
     headStyles: { fillColor: [122, 0, 204], textColor: [255, 255, 255], fontStyle: 'bold' },
     footStyles: { fillColor: [240, 235, 250], textColor: [0, 0, 0], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 246, 252] },
     columnStyles: {
-      0: { cellWidth: 8, halign: 'right' },
+      0: { cellWidth: 11, halign: 'right' },
       1: { cellWidth: 18 },
       6: { cellWidth: 26, fontSize: 7 },
       7: { halign: 'right', fontStyle: 'bold' },
