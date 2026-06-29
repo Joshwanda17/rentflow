@@ -55,21 +55,58 @@ function attempt(opts: PositionOptions): Promise<GeolocationPosition> {
       reject(err);
     }, hardCeiling);
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve(pos);
-      },
-      (err) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        reject(err);
-      },
-      opts,
-    );
+    // IMPORTANT (mobile reliability): On many Android Chrome builds and some
+    // in-app browsers, `getCurrentPosition` with high accuracy never fires
+    // EITHER callback — the request silently hangs. `watchPosition` is the
+    // documented workaround: it reliably emits the first available fix. We
+    // start a watch, take the first reading, then immediately clear it.
+    let watchId: number | null = null;
+    const cleanup = () => {
+      clearTimeout(timer);
+      if (watchId != null) {
+        try {
+          navigator.geolocation.clearWatch(watchId);
+        } catch {
+          /* ignore */
+        }
+        watchId = null;
+      }
+    };
+    // Re-arm the timer cleanup so clearWatch runs on the ceiling too.
+    const ceilingTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      const err = new Error('timeout') as any;
+      err.code = 3;
+      reject(err);
+    }, hardCeiling);
+    clearTimeout(timer);
+
+    try {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(ceilingTimer);
+          cleanup();
+          resolve(pos);
+        },
+        (err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(ceilingTimer);
+          cleanup();
+          reject(err);
+        },
+        opts,
+      );
+    } catch (err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(ceilingTimer);
+      reject(err);
+    }
   });
 }
 
