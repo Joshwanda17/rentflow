@@ -121,64 +121,6 @@ export async function renderPayoutCardPng(d: LandlordPayoutShareData): Promise<s
   }
 }
 
-function drawHeaderFooter(pdf: any, d: LandlordPayoutShareData) {
-  const pageW = A4_PAGE_MM.width;
-  const pageH = A4_PAGE_MM.height;
-  const margin = PDF_MARGIN_MM;
-
-  pdf.setFontSize(16);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(0, 0, 0);
-  pdf.text('Welile — Landlord Payout Confirmation', margin, margin + 6);
-  pdf.setFontSize(9);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(100, 100, 100);
-  pdf.text(
-    `Generated: ${new Date().toLocaleString('en-UG')}  ·  MoMo TID: ${d.momo_reference}`,
-    margin,
-    margin + 12,
-  );
-  pdf.setTextColor(0, 0, 0);
-  pdf.setDrawColor(220, 220, 220);
-  pdf.setLineWidth(0.2);
-  pdf.line(margin, margin + PDF_HEADER_MM - 2, pageW - margin, margin + PDF_HEADER_MM - 2);
-
-  const footerY = pageH - margin - PDF_FOOTER_MM + 6;
-  pdf.line(margin, footerY - 4, pageW - margin, footerY - 4);
-  pdf.setFontSize(9);
-  pdf.setTextColor(80, 80, 80);
-  pdf.text(
-    'This is an internal Welile payout confirmation. Please retain for reconciliation.',
-    margin,
-    footerY,
-  );
-  pdf.text('welilereceipts.com', margin, footerY + 5);
-  pdf.setTextColor(0, 0, 0);
-}
-
-async function placeCardOnPage(pdf: any, dataUrl: string) {
-  const pageW = A4_PAGE_MM.width;
-  const pageH = A4_PAGE_MM.height;
-  const margin = PDF_MARGIN_MM;
-  const contentTop = margin + PDF_HEADER_MM;
-  const contentBottom = pageH - margin - PDF_FOOTER_MM;
-  const contentW = pageW - margin * 2;
-  const contentH = contentBottom - contentTop;
-
-  const img = new Image();
-  img.src = dataUrl;
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error('Failed to render card image'));
-  });
-  const scale = Math.min(contentW / img.width, contentH / img.height);
-  const drawW = img.width * scale;
-  const drawH = img.height * scale;
-  const drawX = margin + (contentW - drawW) / 2;
-  const drawY = contentTop + (contentH - drawH) / 2;
-  pdf.addImage(dataUrl, 'PNG', drawX, drawY, drawW, drawH, undefined, 'FAST');
-}
-
 /**
  * Build a compact list PDF — many landlord payouts per A4 page,
  * rendered as a table (NOT one card per page). Caller can pass an
