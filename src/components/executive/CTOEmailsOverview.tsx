@@ -19,7 +19,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface EmailOverview {
   rangeDays: number;
@@ -60,6 +61,51 @@ export function CTOEmailsOverview() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewSubject, setPreviewSubject] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  // Resend a previously-logged email straight from the Recent Emails table.
+  // The backend reconstructs the message from the archived template data and
+  // re-queues it. Blocked (bounced/unsubscribed) addresses return `suppressed`
+  // so the CTO can choose to force the send.
+  const handleResend = async (
+    row: EmailOverview['recent'][number],
+    force = false,
+  ) => {
+    setResendingId(row.id);
+    try {
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes.data.session?.access_token;
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cto-resend-email`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ id: row.id, force }),
+        },
+      );
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error('Resend failed', { description: json?.error || 'Unknown error' });
+        return;
+      }
+      if (json.suppressed) {
+        toast.warning('Address is blocked', {
+          description: json.message || 'Previous bounce/unsubscribe.',
+          action: { label: 'Force resend', onClick: () => handleResend(row, true) },
+        });
+        return;
+      }
+      toast.success('Email resent', {
+        description: `Queued to ${json.recipient || row.recipient_email}`,
+      });
+    } catch (e) {
+      toast.error('Resend failed', {
+        description: e instanceof Error ? e.message : 'Network error',
+      });
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   // Debounce the search box so each keystroke doesn't fire a backend query.
   useEffect(() => {
@@ -184,6 +230,29 @@ export function CTOEmailsOverview() {
       },
     },
     { key: 'error_message', label: 'Error', className: 'max-w-[260px] truncate text-xs text-muted-foreground' },
+    {
+      key: 'id',
+      label: 'Action',
+      render: (_v, row) => (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 px-2 text-xs"
+          disabled={resendingId === row.id}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleResend(row);
+          }}
+        >
+          {resendingId === row.id ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3 w-3" />
+          )}
+          <span className="ml-1">Resend</span>
+        </Button>
+      ),
+    },
   ];
 
   return (
