@@ -10,6 +10,20 @@ interface UserResult {
   phone: string;
 }
 
+/** Exact app-roles whose RLS policies grant full user-directory search. */
+const REQUIRED_SEARCH_ROLES = [
+  'CFO',
+  'Manager',
+  'Operations',
+  'Super Admin',
+  'COO',
+  'CEO',
+  'CTO',
+  'CMO',
+  'CRM',
+  'HR',
+] as const;
+
 interface UserSearchPickerProps {
   label: string;
   placeholder?: string;
@@ -181,19 +195,26 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
           <div className="absolute z-50 w-full mt-1 bg-popover border border-destructive/30 rounded-lg shadow-lg p-3 text-left">
             <div className="flex items-start gap-2">
               <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <p className="text-xs font-semibold text-destructive">No permission to search users</p>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   Your account can open this dashboard, but searching the full user
-                  directory needs one of these <span className="font-medium text-foreground">roles</span>:
-                  {' '}<span className="font-medium text-foreground">CFO</span>,{' '}
-                  <span className="font-medium text-foreground">Manager</span>,{' '}
-                  <span className="font-medium text-foreground">Operations</span>, or{' '}
-                  <span className="font-medium text-foreground">Super Admin</span>.
+                  directory requires <span className="font-medium text-foreground">any one</span> of
+                  these app-roles (enabled):
                 </p>
+                <div className="flex flex-wrap gap-1">
+                  {REQUIRED_SEARCH_ROLES.map((r) => (
+                    <span
+                      key={r}
+                      className="inline-flex items-center rounded-md border border-border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
+                    >
+                      {r}
+                    </span>
+                  ))}
+                </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Dashboard access alone (via staff permissions) is not enough — ask an
-                  admin to assign you the <span className="font-medium text-foreground">CFO</span> role.
+                  Dashboard access alone (via staff permissions) is not enough — ask a
+                  Super Admin to enable one of the roles above on your account.
                 </p>
               </div>
             </div>
