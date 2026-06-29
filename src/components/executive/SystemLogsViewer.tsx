@@ -59,6 +59,10 @@ const ACTION_COLORS: Record<string, string> = {
 
 const DEFAULT_ROLE_ACTIONS = ['forced_default_role_set', 'forced_default_role_cleared'];
 
+// High-volume automated events that drown out everything else in the feed.
+// Hidden by default so the System Logs show the full variety of activity.
+const NOISE_ACTIONS = ['cashout_claim_auto_released', 'roi_payout_requested'];
+
 function formatActionLabel(action: string): string {
   return action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -146,15 +150,22 @@ export function SystemLogsViewer() {
   const [targetUser, setTargetUser] = useState('');
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
+  const [includeNoise, setIncludeNoise] = useState(false);
 
   const { data: logs, isLoading, refetch } = useQuery({
-    queryKey: ['system-audit-logs'],
+    queryKey: ['system-audit-logs', includeNoise],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('audit_logs')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(500);
+
+      if (!includeNoise) {
+        query = query.not('action_type', 'in', `(${NOISE_ACTIONS.join(',')})`);
+      }
+
+      const { data } = await query;
 
       if (!data) return [];
 
@@ -239,8 +250,9 @@ export function SystemLogsViewer() {
     setToDate(undefined);
     setActionFilter('all');
     setSearchTerm('');
+    setIncludeNoise(false);
   };
-  const anyFilter = defaultRoleOnly || defaultRoleValue !== 'all' || !!targetUser || !!fromDate || !!toDate || actionFilter !== 'all' || !!searchTerm;
+  const anyFilter = defaultRoleOnly || defaultRoleValue !== 'all' || !!targetUser || !!fromDate || !!toDate || actionFilter !== 'all' || !!searchTerm || includeNoise;
 
   return (
     <div className="space-y-4">
@@ -295,6 +307,15 @@ export function SystemLogsViewer() {
           <Compass className="w-3.5 h-3.5" />
           Default Role Events
           <Badge variant="secondary" className="ml-1 px-1.5 text-[10px]">{defaultRoleCount}</Badge>
+        </Button>
+        <Button
+          variant={includeNoise ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setIncludeNoise(v => !v)}
+          className="gap-1.5"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          {includeNoise ? 'Hide automated events' : 'Show automated events'}
         </Button>
         <Select value={defaultRoleValue} onValueChange={setDefaultRoleValue}>
           <SelectTrigger className="w-[170px]">
