@@ -675,12 +675,15 @@ export default function SubAgentAnalytics() {
       const allTenantIds = [...allTenantIdSet];
       const tenantProfileById: Record<string, { full_name: string; phone: string | null }> = {};
       if (allTenantIds.length > 0) {
-        const { data: tenantProfiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', allTenantIds);
-        (tenantProfiles || []).forEach((tp) => {
-          tenantProfileById[tp.id] = { full_name: tp.full_name, phone: tp.phone ?? null };
+        // Sub-agents' tenants are not visible to the parent agent under
+        // profiles RLS, so fetch them through a SECURITY DEFINER RPC that
+        // returns only tenants belonging to the caller's sub-agents.
+        const { data: tenantProfiles } = await supabase.rpc('get_my_subagent_tenant_profiles');
+        const wantedTenantIds = new Set(allTenantIds);
+        (tenantProfiles || []).forEach((tp: { id: string; full_name: string; phone: string | null }) => {
+          if (wantedTenantIds.has(tp.id)) {
+            tenantProfileById[tp.id] = { full_name: tp.full_name, phone: tp.phone ?? null };
+          }
         });
       }
 
