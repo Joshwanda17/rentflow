@@ -552,11 +552,11 @@ export default function SubAgentAnalytics() {
         .neq('parent_agent_id', user.id);
       const otherParentSet = new Set((otherParentLinks || []).map(l => l.sub_agent_id));
 
-      // Fetch profiles
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, avatar_url, email, national_id, district, region, occupation, created_at')
-        .in('id', subAgentIds);
+      // Fetch sub-agent profiles via a SECURITY DEFINER RPC. A normal agent
+      // cannot read their sub-agents' rows directly (profiles RLS only exposes
+      // their own tenants), which previously made every sub-agent show as
+      // "Unknown". This RPC returns only the caller's own sub-agents.
+      const { data: profiles } = await supabase.rpc('get_my_subagent_profiles');
 
       // Fetch sub-agents' wallets
       const { data: wallets } = await supabase
@@ -675,12 +675,15 @@ export default function SubAgentAnalytics() {
       const allTenantIds = [...allTenantIdSet];
       const tenantProfileById: Record<string, { full_name: string; phone: string | null }> = {};
       if (allTenantIds.length > 0) {
-        const { data: tenantProfiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', allTenantIds);
-        (tenantProfiles || []).forEach((tp) => {
-          tenantProfileById[tp.id] = { full_name: tp.full_name, phone: tp.phone ?? null };
+        // Sub-agents' tenants are not visible to the parent agent under
+        // profiles RLS, so fetch them through a SECURITY DEFINER RPC that
+        // returns only tenants belonging to the caller's sub-agents.
+        const { data: tenantProfiles } = await supabase.rpc('get_my_subagent_tenant_profiles');
+        const wantedTenantIds = new Set(allTenantIds);
+        (tenantProfiles || []).forEach((tp: { id: string; full_name: string; phone: string | null }) => {
+          if (wantedTenantIds.has(tp.id)) {
+            tenantProfileById[tp.id] = { full_name: tp.full_name, phone: tp.phone ?? null };
+          }
         });
       }
 

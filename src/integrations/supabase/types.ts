@@ -21027,6 +21027,29 @@ export type Database = {
       get_mission_leaderboard: { Args: { p_limit?: number }; Returns: Json }
       get_my_ai_id_summary: { Args: never; Returns: Json }
       get_my_listing_block: { Args: never; Returns: Json }
+      get_my_subagent_profiles: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          created_at: string
+          district: string
+          email: string
+          full_name: string
+          id: string
+          national_id: string
+          occupation: string
+          phone: string
+          region: string
+        }[]
+      }
+      get_my_subagent_tenant_profiles: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       get_nearby_cashout_agents: {
         Args: { _lat?: number; _lng?: number }
         Returns: {

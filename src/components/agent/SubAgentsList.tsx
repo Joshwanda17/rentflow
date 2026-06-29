@@ -126,11 +126,14 @@ export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps
         return;
       }
 
-      // Profiles
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, avatar_url')
-        .in('id', finalIds);
+      // Profiles — fetched via SECURITY DEFINER RPC so the parent agent can
+      // resolve their sub-agents' names/phones (profiles RLS blocks direct
+      // reads of other users, which previously showed everyone as "Unknown").
+      const { data: profilesRaw } = await supabase.rpc('get_my_subagent_profiles');
+      const finalIdSet = new Set(finalIds);
+      const profiles = ((profilesRaw as Array<{ id: string; full_name: string; phone: string; avatar_url: string | null }>) || [])
+        .filter((p) => finalIdSet.has(p.id))
+        .map((p) => ({ id: p.id, full_name: p.full_name, phone: p.phone, avatar_url: p.avatar_url }));
 
       // Tenant counts + map each tenant back to the sub-agent who manages them.
       // (subagent_commission earnings store the TENANT id in source_user_id,
