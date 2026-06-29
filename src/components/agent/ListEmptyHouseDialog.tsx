@@ -2304,7 +2304,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <div
             id="lh-field-photos"
             className={`space-y-2 p-3 rounded-xl border ${
-              attempted && images.length === 0 ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
+              attempted && images.length < 3 ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
             }`}
           >
             <p className="text-sm font-medium">
@@ -2320,9 +2320,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               region={form.region}
               district={form.district}
               village={form.village}
+              maxImages={14}
+              minImages={3}
+              cameraOnly
             />
-            {attempted && images.length === 0 && (
-              <FieldError message="Add at least one photo of the house to list it." />
+            {attempted && images.length < 3 && (
+              <FieldError message="Take at least 3 photos of the house to list it." />
             )}
           </div>
 
