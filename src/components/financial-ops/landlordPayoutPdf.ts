@@ -202,6 +202,7 @@ export async function renderPayoutCardPng(d: LandlordPayoutShareData): Promise<s
  */
 export async function buildBulkPayoutsPdfBlob(
   rows: LandlordPayoutShareData[],
+  columns?: PayoutColumnKey[],
   onProgress?: (done: number, total: number) => void,
 ): Promise<Blob> {
   if (!rows.length) throw new Error('No payouts to export');
@@ -213,22 +214,38 @@ export async function buildBulkPayoutsPdfBlob(
   const pageW = A4_PAGE_MM.width;
   const generatedAt = new Date().toLocaleString('en-UG');
   const total = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const cols = resolveColumns(columns);
+  const amountIdx = cols.findIndex((c) => c.key === 'amount');
 
-  const body = rows.map((d, i) => [
-    String(i + 1),
-    new Date(d.paid_at).toLocaleDateString('en-UG'),
-    d.landlord_name || '—',
-    `${d.mobile_money_provider || ''} ${d.landlord_phone || ''}`.trim() || '—',
-    d.tenant_name || 'Unallocated',
-    d.agent_name || '—',
-    d.momo_reference || '—',
-    formatUGX(Number(d.amount || 0)),
-  ]);
+  const body = rows.map((d, i) => [String(i + 1), ...cols.map((c) => c.text(d))]);
+
+  // Footer: blank cells across, "Total" in the second-to-last column when an
+  // amount column is present, then the grand total under the amount column.
+  const footRow = ['', ...cols.map(() => '')];
+  if (amountIdx >= 0) {
+    footRow[amountIdx + 1] = formatUGX(total);
+    if (amountIdx >= 1) footRow[amountIdx] = 'Total';
+    else footRow[0] = 'Total';
+  }
+
+  // Per-column PDF styling, offset by 1 for the leading "#" column.
+  const columnStyles: Record<number, any> = { 0: { cellWidth: 11, halign: 'right' } };
+  cols.forEach((c, idx) => {
+    const pos = idx + 1;
+    const style: any = {};
+    if (c.pdfWidth) style.cellWidth = c.pdfWidth;
+    if (c.pdfFontSize) style.fontSize = c.pdfFontSize;
+    if (c.numeric) {
+      style.halign = 'right';
+      style.fontStyle = 'bold';
+    }
+    if (Object.keys(style).length) columnStyles[pos] = style;
+  });
 
   autoTable(pdf, {
-    head: [['#', 'Date', 'Landlord', 'MoMo Number', 'Tenant', 'Agent', 'MoMo TID', 'Amount']],
+    head: [['#', ...cols.map((c) => c.label)]],
     body,
-    foot: [['', '', '', '', '', '', 'Total', formatUGX(total)]],
+    foot: amountIdx >= 0 ? [footRow] : undefined,
     // Grand total only on the final page so per-page footers don't read as
     // misleading "running" totals.
     showFoot: 'lastPage',
@@ -245,12 +262,7 @@ export async function buildBulkPayoutsPdfBlob(
     headStyles: { fillColor: [122, 0, 204], textColor: [255, 255, 255], fontStyle: 'bold' },
     footStyles: { fillColor: [240, 235, 250], textColor: [0, 0, 0], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 246, 252] },
-    columnStyles: {
-      0: { cellWidth: 11, halign: 'right' },
-      1: { cellWidth: 18 },
-      6: { cellWidth: 26, fontSize: 7 },
-      7: { halign: 'right', fontStyle: 'bold' },
-    },
+    columnStyles,
     didDrawPage: () => {
       // Header
       pdf.setFontSize(16);
@@ -280,6 +292,36 @@ export async function buildBulkPayoutsPdfBlob(
 
   onProgress?.(rows.length, rows.length);
   return pdf.output('blob');
+}
+
+/**
+ * Build a spreadsheet (XLSX) of the funded payouts using the same
+ * selectable column registry as the PDF list export. Amounts stay numeric
+ * so Excel can sum/filter them, and a grand-total row is appended.
+ */
+export async function exportPayoutsXlsx(
+  rows: LandlordPayoutShareData[],
+  filename: string,
+  columns?: PayoutColumnKey[],
+): Promise<void> {
+  if (!rows.length) throw new Error('No payouts to export');
+  const cols = resolveColumns(columns);
+  const headers = ['#', ...cols.map((c) => c.label)];
+  const dataRows: (string | number)[][] = rows.map((d, i) => [
+    i + 1,
+    ...cols.map((c) => (c.raw ? c.raw(d) : c.text(d))),
+  ]);
+
+  const amountIdx = cols.findIndex((c) => c.key === 'amount');
+  if (amountIdx >= 0) {
+    const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+    const totalRow: (string | number)[] = ['', ...cols.map(() => '')];
+    totalRow[amountIdx + 1] = total;
+    totalRow[amountIdx >= 1 ? amountIdx : 0] = 'Total';
+    dataRows.push(totalRow);
+  }
+
+  await downloadXlsx(filename, headers, dataRows, 'Funded Payouts');
 }
 
 /**
