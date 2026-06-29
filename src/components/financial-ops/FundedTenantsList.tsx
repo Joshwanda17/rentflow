@@ -369,7 +369,7 @@ export function FundedTenantsList() {
       const blob =
         exportMode === 'cards'
           ? await buildBulkCardsPdfBlob(data, onProgress)
-          : await buildBulkPayoutsPdfBlob(data, exportCols, onProgress);
+          : await buildBulkPayoutsPdfBlob(data, orderedCols, onProgress);
       const stamp = new Date().toISOString().slice(0, 10);
       downloadBlob(
         blob,
@@ -390,7 +390,7 @@ export function FundedTenantsList() {
       await exportPayoutsXlsx(
         filtered.map(rowToShareData),
         `welile-funded-landlord-payouts-${stamp}-${scopeSlug}-x${filtered.length}.xlsx`,
-        exportCols,
+        orderedCols,
       );
       toast.success(`Exported ${filtered.length} payouts to spreadsheet`);
     } catch (e: any) {
