@@ -139,19 +139,7 @@ export function StandingOrdersManager() {
   return (
     <div className="space-y-4">
     <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 text-primary" />
-            Standing Orders ({orders.length})
-          </CardTitle>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={load} disabled={loading}>
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">Pause, resume, or cancel recurring payouts. Changes only affect future runs.</p>
-      </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-2 pt-4">
         {loading ? (
           <div className="flex items-center justify-center py-6 text-muted-foreground text-xs gap-2">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
