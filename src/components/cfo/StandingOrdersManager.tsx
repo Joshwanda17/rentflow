@@ -12,7 +12,6 @@ import { useToast } from '@/hooks/use-toast';
 import { describeSchedule, type PayoutScheduleConfig } from './PayoutAutomationToggle';
 import { Pause, Play, Trash2, RefreshCw, CalendarClock, Loader2 } from 'lucide-react';
 import { logStandingOrderAction } from '@/lib/standingOrderAudit';
-import { StandingOrderAuditLog } from './StandingOrderAuditLog';
 import { AutoPayoutHistory } from './AutoPayoutHistory';
 import { StandingOrderProfileSheet } from './StandingOrderProfileSheet';
 
