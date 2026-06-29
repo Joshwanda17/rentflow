@@ -18,6 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
 import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
 import { RecordAdvancePaymentDialog } from '@/components/cfo/RecordAdvancePaymentDialog';
+import { DailyRecoveryRateCard } from '@/components/cfo/DailyRecoveryRateCard';
 import { differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -267,6 +268,9 @@ export function CFOAdvancesManager() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Daily Recovery Rate (CFO-adjustable) */}
+      <DailyRecoveryRateCard />
 
       {/* Filters */}
       <Tabs value={filter} onValueChange={(v) => { setFilter(v as any); setSelectedIds(new Set()); }}>
