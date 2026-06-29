@@ -10,6 +10,20 @@ interface UserResult {
   phone: string;
 }
 
+/** Exact app-roles whose RLS policies grant full user-directory search. */
+const REQUIRED_SEARCH_ROLES = [
+  'CFO',
+  'Manager',
+  'Operations',
+  'Super Admin',
+  'COO',
+  'CEO',
+  'CTO',
+  'CMO',
+  'CRM',
+  'HR',
+] as const;
+
 interface UserSearchPickerProps {
   label: string;
   placeholder?: string;
