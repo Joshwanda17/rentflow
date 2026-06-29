@@ -989,8 +989,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Village / Zone is required');
       return;
     }
-    if (images.length === 0) {
-      failWith('Add at least one photo of the house');
+    if (images.length < 3) {
+      failWith('Take at least 3 photos of the house');
       return;
     }
     // Landlord name is mandatory for every listing.
