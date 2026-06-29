@@ -35,6 +35,7 @@ const WalletCard = lazy(() => import('@/components/wallet/WalletCard').then(m =>
 const DiagnosticsSection = lazy(() => import('@/components/settings/DiagnosticsSection'));
 const PinSecuritySection = lazy(() => import('@/components/settings/PinSecuritySection'));
 const BiometricSecuritySection = lazy(() => import('@/components/settings/BiometricSecuritySection'));
+const DeviceSessionsSection = lazy(() => import('@/components/settings/DeviceSessionsSection'));
 const TrustPrivacySection = lazy(() => import('@/components/settings/TrustPrivacySection'));
 const MyLandlordsSection = lazy(() => import('@/components/tenant/MyLandlordsSection'));
 const MyTenantsSection = lazy(() => import('@/components/landlord/MyTenantsSection'));
@@ -719,6 +720,7 @@ export default function Settings() {
                 </Card>
                 <LazySection name="PinSecurity"><PinSecuritySection /></LazySection>
                 <LazySection name="BiometricSecurity"><BiometricSecuritySection /></LazySection>
+                <LazySection name="DeviceSessions"><DeviceSessionsSection /></LazySection>
                 <LazySection name="TrustPrivacy"><TrustPrivacySection /></LazySection>
               </div>
             )}
