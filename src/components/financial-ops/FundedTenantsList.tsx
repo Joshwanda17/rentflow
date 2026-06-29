@@ -110,6 +110,7 @@ export function FundedTenantsList() {
   const [share, setShare] = useState<LandlordPayoutShareData | null>(null);
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
   const [exportMode, setExportMode] = useState<'list' | 'cards'>('list');
+  const [exportCols, setExportCols] = useState<PayoutColumnKey[]>(DEFAULT_PAYOUT_COLUMNS);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDays, setCustomDays] = useState<number>(14);
   const [countryFilter, setCountryFilter] = useState<string>('all');
