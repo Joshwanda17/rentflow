@@ -410,6 +410,20 @@ export function FundedTenantsList() {
         <Badge variant="outline" className="shrink-0">
           {filtered.length} · {formatUGX(totalAmount)}
         </Badge>
+        <ToggleGroup
+          type="single"
+          value={exportMode}
+          onValueChange={(v) => v && setExportMode(v as 'list' | 'cards')}
+          className="shrink-0"
+          aria-label="PDF export view"
+        >
+          <ToggleGroupItem value="list" size="sm" className="gap-1.5 px-2.5" aria-label="Compact list view" title="Export as a compact list (many per page)">
+            <List className="h-3.5 w-3.5" /> List
+          </ToggleGroupItem>
+          <ToggleGroupItem value="cards" size="sm" className="gap-1.5 px-2.5" aria-label="Card view" title="Export as branded receipt cards">
+            <LayoutGrid className="h-3.5 w-3.5" /> Cards
+          </ToggleGroupItem>
+        </ToggleGroup>
         <Button
           size="sm"
           variant="outline"
@@ -418,8 +432,8 @@ export function FundedTenantsList() {
           disabled={!filtered.length || !!bulk}
           title={
             scopeLabel
-              ? `Download ${filtered.length} payouts (${scopeLabel}) as one PDF — compact list`
-              : `Download all ${filtered.length} visible payouts as one PDF — compact list`
+              ? `Download ${filtered.length} payouts (${scopeLabel}) as one PDF — ${exportMode === 'cards' ? 'receipt cards' : 'compact list'}`
+              : `Download all ${filtered.length} visible payouts as one PDF — ${exportMode === 'cards' ? 'receipt cards' : 'compact list'}`
           }
         >
           {bulk ? (
