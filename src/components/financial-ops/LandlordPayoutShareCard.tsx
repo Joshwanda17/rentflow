@@ -33,6 +33,7 @@ export interface LandlordPayoutShareData {
   agent_phone: string | null;
   momo_reference: string;
   paid_at: string; // ISO
+  country?: string | null;
 }
 
 function formatUGX(n: number) {

@@ -8,10 +8,20 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, Search, Share2, User, Home, Receipt, FileDown, UserCog } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './LandlordPayoutShareCard';
-import { buildBulkPayoutsPdfBlob, buildBulkCardsPdfBlob, downloadBlob } from './landlordPayoutPdf';
+import {
+  buildBulkPayoutsPdfBlob,
+  buildBulkCardsPdfBlob,
+  downloadBlob,
+  exportPayoutsXlsx,
+  PAYOUT_COLUMNS,
+  DEFAULT_PAYOUT_COLUMNS,
+  type PayoutColumnKey,
+} from './landlordPayoutPdf';
 import { toast } from 'sonner';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { List, LayoutGrid } from 'lucide-react';
+import { List, LayoutGrid, Columns3, FileSpreadsheet } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import {
   Select,
@@ -100,6 +110,7 @@ export function FundedTenantsList() {
   const [share, setShare] = useState<LandlordPayoutShareData | null>(null);
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
   const [exportMode, setExportMode] = useState<'list' | 'cards'>('list');
+  const [exportCols, setExportCols] = useState<PayoutColumnKey[]>(DEFAULT_PAYOUT_COLUMNS);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customDays, setCustomDays] = useState<number>(14);
   const [countryFilter, setCountryFilter] = useState<string>('all');
@@ -316,6 +327,7 @@ export function FundedTenantsList() {
     agent_phone: r.agent_profile?.phone ?? null,
     momo_reference: r.finops_momo_reference ?? r.external_reference ?? '—',
     paid_at: r.finops_disbursed_at ?? r.created_at,
+    country: r.country ?? null,
   });
 
   const scopeLabel = useMemo(() => {
@@ -352,11 +364,12 @@ export function FundedTenantsList() {
     }
     setBulk({ done: 0, total: filtered.length });
     try {
-      const builder = exportMode === 'cards' ? buildBulkCardsPdfBlob : buildBulkPayoutsPdfBlob;
-      const blob = await builder(
-        filtered.map(rowToShareData),
-        (done, total) => setBulk({ done, total }),
-      );
+      const onProgress = (done: number, total: number) => setBulk({ done, total });
+      const data = filtered.map(rowToShareData);
+      const blob =
+        exportMode === 'cards'
+          ? await buildBulkCardsPdfBlob(data, onProgress)
+          : await buildBulkPayoutsPdfBlob(data, orderedCols, onProgress);
       const stamp = new Date().toISOString().slice(0, 10);
       downloadBlob(
         blob,
@@ -369,6 +382,37 @@ export function FundedTenantsList() {
       setBulk(null);
     }
   };
+
+  const handleExportXlsx = async () => {
+    if (!filtered.length) return;
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      await exportPayoutsXlsx(
+        filtered.map(rowToShareData),
+        `welile-funded-landlord-payouts-${stamp}-${scopeSlug}-x${filtered.length}.xlsx`,
+        orderedCols,
+      );
+      toast.success(`Exported ${filtered.length} payouts to spreadsheet`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to build spreadsheet');
+    }
+  };
+
+  const toggleCol = (key: PayoutColumnKey) => {
+    setExportCols((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  };
+
+  // Keep export columns in the canonical registry order regardless of the
+  // order the user ticked the checkboxes.
+  const orderedCols = useMemo(
+    () =>
+      PAYOUT_COLUMNS.map((c) => c.key).filter((k) =>
+        exportCols.includes(k),
+      ) as PayoutColumnKey[],
+    [exportCols],
+  );
 
   if (isLoading) {
     return (
@@ -426,6 +470,59 @@ export function FundedTenantsList() {
             <LayoutGrid className="h-3.5 w-3.5" /> Cards
           </ToggleGroupItem>
         </ToggleGroup>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 gap-1.5"
+              disabled={exportMode === 'cards'}
+              title={
+                exportMode === 'cards'
+                  ? 'Column selection applies to the List & spreadsheet exports'
+                  : 'Choose which columns to include in the export'
+              }
+            >
+              <Columns3 className="h-3.5 w-3.5" />
+              Columns ({orderedCols.length})
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-56 p-2">
+            <div className="px-1 pb-1.5 text-xs font-semibold text-muted-foreground">
+              Export columns
+            </div>
+            <div className="space-y-0.5">
+              {PAYOUT_COLUMNS.map((c) => (
+                <label
+                  key={c.key}
+                  className="flex items-center gap-2 rounded-md px-1.5 py-1.5 text-sm hover:bg-muted cursor-pointer"
+                >
+                  <Checkbox
+                    checked={exportCols.includes(c.key)}
+                    onCheckedChange={() => toggleCol(c.key)}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+            <div className="mt-1.5 flex items-center justify-between border-t pt-1.5">
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+                onClick={() => setExportCols(DEFAULT_PAYOUT_COLUMNS)}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+                onClick={() => setExportCols(PAYOUT_COLUMNS.map((c) => c.key))}
+              >
+                Select all
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
         <Button
           size="sm"
           variant="outline"
@@ -449,6 +546,17 @@ export function FundedTenantsList() {
               Bulk PDF ({filtered.length}{scopeLabel ? ` · ${scopeLabel}` : ''})
             </>
           )}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0 gap-1.5"
+          onClick={handleExportXlsx}
+          disabled={!filtered.length || !!bulk || !orderedCols.length}
+          title={`Download ${filtered.length} payouts as a spreadsheet (XLSX) with the selected columns`}
+        >
+          <FileSpreadsheet className="h-3.5 w-3.5" />
+          Excel
         </Button>
       </div>
 
