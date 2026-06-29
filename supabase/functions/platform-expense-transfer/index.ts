@@ -338,6 +338,29 @@ Deno.serve(async (req) => {
               reason: 'payroll_advance_recovery',
             },
           });
+
+          // ── Salary credit SMS (fire only when money actually hit the wallet) ──
+          if (takeHome > 0) {
+            const prof = profileMap.get(item.employee_id);
+            if (prof?.phone) {
+              const firstName = (prof.full_name || "Team Member").trim().split(/\s+/)[0];
+              const smsMsg =
+                `Dear ${firstName}, your salary for ${payrollPeriod} has been successfully processed and credited to your wallet. ` +
+                `Log in to view your updated balance and transaction history. For any discrepancies or questions, contact the Finance Department. ` +
+                `Thank you for your continued commitment. - Welile Finance Department`;
+              try {
+                const sent = await sendSMS(prof.phone, smsMsg, {
+                  recipientUserId: item.employee_id,
+                  recipientName: prof.full_name,
+                  referenceId: refId,
+                });
+                console.log(`[platform-expense-transfer] payroll SMS to ${prof.phone}: ${sent ? "sent" : "failed"} ref=${refId}`);
+              } catch (e) {
+                console.error("[platform-expense-transfer] payroll SMS failed:", (e as Error).message);
+              }
+            }
+          }
+
           processed++;
         } catch (e) {
           console.error(`Payroll item ${item.id} failed:`, e);
