@@ -242,7 +242,6 @@ export function StandingOrdersManager() {
       </CardContent>
     </Card>
     <AutoPayoutHistory />
-    <StandingOrderAuditLog />
     <StandingOrderProfileSheet
       open={!!profileOrder}
       onClose={() => setProfileOrder(null)}
