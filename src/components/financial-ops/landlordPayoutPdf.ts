@@ -121,67 +121,10 @@ export async function renderPayoutCardPng(d: LandlordPayoutShareData): Promise<s
   }
 }
 
-function drawHeaderFooter(pdf: any, d: LandlordPayoutShareData) {
-  const pageW = A4_PAGE_MM.width;
-  const pageH = A4_PAGE_MM.height;
-  const margin = PDF_MARGIN_MM;
-
-  pdf.setFontSize(16);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(0, 0, 0);
-  pdf.text('Welile — Landlord Payout Confirmation', margin, margin + 6);
-  pdf.setFontSize(9);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(100, 100, 100);
-  pdf.text(
-    `Generated: ${new Date().toLocaleString('en-UG')}  ·  MoMo TID: ${d.momo_reference}`,
-    margin,
-    margin + 12,
-  );
-  pdf.setTextColor(0, 0, 0);
-  pdf.setDrawColor(220, 220, 220);
-  pdf.setLineWidth(0.2);
-  pdf.line(margin, margin + PDF_HEADER_MM - 2, pageW - margin, margin + PDF_HEADER_MM - 2);
-
-  const footerY = pageH - margin - PDF_FOOTER_MM + 6;
-  pdf.line(margin, footerY - 4, pageW - margin, footerY - 4);
-  pdf.setFontSize(9);
-  pdf.setTextColor(80, 80, 80);
-  pdf.text(
-    'This is an internal Welile payout confirmation. Please retain for reconciliation.',
-    margin,
-    footerY,
-  );
-  pdf.text('welilereceipts.com', margin, footerY + 5);
-  pdf.setTextColor(0, 0, 0);
-}
-
-async function placeCardOnPage(pdf: any, dataUrl: string) {
-  const pageW = A4_PAGE_MM.width;
-  const pageH = A4_PAGE_MM.height;
-  const margin = PDF_MARGIN_MM;
-  const contentTop = margin + PDF_HEADER_MM;
-  const contentBottom = pageH - margin - PDF_FOOTER_MM;
-  const contentW = pageW - margin * 2;
-  const contentH = contentBottom - contentTop;
-
-  const img = new Image();
-  img.src = dataUrl;
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error('Failed to render card image'));
-  });
-  const scale = Math.min(contentW / img.width, contentH / img.height);
-  const drawW = img.width * scale;
-  const drawH = img.height * scale;
-  const drawX = margin + (contentW - drawW) / 2;
-  const drawY = contentTop + (contentH - drawH) / 2;
-  pdf.addImage(dataUrl, 'PNG', drawX, drawY, drawW, drawH, undefined, 'FAST');
-}
-
 /**
- * Build a multi-page PDF — one A4 page per landlord payout.
- * Caller can pass an `onProgress(done, total)` callback for UX.
+ * Build a compact list PDF — many landlord payouts per A4 page,
+ * rendered as a table (NOT one card per page). Caller can pass an
+ * `onProgress(done, total)` callback for UX.
  */
 export async function buildBulkPayoutsPdfBlob(
   rows: LandlordPayoutShareData[],
@@ -189,17 +132,69 @@ export async function buildBulkPayoutsPdfBlob(
 ): Promise<Blob> {
   if (!rows.length) throw new Error('No payouts to export');
   const { jsPDF } = await import('jspdf');
+  const autoTable = (await import('jspdf-autotable')).default;
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
 
-  for (let i = 0; i < rows.length; i++) {
-    if (i > 0) pdf.addPage();
-    const d = rows[i];
-    drawHeaderFooter(pdf, d);
-    const dataUrl = await renderPayoutCardPng(d);
-    await placeCardOnPage(pdf, dataUrl);
-    onProgress?.(i + 1, rows.length);
-  }
+  const margin = PDF_MARGIN_MM;
+  const pageW = A4_PAGE_MM.width;
+  const generatedAt = new Date().toLocaleString('en-UG');
+  const total = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
+  const body = rows.map((d, i) => [
+    String(i + 1),
+    new Date(d.paid_at).toLocaleDateString('en-UG'),
+    d.landlord_name || '—',
+    `${d.mobile_money_provider || ''} ${d.landlord_phone || ''}`.trim() || '—',
+    d.tenant_name || 'Unallocated',
+    d.agent_name || '—',
+    d.momo_reference || '—',
+    formatUGX(Number(d.amount || 0)),
+  ]);
+
+  autoTable(pdf, {
+    head: [['#', 'Date', 'Landlord', 'MoMo Number', 'Tenant', 'Agent', 'MoMo TID', 'Amount']],
+    body,
+    foot: [['', '', '', '', '', '', 'Total', formatUGX(total)]],
+    startY: margin + PDF_HEADER_MM,
+    margin: { left: margin, right: margin, bottom: PDF_FOOTER_MM + margin },
+    styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
+    headStyles: { fillColor: [122, 0, 204], textColor: [255, 255, 255], fontStyle: 'bold' },
+    footStyles: { fillColor: [240, 235, 250], textColor: [0, 0, 0], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 246, 252] },
+    columnStyles: {
+      0: { cellWidth: 8, halign: 'right' },
+      1: { cellWidth: 18 },
+      6: { cellWidth: 26, fontSize: 7 },
+      7: { halign: 'right', fontStyle: 'bold' },
+    },
+    didDrawPage: () => {
+      // Header
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('Welile — Funded Landlord Payouts', margin, margin + 6);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Generated: ${generatedAt}  ·  ${rows.length} payouts`, margin, margin + 12);
+      pdf.setTextColor(0, 0, 0);
+
+      // Footer
+      const pageH = A4_PAGE_MM.height;
+      const footerY = pageH - margin - PDF_FOOTER_MM + 6;
+      pdf.setDrawColor(220, 220, 220);
+      pdf.setLineWidth(0.2);
+      pdf.line(margin, footerY - 4, pageW - margin, footerY - 4);
+      pdf.setFontSize(8);
+      pdf.setTextColor(80, 80, 80);
+      pdf.text('Internal Welile payout reconciliation report · welilereceipts.com', margin, footerY);
+      const pageNum = pdf.getNumberOfPages();
+      pdf.text(`Page ${pageNum}`, pageW - margin, footerY, { align: 'right' });
+      pdf.setTextColor(0, 0, 0);
+    },
+  });
+
+  onProgress?.(rows.length, rows.length);
   return pdf.output('blob');
 }
 
