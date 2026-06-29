@@ -1700,7 +1700,7 @@ Deno.serve(async (req) => {
     // for proxy/pool payouts, and never when the merchant is the requester.
     let merchantReimbursed = 0;
     if (
-      isCashoutAgent &&
+      actingAsMerchant &&
       !isProxyPayout &&
       !poolFunded &&
       user.id !== fundingUserId &&
