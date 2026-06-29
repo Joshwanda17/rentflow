@@ -552,11 +552,11 @@ export default function SubAgentAnalytics() {
         .neq('parent_agent_id', user.id);
       const otherParentSet = new Set((otherParentLinks || []).map(l => l.sub_agent_id));
 
-      // Fetch profiles
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, avatar_url, email, national_id, district, region, occupation, created_at')
-        .in('id', subAgentIds);
+      // Fetch sub-agent profiles via a SECURITY DEFINER RPC. A normal agent
+      // cannot read their sub-agents' rows directly (profiles RLS only exposes
+      // their own tenants), which previously made every sub-agent show as
+      // "Unknown". This RPC returns only the caller's own sub-agents.
+      const { data: profiles } = await supabase.rpc('get_my_subagent_profiles');
 
       // Fetch sub-agents' wallets
       const { data: wallets } = await supabase
