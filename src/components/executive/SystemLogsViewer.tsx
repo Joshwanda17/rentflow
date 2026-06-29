@@ -150,15 +150,22 @@ export function SystemLogsViewer() {
   const [targetUser, setTargetUser] = useState('');
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
+  const [includeNoise, setIncludeNoise] = useState(false);
 
   const { data: logs, isLoading, refetch } = useQuery({
-    queryKey: ['system-audit-logs'],
+    queryKey: ['system-audit-logs', includeNoise],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('audit_logs')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(500);
+
+      if (!includeNoise) {
+        query = query.not('action_type', 'in', `(${NOISE_ACTIONS.join(',')})`);
+      }
+
+      const { data } = await query;
 
       if (!data) return [];
 
