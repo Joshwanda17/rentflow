@@ -8,10 +8,20 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, Search, Share2, User, Home, Receipt, FileDown, UserCog } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { LandlordPayoutShareCard, type LandlordPayoutShareData } from './LandlordPayoutShareCard';
-import { buildBulkPayoutsPdfBlob, buildBulkCardsPdfBlob, downloadBlob } from './landlordPayoutPdf';
+import {
+  buildBulkPayoutsPdfBlob,
+  buildBulkCardsPdfBlob,
+  downloadBlob,
+  exportPayoutsXlsx,
+  PAYOUT_COLUMNS,
+  DEFAULT_PAYOUT_COLUMNS,
+  type PayoutColumnKey,
+} from './landlordPayoutPdf';
 import { toast } from 'sonner';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { List, LayoutGrid } from 'lucide-react';
+import { List, LayoutGrid, Columns3, FileSpreadsheet } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { UserDrilldownDrawer } from '@/components/ops/UserDrilldownDrawer';
 import {
   Select,
