@@ -260,12 +260,8 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
   const loadFullProfile = async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
-      const [profileRes, rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes, rolesRes] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id, avatar_url, tenant_status, previous_full_name')
-          .eq('id', tenantId)
-          .single(),
+      const settled = await Promise.allSettled([
+        supabase.rpc('get_agent_tenant_profile', { p_tenant_id: tenantId }),
         supabase
           .from('rent_requests')
           .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, phone)')
@@ -282,7 +278,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .from('wallets')
           .select('balance')
           .eq('user_id', tenantId)
-          .single(),
+          .maybeSingle(),
         supabase
           .from('investor_portfolios')
           .select('investment_amount')
@@ -299,6 +295,21 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .select('role, enabled')
           .eq('user_id', tenantId),
       ]);
+
+      const responseOrNull = (result: PromiseSettledResult<any>, label: string) => {
+        if (result.status === 'rejected') {
+          console.warn(`[TenantProfileView] ${label} request failed`, result.reason);
+          return null;
+        }
+        if (result.value?.error) {
+          console.warn(`[TenantProfileView] ${label} returned an error`, result.value.error);
+        }
+        return result.value;
+      };
+
+      const [profileRes, rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes, rolesRes] = settled.map((result, idx) =>
+        responseOrNull(result, ['profile', 'rent requests', 'repayments', 'wallet', 'portfolio', 'ledger', 'roles'][idx]),
+      );
 
       // Agent's own float allocations toward this tenant (exact date & time).
       if (user?.id) {
@@ -326,11 +337,14 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
         );
       }
 
-      if (profileRes.data) {
-        setProfile(profileRes.data as unknown as TenantProfile);
+      const profileRow = Array.isArray(profileRes?.data) ? profileRes.data[0] : profileRes?.data;
+      if (profileRow) {
+        setProfile(profileRow as unknown as TenantProfile);
+      } else {
+        setProfile(null);
       }
 
-      setRequests(((rentRes.data as unknown as RentRequestRow[]) || []).map((req) => {
+      setRequests(((rentRes?.data as unknown as RentRequestRow[]) || []).map((req) => {
         const effective = getEffectiveRentRequestAmounts(req);
         return {
           ...req,
@@ -338,21 +352,21 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           daily_repayment: effective.dailyRepayment,
         };
       }));
-      setRepayments((repaymentRes.data as RepaymentRow[]) || []);
+      setRepayments((repaymentRes?.data as RepaymentRow[]) || []);
 
-      const ledgerEntries = (ledgerRes.data || []) as any[];
+      const ledgerEntries = (ledgerRes?.data || []) as any[];
       const totalIn = ledgerEntries.filter(e => e.direction === 'cash_in').reduce((s: number, e: any) => s + (e.amount || 0), 0);
       const totalOut = ledgerEntries.filter(e => e.direction === 'cash_out').reduce((s: number, e: any) => s + (e.amount || 0), 0);
       setWalletData({
-        balance: walletRes.data?.balance ?? 0,
+        balance: walletRes?.data?.balance ?? 0,
         total_in: totalIn,
         total_out: totalOut,
       });
 
-      const pAmount = (portfolioRes.data || []).reduce((s: number, p: any) => s + (p.investment_amount || 0), 0);
+      const pAmount = (portfolioRes?.data || []).reduce((s: number, p: any) => s + (p.investment_amount || 0), 0);
       setPartnershipAmount(pAmount);
 
-      const enabledRoles = ((rolesRes.data || []) as any[])
+      const enabledRoles = ((rolesRes?.data || []) as any[])
         .filter(r => r.enabled === null || r.enabled === true)
         .map(r => r.role as string);
       setUserRoles(enabledRoles);
