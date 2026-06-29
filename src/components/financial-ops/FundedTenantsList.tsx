@@ -364,11 +364,12 @@ export function FundedTenantsList() {
     }
     setBulk({ done: 0, total: filtered.length });
     try {
-      const builder = exportMode === 'cards' ? buildBulkCardsPdfBlob : buildBulkPayoutsPdfBlob;
-      const blob = await builder(
-        filtered.map(rowToShareData),
-        (done, total) => setBulk({ done, total }),
-      );
+      const onProgress = (done: number, total: number) => setBulk({ done, total });
+      const data = filtered.map(rowToShareData);
+      const blob =
+        exportMode === 'cards'
+          ? await buildBulkCardsPdfBlob(data, onProgress)
+          : await buildBulkPayoutsPdfBlob(data, exportCols, onProgress);
       const stamp = new Date().toISOString().slice(0, 10);
       downloadBlob(
         blob,
@@ -380,6 +381,27 @@ export function FundedTenantsList() {
     } finally {
       setBulk(null);
     }
+  };
+
+  const handleExportXlsx = async () => {
+    if (!filtered.length) return;
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      await exportPayoutsXlsx(
+        filtered.map(rowToShareData),
+        `welile-funded-landlord-payouts-${stamp}-${scopeSlug}-x${filtered.length}.xlsx`,
+        exportCols,
+      );
+      toast.success(`Exported ${filtered.length} payouts to spreadsheet`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to build spreadsheet');
+    }
+  };
+
+  const toggleCol = (key: PayoutColumnKey) => {
+    setExportCols((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
   };
 
   if (isLoading) {
