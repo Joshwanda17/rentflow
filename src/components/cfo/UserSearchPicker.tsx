@@ -177,13 +177,35 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             ))}
           </div>
         )}
-        {showResults && query.length >= 2 && !loading && searchError && (
+        {showResults && query.length >= 2 && !loading && permissionDenied && (
+          <div className="absolute z-50 w-full mt-1 bg-popover border border-destructive/30 rounded-lg shadow-lg p-3 text-left">
+            <div className="flex items-start gap-2">
+              <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-destructive">No permission to search users</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Your account can open this dashboard, but searching the full user
+                  directory needs one of these <span className="font-medium text-foreground">roles</span>:
+                  {' '}<span className="font-medium text-foreground">CFO</span>,{' '}
+                  <span className="font-medium text-foreground">Manager</span>,{' '}
+                  <span className="font-medium text-foreground">Operations</span>, or{' '}
+                  <span className="font-medium text-foreground">Super Admin</span>.
+                </p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Dashboard access alone (via staff permissions) is not enough — ask an
+                  admin to assign you the <span className="font-medium text-foreground">CFO</span> role.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        {showResults && query.length >= 2 && !loading && !permissionDenied && searchError && (
           <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg p-3 text-center text-xs text-destructive flex items-center justify-center gap-2">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             <span>{searchError}</span>
           </div>
         )}
-        {showResults && query.length >= 2 && !loading && !searchError && results.length === 0 && (
+        {showResults && query.length >= 2 && !loading && !permissionDenied && !searchError && results.length === 0 && (
           <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg p-3 text-center text-xs text-muted-foreground">
             No users found
           </div>
