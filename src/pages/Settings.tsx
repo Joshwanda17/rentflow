@@ -720,6 +720,7 @@ export default function Settings() {
                 </Card>
                 <LazySection name="PinSecurity"><PinSecuritySection /></LazySection>
                 <LazySection name="BiometricSecurity"><BiometricSecuritySection /></LazySection>
+                <LazySection name="DeviceSessions"><DeviceSessionsSection /></LazySection>
                 <LazySection name="TrustPrivacy"><TrustPrivacySection /></LazySection>
               </div>
             )}
