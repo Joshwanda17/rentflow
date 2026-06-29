@@ -251,9 +251,9 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
             <>
               <Button
                 type="button"
-                variant="outline"
+                variant="default"
                 size="sm"
-                className="w-full border-dashed min-h-[44px]"
+                className="w-full min-h-[44px] bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={() => cameraInputRef.current?.click()}
               >
                 <Camera className="h-4 w-4 mr-2" />

@@ -2435,7 +2435,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
             <div className="p-6 rounded-xl border border-dashed border-border bg-muted/20 text-center space-y-2">
               <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground" />
               <p className="text-sm font-medium text-muted-foreground">No photos yet</p>
-              <p className="text-xs text-muted-foreground">Take or upload at least one house photo above.</p>
+              <p className="text-xs text-muted-foreground">Tap the button above "<b>Take Photo</b>" to upload your photos (3 pictures at least)</p>
             </div>
           )}
           </>
