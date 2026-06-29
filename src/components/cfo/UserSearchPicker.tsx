@@ -10,6 +10,11 @@ interface UserResult {
   phone: string;
 }
 
+interface CurrentAccess {
+  roles: string[];
+  dashboards: string[];
+}
+
 /** Exact app-roles whose RLS policies grant full user-directory search. */
 const REQUIRED_SEARCH_ROLES = [
   'CFO',
@@ -40,6 +45,33 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
     const [showResults, setShowResults] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [permissionDenied, setPermissionDenied] = useState(false);
+    const [currentAccess, setCurrentAccess] = useState<CurrentAccess | null>(null);
+
+    // Load the signed-in staff member's own roles + dashboard permissions once,
+    // so a permission error can spell out exactly what they currently hold.
+    useEffect(() => {
+      let active = true;
+      (async () => {
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = auth?.user?.id;
+        if (!uid) return;
+
+        const [{ data: roleRows }, { data: permRows }] = await Promise.all([
+          supabase.from('user_roles').select('role').eq('user_id', uid).eq('enabled', true),
+          supabase.from('staff_permissions').select('permitted_dashboard').eq('user_id', uid),
+        ]);
+
+        if (!active) return;
+        setCurrentAccess({
+          roles: (roleRows || []).map((r: any) => String(r.role)),
+          dashboards: (permRows || [])
+            .map((p: any) => p.permitted_dashboard)
+            .filter(Boolean)
+            .map((d: any) => String(d)),
+        });
+      })();
+      return () => { active = false; };
+    }, []);
 
     useEffect(() => {
       if (query.length < 2) {
@@ -211,6 +243,43 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
                       {r}
                     </span>
                   ))}
+                </div>
+                <div className="rounded-md border border-border/70 bg-muted/30 p-2 space-y-1.5">
+                  <p className="text-[11px] font-semibold text-foreground">Your current access</p>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-muted-foreground">App-roles (enabled):</p>
+                    {currentAccess && currentAccess.roles.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {currentAccess.roles.map((r) => (
+                          <span
+                            key={r}
+                            className="inline-flex items-center rounded-md border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive"
+                          >
+                            {r}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] italic text-muted-foreground">None</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-muted-foreground">Dashboard permissions:</p>
+                    {currentAccess && currentAccess.dashboards.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {currentAccess.dashboards.map((d) => (
+                          <span
+                            key={d}
+                            className="inline-flex items-center rounded-md border border-border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
+                          >
+                            {d}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] italic text-muted-foreground">None</p>
+                    )}
+                  </div>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   Dashboard access alone (via staff permissions) is not enough — ask a
