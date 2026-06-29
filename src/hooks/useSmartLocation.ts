@@ -47,22 +47,9 @@ function attempt(opts: PositionOptions): Promise<GeolocationPosition> {
     // Defensive: enforce hard ceiling so a misbehaving device cannot freeze us.
     const hardCeiling = (opts.timeout ?? 10_000) + 2_000;
     let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      const err = new Error('timeout') as any;
-      err.code = 3;
-      reject(err);
-    }, hardCeiling);
-
-    // IMPORTANT (mobile reliability): On many Android Chrome builds and some
-    // in-app browsers, `getCurrentPosition` with high accuracy never fires
-    // EITHER callback — the request silently hangs. `watchPosition` is the
-    // documented workaround: it reliably emits the first available fix. We
-    // start a watch, take the first reading, then immediately clear it.
     let watchId: number | null = null;
+
     const cleanup = () => {
-      clearTimeout(timer);
       if (watchId != null) {
         try {
           navigator.geolocation.clearWatch(watchId);
@@ -72,8 +59,9 @@ function attempt(opts: PositionOptions): Promise<GeolocationPosition> {
         watchId = null;
       }
     };
-    // Re-arm the timer cleanup so clearWatch runs on the ceiling too.
-    const ceilingTimer = setTimeout(() => {
+
+    // Hard ceiling so a misbehaving device cannot freeze us forever.
+    const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
       cleanup();
@@ -81,21 +69,25 @@ function attempt(opts: PositionOptions): Promise<GeolocationPosition> {
       err.code = 3;
       reject(err);
     }, hardCeiling);
-    clearTimeout(timer);
 
+    // IMPORTANT (mobile reliability): On many Android Chrome builds and some
+    // in-app browsers, `getCurrentPosition` with high accuracy never fires
+    // EITHER callback — the request silently hangs, so the button "does
+    // nothing". `watchPosition` is the documented workaround: it reliably
+    // emits the first available fix. We take the first reading, then clear it.
     try {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           if (settled) return;
           settled = true;
-          clearTimeout(ceilingTimer);
+          clearTimeout(timer);
           cleanup();
           resolve(pos);
         },
         (err) => {
           if (settled) return;
           settled = true;
-          clearTimeout(ceilingTimer);
+          clearTimeout(timer);
           cleanup();
           reject(err);
         },
@@ -104,7 +96,8 @@ function attempt(opts: PositionOptions): Promise<GeolocationPosition> {
     } catch (err) {
       if (settled) return;
       settled = true;
-      clearTimeout(ceilingTimer);
+      clearTimeout(timer);
+      cleanup();
       reject(err);
     }
   });
