@@ -470,6 +470,59 @@ export function FundedTenantsList() {
             <LayoutGrid className="h-3.5 w-3.5" /> Cards
           </ToggleGroupItem>
         </ToggleGroup>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 gap-1.5"
+              disabled={exportMode === 'cards'}
+              title={
+                exportMode === 'cards'
+                  ? 'Column selection applies to the List & spreadsheet exports'
+                  : 'Choose which columns to include in the export'
+              }
+            >
+              <Columns3 className="h-3.5 w-3.5" />
+              Columns ({orderedCols.length})
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-56 p-2">
+            <div className="px-1 pb-1.5 text-xs font-semibold text-muted-foreground">
+              Export columns
+            </div>
+            <div className="space-y-0.5">
+              {PAYOUT_COLUMNS.map((c) => (
+                <label
+                  key={c.key}
+                  className="flex items-center gap-2 rounded-md px-1.5 py-1.5 text-sm hover:bg-muted cursor-pointer"
+                >
+                  <Checkbox
+                    checked={exportCols.includes(c.key)}
+                    onCheckedChange={() => toggleCol(c.key)}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+            <div className="mt-1.5 flex items-center justify-between border-t pt-1.5">
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+                onClick={() => setExportCols(DEFAULT_PAYOUT_COLUMNS)}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+                onClick={() => setExportCols(PAYOUT_COLUMNS.map((c) => c.key))}
+              >
+                Select all
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
         <Button
           size="sm"
           variant="outline"
@@ -493,6 +546,17 @@ export function FundedTenantsList() {
               Bulk PDF ({filtered.length}{scopeLabel ? ` · ${scopeLabel}` : ''})
             </>
           )}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0 gap-1.5"
+          onClick={handleExportXlsx}
+          disabled={!filtered.length || !!bulk || !orderedCols.length}
+          title={`Download ${filtered.length} payouts as a spreadsheet (XLSX) with the selected columns`}
+        >
+          <FileSpreadsheet className="h-3.5 w-3.5" />
+          Excel
         </Button>
       </div>
 
