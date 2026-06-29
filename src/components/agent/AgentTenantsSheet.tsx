@@ -221,8 +221,6 @@ const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
   new: 3,
 };
 
-const TENANT_DUE_REQUEST_FILTER =
-  'status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance';
 const TENANT_DETAIL_REQUEST_FILTER =
   'status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance';
 
