@@ -59,6 +59,10 @@ const ACTION_COLORS: Record<string, string> = {
 
 const DEFAULT_ROLE_ACTIONS = ['forced_default_role_set', 'forced_default_role_cleared'];
 
+// High-volume automated events that drown out everything else in the feed.
+// Hidden by default so the System Logs show the full variety of activity.
+const NOISE_ACTIONS = ['cashout_claim_auto_released', 'roi_payout_requested'];
+
 function formatActionLabel(action: string): string {
   return action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
