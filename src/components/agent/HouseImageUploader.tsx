@@ -30,9 +30,13 @@ interface HouseImageUploaderProps {
   region?: string;
   district?: string;
   village?: string;
+  /** When true, only camera capture is allowed (no gallery / existing photos). */
+  cameraOnly?: boolean;
+  /** Minimum number of photos expected (used for the helper caption only). */
+  minImages?: number;
 }
 
-export function HouseImageUploader({ images, onChange, maxImages = 5, region, district, village }: HouseImageUploaderProps) {
+export function HouseImageUploader({ images, onChange, maxImages = 5, region, district, village, cameraOnly = false, minImages = 0 }: HouseImageUploaderProps) {
   const [compressing, setCompressing] = useState(false);
   const [showExisting, setShowExisting] = useState(false);
   const [failed, setFailed] = useState<FailedPhoto[]>([]);
