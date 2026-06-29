@@ -208,6 +208,45 @@ export async function buildBulkPayoutsPdfBlob(
   return pdf.output('blob');
 }
 
+/**
+ * Build a card-style PDF — the branded gradient payout card (one per row),
+ * laid out two per A4 page. Heavier than the compact list (renders each card
+ * to a PNG) but matches the shareable receipt look. Caller can pass an
+ * `onProgress(done, total)` callback for UX.
+ */
+export async function buildBulkCardsPdfBlob(
+  rows: LandlordPayoutShareData[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<Blob> {
+  if (!rows.length) throw new Error('No payouts to export');
+  const { jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+
+  const margin = PDF_MARGIN_MM;
+  const pageW = A4_PAGE_MM.width;
+  const pageH = A4_PAGE_MM.height;
+  const contentW = pageW - margin * 2;
+  const gap = 8;
+  let y = margin;
+
+  for (let i = 0; i < rows.length; i++) {
+    const dataUrl = await renderPayoutCardPng(rows[i]);
+    const props = pdf.getImageProperties(dataUrl);
+    const imgH = (props.height / props.width) * contentW;
+
+    // New page if the card won't fit in the remaining vertical space.
+    if (y + imgH > pageH - margin && y > margin) {
+      pdf.addPage();
+      y = margin;
+    }
+    pdf.addImage(dataUrl, 'PNG', margin, y, contentW, imgH, undefined, 'FAST');
+    y += imgH + gap;
+    onProgress?.(i + 1, rows.length);
+  }
+
+  return pdf.output('blob');
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
