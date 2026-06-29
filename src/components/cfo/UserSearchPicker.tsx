@@ -31,6 +31,7 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
       if (query.length < 2) {
         setResults([]);
         setSearchError(null);
+        setPermissionDenied(false);
         return;
       }
 
