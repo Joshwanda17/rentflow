@@ -1762,6 +1762,20 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   <p className="text-base font-bold truncate">{summary.latestLandlord}</p>
                 </div>
               </div>
+              {summary.latestLandlordPhone && (
+                <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5">
+                  <Phone className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground font-medium">Landlord Phone</p>
+                    <a
+                      href={`tel:${summary.latestLandlordPhone}`}
+                      className="text-base font-bold text-primary break-all"
+                    >
+                      {summary.latestLandlordPhone}
+                    </a>
+                  </div>
+                </div>
+              )}
               <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5">
                 <Home className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
