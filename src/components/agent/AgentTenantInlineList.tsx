@@ -1,11 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Phone, Users, UserPlus, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { getEffectiveRentRequestAmounts } from '@/lib/rentRequestAmounts';
 import { AgentDailyCapacityStrip } from '@/components/agent/AgentDailyCapacityStrip';
 
 interface Tenant {
@@ -29,6 +28,7 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'owing'>('all');
   const [activeTenantIds, setActiveTenantIds] = useState<Set<string>>(new Set());
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
+  const fetchSeqRef = useRef(0);
 
   useEffect(() => {
     if (!user) return;
@@ -37,91 +37,38 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
 
   const fetchTenants = async () => {
     if (!user) return;
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
     try {
-      const { data: referredData } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, email, created_at')
-        .eq('referrer_id', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.rpc('get_agent_tenants_overview', {
+        p_today_start: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(),
+      });
+      if (error) throw error;
+      if (seq !== fetchSeqRef.current) return;
 
-      const referredTenants = referredData || [];
-      const referredIds = new Set(referredTenants.map((t: any) => t.id));
-
-      const { data: referralRows } = await supabase
-        .from('referrals')
-        .select('referred_id')
-        .eq('referrer_id', user.id);
-
-      const { data: agentRequests } = await supabase
-        .from('rent_requests')
-        .select('tenant_id')
-        .eq('agent_id', user.id);
-
-      // Sub-agents are NOT tenants — exclude anyone linked to this agent as a
-      // sub-agent so they don't bleed into the tenant list.
-      const { data: subAgentRows } = await supabase
-        .from('agent_subagents')
-        .select('sub_agent_id')
-        .eq('parent_agent_id', user.id);
-      const subAgentIds = new Set(
-        (subAgentRows || []).map((r: any) => r.sub_agent_id).filter(Boolean) as string[],
-      );
-
-      const extraIds = [
-        ...(referralRows || []).map((r: any) => r.referred_id),
-        ...(agentRequests || []).map((r: any) => r.tenant_id),
-      ].filter((id: string) => id && !referredIds.has(id) && !subAgentIds.has(id));
-
-      let extraTenants: Tenant[] = [];
-      if (extraIds.length > 0) {
-        const uniqueIds = [...new Set(extraIds)];
-        const { data: extraData } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, email, created_at')
-          .in('id', uniqueIds);
-        extraTenants = (extraData || []) as Tenant[];
-      }
-
-      const merged = new Map<string, Tenant>();
-      const allowedReferred = referredTenants.filter((t: any) => !subAgentIds.has(t.id));
-      for (const t of [...allowedReferred, ...extraTenants]) {
-        merged.set(t.id, t);
-      }
-      const tenantList = Array.from(merged.values());
+      const rows = (data || []) as any[];
+      const tenantList: Tenant[] = rows.map((row) => ({
+        id: row.id,
+        full_name: row.full_name || 'Tenant',
+        phone: row.phone || '',
+        email: row.email || '',
+        created_at: row.created_at,
+      }));
       setTenants(tenantList);
 
-      if (tenantList.length > 0) {
-        const tenantIds = tenantList.map((t) => t.id);
-        const { data: rentRequests } = await supabase
-          .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, status, registration_type')
-          .in('tenant_id', tenantIds)
-          .or('status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance');
-
-        const balances: Record<string, number> = {};
-        const activeIds = new Set<string>();
-        (rentRequests || []).forEach((rr: any) => {
-          const effective = getEffectiveRentRequestAmounts(rr);
-          const owing = effective.totalRepayment - (rr.amount_repaid || 0);
-          // A tenant only truly OWES once Welile has funded/disbursed the rent.
-          // In-review (pending/approved) and cancelled/rejected duplicates must
-          // never inflate the outstanding balance — only count real debt:
-          // disbursed cycles (funded/disbursed/repaying) + genuine carried-over
-          // outstanding_balance rows.
-          const isDebt =
-            ['funded', 'disbursed', 'repaying'].includes(rr.status || '') ||
-            rr.registration_type === 'outstanding_balance';
-          if (isDebt) {
-            balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
-          }
-          if (rr.status !== 'completed') activeIds.add(rr.tenant_id);
-        });
-        setTenantBalances(balances);
-        setActiveTenantIds(activeIds);
-      }
+      const balances: Record<string, number> = {};
+      const activeIds = new Set<string>();
+      rows.forEach((row) => {
+        balances[row.id] = Number(row.balance || 0);
+        const statuses = ((row.statuses || []) as string[]).filter(Boolean);
+        if (statuses.some((status) => status !== 'completed')) activeIds.add(row.id);
+      });
+      setTenantBalances(balances);
+      setActiveTenantIds(activeIds);
+    } catch (err) {
+      console.error('Failed to fetch inline tenants:', err);
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) setLoading(false);
     }
   };
 
@@ -148,7 +95,7 @@ export function AgentTenantInlineList({ onOpenTenantSheet, onAddTenant }: AgentT
       return a.full_name.localeCompare(b.full_name);
     });
     return list;
-  }, [tenants, search, activeFilter, tenantBalances]);
+  }, [tenants, search, activeFilter, tenantBalances, activeTenantIds]);
 
   const activeCount = useMemo(
     () => tenants.filter((t) => activeTenantIds.has(t.id)).length,
