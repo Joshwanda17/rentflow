@@ -229,6 +229,20 @@ Deno.serve(async (req) => {
 
       const batchDefaultPct = Number((batch as any).default_recovery_percent ?? 30);
 
+      // Pre-fetch employee names + phones for the salary SMS alert.
+      const employeeIds = [...new Set(items.map((it: any) => it.employee_id).filter(Boolean))];
+      const profileMap = new Map<string, { full_name: string | null; phone: string | null }>();
+      if (employeeIds.length > 0) {
+        const { data: profs } = await adminClient
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', employeeIds);
+        for (const p of profs ?? []) {
+          profileMap.set(p.id, { full_name: p.full_name, phone: p.phone });
+        }
+      }
+      const payrollPeriod = formatPayrollPeriod((batch as any).batch_month);
+
       let processed = 0;
       for (const item of items) {
         try {
