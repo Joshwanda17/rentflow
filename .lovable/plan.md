@@ -1,63 +1,45 @@
-# Merchant-fulfilled landlord-float payouts
+# Advance recovery: percentage-based, once daily
 
-## Goal
-When an agent pays a landlord from their **landlord-payout float**, instead of the agent disbursing directly, the request lands in the merchant agent's payout queue. A merchant claims it, pays the landlord (MoMo / cash / bank), and confirms — exactly like a normal user withdrawal. The merchant gets full principal reimbursement to their withdrawable wallet + 0.5% commission + SMS. The page is renamed to **"Cash, Mobile Money & Bank Payouts"**.
+## Problem
+The advance recovery job (`sweep_agent_advance_recovery`, currently scheduled every 15 minutes) deducts the agent's **entire** available withdrawable balance — i.e. their whole commission — toward outstanding advances:
 
-## Money flow
 ```text
-CFO funds agent landlord-float (existing)
-        │
-Agent taps "Pay landlord" → creates withdrawal_requests row (landlord = recipient)
-   • agent_landlord_float balance HELD (reduced) immediately
-   • status = pending  → appears in merchant queue
-        │
-Merchant claims → pays landlord with own MoMo/cash/bank → confirms (approve-withdrawal)
-   • Float source debited via ledger (agent_float_used_for_rent on agent)
-   • Merchant principal reimbursed → merchant withdrawable wallet  (company funds)
-   • Merchant 0.5% commission → merchant withdrawable wallet
-   • Merchant SMS (same as today)
-   • Landlord SMS confirmation
-        │
-On reject → held float restored to agent_landlord_float
+v_deduct := LEAST(v_avail, outstanding_balance)   -- takes everything available
 ```
+
+This leaves agents with nothing to withdraw until the advance is fully cleared.
+
+## Desired behaviour
+- Recover only a **percentage** of the agent's available commission (default **10%**), leaving the rest withdrawable.
+- The percentage is **CFO-adjustable** from the advance settings panel.
+- The job runs **once per day** (not every 15 minutes).
 
 ## Changes
 
-### 1. Withdrawal creation (frontend)
-`AgentFloatPayoutWizard.tsx`: replace the "agent disburses directly" disburse step with a **"Send to merchant payout queue"** action. It will:
-- Validate landlord name/phone/provider and the chosen channel (MoMo / cash / bank).
-- Reduce `agent_landlord_float.balance` (hold), mirroring today's optimistic reduction + rollback-on-error.
-- Insert a `withdrawal_requests` row with:
-  - `user_id = agent.id`, `agent_id = agent.id`
-  - `amount`, `payout_method` (`mobile_money` | `cash` | `bank_transfer`)
-  - `mobile_money_number/provider/name` OR `bank_*` = **landlord's** details
-  - `beneficiary_id = landlord_id`, `reason = "Landlord float payout — <landlord name> (rent #...)"` as the detection marker
-  - `status = 'pending'`
-- Keep the existing GPS capture/landlord-OTP gates that already protect landlord payouts.
+### 1. Database (migration)
+- Add `daily_recovery_rate numeric NOT NULL DEFAULT 0.10` to `advance_fee_config` (the single-row config table that already holds the fee rates). A validation trigger (or simple bounds in the rewritten function) keeps it within 0.01–1.00.
+- Rewrite `sweep_agent_advance_recovery()`:
+  - Read the configured rate: `v_rate := COALESCE((SELECT daily_recovery_rate FROM advance_fee_config LIMIT 1), 0.10)`.
+  - Per agent, compute the daily recovery cap from available withdrawable commission:
+    `v_cap := round(get_user_available_balance(agent) * v_rate)`.
+  - Deduct FIFO (oldest advance first) **up to `v_cap`** instead of up to the full available balance:
+    `v_deduct := LEAST(v_remaining_cap, outstanding_balance)`, decrementing `v_remaining_cap` as each advance is paid.
+  - Keep all existing double-entry ledger posting, Wallet Routing v2 tags, idempotency keys, `agent_advances` status/fee updates, and `agent_advance_ledger` logging exactly as-is — only the amount taken changes.
+  - Include the configured rate in the returned JSON summary for observability.
+- Reschedule the cron job from `*/15 * * * *` to once daily. To align with the existing ~7:00 AM Kampala (UTC+3) debt cycle, schedule at `0 4 * * *` (04:00 UTC = 07:00 EAT): unschedule `sweep-agent-advance-recovery`, re-create it with the daily expression.
+- Do **not** run an immediate full settle on migration (the old migration ended with a full sweep). At most run one capped sweep so no agent is over-drained.
 
-The wizard's direct-TID/receipt disburse path is removed for this flow (merchant now provides the proof).
+### 2. CFO UI (`src/components/cfo/CFOAdvancesManager.tsx`)
+- Add a small "Daily recovery rate" settings control to the advances manager: shows the current percentage and lets the CFO set a new value (e.g. a number input + Save, validated 1–100%).
+- On save, update `advance_fee_config.daily_recovery_rate` (store as a fraction, e.g. 10% → 0.10) and write an `audit_logs` entry with `action_type`, `table_name='advance_fee_config'`, the record id, and a ≥10-char reason, per audit governance.
+- Show a one-line explainer: "Each day the recovery job takes this % of an agent's withdrawable commission toward their outstanding advance; the rest stays withdrawable."
 
-### 2. `approve-withdrawal` edge function (settlement)
-Add a **landlord-float branch** detected by the `reason` marker (+ `beneficiary_id` present, non-proxy, non-pool):
-- Skip the requester-withdrawable debit; instead post a ledger debit against the **agent's float** (`category: agent_float_used_for_rent`, `wallet_bucket: float`, `recipient_type: operational_wallet`) for the payout amount — drawing the held float, not the agent's withdrawable.
-- Decrement `agent_landlord_float` (committed) and mark the matching `agent_landlord_float_allocations` row paid where applicable.
-- Let the **existing** merchant reimbursement + 0.5% commission + merchant SMS blocks run unchanged (they already fire for any cashout-agent-settled non-proxy/non-pool payout).
-- Send the landlord confirmation SMS.
-- On rejection (`reject-withdrawal`): restore the held `agent_landlord_float.balance`.
+## Technical notes
+- Base of the percentage = the agent's strict available withdrawable balance from `get_user_available_balance` (commission lands in the withdrawable bucket), consistent with the existing strict-withdrawable rule. Float and advance custody remain untouched.
+- Switching to once-daily means the 10% is applied a single time per day, so it can never compound down to near-zero across many runs.
+- No changes to advance issuance, fee calculation, or repayment ledger categories.
 
-### 3. Merchant queue (frontend)
-`AgentCashPayoutsTab.tsx`: no query change needed — these rows are real `withdrawal_requests` so they appear automatically. Add a small **"Landlord payout"** badge + landlord name/phone display on the card when `reason` marks it landlord-float, so the merchant knows who to pay.
-
-### 4. Rename the page
-- `CashPayouts.tsx` header title → **"Cash, Mobile Money & Bank Payouts"** (subtitle unchanged).
-- Update the dashboard trigger label in `AgentDashboard.tsx` to match.
-
-## Notes / safeguards
-- Reuses the existing claim/lock/throttle, reimbursement, commission, and SMS machinery — no new wallet-writer paths (respects ledger-fortress + wallet-sole-writer rules).
-- Float hold-on-request + restore-on-reject prevents double-spend of the same float.
-- Idempotency keys already namespace reimbursement/commission per `withdrawal_id`.
-
-## Technical details
-- Detection marker: `reason LIKE 'Landlord float payout%'` AND `beneficiary_id IS NOT NULL`.
-- Float debit posted through `create_ledger_transaction` (raw entries array, no stringify) per ledger RPC rules.
-- Tables touched: `withdrawal_requests` (insert/read), `agent_landlord_float` (hold/restore), `agent_landlord_float_allocations` (mark paid), `general_ledger` (via RPC). No schema migration required.
+## Verification
+- Run the migration, then call `select public.sweep_agent_advance_recovery();` and confirm the returned `recovered_total` ≈ 10% of eligible agents' withdrawable balances, and that `agent_advance_ledger` rows show partial (not full) daily deductions.
+- Confirm `cron.job` lists `sweep-agent-advance-recovery` with the daily schedule.
+- In the CFO advances panel, change the rate, save, re-read `advance_fee_config`, and confirm the audit log entry.

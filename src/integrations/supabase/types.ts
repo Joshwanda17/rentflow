@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       advance_fee_config: {
         Row: {
+          daily_recovery_rate: number
           default_monthly_rate: number
           id: string
           max_rate: number
@@ -24,6 +25,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          daily_recovery_rate?: number
           default_monthly_rate?: number
           id?: string
           max_rate?: number
@@ -32,6 +34,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          daily_recovery_rate?: number
           default_monthly_rate?: number
           id?: string
           max_rate?: number
