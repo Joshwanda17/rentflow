@@ -221,8 +221,6 @@ const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
   new: 3,
 };
 
-const TENANT_DUE_REQUEST_FILTER =
-  'status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance';
 const TENANT_DETAIL_REQUEST_FILTER =
   'status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance';
 
@@ -341,6 +339,7 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
   }, [advanceLimit.totalLimit]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
+  const fetchTenantsSeqRef = useRef(0);
   const [search, setSearch] = useState(() => loadPrefs().search ?? '');
   // Defer the search query so filtering / highlighting follow the input
   // smoothly while the user is still typing — React keeps the input
@@ -643,177 +642,77 @@ export function AgentTenantsSheet({ open, onOpenChange, initialView, initialPipe
 
   const fetchTenants = async () => {
     if (!user) return;
+    const seq = ++fetchTenantsSeqRef.current;
     setLoading(true);
     try {
-      const { data: referredData, error: refErr } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, email, created_at, monthly_rent, verified')
-        .eq('referrer_id', user.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.rpc('get_agent_tenants_overview', {
+        p_today_start: startOfDay(new Date()).toISOString(),
+      });
+      if (error) throw error;
+      if (seq !== fetchTenantsSeqRef.current) return;
 
-      if (refErr) throw refErr;
-      const referredTenants = referredData || [];
-      const referredIds = new Set(referredTenants.map(t => t.id));
-
-      // Also include tenants linked through the referrals table (historical
-      // registrations where profiles.referrer_id was not stamped).
-      const { data: referralRows } = await supabase
-        .from('referrals')
-        .select('referred_id')
-        .eq('referrer_id', user.id);
-
-      const { data: agentRequests } = await supabase
-        .from('rent_requests')
-        .select('tenant_id')
-        .eq('agent_id', user.id);
-
-      // Sub-agents are NOT tenants. A person registered/referred by this agent
-      // who was later promoted to a sub-agent keeps their referrer_id/referrals
-      // row, which would otherwise bleed them into the tenant list. Exclude them.
-      const { data: subAgentRows } = await supabase
-        .from('agent_subagents')
-        .select('sub_agent_id')
-        .eq('parent_agent_id', user.id);
-      const subAgentIds = new Set(
-        (subAgentRows || []).map(r => r.sub_agent_id).filter(Boolean) as string[],
-      );
-
-      const extraTenantIds = [
-        ...(referralRows || []).map(r => r.referred_id),
-        ...(agentRequests || []).map(r => r.tenant_id),
-      ].filter(id => id && !referredIds.has(id) && !subAgentIds.has(id));
-
-      let extraTenants: Tenant[] = [];
-      if (extraTenantIds.length > 0) {
-        const uniqueIds = [...new Set(extraTenantIds)];
-        const { data: extraData } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, email, created_at, monthly_rent, verified')
-          .in('id', uniqueIds);
-        extraTenants = extraData || [];
-      }
-
-      // Strict allowlist: only tenants explicitly tied to this agent via
-      // referrer_id, referrals table, or rent_requests.agent_id. Admin RLS
-      // policies (manager/cfo/super_admin) would otherwise bleed every
-      // platform profile into this view for staff who also hold those roles.
-      const allowedReferred = referredTenants.filter(t => !subAgentIds.has(t.id));
-      const allowedIds = new Set<string>([
-        ...allowedReferred.map(t => t.id),
-        ...extraTenantIds,
-      ]);
-      const mergedById = new Map<string, Tenant>();
-      for (const t of [...allowedReferred, ...extraTenants]) {
-        if (allowedIds.has(t.id)) mergedById.set(t.id, t);
-      }
-      const tenantList = Array.from(mergedById.values());
-      if (tenantList.length > allowedIds.size) {
-        console.warn('[AgentTenantsSheet] tenant list exceeded allowlist size', {
-          listSize: tenantList.length,
-          allowedSize: allowedIds.size,
-        });
-      }
+      const rows = (data || []) as any[];
+      const tenantList: Tenant[] = rows.map((row) => ({
+        id: row.id,
+        full_name: row.full_name || 'Tenant',
+        phone: row.phone || '',
+        email: row.email || '',
+        created_at: row.created_at,
+        monthly_rent: row.monthly_rent ?? null,
+        verified: Boolean(row.verified),
+      }));
       setTenants(tenantList);
 
-      if (tenantList.length > 0) {
-        const tenantIds = tenantList.map(t => t.id);
-        const { data: rentRequests } = await supabase
-          .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, registration_type, initial_outstanding_balance, outstanding_grace_days, duration_days, landlord:landlords(name, property_address, latitude, longitude)')
-          .in('tenant_id', tenantIds)
-          .or(TENANT_DUE_REQUEST_FILTER)
-          .order('created_at', { ascending: false });
+      const balances: Record<string, number> = {};
+      const daily: Record<string, number> = {};
+      const totals: Record<string, { total: number; paid: number }> = {};
+      const statusMap: Record<string, Set<string>> = {};
+      const ctx: Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }> = {};
+      const locs: Record<string, { lat: number; lng: number; address: string }> = {};
+      const lastPaid: Record<string, { date: string; amount: number }> = {};
+      const todays: Array<{ tenant_id: string; amount: number; created_at: string }> = [];
 
-        const balances: Record<string, number> = {};
-        const daily: Record<string, number> = {};
-        const totals: Record<string, { total: number; paid: number }> = {};
-        const statusMap: Record<string, Set<string>> = {};
-        const ctx: Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }> = {};
-        const locs: Record<string, { lat: number; lng: number; address: string }> = {};
-        (rentRequests || []).forEach((rr: any) => {
-          const effective = getEffectiveRentRequestAmounts(rr);
-          const owing = effective.totalRepayment - (rr.amount_repaid || 0);
-          // A tenant only truly OWES once Welile has funded/disbursed the rent.
-          // In-review (pending/approved) and cancelled/rejected duplicates must
-          // never inflate the outstanding balance — only count real debt.
-          const isDebt =
-            ['funded', 'disbursed', 'repaying'].includes(rr.status || '') ||
-            rr.registration_type === 'outstanding_balance';
-          if (isDebt) {
-            balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
-          }
-          // Sum daily expected only from active (still-owing) cycles
-          if (owing > 0 && ['approved', 'funded', 'disbursed', 'repaying'].includes(rr.status)) {
-            daily[rr.tenant_id] = (daily[rr.tenant_id] || 0) + effective.dailyRepayment;
-          }
-          if (isDebt) {
-            const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
-            totals[rr.tenant_id] = { total: prev.total + effective.totalRepayment, paid: prev.paid + (rr.amount_repaid || 0) };
-          }
-          if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
-          if (rr.status) statusMap[rr.tenant_id].add(rr.status);
-          // Latest-first context (first hit wins thanks to descending order)
-          if (!ctx[rr.tenant_id]) {
-            ctx[rr.tenant_id] = {
-              landlordName: rr.landlord?.name || '',
-              propertyAddress: rr.landlord?.property_address || '',
-              completedCount: 0,
-              totalRequests: 0,
-            };
-          }
-          // Capture lat/lng once per property address (latest-first wins)
-          const addr = rr.landlord?.property_address?.trim();
-          const lat = Number(rr.landlord?.latitude);
-          const lng = Number(rr.landlord?.longitude);
-          if (addr && Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0 && !locs[addr]) {
-            locs[addr] = { lat, lng, address: addr };
-          }
-          ctx[rr.tenant_id].totalRequests += 1;
-          // Only count a rent plan as truly completed when the tenant has fully
-          // repaid — guards against rows mis-marked 'completed' upstream.
-          const totalRep = effective.totalRepayment;
-          const repaid = Number(rr.amount_repaid || 0);
-          if (rr.status === 'completed' && totalRep > 0 && repaid >= totalRep) {
-            ctx[rr.tenant_id].completedCount += 1;
-          }
-        });
-        setTenantBalances(balances);
-        setTenantDaily(daily);
-        setTenantTotals(totals);
-        setTenantStatuses(statusMap);
-        setTenantContext(ctx);
-        setPropertyLocations(locs);
+      rows.forEach((row) => {
+        balances[row.id] = Number(row.balance || 0);
+        daily[row.id] = Number(row.daily || 0);
+        totals[row.id] = {
+          total: Number(row.total_repayment || 0),
+          paid: Number(row.amount_repaid || 0),
+        };
+        statusMap[row.id] = new Set((row.statuses || []).filter(Boolean));
+        ctx[row.id] = {
+          landlordName: row.landlord_name || '',
+          propertyAddress: row.property_address || '',
+          completedCount: Number(row.completed_count || 0),
+          totalRequests: Number(row.request_count || 0),
+        };
+        const addr = String(row.property_address || '').trim();
+        const lat = Number(row.latitude);
+        const lng = Number(row.longitude);
+        if (addr && Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0 && !locs[addr]) {
+          locs[addr] = { lat, lng, address: addr };
+        }
+        if (row.last_paid_at) {
+          lastPaid[row.id] = { date: row.last_paid_at, amount: Number(row.last_paid_amount || 0) };
+        }
+        const todayAmount = Number(row.today_paid_amount || 0);
+        if (todayAmount > 0) {
+          todays.push({ tenant_id: row.id, amount: todayAmount, created_at: new Date().toISOString() });
+        }
+      });
 
-        // Most recent cash-in per tenant (for "Last collected" indicator)
-        const { data: recentRepayments } = await supabase
-          .from('repayments')
-          .select('tenant_id, amount, created_at')
-          .in('tenant_id', tenantIds)
-          .order('created_at', { ascending: false })
-          .limit(1000);
-        const lastPaid: Record<string, { date: string; amount: number }> = {};
-        (recentRepayments || []).forEach((r: any) => {
-          if (!lastPaid[r.tenant_id]) {
-            lastPaid[r.tenant_id] = { date: r.created_at, amount: Number(r.amount || 0) };
-          }
-        });
-        setTenantLastPaid(lastPaid);
-
-        // Today-only slice for the live collection-status header.
-        const todayStart = startOfDay(new Date()).getTime();
-        const todays = (recentRepayments || [])
-          .filter((r: any) => new Date(r.created_at).getTime() >= todayStart)
-          .map((r: any) => ({
-            tenant_id: r.tenant_id as string,
-            amount: Number(r.amount || 0),
-            created_at: r.created_at as string,
-          }));
-        setTodayRepayments(todays);
-      }
+      setTenantBalances(balances);
+      setTenantDaily(daily);
+      setTenantTotals(totals);
+      setTenantStatuses(statusMap);
+      setTenantContext(ctx);
+      setPropertyLocations(locs);
+      setTenantLastPaid(lastPaid);
+      setTodayRepayments(todays);
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
     } finally {
-      setLoading(false);
+      if (seq === fetchTenantsSeqRef.current) setLoading(false);
     }
   };
 
