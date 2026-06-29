@@ -7,6 +7,100 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ── SMS helper (Africa's Talking) ─────────────────────────────────────
+// Sends a payroll/salary credit alert to the employee's phone and records
+// every attempt to public.sms_delivery_log for the admin delivery view.
+function formatPhoneInternational(phone: string): string {
+  const digits = (phone || "").replace(/[^0-9]/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return digits ? `+${digits}` : "";
+}
+function isUgandanPhone(phone: string): boolean {
+  const f = formatPhoneInternational(phone);
+  return f.startsWith("+256") && f.length >= 13;
+}
+async function logSmsDelivery(row: Record<string, unknown>): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(url, key);
+    await admin.from("sms_delivery_log").insert(row);
+  } catch (e) {
+    console.error("[platform-expense-transfer] sms_delivery_log insert failed:", (e as Error).message);
+  }
+}
+async function sendSMS(
+  phone: string,
+  message: string,
+  meta: { recipientUserId?: string | null; recipientName?: string | null; referenceId?: string | null } = {},
+): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  const baseRow = {
+    recipient_phone: formatPhoneInternational(phone) || phone,
+    recipient_user_id: meta.recipientUserId ?? null,
+    recipient_name: meta.recipientName ?? null,
+    message,
+    reference_id: meta.referenceId ?? null,
+    source: "platform-expense-transfer",
+    provider: "africastalking",
+  };
+  if (!apiKey || !username) {
+    await logSmsDelivery({ ...baseRow, status: "failed", error: "Missing Africa's Talking credentials" });
+    return false;
+  }
+  if (!isUgandanPhone(phone)) {
+    await logSmsDelivery({ ...baseRow, status: "failed", error: "Invalid/non-Ugandan phone number" });
+    return false;
+  }
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  try {
+    const body = new URLSearchParams({
+      username,
+      to: formatPhoneInternational(phone),
+      message,
+      from: "WELILE",
+    });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", apiKey, Accept: "application/json" },
+      body: body.toString(),
+    });
+    const data = await res.json();
+    const recipient = (data?.SMSMessageData?.Recipients || [])[0];
+    const success = recipient?.statusCode === 101 || recipient?.statusCode === 100;
+    await logSmsDelivery({
+      ...baseRow,
+      status: success ? "sent" : "failed",
+      provider_message_id: recipient?.messageId ?? null,
+      cost: recipient?.cost ?? null,
+      provider_response: data ?? null,
+      error: success ? null : (recipient?.status ?? data?.SMSMessageData?.Message ?? "Provider rejected message"),
+    });
+    return success;
+  } catch (err) {
+    await logSmsDelivery({ ...baseRow, status: "failed", error: (err as Error).message });
+    console.error("[platform-expense-transfer] SMS error:", err);
+    return false;
+  }
+}
+
+// Turns "2026-06" (or a free-text label) into "June 2026" for the SMS body.
+function formatPayrollPeriod(batchMonth: string | null | undefined): string {
+  if (!batchMonth) return "this period";
+  const m = /^(\d{4})-(\d{2})$/.exec(batchMonth.trim());
+  if (!m) return batchMonth;
+  const months = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+  const idx = Number(m[2]) - 1;
+  return idx >= 0 && idx < 12 ? `${months[idx]} ${m[1]}` : batchMonth;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
