@@ -7,7 +7,6 @@ import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummar
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOOverviewDashboard } from '@/components/cfo/CFOOverviewDashboard';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
-import { StandingOrdersManager } from '@/components/cfo/StandingOrdersManager';
 import { CFOPayoutsShareButton } from '@/components/cfo/CFOPayoutsShareButton';
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 
@@ -90,7 +89,6 @@ export default function CFODashboardPage() {
               <p className="text-sm text-muted-foreground mb-4">Search a user by name or phone number, enter the amount, and credit or debit their wallet instantly. Use “Share Payouts PDF” to send a list of everyone you've paid out via WhatsApp.</p>
               <DirectCreditTool />
             </div>
-            <StandingOrdersManager />
           </div>
         );
       case 'roi-requests':
