@@ -172,7 +172,7 @@ export async function buildBulkPayoutsPdfBlob(
     footStyles: { fillColor: [240, 235, 250], textColor: [0, 0, 0], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 246, 252] },
     columnStyles: {
-      0: { cellWidth: 8, halign: 'right' },
+      0: { cellWidth: 11, halign: 'right' },
       1: { cellWidth: 18 },
       6: { cellWidth: 26, fontSize: 7 },
       7: { halign: 'right', fontStyle: 'bold' },
