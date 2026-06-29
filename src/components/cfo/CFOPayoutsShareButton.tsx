@@ -142,12 +142,22 @@ export function CFOPayoutsShareButton() {
           const recipient =
             meta.target_name || meta.target_user_name || meta.user_name ||
             meta.partner_name || meta.agent_name || meta.recipient_name || '—';
+          // Reason: prefer the explicit reason field; otherwise parse the
+          // "Reason: …" suffix some payouts embed in their description.
+          let reason: string =
+            meta.reason || meta.payout_reason || meta.note || meta.notes || meta.purpose || '';
+          if (!reason && typeof meta.description === 'string') {
+            const m = meta.description.match(/Reason:\s*(.+?)\s*$/i);
+            if (m) reason = m[1];
+          }
+          reason = (reason || '').toString().trim();
           return {
             date: new Date(a.created_at),
             recipient,
             amount,
             type: ACTION_LABEL[a.action_type] || a.action_type,
             reference: meta.reference_id || meta.reference || meta.tid || meta.transaction_id || meta.batch_reference || '',
+            reason,
           } as CfoPayoutRow;
         })
         .filter(r => r.amount > 0);
