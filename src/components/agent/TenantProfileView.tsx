@@ -78,7 +78,7 @@ interface RentRequestRow {
   tenant_no_smartphone?: boolean | null;
   request_latitude?: number | null;
   request_longitude?: number | null;
-  landlord?: { name: string; property_address: string; house_category?: string } | null;
+  landlord?: { name: string; property_address: string; house_category?: string; phone?: string | null } | null;
 }
 
 interface RepaymentRow {
@@ -268,7 +268,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
           .single(),
         supabase
           .from('rent_requests')
-          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category)')
+          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, registration_type, initial_outstanding_balance, outstanding_grace_days, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, phone)')
           .eq('tenant_id', tenantId)
           .or('status.in.(pending,approved,funded,disbursed,repaying,completed),registration_type.eq.outstanding_balance')
           .order('created_at', { ascending: false }),
@@ -389,6 +389,7 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
       activeRequest,
       currentOutstanding: Math.max(0, outstanding),
       latestLandlord: latest?.landlord?.name || null,
+      latestLandlordPhone: latest?.landlord?.phone || null,
       latestAddress: latest?.landlord?.property_address || null,
       latestHouseType: latest?.landlord?.house_category || null,
       latestStatus: latest?.status || null,
@@ -1761,6 +1762,20 @@ export function TenantProfileView({ tenantId, onBack, autoEdit }: TenantProfileV
                   <p className="text-base font-bold truncate">{summary.latestLandlord}</p>
                 </div>
               </div>
+              {summary.latestLandlordPhone && (
+                <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5">
+                  <Phone className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground font-medium">Landlord Phone</p>
+                    <a
+                      href={`tel:${summary.latestLandlordPhone}`}
+                      className="text-base font-bold text-primary break-all"
+                    >
+                      {summary.latestLandlordPhone}
+                    </a>
+                  </div>
+                </div>
+              )}
               <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5">
                 <Home className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
