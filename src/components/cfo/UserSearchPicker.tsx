@@ -2,7 +2,7 @@ import { useState, useEffect, forwardRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Search, X, User, AlertCircle } from 'lucide-react';
+import { Loader2, Search, X, User, AlertCircle, ShieldAlert } from 'lucide-react';
 
 interface UserResult {
   id: string;
@@ -25,6 +25,7 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
     const [loading, setLoading] = useState(false);
     const [showResults, setShowResults] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
+    const [permissionDenied, setPermissionDenied] = useState(false);
 
     useEffect(() => {
       if (query.length < 2) {
@@ -36,6 +37,7 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
       const timer = setTimeout(async () => {
         setLoading(true);
         setSearchError(null);
+        setPermissionDenied(false);
 
         try {
           const cleaned = query.replace(/\D/g, '');
@@ -53,7 +55,8 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             if (profilesError) {
               console.error('[UserSearchPicker] profile search failed:', profilesError);
               setResults([]);
-              setSearchError('You do not have permission to search users here.');
+              setPermissionDenied(true);
+              setSearchError(null);
               setLoading(false);
               return;
             }
@@ -80,7 +83,8 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
               if (roleError) {
                 console.error('[UserSearchPicker] role filter failed:', roleError);
                 setResults([]);
-                setSearchError('User role lookup is blocked right now.');
+                setPermissionDenied(true);
+                setSearchError(null);
                 setLoading(false);
                 return;
               }
@@ -103,7 +107,8 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             if (error) {
               console.error('[UserSearchPicker] search failed:', error);
               setResults([]);
-              setSearchError('You do not have permission to search users here.');
+              setPermissionDenied(true);
+              setSearchError(null);
             } else {
               setResults(data || []);
             }
@@ -111,6 +116,7 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
         } catch (error) {
           console.error('[UserSearchPicker] unexpected search failure:', error);
           setResults([]);
+          setPermissionDenied(false);
           setSearchError('Search failed. Please try again.');
         }
 
