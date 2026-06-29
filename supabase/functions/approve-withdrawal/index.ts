@@ -1743,7 +1743,7 @@ Deno.serve(async (req) => {
     // withdrawable wallet bucket (recipient_type: "user" guarantees withdrawable
     // routing), then we SMS the agent to confirm the earning.
     let cashoutCommission = 0;
-    if (isCashoutAgent) {
+    if (actingAsMerchant) {
       cashoutCommission = Math.round(amount * 0.005);
       if (cashoutCommission > 0) {
         try {
