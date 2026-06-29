@@ -20576,6 +20576,49 @@ export type Database = {
           withdrawable_balance: number
         }[]
       }
+      get_agent_tenant_profile: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          monthly_rent: number
+          national_id: string
+          phone: string
+          previous_full_name: string
+          tenant_status: string
+          verified: boolean
+        }[]
+      }
+      get_agent_tenants_overview: {
+        Args: { p_today_start?: string }
+        Returns: {
+          amount_repaid: number
+          balance: number
+          completed_count: number
+          created_at: string
+          daily: number
+          email: string
+          full_name: string
+          id: string
+          landlord_name: string
+          last_paid_amount: number
+          last_paid_at: string
+          latitude: number
+          longitude: number
+          monthly_rent: number
+          phone: string
+          property_address: string
+          request_count: number
+          statuses: string[]
+          today_paid_amount: number
+          today_paid_count: number
+          total_repayment: number
+          verified: boolean
+        }[]
+      }
       get_agent_vouch_limit_ugx: {
         Args: { p_agent_id: string }
         Returns: number
