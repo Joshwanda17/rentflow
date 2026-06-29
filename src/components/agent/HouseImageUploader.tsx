@@ -30,9 +30,13 @@ interface HouseImageUploaderProps {
   region?: string;
   district?: string;
   village?: string;
+  /** When true, only camera capture is allowed (no gallery / existing photos). */
+  cameraOnly?: boolean;
+  /** Minimum number of photos expected (used for the helper caption only). */
+  minImages?: number;
 }
 
-export function HouseImageUploader({ images, onChange, maxImages = 5, region, district, village }: HouseImageUploaderProps) {
+export function HouseImageUploader({ images, onChange, maxImages = 5, region, district, village, cameraOnly = false, minImages = 0 }: HouseImageUploaderProps) {
   const [compressing, setCompressing] = useState(false);
   const [showExisting, setShowExisting] = useState(false);
   const [failed, setFailed] = useState<FailedPhoto[]>([]);
@@ -255,17 +259,19 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
                 <Camera className="h-4 w-4 mr-2" />
                 Take Photo
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full border-dashed min-h-[44px]"
-                onClick={() => galleryInputRef.current?.click()}
-              >
-                <Image className="h-4 w-4 mr-2" />
-                Upload from Gallery
-              </Button>
-              {region && (
+              {!cameraOnly && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-dashed min-h-[44px]"
+                  onClick={() => galleryInputRef.current?.click()}
+                >
+                  <Image className="h-4 w-4 mr-2" />
+                  Upload from Gallery
+                </Button>
+              )}
+              {!cameraOnly && region && (
                 <Button
                   type="button"
                   variant="outline"
@@ -283,11 +289,13 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, region, di
       )}
 
       <p className="text-[10px] text-muted-foreground">
-        Photos help tenants find your listing · max 5MB each
+        {cameraOnly
+          ? `Take ${minImages > 0 ? `${minImages}–${maxImages}` : `up to ${maxImages}`} photos with your camera · max 5MB each`
+          : 'Photos help tenants find your listing · max 5MB each'}
       </p>
 
       {/* Existing photos dialog */}
-      {region && (
+      {!cameraOnly && region && (
         <ExistingPropertyPhotosDialog
           open={showExisting}
           onOpenChange={setShowExisting}

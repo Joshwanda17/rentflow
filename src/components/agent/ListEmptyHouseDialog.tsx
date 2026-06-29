@@ -884,8 +884,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
     }
     if (s === 2) {
       // Photos are required.
-      if (images.length === 0) {
-        toast.error('Add at least one photo of the house');
+      if (images.length < 3) {
+        toast.error('Take at least 3 photos of the house');
         return false;
       }
     }
@@ -948,7 +948,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
   preflightGates.push({ label: 'Village / Zone', ok: !!form.village.trim(), hint: 'Enter the village or zone', step: 1 });
   preflightGates.push({ label: 'GPS location pinned', ok: !!geo, hint: 'Stand at the house and pin its exact GPS coordinates', step: 1 });
   preflightGates.push({ label: 'GPS location confirmed', ok: !!geo && geoConfirmed, hint: 'Tick the box confirming the pin sits on the house', step: 1 });
-  preflightGates.push({ label: 'At least one photo', ok: images.length > 0, hint: 'Add at least one photo of the house', step: 2 });
+  preflightGates.push({ label: 'At least 3 photos', ok: images.length >= 3, hint: 'Take at least 3 photos of the house', step: 2 });
   preflightGates.push({ label: 'Landlord name', ok: !!(form.landlord_name.trim() || selectedLandlord?.name), hint: 'Enter the landlord name', step: 3 });
   preflightGates.push({ label: 'Landlord phone number', ok: !validateLandlordPhone(form.landlord_phone), hint: landlordPhoneError || 'Add a valid Ugandan phone number (e.g. 0771234567)', step: 3 });
   if (form.caretaker_type === 'other') {
@@ -989,8 +989,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
       failWith('Village / Zone is required');
       return;
     }
-    if (images.length === 0) {
-      failWith('Add at least one photo of the house');
+    if (images.length < 3) {
+      failWith('Take at least 3 photos of the house');
       return;
     }
     // Landlord name is mandatory for every listing.
@@ -2304,7 +2304,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
           <div
             id="lh-field-photos"
             className={`space-y-2 p-3 rounded-xl border ${
-              attempted && images.length === 0 ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
+              attempted && images.length < 3 ? 'border-destructive bg-destructive/5' : 'border-border bg-muted/30'
             }`}
           >
             <p className="text-sm font-medium">
@@ -2320,9 +2320,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               region={form.region}
               district={form.district}
               village={form.village}
+              maxImages={14}
+              minImages={3}
+              cameraOnly
             />
-            {attempted && images.length === 0 && (
-              <FieldError message="Add at least one photo of the house to list it." />
+            {attempted && images.length < 3 && (
+              <FieldError message="Take at least 3 photos of the house to list it." />
             )}
           </div>
 
@@ -2573,7 +2576,12 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess, initialLan
               </Button>
             )}
             {step < TOTAL_STEPS ? (
-              <Button type="button" className="h-14 flex-[2] min-w-0 text-base font-bold active:scale-95 touch-manipulation" onClick={goNext}>
+              <Button
+                type="button"
+                className="h-14 flex-[2] min-w-0 text-base font-bold active:scale-95 touch-manipulation"
+                onClick={goNext}
+                disabled={step === 2 && images.length < 3}
+              >
                 Next <ArrowRight className="h-5 w-5 ml-1 shrink-0" />
               </Button>
             ) : (
