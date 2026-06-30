@@ -187,9 +187,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    const results: Array<{ id: string; sent: boolean; attempts: number; error: string | null }> = [];
+    const results: Array<{ id: string; sent: boolean; attempts: number; error: string | null; skipped?: boolean }> = [];
 
     for (const w of rows || []) {
+      // ── Idempotency guard ──────────────────────────────────────────────
+      // Manual release and the auto-timeout can both fire for the same
+      // withdrawal. `withdrawal_release_events` has a UNIQUE(withdrawal_id),
+      // so the first path to insert "wins" and proceeds to notify; any later
+      // path hits a unique violation (23505) and skips — guaranteeing exactly
+      // one release SMS/notification per withdrawal release event.
+      const { error: claimErr } = await admin
+        .from("withdrawal_release_events")
+        .insert({
+          withdrawal_id: (w as any).id,
+          release_reason: reason,
+          triggered_by: user.id,
+        });
+      if (claimErr) {
+        if ((claimErr as any).code === "23505") {
+          console.log(
+            `[notify-withdrawal-released] Release already notified for withdrawal ${(w as any).id} — skipping duplicate (${reason}).`,
+          );
+          results.push({ id: (w as any).id, sent: false, attempts: 0, error: null, skipped: true });
+          continue;
+        }
+        // Non-conflict error: log and fall through so we don't silently drop
+        // the notification because of a transient DB issue.
+        console.warn(
+          `[notify-withdrawal-released] Idempotency insert failed for ${(w as any).id}:`,
+          claimErr,
+        );
+      }
+
       const { data: requester } = await admin
         .from("profiles")
         .select("full_name, phone")

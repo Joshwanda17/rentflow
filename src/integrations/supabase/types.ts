@@ -18929,6 +18929,30 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_release_events: {
+        Row: {
+          created_at: string
+          id: string
+          release_reason: string
+          triggered_by: string | null
+          withdrawal_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          release_reason: string
+          triggered_by?: string | null
+          withdrawal_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          release_reason?: string
+          triggered_by?: string | null
+          withdrawal_id?: string
+        }
+        Relationships: []
+      }
       withdrawal_requests: {
         Row: {
           agent_id: string | null
