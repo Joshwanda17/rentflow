@@ -63,6 +63,7 @@ import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
 import { AlreadyFundedLandlordsPanel } from '@/components/cfo/AlreadyFundedLandlordsPanel';
 import { CFOQuickActionsBar } from '@/components/cfo/CFOQuickActionsBar';
+import { CFOFavoritesBar } from '@/components/cfo/CFOFavoritesBar';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 // Ordered, swipeable tab ids derived from the CFO sidebar (route items excluded).
@@ -312,6 +313,7 @@ export default function CFODashboardPage() {
   return (
     <ExecutiveDashboardLayout role="cfo" activeTab={activeTab} onTabChange={setActiveTab}>
       <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
+      <CFOFavoritesBar activeTab={activeTab} onJump={setActiveTab} />
       <div {...(isMobile ? swipeHandlers : {})} className="min-h-[60vh]">
         {renderContent()}
       </div>
