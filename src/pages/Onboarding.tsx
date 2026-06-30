@@ -57,6 +57,7 @@ type InvestPath = 'tenant' | 'pool' | null;
 interface FormState {
   understoodRole: boolean;
   investPath: InvestPath;
+  supportAmount: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -199,7 +200,8 @@ function CountUp({ to, suffix = '', duration = 1400 }: { to: number; suffix?: st
 
 // ─── Support Graph ───────────────────────────────────────────────────────────
 const MONTHS = 12;
-const PRINCIPAL = 1_000_000;
+/** Minimum supported contribution, in UGX. Required before a funder can proceed. */
+export const MIN_SUPPORT = 20_000;
 
 function buildPoints(mode: 'tenant' | 'pool', principal: number): number[] {
   const pts: number[] = [];
@@ -212,16 +214,30 @@ function buildPoints(mode: 'tenant' | 'pool', principal: number): number[] {
   return pts;
 }
 
-function SupportGraph({ mode }: { mode: 'tenant' | 'pool' }) {
+function SupportGraph({
+  mode,
+  amount,
+  onAmountChange,
+  showError,
+}: {
+  mode: 'tenant' | 'pool';
+  amount: string;
+  onAmountChange: (value: string) => void;
+  showError: boolean;
+}) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const [rawInput, setRawInput] = useState('1,000,000');
   const currency = useCurrency();
-  const principal = Math.max(10_000, Number(rawInput.replace(/,/g, '')) || PRINCIPAL);
+  const enteredAmount = Number(amount.replace(/,/g, '')) || 0;
+  const hasAmount = enteredAmount >= MIN_SUPPORT;
+  const isInvalid = showError && !hasAmount;
+  // The chart shape uses a preview principal so it's never empty, but every
+  // breakdown figure reflects ONLY the real amount the funder entered.
+  const principal = enteredAmount > 0 ? enteredAmount : MIN_SUPPORT;
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const digits = e.target.value.replace(/[^0-9]/g, '');
     const formatted = digits ? Number(digits).toLocaleString() : '';
-    setRawInput(formatted);
+    onAmountChange(formatted);
   };
 
   const W = 320, H = 140, PAD = { top: 12, right: 12, bottom: 28, left: 8 };
@@ -248,6 +264,25 @@ function SupportGraph({ mode }: { mode: 'tenant' | 'pool' }) {
   const labelStep = mode === 'pool' ? 3 : 2;
   const pathId = `graph-${mode}`;
 
+  // ── Breakdown figures (computed strictly from the entered amount) ──
+  const monthlyReward = enteredAmount * 0.15;
+  const totalValue = points[MONTHS];
+  const totalEarned = totalValue - enteredAmount;
+  const dash = '—';
+  const breakdown = mode === 'tenant'
+    ? [
+        { label: 'Your support', value: hasAmount ? formatCurrencyCompact(enteredAmount, currency) : dash },
+        { label: 'Monthly reward', value: hasAmount ? `+${formatCurrencyCompact(monthlyReward, currency)}` : dash },
+        { label: 'Rewards · 12 mo', value: hasAmount ? `+${formatCurrencyCompact(monthlyReward * MONTHS, currency)}` : dash },
+        { label: 'Total after 12 mo', value: hasAmount ? formatCurrencyCompact(enteredAmount + monthlyReward * MONTHS, currency) : dash, accent: true },
+      ]
+    : [
+        { label: 'Your support', value: hasAmount ? formatCurrencyCompact(enteredAmount, currency) : dash },
+        { label: 'Month 1 reward', value: hasAmount ? `+${formatCurrencyCompact(monthlyReward, currency)}` : dash },
+        { label: 'Total growth', value: hasAmount ? `+${formatCurrencyCompact(totalEarned, currency)}` : dash },
+        { label: 'Total after 12 mo', value: hasAmount ? formatCurrencyCompact(totalValue, currency) : dash, accent: true },
+      ];
+
   return (
     <motion.div
       key={mode}
@@ -262,21 +297,38 @@ function SupportGraph({ mode }: { mode: 'tenant' | 'pool' }) {
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
             {mode === 'tenant' ? 'Monthly rewards · 12 months' : 'Compounding growth · 12 months'}
           </p>
-          <div className="flex items-center gap-1.5 mt-1.5 bg-purple-50 border border-purple-100 rounded-xl px-3 py-1.5">
+          <div
+            className={`flex items-center gap-1.5 mt-1.5 border rounded-xl px-3 py-1.5 transition-colors ${
+              isInvalid ? 'bg-red-50 border-red-400' : 'bg-purple-50 border-purple-100'
+            }`}
+          >
             <span className="text-[11px] font-bold text-[#6c11d4] shrink-0">{currency.symbol}</span>
+            {/* Blinking caret on the LEFT — indicates where to type when empty */}
+            {!amount && (
+              <span
+                aria-hidden="true"
+                className="inline-block w-[2px] h-4 bg-[#6c11d4] animate-blink shrink-0"
+              />
+            )}
             <input
               type="text"
               inputMode="numeric"
-              value={rawInput}
+              value={amount}
               onChange={handleAmountChange}
-              placeholder="1,000,000"
+              placeholder="Enter amount"
+              aria-invalid={isInvalid}
               className="flex-1 min-w-0 bg-transparent text-sm font-black text-[#1C1C2E] outline-none placeholder:text-gray-300 w-full caret-[#6c11d4]"
             />
-            <span
-              aria-hidden="true"
-              className="inline-block w-[2px] h-4 bg-[#6c11d4] animate-blink shrink-0"
-            />
           </div>
+          {isInvalid ? (
+            <p className="text-[10px] font-semibold text-red-500 mt-1">
+              Please enter the amount you'd like to support (min {currency.symbol} {MIN_SUPPORT.toLocaleString()}) to continue.
+            </p>
+          ) : (
+            <p className="text-[10px] text-gray-400 mt-1">
+              Enter the amount you're willing to support — required to continue (min {currency.symbol} {MIN_SUPPORT.toLocaleString()}).
+            </p>
+          )}
         </div>
         <motion.span
           key={mode + '-badge'}
@@ -288,7 +340,7 @@ function SupportGraph({ mode }: { mode: 'tenant' | 'pool' }) {
         </motion.span>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ touchAction: 'none' }} onMouseLeave={() => setHovered(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} className={`w-full transition-opacity ${hasAmount ? 'opacity-100' : 'opacity-40'}`} style={{ touchAction: 'none' }} onMouseLeave={() => setHovered(null)}>
         <defs>
           <linearGradient id={`area-${mode}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.18" />
@@ -322,19 +374,17 @@ function SupportGraph({ mode }: { mode: 'tenant' | 'pool' }) {
         ))}
       </svg>
 
-      <div className="flex justify-between items-center pt-2 border-t border-gray-50 mt-1">
-        <div>
-          <p className="text-[10px] text-gray-400">After 12 months</p>
-          <p className="text-[10px] text-gray-400 mt-0.5">
-            {mode === 'tenant'
-              ? `+${formatCurrencyCompact(principal * 0.15, currency)} / mo reward`
-              : `${((points[MONTHS] / principal - 1) * 100).toFixed(0)}% total growth`
-            }
-          </p>
-        </div>
-        <motion.p key={points[MONTHS]} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-base font-black text-[#6c11d4]">
-          {formatCurrencyCompact(points[MONTHS], currency)}
-        </motion.p>
+      {/* ── Live breakdown — computed from the entered amount ── */}
+      <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-50 mt-1">
+        {breakdown.map(({ label, value, accent }) => (
+          <div
+            key={label}
+            className={`rounded-xl px-3 py-2 ${accent ? 'bg-[#F3F0FF] border border-[#E0D2FA]' : 'bg-gray-50'}`}
+          >
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
+            <p className={`text-[13px] font-black mt-0.5 ${accent ? 'text-[#6c11d4]' : 'text-gray-900'}`}>{value}</p>
+          </div>
+        ))}
       </div>
     </motion.div>
   );
@@ -451,7 +501,7 @@ function Step1({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
 }
 
 // ─── Step 2 — Support ────────────────────────────────────────────────────────
-function Step2({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
+function Step2({ form, setForm, showError }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; showError: boolean }) {
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
       <motion.div variants={fadeUp}>
@@ -482,7 +532,13 @@ function Step2({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
 
       <AnimatePresence mode="wait">
         {form.investPath && (
-          <SupportGraph key={form.investPath} mode={form.investPath} />
+          <SupportGraph
+            key={form.investPath}
+            mode={form.investPath}
+            amount={form.supportAmount}
+            onAmountChange={(value) => setForm(p => ({ ...p, supportAmount: value }))}
+            showError={showError}
+          />
         )}
       </AnimatePresence>
     </motion.div>
@@ -717,7 +773,11 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
 // ─── Step Validity ───────────────────────────────────────────────────────────
 function isValid(step: number, form: FormState): boolean {
   if (step === 1) return form.understoodRole;
-  if (step === 2) return form.investPath !== null;
+  if (step === 2) {
+    if (form.investPath === null) return false;
+    const amount = Number(form.supportAmount.replace(/,/g, '')) || 0;
+    return amount >= MIN_SUPPORT;
+  }
   if (step === 3) {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
     const nameOk = form.firstName.length >= 2 && form.lastName.length >= 2;
@@ -780,6 +840,7 @@ export default function FunderOnboarding() {
   const [form, setForm] = useState<FormState>({
     understoodRole: false,
     investPath: null,
+    supportAmount: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -795,6 +856,11 @@ export default function FunderOnboarding() {
   }, [user, navigate, showSuccess, isSubmitting]);
 
   const valid = isValid(step, form);
+
+  // Surfaces inline validation feedback (e.g. red amount border) when the user
+  // presses the action button before the current step is complete.
+  const [showStepError, setShowStepError] = useState(false);
+  useEffect(() => { setShowStepError(false); }, [step]);
 
   // Guard: while auth is initialising, OR an authenticated user is being
   // redirected away, render a lightweight loader instead of the fixed
@@ -813,6 +879,10 @@ export default function FunderOnboarding() {
   }
 
   const handleNext = async () => {
+    if (!valid) {
+      setShowStepError(true);
+      return;
+    }
     if (step < TOTAL) {
       setStep(s => s + 1);
     } else {
@@ -877,7 +947,7 @@ export default function FunderOnboarding() {
 
   const stepComponents: Record<number, React.ReactNode> = {
     1: <Step1 form={form} setForm={setForm} />,
-    2: <Step2 form={form} setForm={setForm} />,
+    2: <Step2 form={form} setForm={setForm} showError={showStepError} />,
     3: <Step3 form={form} setForm={setForm} />,
   };
 
@@ -974,14 +1044,14 @@ export default function FunderOnboarding() {
               </div>
             )}
             <motion.button
-              onClick={valid && !isSubmitting ? handleNext : undefined}
-              disabled={!valid || isSubmitting}
+              onClick={isSubmitting ? undefined : handleNext}
+              disabled={isSubmitting}
               whileTap={valid && !isSubmitting ? { scale: 0.98 } : {}}
               animate={{ opacity: valid ? 1 : 0.55 }}
               transition={{ duration: 0.2 }}
               className={`w-full py-3 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all duration-200 ${
                 !valid
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-gray-200 text-gray-400'
                   : step === TOTAL
                     ? isSubmitting
                       ? 'bg-emerald-400 text-white cursor-not-allowed'
