@@ -25,7 +25,7 @@ export interface WithdrawalPayoutCardProps {
   withdrawal: any;
   isClaimed?: boolean;
   isClaimedByOther?: boolean;
-  onClaim?: () => void;
+  onClaim?: (confirm?: { momoNumber?: string | null; momoName?: string | null }) => void;
   onComplete?: (data: { id: string; reference: string; method: string }) => void;
   /** ID of the withdrawal currently being claimed (for per-request loading) */
   claimingId?: string | null;
@@ -648,7 +648,13 @@ export function WithdrawalPayoutCard({
                 setConfirmClaimOpen(false);
                 // Persist the exact confirmed payout target for later review.
                 void recordClaimConfirmation();
-                onClaim?.();
+                // Pass the agent-confirmed MoMo number and the name they typed
+                // from their MTN/Airtel screen so the server can enforce an exact
+                // match against the withdrawal's stored payout details.
+                onClaim?.({
+                  momoNumber: isMoMo ? momoNumber : null,
+                  momoName: isMoMo ? (enteredNameTrimmed || momoRegisteredName) : null,
+                });
               }}
             >
               {claimingId === withdrawal.id ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <UserCheck className="h-4 w-4 mr-1.5" />}
