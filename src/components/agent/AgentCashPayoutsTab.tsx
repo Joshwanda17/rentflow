@@ -644,8 +644,16 @@ export function AgentCashPayoutsTab() {
       .channel('cashout-agent-withdrawals')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, (payload) => {
         invalidateQueue();
+        const newRow = payload.new as any;
+        // When a payout this merchant settled completes, refresh their earnings
+        // views immediately so Today's Payouts, Commission and Payout Activity
+        // never lag behind the actual ledger.
+        if (newRow?.processed_by === user?.id && newRow?.status === 'completed') {
+          qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
+          qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
+          qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
+        }
         if (payload.eventType === 'INSERT') {
-          const newRow = payload.new as any;
           toast.info(`🔔 New withdrawal: ${formatUGX(Number(newRow.amount || 0))} via ${newRow.payout_method || 'wallet'}`, { duration: 6000 });
         }
       })
