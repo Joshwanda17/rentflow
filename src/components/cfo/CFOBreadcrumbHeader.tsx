@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -56,6 +56,19 @@ export function CFOBreadcrumbHeader({
           : sectionLabel}
       </p>
       <div className="flex items-center gap-1 px-2 sm:px-4 lg:px-6 py-2">
+        {!isOverview && (
+          <button
+            type="button"
+            onClick={() => {
+              hapticTap();
+              onJump('overview');
+            }}
+            aria-label="Back to dashboard overview"
+            className="mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        )}
         <ol className="flex flex-1 items-center gap-1 text-sm overflow-x-auto no-scrollbar">
         <li className="shrink-0">
           <button
