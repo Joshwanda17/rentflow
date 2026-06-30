@@ -848,6 +848,7 @@ export default function FunderOnboarding() {
     password: '',
     confirmPassword: '',
     phone: '',
+    address: '',
     agreedToTerms: false,
   });
 
