@@ -171,6 +171,13 @@ export function WithdrawalPayoutCard({
           >
             <div className="min-w-0 flex-1">
               <p className="font-bold text-lg truncate leading-tight">{recipientName}</p>
+              {/* Payout target at a glance — visible before claiming/expanding */}
+              {isMoMo && (
+                <p className="text-sm font-mono font-semibold text-foreground/80 truncate mt-0.5">
+                  {momoNumber}
+                  {momoRegisteredName ? <span className="font-sans font-medium"> · {momoRegisteredName}</span> : ''}
+                </p>
+              )}
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 <Badge variant="secondary" className="text-xs gap-1 h-5 px-2">
                   <MethodIcon className="h-3 w-3" />
