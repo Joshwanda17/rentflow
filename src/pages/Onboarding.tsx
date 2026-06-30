@@ -201,7 +201,7 @@ function CountUp({ to, suffix = '', duration = 1400 }: { to: number; suffix?: st
 // ─── Support Graph ───────────────────────────────────────────────────────────
 const MONTHS = 12;
 /** Minimum supported contribution, in UGX. Required before a funder can proceed. */
-export const MIN_SUPPORT = 20_000;
+export const MIN_SUPPORT = 50_000;
 
 function buildPoints(mode: 'tenant' | 'pool', principal: number): number[] {
   const pts: number[] = [];
