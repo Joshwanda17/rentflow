@@ -185,6 +185,11 @@ export function WithdrawalPayoutCard({
     : null;
   const isStale = claimedMinutesAgo !== null && claimedMinutesAgo >= 15;
 
+  // What the merchant agent earns for processing this payout: 0.5% commission
+  // (matches approve-withdrawal: Math.round(amount * 0.005)). Shown up front so
+  // the agent sees their reward BEFORE claiming.
+  const agentEarning = Math.max(0, Math.round(Number(withdrawal.amount || 0) * 0.005));
+
   // Record exactly what the agent confirmed at claim time so it can be
   // reviewed later (which number / which registered name they accepted,
   // whether the typed name mismatched, and if they acknowledged it).
@@ -269,7 +274,14 @@ export function WithdrawalPayoutCard({
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <p className="font-bold text-xl text-primary tabular-nums">{formatUGX(withdrawal.amount)}</p>
+              <div className="flex flex-col items-end">
+                <p className="font-bold text-xl text-primary tabular-nums leading-tight">{formatUGX(withdrawal.amount)}</p>
+                {!isClaimed && !isClaimedByOther && agentEarning > 0 && (
+                  <span className="inline-flex items-center gap-1 mt-0.5 rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-bold text-success tabular-nums">
+                    + You earn {formatUGX(agentEarning)}
+                  </span>
+                )}
+              </div>
               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
             </div>
           </button>
@@ -417,6 +429,20 @@ export function WithdrawalPayoutCard({
                     <span>Submitting claim… please wait</span>
                   </div>
                 )}
+                {agentEarning > 0 && (
+                  <div className="rounded-xl bg-success/10 border-2 border-success/40 px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-9 w-9 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                        <Banknote className="h-5 w-5 text-success" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-success/80 leading-none">You earn for this payout</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">0.5% commission · paid to your wallet on completion</p>
+                      </div>
+                    </div>
+                    <p className="text-2xl font-extrabold text-success tabular-nums shrink-0">{formatUGX(agentEarning)}</p>
+                  </div>
+                )}
                 <Button
                   className="w-full h-12 gap-2 font-semibold text-base"
                   variant="outline"
@@ -546,6 +572,15 @@ export function WithdrawalPayoutCard({
           </DialogHeader>
 
           <div className="space-y-3">
+            {agentEarning > 0 && (
+              <div className="rounded-xl bg-success/10 border-2 border-success/40 px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Banknote className="h-5 w-5 text-success shrink-0" />
+                  <p className="text-sm font-semibold text-success">You earn from this payout</p>
+                </div>
+                <p className="text-xl font-extrabold text-success tabular-nums shrink-0">{formatUGX(agentEarning)}</p>
+              </div>
+            )}
             {isMoMo ? (
               <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-3">
                 <div>
