@@ -19997,6 +19997,10 @@ export type Database = {
         Args: { p_window_hours?: number }
         Returns: number
       }
+      auto_create_deposits_from_gmail_impl: {
+        Args: { p_window_hours?: number }
+        Returns: number
+      }
       auto_dispatch_withdrawals: {
         Args: { p_batch_size?: number }
         Returns: Json
