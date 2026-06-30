@@ -1004,6 +1004,64 @@ function isValid(step: number, form: FormState): boolean {
   return false;
 }
 
+function getValidationMessage(step: number, form: FormState): string {
+  if (step === 1) {
+    return 'Please tick the confirmation box to confirm you understand Welile manages tenants, collections, and payouts.';
+  }
+
+  if (step === 2) {
+    if (form.investPath === null) return 'Please choose either “Support a Tenant” or “Grow Your Contribution”.';
+    const amount = Number(form.supportAmount.replace(/,/g, '')) || 0;
+    if (!form.supportAmount.trim()) return `Please enter the amount you are willing to support. Minimum amount is UGX ${MIN_SUPPORT.toLocaleString()}.`;
+    if (amount < MIN_SUPPORT) return `The support amount must be at least UGX ${MIN_SUPPORT.toLocaleString()}.`;
+  }
+
+  if (step === 3) {
+    const missing: string[] = [];
+    if (form.payoutMode === 'bank') {
+      if (form.bankName.trim().length < 2) missing.push('bank name');
+      if (form.bankAccountName.trim().length < 2) missing.push('bank account name');
+      if (form.bankAccountNumber.trim().length < 4) missing.push('bank account number');
+    } else {
+      if (form.momoProvider.trim().length < 2) missing.push('mobile money provider');
+      if (form.momoNumber.trim().length < 7) missing.push('mobile money number');
+      if (form.momoName.trim().length < 2) missing.push('mobile money account name');
+    }
+    if (form.kinName.trim().length < 2) missing.push('next of kin name');
+    if (form.kinContact.trim().length < 7) missing.push('next of kin contact');
+    return missing.length ? `Please complete: ${missing.join(', ')}.` : '';
+  }
+
+  if (step === 4) {
+    const missing: string[] = [];
+    if (form.firstName.trim().length < 2) missing.push('first name');
+    if (form.lastName.trim().length < 2) missing.push('last name');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) missing.push('a valid email address');
+    if (form.phone.trim().length < 7) missing.push('phone number');
+    if (form.address.trim().length < 2) missing.push('address');
+    if (form.nationalId.trim().length < 5) missing.push('national ID/passport number');
+    if (form.password.length < 8) missing.push('password of at least 8 characters');
+    if (form.password !== form.confirmPassword) missing.push('matching password confirmation');
+    if (!form.agreedToTerms) missing.push('agreement to the terms and privacy policy');
+    return missing.length ? `Please complete: ${missing.join(', ')}.` : '';
+  }
+
+  return 'Please complete the required fields before continuing.';
+}
+
+function friendlySubmissionError(err: any): string {
+  const raw = err?.response?.data?.detail || err?.response?.data?.message || err?.message || '';
+  const msg = String(raw || '').trim();
+  const lower = msg.toLowerCase();
+  if (lower.includes('already registered') || lower.includes('already exists') || lower.includes('duplicate')) {
+    return 'An account already exists with these details. Please sign in, or use a different email/phone number.';
+  }
+  if (lower.includes('invalid email')) return 'Please enter a valid email address.';
+  if (lower.includes('password')) return 'The password could not be accepted. Use at least 8 characters and try again.';
+  if (lower.includes('network') || lower.includes('failed to fetch')) return 'Network error. Please check your internet connection and try again.';
+  return msg || 'Failed to create account. Please review your details and try again.';
+}
+
 const STEP_LABELS = ['Welcome', 'Support', 'Bank & Next of Kin', 'Create Account'];
 
 // ─── Main Component ──────────────────────────────────────────────────────────
@@ -1087,6 +1145,7 @@ export default function FunderOnboarding() {
   // presses the action button before the current step is complete.
   const [showStepError, setShowStepError] = useState(false);
   useEffect(() => { setShowStepError(false); }, [step]);
+  const stepErrorMessage = showStepError && !valid ? getValidationMessage(step, form) : '';
 
   // Guard: while auth is initialising, OR an authenticated user is being
   // redirected away, render a lightweight loader instead of the fixed
@@ -1107,6 +1166,7 @@ export default function FunderOnboarding() {
   const handleNext = async () => {
     if (!valid) {
       setShowStepError(true);
+      toast.error(getValidationMessage(step, form));
       return;
     }
     if (step < TOTAL) {
@@ -1250,6 +1310,7 @@ export default function FunderOnboarding() {
                   kinName: cleanKinName || undefined,
                   kinContact: cleanKinContact || undefined,
                   agreementDate: new Date(),
+                  includeStamp: false,
                 }),
               );
               await supabase.functions.invoke('generate-partner-agreement', {
@@ -1269,8 +1330,7 @@ export default function FunderOnboarding() {
         }, 3000);
       } catch (err: any) {
         console.error('Signup failed:', err);
-        const respError = err.response?.data?.detail || err.response?.data?.message || err.message;
-        setApiError(respError || 'Failed to create account. Please try again.');
+        setApiError(friendlySubmissionError(err));
         setIsSubmitting(false);
       }
     }
@@ -1372,6 +1432,14 @@ export default function FunderOnboarding() {
 
         <div className="px-6 pb-5 pt-3 bg-white border-t border-gray-100 shrink-0 lg:px-[18px]">
           <div className="max-w-md mx-auto w-full">
+            {stepErrorMessage && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
+                <X size={16} strokeWidth={3} className="text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-[13px] text-amber-800 font-semibold leading-relaxed">
+                  {stepErrorMessage}
+                </p>
+              </div>
+            )}
             {step === TOTAL && apiError && (
               <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
                 <X size={16} strokeWidth={3} className="text-red-500 mt-0.5 shrink-0" />

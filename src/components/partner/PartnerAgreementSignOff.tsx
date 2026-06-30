@@ -127,6 +127,7 @@ export default function PartnerAgreementSignOff({
       welileRepContact: repContact,
       welileSignatureDataUrl: sigDataUrl || repSigUrl,
       partnerSignatureDataUrl: undefined,
+      includeStamp: true,
     };
   }, [agreement, partner, repSigUrl, repName, repPosition, repContact, sigDataUrl]);
 
