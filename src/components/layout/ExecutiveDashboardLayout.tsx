@@ -395,7 +395,7 @@ export default function ExecutiveDashboardLayout({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <SidebarContent onItemClick={() => setDrawerOpen(false)} />
+            {SidebarContent({ onItemClick: () => setDrawerOpen(false) })}
             <div className="p-4 border-t border-border">
               <button
                 type="button"
