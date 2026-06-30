@@ -655,6 +655,22 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
           </div>
         </div>
 
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Address</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+              <MapPin size={15} strokeWidth={1.75} />
+            </div>
+            <input
+              type="text"
+              placeholder="District, town or village"
+              value={form.address}
+              onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
+            />
+          </div>
+        </div>
+
         <div className="h-px bg-gray-100" />
 
         <div className="space-y-1">
