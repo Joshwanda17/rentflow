@@ -101,6 +101,33 @@ export default function CFODashboardPage() {
     onSwipeRight: () => goToOffset(-1),
   });
 
+  // Keyboard navigation between sections for keyboard + screen-reader users
+  // (Alt+Arrow to move, Alt+Home to jump to the overview). Alt avoids clashing
+  // with normal typing, scrolling, and native control arrow keys.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        goToOffset(1);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goToOffset(-1);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        setActiveTab('overview');
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
+  const currentTabIndex = CFO_TAB_IDS.indexOf(activeTab);
+  const sectionPosition = {
+    index: (currentTabIndex === -1 ? 0 : currentTabIndex) + 1,
+    total: CFO_TAB_IDS.length,
+  };
+
   // Force UGX on CFO dashboard — financial reporting must always be in base currency
   useEffect(() => {
     if (currency.code !== 'UGX') {
@@ -313,7 +340,13 @@ export default function CFODashboardPage() {
 
   return (
     <ExecutiveDashboardLayout role="cfo" activeTab={activeTab} onTabChange={setActiveTab}>
-      <CFOBreadcrumbHeader activeTab={activeTab} onJump={setActiveTab} />
+      <CFOBreadcrumbHeader
+        activeTab={activeTab}
+        onJump={setActiveTab}
+        position={sectionPosition}
+        onPrev={() => goToOffset(-1)}
+        onNext={() => goToOffset(1)}
+      />
       <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
       <CFOFavoritesBar activeTab={activeTab} onJump={setActiveTab} />
       <div {...(isMobile ? swipeHandlers : {})} className="min-h-[60vh]">
