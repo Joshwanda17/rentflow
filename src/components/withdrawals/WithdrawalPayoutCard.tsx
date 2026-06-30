@@ -25,7 +25,7 @@ export interface WithdrawalPayoutCardProps {
   withdrawal: any;
   isClaimed?: boolean;
   isClaimedByOther?: boolean;
-  onClaim?: () => void;
+  onClaim?: (confirm?: { momoNumber?: string | null; momoName?: string | null }) => void;
   onComplete?: (data: { id: string; reference: string; method: string }) => void;
   /** ID of the withdrawal currently being claimed (for per-request loading) */
   claimingId?: string | null;
