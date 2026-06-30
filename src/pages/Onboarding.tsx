@@ -201,7 +201,7 @@ function CountUp({ to, suffix = '', duration = 1400 }: { to: number; suffix?: st
 // ─── Support Graph ───────────────────────────────────────────────────────────
 const MONTHS = 12;
 /** Minimum supported contribution, in UGX. Required before a funder can proceed. */
-export const MIN_SUPPORT = 20_000;
+export const MIN_SUPPORT = 50_000;
 
 function buildPoints(mode: 'tenant' | 'pool', principal: number): number[] {
   const pts: number[] = [];
@@ -956,10 +956,10 @@ export default function FunderOnboarding() {
       <Toaster position="top-center" />
       <Helmet>
         <title>Become a Welile Funder — Fund the Future of Housing</title>
-        <meta name="description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 20,000." />
+        <meta name="description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 50,000." />
         <link rel="canonical" href="https://welilereceipts.com/funder-onboarding" />
         <meta property="og:title" content="Become a Welile Funder — Fund the Future of Housing" />
-        <meta property="og:description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 20,000." />
+        <meta property="og:description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 50,000." />
         <meta property="og:url" content="https://welilereceipts.com/funder-onboarding" />
       </Helmet>
 
