@@ -12,7 +12,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { signUp } from '@/hooks/auth/authOperations';
 import { useAuth as useRealAuth } from '@/hooks/useAuth';
 import { buildPartnerReference } from '@/lib/partnerReference';
-import { generatePartnershipAgreementPDF } from '@/lib/partnershipAgreementPdf';
 import { numberToWords } from '@/lib/numberToWords';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -68,6 +67,7 @@ interface FormState {
   confirmPassword: string;
   phone: string;
   address: string;
+  nationalId: string;
   payoutMode: 'bank' | 'momo';
   momoProvider: string;
   momoNumber: string;
@@ -831,6 +831,23 @@ function _Step3Impl({
           </div>
         </div>
 
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">National ID / Passport No.</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+              <CreditCard size={15} strokeWidth={1.75} />
+            </div>
+            <input
+              type="text"
+              placeholder="e.g. CM900123456XYZ"
+              value={form.nationalId}
+              onChange={e => setForm(p => ({ ...p, nationalId: e.target.value.toUpperCase() }))}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
+            />
+          </div>
+          <p className="text-[10px] text-gray-400 pl-1">Required for your Welile Partnership Agreement.</p>
+        </div>
+
         <div className="h-px bg-gray-100" />
 
         <div className="space-y-1">
@@ -979,7 +996,8 @@ function isValid(step: number, form: FormState): boolean {
     const matchOk = form.password === form.confirmPassword;
     const phoneOk = form.phone.trim().length >= 7;
     const addressOk = form.address.trim().length >= 2;
-    return emailOk && nameOk && pwOk && matchOk && phoneOk && addressOk && form.agreedToTerms;
+    const nationalIdOk = form.nationalId.trim().length >= 5;
+    return emailOk && nameOk && pwOk && matchOk && phoneOk && addressOk && nationalIdOk && form.agreedToTerms;
   }
   return false;
 }
@@ -1043,6 +1061,7 @@ export default function FunderOnboarding() {
     confirmPassword: '',
     phone: '',
     address: '',
+    nationalId: '',
     payoutMode: 'bank',
     momoProvider: '',
     momoNumber: '',
@@ -1108,6 +1127,7 @@ export default function FunderOnboarding() {
         const cleanMomoName = sanitizeInput(form.momoName).trim();
         const cleanKinName = sanitizeInput(form.kinName).trim();
         const cleanKinContact = sanitizeInput(form.kinContact).trim();
+        const cleanNationalId = sanitizeInput(form.nationalId).trim().toUpperCase();
 
         const signupResult = await registerUser({
           email: cleanEmail,
@@ -1122,14 +1142,17 @@ export default function FunderOnboarding() {
         // Fire-and-forget the partner_account_created email — don't block the
         // success modal on email delivery.
         const newUserId = signupResult?.data?.user?.id ?? '';
-        // Persist the funder's address on their profile (non-blocking).
-        if (newUserId && cleanAddress) {
+        // Persist the funder's address + national ID on their profile (non-blocking).
+        if (newUserId && (cleanAddress || cleanNationalId)) {
+          const profilePatch: Record<string, string> = {};
+          if (cleanAddress) profilePatch.landmark = cleanAddress;
+          if (cleanNationalId) profilePatch.national_id = cleanNationalId;
           supabase
             .from('profiles')
-            .update({ landmark: cleanAddress })
+            .update(profilePatch)
             .eq('id', newUserId)
             .then(({ error }) => {
-              if (error) console.warn('address save failed (non-blocking):', error);
+              if (error) console.warn('profile save failed (non-blocking):', error);
             });
         }
         // Persist the funder's payout method (bank or mobile money) — non-blocking.
@@ -1168,75 +1191,51 @@ export default function FunderOnboarding() {
           }
         }
         const partnerReference = buildPartnerReference(newUserId, new Date());
-        // Generate the personalised Tenant Partnership Agreement PDF from the
-        // user's filled details, store it privately, then email a secure
-        // download link with the new agreement template. Fully non-blocking so
-        // the success modal isn't held up by PDF/email work.
+        // Persist every contract field the partner typed into the single
+        // source-of-truth `partner_agreements` row, then ask the server-side
+        // renderer to generate the draft PDF + email a download link. The admin
+        // never re-enters any of this. Fully non-blocking so the success modal
+        // isn't held up by PDF/email work.
         const supportAmountNum = Number(form.supportAmount.replace(/,/g, '')) || 0;
-        (async () => {
-          try {
-            const pdfBlob = await generatePartnershipAgreementPDF({
-              partnerName: `${cleanFirst} ${cleanLast}`.trim(),
-              partnerAddress: cleanAddress,
-              partnerPhone: cleanPhone,
-              partnerEmail: cleanEmail,
-              partnershipAmount: supportAmountNum,
-              payoutMode: form.payoutMode === 'momo' ? 'momo' : 'bank',
-              bankName: cleanBankName,
-              bankAccountName: cleanBankAccountName,
-              bankAccountNumber: cleanBankAccountNumber,
-              momoProvider: cleanMomoProvider,
-              momoNumber: cleanMomoNumber,
-              momoName: cleanMomoName,
-              kinName: cleanKinName,
-              kinContact: cleanKinContact,
-              agreementDate: new Date(),
-            });
-
-            // Upload to the private bucket and mint a long-lived signed URL.
-            let downloadUrl = '';
-            const objectPath = `${newUserId || 'anon'}/partnership-agreement-${partnerReference}.pdf`;
-            const { error: upErr } = await supabase.storage
-              .from('partner-agreements')
-              .upload(objectPath, pdfBlob, {
-                contentType: 'application/pdf',
-                upsert: true,
-              });
-            if (upErr) {
-              console.warn('agreement PDF upload failed (non-blocking):', upErr);
-            } else {
-              const { data: signed } = await supabase.storage
-                .from('partner-agreements')
-                .createSignedUrl(objectPath, 60 * 60 * 24 * 365); // 1 year
-              downloadUrl = signed?.signedUrl || '';
-            }
-
-            const payoutSummary =
-              form.payoutMode === 'momo'
-                ? [cleanMomoProvider, cleanMomoNumber].filter(Boolean).join(' ') || 'Mobile Money'
-                : [cleanBankName, cleanBankAccountNumber].filter(Boolean).join(' ') || 'Bank Transfer';
-
-            await supabase.functions.invoke('send-transactional-email', {
-              body: {
-                templateName: 'tenant-partnership-agreement',
-                recipientEmail: cleanEmail,
-                templateData: {
-                  partner_name: `${cleanFirst} ${cleanLast}`.trim() || 'Partner',
-                  partner_email: cleanEmail,
-                  partner_reference: partnerReference,
-                  partnership_amount: `UGX ${supportAmountNum.toLocaleString('en-US')}`,
+        if (newUserId) {
+          (async () => {
+            try {
+              const { error: agErr } = await supabase
+                .from('partner_agreements')
+                .upsert({
+                  partner_id: newUserId,
+                  full_name: `${cleanFirst} ${cleanLast}`.trim(),
+                  phone: cleanPhone,
+                  email: cleanEmail,
+                  national_id: cleanNationalId,
+                  address: cleanAddress,
+                  partnership_amount: supportAmountNum,
                   partnership_amount_words: numberToWords(supportAmountNum),
-                  monthly_return: '15%',
-                  payout_summary: payoutSummary,
-                  agreement_download_url: downloadUrl || 'https://welilereceipts.com',
-                  company_name: 'WELILE TECHNOLOGIES LTD',
-                },
-              },
-            });
-          } catch (e) {
-            console.warn('partnership agreement email failed (non-blocking):', e);
-          }
-        })();
+                  payout_mode: form.payoutMode === 'momo' ? 'momo' : 'bank',
+                  bank_name: cleanBankName || null,
+                  bank_account_name: cleanBankAccountName || null,
+                  bank_account_number: cleanBankAccountNumber || null,
+                  momo_provider: cleanMomoProvider || null,
+                  momo_number: cleanMomoNumber || null,
+                  momo_name: cleanMomoName || null,
+                  kin_name: cleanKinName || null,
+                  kin_contact: cleanKinContact || null,
+                  reference: partnerReference,
+                  status: 'pending',
+                }, { onConflict: 'partner_id' });
+              if (agErr) {
+                console.warn('partner agreement save failed (non-blocking):', agErr);
+                return;
+              }
+              // Server renders the draft PDF from the row and emails the partner.
+              await supabase.functions.invoke('generate-partner-agreement', {
+                body: { partnerId: newUserId, countersign: false },
+              });
+            } catch (e) {
+              console.warn('partnership agreement render failed (non-blocking):', e);
+            }
+          })();
+        }
 
         // Flip into the success modal and auto-redirect after 3 seconds.
         setIsSubmitting(false);

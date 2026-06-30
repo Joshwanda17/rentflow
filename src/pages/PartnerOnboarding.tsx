@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { buildPartnerReference } from '@/lib/partnerReference';
 import { useToast } from '@/hooks/use-toast';
 import PartnerAgreementSignOff, { type SignOffPartner } from '@/components/partner/PartnerAgreementSignOff';
+import PartnerCompanyDefaultsDialog from '@/components/partner/PartnerCompanyDefaultsDialog';
 
 interface FunderProfileRow {
   id: string;
@@ -71,6 +72,7 @@ export default function FunderOnboarding() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [selected, setSelected] = useState<FunderProfileRow | null>(null);
   const [signOffPartner, setSignOffPartner] = useState<SignOffPartner | null>(null);
+  const [companyDefaultsOpen, setCompanyDefaultsOpen] = useState(false);
   const [actionMode, setActionMode] = useState<null | 'approve' | 'reject'>(null);
   const [actionReason, setActionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -381,6 +383,12 @@ export default function FunderOnboarding() {
         <KPICard label="Rejected" value={kpis?.rejected ?? '—'} status={(kpis?.rejected || 0) > 0 ? 'red' : 'green'} />
         <KPICard label="Referred" value={kpis?.referred ?? '—'} status="green" sub="Via shared link" />
         <KPICard label="Direct" value={kpis?.direct ?? '—'} status="green" sub="Typed URL" />
+      </div>
+
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCompanyDefaultsOpen(true)}>
+          <ShieldCheck className="h-3.5 w-3.5" /> Company Defaults
+        </Button>
       </div>
 
       {/* Source filter tabs */}
@@ -729,6 +737,11 @@ export default function FunderOnboarding() {
         open={!!signOffPartner}
         onOpenChange={(o) => { if (!o) setSignOffPartner(null); }}
         partner={signOffPartner}
+      />
+
+      <PartnerCompanyDefaultsDialog
+        open={companyDefaultsOpen}
+        onOpenChange={setCompanyDefaultsOpen}
       />
     </COODetailLayout>
   );
