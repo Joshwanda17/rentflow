@@ -47,12 +47,12 @@ function esc(v: unknown): string {
 // (red date) and the postal address. Injected as inline HTML so html2canvas
 // captures it identically to the on-screen preview. `pos` is the absolute
 // position CSS (e.g. `top:0; right:48px;`) and `scale` shrinks the whole stamp.
-function stampHtml(date: Date, pos: string, scale = 1): string {
+function stampHtml(date: Date, pos: string, scale = 1, origin = 'top right', extraTransform = ''): string {
   const day = String(date.getDate()).padStart(2, '0');
   const month = date.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
   const year = date.getFullYear();
   return `
-  <div style="position:absolute; ${pos} transform:rotate(-2deg) scale(${scale}); transform-origin:top right; opacity:0.85; pointer-events:none; z-index:5;">
+  <div style="position:absolute; ${pos} transform:${extraTransform} rotate(-2deg) scale(${scale}); transform-origin:${origin}; opacity:0.85; pointer-events:none; z-index:5;">
     <div style="width:340px; border:5px solid #1134a6; border-radius:12px; padding:16px 20px; text-align:center; background:transparent; box-sizing:border-box;">
       <div style="color:#1134a6; font-family:'Crimson Text','Times New Roman',serif; font-weight:700; font-size:20px; line-height:1.12; letter-spacing:1px; margin-bottom:12px; white-space:nowrap;">WELILE TECHNOLOGIES<br>LIMITED</div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:0 6px;">
@@ -119,7 +119,8 @@ export function buildAgreementHtml(data: AgreementFillData): string {
     KinSignature: '',
     // Stamp appears on every page; kept inside the content with comfortable
     // margins so the rotation never clips against the page edge.
-    CoverStamp: stampHtml(date, 'top:10px; right:40px;', 1),
+    // Cover stamp: middle-left of the page, ~44px gap from the left edge.
+    CoverStamp: stampHtml(date, 'top:50%; left:44px;', 1, 'left center', 'translateY(-50%)'),
     StampOverlay: stampHtml(date, 'top:0; right:48px;', 0.85),
     StampPage: stampHtml(date, 'bottom:24px; right:48px;', 0.7),
   };
