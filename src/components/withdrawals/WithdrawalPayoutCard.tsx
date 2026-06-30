@@ -646,6 +646,8 @@ export function WithdrawalPayoutCard({
               }
               onClick={() => {
                 setConfirmClaimOpen(false);
+                // Persist the exact confirmed payout target for later review.
+                void recordClaimConfirmation();
                 onClaim?.();
               }}
             >
