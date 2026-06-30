@@ -936,7 +936,7 @@ export default function FunderOnboarding() {
   }, [isSubmitting]);
 
   const [apiError, setApiError] = useState('');
-  const TOTAL = 3;
+  const TOTAL = 4;
 
   // Capture ?ref=<uuid> from the URL once on mount and persist it across the
   // email-confirmation round-trip via sessionStorage. The handle_new_user
@@ -1089,7 +1089,8 @@ export default function FunderOnboarding() {
   const stepComponents: Record<number, React.ReactNode> = {
     1: <Step1 form={form} setForm={setForm} />,
     2: <Step2 form={form} setForm={setForm} showError={showStepError} />,
-    3: <Step3 form={form} setForm={setForm} />,
+    3: <StepBankKin form={form} setForm={setForm} />,
+    4: <Step3 form={form} setForm={setForm} />,
   };
 
   return (
