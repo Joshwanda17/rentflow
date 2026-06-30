@@ -5,7 +5,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import {
   ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
-  ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock,
+  ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock, MapPin,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { signUp } from '@/hooks/auth/authOperations';
