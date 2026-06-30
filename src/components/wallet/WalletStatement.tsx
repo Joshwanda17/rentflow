@@ -52,12 +52,12 @@ const ROLE_HIGHLIGHTS: Record<string, { title: string; subtitle: string; categor
   agent: {
     title: 'Your earnings as an agent',
     subtitle: 'Commissions, bonuses and float movements',
-    categories: ['agent_commission', 'subagent_commission', 'approval_bonus', 'referral_bonus', 'referral_first_transaction', 'wallet_withdrawal'],
+    categories: ['agent_commission', 'agent_commission_earned', 'subagent_commission', 'approval_bonus', 'referral_bonus', 'referral_first_transaction', 'wallet_withdrawal'],
   },
   proxy_agent: {
     title: 'Your earnings as an agent',
     subtitle: 'Commissions, bonuses and float movements',
-    categories: ['agent_commission', 'subagent_commission', 'approval_bonus', 'referral_bonus', 'wallet_withdrawal'],
+    categories: ['agent_commission', 'agent_commission_earned', 'subagent_commission', 'approval_bonus', 'referral_bonus', 'wallet_withdrawal'],
   },
   partner: {
     title: 'Partner activity',
@@ -136,6 +136,7 @@ function describeSubAgentAction(opts: {
 const CATEGORY_META: Record<string, { label: string; Icon: React.ElementType; colorClass: string; plainExplanation: string }> = {
   referral_bonus:        { label: 'Referral Bonus',          Icon: Users,          colorClass: 'text-primary bg-primary/10', plainExplanation: 'You earned this because someone you referred joined Welile.' },
   agent_commission:      { label: 'Commission Earned',        Icon: TrendingUp,     colorClass: 'text-success bg-success/10', plainExplanation: 'You earned 5% commission when a tenant you registered made a rent repayment.' },
+  agent_commission_earned: { label: 'Cash-out Commission',     Icon: TrendingUp,     colorClass: 'text-success bg-success/10', plainExplanation: 'You earned 0.5% commission for settling a customer cash-out (Cash, Mobile Money or Bank) as a merchant agent.' },
   approval_bonus:        { label: 'Approval Bonus',           Icon: CheckCircle2,   colorClass: 'text-success bg-success/10', plainExplanation: 'You earned UGX 5,000 because a tenant you registered was approved for rent.' },
   subagent_commission:   { label: 'Sub-agent Commission',     Icon: TrendingUp,     colorClass: 'text-success bg-success/10', plainExplanation: 'You earned 2% because a sub-agent under you collected a rent repayment.' },
   referral_first_transaction: { label: 'First Transaction Bonus', Icon: Gift,      colorClass: 'text-warning bg-warning/10', plainExplanation: 'Bonus for your referred user completing their first transaction.' },

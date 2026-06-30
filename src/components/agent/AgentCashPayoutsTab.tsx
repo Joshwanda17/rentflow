@@ -445,30 +445,26 @@ export function AgentCashPayoutsTab() {
       startOfDay.setHours(0, 0, 0, 0);
       const startIso = startOfDay.toISOString();
 
-      const { data: codes } = await supabase
-        .from('payout_codes')
-        .select('amount, created_at, paid_at')
-        .eq('paid_by', user.id)
-        .eq('status', 'paid')
-        .gte('paid_at', startIso);
-
-      // Only count withdrawals this agent has actually CONFIRMED PAID
-      // (status='completed' + processed_by=self + processed_at set today).
-      // A "claim" only sets assigned_cashout_agent_id/dispatched_at — it must NEVER count here.
+      // Single canonical source of truth: every withdrawal THIS merchant actually
+      // confirmed paid today, across ALL channels — Cash, Mobile Money AND Bank.
+      // `processed_by` is stamped only by approve-withdrawal on the paying merchant,
+      // so each settled payout is counted exactly once. This both (a) includes
+      // MoMo/Bank payouts that the old cash-only filter dropped and (b) removes the
+      // double-count that came from unioning payout_codes with withdrawal_requests
+      // (a cash-code payout writes to both).
       const { data: wreqs } = await supabase
         .from('withdrawal_requests')
-        .select('amount, created_at, processed_at, payout_method, status, processed_by')
-        .eq('assigned_cashout_agent_id', isCashoutAgent.id)
+        .select('amount, created_at, processed_at')
         .eq('processed_by', user.id)
         .eq('status', 'completed')
-        .in('payout_method', ['cash', 'cash_pickup'])
         .not('processed_at', 'is', null)
         .gte('processed_at', startIso);
 
-      const rows = [
-        ...(codes || []).map((r: any) => ({ amount: Number(r.amount || 0), created_at: r.created_at, finished_at: r.paid_at })),
-        ...(wreqs || []).map((r: any) => ({ amount: Number(r.amount || 0), created_at: r.created_at, finished_at: r.processed_at })),
-      ];
+      const rows = (wreqs || []).map((r: any) => ({
+        amount: Number(r.amount || 0),
+        created_at: r.created_at,
+        finished_at: r.processed_at,
+      }));
 
       const codesCount = rows.length;
       const totalAmount = rows.reduce((sum, r) => sum + r.amount, 0);
@@ -480,7 +476,8 @@ export function AgentCashPayoutsTab() {
       return { codesCount, totalAmount, avgMinutes };
     },
     enabled: !!user && !!isCashoutAgent?.id,
-    staleTime: 60_000,
+    staleTime: 20_000,
+    refetchOnWindowFocus: true,
   });
 
   // Commission breakdown — totals by date for ALL payouts this agent has
@@ -560,7 +557,66 @@ export function AgentCashPayoutsTab() {
       return { rows, typeRows, grandTotal, grandCount };
     },
     enabled: !!user && !!isCashoutAgent?.id,
-    staleTime: 60_000,
+    staleTime: 20_000,
+    refetchOnWindowFocus: true,
+  });
+
+  // Payout activity — a per-payout transaction history for this merchant. Lists
+  // every withdrawal they settled (all channels), the commission they earned on
+  // each, and any principal reimbursement. Sourced from withdrawal_requests
+  // (processed_by = self) joined to the merchant's own wallet ledger legs so the
+  // figures reconcile 1:1 with the commission breakdown and the wallet statement.
+  const HISTORY_PAGE = 8;
+  const [historyVisible, setHistoryVisible] = useState(HISTORY_PAGE);
+  const { data: payoutHistory } = useQuery({
+    queryKey: ['cashout-agent-payout-history', user?.id, isCashoutAgent?.id],
+    queryFn: async () => {
+      if (!user) return [] as any[];
+      const { data: wrs, error } = await supabase
+        .from('withdrawal_requests')
+        .select('id, amount, payout_method, processed_at, reason, mobile_money_number, mobile_money_provider, mobile_money_name, user_id')
+        .eq('processed_by', user.id)
+        .eq('status', 'completed')
+        .not('processed_at', 'is', null)
+        .order('processed_at', { ascending: false })
+        .limit(60);
+      if (error) throw error;
+      const rows = wrs || [];
+      // Pull the commission + reimbursement wallet legs for these payouts so each
+      // row shows exactly what landed in the merchant's withdrawable wallet.
+      const commById = new Map<string, number>();
+      const reimbById = new Map<string, number>();
+      const ids = rows.map((r: any) => String(r.id));
+      if (ids.length > 0) {
+        const { data: legs } = await supabase
+          .from('general_ledger')
+          .select('amount, reference_id, category')
+          .eq('user_id', user.id)
+          .eq('ledger_scope', 'wallet')
+          .eq('direction', 'cash_in')
+          .in('reference_id', [
+            ...ids.map((id) => `${id}-cashout-commission`),
+            ...ids.map((id) => `${id}-merchant-reimbursement`),
+          ]);
+        for (const l of (legs || []) as any[]) {
+          const ref = String(l.reference_id || '');
+          if (ref.endsWith('-cashout-commission')) {
+            commById.set(ref.replace('-cashout-commission', ''), Number(l.amount || 0));
+          } else if (ref.endsWith('-merchant-reimbursement')) {
+            reimbById.set(ref.replace('-merchant-reimbursement', ''), Number(l.amount || 0));
+          }
+        }
+      }
+      const withProfiles = await attachProfiles(rows);
+      return withProfiles.map((r: any) => ({
+        ...r,
+        commission: commById.get(String(r.id)) || 0,
+        reimbursed: reimbById.get(String(r.id)) || 0,
+      }));
+    },
+    enabled: !!user && !!isCashoutAgent?.id,
+    staleTime: 20_000,
+    refetchOnWindowFocus: true,
   });
 
   const sortedDayRows = useMemo(() => {
@@ -588,14 +644,22 @@ export function AgentCashPayoutsTab() {
       .channel('cashout-agent-withdrawals')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_requests' }, (payload) => {
         invalidateQueue();
+        const newRow = payload.new as any;
+        // When a payout this merchant settled completes, refresh their earnings
+        // views immediately so Today's Payouts, Commission and Payout Activity
+        // never lag behind the actual ledger.
+        if (newRow?.processed_by === user?.id && newRow?.status === 'completed') {
+          qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
+          qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
+          qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
+        }
         if (payload.eventType === 'INSERT') {
-          const newRow = payload.new as any;
           toast.info(`🔔 New withdrawal: ${formatUGX(Number(newRow.amount || 0))} via ${newRow.payout_method || 'wallet'}`, { duration: 6000 });
         }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [isCashoutAgent, qc]);
+  }, [isCashoutAgent, qc, user?.id]);
 
   // Auto-release stale claims (>15min) — client-side ticker so the UI updates
   // immediately even between cron runs. Refreshes the list every 30s while open.
@@ -676,6 +740,7 @@ export function AgentCashPayoutsTab() {
       invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
     },
     onError: (e: any) => toast.error(e.message),
     onSettled: (_d, _e, vars) => {
@@ -756,6 +821,7 @@ export function AgentCashPayoutsTab() {
       invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1107,6 +1173,96 @@ export function AgentCashPayoutsTab() {
                 )}
               </div>
             )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Payout activity — full transaction history of every payout this merchant
+          has settled, with the commission earned and any principal reimbursed. */}
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-primary" />
+            Payout Activity
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Every payout you've settled — Cash, Mobile Money &amp; Bank — with the commission you
+            earned on each. Updates live and reconciles with your wallet statement.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-2">
+          {(payoutHistory?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No payouts settled yet. Confirm a payout to see it here.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-2 max-h-[26rem] overflow-y-auto">
+                {payoutHistory!.slice(0, historyVisible).map((h: any) => {
+                  const channel = getPayoutChannel(h);
+                  const method = normalizePayoutMethod(h.payout_method);
+                  const methodLabel = channel === 'momo'
+                    ? 'Mobile Money'
+                    : method.includes('bank') ? 'Bank Transfer' : 'Cash';
+                  const name = h.profiles?.full_name || 'Customer';
+                  const phone = getRecipientPhone(h);
+                  const earned = Number(h.commission || 0) + Number(h.reimbursed || 0);
+                  return (
+                    <div key={h.id} className="rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {methodLabel} · {phone}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold tabular-nums text-foreground">{formatUGX(Number(h.amount || 0))}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {h.processed_at ? format(new Date(h.processed_at), 'MMM d, HH:mm') : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-border/60 pt-1.5">
+                        <span className="text-[11px] text-muted-foreground">
+                          Added to your withdrawable wallet
+                        </span>
+                        <span className="text-[11px] font-semibold text-emerald-600 tabular-nums">
+                          +{formatUGX(earned)}
+                          {Number(h.commission || 0) > 0 && (
+                            <span className="ml-1 font-normal text-muted-foreground">
+                              ({formatUGX(Number(h.commission || 0))} comm.)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {payoutHistory!.length > HISTORY_PAGE && (
+                <div className="flex items-center justify-center gap-3 pt-0.5">
+                  {historyVisible < payoutHistory!.length && (
+                    <button
+                      type="button"
+                      onClick={() => setHistoryVisible((v) => v + HISTORY_PAGE)}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      Show more ({payoutHistory!.length - historyVisible})
+                    </button>
+                  )}
+                  {historyVisible > HISTORY_PAGE && (
+                    <button
+                      type="button"
+                      onClick={() => setHistoryVisible(HISTORY_PAGE)}
+                      className="text-xs font-semibold text-muted-foreground hover:underline"
+                    >
+                      Show less
+                    </button>
+                  )}
+                </div>
+              )}
             </>
           )}
         </CardContent>
