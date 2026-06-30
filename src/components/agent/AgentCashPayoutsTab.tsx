@@ -557,7 +557,66 @@ export function AgentCashPayoutsTab() {
       return { rows, typeRows, grandTotal, grandCount };
     },
     enabled: !!user && !!isCashoutAgent?.id,
-    staleTime: 60_000,
+    staleTime: 20_000,
+    refetchOnWindowFocus: true,
+  });
+
+  // Payout activity — a per-payout transaction history for this merchant. Lists
+  // every withdrawal they settled (all channels), the commission they earned on
+  // each, and any principal reimbursement. Sourced from withdrawal_requests
+  // (processed_by = self) joined to the merchant's own wallet ledger legs so the
+  // figures reconcile 1:1 with the commission breakdown and the wallet statement.
+  const HISTORY_PAGE = 8;
+  const [historyVisible, setHistoryVisible] = useState(HISTORY_PAGE);
+  const { data: payoutHistory } = useQuery({
+    queryKey: ['cashout-agent-payout-history', user?.id, isCashoutAgent?.id],
+    queryFn: async () => {
+      if (!user) return [] as any[];
+      const { data: wrs, error } = await supabase
+        .from('withdrawal_requests')
+        .select('id, amount, payout_method, processed_at, reason, mobile_money_number, mobile_money_provider, mobile_money_name, user_id')
+        .eq('processed_by', user.id)
+        .eq('status', 'completed')
+        .not('processed_at', 'is', null)
+        .order('processed_at', { ascending: false })
+        .limit(60);
+      if (error) throw error;
+      const rows = wrs || [];
+      // Pull the commission + reimbursement wallet legs for these payouts so each
+      // row shows exactly what landed in the merchant's withdrawable wallet.
+      const commById = new Map<string, number>();
+      const reimbById = new Map<string, number>();
+      const ids = rows.map((r: any) => String(r.id));
+      if (ids.length > 0) {
+        const { data: legs } = await supabase
+          .from('general_ledger')
+          .select('amount, reference_id, category')
+          .eq('user_id', user.id)
+          .eq('ledger_scope', 'wallet')
+          .eq('direction', 'cash_in')
+          .in('reference_id', [
+            ...ids.map((id) => `${id}-cashout-commission`),
+            ...ids.map((id) => `${id}-merchant-reimbursement`),
+          ]);
+        for (const l of (legs || []) as any[]) {
+          const ref = String(l.reference_id || '');
+          if (ref.endsWith('-cashout-commission')) {
+            commById.set(ref.replace('-cashout-commission', ''), Number(l.amount || 0));
+          } else if (ref.endsWith('-merchant-reimbursement')) {
+            reimbById.set(ref.replace('-merchant-reimbursement', ''), Number(l.amount || 0));
+          }
+        }
+      }
+      const withProfiles = await attachProfiles(rows);
+      return withProfiles.map((r: any) => ({
+        ...r,
+        commission: commById.get(String(r.id)) || 0,
+        reimbursed: reimbById.get(String(r.id)) || 0,
+      }));
+    },
+    enabled: !!user && !!isCashoutAgent?.id,
+    staleTime: 20_000,
+    refetchOnWindowFocus: true,
   });
 
   const sortedDayRows = useMemo(() => {
