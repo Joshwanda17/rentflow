@@ -877,21 +877,29 @@ export function AgentCashPayoutsTab() {
     <div className="space-y-5">
       {/* Merchant console header */}
       <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-lg">
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => setConsoleOpen((v) => !v)}
+          aria-expanded={consoleOpen}
+          className="flex w-full items-center justify-between border-b border-white/10 px-4 py-2.5 text-left"
+        >
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Cash, Mobile Money &amp; Bank Payouts</span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-semibold text-emerald-400">Active</span>
+            <ChevronDown className={cn('h-4 w-4 text-slate-400 transition-transform', consoleOpen && 'rotate-180')} />
           </div>
-        </div>
-        <div className="flex items-start gap-3 px-4 py-3.5">
-          <div className="shrink-0 rounded-xl bg-white/10 p-2">
-            <Banknote className="h-5 w-5 text-white" />
+        </button>
+        {consoleOpen && (
+          <div className="flex items-start gap-3 px-4 py-3.5">
+            <div className="shrink-0 rounded-xl bg-white/10 p-2">
+              <Banknote className="h-5 w-5 text-white" />
+            </div>
+            <p className="text-sm leading-relaxed text-slate-300">
+              Claim a request, pay via <span className="font-semibold text-white">Mobile Money, Bank, or Cash</span>, then enter the proof (TID or payout code) to confirm.
+            </p>
           </div>
-          <p className="text-sm leading-relaxed text-slate-300">
-            Claim a request, pay via <span className="font-semibold text-white">Mobile Money, Bank, or Cash</span>, then enter the proof (TID or payout code) to confirm.
-          </p>
-        </div>
+        )}
       </div>
 
       {/* My Active Claims — pinned to the very top so a request YOU claimed is
