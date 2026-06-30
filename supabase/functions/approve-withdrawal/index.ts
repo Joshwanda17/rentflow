@@ -1873,6 +1873,7 @@ Deno.serve(async (req) => {
       // When a genuine merchant agent settled this payout, name them in the
       // receipt so the withdrawing user knows exactly who processed it.
       let merchantLine = "";
+      let merchantName: string | null = null;
       if (actingAsMerchant) {
         try {
           const { data: mp } = await admin
@@ -1881,7 +1882,10 @@ Deno.serve(async (req) => {
             .eq("id", user.id)
             .maybeSingle();
           const mName = (mp as any)?.full_name?.trim();
-          if (mName) merchantLine = ` Processed by Welile merchant agent ${mName}.`;
+          if (mName) {
+            merchantName = mName;
+            merchantLine = ` Processed by Welile merchant agent ${mName}.`;
+          }
         } catch (e) {
           console.error("[approve-withdrawal] merchant name fetch for SMS failed (non-fatal):", e);
         }
@@ -1893,6 +1897,43 @@ Deno.serve(async (req) => {
         `${merchantLine}${balanceLine} ` +
         `Log in to view and manage your account at ` +
         `https://welilereceipts.com/auth. Thank you for partnering with us.`;
+
+      // In-app notification center entry so the user sees the approval update
+      // (merchant agent name + remaining wallet balance) without relying on SMS.
+      // Fire-and-forget — a notification write must never block the approval.
+      try {
+        const balText =
+          newBalance !== null
+            ? ` Your new wallet balance is UGX ${Math.round(newBalance).toLocaleString()}.`
+            : "";
+        admin
+          .from("notifications")
+          .insert({
+            user_id: beneficiaryUserId,
+            type: "success",
+            title: "Withdrawal approved & paid",
+            message:
+              `Your withdrawal of UGX ${amount.toLocaleString()} has been approved and paid via ` +
+              `${payment_method} (${proofLabel}: ${refUpper}).` +
+              `${merchantName ? ` Processed by Welile merchant agent ${merchantName}.` : ""}` +
+              `${balText}`,
+            metadata: {
+              kind: "withdrawal_update",
+              stage: "approved",
+              withdrawal_id,
+              amount,
+              merchant_agent: merchantName,
+              new_balance: newBalance,
+              payment_method,
+              reference: refUpper,
+            },
+          })
+          .then(({ error }) => {
+            if (error) console.warn("[approve-withdrawal] notification insert failed:", error.message);
+          });
+      } catch (e) {
+        console.warn("[approve-withdrawal] notification insert threw (non-fatal):", e);
+      }
 
       // Resolve the recipient email so the Financial Ops notification log
       // shows who was alerted.
