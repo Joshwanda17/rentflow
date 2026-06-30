@@ -821,6 +821,7 @@ export function AgentCashPayoutsTab() {
       invalidateQueue();
       qc.invalidateQueries({ queryKey: ['cashout-agent-commission-breakdown'] });
       qc.invalidateQueries({ queryKey: ['cashout-agent-daily-stats'] });
+      qc.invalidateQueries({ queryKey: ['cashout-agent-payout-history'] });
     },
     onError: (e: any) => toast.error(e.message),
   });
