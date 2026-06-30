@@ -629,6 +629,8 @@ export function AgentCashPayoutsTab() {
     },
     onSuccess: () => {
       toast.success('✅ Withdrawal claimed — proceed with payout');
+      // Notify the requester (fire-and-forget) that a named merchant agent is
+      // now processing their withdrawal. Never blocks the claim flow.
       invalidateQueue();
     },
     onError: (e: any) => {
@@ -637,6 +639,13 @@ export function AgentCashPayoutsTab() {
       invalidateQueue();
     },
     onSettled: (_d, _e, withdrawalId) => {
+      // Send the "merchant agent X is processing your withdrawal" SMS after the
+      // claim has committed. Fire-and-forget so telco hiccups never affect the UI.
+      if (withdrawalId) {
+        supabase.functions
+          .invoke('notify-withdrawal-claimed', { body: { withdrawal_id: withdrawalId } })
+          .catch((e) => console.warn('[claim] notify SMS failed', e));
+      }
       claimLockRef.current.delete(withdrawalId);
       setClaimingIds(new Set(claimLockRef.current));
     },
