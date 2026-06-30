@@ -801,7 +801,8 @@ function isValid(step: number, form: FormState): boolean {
     const pwOk = form.password.length >= 8;
     const matchOk = form.password === form.confirmPassword;
     const phoneOk = form.phone.trim().length >= 7;
-    return emailOk && nameOk && pwOk && matchOk && phoneOk && form.agreedToTerms;
+    const addressOk = form.address.trim().length >= 2;
+    return emailOk && nameOk && pwOk && matchOk && phoneOk && addressOk && form.agreedToTerms;
   }
   return false;
 }
