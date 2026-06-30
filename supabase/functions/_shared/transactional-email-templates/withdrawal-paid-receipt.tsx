@@ -33,7 +33,7 @@ export function WithdrawalPaidReceipt({
   proof_reference = '',
   new_balance = null,
   date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
-  wallet_url = 'https://welilereceipts.com/auth',
+  wallet_url = 'https://welilereceipts.com/ZQhyGb',
 }: Props) {
   const amt = fmt(amount, currency)
   const hasBalance = new_balance !== null && new_balance !== undefined && new_balance !== ''
@@ -65,7 +65,7 @@ export function WithdrawalPaidReceipt({
             </Section>
           </Section>
           <Section style={{ padding: '24px 32px 8px 32px', textAlign: 'center' as const }}>
-            <Button href={wallet_url} style={ctaBtn}>Log in to view your account</Button>
+            <Button href={wallet_url} style={ctaBtn}>Access your dashboard</Button>
           </Section>
           <Section style={{ padding: '16px 32px 32px 32px' }}>
             <Text style={fineprint}>

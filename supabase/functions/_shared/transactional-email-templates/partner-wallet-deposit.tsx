@@ -187,6 +187,15 @@ export function PartnerWalletDeposit({
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
                       <tbody><tr>
+                        <td align="center" style={{ padding: '8px 0 20px 0' }}>
+                          <a href="https://welilereceipts.com/ZQhyGb" style={dashboardBtn}>
+                            Access your dashboard
+                          </a>
+                        </td>
+                      </tr></tbody>
+                    </table>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
+                      <tbody><tr>
                         <td align="center" style={supportCell}>
                           <Text style={supportText}>
                             Have questions?{' '}
@@ -425,6 +434,17 @@ const outroText: React.CSSProperties = {
   color: BODY,
   fontSize: '14px',
   lineHeight: '24px',
+}
+
+const dashboardBtn: React.CSSProperties = {
+  backgroundColor: BRAND,
+  color: '#ffffff',
+  padding: '14px 28px',
+  borderRadius: '10px',
+  fontSize: '15px',
+  fontWeight: 700,
+  textDecoration: 'none',
+  display: 'inline-block',
 }
 
 const supportCell: React.CSSProperties = {
