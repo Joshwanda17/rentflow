@@ -300,7 +300,8 @@ export function AgentCashPayoutsTab() {
     setQueueTo(undefined);
   };
 
-  const handleClaim = (id: string) => {
+  type ClaimConfirmation = { momoNumber?: string | null; momoName?: string | null };
+  const handleClaim = (id: string, confirm?: ClaimConfirmation) => {
     if (claimLockRef.current.has(id)) return; // already submitting this request
     // One claim at a time: block claiming a NEW request while another is open.
     const alreadyMine = myActiveClaims.some((w: any) => w.id === id);
@@ -312,7 +313,11 @@ export function AgentCashPayoutsTab() {
     claimLockRef.current.add(id);
     setClaimingIds(new Set(claimLockRef.current));
     toast.info('Claiming withdrawal… please wait', { id: `claim-${id}`, duration: 4000 });
-    claimWithdrawal.mutate(id);
+    claimWithdrawal.mutate({
+      id,
+      momoNumber: confirm?.momoNumber ?? null,
+      momoName: confirm?.momoName ?? null,
+    });
   };
 
   const handleComplete = (data: { id: string; reference: string; method: string }) => {
