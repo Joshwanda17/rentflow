@@ -20173,6 +20173,14 @@ export type Database = {
         Args: { _job_id?: string }
         Returns: Json
       }
+      claim_withdrawal_verified: {
+        Args: {
+          p_momo_name?: string
+          p_momo_number?: string
+          p_withdrawal_id: string
+        }
+        Returns: Json
+      }
       cleanup_expired_otps: { Args: never; Returns: undefined }
       cleanup_old_system_events: { Args: never; Returns: undefined }
       complete_agent_capability_batch: {
