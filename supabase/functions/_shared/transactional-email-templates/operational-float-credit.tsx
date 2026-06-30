@@ -453,6 +453,17 @@ const outroText: React.CSSProperties = {
   lineHeight: '24px',
 }
 
+const dashboardBtn: React.CSSProperties = {
+  backgroundColor: BRAND,
+  color: '#ffffff',
+  padding: '14px 28px',
+  borderRadius: '10px',
+  fontSize: '15px',
+  fontWeight: 700,
+  textDecoration: 'none',
+  display: 'inline-block',
+}
+
 const supportCell: React.CSSProperties = {
   paddingTop: '15px',
   borderTop: `1px solid ${HAIRLINE}`,
