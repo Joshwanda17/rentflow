@@ -66,6 +66,7 @@ import { CFOQuickActionsBar } from '@/components/cfo/CFOQuickActionsBar';
 import { CFOFavoritesBar } from '@/components/cfo/CFOFavoritesBar';
 import { CFOBreadcrumbHeader } from '@/components/cfo/CFOBreadcrumbHeader';
 import { SwipeSensitivityControl } from '@/components/cfo/SwipeSensitivityControl';
+import { SwipeOnboardingHint } from '@/components/cfo/SwipeOnboardingHint';
 import { useSwipeSensitivity } from '@/hooks/useSwipeSensitivity';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
@@ -358,6 +359,7 @@ export default function CFODashboardPage() {
       />
       <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
       <CFOFavoritesBar activeTab={activeTab} onJump={setActiveTab} />
+      <SwipeOnboardingHint enabled={isMobile} />
       <div {...(isMobile ? swipeHandlers : {})} className="min-h-[60vh]">
         {renderContent()}
       </div>
