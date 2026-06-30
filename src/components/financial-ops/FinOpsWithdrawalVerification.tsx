@@ -224,13 +224,17 @@ export function FinOpsWithdrawalVerification() {
         ...rejectedWithProfiles.map((r: any) => r.user_id),
         ...rejectedWithProfiles.map((r: any) => r.proxy_agent?.id).filter(Boolean),
       ]);
+      void fetchLandlordFloatBalances([
+        ...pendingWithProfiles.filter((r: any) => isLandlordFloatReason(r.reason)).map((r: any) => r.user_id),
+        ...rejectedWithProfiles.filter((r: any) => isLandlordFloatReason(r.reason)).map((r: any) => r.user_id),
+      ]);
     } catch (e) {
       console.error('FinOps withdrawal fetch error:', e);
       toast.error('Failed to load withdrawal requests');
     } finally {
       setLoading(false);
     }
-  }, [fetchWalletBalances]);
+  }, [fetchWalletBalances, fetchLandlordFloatBalances]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
