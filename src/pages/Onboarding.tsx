@@ -590,31 +590,87 @@ function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispat
 
       {/* Bank details */}
       <motion.div variants={fadeUp} className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
-        <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Bank Details</p>
+        <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Payout Details</p>
 
+        {/* Payout method selector */}
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Bank Name</label>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Payout Method</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Building2 size={15} strokeWidth={1.75} /></div>
-            <input type="text" placeholder="e.g. Stanbic Bank" value={form.bankName} onChange={set('bankName')} className={fieldClass} />
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Wallet size={15} strokeWidth={1.75} /></div>
+            <select
+              value={form.payoutMode}
+              onChange={(e) => setForm(p => ({ ...p, payoutMode: e.target.value as 'bank' | 'momo' }))}
+              className={fieldClass + ' appearance-none cursor-pointer'}
+            >
+              <option value="bank">Bank Account</option>
+              <option value="momo">Mobile Money</option>
+            </select>
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><ChevronDown size={15} strokeWidth={1.75} /></div>
           </div>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Name</label>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
-            <input type="text" placeholder="Name on the account" value={form.bankAccountName} onChange={set('bankAccountName')} className={fieldClass} />
-          </div>
-        </div>
+        {form.payoutMode === 'bank' ? (
+          <>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Bank Name</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Building2 size={15} strokeWidth={1.75} /></div>
+                <input type="text" placeholder="e.g. Stanbic Bank" value={form.bankName} onChange={set('bankName')} className={fieldClass} />
+              </div>
+            </div>
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Number</label>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><CreditCard size={15} strokeWidth={1.75} /></div>
-            <input type="text" inputMode="numeric" placeholder="Account number" value={form.bankAccountNumber} onChange={set('bankAccountNumber')} className={fieldClass} />
-          </div>
-        </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Name</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
+                <input type="text" placeholder="Name on the account" value={form.bankAccountName} onChange={set('bankAccountName')} className={fieldClass} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Number</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><CreditCard size={15} strokeWidth={1.75} /></div>
+                <input type="text" inputMode="numeric" placeholder="Account number" value={form.bankAccountNumber} onChange={set('bankAccountNumber')} className={fieldClass} />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Mobile Money Provider</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Smartphone size={15} strokeWidth={1.75} /></div>
+                <select
+                  value={form.momoProvider}
+                  onChange={(e) => setForm(p => ({ ...p, momoProvider: e.target.value }))}
+                  className={fieldClass + ' appearance-none cursor-pointer'}
+                >
+                  <option value="">Select provider</option>
+                  <option value="MTN">MTN MoMo</option>
+                  <option value="Airtel">Airtel Money</option>
+                </select>
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><ChevronDown size={15} strokeWidth={1.75} /></div>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Mobile Money Number</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Phone size={15} strokeWidth={1.75} /></div>
+                <input type="tel" inputMode="tel" placeholder="+256 700 000 000" value={form.momoNumber} onChange={set('momoNumber')} className={fieldClass} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Registered Name</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
+                <input type="text" placeholder="Name on the MoMo account" value={form.momoName} onChange={set('momoName')} className={fieldClass} />
+              </div>
+            </div>
+          </>
+        )}
       </motion.div>
 
       {/* Next of kin */}
