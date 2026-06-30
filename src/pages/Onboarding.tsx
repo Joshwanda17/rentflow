@@ -802,6 +802,14 @@ function isValid(step: number, form: FormState): boolean {
     return amount >= MIN_SUPPORT;
   }
   if (step === 3) {
+    const bankOk = form.bankName.trim().length >= 2;
+    const accNameOk = form.bankAccountName.trim().length >= 2;
+    const accNoOk = form.bankAccountNumber.trim().length >= 4;
+    const kinNameOk = form.kinName.trim().length >= 2;
+    const kinContactOk = form.kinContact.trim().length >= 7;
+    return bankOk && accNameOk && accNoOk && kinNameOk && kinContactOk;
+  }
+  if (step === 4) {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
     const nameOk = form.firstName.length >= 2 && form.lastName.length >= 2;
     const pwOk = form.password.length >= 8;
@@ -813,7 +821,7 @@ function isValid(step: number, form: FormState): boolean {
   return false;
 }
 
-const STEP_LABELS = ['Welcome', 'Support', 'Create Account'];
+const STEP_LABELS = ['Welcome', 'Support', 'Bank & Next of Kin', 'Create Account'];
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function FunderOnboarding() {
