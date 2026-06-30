@@ -17,11 +17,28 @@ function isUgandanPhone(phone: string): boolean {
   const f = formatPhoneInternational(phone);
   return f.startsWith("+256") && f.length >= 13;
 }
-async function sendSMS(phone: string, message: string): Promise<boolean> {
+interface SmsResult {
+  sent: boolean;
+  attempts: number;
+  error: string | null;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Single send attempt. Returns { ok, retryable, error } so the retry loop can
+// decide whether another attempt is worthwhile.
+async function sendSMSOnce(
+  phone: string,
+  message: string,
+): Promise<{ ok: boolean; retryable: boolean; error: string | null }> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
-  if (!apiKey || !username) return false;
-  if (!isUgandanPhone(phone)) return false;
+  if (!apiKey || !username) {
+    return { ok: false, retryable: false, error: "SMS provider not configured" };
+  }
+  if (!isUgandanPhone(phone)) {
+    return { ok: false, retryable: false, error: "Invalid Ugandan phone/MoMo number" };
+  }
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
     ? "https://api.sandbox.africastalking.com/version1/messaging"
@@ -42,13 +59,59 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
       },
       body: body.toString(),
     });
+    // 5xx / 429 are transient — worth retrying. 4xx (except 429) are permanent.
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const retryable = res.status >= 500 || res.status === 429;
+      return {
+        ok: false,
+        retryable,
+        error: `Provider HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}`,
+      };
+    }
     const data = await res.json();
     const recipients = data?.SMSMessageData?.Recipients || [];
-    return recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    const accepted = recipients.some(
+      (r: any) => r.statusCode === 101 || r.statusCode === 100,
+    );
+    if (accepted) return { ok: true, retryable: false, error: null };
+    const reason = recipients.map((r: any) => `${r.number}:${r.status}`).join(", ");
+    return {
+      ok: false,
+      retryable: false,
+      error: reason ? `Provider rejected (${reason})` : "Provider returned no accepted recipients",
+    };
   } catch (err) {
-    console.error("[notify-withdrawal-claimed] SMS error:", err);
-    return false;
+    // Network/timeout failures are transient.
+    return { ok: false, retryable: true, error: `Network error: ${(err as Error)?.message || err}` };
   }
+}
+
+// Send with bounded retries + exponential backoff for transient failures.
+async function sendSMSWithRetry(
+  phone: string,
+  message: string,
+  maxAttempts = 3,
+): Promise<SmsResult> {
+  let lastError: string | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const r = await sendSMSOnce(phone, message);
+    if (r.ok) {
+      if (attempt > 1) {
+        console.log(`[notify-withdrawal-claimed] SMS delivered on attempt ${attempt}`);
+      }
+      return { sent: true, attempts: attempt, error: null };
+    }
+    lastError = r.error;
+    console.warn(
+      `[notify-withdrawal-claimed] SMS attempt ${attempt}/${maxAttempts} failed: ${r.error}`,
+    );
+    if (!r.retryable || attempt === maxAttempts) {
+      return { sent: false, attempts: attempt, error: lastError };
+    }
+    await sleep(500 * 2 ** (attempt - 1)); // 500ms, 1s, 2s …
+  }
+  return { sent: false, attempts: maxAttempts, error: lastError };
 }
 
 Deno.serve(async (req) => {
