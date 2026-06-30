@@ -457,6 +457,39 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     },
   });
 
+  // Pending (unclaimed) merchant payouts + the commission this agent would earn
+  // if they claimed and processed them all. Drives the notification badge that
+  // sits on top of the "Merchant Payouts" button. 0.5% commission per payout,
+  // matching approve-withdrawal.
+  const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
+  const CLAIM_WINDOW_MS = 15 * 60 * 1000;
+  const COMMISSION_RATE = 0.005;
+  const { data: pendingEarnings } = useQuery({
+    queryKey: ['cashout-pending-earnings', user.id],
+    enabled: !!isCashoutAgent,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      // Available = unclaimed OR a claim that has expired (>15 min).
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .select('amount')
+        .in('status', CASHOUT_QUEUE_STATUSES)
+        .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`)
+        .limit(2000);
+      if (error) return { count: 0, totalCommission: 0 };
+      const rows = data || [];
+      const totalCommission = rows.reduce(
+        (sum, r) => sum + Math.round(Number(r.amount || 0) * COMMISSION_RATE),
+        0,
+      );
+      return { count: rows.length, totalCommission };
+    },
+  });
+
   // One-time onboarding banner shown the first time an agent becomes a Merchant Agent
   const merchantOnboardKey = `merchant-agent-onboarded:${user.id}`;
   const [showMerchantOnboard, setShowMerchantOnboard] = useState(false);
