@@ -238,6 +238,10 @@ export function AgentCashPayoutsTab() {
   const completeLockRef = useRef<Set<string>>(new Set());
   const [claimingIds, setClaimingIds] = useState<Set<string>>(new Set());
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
+  // Anchor for the "Claimed by you" section so we can scroll to a freshly
+  // claimed cash-out as soon as the claim commits.
+  const claimedSectionRef = useRef<HTMLDivElement | null>(null);
+  const scrollToClaimed = useRef(false);
 
   // ---- Pending Queue advanced filters & sorting ----
   const [queueSearch, setQueueSearch] = useState('');
