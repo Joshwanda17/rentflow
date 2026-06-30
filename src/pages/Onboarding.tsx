@@ -872,6 +872,11 @@ export default function FunderOnboarding() {
     confirmPassword: '',
     phone: '',
     address: '',
+    bankName: '',
+    bankAccountName: '',
+    bankAccountNumber: '',
+    kinName: '',
+    kinContact: '',
     agreedToTerms: false,
   });
 
