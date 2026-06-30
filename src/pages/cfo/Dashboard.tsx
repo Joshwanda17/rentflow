@@ -65,6 +65,8 @@ import { AlreadyFundedLandlordsPanel } from '@/components/cfo/AlreadyFundedLandl
 import { CFOQuickActionsBar } from '@/components/cfo/CFOQuickActionsBar';
 import { CFOFavoritesBar } from '@/components/cfo/CFOFavoritesBar';
 import { CFOBreadcrumbHeader } from '@/components/cfo/CFOBreadcrumbHeader';
+import { SwipeSensitivityControl } from '@/components/cfo/SwipeSensitivityControl';
+import { useSwipeSensitivity } from '@/hooks/useSwipeSensitivity';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 // Ordered, swipeable tab ids derived from the CFO sidebar (route items excluded).
@@ -80,6 +82,7 @@ export default function CFODashboardPage() {
   const { currency, setCurrency, getCurrencyByCode } = useCurrency();
   const [activeTab, setActiveTab] = usePersistedActiveTab('cfo');
   const isMobile = useIsMobile();
+  const { threshold: swipeThreshold, setThreshold: setSwipeThreshold } = useSwipeSensitivity('cfo');
 
   const goToOffset = (delta: number) => {
     const current = CFO_TAB_IDS.indexOf(activeTab);
@@ -99,6 +102,7 @@ export default function CFODashboardPage() {
   const swipeHandlers = useHorizontalSwipe({
     onSwipeLeft: () => goToOffset(1),
     onSwipeRight: () => goToOffset(-1),
+    threshold: swipeThreshold,
   });
 
   // Keyboard navigation between sections for keyboard + screen-reader users
@@ -346,6 +350,11 @@ export default function CFODashboardPage() {
         position={sectionPosition}
         onPrev={() => goToOffset(-1)}
         onNext={() => goToOffset(1)}
+        actions={
+          isMobile ? (
+            <SwipeSensitivityControl threshold={swipeThreshold} onChange={setSwipeThreshold} />
+          ) : undefined
+        }
       />
       <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
       <CFOFavoritesBar activeTab={activeTab} onJump={setActiveTab} />

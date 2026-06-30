@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { executiveSidebarConfig } from '@/components/layout/executiveSidebarConfig';
@@ -23,6 +24,7 @@ export function CFOBreadcrumbHeader({
   position,
   onPrev,
   onNext,
+  actions,
 }: {
   activeTab: string;
   onJump: (tab: string) => void;
@@ -30,6 +32,8 @@ export function CFOBreadcrumbHeader({
   position?: { index: number; total: number };
   onPrev?: () => void;
   onNext?: () => void;
+  /** Optional trailing controls (e.g. swipe sensitivity). */
+  actions?: ReactNode;
 }) {
   const meta = SECTION_LOOKUP[activeTab];
   const isOverview = !meta || activeTab === 'overview';
@@ -92,8 +96,10 @@ export function CFOBreadcrumbHeader({
         )}
         </ol>
 
-        {hasPager && (
+        {(hasPager || actions) && (
           <div className="flex shrink-0 items-center gap-1 pl-2">
+            {hasPager && (
+              <>
             {position && (
               <span aria-hidden className="hidden sm:inline text-xs text-muted-foreground tabular-nums">
                 {position.index}/{position.total}
@@ -123,6 +129,9 @@ export function CFOBreadcrumbHeader({
             >
               <ChevronRight className="h-4 w-4" />
             </button>
+              </>
+            )}
+            {actions}
           </div>
         )}
       </div>
