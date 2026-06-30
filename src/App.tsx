@@ -196,6 +196,7 @@ const RentMoney = lazy(() => import('./pages/RentMoney'));
 const FindAHouse = lazy(() => import('./pages/FindAHouse'));
 const LandlordAgreement = lazy(() => import('./pages/LandlordAgreement'));
 const AgentAgreement = lazy(() => import('./pages/AgentAgreement'));
+const MerchantAgreement = lazy(() => import('./pages/MerchantAgreement'));
 const AngelPool = lazy(() => import('./pages/AngelPool'));
 const AngelPoolAgreement = lazy(() => import('./pages/AngelPoolAgreement'));
 const AgentCommissionBenefits = lazy(() => import('./pages/AgentCommissionBenefits'));
@@ -421,6 +422,7 @@ function AppRoutes() {
           <Route path="/landlord-signup" element={<LandlordSignup />} />
           <Route path="/landlord-agreement" element={<LandlordAgreement />} />
           <Route path="/agent-agreement" element={<AgentAgreement />} />
+          <Route path="/merchant-agreement" element={<MerchantAgreement />} />
           <Route path="/angel-pool-agreement" element={<AngelPoolAgreement />} />
           <Route path="/agent-commission-benefits" element={<AgentCommissionBenefits />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
