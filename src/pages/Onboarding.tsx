@@ -5,7 +5,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import {
   ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
-  ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock,
+  ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock, MapPin,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { signUp } from '@/hooks/auth/authOperations';
@@ -64,6 +64,7 @@ interface FormState {
   password: string;
   confirmPassword: string;
   phone: string;
+  address: string;
   agreedToTerms: boolean;
 }
 
@@ -654,6 +655,22 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
           </div>
         </div>
 
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Address</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+              <MapPin size={15} strokeWidth={1.75} />
+            </div>
+            <input
+              type="text"
+              placeholder="District, town or village"
+              value={form.address}
+              onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
+            />
+          </div>
+        </div>
+
         <div className="h-px bg-gray-100" />
 
         <div className="space-y-1">
@@ -784,7 +801,8 @@ function isValid(step: number, form: FormState): boolean {
     const pwOk = form.password.length >= 8;
     const matchOk = form.password === form.confirmPassword;
     const phoneOk = form.phone.trim().length >= 7;
-    return emailOk && nameOk && pwOk && matchOk && phoneOk && form.agreedToTerms;
+    const addressOk = form.address.trim().length >= 2;
+    return emailOk && nameOk && pwOk && matchOk && phoneOk && addressOk && form.agreedToTerms;
   }
   return false;
 }
@@ -847,6 +865,7 @@ export default function FunderOnboarding() {
     password: '',
     confirmPassword: '',
     phone: '',
+    address: '',
     agreedToTerms: false,
   });
 
@@ -894,6 +913,7 @@ export default function FunderOnboarding() {
         const cleanFirst = sanitizeInput(form.firstName).trim();
         const cleanLast = sanitizeInput(form.lastName).trim();
         const cleanPhone = sanitizeInput(form.phone).trim();
+        const cleanAddress = sanitizeInput(form.address).trim();
 
         const signupResult = await registerUser({
           email: cleanEmail,
@@ -908,6 +928,16 @@ export default function FunderOnboarding() {
         // Fire-and-forget the partner_account_created email — don't block the
         // success modal on email delivery.
         const newUserId = signupResult?.data?.user?.id ?? '';
+        // Persist the funder's address on their profile (non-blocking).
+        if (newUserId && cleanAddress) {
+          supabase
+            .from('profiles')
+            .update({ landmark: cleanAddress })
+            .eq('id', newUserId)
+            .then(({ error }) => {
+              if (error) console.warn('address save failed (non-blocking):', error);
+            });
+        }
         const partnerReference = buildPartnerReference(newUserId, new Date());
         supabase.functions
           .invoke('send-transactional-email', {
