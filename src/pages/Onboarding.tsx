@@ -1206,7 +1206,8 @@ export default function FunderOnboarding() {
                   <Lock size={16} strokeWidth={2} />
                   {step === 1 && 'Confirm above to continue'}
                   {step === 2 && 'Choose a contribution style'}
-                  {step === 3 && 'Fill in all fields to continue'}
+                  {step === 3 && 'Fill in bank & next of kin details'}
+                  {step === 4 && 'Fill in all fields to continue'}
                 </>
               ) : step === TOTAL ? (
                 isSubmitting ? (
