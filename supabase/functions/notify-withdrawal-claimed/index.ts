@@ -130,10 +130,25 @@ Deno.serve(async (req) => {
     const isMobileMoney = ["mobile_money", "mtn_mobile_money", "airtel_money"].includes(
       (w as any).payout_method || "",
     );
-    const enteredMomo = ((w as any).mobile_money_number || "").trim();
-    const smsRecipient = isMobileMoney && enteredMomo
-      ? enteredMomo
-      : (requester as any)?.phone || enteredMomo;
+
+    // Validate + normalize the MoMo number entered for the payout before using it
+    // as an SMS destination. A malformed/non-Ugandan MoMo number must not be used;
+    // fall back to the requester's profile phone instead.
+    const rawMomo = ((w as any).mobile_money_number || "").trim();
+    const formattedMomo = formatPhoneInternational(rawMomo);
+    const momoValid = isUgandanPhone(rawMomo);
+    const profilePhone = formatPhoneInternational((requester as any)?.phone || "");
+    const profileValid = isUgandanPhone((requester as any)?.phone || "");
+
+    if (isMobileMoney && rawMomo && !momoValid) {
+      console.warn(
+        `[notify-withdrawal-claimed] Invalid MoMo number for withdrawal ${w.id}; falling back to profile phone`,
+      );
+    }
+
+    const smsRecipient = isMobileMoney && momoValid
+      ? formattedMomo
+      : (profileValid ? profilePhone : (momoValid ? formattedMomo : ""));
 
     const smsMsg =
       `WELILE: Good news! Welile merchant agent ${merchantName} is now processing ` +
