@@ -42,22 +42,25 @@ function esc(v: unknown): string {
     .replace(/>/g, '&gt;');
 }
 
-// Dynamic e-stamp (rotated, blue double border + red stacked date) injected as
-// inline HTML so html2canvas captures it identically to the on-screen preview.
-function stampHtml(date: Date, opts: { top: number; right: number; rotation?: number; opacity?: number }): string {
+// Dynamic e-stamp matching the physical Welile Technologies stamp: a single
+// solid blue rounded rectangle with the company name, a star–date–star row
+// (red date) and the postal address. Injected as inline HTML so html2canvas
+// captures it identically to the on-screen preview. `pos` is the absolute
+// position CSS (e.g. `top:0; right:48px;`) and `scale` shrinks the whole stamp.
+function stampHtml(date: Date, pos: string, scale = 1): string {
   const day = String(date.getDate()).padStart(2, '0');
   const month = date.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
   const year = date.getFullYear();
-  const rot = opts.rotation ?? -37;
-  const op = opts.opacity ?? 0.6;
   return `
-  <div style="position:absolute; top:${opts.top}px; right:${opts.right}px; transform:rotate(${rot}deg); opacity:${op}; pointer-events:none; z-index:5;">
-    <div style="width:170px; height:96px; border:2.5px solid #1134a6; border-radius:10px; padding:4px; box-sizing:border-box;">
-      <div style="width:100%; height:100%; border:1px solid #1134a6; border-radius:7px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:4px 6px;">
-        <div style="color:#1134a6; font-family:'Times New Roman',serif; font-weight:700; font-size:13px; line-height:1.05; letter-spacing:0.5px;">WELILE<br>TECHNOLOGIES</div>
-        <div style="color:#e51921; font-family:'Times New Roman',serif; font-weight:700; font-size:15px; line-height:1; letter-spacing:1px; margin:3px 0;">${day} ${month}<br>${year}</div>
-        <div style="color:#1134a6; font-family:'Times New Roman',serif; font-size:8.5px; font-weight:700; line-height:1.1;">PO Box 167564<br>Kampala Uganda</div>
+  <div style="position:absolute; ${pos} transform:rotate(-2deg) scale(${scale}); transform-origin:top right; opacity:0.85; pointer-events:none; z-index:5;">
+    <div style="width:320px; border:5px solid #1134a6; border-radius:12px; padding:16px 22px; text-align:center; background:transparent; box-sizing:border-box;">
+      <div style="color:#1134a6; font-family:'Crimson Text','Times New Roman',serif; font-weight:700; font-size:23px; line-height:1.1; letter-spacing:1px; margin-bottom:14px;">WELILE TECHNOLOGIES<br>LIMITED</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding:0 8px;">
+        <span style="color:#1134a6; font-size:30px; line-height:1;">&#9733;</span>
+        <span style="color:#e51921; font-family:'Oswald','Arial Narrow',Arial,sans-serif; font-size:32px; font-weight:600; letter-spacing:2px;">${day} ${month} ${year}</span>
+        <span style="color:#1134a6; font-size:30px; line-height:1;">&#9733;</span>
       </div>
+      <div style="color:#1134a6; font-family:'Nunito','Trebuchet MS',sans-serif; font-size:16px; font-weight:700; letter-spacing:0.5px;">PO Box 167564 Kampala Uganda</div>
     </div>
   </div>`;
 }
@@ -114,8 +117,11 @@ export function buildAgreementHtml(data: AgreementFillData): string {
     KinName: esc(data.kinName?.trim() || ''),
     KinContact: esc(data.kinContact?.trim() || ''),
     KinSignature: '',
-    StampOverlay: stampHtml(date, { top: -10, right: 0, rotation: -37, opacity: 0.55 }),
-    CoverStamp: stampHtml(date, { top: 0, right: 10, rotation: -37, opacity: 0.5 }),
+    // Stamp appears on every page; kept inside the content with comfortable
+    // margins so the rotation never clips against the page edge.
+    CoverStamp: stampHtml(date, 'top:10px; right:40px;', 1),
+    StampOverlay: stampHtml(date, 'top:0; right:48px;', 0.85),
+    StampPage: stampHtml(date, 'bottom:24px; right:48px;', 0.7),
   };
 
   let html = RAW_TEMPLATE;
