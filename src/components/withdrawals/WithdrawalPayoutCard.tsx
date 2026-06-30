@@ -246,26 +246,38 @@ export function WithdrawalPayoutCard({
                     {withdrawal.mobile_money_provider || methodLabel}
                   </Badge>
 
-                  {/* Number — large + copyable */}
+                  {/* Number — large, prominent tap-to-copy button */}
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mobile Money Number</p>
                     <button
                       type="button"
                       onClick={() => copyToClipboard(momoNumber, 'Number')}
-                      className="mt-0.5 flex items-center gap-2 group"
-                      title="Tap to copy"
+                      className="mt-1 w-full flex items-center justify-between gap-3 rounded-xl border-2 border-primary/40 bg-background px-3.5 py-2.5 text-left transition-colors hover:bg-primary/10 active:scale-[0.99]"
+                      title="Tap to copy number"
                     >
-                      <span className="font-mono font-extrabold text-2xl leading-none tracking-wide tabular-nums">{momoNumber}</span>
-                      <Copy className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0" />
+                      <span className="font-mono font-extrabold text-2xl leading-none tracking-wide tabular-nums break-all">{momoNumber}</span>
+                      <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-primary">
+                        <Copy className="h-4 w-4" /> Copy
+                      </span>
                     </button>
                   </div>
 
-                  {/* Registered name — large, with verify reminder */}
+                  {/* Registered name — large, one-tap copy + verify reminder */}
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Registered name on this number</p>
                     {momoRegisteredName ? (
                       <>
-                        <p className="mt-0.5 font-extrabold text-lg leading-tight break-words">{momoRegisteredName}</p>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(momoRegisteredName, 'Name')}
+                          className="mt-1 w-full flex items-center justify-between gap-3 rounded-xl border-2 border-primary/40 bg-background px-3.5 py-2.5 text-left transition-colors hover:bg-primary/10 active:scale-[0.99]"
+                          title="Tap to copy name"
+                        >
+                          <span className="font-extrabold text-lg leading-tight break-words">{momoRegisteredName}</span>
+                          <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-primary">
+                            <Copy className="h-4 w-4" /> Copy
+                          </span>
+                        </button>
                         <p className="mt-1 text-[11px] text-muted-foreground flex items-start gap-1">
                           <CheckCircle2 className="h-3.5 w-3.5 mt-px shrink-0 text-primary" />
                           Confirm your MTN/Airtel screen shows this exact name before sending.
