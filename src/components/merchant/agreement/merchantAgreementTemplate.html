@@ -843,20 +843,5 @@
     </footer>
   </div>
 
-  <script>
-    // Automatically generate today's date in the exact "15 JUN 2026" format for the E-Stamp
-    const today = new Date();
-    const formattedDate = today.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    }).toUpperCase();
-    
-    const stampDateEl = document.getElementById('stamp-date');
-    if (stampDateEl) {
-      stampDateEl.textContent = formattedDate;
-    }
-  </script>
-
 </body>
 </html>
