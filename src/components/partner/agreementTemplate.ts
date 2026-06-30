@@ -124,7 +124,7 @@ export function buildAgreementHtml(data: AgreementFillData): string {
     KinContact: esc(data.kinContact?.trim() || ''),
     KinSignature: '',
     // Stamp appears only on executed/counter-signed agreements, centered on the
-    // right side of every page with a safe 48px page-edge gap.
+    // right side of every page with enough inner margin to prevent rotation clipping.
     CoverStamp: stamp,
     StampOverlay: stamp,
     StampPage: stamp,
