@@ -84,10 +84,10 @@ export function TenantPartnershipAgreement({
                 {/* Greeting + intro */}
                 <tr>
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 25px 40px' }}>
-                    <Text style={greeting}>Dear <b>{partner_name}</b>,</Text>
+                    <Text style={greeting}>Dear {partner_name},</Text>
                     <Text style={introText}>
-                      Thank you for partnering with <b>{company_name}.</b> We have prepared your
-                      personalised <b>Tenant Partnership Agreement</b> using the details you provided
+                      Thank you for partnering with {company_name}. We have prepared your
+                      personalised Tenant Partnership Agreement using the details you provided
                       during onboarding.
                     </Text>
                     <Text style={{ ...introText, marginTop: '15px' }}>
@@ -304,7 +304,7 @@ const logoImg: React.CSSProperties = {
 const secureLabel: React.CSSProperties = {
   fontSize: '11px',
   color: MUTED,
-  fontWeight: 700,
+  fontWeight: 400,
   textTransform: 'uppercase',
   letterSpacing: '1.5px',
 }
@@ -312,7 +312,7 @@ const heroH1: React.CSSProperties = {
   margin: '0 0 15px 0',
   color: INK,
   fontSize: '24px',
-  fontWeight: 800,
+  fontWeight: 400,
   letterSpacing: '-0.5px',
   lineHeight: '32px',
 }
@@ -320,7 +320,7 @@ const greeting: React.CSSProperties = {
   margin: '0 0 15px 0',
   color: INK,
   fontSize: '16px',
-  fontWeight: 600,
+  fontWeight: 400,
 }
 const introText: React.CSSProperties = {
   margin: 0,
@@ -343,7 +343,7 @@ const docsHeaderTag: React.CSSProperties = {
   margin: '0 0 5px 0',
   color: SUB,
   fontSize: '12px',
-  fontWeight: 700,
+  fontWeight: 400,
   textTransform: 'uppercase',
   letterSpacing: '1px',
 }
@@ -351,26 +351,26 @@ const docsHeaderTitle: React.CSSProperties = {
   margin: 0,
   color: INK,
   fontSize: '18px',
-  fontWeight: 700,
+  fontWeight: 400,
 }
 const docKey: React.CSSProperties = {
   margin: '0 0 5px 0',
   color: MUTED,
   fontSize: '12px',
-  fontWeight: 600,
+  fontWeight: 400,
   textTransform: 'uppercase',
 }
 const docValStrong: React.CSSProperties = {
   margin: 0,
   color: INK,
   fontSize: '15px',
-  fontWeight: 700,
+  fontWeight: 400,
 }
 const docValBody: React.CSSProperties = {
   margin: '4px 0 0 0',
   color: BODY,
   fontSize: '13px',
-  fontWeight: 600,
+  fontWeight: 400,
 }
 const statusRow: React.CSSProperties = {
   paddingTop: '15px',
@@ -380,7 +380,7 @@ const statusPending: React.CSSProperties = {
   margin: 0,
   color: INK,
   fontSize: '16px',
-  fontWeight: 700,
+  fontWeight: 400,
 }
 const ctaCell: React.CSSProperties = {
   borderRadius: '8px',
@@ -394,7 +394,7 @@ const ctaLink: React.CSSProperties = {
   padding: '14px 32px',
   border: `1px solid ${BRAND}`,
   display: 'inline-block',
-  fontWeight: 700,
+  fontWeight: 400,
 }
 const noteBox: React.CSSProperties = {
   backgroundColor: '#eff6ff',
@@ -405,7 +405,7 @@ const noteTitle: React.CSSProperties = {
   margin: '0 0 5px 0',
   color: INK,
   fontSize: '14px',
-  fontWeight: 600,
+  fontWeight: 400,
 }
 const noteBody: React.CSSProperties = {
   margin: 0,
@@ -417,10 +417,10 @@ const outroSign: React.CSSProperties = {
   margin: 0,
   color: INK,
   fontSize: '15px',
-  fontWeight: 600,
+  fontWeight: 400,
 }
 const outroTeam: React.CSSProperties = {
-  fontWeight: 700,
+  fontWeight: 400,
   color: BODY,
 }
 const quoteCell: React.CSSProperties = {
@@ -433,13 +433,13 @@ const quoteText: React.CSSProperties = {
   color: MUTED,
   fontSize: '12px',
   lineHeight: '18px',
-  fontWeight: 500,
+  fontWeight: 400,
 }
 const footerCompanyName: React.CSSProperties = {
   margin: '0 0 12px 0',
   color: MUTED,
   fontSize: '14px',
-  fontWeight: 700,
+  fontWeight: 400,
   textTransform: 'uppercase' as const,
 }
 const footerDisclaimer: React.CSSProperties = {
