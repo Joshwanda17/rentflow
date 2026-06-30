@@ -185,6 +185,11 @@ export function WithdrawalPayoutCard({
     : null;
   const isStale = claimedMinutesAgo !== null && claimedMinutesAgo >= 15;
 
+  // What the merchant agent earns for processing this payout: 0.5% commission
+  // (matches approve-withdrawal: Math.round(amount * 0.005)). Shown up front so
+  // the agent sees their reward BEFORE claiming.
+  const agentEarning = Math.max(0, Math.round(Number(withdrawal.amount || 0) * 0.005));
+
   // Record exactly what the agent confirmed at claim time so it can be
   // reviewed later (which number / which registered name they accepted,
   // whether the typed name mismatched, and if they acknowledged it).
