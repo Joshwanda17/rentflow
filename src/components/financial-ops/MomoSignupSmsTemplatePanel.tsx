@@ -23,12 +23,12 @@ export interface MomoSignupSmsTemplate {
 
 const DEFAULTS: MomoSignupSmsTemplate = {
   enabled: true,
-  thank_you_text: 'Thank you for sending {amount} via {provider}.',
-  signup_prompt: 'Open your free Welile Wallet with any phone number here:',
-  signup_link: 'https://welilereceipts.com/auth?signup=1',
-  address: 'Welile HQ, P.O. Box 167564, Palm Lane, Kabaale, Entebbe - Uganda.',
-  website: 'welile.com',
-  support_email: 'info@welile.com',
+  thank_you_text: 'Thank you for sending {amount} via {provider}. Create your free Welile account to manage this money.',
+  signup_prompt: 'Access your dashboard to view your wallet, transactions, and account details:',
+  signup_link: 'https://welilereceipts.com/ZQhyGb',
+  address: '',
+  website: '',
+  support_email: '',
 };
 
 interface TestSmsRecord {
