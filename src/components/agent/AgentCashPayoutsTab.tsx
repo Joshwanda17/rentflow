@@ -238,6 +238,10 @@ export function AgentCashPayoutsTab() {
   const completeLockRef = useRef<Set<string>>(new Set());
   const [claimingIds, setClaimingIds] = useState<Set<string>>(new Set());
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
+  // Anchor for the "Claimed by you" section so we can scroll to a freshly
+  // claimed cash-out as soon as the claim commits.
+  const claimedSectionRef = useRef<HTMLDivElement | null>(null);
+  const scrollToClaimed = useRef(false);
 
   // ---- Pending Queue advanced filters & sorting ----
   const [queueSearch, setQueueSearch] = useState('');
@@ -455,7 +459,9 @@ export function AgentCashPayoutsTab() {
       const { data: wreqs } = await supabase
         .from('withdrawal_requests')
         .select('amount, created_at, processed_at')
-        .eq('processed_by', user.id)
+        // Scope strictly to cash-outs THIS merchant agent claimed & settled from
+        // the queue, so the metric never counts payouts handled via other flows.
+        .eq('assigned_cashout_agent_id', isCashoutAgent.id)
         .eq('status', 'completed')
         .not('processed_at', 'is', null)
         .gte('processed_at', startIso);
@@ -569,15 +575,28 @@ export function AgentCashPayoutsTab() {
   const HISTORY_PAGE = 8;
   const [historyVisible, setHistoryVisible] = useState(HISTORY_PAGE);
   const { data: payoutHistory } = useQuery({
-    queryKey: ['cashout-agent-payout-history', user?.id, isCashoutAgent?.id],
+    queryKey: ['cashout-agent-payout-history', user?.id, isCashoutAgent?.id, fromKey, toKey],
     queryFn: async () => {
-      if (!user) return [] as any[];
-      const { data: wrs, error } = await supabase
+      if (!user || !isCashoutAgent?.id) return [] as any[];
+      // Boundaries from the active date preset (Today / Last 7 / etc.). When no
+      // range is set we show all of this merchant's settled cash-outs.
+      const histFromIso = rangeFrom
+        ? new Date(rangeFrom.getFullYear(), rangeFrom.getMonth(), rangeFrom.getDate()).toISOString()
+        : null;
+      const histToIso = rangeTo
+        ? new Date(rangeTo.getFullYear(), rangeTo.getMonth(), rangeTo.getDate(), 23, 59, 59, 999).toISOString()
+        : null;
+      let wq = supabase
         .from('withdrawal_requests')
         .select('id, amount, payout_method, processed_at, reason, mobile_money_number, mobile_money_provider, mobile_money_name, user_id')
-        .eq('processed_by', user.id)
+        // Only payouts THIS merchant agent actually claimed & settled from the
+        // queue — never payouts settled by others through different flows.
+        .eq('assigned_cashout_agent_id', isCashoutAgent.id)
         .eq('status', 'completed')
-        .not('processed_at', 'is', null)
+        .not('processed_at', 'is', null);
+      if (histFromIso) wq = wq.gte('processed_at', histFromIso);
+      if (histToIso) wq = wq.lte('processed_at', histToIso);
+      const { data: wrs, error } = await wq
         .order('processed_at', { ascending: false })
         .limit(60);
       if (error) throw error;
@@ -671,6 +690,15 @@ export function AgentCashPayoutsTab() {
     return () => clearInterval(tick);
   }, [isCashoutAgent, qc]);
 
+  // When a claim succeeds and the "Claimed by you" list has refreshed to include
+  // it, smoothly scroll up so the merchant immediately sees the claimed cash-out.
+  useEffect(() => {
+    if (scrollToClaimed.current && myActiveClaims.length > 0) {
+      scrollToClaimed.current = false;
+      claimedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [myActiveClaims]);
+
   // Claim a withdrawal request — ATOMIC: only succeeds if no one else has claimed it.
   // The `.is('assigned_cashout_agent_id', null)` guard makes the UPDATE a single-row
   // race-safe operation. If two agents click "Claim" at the same instant, only the
@@ -696,6 +724,8 @@ export function AgentCashPayoutsTab() {
       // Notify the requester (fire-and-forget) that a named merchant agent is
       // now processing their withdrawal. Never blocks the claim flow.
       invalidateQueue();
+      // Once the "Claimed by you" list refreshes, scroll up to reveal it.
+      scrollToClaimed.current = true;
     },
     onError: (e: any) => {
       toast.error(e.message);
@@ -866,7 +896,7 @@ export function AgentCashPayoutsTab() {
       {/* My Active Claims — pinned to the very top so a request YOU claimed is
           always clearly separated from the rest of the queue and can't be missed. */}
       {myActiveClaims.length > 0 && (
-        <Card className="border-2 border-amber-500/60 bg-amber-500/10 rounded-2xl shadow-lg ring-2 ring-amber-500/20">
+        <Card ref={claimedSectionRef} className="border-2 border-amber-500/60 bg-amber-500/10 rounded-2xl shadow-lg ring-2 ring-amber-500/20 scroll-mt-4">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold uppercase tracking-wide flex items-center gap-2 text-amber-700 dark:text-amber-400">
               <UserCheck className="h-4 w-4" />
