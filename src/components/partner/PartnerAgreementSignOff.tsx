@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { buildPartnerReference } from '@/lib/partnerReference';
 import AgreementHtmlPreview, { type AgreementPreviewData } from './AgreementHtmlPreview';
+import { buildAgreementHtml } from './agreementTemplate';
+import { renderAgreementPdfBase64 } from './renderAgreementPdf';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -150,12 +152,20 @@ export default function PartnerAgreementSignOff({
       });
       return;
     }
+    if (!previewData) {
+      toast({ title: 'Agreement not loaded', description: 'Wait for the agreement to load, then try again.', variant: 'destructive' });
+      return;
+    }
     setBusy(true);
     try {
+      // Render the executed PDF from the EXACT same HTML shown in the preview so
+      // the stored/emailed document is pixel-identical to what the admin saw.
+      const pdfBase64 = await renderAgreementPdfBase64(buildAgreementHtml(previewData));
       const { error } = await supabase.functions.invoke('generate-partner-agreement', {
         body: {
           partnerId: partner.id,
           countersign: true,
+          pdfBase64,
           rep: {
             name: repName.trim(),
             position: repPosition.trim(),

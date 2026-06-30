@@ -13,6 +13,8 @@ import { signUp } from '@/hooks/auth/authOperations';
 import { useAuth as useRealAuth } from '@/hooks/useAuth';
 import { buildPartnerReference } from '@/lib/partnerReference';
 import { numberToWords } from '@/lib/numberToWords';
+import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
+import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const useRouteRole = () => 'FUNDER';
@@ -1227,9 +1229,31 @@ export default function FunderOnboarding() {
                 console.warn('partner agreement save failed (non-blocking):', agErr);
                 return;
               }
-              // Server renders the draft PDF from the row and emails the partner.
+              // Single HTML -> PDF pipeline: render the draft from the SAME
+              // contract template the admin previews, then hand the bytes to the
+              // server to store + email.
+              const pdfBase64 = await renderAgreementPdfBase64(
+                buildAgreementHtml({
+                  partnerName: `${cleanFirst} ${cleanLast}`.trim(),
+                  partnerId: cleanNationalId,
+                  partnerAddress: cleanAddress,
+                  partnerPhone: cleanPhone,
+                  partnerEmail: cleanEmail,
+                  partnershipAmount: supportAmountNum,
+                  payoutMode: form.payoutMode === 'momo' ? 'momo' : 'bank',
+                  bankName: cleanBankName || undefined,
+                  bankAccountName: cleanBankAccountName || undefined,
+                  bankAccountNumber: cleanBankAccountNumber || undefined,
+                  momoProvider: cleanMomoProvider || undefined,
+                  momoNumber: cleanMomoNumber || undefined,
+                  momoName: cleanMomoName || undefined,
+                  kinName: cleanKinName || undefined,
+                  kinContact: cleanKinContact || undefined,
+                  agreementDate: new Date(),
+                }),
+              );
               await supabase.functions.invoke('generate-partner-agreement', {
-                body: { partnerId: newUserId, countersign: false },
+                body: { partnerId: newUserId, countersign: false, pdfBase64 },
               });
             } catch (e) {
               console.warn('partnership agreement render failed (non-blocking):', e);
