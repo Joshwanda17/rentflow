@@ -221,31 +221,98 @@ export function WithdrawalPayoutCard({
               </span>
             </div>
 
-            {/* Recipient Payout Details */}
-            <div className="rounded-xl bg-muted/50 p-3.5 space-y-2 text-sm">
-              <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
-                <CreditCard className="h-3.5 w-3.5 inline mr-1" />
-                Payout Details
+            {/* Recipient Payout Details — kept prominent so the merchant agent can
+                verify exactly WHO and WHERE to pay BEFORE claiming. */}
+            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-3 text-sm">
+              <p className="font-bold text-xs uppercase tracking-wider text-primary flex items-center gap-1">
+                <CreditCard className="h-3.5 w-3.5" />
+                Pay out to
               </p>
+
+              {isMoMo && (
+                <>
+                  <Badge variant="secondary" className="gap-1 h-6 px-2.5 text-xs font-semibold">
+                    <Smartphone className="h-3.5 w-3.5" />
+                    {withdrawal.mobile_money_provider || methodLabel}
+                  </Badge>
+
+                  {/* Number — large + copyable */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mobile Money Number</p>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(momoNumber, 'Number')}
+                      className="mt-0.5 flex items-center gap-2 group"
+                      title="Tap to copy"
+                    >
+                      <span className="font-mono font-extrabold text-2xl leading-none tracking-wide tabular-nums">{momoNumber}</span>
+                      <Copy className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0" />
+                    </button>
+                  </div>
+
+                  {/* Registered name — large, with verify reminder */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Registered name on this number</p>
+                    {momoRegisteredName ? (
+                      <>
+                        <p className="mt-0.5 font-extrabold text-lg leading-tight break-words">{momoRegisteredName}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground flex items-start gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 mt-px shrink-0 text-primary" />
+                          Confirm your MTN/Airtel screen shows this exact name before sending.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-0.5 font-semibold text-sm text-warning flex items-start gap-1">
+                        <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        Not provided — verify the name on your screen with the recipient by phone.
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+
               {isBank && (
                 <>
                   <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Bank</span><span className="font-medium truncate">{withdrawal.bank_name || '—'}</span></div>
-                  <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Account #</span><span className="font-mono font-bold text-base truncate">{withdrawal.bank_account_number || '—'}</span></div>
-                  <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Account Name</span><span className="font-medium truncate text-right">{withdrawal.bank_account_name || '—'}</span></div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Account Number</p>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(withdrawal.bank_account_number, 'Account number')}
+                      className="mt-0.5 flex items-center gap-2 group"
+                      title="Tap to copy"
+                    >
+                      <span className="font-mono font-extrabold text-2xl leading-none tracking-wide tabular-nums">{withdrawal.bank_account_number || '—'}</span>
+                      <Copy className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0" />
+                    </button>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Account name</p>
+                    <p className="mt-0.5 font-extrabold text-lg leading-tight break-words">{withdrawal.bank_account_name || '—'}</p>
+                  </div>
                 </>
               )}
-              {isMoMo && (
-                <>
-                  <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Provider</span><span className="font-medium truncate">{withdrawal.mobile_money_provider || method}</span></div>
-                  <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Number</span><span className="font-mono font-bold text-base truncate">{withdrawal.mobile_money_number || recipientPhone}</span></div>
-                  {withdrawal.mobile_money_name && (
-                    <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Name on MoMo</span><span className="font-medium truncate text-right">{withdrawal.mobile_money_name}</span></div>
-                  )}
-                </>
-              )}
+
               {isCash && (
-                <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Contact</span><span className="font-mono font-bold text-base truncate">{recipientPhone}</span></div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Recipient contact</p>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(recipientPhone, 'Contact')}
+                    className="mt-0.5 flex items-center gap-2 group"
+                    title="Tap to copy"
+                  >
+                    <span className="font-mono font-extrabold text-2xl leading-none tracking-wide tabular-nums">{recipientPhone}</span>
+                    <Copy className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0" />
+                  </button>
+                </div>
               )}
+
+              {/* Account holder (who is withdrawing) — always shown for cross-check */}
+              <div className="pt-2 border-t border-primary/15 flex justify-between gap-2">
+                <span className="text-muted-foreground shrink-0">Account holder</span>
+                <span className="font-semibold truncate text-right">{recipientName}</span>
+              </div>
             </div>
 
             {/* Status pill */}
