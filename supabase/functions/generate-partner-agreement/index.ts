@@ -48,6 +48,16 @@ function ordinal(day: number): string {
   return day + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+// Decode a data URL or raw base64 string into bytes (admin-uploaded signature).
+function decodeDataUrl(input: string): Uint8Array {
+  const comma = input.indexOf(',');
+  const b64 = input.startsWith('data:') && comma >= 0 ? input.slice(comma + 1) : input;
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
 const INK = rgb(0.059, 0.090, 0.165);   // #0F172A
 const PRIMARY = rgb(0.059, 0.090, 0.165); // unified to ink #0F172A (no purple in the contract)
 const BORDER = rgb(0.796, 0.835, 0.882);  // slate-300
