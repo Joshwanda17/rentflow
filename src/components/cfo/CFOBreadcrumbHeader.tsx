@@ -31,7 +31,7 @@ export function CFOBreadcrumbHeader({
   return (
     <nav
       aria-label="Breadcrumb"
-      className="sticky top-0 z-20 -mx-2 sm:-mx-4 lg:-mx-6 mb-3 bg-background/95 backdrop-blur border-b border-border"
+      className="-mx-2 sm:-mx-4 lg:-mx-6 mb-1 bg-background border-b border-border"
     >
       <ol className="flex items-center gap-1 px-2 sm:px-4 lg:px-6 py-2 text-sm overflow-x-auto no-scrollbar">
         <li className="shrink-0">
