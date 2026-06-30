@@ -466,7 +466,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
   const CLAIM_WINDOW_MS = 15 * 60 * 1000;
   const COMMISSION_RATE = 0.005;
-  const { data: pendingEarnings } = useQuery({
+  const { data: pendingEarnings, dataUpdatedAt: pendingUpdatedAt, isFetching: pendingFetching } = useQuery({
     queryKey: ['cashout-pending-earnings', user.id],
     enabled: !!isCashoutAgent,
     staleTime: 30_000,
@@ -504,6 +504,25 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     try { localStorage.setItem(merchantOnboardKey, '1'); } catch { /* ignore */ }
     setShowMerchantOnboard(false);
   };
+
+  // Live "updated …" indicator for the Merchant Payouts earnings total.
+  // Re-render every 15s so the relative timestamp stays fresh.
+  const [nowTick, setNowTick] = useState(Date.now());
+  useEffect(() => {
+    if (!isCashoutAgent) return;
+    const id = setInterval(() => setNowTick(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, [isCashoutAgent]);
+  const pendingUpdatedLabel = (() => {
+    if (!pendingUpdatedAt) return null;
+    const secs = Math.max(0, Math.round((nowTick - pendingUpdatedAt) / 1000));
+    if (secs < 10) return 'updated just now';
+    if (secs < 60) return `updated ${secs}s ago`;
+    const mins = Math.round(secs / 60);
+    if (mins < 60) return `updated ${mins}m ago`;
+    const hrs = Math.round(mins / 60);
+    return `updated ${hrs}h ago`;
+  })();
 
   // Guided click: scroll to and briefly highlight the Merchant Payouts button
   const merchantBtnRef = useRef<HTMLButtonElement>(null);
@@ -902,6 +921,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                     <span className="text-2xl sm:text-3xl font-black text-emerald-700 leading-tight tabular-nums">
                       {formatUGX(pendingEarnings.totalCommission)}
                     </span>
+                    {pendingUpdatedLabel && (
+                      <span className="mt-0.5 flex items-center gap-1 text-[9px] font-medium text-emerald-700/70 leading-none">
+                        <span
+                          className={cn(
+                            'inline-block h-1.5 w-1.5 rounded-full bg-emerald-500',
+                            pendingFetching && 'animate-pulse',
+                          )}
+                        />
+                        {pendingFetching ? 'refreshing…' : pendingUpdatedLabel}
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <span className="text-base font-bold text-white shrink-0 relative">Open →</span>
