@@ -429,6 +429,20 @@ export function WithdrawalPayoutCard({
                     <span>Submitting claim… please wait</span>
                   </div>
                 )}
+                {agentEarning > 0 && (
+                  <div className="rounded-xl bg-success/10 border-2 border-success/40 px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="h-9 w-9 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                        <Banknote className="h-5 w-5 text-success" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-success/80 leading-none">You earn for this payout</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">0.5% commission · paid to your wallet on completion</p>
+                      </div>
+                    </div>
+                    <p className="text-2xl font-extrabold text-success tabular-nums shrink-0">{formatUGX(agentEarning)}</p>
+                  </div>
+                )}
                 <Button
                   className="w-full h-12 gap-2 font-semibold text-base"
                   variant="outline"
