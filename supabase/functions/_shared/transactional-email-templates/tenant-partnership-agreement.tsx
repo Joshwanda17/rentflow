@@ -84,7 +84,7 @@ export function TenantPartnershipAgreement({
                 {/* Greeting + intro */}
                 <tr>
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 25px 40px' }}>
-                    <Text style={greeting}>Dear {partner_name},</Text>
+                    <Text style={greeting}>Dear <b>{partner_name}</b>,</Text>
                     <Text style={introText}>
                       Thank you for partnering with <b>{company_name}.</b> We have prepared your
                       personalised <b>Tenant Partnership Agreement</b> using the details you provided
@@ -127,7 +127,7 @@ export function TenantPartnershipAgreement({
                                     <Text style={docKey}>Partnership Amount</Text>
                                     <Text style={docValStrong}>{partnership_amount || '—'}</Text>
                                     {partnership_amount_words ? (
-                                      <Text style={docValBody}>{partnership_amount_words} Shillings Only</Text>
+                                      <Text style={docValStrong}>{partnership_amount_words} Shillings Only</Text>
                                     ) : null}
                                   </td>
                                   <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
@@ -142,7 +142,7 @@ export function TenantPartnershipAgreement({
                                   </td>
                                   <td width="50%" valign="top" className="td-block" style={{ paddingBottom: '20px' }}>
                                     <Text style={docKey}>Payout Method</Text>
-                                    <Text style={docValBody}>{payout_summary || '—'}</Text>
+                                    <Text style={docValStrong}>{payout_summary || '—'}</Text>
                                   </td>
                                 </tr>
                                 <tr>
@@ -246,10 +246,11 @@ export function TenantPartnershipAgreement({
 /* === Styles === */
 const BRAND = '#7b19d4'
 const BRAND_DEEP = '#5a129e'
-const INK = '#0f172a'
-const BODY = '#475569'
-const SUB = '#64748b'
-const MUTED = '#94a3b8'
+const INK = '#0F172A'
+/* All body copy unified to the requested #0F172A ink. */
+const BODY = INK
+const SUB = INK
+const MUTED = INK
 const BORDER = '#e2e8f0'
 const HAIRLINE = '#f1f5f9'
 const PAGE_BG = '#f4f7f9'
@@ -377,7 +378,7 @@ const statusRow: React.CSSProperties = {
 }
 const statusPending: React.CSSProperties = {
   margin: 0,
-  color: '#ea580c',
+  color: INK,
   fontSize: '16px',
   fontWeight: 700,
 }
@@ -402,13 +403,13 @@ const noteBox: React.CSSProperties = {
 }
 const noteTitle: React.CSSProperties = {
   margin: '0 0 5px 0',
-  color: '#1e40af',
+  color: INK,
   fontSize: '14px',
   fontWeight: 600,
 }
 const noteBody: React.CSSProperties = {
   margin: 0,
-  color: '#1e40af',
+  color: INK,
   fontSize: '14px',
   lineHeight: '20px',
 }
@@ -455,7 +456,7 @@ const footerLink: React.CSSProperties = {
 }
 const footerCopyText: React.CSSProperties = {
   margin: 0,
-  color: '#cbd5e1',
+  color: INK,
   fontSize: '12px',
 }
 

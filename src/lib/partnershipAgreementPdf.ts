@@ -23,8 +23,8 @@ export interface PartnershipAgreementData {
 
 const PRIMARY: [number, number, number] = [124, 58, 237];   // violet
 const INK: [number, number, number] = [15, 23, 42];          // slate-900
-const MUTED: [number, number, number] = [71, 85, 105];       // slate-600
-const LIGHT: [number, number, number] = [100, 116, 139];     // slate-500
+const MUTED: [number, number, number] = [15, 23, 42];        // #0F172A — unified ink
+const LIGHT: [number, number, number] = [15, 23, 42];        // #0F172A — unified ink
 const BORDER: [number, number, number] = [203, 213, 225];    // slate-300
 
 function loadImageAsBase64(src: string): Promise<string> {
@@ -296,7 +296,7 @@ export async function generatePartnershipAgreementPDF(
   y += 8;
 
   // Signature field renderer
-  const sigField = (label: string, value: string) => {
+  const sigField = (label: string, value: string, opts: { italic?: boolean } = {}) => {
     ensureSpace(12);
     doc.setFont('times', 'bold');
     doc.setFontSize(9);
@@ -304,7 +304,13 @@ export async function generatePartnershipAgreementPDF(
     doc.text(label.toUpperCase(), margin, y);
     y += 5;
     if (value !== BLANK) {
-      doc.setFont('times', 'normal');
+      // Prefilled values are emphasised in bold; the partner's own signature is italic.
+      const isFilled = value !== UNKNOWN;
+      if (opts.italic) {
+        doc.setFont('times', 'italic');
+      } else {
+        doc.setFont('times', isFilled ? 'bold' : 'normal');
+      }
       doc.setFontSize(11);
       doc.setTextColor(...INK);
       doc.text(value, margin, y - 0.5);
@@ -350,7 +356,7 @@ export async function generatePartnershipAgreementPDF(
   sigField('Account Name', accName);
   sigField('Account No', accNo);
   sigField('Date', `${ordinal(day)} ${month} ${year}`);
-  sigField('Signature', UNKNOWN);
+  sigField('Signature', partnerName.toLowerCase(), { italic: true });
 
   // Next of Kin block
   sigBlockTitle('Next of Kin Details');
