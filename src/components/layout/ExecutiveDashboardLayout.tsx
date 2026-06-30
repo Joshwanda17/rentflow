@@ -361,7 +361,7 @@ export default function ExecutiveDashboardLayout({
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex flex-col w-60 shrink-0 border-r border-border bg-card/50 overflow-y-auto">
-          <SidebarContent />
+          {SidebarContent({})}
         </aside>
 
         {/* Main Content */}
