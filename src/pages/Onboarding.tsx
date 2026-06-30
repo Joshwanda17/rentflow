@@ -947,7 +947,7 @@ export default function FunderOnboarding() {
 
   const stepComponents: Record<number, React.ReactNode> = {
     1: <Step1 form={form} setForm={setForm} />,
-    2: <Step2 form={form} setForm={setForm} />,
+    2: <Step2 form={form} setForm={setForm} showError={showStepError} />,
     3: <Step3 form={form} setForm={setForm} />,
   };
 
