@@ -1178,6 +1178,96 @@ export function AgentCashPayoutsTab() {
         </CardContent>
       </Card>
 
+      {/* Payout activity — full transaction history of every payout this merchant
+          has settled, with the commission earned and any principal reimbursed. */}
+      <Card className="rounded-2xl">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-primary" />
+            Payout Activity
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Every payout you've settled — Cash, Mobile Money &amp; Bank — with the commission you
+            earned on each. Updates live and reconciles with your wallet statement.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-2">
+          {(payoutHistory?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No payouts settled yet. Confirm a payout to see it here.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-2 max-h-[26rem] overflow-y-auto">
+                {payoutHistory!.slice(0, historyVisible).map((h: any) => {
+                  const channel = getPayoutChannel(h);
+                  const method = normalizePayoutMethod(h.payout_method);
+                  const methodLabel = channel === 'momo'
+                    ? 'Mobile Money'
+                    : method.includes('bank') ? 'Bank Transfer' : 'Cash';
+                  const name = h.profiles?.full_name || 'Customer';
+                  const phone = getRecipientPhone(h);
+                  const earned = Number(h.commission || 0) + Number(h.reimbursed || 0);
+                  return (
+                    <div key={h.id} className="rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {methodLabel} · {phone}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold tabular-nums text-foreground">{formatUGX(Number(h.amount || 0))}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {h.processed_at ? format(new Date(h.processed_at), 'MMM d, HH:mm') : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-border/60 pt-1.5">
+                        <span className="text-[11px] text-muted-foreground">
+                          Added to your withdrawable wallet
+                        </span>
+                        <span className="text-[11px] font-semibold text-emerald-600 tabular-nums">
+                          +{formatUGX(earned)}
+                          {Number(h.commission || 0) > 0 && (
+                            <span className="ml-1 font-normal text-muted-foreground">
+                              ({formatUGX(Number(h.commission || 0))} comm.)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {payoutHistory!.length > HISTORY_PAGE && (
+                <div className="flex items-center justify-center gap-3 pt-0.5">
+                  {historyVisible < payoutHistory!.length && (
+                    <button
+                      type="button"
+                      onClick={() => setHistoryVisible((v) => v + HISTORY_PAGE)}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      Show more ({payoutHistory!.length - historyVisible})
+                    </button>
+                  )}
+                  {historyVisible > HISTORY_PAGE && (
+                    <button
+                      type="button"
+                      onClick={() => setHistoryVisible(HISTORY_PAGE)}
+                      className="text-xs font-semibold text-muted-foreground hover:underline"
+                    >
+                      Show less
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Live status banner */}
       {totalPending > 0 && (
         <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
