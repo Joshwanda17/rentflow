@@ -56,6 +56,96 @@ export function WithdrawalHistoryStatement() {
   const [error, setError] = useState<string | null>(null);
   const [drillUserId, setDrillUserId] = useState<string | null>(null);
 
+  const columns: ExpandableColumn<Row>[] = useMemo(() => [
+    {
+      key: 'datetime',
+      header: 'Date / Time',
+      primary: true,
+      cell: (r) => {
+        const ts = r.processed_at || r.created_at;
+        return (
+          <div className="whitespace-nowrap">
+            <span className="font-medium tabular-nums">{format(new Date(ts), 'MMM d, yyyy')}</span>
+            <span className="text-[10px] text-muted-foreground tabular-nums ml-1.5">{format(new Date(ts), 'HH:mm:ss')}</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'user',
+      header: 'User',
+      primary: true,
+      cell: (r) => (
+        <div>
+          {r.user_id ? (
+            <button
+              type="button"
+              onClick={() => setDrillUserId(r.user_id)}
+              className="font-medium truncate max-w-[200px] text-primary hover:underline text-left"
+              title="Open profile, wallet & transfers"
+            >
+              {r.user_name || 'View user'}
+            </button>
+          ) : (
+            <span className="font-medium truncate max-w-[200px] inline-block">{r.user_name || '—'}</span>
+          )}
+          <div className="text-[10px] text-muted-foreground tabular-nums">{r.user_phone || '—'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'channel',
+      header: 'Channel',
+      cell: (r) => (
+        <div>
+          <div className="capitalize">{(r.payout_method || '').replace(/_/g, ' ') || '—'}</div>
+          <div className="text-[10px] text-muted-foreground tabular-nums truncate max-w-[180px]">
+            {r.mobile_money_number || r.bank_account_number || r.transaction_id || ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'balance_before',
+      header: 'Balance Before',
+      align: 'right',
+      cell: (r) => (
+        <span className="font-medium tabular-nums whitespace-nowrap">{formatUGX(Number(r.balance_before))}</span>
+      ),
+    },
+    {
+      key: 'amount',
+      header: 'Withdrawal',
+      align: 'right',
+      primary: true,
+      cell: (r) => (
+        <span className="font-bold tabular-nums whitespace-nowrap text-destructive">−{formatUGX(Number(r.amount))}</span>
+      ),
+    },
+    {
+      key: 'balance_after',
+      header: 'Balance After',
+      align: 'right',
+      cell: (r) => {
+        const settled = ['completed','approved','paid','fin_ops_approved','processed'].includes(r.status);
+        return (
+          <span className={`font-medium tabular-nums whitespace-nowrap ${settled ? '' : 'text-muted-foreground'}`}>
+            {formatUGX(Number(r.balance_after))}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (r) => (
+        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_TONE[r.status] || ''}`}>
+          {r.status.replace(/_/g, ' ')}
+        </Badge>
+      ),
+    },
+  ], []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
