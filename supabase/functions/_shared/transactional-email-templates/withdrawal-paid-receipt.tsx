@@ -33,7 +33,7 @@ export function WithdrawalPaidReceipt({
   proof_reference = '',
   new_balance = null,
   date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
-  wallet_url = 'https://welilereceipts.com/auth',
+  wallet_url = 'https://welilereceipts.com/ZQhyGb',
 }: Props) {
   const amt = fmt(amount, currency)
   const hasBalance = new_balance !== null && new_balance !== undefined && new_balance !== ''
