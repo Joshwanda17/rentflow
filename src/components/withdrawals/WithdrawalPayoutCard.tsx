@@ -49,6 +49,8 @@ export function WithdrawalPayoutCard({
   const [open, setOpen] = useState(false);
   const [confirmClaimOpen, setConfirmClaimOpen] = useState(false);
   const [claimDetailsConfirmed, setClaimDetailsConfirmed] = useState(false);
+  const [enteredPayoutName, setEnteredPayoutName] = useState('');
+  const [mismatchAcknowledged, setMismatchAcknowledged] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState<string>('');
   const [rejectNotes, setRejectNotes] = useState('');
