@@ -1101,6 +1101,9 @@ export default function FunderOnboarding() {
         const cleanBankName = sanitizeInput(form.bankName).trim();
         const cleanBankAccountName = sanitizeInput(form.bankAccountName).trim();
         const cleanBankAccountNumber = sanitizeInput(form.bankAccountNumber).trim();
+        const cleanMomoProvider = sanitizeInput(form.momoProvider).trim();
+        const cleanMomoNumber = sanitizeInput(form.momoNumber).trim();
+        const cleanMomoName = sanitizeInput(form.momoName).trim();
         const cleanKinName = sanitizeInput(form.kinName).trim();
         const cleanKinContact = sanitizeInput(form.kinContact).trim();
 
@@ -1127,22 +1130,40 @@ export default function FunderOnboarding() {
               if (error) console.warn('address save failed (non-blocking):', error);
             });
         }
-        // Persist the funder's bank details as a saved payout method (non-blocking).
-        if (newUserId && cleanBankName && cleanBankAccountNumber) {
-          supabase
-            .from('saved_payout_methods')
-            .insert({
-              user_id: newUserId,
-              payout_mode: 'bank',
-              nickname: cleanBankName,
-              bank_name: cleanBankName,
-              bank_account_name: cleanBankAccountName,
-              bank_account_number: cleanBankAccountNumber,
-              is_default: true,
-            })
-            .then(({ error }) => {
-              if (error) console.warn('bank details save failed (non-blocking):', error);
-            });
+        // Persist the funder's payout method (bank or mobile money) — non-blocking.
+        if (newUserId) {
+          const payoutRow =
+            form.payoutMode === 'bank'
+              ? (cleanBankName && cleanBankAccountNumber
+                  ? {
+                      user_id: newUserId,
+                      payout_mode: 'bank',
+                      nickname: cleanBankName,
+                      bank_name: cleanBankName,
+                      bank_account_name: cleanBankAccountName,
+                      bank_account_number: cleanBankAccountNumber,
+                      is_default: true,
+                    }
+                  : null)
+              : (cleanMomoProvider && cleanMomoNumber
+                  ? {
+                      user_id: newUserId,
+                      payout_mode: 'momo',
+                      nickname: `${cleanMomoProvider} ${cleanMomoNumber}`.trim(),
+                      momo_provider: cleanMomoProvider,
+                      momo_number: cleanMomoNumber,
+                      momo_name: cleanMomoName,
+                      is_default: true,
+                    }
+                  : null);
+          if (payoutRow) {
+            supabase
+              .from('saved_payout_methods')
+              .insert(payoutRow)
+              .then(({ error }) => {
+                if (error) console.warn('payout method save failed (non-blocking):', error);
+              });
+          }
         }
         const partnerReference = buildPartnerReference(newUserId, new Date());
         supabase.functions
@@ -1156,9 +1177,13 @@ export default function FunderOnboarding() {
                 partner_reference: partnerReference,
                 partner_phone: cleanPhone,
                 partner_address: cleanAddress,
+                payout_mode: form.payoutMode,
                 bank_name: cleanBankName,
                 bank_account_name: cleanBankAccountName,
                 bank_account_number: cleanBankAccountNumber,
+                momo_provider: cleanMomoProvider,
+                momo_number: cleanMomoNumber,
+                momo_name: cleanMomoName,
                 kin_name: cleanKinName,
                 kin_contact: cleanKinContact,
                 agreement_download_url: `${window.location.origin}/legal/welile-partnership-agreement.pdf`,
