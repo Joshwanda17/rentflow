@@ -659,7 +659,7 @@ export function AgentCashPayoutsTab() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [isCashoutAgent, qc]);
+  }, [isCashoutAgent, qc, user?.id]);
 
   // Auto-release stale claims (>15min) — client-side ticker so the UI updates
   // immediately even between cron runs. Refreshes the list every 30s while open.
