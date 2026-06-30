@@ -3,7 +3,7 @@
 // strictly from the `partner_agreements` DB row + stored company countersignature
 // defaults — no admin typing, no partner data re-entry.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
+import { PDFDocument, StandardFonts, rgb, degrees } from 'npm:pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,7 +49,7 @@ function ordinal(day: number): string {
 }
 
 const INK = rgb(0.059, 0.090, 0.165);   // #0F172A
-const PRIMARY = rgb(0.486, 0.227, 0.929); // violet #7c3aed
+const PRIMARY = rgb(0.059, 0.090, 0.165); // unified to ink #0F172A (no purple in the contract)
 const BORDER = rgb(0.796, 0.835, 0.882);  // slate-300
 const STAMP_BLUE = rgb(0.067, 0.204, 0.651); // #1134a6
 const STAMP_RED = rgb(0.898, 0.098, 0.129);  // #e51921
@@ -113,17 +113,26 @@ function serveHandler() {
         .maybeSingle();
 
       let repSignatureBytes: Uint8Array | null = null;
-      if (countersign && defaults?.signature_path) {
-        const { data: sigFile } = await admin.storage
-          .from('partner-agreements')
-          .download(defaults.signature_path);
-        if (sigFile) repSignatureBytes = new Uint8Array(await sigFile.arrayBuffer());
+      // Admin-supplied overrides (filled in the sign-off dialog before sending).
+      const override = (body?.rep && typeof body.rep === 'object') ? body.rep : {};
+      const repName = (override.name ?? defaults?.rep_name) || undefined;
+      const repPosition = (override.position ?? defaults?.rep_position) || undefined;
+      const repContact = (override.contact ?? defaults?.rep_contact) || undefined;
+      if (countersign) {
+        if (typeof override.signatureBase64 === 'string' && override.signatureBase64.length > 0) {
+          repSignatureBytes = decodeDataUrl(override.signatureBase64);
+        } else if (defaults?.signature_path) {
+          const { data: sigFile } = await admin.storage
+            .from('partner-agreements')
+            .download(defaults.signature_path);
+          if (sigFile) repSignatureBytes = new Uint8Array(await sigFile.arrayBuffer());
+        }
       }
 
       const pdfBytes = await renderPdf({
         row,
         countersign,
-        rep: countersign ? defaults : null,
+        rep: countersign ? { rep_name: repName, rep_position: repPosition, rep_contact: repContact } : null,
         repSignatureBytes: countersign ? repSignatureBytes : null,
       });
 
