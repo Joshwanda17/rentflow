@@ -13,6 +13,8 @@ import { signUp } from '@/hooks/auth/authOperations';
 import { useAuth as useRealAuth } from '@/hooks/useAuth';
 import { buildPartnerReference } from '@/lib/partnerReference';
 import { numberToWords } from '@/lib/numberToWords';
+import { buildAgreementHtml } from '@/components/partner/agreementTemplate';
+import { renderAgreementPdfBase64 } from '@/components/partner/renderAgreementPdf';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const useRouteRole = () => 'FUNDER';
