@@ -1,7 +1,10 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Home } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Home, Link2 } from 'lucide-react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { executiveSidebarConfig } from '@/components/layout/executiveSidebarConfig';
 
 // id -> { group, label, icon } from the CFO sidebar (route items excluded).
@@ -43,6 +46,23 @@ export function CFOBreadcrumbHeader({
   const atFirst = position ? position.index <= 1 : true;
   const atLast = position ? position.index >= position.total : true;
   const sectionLabel = isOverview ? 'Dashboard' : meta?.label ?? 'Dashboard';
+
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = async () => {
+    hapticTap();
+    const url = new URL(window.location.pathname, getPublicOrigin());
+    if (!isOverview) url.searchParams.set('section', activeTab);
+    const link = url.toString();
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      toast.success('Section link copied');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy link');
+    }
+  };
 
   return (
     <nav
@@ -111,6 +131,15 @@ export function CFOBreadcrumbHeader({
 
         {(hasPager || actions) && (
           <div className="flex shrink-0 items-center gap-1 pl-2">
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              aria-label="Copy section link"
+              title="Copy link to this section"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {copied ? <Check className="h-4 w-4 text-success" /> : <Link2 className="h-4 w-4" />}
+            </button>
             {hasPager && (
               <>
             {position && (
