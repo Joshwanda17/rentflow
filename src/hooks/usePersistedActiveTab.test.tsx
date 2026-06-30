@@ -115,4 +115,17 @@ describe('usePersistedActiveTab — Platform Impact persistence', () => {
 
     expect(result.current[0]).toBe('overview');
   });
+
+  it('restores the section from a ?section= deep link (URL wins over storage)', () => {
+    window.localStorage.setItem(
+      'dashboard:cfo:/cfo/dashboard:activeTab',
+      'overview',
+    );
+
+    const { result } = renderHook(() => usePersistedActiveTab('cfo'), {
+      wrapper: wrapperFor('/cfo/dashboard?section=platform-impact'),
+    });
+
+    expect(result.current[0]).toBe('platform-impact');
+  });
 });
