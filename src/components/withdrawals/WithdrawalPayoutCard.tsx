@@ -602,7 +602,11 @@ export function WithdrawalPayoutCard({
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmClaimOpen(false)} disabled={claimingId === withdrawal.id}>Cancel</Button>
             <Button
-              disabled={!claimDetailsConfirmed || claimingId === withdrawal.id}
+              disabled={
+                !claimDetailsConfirmed ||
+                (nameMismatch && !mismatchAcknowledged) ||
+                claimingId === withdrawal.id
+              }
               onClick={() => {
                 setConfirmClaimOpen(false);
                 onClaim?.();
