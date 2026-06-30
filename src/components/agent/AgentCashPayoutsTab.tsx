@@ -690,6 +690,15 @@ export function AgentCashPayoutsTab() {
     return () => clearInterval(tick);
   }, [isCashoutAgent, qc]);
 
+  // When a claim succeeds and the "Claimed by you" list has refreshed to include
+  // it, smoothly scroll up so the merchant immediately sees the claimed cash-out.
+  useEffect(() => {
+    if (scrollToClaimed.current && myActiveClaims.length > 0) {
+      scrollToClaimed.current = false;
+      claimedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [myActiveClaims]);
+
   // Claim a withdrawal request — ATOMIC: only succeeds if no one else has claimed it.
   // The `.is('assigned_cashout_agent_id', null)` guard makes the UPDATE a single-row
   // race-safe operation. If two agents click "Claim" at the same instant, only the
