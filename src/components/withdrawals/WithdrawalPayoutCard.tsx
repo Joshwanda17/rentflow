@@ -145,6 +145,23 @@ export function WithdrawalPayoutCard({
   const momoNumber = withdrawal.mobile_money_number || recipientPhone;
   const momoRegisteredName = withdrawal.mobile_money_name || '';
 
+  // Normalize names for a forgiving comparison (case-insensitive, collapse
+  // whitespace, ignore punctuation) so only meaningful differences flag.
+  const normalizeName = (s: string) =>
+    (s || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const enteredNameTrimmed = enteredPayoutName.trim();
+  const hasEnteredName = enteredNameTrimmed.length > 0;
+  const nameMismatch =
+    isMoMo &&
+    !!momoRegisteredName &&
+    hasEnteredName &&
+    normalizeName(enteredNameTrimmed) !== normalizeName(momoRegisteredName);
+
   function copyToClipboard(value: string, label: string) {
     const v = (value || '').toString().trim();
     if (!v || v === '—') return;
