@@ -12,6 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { signUp } from '@/hooks/auth/authOperations';
 import { useAuth as useRealAuth } from '@/hooks/useAuth';
 import { buildPartnerReference } from '@/lib/partnerReference';
+import { generatePartnershipAgreementPDF } from '@/lib/partnershipAgreementPdf';
+import { numberToWords } from '@/lib/numberToWords';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const useRouteRole = () => 'FUNDER';
@@ -1166,32 +1168,75 @@ export default function FunderOnboarding() {
           }
         }
         const partnerReference = buildPartnerReference(newUserId, new Date());
-        supabase.functions
-          .invoke('send-transactional-email', {
-            body: {
-              templateName: 'partner-account-created',
-              recipientEmail: cleanEmail,
-              templateData: {
-                partner_name: `${cleanFirst} ${cleanLast}`.trim() || 'Partner',
-                partner_email: cleanEmail,
-                partner_reference: partnerReference,
-                partner_phone: cleanPhone,
-                partner_address: cleanAddress,
-                payout_mode: form.payoutMode,
-                bank_name: cleanBankName,
-                bank_account_name: cleanBankAccountName,
-                bank_account_number: cleanBankAccountNumber,
-                momo_provider: cleanMomoProvider,
-                momo_number: cleanMomoNumber,
-                momo_name: cleanMomoName,
-                kin_name: cleanKinName,
-                kin_contact: cleanKinContact,
-                agreement_download_url: `${window.location.origin}/legal/welile-partnership-agreement.pdf`,
-                company_name: 'WELILE TECHNOLOGIES LTD',
+        // Generate the personalised Tenant Partnership Agreement PDF from the
+        // user's filled details, store it privately, then email a secure
+        // download link with the new agreement template. Fully non-blocking so
+        // the success modal isn't held up by PDF/email work.
+        const supportAmountNum = Number(form.supportAmount.replace(/,/g, '')) || 0;
+        (async () => {
+          try {
+            const pdfBlob = await generatePartnershipAgreementPDF({
+              partnerName: `${cleanFirst} ${cleanLast}`.trim(),
+              partnerAddress: cleanAddress,
+              partnerPhone: cleanPhone,
+              partnerEmail: cleanEmail,
+              partnershipAmount: supportAmountNum,
+              payoutMode: form.payoutMode === 'momo' ? 'momo' : 'bank',
+              bankName: cleanBankName,
+              bankAccountName: cleanBankAccountName,
+              bankAccountNumber: cleanBankAccountNumber,
+              momoProvider: cleanMomoProvider,
+              momoNumber: cleanMomoNumber,
+              momoName: cleanMomoName,
+              kinName: cleanKinName,
+              kinContact: cleanKinContact,
+              agreementDate: new Date(),
+            });
+
+            // Upload to the private bucket and mint a long-lived signed URL.
+            let downloadUrl = '';
+            const objectPath = `${newUserId || 'anon'}/partnership-agreement-${partnerReference}.pdf`;
+            const { error: upErr } = await supabase.storage
+              .from('partner-agreements')
+              .upload(objectPath, pdfBlob, {
+                contentType: 'application/pdf',
+                upsert: true,
+              });
+            if (upErr) {
+              console.warn('agreement PDF upload failed (non-blocking):', upErr);
+            } else {
+              const { data: signed } = await supabase.storage
+                .from('partner-agreements')
+                .createSignedUrl(objectPath, 60 * 60 * 24 * 365); // 1 year
+              downloadUrl = signed?.signedUrl || '';
+            }
+
+            const payoutSummary =
+              form.payoutMode === 'momo'
+                ? [cleanMomoProvider, cleanMomoNumber].filter(Boolean).join(' ') || 'Mobile Money'
+                : [cleanBankName, cleanBankAccountNumber].filter(Boolean).join(' ') || 'Bank Transfer';
+
+            await supabase.functions.invoke('send-transactional-email', {
+              body: {
+                templateName: 'tenant-partnership-agreement',
+                recipientEmail: cleanEmail,
+                templateData: {
+                  partner_name: `${cleanFirst} ${cleanLast}`.trim() || 'Partner',
+                  partner_email: cleanEmail,
+                  partner_reference: partnerReference,
+                  partnership_amount: `UGX ${supportAmountNum.toLocaleString('en-US')}`,
+                  partnership_amount_words: numberToWords(supportAmountNum),
+                  monthly_return: '15%',
+                  payout_summary: payoutSummary,
+                  agreement_download_url: downloadUrl || 'https://welilereceipts.com',
+                  company_name: 'WELILE TECHNOLOGIES LTD',
+                },
               },
-            },
-          })
-          .catch((e) => console.warn('partner-account-created email failed (non-blocking):', e));
+            });
+          } catch (e) {
+            console.warn('partnership agreement email failed (non-blocking):', e);
+          }
+        })();
 
         // Flip into the success modal and auto-redirect after 3 seconds.
         setIsSubmitting(false);
