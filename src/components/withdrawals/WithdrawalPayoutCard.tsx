@@ -274,7 +274,14 @@ export function WithdrawalPayoutCard({
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <p className="font-bold text-xl text-primary tabular-nums">{formatUGX(withdrawal.amount)}</p>
+              <div className="flex flex-col items-end">
+                <p className="font-bold text-xl text-primary tabular-nums leading-tight">{formatUGX(withdrawal.amount)}</p>
+                {!isClaimed && !isClaimedByOther && agentEarning > 0 && (
+                  <span className="inline-flex items-center gap-1 mt-0.5 rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-bold text-success tabular-nums">
+                    + You earn {formatUGX(agentEarning)}
+                  </span>
+                )}
+              </div>
               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
             </div>
           </button>
