@@ -773,7 +773,11 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
 // ─── Step Validity ───────────────────────────────────────────────────────────
 function isValid(step: number, form: FormState): boolean {
   if (step === 1) return form.understoodRole;
-  if (step === 2) return form.investPath !== null;
+  if (step === 2) {
+    if (form.investPath === null) return false;
+    const amount = Number(form.supportAmount.replace(/,/g, '')) || 0;
+    return amount >= MIN_SUPPORT;
+  }
   if (step === 3) {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
     const nameOk = form.firstName.length >= 2 && form.lastName.length >= 2;
