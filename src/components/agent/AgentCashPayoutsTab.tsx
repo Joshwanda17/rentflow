@@ -19,7 +19,7 @@ import {
   Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck, Coins,
   CalendarIcon, X, ArrowUp, ArrowDown, SlidersHorizontal, ArrowUpDown,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -197,6 +197,7 @@ export function AgentCashPayoutsTab() {
   const [payoutCode, setPayoutCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
+  const [consoleOpen, setConsoleOpen] = useState(false);
 
   // Date range filter for the commission breakdown.
   const [rangeFrom, setRangeFrom] = useState<Date | undefined>(undefined);
