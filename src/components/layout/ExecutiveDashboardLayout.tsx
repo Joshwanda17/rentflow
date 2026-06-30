@@ -5,6 +5,7 @@ import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { LogOut, Menu, X, ArrowLeft, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search } from 'lucide-react';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { SidebarSkeleton, TopBarSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
@@ -32,6 +33,7 @@ export default function ExecutiveDashboardLayout({
   const [searchParams, setSearchParams] = useSearchParams();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
+  const [navQuery, setNavQuery] = useState('');
   const loggedRef = useRef(false);
 
   useEffect(() => {
@@ -162,9 +164,41 @@ export default function ExecutiveDashboardLayout({
 
   const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => (
     <nav className="flex-1 overflow-y-auto py-4 space-y-5" style={{ touchAction: 'manipulation' }}>
+      {/* Quick filter — type to jump to any section on a phone */}
+      <div className="px-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            inputMode="search"
+            value={navQuery}
+            onChange={(e) => setNavQuery(e.target.value)}
+            placeholder="Search menu…"
+            className="w-full h-11 pl-9 pr-9 rounded-xl bg-muted/60 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            style={{ fontSize: 16 }}
+          />
+          {navQuery && (
+            <button
+              type="button"
+              onClick={() => setNavQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+      </div>
       {sections.map((section) => {
         const isOpen = section.collapsible ? !!openGroups[section.title] : true;
         const SectionIcon = section.icon;
+        const q = navQuery.trim().toLowerCase();
+        const visibleItems = q
+          ? section.items.filter((it) => it.label.toLowerCase().includes(q))
+          : section.items;
+        if (q && visibleItems.length === 0) return null;
+        // While searching, force every matching group open.
+        const sectionOpen = q ? true : isOpen;
         return (
           <div key={section.title}>
             {section.collapsible ? (
@@ -174,7 +208,7 @@ export default function ExecutiveDashboardLayout({
                   setOpenGroups((prev) => ({ ...prev, [section.title]: !prev[section.title] }))
                 }
                 className="w-full flex items-center justify-between gap-2 px-4 mb-2 group"
-                aria-expanded={isOpen}
+                aria-expanded={sectionOpen}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
               >
                 <span className="flex items-center gap-2">
@@ -183,7 +217,7 @@ export default function ExecutiveDashboardLayout({
                     {section.title}
                   </span>
                 </span>
-                {isOpen ? (
+                {sectionOpen ? (
                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                 ) : (
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
@@ -194,14 +228,15 @@ export default function ExecutiveDashboardLayout({
                 {section.title}
               </p>
             )}
-            {isOpen && (
+            {sectionOpen && (
               <div className="space-y-0.5 px-2">
-                {section.items.map((item) => (
+                {visibleItems.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => {
                       handleItemClick(item);
+                      setNavQuery('');
                       onItemClick?.();
                     }}
                     className={cn(
@@ -222,6 +257,16 @@ export default function ExecutiveDashboardLayout({
           </div>
         );
       })}
+
+      {navQuery.trim() &&
+        sections.every(
+          (s) =>
+            s.items.filter((it) =>
+              it.label.toLowerCase().includes(navQuery.trim().toLowerCase()),
+            ).length === 0,
+        ) && (
+          <p className="px-4 text-sm text-muted-foreground">No menu items match “{navQuery}”.</p>
+        )}
 
       <div className="px-2 pt-4 border-t border-border mx-2">
         <button
