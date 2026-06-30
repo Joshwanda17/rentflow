@@ -168,6 +168,7 @@ export default function CFODashboardPage() {
                 the agent then pays the landlord via MoMo (gated by landlord OTP and Financial Ops sign-off).
               </p>
             </div>
+            <CFOAllocationReturnApprovals />
             <RentDisbursementQueue />
             <BatchPayoutProcessor />
             <LandlordFloatAllocationsPanel />
