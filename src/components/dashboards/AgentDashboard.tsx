@@ -921,6 +921,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                     <span className="text-2xl sm:text-3xl font-black text-emerald-700 leading-tight tabular-nums">
                       {formatUGX(pendingEarnings.totalCommission)}
                     </span>
+                    {pendingUpdatedLabel && (
+                      <span className="mt-0.5 flex items-center gap-1 text-[9px] font-medium text-emerald-700/70 leading-none">
+                        <span
+                          className={cn(
+                            'inline-block h-1.5 w-1.5 rounded-full bg-emerald-500',
+                            pendingFetching && 'animate-pulse',
+                          )}
+                        />
+                        {pendingFetching ? 'refreshing…' : pendingUpdatedLabel}
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <span className="text-base font-bold text-white shrink-0 relative">Open →</span>
