@@ -557,6 +557,98 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  return _Step3Impl({ form, setForm, showPw, setShowPw, showConfirm, setShowConfirm });
+}
+
+// ─── Step (Banking & Next of Kin) ─────────────────────────────────────────────
+function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
+  const fieldClass =
+    'w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all';
+  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(p => ({ ...p, [key]: e.target.value }));
+
+  return (
+    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
+      <motion.div variants={fadeUp}>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-8 h-8 rounded-xl bg-[#6c11d4]/10 flex items-center justify-center">
+            <Landmark size={16} className="text-[#6c11d4]" strokeWidth={1.75} />
+          </div>
+          <span className="text-xs font-bold text-[#6c11d4] tracking-wide uppercase">Agreement Details</span>
+        </div>
+        <h2 className="text-[22px] font-black text-gray-900 tracking-tight leading-tight">
+          Banking &amp; Next of Kin
+        </h2>
+        <p className="text-xs text-gray-400 mt-1.5">
+          These details complete your Welile Partnership Agreement and route your payouts.
+        </p>
+      </motion.div>
+
+      {/* Bank details */}
+      <motion.div variants={fadeUp} className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
+        <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Bank Details</p>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Bank Name</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Building2 size={15} strokeWidth={1.75} /></div>
+            <input type="text" placeholder="e.g. Stanbic Bank" value={form.bankName} onChange={set('bankName')} className={fieldClass} />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Name</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
+            <input type="text" placeholder="Name on the account" value={form.bankAccountName} onChange={set('bankAccountName')} className={fieldClass} />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Number</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><CreditCard size={15} strokeWidth={1.75} /></div>
+            <input type="text" inputMode="numeric" placeholder="Account number" value={form.bankAccountNumber} onChange={set('bankAccountNumber')} className={fieldClass} />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Next of kin */}
+      <motion.div variants={fadeUp} className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
+        <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Next of Kin</p>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Next of Kin Name</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Users size={15} strokeWidth={1.75} /></div>
+            <input type="text" placeholder="Full name" value={form.kinName} onChange={set('kinName')} className={fieldClass} />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Next of Kin Contact</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Phone size={15} strokeWidth={1.75} /></div>
+            <input type="tel" placeholder="+256 700 000 000" value={form.kinContact} onChange={set('kinContact')} className={fieldClass} />
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Step 4 — Register ───────────────────────────────────────────────────────
+function _Step3Impl({
+  form, setForm, showPw, setShowPw, showConfirm, setShowConfirm,
+}: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  showPw: boolean;
+  setShowPw: React.Dispatch<React.SetStateAction<boolean>>;
+  showConfirm: boolean;
+  setShowConfirm: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+
   const strength = form.password.length > 0 ? getStrength(form.password) : null;
   const passwordsMatch = form.password === form.confirmPassword;
 
