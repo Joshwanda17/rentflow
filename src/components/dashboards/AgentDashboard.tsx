@@ -457,6 +457,39 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     },
   });
 
+  // Pending (unclaimed) merchant payouts + the commission this agent would earn
+  // if they claimed and processed them all. Drives the notification badge that
+  // sits on top of the "Merchant Payouts" button. 0.5% commission per payout,
+  // matching approve-withdrawal.
+  const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
+  const CLAIM_WINDOW_MS = 15 * 60 * 1000;
+  const COMMISSION_RATE = 0.005;
+  const { data: pendingEarnings } = useQuery({
+    queryKey: ['cashout-pending-earnings', user.id],
+    enabled: !!isCashoutAgent,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const cutoffIso = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+      // Available = unclaimed OR a claim that has expired (>15 min).
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .select('amount')
+        .in('status', CASHOUT_QUEUE_STATUSES)
+        .or(`assigned_cashout_agent_id.is.null,dispatched_at.lt.${cutoffIso}`)
+        .limit(2000);
+      if (error) return { count: 0, totalCommission: 0 };
+      const rows = data || [];
+      const totalCommission = rows.reduce(
+        (sum, r) => sum + Math.round(Number(r.amount || 0) * COMMISSION_RATE),
+        0,
+      );
+      return { count: rows.length, totalCommission };
+    },
+  });
+
   // One-time onboarding banner shown the first time an agent becomes a Merchant Agent
   const merchantOnboardKey = `merchant-agent-onboarded:${user.id}`;
   const [showMerchantOnboard, setShowMerchantOnboard] = useState(false);
@@ -828,6 +861,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 )}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
+                {/* Pending unclaimed commission badge — floats on top of the button */}
+                {!!pendingEarnings && pendingEarnings.totalCommission > 0 && (
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-bold shadow-lg shadow-emerald-900/30 border border-white/40 whitespace-nowrap animate-pulse">
+                    💰 {formatUGX(pendingEarnings.totalCommission)} unclaimed · {pendingEarnings.count} {pendingEarnings.count === 1 ? 'payout' : 'payouts'}
+                  </span>
+                )}
                 {/* subtle shimmer strip */}
                 <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
                 <div className="p-3 rounded-xl bg-white/20 shrink-0 backdrop-blur-sm">
@@ -836,7 +875,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <div className="flex-1 text-left min-w-0 relative">
                   <p className="font-bold text-base text-white truncate">Merchant Payouts</p>
                   <p className="text-xs text-white/80 truncate">
-                    MoMo · Bank{isCashoutAgent.handles_cash ? ' · Cash' : ''}
+                    {pendingEarnings && pendingEarnings.totalCommission > 0
+                      ? `Earn ${formatUGX(pendingEarnings.totalCommission)} from ${pendingEarnings.count} pending`
+                      : `MoMo · Bank${isCashoutAgent.handles_cash ? ' · Cash' : ''}`}
                   </p>
                 </div>
                 <span className="text-base font-bold text-white shrink-0 relative">Open →</span>
