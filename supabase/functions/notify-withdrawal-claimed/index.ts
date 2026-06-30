@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { formatPhoneInternational, isUgandanPhone } from "./phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,17 +7,6 @@ const corsHeaders = {
 };
 
 // ── SMS helper (Africa's Talking) — mirrors approve-withdrawal ──────────
-function formatPhoneInternational(phone: string): string {
-  const digits = (phone || "").replace(/[^0-9]/g, "");
-  if (digits.startsWith("256")) return `+${digits}`;
-  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
-  if (digits.length === 9) return `+256${digits}`;
-  return digits ? `+${digits}` : "";
-}
-function isUgandanPhone(phone: string): boolean {
-  const f = formatPhoneInternational(phone);
-  return f.startsWith("+256") && f.length >= 13;
-}
 interface SmsResult {
   sent: boolean;
   attempts: number;
