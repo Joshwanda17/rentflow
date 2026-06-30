@@ -1634,11 +1634,19 @@ export function AgentCashPayoutsTab() {
                         <Button
                           className="w-full h-12 gap-2 font-semibold text-base"
                           onClick={() => handleClaim(w.id)}
-                          disabled={claimingIds.has(w.id)}
-                          title={claimingIds.has(w.id) ? 'Request is being processed…' : 'Claim this withdrawal'}
+                          disabled={claimingIds.has(w.id) || hasActiveClaim}
+                          title={
+                            claimingIds.has(w.id)
+                              ? 'Request is being processed…'
+                              : hasActiveClaim
+                                ? 'Finish your current claim before claiming another'
+                                : 'Claim this withdrawal'
+                          }
                         >
                           {claimingIds.has(w.id) ? (
                             <><Loader2 className="h-5 w-5 animate-spin" /> Claiming…</>
+                          ) : hasActiveClaim ? (
+                            <><Clock className="h-5 w-5" /> Finish current claim first</>
                           ) : (
                             <><UserCheck className="h-5 w-5" /> Claim</>
                           )}
