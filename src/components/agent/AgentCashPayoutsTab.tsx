@@ -236,6 +236,9 @@ export function AgentCashPayoutsTab() {
   // re-render) so a rapid double-tap can never fire the same mutation twice; the
   // state mirrors them only to drive the disabled/loading UI.
   const claimLockRef = useRef<Set<string>>(new Set());
+  // Tracks withdrawal ids we've already sent a timeout-release SMS for, so the
+  // per-second ticker doesn't fire duplicate notifications before the refetch.
+  const releaseNotifiedRef = useRef<Set<string>>(new Set());
   const completeLockRef = useRef<Set<string>>(new Set());
   const [claimingIds, setClaimingIds] = useState<Set<string>>(new Set());
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
