@@ -349,7 +349,10 @@ export function WithdrawalPayoutCard({
                 <Button
                   className="w-full h-12 gap-2 font-semibold text-base"
                   variant="outline"
-                  onClick={onClaim}
+                  onClick={() => {
+                    setClaimDetailsConfirmed(false);
+                    setConfirmClaimOpen(true);
+                  }}
                   disabled={claimingId === withdrawal.id}
                   title={claimingId === withdrawal.id ? 'Request is being processed…' : 'Claim this withdrawal'}
                 >
