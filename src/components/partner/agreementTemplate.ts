@@ -119,7 +119,8 @@ export function buildAgreementHtml(data: AgreementFillData): string {
     KinSignature: '',
     // Stamp appears on every page; kept inside the content with comfortable
     // margins so the rotation never clips against the page edge.
-    CoverStamp: stampHtml(date, 'top:10px; right:40px;', 1),
+    // Cover stamp: middle-left of the page, ~44px gap from the left edge.
+    CoverStamp: stampHtml(date, 'top:50%; left:44px;', 1, 'left center', 'translateY(-50%)'),
     StampOverlay: stampHtml(date, 'top:0; right:48px;', 0.85),
     StampPage: stampHtml(date, 'bottom:24px; right:48px;', 0.7),
   };
