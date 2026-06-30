@@ -1025,6 +1025,11 @@ export default function FunderOnboarding() {
         const cleanLast = sanitizeInput(form.lastName).trim();
         const cleanPhone = sanitizeInput(form.phone).trim();
         const cleanAddress = sanitizeInput(form.address).trim();
+        const cleanBankName = sanitizeInput(form.bankName).trim();
+        const cleanBankAccountName = sanitizeInput(form.bankAccountName).trim();
+        const cleanBankAccountNumber = sanitizeInput(form.bankAccountNumber).trim();
+        const cleanKinName = sanitizeInput(form.kinName).trim();
+        const cleanKinContact = sanitizeInput(form.kinContact).trim();
 
         const signupResult = await registerUser({
           email: cleanEmail,
@@ -1047,6 +1052,23 @@ export default function FunderOnboarding() {
             .eq('id', newUserId)
             .then(({ error }) => {
               if (error) console.warn('address save failed (non-blocking):', error);
+            });
+        }
+        // Persist the funder's bank details as a saved payout method (non-blocking).
+        if (newUserId && cleanBankName && cleanBankAccountNumber) {
+          supabase
+            .from('saved_payout_methods')
+            .insert({
+              user_id: newUserId,
+              payout_mode: 'bank',
+              nickname: cleanBankName,
+              bank_name: cleanBankName,
+              bank_account_name: cleanBankAccountName,
+              bank_account_number: cleanBankAccountNumber,
+              is_default: true,
+            })
+            .then(({ error }) => {
+              if (error) console.warn('bank details save failed (non-blocking):', error);
             });
         }
         const partnerReference = buildPartnerReference(newUserId, new Date());
