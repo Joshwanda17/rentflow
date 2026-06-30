@@ -64,6 +64,7 @@ interface FormState {
   password: string;
   confirmPassword: string;
   phone: string;
+  address: string;
   agreedToTerms: boolean;
 }
 
