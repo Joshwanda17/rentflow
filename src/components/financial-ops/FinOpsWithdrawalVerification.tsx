@@ -126,6 +126,29 @@ export function FinOpsWithdrawalVerification() {
     });
   }, []);
 
+  // Landlord float payouts are funded from the agent's dedicated landlord
+  // float (`agent_landlord_float`), NOT their personal/withdrawable wallet.
+  // The float is deducted at disburse time and `approve-withdrawal` skips the
+  // wallet debit, so the personal-wallet impact strip is misleading for these
+  // rows. Track the landlord float balance keyed by agent user_id instead.
+  const [landlordFloatBalances, setLandlordFloatBalances] = useState<Record<string, number>>({});
+
+  const fetchLandlordFloatBalances = useCallback(async (agentIds: string[]) => {
+    const uniq = Array.from(new Set(agentIds.filter(Boolean)));
+    if (uniq.length === 0) return;
+    const { data } = await supabase
+      .from('agent_landlord_float')
+      .select('agent_id, balance')
+      .in('agent_id', uniq);
+    setLandlordFloatBalances((prev) => {
+      const next = { ...prev };
+      for (const row of (data ?? []) as Array<{ agent_id: string; balance: number | string }>) {
+        next[row.agent_id] = Number(row.balance ?? 0);
+      }
+      return next;
+    });
+  }, []);
+
   // Force re-render every 60s so the age chip stays fresh.
   const [, setTick] = useState(0);
   useEffect(() => {
