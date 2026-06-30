@@ -1044,14 +1044,14 @@ export default function FunderOnboarding() {
               </div>
             )}
             <motion.button
-              onClick={valid && !isSubmitting ? handleNext : undefined}
-              disabled={!valid || isSubmitting}
+              onClick={isSubmitting ? undefined : handleNext}
+              disabled={isSubmitting}
               whileTap={valid && !isSubmitting ? { scale: 0.98 } : {}}
               animate={{ opacity: valid ? 1 : 0.55 }}
               transition={{ duration: 0.2 }}
               className={`w-full py-3 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all duration-200 ${
                 !valid
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-gray-200 text-gray-400'
                   : step === TOTAL
                     ? isSubmitting
                       ? 'bg-emerald-400 text-white cursor-not-allowed'
