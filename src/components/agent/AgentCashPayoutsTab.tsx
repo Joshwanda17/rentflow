@@ -19,7 +19,7 @@ import {
   Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck, Coins,
   CalendarIcon, X, ArrowUp, ArrowDown, SlidersHorizontal, ArrowUpDown,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -197,6 +197,7 @@ export function AgentCashPayoutsTab() {
   const [payoutCode, setPayoutCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
+  const [consoleOpen, setConsoleOpen] = useState(false);
 
   // Date range filter for the commission breakdown.
   const [rangeFrom, setRangeFrom] = useState<Date | undefined>(undefined);
@@ -876,21 +877,29 @@ export function AgentCashPayoutsTab() {
     <div className="space-y-5">
       {/* Merchant console header */}
       <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-lg">
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => setConsoleOpen((v) => !v)}
+          aria-expanded={consoleOpen}
+          className="flex w-full items-center justify-between border-b border-white/10 px-4 py-2.5 text-left"
+        >
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Cash, Mobile Money &amp; Bank Payouts</span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-semibold text-emerald-400">Active</span>
+            <ChevronDown className={cn('h-4 w-4 text-slate-400 transition-transform', consoleOpen && 'rotate-180')} />
           </div>
-        </div>
-        <div className="flex items-start gap-3 px-4 py-3.5">
-          <div className="shrink-0 rounded-xl bg-white/10 p-2">
-            <Banknote className="h-5 w-5 text-white" />
+        </button>
+        {consoleOpen && (
+          <div className="flex items-start gap-3 px-4 py-3.5">
+            <div className="shrink-0 rounded-xl bg-white/10 p-2">
+              <Banknote className="h-5 w-5 text-white" />
+            </div>
+            <p className="text-sm leading-relaxed text-slate-300">
+              Claim a request, pay via <span className="font-semibold text-white">Mobile Money, Bank, or Cash</span>, then enter the proof (TID or payout code) to confirm.
+            </p>
           </div>
-          <p className="text-sm leading-relaxed text-slate-300">
-            Claim a request, pay via <span className="font-semibold text-white">Mobile Money, Bank, or Cash</span>, then enter the proof (TID or payout code) to confirm.
-          </p>
-        </div>
+        )}
       </div>
 
       {/* My Active Claims — pinned to the very top so a request YOU claimed is
@@ -1039,16 +1048,16 @@ export function AgentCashPayoutsTab() {
           )}
         </CardHeader>
         <CardContent className="pt-0 space-y-3">
-          <div className="flex items-end justify-between gap-3 rounded-2xl bg-slate-900 p-4 text-white">
+          <div className="flex items-end justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
             <div>
-              <p className="text-xs font-medium text-slate-400">Total earned · 0.5%</p>
-              <p className="mt-1 text-2xl font-bold leading-tight tabular-nums text-emerald-400">
+              <p className="text-xs font-medium text-emerald-700">Total earned · 0.5%</p>
+              <p className="mt-1 text-2xl font-bold leading-tight tabular-nums text-emerald-700">
                 {formatUGX(commissionBreakdown?.grandTotal ?? 0)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-slate-400">Payouts</p>
-              <p className="text-lg font-bold tabular-nums text-white">{commissionBreakdown?.grandCount ?? 0}</p>
+              <p className="text-xs text-emerald-700">Payouts</p>
+              <p className="text-lg font-bold tabular-nums text-slate-900">{commissionBreakdown?.grandCount ?? 0}</p>
             </div>
           </div>
 
