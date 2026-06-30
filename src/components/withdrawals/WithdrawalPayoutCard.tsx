@@ -460,6 +460,82 @@ export function WithdrawalPayoutCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pre-claim confirmation — agent must confirm the payout target matches
+          what they'll send on their MTN/Airtel screen BEFORE claiming. */}
+      <Dialog open={confirmClaimOpen} onOpenChange={(v) => claimingId !== withdrawal.id && setConfirmClaimOpen(v)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm payout details · {formatUGX(withdrawal.amount)}</DialogTitle>
+            <DialogDescription>
+              Check these against your MTN/Airtel screen before you claim. You are responsible for paying the correct number and name.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {isMoMo ? (
+              <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pay out to (Mobile Money number)</p>
+                  <p className="mt-0.5 font-mono font-extrabold text-2xl leading-none tracking-wide tabular-nums break-all">{momoNumber}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Registered name on this number</p>
+                  {momoRegisteredName ? (
+                    <p className="mt-0.5 font-extrabold text-lg leading-tight break-words">{momoRegisteredName}</p>
+                  ) : (
+                    <p className="mt-0.5 font-semibold text-sm text-warning flex items-start gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      Not provided — verify the name on your screen with the recipient by phone.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-2 text-sm">
+                <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Method</span><span className="font-semibold truncate text-right">{methodLabel}</span></div>
+                {isBank && (
+                  <>
+                    <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Account number</span><span className="font-mono font-semibold truncate text-right">{withdrawal.bank_account_number || '—'}</span></div>
+                    <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Account name</span><span className="font-semibold truncate text-right">{withdrawal.bank_account_name || '—'}</span></div>
+                  </>
+                )}
+                {isCash && (
+                  <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Recipient contact</span><span className="font-mono font-semibold truncate text-right">{recipientPhone}</span></div>
+                )}
+                <div className="flex justify-between gap-2"><span className="text-muted-foreground shrink-0">Account holder</span><span className="font-semibold truncate text-right">{recipientName}</span></div>
+              </div>
+            )}
+
+            <label className="flex items-start gap-2.5 cursor-pointer rounded-lg border border-border/60 p-3">
+              <Checkbox
+                checked={claimDetailsConfirmed}
+                onCheckedChange={(v) => setClaimDetailsConfirmed(v === true)}
+                className="mt-0.5"
+              />
+              <span className="text-sm font-medium leading-snug">
+                {isMoMo
+                  ? 'I confirm the Mobile Money number and the registered MTN/Airtel name above match what I will pay out.'
+                  : 'I confirm the payout details above match what I will pay out.'}
+              </span>
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmClaimOpen(false)} disabled={claimingId === withdrawal.id}>Cancel</Button>
+            <Button
+              disabled={!claimDetailsConfirmed || claimingId === withdrawal.id}
+              onClick={() => {
+                setConfirmClaimOpen(false);
+                onClaim?.();
+              }}
+            >
+              {claimingId === withdrawal.id ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <UserCheck className="h-4 w-4 mr-1.5" />}
+              Confirm & Claim
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
