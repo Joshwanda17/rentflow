@@ -267,7 +267,6 @@ export async function generatePartnershipAgreementPDF(
   heading('12. Approved Company Payment Channels');
   paragraph('All partner contributions to the Company shall be made only through the approved payment channels listed below. The Partner should confirm payment details with the Company before making any transfer.');
 
-  const channels: [string, string][] = [
   // Render the approved channels as a 3-column table (Channel | Instruction | Details).
   const tableRows: [string, string, string][] = [
     ['Airtel Money', 'Dial *185*9#', 'Merchant ID: 4380664'],
