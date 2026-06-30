@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
+import { executiveSidebarConfig } from '@/components/layout/executiveSidebarConfig';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummary';
@@ -61,9 +65,39 @@ import { AlreadyFundedLandlordsPanel } from '@/components/cfo/AlreadyFundedLandl
 import { CFOQuickActionsBar } from '@/components/cfo/CFOQuickActionsBar';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
+// Ordered, swipeable tab ids derived from the CFO sidebar (route items excluded).
+const CFO_TAB_SEQUENCE = (executiveSidebarConfig.cfo ?? [])
+  .flatMap((section) => section.items)
+  .filter((item) => !item.route);
+const CFO_TAB_IDS = CFO_TAB_SEQUENCE.map((i) => i.id);
+const CFO_TAB_LABELS: Record<string, string> = Object.fromEntries(
+  CFO_TAB_SEQUENCE.map((i) => [i.id, i.label]),
+);
+
 export default function CFODashboardPage() {
   const { currency, setCurrency, getCurrencyByCode } = useCurrency();
   const [activeTab, setActiveTab] = usePersistedActiveTab('cfo');
+  const isMobile = useIsMobile();
+
+  const goToOffset = (delta: number) => {
+    const current = CFO_TAB_IDS.indexOf(activeTab);
+    const idx = current === -1 ? 0 : current;
+    const next = idx + delta;
+    if (next < 0 || next >= CFO_TAB_IDS.length) return;
+    const nextId = CFO_TAB_IDS[next];
+    setActiveTab(nextId);
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' });
+    toast.dismiss();
+    toast(CFO_TAB_LABELS[nextId], {
+      description: `${next + 1} of ${CFO_TAB_IDS.length}`,
+      duration: 1200,
+    });
+  };
+
+  const swipeHandlers = useHorizontalSwipe({
+    onSwipeLeft: () => goToOffset(1),
+    onSwipeRight: () => goToOffset(-1),
+  });
 
   // Force UGX on CFO dashboard — financial reporting must always be in base currency
   useEffect(() => {
@@ -278,7 +312,9 @@ export default function CFODashboardPage() {
   return (
     <ExecutiveDashboardLayout role="cfo" activeTab={activeTab} onTabChange={setActiveTab}>
       <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
-      {renderContent()}
+      <div {...(isMobile ? swipeHandlers : {})} className="min-h-[60vh]">
+        {renderContent()}
+      </div>
     </ExecutiveDashboardLayout>
   );
 }

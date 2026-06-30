@@ -1,44 +1,69 @@
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
+import type { TouchEvent as ReactTouchEvent } from 'react';
 
-interface Options {
+interface SwipeOptions {
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
   /** Minimum horizontal distance (px) to count as a swipe. */
   threshold?: number;
-  /** Max vertical drift (px) allowed before we treat it as a scroll, not a swipe. */
+  /** Maximum vertical drift (px) before the gesture is treated as a scroll. */
   maxVertical?: number;
 }
 
+interface SwipeHandlers {
+  onTouchStart: (e: ReactTouchEvent) => void;
+  onTouchEnd: (e: ReactTouchEvent) => void;
+}
+
 /**
- * Lightweight touch-swipe detector. Returns props you spread on the swipe
- * target. Ignores vertical scrolls and short taps. Pointer-events-based so
- * it also works with stylus / mouse drags.
+ * Returns `onTouchStart` / `onTouchEnd` handlers to spread onto a container for
+ * left/right swipe navigation (e.g. flipping dashboard sections on a phone).
+ *
+ * A swipe must be: mostly horizontal (vertical drift <= maxVertical), longer
+ * than `threshold`, and completed within 600ms — otherwise it's treated as a
+ * scroll or long-press and ignored. Swipes starting inside a horizontally
+ * scrollable area, form control, or `[data-swipe-ignore]` node are skipped.
  */
 export function useHorizontalSwipe({
   onSwipeLeft,
   onSwipeRight,
   threshold = 60,
-  maxVertical = 50,
-}: Options) {
+  maxVertical = 60,
+}: SwipeOptions): SwipeHandlers {
   const start = useRef<{ x: number; y: number; t: number } | null>(null);
 
-  return {
-    onTouchStart: (e: React.TouchEvent) => {
-      const t = e.touches[0];
-      start.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-    },
-    onTouchEnd: (e: React.TouchEvent) => {
-      if (!start.current) return;
-      const t = e.changedTouches[0];
-      const dx = t.clientX - start.current.x;
-      const dy = t.clientY - start.current.y;
-      const dt = Date.now() - start.current.t;
-      start.current = null;
-      if (dt > 600) return; // too slow → likely a scroll/long-press
-      if (Math.abs(dy) > maxVertical) return; // vertical scroll
-      if (Math.abs(dx) < threshold) return;
-      if (dx < 0) onSwipeLeft?.();
-      else onSwipeRight?.();
-    },
-  };
+  return useMemo<SwipeHandlers>(() => {
+    const shouldIgnore = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return false;
+      return !!target.closest(
+        '[data-swipe-ignore], .overflow-x-auto, input, textarea, select, [role="slider"], [contenteditable="true"]',
+      );
+    };
+
+    return {
+      onTouchStart: (e: ReactTouchEvent) => {
+        const touch = e.touches?.[0];
+        if (!touch || shouldIgnore(e.target)) {
+          start.current = null;
+          return;
+        }
+        start.current = { x: touch.clientX, y: touch.clientY, t: Date.now() };
+      },
+      onTouchEnd: (e: ReactTouchEvent) => {
+        const s = start.current;
+        start.current = null;
+        if (!s) return;
+        const touch = e.changedTouches?.[0];
+        if (!touch) return;
+        const dx = touch.clientX - s.x;
+        const dy = touch.clientY - s.y;
+        const dt = Date.now() - s.t;
+        if (dt > 600) return; // too slow — long-press / drift
+        if (Math.abs(dy) > maxVertical) return; // vertical scroll
+        if (Math.abs(dx) < threshold) return; // too short
+        if (dx < 0) onSwipeLeft?.();
+        else onSwipeRight?.();
+      },
+    };
+  }, [onSwipeLeft, onSwipeRight, threshold, maxVertical]);
 }
