@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { buildPartnerReference } from '@/lib/partnerReference';
 import { useToast } from '@/hooks/use-toast';
 import PartnerAgreementSignOff, { type SignOffPartner } from '@/components/partner/PartnerAgreementSignOff';
+import PartnerCompanyDefaultsDialog from '@/components/partner/PartnerCompanyDefaultsDialog';
 
 interface FunderProfileRow {
   id: string;
@@ -71,6 +72,7 @@ export default function FunderOnboarding() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [selected, setSelected] = useState<FunderProfileRow | null>(null);
   const [signOffPartner, setSignOffPartner] = useState<SignOffPartner | null>(null);
+  const [companyDefaultsOpen, setCompanyDefaultsOpen] = useState(false);
   const [actionMode, setActionMode] = useState<null | 'approve' | 'reject'>(null);
   const [actionReason, setActionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
