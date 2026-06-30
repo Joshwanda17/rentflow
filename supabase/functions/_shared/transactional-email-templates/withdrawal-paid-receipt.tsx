@@ -65,7 +65,7 @@ export function WithdrawalPaidReceipt({
             </Section>
           </Section>
           <Section style={{ padding: '24px 32px 8px 32px', textAlign: 'center' as const }}>
-            <Button href={wallet_url} style={ctaBtn}>Log in to view your account</Button>
+            <Button href={wallet_url} style={ctaBtn}>Access your dashboard</Button>
           </Section>
           <Section style={{ padding: '16px 32px 32px 32px' }}>
             <Text style={fineprint}>
