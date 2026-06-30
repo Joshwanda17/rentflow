@@ -723,6 +723,13 @@ export default function FunderOnboarding() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Agreement preview & sign-off */}
+      <PartnerAgreementSignOff
+        open={!!signOffPartner}
+        onOpenChange={(o) => { if (!o) setSignOffPartner(null); }}
+        partner={signOffPartner}
+      />
     </COODetailLayout>
   );
 }
