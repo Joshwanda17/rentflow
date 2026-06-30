@@ -189,8 +189,8 @@ export default function PartnerAgreementSignOff({
             <FileSignature className="h-4 w-4 text-primary" /> Partnership Agreement — Sign-off
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Review the partner's submitted details, then counter-sign on Welile's behalf. No manual data entry —
-            everything is rendered from the partner's onboarding record and your stored company defaults.
+            Review the partner's submitted details, fill in the Welile counter-signature fields and signature image,
+            then counter-sign &amp; send. The partner's details are rendered from their onboarding record.
           </DialogDescription>
         </DialogHeader>
 
@@ -280,7 +280,7 @@ export default function PartnerAgreementSignOff({
                       {agreement.countersigned_at ? ` on ${new Date(agreement.countersigned_at).toLocaleDateString()}` : ''}.
                     </div>
                   ) : (
-                    <Button onClick={handleCountersign} disabled={busy} className="gap-1.5">
+                    <Button onClick={handleCountersign} disabled={busy || !repName.trim() || !(sigDataUrl || defaults?.signature_path)} className="gap-1.5">
                       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                       Counter-sign &amp; send
                     </Button>
