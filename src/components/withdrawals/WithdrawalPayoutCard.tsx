@@ -579,12 +579,38 @@ export function WithdrawalPayoutCard({
 
           <div className="space-y-3">
             {agentEarning > 0 && (
-              <div className="rounded-xl bg-success/10 border-2 border-success/40 px-4 py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="rounded-xl bg-success/10 border-2 border-success/40 p-4 space-y-2.5">
+                <div className="flex items-center gap-2">
                   <Banknote className="h-5 w-5 text-success shrink-0" />
-                  <p className="text-sm font-semibold text-success">You earn from this payout</p>
+                  <p className="text-sm font-bold text-success">Your earnings breakdown</p>
                 </div>
-                <p className="text-xl font-extrabold text-success tabular-nums shrink-0">{formatUGX(agentEarning)}</p>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Payout amount</span>
+                    <span className="font-semibold tabular-nums">{formatUGX(payoutAmount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Commission rate</span>
+                    <span className="font-semibold tabular-nums">{(COMMISSION_RATE * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Gross commission</span>
+                    <span className="font-semibold tabular-nums">{formatUGX(grossCommission)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Platform service fee</span>
+                    <span className="font-semibold tabular-nums">
+                      {platformServiceFee > 0 ? `– ${formatUGX(platformServiceFee)}` : formatUGX(0)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 border-t border-success/30 pt-2.5">
+                  <span className="text-sm font-bold text-success">Net earning</span>
+                  <span className="text-xl font-extrabold text-success tabular-nums">{formatUGX(agentEarning)}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Credited to your withdrawable wallet once you confirm this payout as paid.
+                </p>
               </div>
             )}
             {isMoMo ? (
