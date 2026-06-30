@@ -572,6 +572,15 @@ export function WithdrawalPayoutCard({
           </DialogHeader>
 
           <div className="space-y-3">
+            {agentEarning > 0 && (
+              <div className="rounded-xl bg-success/10 border-2 border-success/40 px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Banknote className="h-5 w-5 text-success shrink-0" />
+                  <p className="text-sm font-semibold text-success">You earn from this payout</p>
+                </div>
+                <p className="text-xl font-extrabold text-success tabular-nums shrink-0">{formatUGX(agentEarning)}</p>
+              </div>
+            )}
             {isMoMo ? (
               <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-3">
                 <div>
