@@ -960,12 +960,17 @@ export function AgentCashPayoutsTab() {
             <CardTitle className="text-sm font-bold uppercase tracking-wide flex items-center gap-2 text-amber-700 dark:text-amber-400">
               <UserCheck className="h-4 w-4" />
               Claimed by you · {myActiveClaims.length}
-              <Badge className="ml-auto bg-amber-500 text-white hover:bg-amber-500 h-5 px-2 gap-1 text-[11px]">
-                <Clock className="h-3 w-3" /> 15 min to confirm
+              <Badge className={cn(
+                'ml-auto h-5 px-2 gap-1 text-[11px] text-white',
+                activeClaimRemainingMs <= 60_000
+                  ? 'bg-red-600 hover:bg-red-600 animate-pulse'
+                  : 'bg-amber-500 hover:bg-amber-500',
+              )}>
+                <Clock className="h-3 w-3" /> {activeClaimCountdown} left to confirm
               </Badge>
             </CardTitle>
             <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
-              These are yours to complete. Pay the recipient, then enter the proof to confirm.
+              Finish this first — the queue is locked until you confirm or the timer runs out. Pay the recipient, then enter the proof to confirm.
             </p>
           </CardHeader>
           <CardContent className="space-y-2.5">
