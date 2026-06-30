@@ -19,6 +19,14 @@ export interface PartnershipAgreementData {
   kinName?: string;
   kinContact?: string;
   agreementDate?: Date;
+  // ── Admin counter-signature (filled on the Partner Sign-off screen) ──
+  welileRepName?: string;
+  welileRepPosition?: string;
+  welileRepContact?: string;
+  /** PNG/JPEG data URL of the uploaded Welile representative signature. */
+  welileSignatureDataUrl?: string;
+  /** PNG/JPEG data URL of the uploaded partner signature. */
+  partnerSignatureDataUrl?: string;
 }
 
 const PRIMARY: [number, number, number] = [124, 58, 237];   // violet
