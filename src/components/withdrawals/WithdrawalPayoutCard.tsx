@@ -104,6 +104,15 @@ export function WithdrawalPayoutCard({
         console.warn('[withdrawal-release] audit log failed', auditErr);
       }
 
+      // Notify the recipient (on the MoMo number they wanted to be paid on,
+      // falling back to their profile phone) that their request returned to
+      // the queue. Fire-and-forget — never block the release on the SMS.
+      supabase.functions
+        .invoke('notify-withdrawal-released', {
+          body: { withdrawal_id: withdrawal.id, reason: 'manual' },
+        })
+        .catch((e) => console.warn('[withdrawal-release] notify failed', e));
+
       toast.success('Released back to queue · another agent can pick it up');
       setRejectOpen(false);
       setRejectReason('');
