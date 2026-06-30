@@ -501,7 +501,7 @@ function Step1({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
 }
 
 // ─── Step 2 — Support ────────────────────────────────────────────────────────
-function Step2({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
+function Step2({ form, setForm, showError }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; showError: boolean }) {
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
       <motion.div variants={fadeUp}>
@@ -532,7 +532,13 @@ function Step2({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
 
       <AnimatePresence mode="wait">
         {form.investPath && (
-          <SupportGraph key={form.investPath} mode={form.investPath} />
+          <SupportGraph
+            key={form.investPath}
+            mode={form.investPath}
+            amount={form.supportAmount}
+            onAmountChange={(value) => setForm(p => ({ ...p, supportAmount: value }))}
+            showError={showError}
+          />
         )}
       </AnimatePresence>
     </motion.div>
