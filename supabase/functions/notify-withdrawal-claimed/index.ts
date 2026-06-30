@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
           ? null
           : (smsRecipient
               ? "Claim SMS provider rejected or unconfigured"
-              : "No phone/MoMo number on file for the withdrawal"),
+              : "No valid Ugandan phone/MoMo number on file for the withdrawal"),
       });
     } catch (e) {
       console.warn("[notify-withdrawal-claimed] log insert failed:", e);
