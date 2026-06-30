@@ -445,30 +445,26 @@ export function AgentCashPayoutsTab() {
       startOfDay.setHours(0, 0, 0, 0);
       const startIso = startOfDay.toISOString();
 
-      const { data: codes } = await supabase
-        .from('payout_codes')
-        .select('amount, created_at, paid_at')
-        .eq('paid_by', user.id)
-        .eq('status', 'paid')
-        .gte('paid_at', startIso);
-
-      // Only count withdrawals this agent has actually CONFIRMED PAID
-      // (status='completed' + processed_by=self + processed_at set today).
-      // A "claim" only sets assigned_cashout_agent_id/dispatched_at — it must NEVER count here.
+      // Single canonical source of truth: every withdrawal THIS merchant actually
+      // confirmed paid today, across ALL channels — Cash, Mobile Money AND Bank.
+      // `processed_by` is stamped only by approve-withdrawal on the paying merchant,
+      // so each settled payout is counted exactly once. This both (a) includes
+      // MoMo/Bank payouts that the old cash-only filter dropped and (b) removes the
+      // double-count that came from unioning payout_codes with withdrawal_requests
+      // (a cash-code payout writes to both).
       const { data: wreqs } = await supabase
         .from('withdrawal_requests')
-        .select('amount, created_at, processed_at, payout_method, status, processed_by')
-        .eq('assigned_cashout_agent_id', isCashoutAgent.id)
+        .select('amount, created_at, processed_at')
         .eq('processed_by', user.id)
         .eq('status', 'completed')
-        .in('payout_method', ['cash', 'cash_pickup'])
         .not('processed_at', 'is', null)
         .gte('processed_at', startIso);
 
-      const rows = [
-        ...(codes || []).map((r: any) => ({ amount: Number(r.amount || 0), created_at: r.created_at, finished_at: r.paid_at })),
-        ...(wreqs || []).map((r: any) => ({ amount: Number(r.amount || 0), created_at: r.created_at, finished_at: r.processed_at })),
-      ];
+      const rows = (wreqs || []).map((r: any) => ({
+        amount: Number(r.amount || 0),
+        created_at: r.created_at,
+        finished_at: r.processed_at,
+      }));
 
       const codesCount = rows.length;
       const totalAmount = rows.reduce((sum, r) => sum + r.amount, 0);
@@ -480,7 +476,8 @@ export function AgentCashPayoutsTab() {
       return { codesCount, totalAmount, avgMinutes };
     },
     enabled: !!user && !!isCashoutAgent?.id,
-    staleTime: 60_000,
+    staleTime: 20_000,
+    refetchOnWindowFocus: true,
   });
 
   // Commission breakdown — totals by date for ALL payouts this agent has
