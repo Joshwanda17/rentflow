@@ -715,6 +715,8 @@ export function AgentCashPayoutsTab() {
       // Notify the requester (fire-and-forget) that a named merchant agent is
       // now processing their withdrawal. Never blocks the claim flow.
       invalidateQueue();
+      // Once the "Claimed by you" list refreshes, scroll up to reveal it.
+      scrollToClaimed.current = true;
     },
     onError: (e: any) => {
       toast.error(e.message);
