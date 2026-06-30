@@ -236,19 +236,39 @@ export default function PartnerAgreementSignOff({
 
                 <Separator />
 
-                <section className="space-y-1.5">
+                <section className="space-y-2.5">
                   <p className="text-xs font-semibold text-primary">Welile counter-signature</p>
-                  {defaults?.rep_name ? (
-                    <>
-                      <ReadRow label="Representative" value={defaults.rep_name} />
-                      <ReadRow label="Position" value={defaults.rep_position || '—'} />
-                      <ReadRow label="Signature" value={defaults.signature_path ? 'On file ✓' : 'Missing'} />
-                    </>
-                  ) : (
-                    <p className="text-xs text-amber-600">
-                      Company defaults not configured. Set the representative & signature under “Company Defaults”.
-                    </p>
-                  )}
+                  <p className="text-[10px] text-muted-foreground -mt-1">
+                    Fill in the details below before counter-signing. They render live in the preview.
+                  </p>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Representative name</Label>
+                    <Input value={repName} onChange={(e) => setRepName(e.target.value)} placeholder="e.g. Jane Doe" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Position</Label>
+                    <Input value={repPosition} onChange={(e) => setRepPosition(e.target.value)} placeholder="e.g. Director" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Contact</Label>
+                    <Input value={repContact} onChange={(e) => setRepContact(e.target.value)} placeholder="Phone or email" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Signature image</Label>
+                    <div className="flex items-center gap-2">
+                      <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                        <label className="cursor-pointer">
+                          <Upload className="h-3.5 w-3.5" /> Upload
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => onSignatureFile(e.target.files?.[0])} />
+                        </label>
+                      </Button>
+                      {(sigDataUrl || repSigUrl) ? (
+                        <img src={sigDataUrl || repSigUrl} alt="Signature" className="h-8 max-w-[120px] object-contain border rounded bg-white" />
+                      ) : (
+                        <span className="text-[10px] text-amber-600">No signature yet</span>
+                      )}
+                    </div>
+                  </div>
                 </section>
 
                 <Separator />
