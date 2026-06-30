@@ -1,4 +1,4 @@
-import { ChevronRight, Home } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { executiveSidebarConfig } from '@/components/layout/executiveSidebarConfig';
@@ -20,20 +20,39 @@ const SECTION_LOOKUP = Object.fromEntries(
 export function CFOBreadcrumbHeader({
   activeTab,
   onJump,
+  position,
+  onPrev,
+  onNext,
 }: {
   activeTab: string;
   onJump: (tab: string) => void;
+  /** 1-based index and total of swipeable sections, for the pager + announcer. */
+  position?: { index: number; total: number };
+  onPrev?: () => void;
+  onNext?: () => void;
 }) {
   const meta = SECTION_LOOKUP[activeTab];
   const isOverview = !meta || activeTab === 'overview';
   const Icon = meta?.icon;
+
+  const hasPager = !!position && !!onPrev && !!onNext;
+  const atFirst = position ? position.index <= 1 : true;
+  const atLast = position ? position.index >= position.total : true;
+  const sectionLabel = isOverview ? 'Dashboard' : meta?.label ?? 'Dashboard';
 
   return (
     <nav
       aria-label="Breadcrumb"
       className="-mx-2 sm:-mx-4 lg:-mx-6 mb-1 bg-background border-b border-border"
     >
-      <ol className="flex items-center gap-1 px-2 sm:px-4 lg:px-6 py-2 text-sm overflow-x-auto no-scrollbar">
+      {/* Screen-reader live announcement of the current section + position. */}
+      <p aria-live="polite" className="sr-only">
+        {position
+          ? `${sectionLabel}, section ${position.index} of ${position.total}`
+          : sectionLabel}
+      </p>
+      <div className="flex items-center gap-1 px-2 sm:px-4 lg:px-6 py-2">
+        <ol className="flex flex-1 items-center gap-1 text-sm overflow-x-auto no-scrollbar">
         <li className="shrink-0">
           <button
             type="button"
@@ -71,7 +90,42 @@ export function CFOBreadcrumbHeader({
             </li>
           </>
         )}
-      </ol>
+        </ol>
+
+        {hasPager && (
+          <div className="flex shrink-0 items-center gap-1 pl-2">
+            {position && (
+              <span aria-hidden className="hidden sm:inline text-xs text-muted-foreground tabular-nums">
+                {position.index}/{position.total}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                hapticTap();
+                onPrev?.();
+              }}
+              disabled={atFirst}
+              aria-label="Previous dashboard section"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                hapticTap();
+                onNext?.();
+              }}
+              disabled={atLast}
+              aria-label="Next dashboard section"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
     </nav>
   );
 }
