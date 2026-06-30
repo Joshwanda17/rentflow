@@ -879,6 +879,10 @@ export default function FunderOnboarding() {
   }
 
   const handleNext = async () => {
+    if (!valid) {
+      setShowStepError(true);
+      return;
+    }
     if (step < TOTAL) {
       setStep(s => s + 1);
     } else {
