@@ -240,95 +240,22 @@ export function WithdrawalHistoryStatement() {
         )}
 
         {/* Statement table */}
-        <div className="rounded-lg border overflow-hidden">
-          <ScrollArea className="max-h-[600px]">
-            <table className="w-full text-xs">
-              <thead className="bg-muted/40 sticky top-0 z-10">
-                <tr className="[&>th]:px-3 [&>th]:py-2 [&>th]:text-left [&>th]:font-semibold [&>th]:text-[11px] [&>th]:uppercase [&>th]:tracking-wider [&>th]:text-muted-foreground">
-                  <th>Date / Time</th>
-                  <th>User</th>
-                  <th>Channel</th>
-                  <th className="text-right">Balance Before</th>
-                  <th className="text-right">Withdrawal</th>
-                  <th className="text-right">Balance After</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && rows.length === 0 && (
-                  <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin inline" />
-                  </td></tr>
-                )}
-                {!loading && rows.length === 0 && (
-                  <tr><td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">
-                    No withdrawals found.
-                  </td></tr>
-                )}
-                {rows.map((r) => {
-                  const settled = ['completed','approved','paid','fin_ops_approved','processed'].includes(r.status);
-                  const ts = r.processed_at || r.created_at;
-                  return (
-                    <tr key={r.withdrawal_id} className="border-t hover:bg-muted/30 transition-colors [&>td]:px-3 [&>td]:py-2.5 [&>td]:align-top">
-                      <td className="whitespace-nowrap">
-                        <div className="font-medium tabular-nums">{format(new Date(ts), 'MMM d, yyyy')}</div>
-                        <div className="text-[10px] text-muted-foreground tabular-nums">{format(new Date(ts), 'HH:mm:ss')}</div>
-                      </td>
-                      <td>
-                        {r.user_id ? (
-                          <button
-                            type="button"
-                            onClick={() => setDrillUserId(r.user_id)}
-                            className="font-medium truncate max-w-[180px] text-primary hover:underline text-left"
-                            title="Open profile, wallet & transfers"
-                          >
-                            {r.user_name || 'View user'}
-                          </button>
-                        ) : (
-                          <div className="font-medium truncate max-w-[180px]">{r.user_name || '—'}</div>
-                        )}
-                        <div className="text-[10px] text-muted-foreground tabular-nums">{r.user_phone || '—'}</div>
-                      </td>
-                      <td>
-                        <div className="capitalize">{(r.payout_method || '').replace(/_/g, ' ') || '—'}</div>
-                        <div className="text-[10px] text-muted-foreground tabular-nums truncate max-w-[140px]">
-                          {r.mobile_money_number || r.bank_account_number || r.transaction_id || ''}
-                        </div>
-                      </td>
-                      <td className="text-right font-medium tabular-nums whitespace-nowrap">
-                        {formatUGX(Number(r.balance_before))}
-                      </td>
-                      <td className="text-right font-bold tabular-nums whitespace-nowrap text-destructive">
-                        −{formatUGX(Number(r.amount))}
-                      </td>
-                      <td className={`text-right font-medium tabular-nums whitespace-nowrap ${settled ? '' : 'text-muted-foreground'}`}>
-                        {formatUGX(Number(r.balance_after))}
-                      </td>
-                      <td>
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${STATUS_TONE[r.status] || ''}`}>
-                          {r.status.replace(/_/g, ' ')}
-                        </Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {rows.length > 0 && (
-                <tfoot className="bg-muted/30 border-t-2">
-                  <tr className="[&>td]:px-3 [&>td]:py-2 text-[11px]">
-                    <td colSpan={4} className="text-right font-semibold uppercase tracking-wider text-muted-foreground">
-                      Page total ({rows.length} rows · {totals.completedCount} settled)
-                    </td>
-                    <td className="text-right font-bold tabular-nums text-destructive">
-                      −{formatUGX(totals.pageAmount)}
-                    </td>
-                    <td colSpan={2} />
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </ScrollArea>
-        </div>
+        <ExpandableTable
+          columns={columns}
+          rows={rows}
+          getRowKey={(r) => r.withdrawal_id}
+          loading={loading}
+          loadingText={<Loader2 className="h-5 w-5 animate-spin inline" />}
+          emptyText="No withdrawals found."
+          footer={
+            <div className="flex items-center justify-between gap-2 text-[11px]">
+              <span className="font-semibold uppercase tracking-wider text-muted-foreground">
+                Page total ({rows.length} rows · {totals.completedCount} settled)
+              </span>
+              <span className="font-bold tabular-nums text-destructive">−{formatUGX(totals.pageAmount)}</span>
+            </div>
+          }
+        />
 
         {/* Pagination */}
         {total > PAGE_SIZE && (
