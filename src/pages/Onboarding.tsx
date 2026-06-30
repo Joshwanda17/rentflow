@@ -66,6 +66,10 @@ interface FormState {
   confirmPassword: string;
   phone: string;
   address: string;
+  payoutMode: 'bank' | 'momo';
+  momoProvider: string;
+  momoNumber: string;
+  momoName: string;
   bankName: string;
   bankAccountName: string;
   bankAccountNumber: string;
