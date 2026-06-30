@@ -23,8 +23,8 @@ export interface PartnershipAgreementData {
 
 const PRIMARY: [number, number, number] = [124, 58, 237];   // violet
 const INK: [number, number, number] = [15, 23, 42];          // slate-900
-const MUTED: [number, number, number] = [71, 85, 105];       // slate-600
-const LIGHT: [number, number, number] = [100, 116, 139];     // slate-500
+const MUTED: [number, number, number] = [15, 23, 42];        // #0F172A — unified ink
+const LIGHT: [number, number, number] = [15, 23, 42];        // #0F172A — unified ink
 const BORDER: [number, number, number] = [203, 213, 225];    // slate-300
 
 function loadImageAsBase64(src: string): Promise<string> {
