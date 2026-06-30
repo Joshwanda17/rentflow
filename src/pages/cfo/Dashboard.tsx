@@ -94,8 +94,7 @@ export default function CFODashboardPage() {
     });
   };
 
-  const swipeRef = useHorizontalSwipe<HTMLDivElement>({
-    enabled: isMobile,
+  const swipeHandlers = useHorizontalSwipe({
     onSwipeLeft: () => goToOffset(1),
     onSwipeRight: () => goToOffset(-1),
   });
@@ -313,7 +312,7 @@ export default function CFODashboardPage() {
   return (
     <ExecutiveDashboardLayout role="cfo" activeTab={activeTab} onTabChange={setActiveTab}>
       <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
-      <div ref={swipeRef} className="min-h-[60vh]">
+      <div {...(isMobile ? swipeHandlers : {})} className="min-h-[60vh]">
         {renderContent()}
       </div>
     </ExecutiveDashboardLayout>
