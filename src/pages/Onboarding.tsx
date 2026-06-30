@@ -6,7 +6,7 @@ import { toast, Toaster } from 'sonner';
 import {
   ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
   ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock, MapPin,
-  Building2, CreditCard, User, Hash, Users, Landmark,
+  Building2, CreditCard, User, Hash, Users, Landmark, Wallet, ChevronDown, Smartphone,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { signUp } from '@/hooks/auth/authOperations';
@@ -66,6 +66,10 @@ interface FormState {
   confirmPassword: string;
   phone: string;
   address: string;
+  payoutMode: 'bank' | 'momo';
+  momoProvider: string;
+  momoNumber: string;
+  momoName: string;
   bankName: string;
   bankAccountName: string;
   bankAccountNumber: string;
@@ -586,31 +590,87 @@ function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispat
 
       {/* Bank details */}
       <motion.div variants={fadeUp} className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
-        <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Bank Details</p>
+        <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Payout Details</p>
 
+        {/* Payout method selector */}
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Bank Name</label>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Payout Method</label>
           <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Building2 size={15} strokeWidth={1.75} /></div>
-            <input type="text" placeholder="e.g. Stanbic Bank" value={form.bankName} onChange={set('bankName')} className={fieldClass} />
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Wallet size={15} strokeWidth={1.75} /></div>
+            <select
+              value={form.payoutMode}
+              onChange={(e) => setForm(p => ({ ...p, payoutMode: e.target.value as 'bank' | 'momo' }))}
+              className={fieldClass + ' appearance-none cursor-pointer'}
+            >
+              <option value="bank">Bank Account</option>
+              <option value="momo">Mobile Money</option>
+            </select>
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><ChevronDown size={15} strokeWidth={1.75} /></div>
           </div>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Name</label>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
-            <input type="text" placeholder="Name on the account" value={form.bankAccountName} onChange={set('bankAccountName')} className={fieldClass} />
-          </div>
-        </div>
+        {form.payoutMode === 'bank' ? (
+          <>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Bank Name</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Building2 size={15} strokeWidth={1.75} /></div>
+                <input type="text" placeholder="e.g. Stanbic Bank" value={form.bankName} onChange={set('bankName')} className={fieldClass} />
+              </div>
+            </div>
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Number</label>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><CreditCard size={15} strokeWidth={1.75} /></div>
-            <input type="text" inputMode="numeric" placeholder="Account number" value={form.bankAccountNumber} onChange={set('bankAccountNumber')} className={fieldClass} />
-          </div>
-        </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Name</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
+                <input type="text" placeholder="Name on the account" value={form.bankAccountName} onChange={set('bankAccountName')} className={fieldClass} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Number</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><CreditCard size={15} strokeWidth={1.75} /></div>
+                <input type="text" inputMode="numeric" placeholder="Account number" value={form.bankAccountNumber} onChange={set('bankAccountNumber')} className={fieldClass} />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Mobile Money Provider</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Smartphone size={15} strokeWidth={1.75} /></div>
+                <select
+                  value={form.momoProvider}
+                  onChange={(e) => setForm(p => ({ ...p, momoProvider: e.target.value }))}
+                  className={fieldClass + ' appearance-none cursor-pointer'}
+                >
+                  <option value="">Select provider</option>
+                  <option value="MTN">MTN MoMo</option>
+                  <option value="Airtel">Airtel Money</option>
+                </select>
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><ChevronDown size={15} strokeWidth={1.75} /></div>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Mobile Money Number</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Phone size={15} strokeWidth={1.75} /></div>
+                <input type="tel" inputMode="tel" placeholder="+256 700 000 000" value={form.momoNumber} onChange={set('momoNumber')} className={fieldClass} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Registered Name</label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
+                <input type="text" placeholder="Name on the MoMo account" value={form.momoName} onChange={set('momoName')} className={fieldClass} />
+              </div>
+            </div>
+          </>
+        )}
       </motion.div>
 
       {/* Next of kin */}
@@ -894,12 +954,21 @@ function isValid(step: number, form: FormState): boolean {
     return amount >= MIN_SUPPORT;
   }
   if (step === 3) {
-    const bankOk = form.bankName.trim().length >= 2;
-    const accNameOk = form.bankAccountName.trim().length >= 2;
-    const accNoOk = form.bankAccountNumber.trim().length >= 4;
+    let payoutOk = false;
+    if (form.payoutMode === 'bank') {
+      payoutOk =
+        form.bankName.trim().length >= 2 &&
+        form.bankAccountName.trim().length >= 2 &&
+        form.bankAccountNumber.trim().length >= 4;
+    } else {
+      payoutOk =
+        form.momoProvider.trim().length >= 2 &&
+        form.momoNumber.trim().length >= 7 &&
+        form.momoName.trim().length >= 2;
+    }
     const kinNameOk = form.kinName.trim().length >= 2;
     const kinContactOk = form.kinContact.trim().length >= 7;
-    return bankOk && accNameOk && accNoOk && kinNameOk && kinContactOk;
+    return payoutOk && kinNameOk && kinContactOk;
   }
   if (step === 4) {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
@@ -972,6 +1041,10 @@ export default function FunderOnboarding() {
     confirmPassword: '',
     phone: '',
     address: '',
+    payoutMode: 'bank',
+    momoProvider: '',
+    momoNumber: '',
+    momoName: '',
     bankName: '',
     bankAccountName: '',
     bankAccountNumber: '',
@@ -1028,6 +1101,9 @@ export default function FunderOnboarding() {
         const cleanBankName = sanitizeInput(form.bankName).trim();
         const cleanBankAccountName = sanitizeInput(form.bankAccountName).trim();
         const cleanBankAccountNumber = sanitizeInput(form.bankAccountNumber).trim();
+        const cleanMomoProvider = sanitizeInput(form.momoProvider).trim();
+        const cleanMomoNumber = sanitizeInput(form.momoNumber).trim();
+        const cleanMomoName = sanitizeInput(form.momoName).trim();
         const cleanKinName = sanitizeInput(form.kinName).trim();
         const cleanKinContact = sanitizeInput(form.kinContact).trim();
 
@@ -1054,22 +1130,40 @@ export default function FunderOnboarding() {
               if (error) console.warn('address save failed (non-blocking):', error);
             });
         }
-        // Persist the funder's bank details as a saved payout method (non-blocking).
-        if (newUserId && cleanBankName && cleanBankAccountNumber) {
-          supabase
-            .from('saved_payout_methods')
-            .insert({
-              user_id: newUserId,
-              payout_mode: 'bank',
-              nickname: cleanBankName,
-              bank_name: cleanBankName,
-              bank_account_name: cleanBankAccountName,
-              bank_account_number: cleanBankAccountNumber,
-              is_default: true,
-            })
-            .then(({ error }) => {
-              if (error) console.warn('bank details save failed (non-blocking):', error);
-            });
+        // Persist the funder's payout method (bank or mobile money) — non-blocking.
+        if (newUserId) {
+          const payoutRow =
+            form.payoutMode === 'bank'
+              ? (cleanBankName && cleanBankAccountNumber
+                  ? {
+                      user_id: newUserId,
+                      payout_mode: 'bank',
+                      nickname: cleanBankName,
+                      bank_name: cleanBankName,
+                      bank_account_name: cleanBankAccountName,
+                      bank_account_number: cleanBankAccountNumber,
+                      is_default: true,
+                    }
+                  : null)
+              : (cleanMomoProvider && cleanMomoNumber
+                  ? {
+                      user_id: newUserId,
+                      payout_mode: 'momo',
+                      nickname: `${cleanMomoProvider} ${cleanMomoNumber}`.trim(),
+                      momo_provider: cleanMomoProvider,
+                      momo_number: cleanMomoNumber,
+                      momo_name: cleanMomoName,
+                      is_default: true,
+                    }
+                  : null);
+          if (payoutRow) {
+            supabase
+              .from('saved_payout_methods')
+              .insert(payoutRow)
+              .then(({ error }) => {
+                if (error) console.warn('payout method save failed (non-blocking):', error);
+              });
+          }
         }
         const partnerReference = buildPartnerReference(newUserId, new Date());
         supabase.functions
@@ -1083,9 +1177,13 @@ export default function FunderOnboarding() {
                 partner_reference: partnerReference,
                 partner_phone: cleanPhone,
                 partner_address: cleanAddress,
+                payout_mode: form.payoutMode,
                 bank_name: cleanBankName,
                 bank_account_name: cleanBankAccountName,
                 bank_account_number: cleanBankAccountNumber,
+                momo_provider: cleanMomoProvider,
+                momo_number: cleanMomoNumber,
+                momo_name: cleanMomoName,
                 kin_name: cleanKinName,
                 kin_contact: cleanKinContact,
                 agreement_download_url: `${window.location.origin}/legal/welile-partnership-agreement.pdf`,
