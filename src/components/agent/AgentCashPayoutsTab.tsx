@@ -243,6 +243,9 @@ export function AgentCashPayoutsTab() {
   // claimed cash-out as soon as the claim commits.
   const claimedSectionRef = useRef<HTMLDivElement | null>(null);
   const scrollToClaimed = useRef(false);
+  // Live clock (1s) used to drive the claim countdown and lock the queue while a
+  // claim is in progress. Only ticks while the agent actually holds a claim.
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
   // ---- Pending Queue advanced filters & sorting ----
   const [queueSearch, setQueueSearch] = useState('');
@@ -296,6 +299,13 @@ export function AgentCashPayoutsTab() {
 
   const handleClaim = (id: string) => {
     if (claimLockRef.current.has(id)) return; // already submitting this request
+    // One claim at a time: block claiming a NEW request while another is open.
+    const alreadyMine = myActiveClaims.some((w: any) => w.id === id);
+    if (!alreadyMine && myActiveClaims.length > 0) {
+      toast.error('Finish your current claim before claiming another.');
+      claimedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     claimLockRef.current.add(id);
     setClaimingIds(new Set(claimLockRef.current));
     toast.info('Claiming withdrawal… please wait', { id: `claim-${id}`, duration: 4000 });
@@ -700,6 +710,32 @@ export function AgentCashPayoutsTab() {
     }
   }, [myActiveClaims]);
 
+  // While the agent holds a claim, tick every second so the countdown updates and
+  // the queue stays locked. When the window elapses we release & refresh so the
+  // request returns to the pool and the agent can claim a new one.
+  useEffect(() => {
+    if (myActiveClaims.length === 0) return;
+    setNowTs(Date.now());
+    const tick = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, [myActiveClaims.length]);
+
+  useEffect(() => {
+    if (myActiveClaims.length === 0) return;
+    const earliestDispatch = myActiveClaims.reduce((min: number, w: any) => {
+      const t = w.dispatched_at ? new Date(w.dispatched_at).getTime() : 0;
+      return t && t < min ? t : min;
+    }, Infinity);
+    if (!Number.isFinite(earliestDispatch)) return;
+    if (nowTs - earliestDispatch >= CLAIM_WINDOW_MS) {
+      // Time's up — hand the unfinished claim back to the queue.
+      releaseExpiredClaims().finally(() => {
+        toast.info('Claim time elapsed — the request was returned to the queue.');
+        invalidateQueue();
+      });
+    }
+  }, [nowTs, myActiveClaims]);
+
   // Claim a withdrawal request — ATOMIC: only succeeds if no one else has claimed it.
   // The `.is('assigned_cashout_agent_id', null)` guard makes the UPDATE a single-row
   // race-safe operation. If two agents click "Claim" at the same instant, only the
@@ -869,6 +905,27 @@ export function AgentCashPayoutsTab() {
   const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0 };
   const totalPending = availableTotal;
   const filteredPending = channelCounts.all;
+
+  // A merchant agent may only hold ONE claim at a time. While a claim is open the
+  // whole queue is locked so they must finish (or let it time out) before taking
+  // another. The remaining time drives a live countdown shown on the claim.
+  const hasActiveClaim = myActiveClaims.length > 0;
+  const activeClaimRemainingMs = hasActiveClaim
+    ? (() => {
+        const earliest = myActiveClaims.reduce((min: number, w: any) => {
+          const t = w.dispatched_at ? new Date(w.dispatched_at).getTime() : 0;
+          return t && t < min ? t : min;
+        }, Infinity);
+        if (!Number.isFinite(earliest)) return CLAIM_WINDOW_MS;
+        return Math.max(0, earliest + CLAIM_WINDOW_MS - nowTs);
+      })()
+    : 0;
+  const activeClaimCountdown = (() => {
+    const total = Math.ceil(activeClaimRemainingMs / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  })();
   const totalPages = Math.max(1, Math.ceil(pageCount / PAGE_SIZE));
   const rangeStart = pageCount === 0 ? 0 : page * PAGE_SIZE + 1;
   const rangeEnd = Math.min(pageCount, page * PAGE_SIZE + pageRows.length);
@@ -910,12 +967,17 @@ export function AgentCashPayoutsTab() {
             <CardTitle className="text-sm font-bold uppercase tracking-wide flex items-center gap-2 text-amber-700 dark:text-amber-400">
               <UserCheck className="h-4 w-4" />
               Claimed by you · {myActiveClaims.length}
-              <Badge className="ml-auto bg-amber-500 text-white hover:bg-amber-500 h-5 px-2 gap-1 text-[11px]">
-                <Clock className="h-3 w-3" /> 15 min to confirm
+              <Badge className={cn(
+                'ml-auto h-5 px-2 gap-1 text-[11px] text-white',
+                activeClaimRemainingMs <= 60_000
+                  ? 'bg-red-600 hover:bg-red-600 animate-pulse'
+                  : 'bg-amber-500 hover:bg-amber-500',
+              )}>
+                <Clock className="h-3 w-3" /> {activeClaimCountdown} left to confirm
               </Badge>
             </CardTitle>
             <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
-              These are yours to complete. Pay the recipient, then enter the proof to confirm.
+              Finish this first — the queue is locked until you confirm or the timer runs out. Pay the recipient, then enter the proof to confirm.
             </p>
           </CardHeader>
           <CardContent className="space-y-2.5">
@@ -1372,6 +1434,24 @@ export function AgentCashPayoutsTab() {
           )}
         </div>
 
+        {hasActiveClaim && (
+          <button
+            type="button"
+            onClick={() => claimedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="flex w-full items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-left dark:border-amber-500/30 dark:bg-amber-500/10"
+          >
+            <Clock className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                Queue locked — finish your current claim
+              </p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+                Complete it or wait for the timer ({activeClaimCountdown}) before claiming another. Tap to jump to it.
+              </p>
+            </div>
+          </button>
+        )}
+
         {/* Advanced filters & sorting */}
         <div className="rounded-2xl border border-border bg-muted/30 p-3 space-y-3">
           <div className="flex items-center justify-between">
@@ -1561,11 +1641,19 @@ export function AgentCashPayoutsTab() {
                         <Button
                           className="w-full h-12 gap-2 font-semibold text-base"
                           onClick={() => handleClaim(w.id)}
-                          disabled={claimingIds.has(w.id)}
-                          title={claimingIds.has(w.id) ? 'Request is being processed…' : 'Claim this withdrawal'}
+                          disabled={claimingIds.has(w.id) || hasActiveClaim}
+                          title={
+                            claimingIds.has(w.id)
+                              ? 'Request is being processed…'
+                              : hasActiveClaim
+                                ? 'Finish your current claim before claiming another'
+                                : 'Claim this withdrawal'
+                          }
                         >
                           {claimingIds.has(w.id) ? (
                             <><Loader2 className="h-5 w-5 animate-spin" /> Claiming…</>
+                          ) : hasActiveClaim ? (
+                            <><Clock className="h-5 w-5" /> Finish current claim first</>
                           ) : (
                             <><UserCheck className="h-5 w-5" /> Claim</>
                           )}
