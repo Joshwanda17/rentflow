@@ -898,6 +898,27 @@ export function AgentCashPayoutsTab() {
   const channelCounts = queueCounts ?? { all: 0, momo: 0, cash: 0 };
   const totalPending = availableTotal;
   const filteredPending = channelCounts.all;
+
+  // A merchant agent may only hold ONE claim at a time. While a claim is open the
+  // whole queue is locked so they must finish (or let it time out) before taking
+  // another. The remaining time drives a live countdown shown on the claim.
+  const hasActiveClaim = myActiveClaims.length > 0;
+  const activeClaimRemainingMs = hasActiveClaim
+    ? (() => {
+        const earliest = myActiveClaims.reduce((min: number, w: any) => {
+          const t = w.dispatched_at ? new Date(w.dispatched_at).getTime() : 0;
+          return t && t < min ? t : min;
+        }, Infinity);
+        if (!Number.isFinite(earliest)) return CLAIM_WINDOW_MS;
+        return Math.max(0, earliest + CLAIM_WINDOW_MS - nowTs);
+      })()
+    : 0;
+  const activeClaimCountdown = (() => {
+    const total = Math.ceil(activeClaimRemainingMs / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  })();
   const totalPages = Math.max(1, Math.ceil(pageCount / PAGE_SIZE));
   const rangeStart = pageCount === 0 ? 0 : page * PAGE_SIZE + 1;
   const rangeEnd = Math.min(pageCount, page * PAGE_SIZE + pageRows.length);
