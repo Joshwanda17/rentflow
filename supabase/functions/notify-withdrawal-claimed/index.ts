@@ -220,8 +220,21 @@ Deno.serve(async (req) => {
       `Track it at https://welilereceipts.com/auth`;
 
     let sent = false;
+    let smsAttempts = 0;
+    let smsError: string | null = smsRecipient
+      ? null
+      : "No valid Ugandan phone/MoMo number on file for the withdrawal";
     if (smsRecipient) {
-      sent = await sendSMS(smsRecipient, smsMsg);
+      const result = await sendSMSWithRetry(smsRecipient, smsMsg);
+      sent = result.sent;
+      smsAttempts = result.attempts;
+      smsError = result.error;
+      if (!sent) {
+        console.error(
+          `[notify-withdrawal-claimed] Claim SMS FAILED after ${smsAttempts} attempt(s) ` +
+            `for withdrawal ${w.id} → ${smsRecipient}: ${smsError}`,
+        );
+      }
     }
 
     // In-app notification center entry so the requester sees that a named
@@ -257,15 +270,13 @@ Deno.serve(async (req) => {
         status: sent ? "sent" : "failed",
         error_message: sent
           ? null
-          : (smsRecipient
-              ? "Claim SMS provider rejected or unconfigured"
-              : "No valid Ugandan phone/MoMo number on file for the withdrawal"),
+          : `${smsError || "Claim SMS failed"}${smsAttempts ? ` (after ${smsAttempts} attempt(s))` : ""}`,
       });
     } catch (e) {
       console.warn("[notify-withdrawal-claimed] log insert failed:", e);
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, merchant: merchantName }), {
+    return new Response(JSON.stringify({ ok: true, sent, attempts: smsAttempts, error: smsError, merchant: merchantName }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
