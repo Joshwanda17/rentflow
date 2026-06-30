@@ -120,7 +120,7 @@ export function buildAgreementHtml(data: AgreementFillData): string {
 
   let html = RAW_TEMPLATE;
   for (const [key, value] of Object.entries(tokens)) {
-    html = html.replaceAll(`{{${key}}}`, value);
+    html = html.split(`{{${key}}}`).join(value);
   }
   return html;
 }
