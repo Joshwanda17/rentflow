@@ -703,6 +703,32 @@ export function AgentCashPayoutsTab() {
     }
   }, [myActiveClaims]);
 
+  // While the agent holds a claim, tick every second so the countdown updates and
+  // the queue stays locked. When the window elapses we release & refresh so the
+  // request returns to the pool and the agent can claim a new one.
+  useEffect(() => {
+    if (myActiveClaims.length === 0) return;
+    setNowTs(Date.now());
+    const tick = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, [myActiveClaims.length]);
+
+  useEffect(() => {
+    if (myActiveClaims.length === 0) return;
+    const earliestDispatch = myActiveClaims.reduce((min: number, w: any) => {
+      const t = w.dispatched_at ? new Date(w.dispatched_at).getTime() : 0;
+      return t && t < min ? t : min;
+    }, Infinity);
+    if (!Number.isFinite(earliestDispatch)) return;
+    if (nowTs - earliestDispatch >= CLAIM_WINDOW_MS) {
+      // Time's up — hand the unfinished claim back to the queue.
+      releaseExpiredClaims().finally(() => {
+        toast.info('Claim time elapsed — the request was returned to the queue.');
+        invalidateQueue();
+      });
+    }
+  }, [nowTs, myActiveClaims]);
+
   // Claim a withdrawal request — ATOMIC: only succeeds if no one else has claimed it.
   // The `.is('assigned_cashout_agent_id', null)` guard makes the UPDATE a single-row
   // race-safe operation. If two agents click "Claim" at the same instant, only the
