@@ -7,8 +7,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Mail, Phone, FileSignature, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Loader2, Mail, Phone, FileSignature, CheckCircle2, ShieldCheck, Upload } from 'lucide-react';
 
 export interface SignOffPartner {
   id: string;
@@ -40,6 +42,12 @@ export default function PartnerAgreementSignOff({
   const [defaults, setDefaults] = useState<any | null>(null);
   const [repSigUrl, setRepSigUrl] = useState<string | undefined>();
   const [missing, setMissing] = useState<string | null>(null);
+
+  // Admin-entered counter-signature details (filled before sending).
+  const [repName, setRepName] = useState('');
+  const [repPosition, setRepPosition] = useState('');
+  const [repContact, setRepContact] = useState('');
+  const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
 
   useEffect(() => {
     if (!open || !partner) return;
@@ -77,6 +85,13 @@ export default function PartnerAgreementSignOff({
         } else {
           setRepSigUrl(undefined);
         }
+        // Prefill the editable fields from stored defaults (admin can override).
+        if (!cancelled) {
+          setRepName(def?.rep_name || '');
+          setRepPosition(def?.rep_position || '');
+          setRepContact(def?.rep_contact || '');
+          setSigDataUrl(undefined);
+        }
       } catch (e: any) {
         if (!cancelled) setMissing(e?.message || 'Could not load the agreement.');
       } finally {
@@ -105,20 +120,32 @@ export default function PartnerAgreementSignOff({
       kinName: agreement.kin_name || '',
       kinContact: agreement.kin_contact || '',
       agreementDate: agreement.countersigned_at ? new Date(agreement.countersigned_at) : new Date(),
-      welileRepName: defaults?.rep_name || '',
-      welileRepPosition: defaults?.rep_position || '',
-      welileRepContact: defaults?.rep_contact || '',
-      welileSignatureDataUrl: repSigUrl,
+      welileRepName: repName,
+      welileRepPosition: repPosition,
+      welileRepContact: repContact,
+      welileSignatureDataUrl: sigDataUrl || repSigUrl,
       partnerSignatureDataUrl: undefined,
     };
-  }, [agreement, defaults, partner, repSigUrl]);
+  }, [agreement, partner, repSigUrl, repName, repPosition, repContact, sigDataUrl]);
+
+  const onSignatureFile = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Use an image file', description: 'Upload a PNG or JPG of the signature.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setSigDataUrl(typeof reader.result === 'string' ? reader.result : undefined);
+    reader.readAsDataURL(file);
+  };
 
   const handleCountersign = async () => {
     if (!partner) return;
-    if (!defaults?.rep_name || !defaults?.signature_path) {
+    const hasSignature = !!sigDataUrl || !!defaults?.signature_path;
+    if (!repName.trim() || !hasSignature) {
       toast({
-        title: 'Set company defaults first',
-        description: 'Add the Welile representative name and signature in Company Defaults before counter-signing.',
+        title: 'Complete the sign-off details',
+        description: 'Enter the representative name and add a signature image before counter-signing.',
         variant: 'destructive',
       });
       return;
@@ -126,7 +153,16 @@ export default function PartnerAgreementSignOff({
     setBusy(true);
     try {
       const { error } = await supabase.functions.invoke('generate-partner-agreement', {
-        body: { partnerId: partner.id, countersign: true },
+        body: {
+          partnerId: partner.id,
+          countersign: true,
+          rep: {
+            name: repName.trim(),
+            position: repPosition.trim(),
+            contact: repContact.trim(),
+            signatureBase64: sigDataUrl || undefined,
+          },
+        },
       });
       if (error) throw error;
       toast({
@@ -153,8 +189,8 @@ export default function PartnerAgreementSignOff({
             <FileSignature className="h-4 w-4 text-primary" /> Partnership Agreement — Sign-off
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Review the partner's submitted details, then counter-sign on Welile's behalf. No manual data entry —
-            everything is rendered from the partner's onboarding record and your stored company defaults.
+            Review the partner's submitted details, fill in the Welile counter-signature fields and signature image,
+            then counter-sign &amp; send. The partner's details are rendered from their onboarding record.
           </DialogDescription>
         </DialogHeader>
 
@@ -200,19 +236,39 @@ export default function PartnerAgreementSignOff({
 
                 <Separator />
 
-                <section className="space-y-1.5">
+                <section className="space-y-2.5">
                   <p className="text-xs font-semibold text-primary">Welile counter-signature</p>
-                  {defaults?.rep_name ? (
-                    <>
-                      <ReadRow label="Representative" value={defaults.rep_name} />
-                      <ReadRow label="Position" value={defaults.rep_position || '—'} />
-                      <ReadRow label="Signature" value={defaults.signature_path ? 'On file ✓' : 'Missing'} />
-                    </>
-                  ) : (
-                    <p className="text-xs text-amber-600">
-                      Company defaults not configured. Set the representative & signature under “Company Defaults”.
-                    </p>
-                  )}
+                  <p className="text-[10px] text-muted-foreground -mt-1">
+                    Fill in the details below before counter-signing. They render live in the preview.
+                  </p>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Representative name</Label>
+                    <Input value={repName} onChange={(e) => setRepName(e.target.value)} placeholder="e.g. Jane Doe" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Position</Label>
+                    <Input value={repPosition} onChange={(e) => setRepPosition(e.target.value)} placeholder="e.g. Director" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Contact</Label>
+                    <Input value={repContact} onChange={(e) => setRepContact(e.target.value)} placeholder="Phone or email" className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Signature image</Label>
+                    <div className="flex items-center gap-2">
+                      <Button asChild variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                        <label className="cursor-pointer">
+                          <Upload className="h-3.5 w-3.5" /> Upload
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => onSignatureFile(e.target.files?.[0])} />
+                        </label>
+                      </Button>
+                      {(sigDataUrl || repSigUrl) ? (
+                        <img src={sigDataUrl || repSigUrl} alt="Signature" className="h-8 max-w-[120px] object-contain border rounded bg-white" />
+                      ) : (
+                        <span className="text-[10px] text-amber-600">No signature yet</span>
+                      )}
+                    </div>
+                  </div>
                 </section>
 
                 <Separator />
@@ -224,7 +280,7 @@ export default function PartnerAgreementSignOff({
                       {agreement.countersigned_at ? ` on ${new Date(agreement.countersigned_at).toLocaleDateString()}` : ''}.
                     </div>
                   ) : (
-                    <Button onClick={handleCountersign} disabled={busy} className="gap-1.5">
+                    <Button onClick={handleCountersign} disabled={busy || !repName.trim() || !(sigDataUrl || defaults?.signature_path)} className="gap-1.5">
                       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                       Counter-sign &amp; send
                     </Button>

@@ -1,25 +1,29 @@
 /**
  * Welile Technologies e-stamp rendered as HTML for the live agreement preview.
- * Mirrors the supplied stamp.html (blue border, red date, stars, address).
+ * Matches the physical contract stamp: blue rounded rectangle border, blue
+ * "WELILE TECHNOLOGIES" wordmark, red stacked date, blue PO Box line — and
+ * rotated like a hand-applied rubber stamp.
  */
 export default function WelileStamp({
   date = new Date(),
   className = '',
   style,
+  rotation = -37,
 }: {
   date?: Date;
   className?: string;
   style?: React.CSSProperties;
+  rotation?: number;
 }) {
-  const formatted = date
-    .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    .toUpperCase();
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = date.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
+  const year = date.getFullYear();
 
   return (
     <div
       className={className}
       style={{
-        transform: 'rotate(-3deg)',
+        transform: `rotate(${rotation}deg)`,
         opacity: 0.6,
         pointerEvents: 'none',
         ...style,
@@ -28,62 +32,71 @@ export default function WelileStamp({
     >
       <div
         style={{
-          width: 200,
-          border: '3px solid #1134a6',
-          borderRadius: 8,
-          padding: '10px 12px',
-          textAlign: 'center',
-          background: 'transparent',
+          width: 170,
+          height: 96,
+          border: '2.5px solid #1134a6',
+          borderRadius: 10,
+          padding: 4,
           boxSizing: 'border-box',
+          background: 'transparent',
         }}
       >
         <div
           style={{
-            color: '#1134a6',
-            fontFamily: "'Times New Roman', serif",
-            fontWeight: 700,
-            fontSize: 15,
-            lineHeight: 1.1,
-            letterSpacing: 0.5,
-            marginBottom: 8,
-          }}
-        >
-          WELILE TECHNOLOGIES
-          <br />
-          LIMITED
-        </div>
-        <div
-          style={{
+            width: '100%',
+            height: '100%',
+            border: '1px solid #1134a6',
+            borderRadius: 7,
             display: 'flex',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
             alignItems: 'center',
-            marginBottom: 8,
-            padding: '0 4px',
+            justifyContent: 'center',
+            textAlign: 'center',
+            padding: '4px 6px',
           }}
         >
-          <span style={{ color: '#1134a6', fontSize: 18, lineHeight: 1 }}>★</span>
-          <span
+          <div
             style={{
-              color: '#e51921',
-              fontFamily: "'Oswald', sans-serif",
-              fontSize: 22,
-              fontWeight: 600,
-              letterSpacing: 1,
+              color: '#1134a6',
+              fontFamily: "'Times New Roman', serif",
+              fontWeight: 700,
+              fontSize: 13,
+              lineHeight: 1.05,
+              letterSpacing: 0.5,
             }}
           >
-            {formatted}
-          </span>
-          <span style={{ color: '#1134a6', fontSize: 18, lineHeight: 1 }}>★</span>
-        </div>
-        <div
-          style={{
-            color: '#1134a6',
-            fontFamily: "'Nunito', sans-serif",
-            fontSize: 11,
-            fontWeight: 700,
-          }}
-        >
-          PO Box 167564 Kampala Uganda
+            WELILE
+            <br />
+            TECHNOLOGIES
+          </div>
+          <div
+            style={{
+              color: '#e51921',
+              fontFamily: "'Oswald', 'Times New Roman', serif",
+              fontWeight: 700,
+              fontSize: 15,
+              lineHeight: 1.0,
+              letterSpacing: 1,
+              margin: '3px 0',
+            }}
+          >
+            {day} {month}
+            <br />
+            {year}
+          </div>
+          <div
+            style={{
+              color: '#1134a6',
+              fontFamily: "'Times New Roman', serif",
+              fontSize: 8.5,
+              fontWeight: 700,
+              lineHeight: 1.1,
+            }}
+          >
+            PO Box 167564
+            <br />
+            Kampala Uganda
+          </div>
         </div>
       </div>
     </div>

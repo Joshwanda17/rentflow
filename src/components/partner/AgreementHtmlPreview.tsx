@@ -172,11 +172,11 @@ export default function AgreementHtmlPreview({ data }: { data: AgreementPreviewD
 
   return (
     <div style={{ position: 'relative', background: '#ffffff', padding: '28px 30px', ...base }}>
-      {/* Stamp overlay — centre-right, leaving edge space */}
-      <div style={{ position: 'absolute', top: 220, right: 8, zIndex: 5 }}>
+      {/* Stamp overlay — sits beside the opening paragraph like the printed contract */}
+      <div style={{ position: 'absolute', top: 250, right: 18, zIndex: 5 }}>
         <WelileStamp date={date} />
       </div>
-      <div style={{ position: 'absolute', bottom: 120, right: 8, zIndex: 5 }}>
+      <div style={{ position: 'absolute', bottom: 150, right: 24, zIndex: 5 }}>
         <WelileStamp date={date} />
       </div>
 
@@ -185,12 +185,12 @@ export default function AgreementHtmlPreview({ data }: { data: AgreementPreviewD
         <img src={welileLogo} alt="Welile" style={{ height: 44, objectFit: 'contain', margin: '0 auto 10px' }} />
         <div style={{ fontWeight: 700, fontSize: 12 }}>THE REPUBLIC OF UGANDA</div>
         <div style={{ fontSize: 11 }}>THE CONTRACTS ACT</div>
-        <div style={{ fontWeight: 700, fontSize: 20, color: '#7c3aed', marginTop: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 20, color: INK, marginTop: 10 }}>
           TENANT PARTNERSHIP AGREEMENT
         </div>
         <div style={{ fontSize: 12, marginTop: 8 }}>
           Between <strong>WELILE TECHNOLOGIES LIMITED</strong> and{' '}
-          <strong style={{ color: '#7c3aed' }}>{name.toUpperCase()}</strong>
+          <strong style={{ color: INK }}>{name.toUpperCase()}</strong>
         </div>
       </div>
 
@@ -212,7 +212,7 @@ export default function AgreementHtmlPreview({ data }: { data: AgreementPreviewD
         with Tenant Partners, who provide the funds for rent payments in exchange for a return on their contribution;
       </p>
 
-      <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: '10px 12px', margin: '12px 0' }}>
+      <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 8, padding: '10px 12px', margin: '12px 0' }}>
         <strong>The Partner agrees to contribute a total partnership amount of UGX {amountStr} ({amountWords} Shillings Only).</strong>
       </div>
 
@@ -265,7 +265,7 @@ export default function AgreementHtmlPreview({ data }: { data: AgreementPreviewD
       <h4 style={{ fontSize: 13, fontWeight: 700, margin: '18px 0 8px' }}>EXECUTION</h4>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         <div>
-          <div style={{ fontWeight: 700, color: '#7c3aed', marginBottom: 8 }}>
+          <div style={{ fontWeight: 700, color: INK, marginBottom: 8 }}>
             Signed for and on behalf of Welile Technologies Limited
           </div>
           <SignatureLine label="Name" value={data.welileRepName} blank={!data.welileRepName} />
@@ -275,8 +275,9 @@ export default function AgreementHtmlPreview({ data }: { data: AgreementPreviewD
           <SignatureLine label="Signature" image={data.welileSignatureDataUrl} blank={!data.welileSignatureDataUrl} />
         </div>
         <div>
-          <div style={{ fontWeight: 700, color: '#7c3aed', marginBottom: 8 }}>Signed by the said Tenant Partner</div>
+          <div style={{ fontWeight: 700, color: INK, marginBottom: 8 }}>Signed by the said Tenant Partner</div>
           <SignatureLine label="Name" value={name} />
+          <SignatureLine label="National ID / Passport No." value={partnerId} />
           <SignatureLine label="Residence" value={address} />
           <SignatureLine label="Contact (Telephone)" value={data.partnerPhone?.trim() || UNKNOWN} />
           <SignatureLine label="Email" value={data.partnerEmail?.trim() || UNKNOWN} />
@@ -293,7 +294,7 @@ export default function AgreementHtmlPreview({ data }: { data: AgreementPreviewD
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <div style={{ fontWeight: 700, color: '#7c3aed', marginBottom: 8 }}>Next of Kin Details</div>
+        <div style={{ fontWeight: 700, color: INK, marginBottom: 8 }}>Next of Kin Details</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
           <SignatureLine label="Next of Kin Name" value={data.kinName?.trim() || UNKNOWN} />
           <SignatureLine label="Contact" value={data.kinContact?.trim() || UNKNOWN} />

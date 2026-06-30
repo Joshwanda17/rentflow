@@ -3,7 +3,7 @@
 // strictly from the `partner_agreements` DB row + stored company countersignature
 // defaults — no admin typing, no partner data re-entry.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
+import { PDFDocument, StandardFonts, rgb, degrees } from 'npm:pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,8 +48,18 @@ function ordinal(day: number): string {
   return day + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+// Decode a data URL or raw base64 string into bytes (admin-uploaded signature).
+function decodeDataUrl(input: string): Uint8Array {
+  const comma = input.indexOf(',');
+  const b64 = input.startsWith('data:') && comma >= 0 ? input.slice(comma + 1) : input;
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
 const INK = rgb(0.059, 0.090, 0.165);   // #0F172A
-const PRIMARY = rgb(0.486, 0.227, 0.929); // violet #7c3aed
+const PRIMARY = rgb(0.059, 0.090, 0.165); // unified to ink #0F172A (no purple in the contract)
 const BORDER = rgb(0.796, 0.835, 0.882);  // slate-300
 const STAMP_BLUE = rgb(0.067, 0.204, 0.651); // #1134a6
 const STAMP_RED = rgb(0.898, 0.098, 0.129);  // #e51921
@@ -113,17 +123,26 @@ function serveHandler() {
         .maybeSingle();
 
       let repSignatureBytes: Uint8Array | null = null;
-      if (countersign && defaults?.signature_path) {
-        const { data: sigFile } = await admin.storage
-          .from('partner-agreements')
-          .download(defaults.signature_path);
-        if (sigFile) repSignatureBytes = new Uint8Array(await sigFile.arrayBuffer());
+      // Admin-supplied overrides (filled in the sign-off dialog before sending).
+      const override = (body?.rep && typeof body.rep === 'object') ? body.rep : {};
+      const repName = (override.name ?? defaults?.rep_name) || undefined;
+      const repPosition = (override.position ?? defaults?.rep_position) || undefined;
+      const repContact = (override.contact ?? defaults?.rep_contact) || undefined;
+      if (countersign) {
+        if (typeof override.signatureBase64 === 'string' && override.signatureBase64.length > 0) {
+          repSignatureBytes = decodeDataUrl(override.signatureBase64);
+        } else if (defaults?.signature_path) {
+          const { data: sigFile } = await admin.storage
+            .from('partner-agreements')
+            .download(defaults.signature_path);
+          if (sigFile) repSignatureBytes = new Uint8Array(await sigFile.arrayBuffer());
+        }
       }
 
       const pdfBytes = await renderPdf({
         row,
         countersign,
-        rep: countersign ? defaults : null,
+        rep: countersign ? { rep_name: repName, rep_position: repPosition, rep_contact: repContact } : null,
         repSignatureBytes: countersign ? repSignatureBytes : null,
       });
 
@@ -510,6 +529,7 @@ async function renderPdf({ row, countersign, rep, repSignatureBytes }: RenderArg
 
   sigBlockTitle('Signed by the said Tenant Partner');
   sigField('Name', name);
+  sigField('National ID / Passport No.', nationalId);
   sigField('Residence', address);
   sigField('Contact (Telephone)', partnerPhone);
   sigField('Email', partnerEmail);
@@ -527,7 +547,8 @@ async function renderPdf({ row, countersign, rep, repSignatureBytes }: RenderArg
   sigField('Signature', UNKNOWN);
 
   // ── FOOTER + E-STAMP on every page ──
-  const stampDate = `${String(day).padStart(2, '0')} ${date.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }).toUpperCase()} ${year}`;
+  const stampDay = `${String(day).padStart(2, '0')} ${date.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }).toUpperCase()}`;
+  const stampYear = `${year}`;
   const total = pages.length;
   pages.forEach((p, idx) => {
     // footer
@@ -540,26 +561,39 @@ async function renderPdf({ row, countersign, rep, repSignatureBytes }: RenderArg
     const pnW = fontN.widthOfTextAtSize(pn, 8);
     p.drawText(pn, { x: pageW - margin - pnW, y: 30, size: 8, font: fontN, color: INK });
     // stamp (skip cover page idx 0 for clarity, place on all content pages)
-    drawStamp(p, fontB, pageW - margin - 36, pageH / 2, stampDate);
+    drawStamp(p, fontB, pageW - margin - 70, pageH / 2, stampDay, stampYear);
   });
 
   return await pdf.save();
 }
 
-function drawStamp(page: any, fontB: any, cx: number, cy: number, dateStr: string) {
-  const w = 150, h = 80;
-  const x = cx - w / 2, y = cy - h / 2;
+// Rubber-stamp rendered at an angle, matching the printed contract stamp.
+function drawStamp(page: any, fontB: any, cx: number, cy: number, dayMon: string, yearStr: string) {
+  const angleDeg = -37;
+  const rad = (angleDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
   const opacity = 0.5;
-  page.drawRectangle({ x, y, width: w, height: h, borderColor: STAMP_BLUE, borderWidth: 3, opacity: 0, borderOpacity: opacity });
-  const c1 = 'WELILE TECHNOLOGIES';
-  const c1w = fontB.widthOfTextAtSize(c1, 11);
-  page.drawText(c1, { x: cx - c1w / 2, y: y + h - 22, size: 11, font: fontB, color: STAMP_BLUE, opacity });
-  const c2 = 'LIMITED';
-  const c2w = fontB.widthOfTextAtSize(c2, 11);
-  page.drawText(c2, { x: cx - c2w / 2, y: y + h - 36, size: 11, font: fontB, color: STAMP_BLUE, opacity });
-  const dw = fontB.widthOfTextAtSize(dateStr, 10);
-  page.drawText(dateStr, { x: cx - dw / 2, y: y + 20, size: 10, font: fontB, color: STAMP_RED, opacity });
-  const kla = 'KAMPALA, UGANDA';
-  const kw = fontB.widthOfTextAtSize(kla, 7);
-  page.drawText(kla, { x: cx - kw / 2, y: y + 8, size: 7, font: fontB, color: STAMP_BLUE, opacity });
+  // Rotate a local (dx, dy) offset (relative to the stamp centre) into page space.
+  const rot = (dx: number, dy: number) => ({ x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos });
+
+  const w = 150, h = 92;
+  // Outer + inner borders (anchored at their bottom-left corner, then rotated).
+  const outerBL = rot(-w / 2, -h / 2);
+  page.drawRectangle({ x: outerBL.x, y: outerBL.y, width: w, height: h, rotate: degrees(angleDeg), borderColor: STAMP_BLUE, borderWidth: 2.5, opacity: 0, borderOpacity: opacity });
+  const innerBL = rot(-w / 2 + 5, -h / 2 + 5);
+  page.drawRectangle({ x: innerBL.x, y: innerBL.y, width: w - 10, height: h - 10, rotate: degrees(angleDeg), borderColor: STAMP_BLUE, borderWidth: 1, opacity: 0, borderOpacity: opacity * 0.85 });
+
+  // Centred line of text at a given local baseline height (localY, positive = up).
+  const line = (text: string, localY: number, size: number, color: any) => {
+    const tw = fontB.widthOfTextAtSize(text, size);
+    const start = rot(-tw / 2, localY);
+    page.drawText(text, { x: start.x, y: start.y, size, font: fontB, color, rotate: degrees(angleDeg), opacity });
+  };
+
+  line('WELILE', 26, 12, STAMP_BLUE);
+  line('TECHNOLOGIES', 13, 12, STAMP_BLUE);
+  line(dayMon, -4, 13, STAMP_RED);
+  line(yearStr, -19, 13, STAMP_RED);
+  line('PO Box 167564 Kampala Uganda', -34, 7, STAMP_BLUE);
 }
