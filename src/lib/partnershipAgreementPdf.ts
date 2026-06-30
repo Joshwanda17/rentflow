@@ -356,7 +356,7 @@ export async function generatePartnershipAgreementPDF(
   sigField('Account Name', accName);
   sigField('Account No', accNo);
   sigField('Date', `${ordinal(day)} ${month} ${year}`);
-  sigField('Signature', UNKNOWN);
+  sigField('Signature', partnerName.toLowerCase(), { italic: true });
 
   // Next of Kin block
   sigBlockTitle('Next of Kin Details');
