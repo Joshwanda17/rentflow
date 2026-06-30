@@ -840,6 +840,7 @@ export default function FunderOnboarding() {
   const [form, setForm] = useState<FormState>({
     understoodRole: false,
     investPath: null,
+    supportAmount: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -855,6 +856,11 @@ export default function FunderOnboarding() {
   }, [user, navigate, showSuccess, isSubmitting]);
 
   const valid = isValid(step, form);
+
+  // Surfaces inline validation feedback (e.g. red amount border) when the user
+  // presses the action button before the current step is complete.
+  const [showStepError, setShowStepError] = useState(false);
+  useEffect(() => { setShowStepError(false); }, [step]);
 
   // Guard: while auth is initialising, OR an authenticated user is being
   // redirected away, render a lightweight loader instead of the fixed
