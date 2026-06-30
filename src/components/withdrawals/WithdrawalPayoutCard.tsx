@@ -146,7 +146,10 @@ export function WithdrawalPayoutCard({
   function copyToClipboard(value: string, label: string) {
     const v = (value || '').toString().trim();
     if (!v || v === '—') return;
-    navigator.clipboard?.writeText(v.replace(/\s+/g, ''))
+    // Strip whitespace only for numeric fields (number/account); keep spaces in names.
+    const isNumericField = /number|account|contact|code/i.test(label);
+    const payload = isNumericField ? v.replace(/\s+/g, '') : v;
+    navigator.clipboard?.writeText(payload)
       .then(() => toast.success(`${label} copied`))
       .catch(() => toast.error('Could not copy'));
   }
