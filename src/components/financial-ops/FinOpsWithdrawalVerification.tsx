@@ -87,6 +87,11 @@ export function FinOpsWithdrawalVerification() {
   
   const [activeTab, setActiveTab] = useState<ActiveTab>('pending');
 
+  // Landlord float payouts are funded from the agent's dedicated landlord
+  // float (deducted at disburse time) — NOT their personal/withdrawable wallet.
+  const isLandlordFloatReason = (reason?: string | null): boolean =>
+    typeof reason === 'string' && reason.startsWith('Landlord float payout');
+
   // Map a withdrawal's payout_method + provider → the dialog's payment-method
   // dropdown value. Used to pre-select the method when an operator opens the
   // Approve dialog.
