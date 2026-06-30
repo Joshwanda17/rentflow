@@ -1,21 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { buildPartnerReference } from '@/lib/partnerReference';
-import { numberToWords } from '@/lib/numberToWords';
-import { generatePartnershipAgreementPDF } from '@/lib/partnershipAgreementPdf';
 import AgreementHtmlPreview, { type AgreementPreviewData } from './AgreementHtmlPreview';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { Loader2, Download, Mail, Upload, Phone, Calendar, FileSignature, X, CheckCircle2 } from 'lucide-react';
+import { Loader2, Mail, Phone, FileSignature, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export interface SignOffPartner {
   id: string;
@@ -25,15 +18,11 @@ export interface SignOffPartner {
   created_at: string;
 }
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-}
-
+// Read-only sign-off review. The admin fills in NOTHING — every partner field
+// is rendered from the single source-of-truth `partner_agreements` row the
+// partner supplied at onboarding, and Welile's counter-signature comes from the
+// stored `partner_agreement_company_defaults`. A single action calls the
+// server-side `generate-partner-agreement` edge function with `countersign:true`.
 export default function PartnerAgreementSignOff({
   open,
   onOpenChange,
@@ -45,211 +34,107 @@ export default function PartnerAgreementSignOff({
 }) {
   const { toast } = useToast();
 
-  // Editable / confirmable partner fields
-  const [amount, setAmount] = useState('');
-  const [partnerId, setPartnerId] = useState('');
-  const [address, setAddress] = useState('');
-  const [payoutMode, setPayoutMode] = useState<'bank' | 'momo'>('bank');
-  const [bankName, setBankName] = useState('');
-  const [bankAccountName, setBankAccountName] = useState('');
-  const [bankAccountNumber, setBankAccountNumber] = useState('');
-  const [momoProvider, setMomoProvider] = useState('');
-  const [momoNumber, setMomoNumber] = useState('');
-  const [momoName, setMomoName] = useState('');
-  const [kinName, setKinName] = useState('');
-  const [kinContact, setKinContact] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [agreement, setAgreement] = useState<any | null>(null);
+  const [defaults, setDefaults] = useState<any | null>(null);
+  const [missing, setMissing] = useState<string | null>(null);
 
-  // Welile counter-signature fields
-  const [repName, setRepName] = useState('');
-  const [repPosition, setRepPosition] = useState('');
-  const [repContact, setRepContact] = useState('');
-  const [agreementDate, setAgreementDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [welileSig, setWelileSig] = useState<string | undefined>();
-  const [partnerSig, setPartnerSig] = useState<string | undefined>();
-
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [busy, setBusy] = useState<null | 'download' | 'email'>(null);
-
-  const welileSigInput = useRef<HTMLInputElement>(null);
-  const partnerSigInput = useRef<HTMLInputElement>(null);
-
-  // Load whatever we already have on file when the sheet opens.
   useEffect(() => {
     if (!open || !partner) return;
     let cancelled = false;
-    setLoadingDetails(true);
+    setLoading(true);
+    setMissing(null);
+    setAgreement(null);
     (async () => {
       try {
-        const [{ data: prof }, { data: method }] = await Promise.all([
-          supabase.from('profiles').select('landmark').eq('id', partner.id).maybeSingle(),
+        const [{ data: ag, error: agErr }, { data: def }] = await Promise.all([
           supabase
-            .from('saved_payout_methods')
+            .from('partner_agreements')
             .select('*')
-            .eq('user_id', partner.id)
-            .order('is_default', { ascending: false })
-            .order('last_used_at', { ascending: false, nullsFirst: false })
+            .eq('partner_id', partner.id)
+            .maybeSingle(),
+          supabase
+            .from('partner_agreement_company_defaults')
+            .select('*')
             .limit(1)
             .maybeSingle(),
         ]);
         if (cancelled) return;
-        setAddress(prof?.landmark || '');
-        if (method) {
-          if (method.payout_mode === 'momo') {
-            setPayoutMode('momo');
-            setMomoProvider(method.momo_provider || '');
-            setMomoNumber(method.momo_number || '');
-            setMomoName(method.momo_name || '');
-          } else {
-            setPayoutMode('bank');
-            setBankName(method.bank_name || '');
-            setBankAccountName(method.bank_account_name || '');
-            setBankAccountNumber(method.bank_account_number || '');
-          }
+        if (agErr) throw agErr;
+        if (!ag) {
+          setMissing('This partner has no agreement on file yet. It is created automatically when they complete onboarding.');
+        } else {
+          setAgreement(ag);
         }
+        setDefaults(def || null);
+      } catch (e: any) {
+        if (!cancelled) setMissing(e?.message || 'Could not load the agreement.');
       } finally {
-        if (!cancelled) setLoadingDetails(false);
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
   }, [open, partner]);
 
-  // Reset volatile sign-off fields whenever a different partner is opened.
-  useEffect(() => {
-    if (!open) return;
-    setAmount('');
-    setPartnerId('');
-    setKinName('');
-    setKinContact('');
-    setRepName('');
-    setRepPosition('');
-    setRepContact('');
-    setWelileSig(undefined);
-    setPartnerSig(undefined);
-    setAgreementDate(new Date().toISOString().slice(0, 10));
-  }, [open, partner?.id]);
+  const previewData: AgreementPreviewData | null = useMemo(() => {
+    if (!agreement) return null;
+    return {
+      partnerName: agreement.full_name || partner?.full_name || '',
+      partnerId: agreement.national_id || '',
+      partnerAddress: agreement.address || '',
+      partnerPhone: agreement.phone || partner?.phone || '',
+      partnerEmail: agreement.email || partner?.email || '',
+      partnershipAmount: Number(agreement.partnership_amount) || 0,
+      payoutMode: agreement.payout_mode === 'momo' ? 'momo' : 'bank',
+      bankName: agreement.bank_name || '',
+      bankAccountName: agreement.bank_account_name || '',
+      bankAccountNumber: agreement.bank_account_number || '',
+      momoProvider: agreement.momo_provider || '',
+      momoNumber: agreement.momo_number || '',
+      momoName: agreement.momo_name || '',
+      kinName: agreement.kin_name || '',
+      kinContact: agreement.kin_contact || '',
+      agreementDate: agreement.countersigned_at ? new Date(agreement.countersigned_at) : new Date(),
+      welileRepName: defaults?.rep_name || '',
+      welileRepPosition: defaults?.rep_position || '',
+      welileRepContact: defaults?.rep_contact || '',
+      welileSignatureDataUrl: defaults?.rep_signature_url || undefined,
+      partnerSignatureDataUrl: undefined,
+    };
+  }, [agreement, defaults, partner]);
 
-  const amountNum = Number((amount || '').replace(/,/g, '')) || 0;
-  const dateObj = useMemo(() => {
-    const d = new Date(agreementDate);
-    return Number.isNaN(d.getTime()) ? new Date() : d;
-  }, [agreementDate]);
-
-  const previewData: AgreementPreviewData = useMemo(() => ({
-    partnerName: partner?.full_name || '',
-    partnerId,
-    partnerAddress: address,
-    partnerPhone: partner?.phone || '',
-    partnerEmail: partner?.email || '',
-    partnershipAmount: amountNum,
-    payoutMode,
-    bankName,
-    bankAccountName,
-    bankAccountNumber,
-    momoProvider,
-    momoNumber,
-    momoName,
-    kinName,
-    kinContact,
-    agreementDate: dateObj,
-    welileRepName: repName,
-    welileRepPosition: repPosition,
-    welileRepContact: repContact,
-    welileSignatureDataUrl: welileSig,
-    partnerSignatureDataUrl: partnerSig,
-  }), [partner, partnerId, address, amountNum, payoutMode, bankName, bankAccountName, bankAccountNumber, momoProvider, momoNumber, momoName, kinName, kinContact, dateObj, repName, repPosition, repContact, welileSig, partnerSig]);
-
-  const buildBlob = () => generatePartnershipAgreementPDF(previewData);
-
-  const validate = (): string | null => {
-    if (amountNum < 50000) return 'Enter a valid partnership amount (min UGX 50,000).';
-    if (!repName.trim()) return 'Enter the Welile representative name to counter-sign.';
-    if (!welileSig) return 'Upload the Welile representative signature.';
-    return null;
-  };
-
-  const onSig = async (file: File | undefined, set: (v: string) => void) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid file', description: 'Please upload an image (PNG/JPG).', variant: 'destructive' });
-      return;
-    }
-    try { set(await fileToDataUrl(file)); } catch { /* noop */ }
-  };
-
-  const handleDownload = async () => {
-    const err = validate();
-    if (err) { toast({ title: 'Almost there', description: err, variant: 'destructive' }); return; }
-    setBusy('download');
-    try {
-      const blob = await buildBlob();
-      const ref = buildPartnerReference(partner!.id, partner!.created_at);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `partnership-agreement-${ref}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (e: any) {
-      toast({ title: 'Could not generate PDF', description: e?.message || 'Try again.', variant: 'destructive' });
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const handleSaveEmail = async () => {
-    const err = validate();
-    if (err) { toast({ title: 'Almost there', description: err, variant: 'destructive' }); return; }
-    if (!partner?.email) {
-      toast({ title: 'No email on file', description: 'This partner has no email address to send to.', variant: 'destructive' });
-      return;
-    }
-    setBusy('email');
-    try {
-      const blob = await buildBlob();
-      const ref = buildPartnerReference(partner.id, partner.created_at);
-      const objectPath = `${partner.id}/partnership-agreement-signed-${ref}.pdf`;
-      const { error: upErr } = await supabase.storage
-        .from('partner-agreements')
-        .upload(objectPath, blob, { contentType: 'application/pdf', upsert: true });
-      if (upErr) throw upErr;
-      const { data: signed } = await supabase.storage
-        .from('partner-agreements')
-        .createSignedUrl(objectPath, 60 * 60 * 24 * 365);
-
-      const payoutSummary = payoutMode === 'momo'
-        ? [momoProvider, momoNumber].filter(Boolean).join(' ') || 'Mobile Money'
-        : [bankName, bankAccountNumber].filter(Boolean).join(' ') || 'Bank Transfer';
-
-      const { error: emailErr } = await supabase.functions.invoke('send-transactional-email', {
-        body: {
-          templateName: 'tenant-partnership-agreement',
-          recipientEmail: partner.email,
-          templateData: {
-            partner_name: partner.full_name || 'Partner',
-            partner_email: partner.email,
-            partner_reference: ref,
-            partnership_amount: `UGX ${amountNum.toLocaleString('en-US')}`,
-            partnership_amount_words: numberToWords(amountNum),
-            monthly_return: '15%',
-            payout_summary: payoutSummary,
-            agreement_download_url: signed?.signedUrl || 'https://welilereceipts.com',
-            company_name: 'WELILE TECHNOLOGIES LTD',
-          },
-        },
+  const handleCountersign = async () => {
+    if (!partner) return;
+    if (!defaults?.rep_name || !defaults?.rep_signature_url) {
+      toast({
+        title: 'Set company defaults first',
+        description: 'Add the Welile representative name and signature in Company Defaults before counter-signing.',
+        variant: 'destructive',
       });
-      if (emailErr) throw emailErr;
-      toast({ title: 'Signed agreement sent', description: `Emailed to ${partner.email}.` });
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.functions.invoke('generate-partner-agreement', {
+        body: { partnerId: partner.id, countersign: true },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Agreement counter-signed & sent',
+        description: partner.email ? `Executed PDF emailed to ${partner.email}.` : 'Executed PDF stored.',
+      });
       onOpenChange(false);
     } catch (e: any) {
-      toast({ title: 'Could not send', description: e?.message || 'Try again.', variant: 'destructive' });
+      toast({ title: 'Could not counter-sign', description: e?.message || 'Try again.', variant: 'destructive' });
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   };
 
   if (!partner) return null;
+
+  const alreadySigned = !!agreement?.countersigned_at || agreement?.status === 'countersigned';
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
@@ -259,18 +144,18 @@ export default function PartnerAgreementSignOff({
             <FileSignature className="h-4 w-4 text-primary" /> Partnership Agreement — Sign-off
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Confirm the partner's details, counter-sign on behalf of Welile, then download or email the executed PDF.
+            Review the partner's submitted details, then counter-sign on Welile's behalf. No manual data entry —
+            everything is rendered from the partner's onboarding record and your stored company defaults.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[380px_1fr]">
-          {/* LEFT — details + sign-off form */}
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[360px_1fr]">
+          {/* LEFT — read-only summary + single action */}
           <div className="border-r overflow-y-auto p-4 space-y-4 bg-muted/20">
-            {/* Partner card */}
             <div className="rounded-xl bg-background border p-3 space-y-1">
-              <p className="text-sm font-bold">{partner.full_name || 'Unknown partner'}</p>
+              <p className="text-sm font-bold">{partner.full_name || agreement?.full_name || 'Unknown partner'}</p>
               <p className="text-[11px] font-mono text-muted-foreground">
-                Ref: {buildPartnerReference(partner.id, partner.created_at)}
+                Ref: {agreement?.reference || buildPartnerReference(partner.id, partner.created_at)}
               </p>
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{partner.phone || '—'}</span>
@@ -278,119 +163,79 @@ export default function PartnerAgreementSignOff({
               </div>
             </div>
 
-            {loadingDetails && (
+            {loading && (
               <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading details on file…
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading agreement on file…
               </p>
             )}
 
-            {/* Partner confirmable details */}
-            <section className="space-y-2">
-              <p className="text-xs font-semibold text-foreground">Partner details</p>
-              <Field label="Partnership amount (UGX)" required>
-                <Input inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d,]/g, ''))} placeholder="e.g. 1,500,000" />
-              </Field>
-              <Field label="National ID / Passport No.">
-                <Input value={partnerId} onChange={(e) => setPartnerId(e.target.value)} placeholder="Optional" />
-              </Field>
-              <Field label="Residential address">
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Village / district / landmark" />
-              </Field>
-            </section>
+            {missing && !loading && (
+              <p className="text-xs text-destructive">{missing}</p>
+            )}
 
-            <Separator />
+            {agreement && !loading && (
+              <>
+                <section className="space-y-1.5">
+                  <p className="text-xs font-semibold text-foreground">Partner submitted</p>
+                  <ReadRow label="Partnership amount" value={`UGX ${(Number(agreement.partnership_amount) || 0).toLocaleString('en-US')}`} />
+                  <ReadRow label="National ID / Passport" value={agreement.national_id || '—'} />
+                  <ReadRow label="Address" value={agreement.address || '—'} />
+                  <ReadRow
+                    label="Payout"
+                    value={agreement.payout_mode === 'momo'
+                      ? [agreement.momo_provider, agreement.momo_number].filter(Boolean).join(' ') || 'Mobile money'
+                      : [agreement.bank_name, agreement.bank_account_number].filter(Boolean).join(' ') || 'Bank'}
+                  />
+                  <ReadRow label="Next of kin" value={[agreement.kin_name, agreement.kin_contact].filter(Boolean).join(' · ') || '—'} />
+                </section>
 
-            {/* Payout */}
-            <section className="space-y-2">
-              <p className="text-xs font-semibold text-foreground">Payout channel</p>
-              <Select value={payoutMode} onValueChange={(v) => setPayoutMode(v as 'bank' | 'momo')}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bank">Bank account</SelectItem>
-                  <SelectItem value="momo">Mobile money</SelectItem>
-                </SelectContent>
-              </Select>
-              {payoutMode === 'bank' ? (
-                <>
-                  <Field label="Bank name"><Input value={bankName} onChange={(e) => setBankName(e.target.value)} /></Field>
-                  <Field label="Account name"><Input value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} /></Field>
-                  <Field label="Account number"><Input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} /></Field>
-                </>
-              ) : (
-                <>
-                  <Field label="Provider"><Input value={momoProvider} onChange={(e) => setMomoProvider(e.target.value)} placeholder="MTN / Airtel" /></Field>
-                  <Field label="Mobile money number"><Input value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)} /></Field>
-                  <Field label="Registered name"><Input value={momoName} onChange={(e) => setMomoName(e.target.value)} /></Field>
-                </>
-              )}
-            </section>
+                <Separator />
 
-            <Separator />
+                <section className="space-y-1.5">
+                  <p className="text-xs font-semibold text-primary">Welile counter-signature</p>
+                  {defaults?.rep_name ? (
+                    <>
+                      <ReadRow label="Representative" value={defaults.rep_name} />
+                      <ReadRow label="Position" value={defaults.rep_position || '—'} />
+                      <ReadRow label="Signature" value={defaults.rep_signature_url ? 'On file ✓' : 'Missing'} />
+                    </>
+                  ) : (
+                    <p className="text-xs text-amber-600">
+                      Company defaults not configured. Set the representative & signature under “Company Defaults”.
+                    </p>
+                  )}
+                </section>
 
-            {/* Next of kin */}
-            <section className="space-y-2">
-              <p className="text-xs font-semibold text-foreground">Next of kin</p>
-              <Field label="Name"><Input value={kinName} onChange={(e) => setKinName(e.target.value)} /></Field>
-              <Field label="Contact"><Input value={kinContact} onChange={(e) => setKinContact(e.target.value)} /></Field>
-            </section>
+                <Separator />
 
-            <Separator />
-
-            {/* Welile counter-signature */}
-            <section className="space-y-2">
-              <p className="text-xs font-semibold text-primary">Sign off — on behalf of Welile</p>
-              <Field label="Representative name" required>
-                <Input value={repName} onChange={(e) => setRepName(e.target.value)} placeholder="Full name" />
-              </Field>
-              <Field label="Position">
-                <Input value={repPosition} onChange={(e) => setRepPosition(e.target.value)} placeholder="e.g. Chief Operating Officer" />
-              </Field>
-              <Field label="Contact">
-                <Input value={repContact} onChange={(e) => setRepContact(e.target.value)} placeholder="Phone / email" />
-              </Field>
-              <Field label="Agreement date">
-                <div className="relative">
-                  <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input type="date" className="pl-7" value={agreementDate} onChange={(e) => setAgreementDate(e.target.value)} />
+                <div className="flex flex-col gap-2 pb-2">
+                  {alreadySigned ? (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 inline-flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4" /> Already counter-signed
+                      {agreement.countersigned_at ? ` on ${new Date(agreement.countersigned_at).toLocaleDateString()}` : ''}.
+                    </div>
+                  ) : (
+                    <Button onClick={handleCountersign} disabled={busy} className="gap-1.5">
+                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                      Counter-sign &amp; send
+                    </Button>
+                  )}
+                  <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> Generates the executed PDF server-side and emails the partner.
+                  </p>
                 </div>
-              </Field>
-
-              <SigUpload
-                label="Welile signature"
-                value={welileSig}
-                required
-                onPick={() => welileSigInput.current?.click()}
-                onClear={() => setWelileSig(undefined)}
-              />
-              <input ref={welileSigInput} type="file" accept="image/*" className="hidden" onChange={(e) => onSig(e.target.files?.[0], setWelileSig)} />
-
-              <SigUpload
-                label="Partner signature (optional)"
-                value={partnerSig}
-                onPick={() => partnerSigInput.current?.click()}
-                onClear={() => setPartnerSig(undefined)}
-              />
-              <input ref={partnerSigInput} type="file" accept="image/*" className="hidden" onChange={(e) => onSig(e.target.files?.[0], setPartnerSig)} />
-            </section>
-
-            <Separator />
-
-            <div className="flex flex-col gap-2 pb-2">
-              <Button onClick={handleDownload} disabled={!!busy} variant="outline" className="gap-1.5">
-                {busy === 'download' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Download signed PDF
-              </Button>
-              <Button onClick={handleSaveEmail} disabled={!!busy} className="gap-1.5">
-                {busy === 'email' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                Save &amp; email to partner
-              </Button>
-            </div>
+              </>
+            )}
           </div>
 
           {/* RIGHT — live preview */}
           <div className="overflow-y-auto bg-slate-100 p-3 sm:p-6">
             <div className="mx-auto max-w-[760px] bg-white shadow-lg rounded-sm">
-              <AgreementHtmlPreview data={previewData} />
+              {previewData ? (
+                <AgreementHtmlPreview data={previewData} />
+              ) : (
+                <div className="p-10 text-center text-sm text-muted-foreground">No agreement to preview.</div>
+              )}
             </div>
           </div>
         </div>
@@ -399,40 +244,11 @@ export default function PartnerAgreementSignOff({
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function ReadRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="space-y-1">
-      <Label className="text-[11px] text-muted-foreground">
-        {label}{required && <span className="text-destructive"> *</span>}
-      </Label>
-      {children}
-    </div>
-  );
-}
-
-function SigUpload({
-  label, value, required, onPick, onClear,
-}: {
-  label: string; value?: string; required?: boolean; onPick: () => void; onClear: () => void;
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-[11px] text-muted-foreground">
-        {label}{required && <span className="text-destructive"> *</span>}
-      </Label>
-      {value ? (
-        <div className="flex items-center gap-2 rounded-lg border bg-background p-2">
-          <img src={value} alt={label} className="h-10 max-w-[120px] object-contain" />
-          <CheckCircle2 className="h-4 w-4 text-success" />
-          <Button type="button" size="icon" variant="ghost" className="h-6 w-6 ml-auto" onClick={onClear}>
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      ) : (
-        <Button type="button" variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={onPick}>
-          <Upload className="h-3.5 w-3.5" /> Upload signature image
-        </Button>
-      )}
+    <div className="flex items-baseline justify-between gap-3 text-xs">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-medium text-foreground text-right break-words">{value}</span>
     </div>
   );
 }

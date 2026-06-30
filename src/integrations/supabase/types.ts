@@ -11710,6 +11710,123 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_agreement_company_defaults: {
+        Row: {
+          created_at: string
+          id: string
+          rep_contact: string | null
+          rep_name: string | null
+          rep_position: string | null
+          signature_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          rep_contact?: string | null
+          rep_name?: string | null
+          rep_position?: string | null
+          signature_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          rep_contact?: string | null
+          rep_name?: string | null
+          rep_position?: string | null
+          signature_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      partner_agreements: {
+        Row: {
+          address: string | null
+          agreement_date: string
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
+          countersigned_at: string | null
+          countersigned_by: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          generated_pdf_path: string | null
+          id: string
+          kin_contact: string | null
+          kin_name: string | null
+          momo_name: string | null
+          momo_number: string | null
+          momo_provider: string | null
+          national_id: string | null
+          partner_id: string
+          partnership_amount: number
+          partnership_amount_words: string | null
+          payout_mode: string
+          phone: string | null
+          reference: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          agreement_date?: string
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          countersigned_at?: string | null
+          countersigned_by?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          generated_pdf_path?: string | null
+          id?: string
+          kin_contact?: string | null
+          kin_name?: string | null
+          momo_name?: string | null
+          momo_number?: string | null
+          momo_provider?: string | null
+          national_id?: string | null
+          partner_id: string
+          partnership_amount?: number
+          partnership_amount_words?: string | null
+          payout_mode?: string
+          phone?: string | null
+          reference?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          agreement_date?: string
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          countersigned_at?: string | null
+          countersigned_by?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          generated_pdf_path?: string | null
+          id?: string
+          kin_contact?: string | null
+          kin_name?: string | null
+          momo_name?: string | null
+          momo_number?: string | null
+          momo_provider?: string | null
+          national_id?: string | null
+          partner_id?: string
+          partnership_amount?: number
+          partnership_amount_words?: string | null
+          payout_mode?: string
+          phone?: string | null
+          reference?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       partner_escalations: {
         Row: {
           created_at: string
