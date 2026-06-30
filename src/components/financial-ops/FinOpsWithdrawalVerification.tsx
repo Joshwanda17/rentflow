@@ -87,6 +87,11 @@ export function FinOpsWithdrawalVerification() {
   
   const [activeTab, setActiveTab] = useState<ActiveTab>('pending');
 
+  // Landlord float payouts are funded from the agent's dedicated landlord
+  // float (deducted at disburse time) — NOT their personal/withdrawable wallet.
+  const isLandlordFloatReason = (reason?: string | null): boolean =>
+    typeof reason === 'string' && reason.startsWith('Landlord float payout');
+
   // Map a withdrawal's payout_method + provider → the dialog's payment-method
   // dropdown value. Used to pre-select the method when an operator opens the
   // Approve dialog.
@@ -122,6 +127,29 @@ export function FinOpsWithdrawalVerification() {
     setWalletBalances((prev) => {
       const next = { ...prev };
       for (const [uid, bal] of results) next[uid] = bal;
+      return next;
+    });
+  }, []);
+
+  // Landlord float payouts are funded from the agent's dedicated landlord
+  // float (`agent_landlord_float`), NOT their personal/withdrawable wallet.
+  // The float is deducted at disburse time and `approve-withdrawal` skips the
+  // wallet debit, so the personal-wallet impact strip is misleading for these
+  // rows. Track the landlord float balance keyed by agent user_id instead.
+  const [landlordFloatBalances, setLandlordFloatBalances] = useState<Record<string, number>>({});
+
+  const fetchLandlordFloatBalances = useCallback(async (agentIds: string[]) => {
+    const uniq = Array.from(new Set(agentIds.filter(Boolean)));
+    if (uniq.length === 0) return;
+    const { data } = await supabase
+      .from('agent_landlord_float')
+      .select('agent_id, balance')
+      .in('agent_id', uniq);
+    setLandlordFloatBalances((prev) => {
+      const next = { ...prev };
+      for (const row of (data ?? []) as Array<{ agent_id: string; balance: number | string }>) {
+        next[row.agent_id] = Number(row.balance ?? 0);
+      }
       return next;
     });
   }, []);
@@ -201,13 +229,17 @@ export function FinOpsWithdrawalVerification() {
         ...rejectedWithProfiles.map((r: any) => r.user_id),
         ...rejectedWithProfiles.map((r: any) => r.proxy_agent?.id).filter(Boolean),
       ]);
+      void fetchLandlordFloatBalances([
+        ...pendingWithProfiles.filter((r: any) => isLandlordFloatReason(r.reason)).map((r: any) => r.user_id),
+        ...rejectedWithProfiles.filter((r: any) => isLandlordFloatReason(r.reason)).map((r: any) => r.user_id),
+      ]);
     } catch (e) {
       console.error('FinOps withdrawal fetch error:', e);
       toast.error('Failed to load withdrawal requests');
     } finally {
       setLoading(false);
     }
-  }, [fetchWalletBalances]);
+  }, [fetchWalletBalances, fetchLandlordFloatBalances]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
@@ -546,6 +578,46 @@ export function FinOpsWithdrawalVerification() {
   const renderBalanceStrip = (req: WithdrawalRequest) => {
     const amount = Number(req.amount || 0);
     const proxy = req.proxy_agent || null;
+
+    // ── Landlord float payout: funded from the agent's landlord float ──────
+    // The float was already deducted at disburse time and approve-withdrawal
+    // skips the agent's personal wallet entirely. Show the landlord float as
+    // the true funding source instead of the misleading personal-wallet impact.
+    if (isLandlordFloatReason(req.reason)) {
+      const floatBal = landlordFloatBalances[req.user_id];
+      const known = floatBal !== undefined;
+      return (
+        <div className="px-2 py-1.5 rounded-lg border bg-amber-500/5 border-amber-500/30 space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Landlord float: <span className="text-foreground normal-case font-semibold">{req.user?.full_name || 'Agent'}</span>
+            </p>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold uppercase tracking-wider">
+              Company float
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Briefcase className="h-3 w-3 text-amber-600 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">Available landlord float</p>
+              <p className="text-xs font-bold text-foreground truncate">{known ? formatCurrency(floatBal) : '—'}</p>
+              {known && (
+                <p className="text-[9px] text-muted-foreground truncate">→ {formatCurrency(Math.max(0, floatBal - amount))} after payout</p>
+              )}
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground leading-snug pt-0.5 border-t border-border/40">
+            Already deducted from the agent's float at request time. The agent's personal wallet is never touched for this payout.
+          </p>
+          {known && floatBal < amount && (
+            <div className="flex items-center gap-1 text-[10px] font-semibold text-destructive">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Landlord float short {formatCurrency(amount - floatBal)} — verify before completing.</span>
+            </div>
+          )}
+        </div>
+      );
+    }
 
     const renderOneWallet = (
       opts: {
