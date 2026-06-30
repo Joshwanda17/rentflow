@@ -296,7 +296,7 @@ export async function generatePartnershipAgreementPDF(
   y += 8;
 
   // Signature field renderer
-  const sigField = (label: string, value: string) => {
+  const sigField = (label: string, value: string, opts: { italic?: boolean } = {}) => {
     ensureSpace(12);
     doc.setFont('times', 'bold');
     doc.setFontSize(9);
@@ -304,7 +304,13 @@ export async function generatePartnershipAgreementPDF(
     doc.text(label.toUpperCase(), margin, y);
     y += 5;
     if (value !== BLANK) {
-      doc.setFont('times', 'normal');
+      // Prefilled values are emphasised in bold; the partner's own signature is italic.
+      const isFilled = value !== UNKNOWN;
+      if (opts.italic) {
+        doc.setFont('times', 'italic');
+      } else {
+        doc.setFont('times', isFilled ? 'bold' : 'normal');
+      }
       doc.setFontSize(11);
       doc.setTextColor(...INK);
       doc.text(value, margin, y - 0.5);
