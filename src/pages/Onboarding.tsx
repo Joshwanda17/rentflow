@@ -913,6 +913,7 @@ export default function FunderOnboarding() {
         const cleanFirst = sanitizeInput(form.firstName).trim();
         const cleanLast = sanitizeInput(form.lastName).trim();
         const cleanPhone = sanitizeInput(form.phone).trim();
+        const cleanAddress = sanitizeInput(form.address).trim();
 
         const signupResult = await registerUser({
           email: cleanEmail,
@@ -927,6 +928,16 @@ export default function FunderOnboarding() {
         // Fire-and-forget the partner_account_created email — don't block the
         // success modal on email delivery.
         const newUserId = signupResult?.data?.user?.id ?? '';
+        // Persist the funder's address on their profile (non-blocking).
+        if (newUserId && cleanAddress) {
+          supabase
+            .from('profiles')
+            .update({ landmark: cleanAddress })
+            .eq('id', newUserId)
+            .then(({ error }) => {
+              if (error) console.warn('address save failed (non-blocking):', error);
+            });
+        }
         const partnerReference = buildPartnerReference(newUserId, new Date());
         supabase.functions
           .invoke('send-transactional-email', {
