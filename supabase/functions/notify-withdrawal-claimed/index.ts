@@ -135,6 +135,29 @@ Deno.serve(async (req) => {
       sent = await sendSMS((requester as any).phone, smsMsg);
     }
 
+    // In-app notification center entry so the requester sees that a named
+    // merchant agent is now processing their withdrawal — independent of SMS.
+    // Fire-and-forget; never let a notification write fail the claim flow.
+    try {
+      await admin.from("notifications").insert({
+        user_id: w.user_id,
+        type: "info",
+        title: "Withdrawal is being processed",
+        message:
+          `Welile merchant agent ${merchantName} is now processing your withdrawal ` +
+          `of UGX ${amount.toLocaleString()}. You'll be notified again once the payout is complete.`,
+        metadata: {
+          kind: "withdrawal_update",
+          stage: "processing",
+          withdrawal_id: w.id,
+          amount,
+          merchant_agent: merchantName,
+        },
+      });
+    } catch (e) {
+      console.warn("[notify-withdrawal-claimed] notification insert failed:", e);
+    }
+
     // Audit trail in the same log Financial Ops already watches.
     try {
       await admin.from("withdrawal_notification_log").insert({
