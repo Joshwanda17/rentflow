@@ -1309,7 +1309,9 @@ Deno.serve(async (req) => {
                   `Welile: Hi ${firstName}, ${fmtUGX(depositRequest.amount)} from ` +
                   `${providerLabelShort} (TID ${txRef}) was auto-credited to your ` +
                   `${bucketLabel} on phone •••${phoneTail}. New ${isFloat ? 'float' : 'wallet'} balance: ` +
-                  `${fmtUGX(newBucketBalance)}.`;
+                  `${fmtUGX(newBucketBalance)}.` +
+                  `\n\nAccess your dashboard to view your wallet, transactions, and account details:\n` +
+                  `https://welilereceipts.com/ZQhyGb`;
                 await sendSmsViaAfricasTalking(depProfile.phone, smsMsg);
               } else {
                 console.warn(
