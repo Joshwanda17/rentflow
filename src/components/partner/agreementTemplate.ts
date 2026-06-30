@@ -57,7 +57,7 @@ function stampHtml(date: Date): string {
   const month = date.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
   const year = date.getFullYear();
   return `
-  <div style="position:absolute; top:50%; right:48px; transform:translateY(-50%) rotate(-37deg) scale(0.64); transform-origin:right center; opacity:0.82; pointer-events:none; z-index:5;">
+  <div style="position:absolute; top:50%; right:72px; transform:translateY(-50%) rotate(-37deg) scale(0.64); transform-origin:right center; opacity:0.82; pointer-events:none; z-index:5;">
     <div style="width:340px; border:5px solid #1134a6; border-radius:12px; padding:16px 20px; text-align:center; background:transparent; box-sizing:border-box;">
       <div style="color:#1134a6; font-family:'Crimson Text','Times New Roman',serif; font-weight:700; font-size:20px; line-height:1.12; letter-spacing:1px; margin-bottom:12px; white-space:nowrap;">WELILE TECHNOLOGIES<br>LIMITED</div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:0 6px;">
