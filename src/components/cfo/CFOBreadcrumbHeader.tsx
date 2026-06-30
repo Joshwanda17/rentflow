@@ -129,8 +129,7 @@ export function CFOBreadcrumbHeader({
         )}
         </ol>
 
-        {(hasPager || actions) && (
-          <div className="flex shrink-0 items-center gap-1 pl-2">
+        <div className="flex shrink-0 items-center gap-1 pl-2">
             <button
               type="button"
               onClick={handleCopyLink}
@@ -174,8 +173,7 @@ export function CFOBreadcrumbHeader({
               </>
             )}
             {actions}
-          </div>
-        )}
+        </div>
       </div>
     </nav>
   );
