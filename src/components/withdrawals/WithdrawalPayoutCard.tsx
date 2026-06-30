@@ -137,6 +137,17 @@ export function WithdrawalPayoutCard({
   const recipientName = withdrawal.profiles?.full_name || 'Unknown';
   const recipientPhone = withdrawal.profiles?.phone || '—';
 
+  const momoNumber = withdrawal.mobile_money_number || recipientPhone;
+  const momoRegisteredName = withdrawal.mobile_money_name || '';
+
+  function copyToClipboard(value: string, label: string) {
+    const v = (value || '').toString().trim();
+    if (!v || v === '—') return;
+    navigator.clipboard?.writeText(v.replace(/\s+/g, ''))
+      .then(() => toast.success(`${label} copied`))
+      .catch(() => toast.error('Could not copy'));
+  }
+
   // Has it been claimed by SOMEONE (me or other) and not yet completed?
   const isAwaitingPayment =
     !!withdrawal.assigned_cashout_agent_id &&
