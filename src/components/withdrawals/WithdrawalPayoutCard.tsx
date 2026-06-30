@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import {
   Banknote, CheckCircle2, Loader2, Building2, Clock, Smartphone,
   UserCheck, ArrowRight, Phone, CreditCard, ChevronDown, XCircle,
+  Copy, AlertTriangle,
 } from 'lucide-react';
 
 export interface WithdrawalPayoutCardProps {
