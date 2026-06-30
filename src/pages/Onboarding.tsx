@@ -57,6 +57,7 @@ type InvestPath = 'tenant' | 'pool' | null;
 interface FormState {
   understoodRole: boolean;
   investPath: InvestPath;
+  supportAmount: string;
   firstName: string;
   lastName: string;
   email: string;
