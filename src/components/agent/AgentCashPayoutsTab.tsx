@@ -299,6 +299,13 @@ export function AgentCashPayoutsTab() {
 
   const handleClaim = (id: string) => {
     if (claimLockRef.current.has(id)) return; // already submitting this request
+    // One claim at a time: block claiming a NEW request while another is open.
+    const alreadyMine = myActiveClaims.some((w: any) => w.id === id);
+    if (!alreadyMine && myActiveClaims.length > 0) {
+      toast.error('Finish your current claim before claiming another.');
+      claimedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     claimLockRef.current.add(id);
     setClaimingIds(new Set(claimLockRef.current));
     toast.info('Claiming withdrawal… please wait', { id: `claim-${id}`, duration: 4000 });
