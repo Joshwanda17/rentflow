@@ -53,14 +53,14 @@ function stampHtml(date: Date, pos: string, scale = 1): string {
   const year = date.getFullYear();
   return `
   <div style="position:absolute; ${pos} transform:rotate(-2deg) scale(${scale}); transform-origin:top right; opacity:0.85; pointer-events:none; z-index:5;">
-    <div style="width:320px; border:5px solid #1134a6; border-radius:12px; padding:16px 22px; text-align:center; background:transparent; box-sizing:border-box;">
-      <div style="color:#1134a6; font-family:'Crimson Text','Times New Roman',serif; font-weight:700; font-size:23px; line-height:1.1; letter-spacing:1px; margin-bottom:14px;">WELILE TECHNOLOGIES<br>LIMITED</div>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; padding:0 8px;">
-        <span style="color:#1134a6; font-size:30px; line-height:1;">&#9733;</span>
-        <span style="color:#e51921; font-family:'Oswald','Arial Narrow',Arial,sans-serif; font-size:32px; font-weight:600; letter-spacing:2px;">${day} ${month} ${year}</span>
-        <span style="color:#1134a6; font-size:30px; line-height:1;">&#9733;</span>
+    <div style="width:340px; border:5px solid #1134a6; border-radius:12px; padding:16px 20px; text-align:center; background:transparent; box-sizing:border-box;">
+      <div style="color:#1134a6; font-family:'Crimson Text','Times New Roman',serif; font-weight:700; font-size:20px; line-height:1.12; letter-spacing:1px; margin-bottom:12px; white-space:nowrap;">WELILE TECHNOLOGIES<br>LIMITED</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:0 6px;">
+        <span style="color:#1134a6; font-size:28px; line-height:1;">&#9733;</span>
+        <span style="color:#e51921; font-family:'Oswald','Arial Narrow',Arial,sans-serif; font-size:28px; font-weight:600; letter-spacing:1.5px; white-space:nowrap;">${day} ${month} ${year}</span>
+        <span style="color:#1134a6; font-size:28px; line-height:1;">&#9733;</span>
       </div>
-      <div style="color:#1134a6; font-family:'Nunito','Trebuchet MS',sans-serif; font-size:16px; font-weight:700; letter-spacing:0.5px;">PO Box 167564 Kampala Uganda</div>
+      <div style="color:#1134a6; font-family:'Nunito','Trebuchet MS',sans-serif; font-size:15px; font-weight:700; letter-spacing:0.5px; white-space:nowrap;">PO Box 167564 Kampala Uganda</div>
     </div>
   </div>`;
 }
