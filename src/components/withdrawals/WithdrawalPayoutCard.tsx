@@ -185,10 +185,16 @@ export function WithdrawalPayoutCard({
     : null;
   const isStale = claimedMinutesAgo !== null && claimedMinutesAgo >= 15;
 
-  // What the merchant agent earns for processing this payout: 0.5% commission
-  // (matches approve-withdrawal: Math.round(amount * 0.005)). Shown up front so
-  // the agent sees their reward BEFORE claiming.
-  const agentEarning = Math.max(0, Math.round(Number(withdrawal.amount || 0) * 0.005));
+  // What the merchant agent earns for processing this payout.
+  // Matches approve-withdrawal: gross commission = round(amount * 0.005) = 0.5%.
+  // No platform/service fee is deducted from the agent's commission, so the
+  // net earning equals the gross commission. These figures are derived here so
+  // the breakdown shown in the claim dialog reconciles 1:1 with what is credited.
+  const payoutAmount = Math.max(0, Number(withdrawal.amount || 0));
+  const COMMISSION_RATE = 0.005; // 0.5%
+  const grossCommission = Math.round(payoutAmount * COMMISSION_RATE);
+  const platformServiceFee = 0; // Welile takes no cut from the agent commission
+  const agentEarning = Math.max(0, grossCommission - platformServiceFee);
 
   // Record exactly what the agent confirmed at claim time so it can be
   // reviewed later (which number / which registered name they accepted,
