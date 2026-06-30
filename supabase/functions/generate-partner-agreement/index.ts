@@ -529,6 +529,7 @@ async function renderPdf({ row, countersign, rep, repSignatureBytes }: RenderArg
 
   sigBlockTitle('Signed by the said Tenant Partner');
   sigField('Name', name);
+  sigField('National ID / Passport No.', nationalId);
   sigField('Residence', address);
   sigField('Contact (Telephone)', partnerPhone);
   sigField('Email', partnerEmail);
