@@ -1,7 +1,9 @@
 import { useState, lazy, Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
+import { downloadMerchantAgreementPdf } from '@/components/merchant/agreement/merchantAgreementPdf';
+import { useProfile } from '@/hooks/useProfile';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import { useAgentAgreement } from '@/hooks/useAgentAgreement';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
@@ -42,6 +44,7 @@ function AgreementRow({ label, accepted, acceptedAt, onView, note }: { label: st
 
 export default function LegalSection({ roles }: { roles: AppRole[] }) {
   const tenantAgreement = useTenantAgreement();
+  const { profile } = useProfile();
   const agentAgreement = useAgentAgreement();
   const supporterAgreement = useSupporterAgreement();
   const employeeAgreement = useEmployeeAgreement();
@@ -129,6 +132,28 @@ export default function LegalSection({ roles }: { roles: AppRole[] }) {
               note="Required to lend from your wallet to Welile users"
             />
           )}
+
+          {/* === Merchant Agent (Cash-Out Agent) Agreement — downloadable PDF === */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/30">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium text-sm">Merchant Agent Agreement</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  Cash-Out Agent — float distribution &amp; payout services
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadMerchantAgreementPdf({ name: profile?.full_name, phone: profile?.phone })}
+              className="shrink-0 text-xs h-8 gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              PDF
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
