@@ -547,7 +547,8 @@ async function renderPdf({ row, countersign, rep, repSignatureBytes }: RenderArg
   sigField('Signature', UNKNOWN);
 
   // ── FOOTER + E-STAMP on every page ──
-  const stampDate = `${String(day).padStart(2, '0')} ${date.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }).toUpperCase()} ${year}`;
+  const stampDay = `${String(day).padStart(2, '0')} ${date.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }).toUpperCase()}`;
+  const stampYear = `${year}`;
   const total = pages.length;
   pages.forEach((p, idx) => {
     // footer
@@ -560,26 +561,39 @@ async function renderPdf({ row, countersign, rep, repSignatureBytes }: RenderArg
     const pnW = fontN.widthOfTextAtSize(pn, 8);
     p.drawText(pn, { x: pageW - margin - pnW, y: 30, size: 8, font: fontN, color: INK });
     // stamp (skip cover page idx 0 for clarity, place on all content pages)
-    drawStamp(p, fontB, pageW - margin - 36, pageH / 2, stampDate);
+    drawStamp(p, fontB, pageW - margin - 70, pageH / 2, stampDay, stampYear);
   });
 
   return await pdf.save();
 }
 
-function drawStamp(page: any, fontB: any, cx: number, cy: number, dateStr: string) {
-  const w = 150, h = 80;
-  const x = cx - w / 2, y = cy - h / 2;
+// Rubber-stamp rendered at an angle, matching the printed contract stamp.
+function drawStamp(page: any, fontB: any, cx: number, cy: number, dayMon: string, yearStr: string) {
+  const angleDeg = -37;
+  const rad = (angleDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
   const opacity = 0.5;
-  page.drawRectangle({ x, y, width: w, height: h, borderColor: STAMP_BLUE, borderWidth: 3, opacity: 0, borderOpacity: opacity });
-  const c1 = 'WELILE TECHNOLOGIES';
-  const c1w = fontB.widthOfTextAtSize(c1, 11);
-  page.drawText(c1, { x: cx - c1w / 2, y: y + h - 22, size: 11, font: fontB, color: STAMP_BLUE, opacity });
-  const c2 = 'LIMITED';
-  const c2w = fontB.widthOfTextAtSize(c2, 11);
-  page.drawText(c2, { x: cx - c2w / 2, y: y + h - 36, size: 11, font: fontB, color: STAMP_BLUE, opacity });
-  const dw = fontB.widthOfTextAtSize(dateStr, 10);
-  page.drawText(dateStr, { x: cx - dw / 2, y: y + 20, size: 10, font: fontB, color: STAMP_RED, opacity });
-  const kla = 'KAMPALA, UGANDA';
-  const kw = fontB.widthOfTextAtSize(kla, 7);
-  page.drawText(kla, { x: cx - kw / 2, y: y + 8, size: 7, font: fontB, color: STAMP_BLUE, opacity });
+  // Rotate a local (dx, dy) offset (relative to the stamp centre) into page space.
+  const rot = (dx: number, dy: number) => ({ x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos });
+
+  const w = 150, h = 92;
+  // Outer + inner borders (anchored at their bottom-left corner, then rotated).
+  const outerBL = rot(-w / 2, -h / 2);
+  page.drawRectangle({ x: outerBL.x, y: outerBL.y, width: w, height: h, rotate: degrees(angleDeg), borderColor: STAMP_BLUE, borderWidth: 2.5, opacity: 0, borderOpacity: opacity });
+  const innerBL = rot(-w / 2 + 5, -h / 2 + 5);
+  page.drawRectangle({ x: innerBL.x, y: innerBL.y, width: w - 10, height: h - 10, rotate: degrees(angleDeg), borderColor: STAMP_BLUE, borderWidth: 1, opacity: 0, borderOpacity: opacity * 0.85 });
+
+  // Centred line of text at a given local baseline height (localY, positive = up).
+  const line = (text: string, localY: number, size: number, color: any) => {
+    const tw = fontB.widthOfTextAtSize(text, size);
+    const start = rot(-tw / 2, localY);
+    page.drawText(text, { x: start.x, y: start.y, size, font: fontB, color, rotate: degrees(angleDeg), opacity });
+  };
+
+  line('WELILE', 26, 12, STAMP_BLUE);
+  line('TECHNOLOGIES', 13, 12, STAMP_BLUE);
+  line(dayMon, -4, 13, STAMP_RED);
+  line(yearStr, -19, 13, STAMP_RED);
+  line('PO Box 167564 Kampala Uganda', -34, 7, STAMP_BLUE);
 }
