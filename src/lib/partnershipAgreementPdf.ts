@@ -268,23 +268,61 @@ export async function generatePartnershipAgreementPDF(
   paragraph('All partner contributions to the Company shall be made only through the approved payment channels listed below. The Partner should confirm payment details with the Company before making any transfer.');
 
   const channels: [string, string][] = [
-    ['Airtel Money', 'Dial *185*9#  •  Merchant ID: 4380664'],
-    ['MTN MoMo', 'Use MoMo App or dial *165*3#  •  MoMo Code: 090777'],
-    ['Bank Transfer (Equity Bank)', 'Account Name: Welile Technologies Limited  •  Account No: 1046203375259  •  SWIFT: EQBLUGKA'],
+  // Render the approved channels as a 3-column table (Channel | Instruction | Details).
+  const tableRows: [string, string, string][] = [
+    ['Airtel Money', 'Dial *185*9#', 'Merchant ID: 4380664'],
+    ['MTN MoMo', 'Use MoMo App or dial *165*3#', 'MoMo Code: 090777'],
+    [
+      'Bank Transfer',
+      'Equity Bank',
+      'Account Name: Welile Technologies Limited\nAccount Number: 1046203375259\nSWIFT Code: EQBLUGKA',
+    ],
   ];
-  channels.forEach(([k, v]) => {
-    ensureSpace(12);
-    doc.setFont('times', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(...INK);
-    doc.text(k, margin, y);
-    y += 5;
-    doc.setFont('times', 'normal');
-    doc.setTextColor(...MUTED);
-    const lines = doc.splitTextToSize(v, contentW);
-    lines.forEach((line: string) => { ensureSpace(6); doc.text(line, margin, y); y += 5; });
-    y += 2;
-  });
+
+  const colW = [contentW * 0.24, contentW * 0.34, contentW * 0.42];
+  const colX = [margin, margin + colW[0], margin + colW[0] + colW[1]];
+  const padX = 2.5;
+  const lineH = 5;
+  const cellPadY = 3;
+
+  const wrapCell = (text: string, w: number) => {
+    // Honour explicit line breaks first, then wrap each segment.
+    return text.split('\n').flatMap((seg) => doc.splitTextToSize(seg, w - padX * 2) as string[]);
+  };
+
+  const drawRow = (cells: string[], isHeader: boolean) => {
+    doc.setFont('times', isHeader ? 'bold' : 'normal');
+    doc.setFontSize(isHeader ? 10 : 10.5);
+    const wrapped = cells.map((c, i) => wrapCell(c, colW[i]));
+    const rowH = Math.max(...wrapped.map((w) => w.length)) * lineH + cellPadY * 2;
+    ensureSpace(rowH);
+    const rowTop = y;
+    if (isHeader) {
+      doc.setFillColor(241, 245, 249); // slate-100
+      doc.rect(margin, rowTop, contentW, rowH, 'F');
+    }
+    // Cell text
+    doc.setTextColor(...(isHeader ? INK : MUTED));
+    wrapped.forEach((lines, i) => {
+      let ty = rowTop + cellPadY + lineH - 1.5;
+      lines.forEach((ln) => {
+        doc.text(ln, colX[i] + padX, ty);
+        ty += lineH;
+      });
+    });
+    // Borders
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.2);
+    doc.rect(margin, rowTop, contentW, rowH);
+    doc.line(colX[1], rowTop, colX[1], rowTop + rowH);
+    doc.line(colX[2], rowTop, colX[2], rowTop + rowH);
+    y = rowTop + rowH;
+  };
+
+  ensureSpace(14);
+  drawRow(['CHANNEL', 'INSTRUCTION', 'DETAILS'], true);
+  tableRows.forEach((r) => drawRow(r, false));
+  y += 4;
 
   // ─────────────── SIGNATURES ───────────────
   ensureSpace(14);
