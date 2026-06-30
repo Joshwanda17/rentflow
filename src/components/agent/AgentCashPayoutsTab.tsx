@@ -896,7 +896,7 @@ export function AgentCashPayoutsTab() {
       {/* My Active Claims — pinned to the very top so a request YOU claimed is
           always clearly separated from the rest of the queue and can't be missed. */}
       {myActiveClaims.length > 0 && (
-        <Card className="border-2 border-amber-500/60 bg-amber-500/10 rounded-2xl shadow-lg ring-2 ring-amber-500/20">
+        <Card ref={claimedSectionRef} className="border-2 border-amber-500/60 bg-amber-500/10 rounded-2xl shadow-lg ring-2 ring-amber-500/20 scroll-mt-4">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold uppercase tracking-wide flex items-center gap-2 text-amber-700 dark:text-amber-400">
               <UserCheck className="h-4 w-4" />
