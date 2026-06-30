@@ -320,6 +320,7 @@ Deno.serve(async (req) => {
       from: (
         templateName.startsWith('partnership-') ||
         templateName.startsWith('partner-') ||
+        templateName === 'tenant-partnership-agreement' ||
         templateName === 'portfolio-renewal' ||
         templateName === 'returns-disbursement-confirmation' ||
         templateName === 'angel-pool-share-purchase'
