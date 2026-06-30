@@ -1,44 +1,75 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
-interface Options {
-  onSwipeLeft?: () => void;
-  onSwipeRight?: () => void;
+interface SwipeOptions {
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
   /** Minimum horizontal distance (px) to count as a swipe. */
   threshold?: number;
-  /** Max vertical drift (px) allowed before we treat it as a scroll, not a swipe. */
-  maxVertical?: number;
+  /** Disable entirely (e.g. on desktop). */
+  enabled?: boolean;
 }
 
 /**
- * Lightweight touch-swipe detector. Returns props you spread on the swipe
- * target. Ignores vertical scrolls and short taps. Pointer-events-based so
- * it also works with stylus / mouse drags.
+ * Attaches left/right swipe detection to a container element.
+ *
+ * Designed for phone tab navigation: a clearly-horizontal drag flips to the
+ * next/previous section. Swipes that begin inside a horizontally-scrollable
+ * area, a form control, or anything marked `data-swipe-ignore` are skipped so
+ * they don't fight the user scrolling a table or chip row.
  */
-export function useHorizontalSwipe({
+export function useHorizontalSwipe<T extends HTMLElement>({
   onSwipeLeft,
   onSwipeRight,
-  threshold = 60,
-  maxVertical = 50,
-}: Options) {
-  const start = useRef<{ x: number; y: number; t: number } | null>(null);
+  threshold = 70,
+  enabled = true,
+}: SwipeOptions) {
+  const ref = useRef<T | null>(null);
 
-  return {
-    onTouchStart: (e: React.TouchEvent) => {
-      const t = e.touches[0];
-      start.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-    },
-    onTouchEnd: (e: React.TouchEvent) => {
-      if (!start.current) return;
-      const t = e.changedTouches[0];
-      const dx = t.clientX - start.current.x;
-      const dy = t.clientY - start.current.y;
-      const dt = Date.now() - start.current.t;
-      start.current = null;
-      if (dt > 600) return; // too slow → likely a scroll/long-press
-      if (Math.abs(dy) > maxVertical) return; // vertical scroll
-      if (Math.abs(dx) < threshold) return;
-      if (dx < 0) onSwipeLeft?.();
-      else onSwipeRight?.();
-    },
-  };
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !enabled) return;
+
+    let startX = 0;
+    let startY = 0;
+    let active = false;
+
+    const shouldIgnore = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return false;
+      return !!target.closest(
+        '[data-swipe-ignore], .overflow-x-auto, input, textarea, select, [role="slider"], [contenteditable="true"]',
+      );
+    };
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1 || shouldIgnore(e.target)) {
+        active = false;
+        return;
+      }
+      active = true;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      if (!active) return;
+      active = false;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      // Must be mostly horizontal and exceed the threshold.
+      if (Math.abs(dx) < threshold || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (dx < 0) onSwipeLeft();
+      else onSwipeRight();
+    };
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchend', onEnd);
+    };
+  }, [onSwipeLeft, onSwipeRight, threshold, enabled]);
+
+  return ref;
 }
