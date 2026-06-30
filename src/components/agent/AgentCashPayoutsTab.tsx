@@ -728,7 +728,25 @@ export function AgentCashPayoutsTab() {
     }, Infinity);
     if (!Number.isFinite(earliestDispatch)) return;
     if (nowTs - earliestDispatch >= CLAIM_WINDOW_MS) {
-      // Time's up — hand the unfinished claim back to the queue.
+      // Time's up — figure out exactly which of MY claims have expired so we can
+      // notify each affected recipient (on the MoMo number they wanted to be
+      // paid on, falling back to their profile phone). De-dupe via a ref so the
+      // per-second ticker doesn't fire the SMS repeatedly before the refetch.
+      const expiredIds: string[] = myActiveClaims
+        .filter((w: any) => {
+          const t = w.dispatched_at ? new Date(w.dispatched_at).getTime() : 0;
+          return t && nowTs - t >= CLAIM_WINDOW_MS && !releaseNotifiedRef.current.has(w.id);
+        })
+        .map((w: any) => w.id);
+      if (expiredIds.length > 0) {
+        expiredIds.forEach((id) => releaseNotifiedRef.current.add(id));
+        supabase.functions
+          .invoke('notify-withdrawal-released', {
+            body: { withdrawal_ids: expiredIds, reason: 'timeout' },
+          })
+          .catch((e) => console.warn('[cashout] timeout release notify failed', e));
+      }
+      // Hand the unfinished claim(s) back to the queue.
       releaseExpiredClaims().finally(() => {
         toast.info('Claim time elapsed — the request was returned to the queue.');
         invalidateQueue();
