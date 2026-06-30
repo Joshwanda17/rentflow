@@ -6,6 +6,7 @@ import { toast, Toaster } from 'sonner';
 import {
   ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
   ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock, MapPin,
+  Building2, CreditCard, User, Hash, Users, Landmark,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { signUp } from '@/hooks/auth/authOperations';
@@ -65,6 +66,11 @@ interface FormState {
   confirmPassword: string;
   phone: string;
   address: string;
+  bankName: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  kinName: string;
+  kinContact: string;
   agreedToTerms: boolean;
 }
 
@@ -551,6 +557,98 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  return _Step3Impl({ form, setForm, showPw, setShowPw, showConfirm, setShowConfirm });
+}
+
+// ─── Step (Banking & Next of Kin) ─────────────────────────────────────────────
+function StepBankKin({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
+  const fieldClass =
+    'w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all';
+  const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(p => ({ ...p, [key]: e.target.value }));
+
+  return (
+    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
+      <motion.div variants={fadeUp}>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-8 h-8 rounded-xl bg-[#6c11d4]/10 flex items-center justify-center">
+            <Landmark size={16} className="text-[#6c11d4]" strokeWidth={1.75} />
+          </div>
+          <span className="text-xs font-bold text-[#6c11d4] tracking-wide uppercase">Agreement Details</span>
+        </div>
+        <h2 className="text-[22px] font-black text-gray-900 tracking-tight leading-tight">
+          Banking &amp; Next of Kin
+        </h2>
+        <p className="text-xs text-gray-400 mt-1.5">
+          These details complete your Welile Partnership Agreement and route your payouts.
+        </p>
+      </motion.div>
+
+      {/* Bank details */}
+      <motion.div variants={fadeUp} className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
+        <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Bank Details</p>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Bank Name</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Building2 size={15} strokeWidth={1.75} /></div>
+            <input type="text" placeholder="e.g. Stanbic Bank" value={form.bankName} onChange={set('bankName')} className={fieldClass} />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Name</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><User size={15} strokeWidth={1.75} /></div>
+            <input type="text" placeholder="Name on the account" value={form.bankAccountName} onChange={set('bankAccountName')} className={fieldClass} />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Account Number</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><CreditCard size={15} strokeWidth={1.75} /></div>
+            <input type="text" inputMode="numeric" placeholder="Account number" value={form.bankAccountNumber} onChange={set('bankAccountNumber')} className={fieldClass} />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Next of kin */}
+      <motion.div variants={fadeUp} className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
+        <p className="text-[10px] font-black text-[#6c11d4] uppercase tracking-widest">Next of Kin</p>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Next of Kin Name</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Users size={15} strokeWidth={1.75} /></div>
+            <input type="text" placeholder="Full name" value={form.kinName} onChange={set('kinName')} className={fieldClass} />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Next of Kin Contact</label>
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Phone size={15} strokeWidth={1.75} /></div>
+            <input type="tel" placeholder="+256 700 000 000" value={form.kinContact} onChange={set('kinContact')} className={fieldClass} />
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Step 4 — Register ───────────────────────────────────────────────────────
+function _Step3Impl({
+  form, setForm, showPw, setShowPw, showConfirm, setShowConfirm,
+}: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  showPw: boolean;
+  setShowPw: React.Dispatch<React.SetStateAction<boolean>>;
+  showConfirm: boolean;
+  setShowConfirm: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
+
   const strength = form.password.length > 0 ? getStrength(form.password) : null;
   const passwordsMatch = form.password === form.confirmPassword;
 
@@ -796,6 +894,14 @@ function isValid(step: number, form: FormState): boolean {
     return amount >= MIN_SUPPORT;
   }
   if (step === 3) {
+    const bankOk = form.bankName.trim().length >= 2;
+    const accNameOk = form.bankAccountName.trim().length >= 2;
+    const accNoOk = form.bankAccountNumber.trim().length >= 4;
+    const kinNameOk = form.kinName.trim().length >= 2;
+    const kinContactOk = form.kinContact.trim().length >= 7;
+    return bankOk && accNameOk && accNoOk && kinNameOk && kinContactOk;
+  }
+  if (step === 4) {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
     const nameOk = form.firstName.length >= 2 && form.lastName.length >= 2;
     const pwOk = form.password.length >= 8;
@@ -807,7 +913,7 @@ function isValid(step: number, form: FormState): boolean {
   return false;
 }
 
-const STEP_LABELS = ['Welcome', 'Support', 'Create Account'];
+const STEP_LABELS = ['Welcome', 'Support', 'Bank & Next of Kin', 'Create Account'];
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function FunderOnboarding() {
@@ -830,7 +936,7 @@ export default function FunderOnboarding() {
   }, [isSubmitting]);
 
   const [apiError, setApiError] = useState('');
-  const TOTAL = 3;
+  const TOTAL = 4;
 
   // Capture ?ref=<uuid> from the URL once on mount and persist it across the
   // email-confirmation round-trip via sessionStorage. The handle_new_user
@@ -866,6 +972,11 @@ export default function FunderOnboarding() {
     confirmPassword: '',
     phone: '',
     address: '',
+    bankName: '',
+    bankAccountName: '',
+    bankAccountNumber: '',
+    kinName: '',
+    kinContact: '',
     agreedToTerms: false,
   });
 
@@ -914,6 +1025,11 @@ export default function FunderOnboarding() {
         const cleanLast = sanitizeInput(form.lastName).trim();
         const cleanPhone = sanitizeInput(form.phone).trim();
         const cleanAddress = sanitizeInput(form.address).trim();
+        const cleanBankName = sanitizeInput(form.bankName).trim();
+        const cleanBankAccountName = sanitizeInput(form.bankAccountName).trim();
+        const cleanBankAccountNumber = sanitizeInput(form.bankAccountNumber).trim();
+        const cleanKinName = sanitizeInput(form.kinName).trim();
+        const cleanKinContact = sanitizeInput(form.kinContact).trim();
 
         const signupResult = await registerUser({
           email: cleanEmail,
@@ -938,6 +1054,23 @@ export default function FunderOnboarding() {
               if (error) console.warn('address save failed (non-blocking):', error);
             });
         }
+        // Persist the funder's bank details as a saved payout method (non-blocking).
+        if (newUserId && cleanBankName && cleanBankAccountNumber) {
+          supabase
+            .from('saved_payout_methods')
+            .insert({
+              user_id: newUserId,
+              payout_mode: 'bank',
+              nickname: cleanBankName,
+              bank_name: cleanBankName,
+              bank_account_name: cleanBankAccountName,
+              bank_account_number: cleanBankAccountNumber,
+              is_default: true,
+            })
+            .then(({ error }) => {
+              if (error) console.warn('bank details save failed (non-blocking):', error);
+            });
+        }
         const partnerReference = buildPartnerReference(newUserId, new Date());
         supabase.functions
           .invoke('send-transactional-email', {
@@ -948,6 +1081,13 @@ export default function FunderOnboarding() {
                 partner_name: `${cleanFirst} ${cleanLast}`.trim() || 'Partner',
                 partner_email: cleanEmail,
                 partner_reference: partnerReference,
+                partner_phone: cleanPhone,
+                partner_address: cleanAddress,
+                bank_name: cleanBankName,
+                bank_account_name: cleanBankAccountName,
+                bank_account_number: cleanBankAccountNumber,
+                kin_name: cleanKinName,
+                kin_contact: cleanKinContact,
                 agreement_download_url: `${window.location.origin}/legal/welile-partnership-agreement.pdf`,
                 company_name: 'WELILE TECHNOLOGIES LTD',
               },
@@ -978,7 +1118,8 @@ export default function FunderOnboarding() {
   const stepComponents: Record<number, React.ReactNode> = {
     1: <Step1 form={form} setForm={setForm} />,
     2: <Step2 form={form} setForm={setForm} showError={showStepError} />,
-    3: <Step3 form={form} setForm={setForm} />,
+    3: <StepBankKin form={form} setForm={setForm} />,
+    4: <Step3 form={form} setForm={setForm} />,
   };
 
   return (
@@ -1094,7 +1235,8 @@ export default function FunderOnboarding() {
                   <Lock size={16} strokeWidth={2} />
                   {step === 1 && 'Confirm above to continue'}
                   {step === 2 && 'Choose a contribution style'}
-                  {step === 3 && 'Fill in all fields to continue'}
+                  {step === 3 && 'Fill in bank & next of kin details'}
+                  {step === 4 && 'Fill in all fields to continue'}
                 </>
               ) : step === TOTAL ? (
                 isSubmitting ? (
