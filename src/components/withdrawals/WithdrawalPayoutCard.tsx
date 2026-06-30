@@ -185,6 +185,43 @@ export function WithdrawalPayoutCard({
     : null;
   const isStale = claimedMinutesAgo !== null && claimedMinutesAgo >= 15;
 
+  // Record exactly what the agent confirmed at claim time so it can be
+  // reviewed later (which number / which registered name they accepted,
+  // whether the typed name mismatched, and if they acknowledged it).
+  async function recordClaimConfirmation() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const confirmedName = isMoMo
+        ? (enteredNameTrimmed || momoRegisteredName || recipientName)
+        : (isBank ? (withdrawal.bank_account_name || recipientName) : recipientName);
+      const confirmedNumber = isMoMo
+        ? momoNumber
+        : (isBank ? (withdrawal.bank_account_number || '—') : recipientPhone);
+      const reason = `Merchant confirmed payout to ${confirmedNumber} (${confirmedName || 'name not provided'})`;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id ?? null,
+        action_type: 'merchant_payout_claim_confirmed',
+        table_name: 'withdrawal_requests',
+        record_id: withdrawal.id,
+        reason: reason.slice(0, 500),
+        metadata: {
+          payout_method: method,
+          amount: Number(withdrawal.amount || 0),
+          confirmed_momo_number: isMoMo ? momoNumber : null,
+          registered_momo_name: isMoMo ? (momoRegisteredName || null) : null,
+          agent_entered_screen_name: isMoMo ? (enteredNameTrimmed || null) : null,
+          name_mismatch: !!nameMismatch,
+          mismatch_acknowledged: nameMismatch ? !!mismatchAcknowledged : null,
+          confirmed_account_number: isBank ? (withdrawal.bank_account_number || null) : null,
+          confirmed_account_name: isBank ? (withdrawal.bank_account_name || null) : null,
+          confirmed_at: new Date().toISOString(),
+        },
+      });
+    } catch (auditErr) {
+      console.warn('[withdrawal-claim] confirmation audit log failed', auditErr);
+    }
+  }
+
   return (
     <Card className={`rounded-2xl ${isClaimedByOther && !readOnly ? 'opacity-50' : ''}`}>
       <Collapsible open={open} onOpenChange={setOpen}>
