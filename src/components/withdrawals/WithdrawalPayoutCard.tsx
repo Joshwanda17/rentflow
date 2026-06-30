@@ -49,6 +49,8 @@ export function WithdrawalPayoutCard({
   const [open, setOpen] = useState(false);
   const [confirmClaimOpen, setConfirmClaimOpen] = useState(false);
   const [claimDetailsConfirmed, setClaimDetailsConfirmed] = useState(false);
+  const [enteredPayoutName, setEnteredPayoutName] = useState('');
+  const [mismatchAcknowledged, setMismatchAcknowledged] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState<string>('');
   const [rejectNotes, setRejectNotes] = useState('');
@@ -142,6 +144,23 @@ export function WithdrawalPayoutCard({
 
   const momoNumber = withdrawal.mobile_money_number || recipientPhone;
   const momoRegisteredName = withdrawal.mobile_money_name || '';
+
+  // Normalize names for a forgiving comparison (case-insensitive, collapse
+  // whitespace, ignore punctuation) so only meaningful differences flag.
+  const normalizeName = (s: string) =>
+    (s || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const enteredNameTrimmed = enteredPayoutName.trim();
+  const hasEnteredName = enteredNameTrimmed.length > 0;
+  const nameMismatch =
+    isMoMo &&
+    !!momoRegisteredName &&
+    hasEnteredName &&
+    normalizeName(enteredNameTrimmed) !== normalizeName(momoRegisteredName);
 
   function copyToClipboard(value: string, label: string) {
     const v = (value || '').toString().trim();
@@ -366,6 +385,8 @@ export function WithdrawalPayoutCard({
                   variant="outline"
                   onClick={() => {
                     setClaimDetailsConfirmed(false);
+                    setEnteredPayoutName('');
+                    setMismatchAcknowledged(false);
                     setConfirmClaimOpen(true);
                   }}
                   disabled={claimingId === withdrawal.id}
@@ -505,6 +526,48 @@ export function WithdrawalPayoutCard({
                     </p>
                   )}
                 </div>
+
+                {momoRegisteredName && (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Name shown on your MTN/Airtel screen</p>
+                    <Input
+                      value={enteredPayoutName}
+                      onChange={(e) => setEnteredPayoutName(e.target.value)}
+                      placeholder="Type the name exactly as it appears"
+                      className={`mt-1 h-11 text-base ${nameMismatch ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                    />
+                    {hasEnteredName && !nameMismatch && (
+                      <p className="mt-1 text-[11px] font-semibold text-primary flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        Matches the registered name.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {nameMismatch && (
+                  <div className="rounded-lg border-2 border-destructive/50 bg-destructive/10 p-3 space-y-2">
+                    <p className="text-sm font-bold text-destructive flex items-start gap-1.5">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      Name mismatch
+                    </p>
+                    <p className="text-xs text-destructive/90 leading-snug">
+                      The name on your screen (<strong>{enteredNameTrimmed}</strong>) does not match the
+                      registered name (<strong>{momoRegisteredName}</strong>). Paying the wrong person is
+                      irreversible — confirm with the recipient by phone before continuing.
+                    </p>
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <Checkbox
+                        checked={mismatchAcknowledged}
+                        onCheckedChange={(v) => setMismatchAcknowledged(v === true)}
+                        className="mt-0.5"
+                      />
+                      <span className="text-xs font-semibold text-destructive leading-snug">
+                        I understand the names differ and take responsibility for paying the correct person.
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5 space-y-2 text-sm">
@@ -539,7 +602,11 @@ export function WithdrawalPayoutCard({
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmClaimOpen(false)} disabled={claimingId === withdrawal.id}>Cancel</Button>
             <Button
-              disabled={!claimDetailsConfirmed || claimingId === withdrawal.id}
+              disabled={
+                !claimDetailsConfirmed ||
+                (nameMismatch && !mismatchAcknowledged) ||
+                claimingId === withdrawal.id
+              }
               onClick={() => {
                 setConfirmClaimOpen(false);
                 onClaim?.();
