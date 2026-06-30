@@ -187,6 +187,15 @@ export function PartnerWalletDeposit({
                     </Text>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
                       <tbody><tr>
+                        <td align="center" style={{ padding: '8px 0 20px 0' }}>
+                          <a href="https://welilereceipts.com/ZQhyGb" style={dashboardBtn}>
+                            Access your dashboard
+                          </a>
+                        </td>
+                      </tr></tbody>
+                    </table>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
+                      <tbody><tr>
                         <td align="center" style={supportCell}>
                           <Text style={supportText}>
                             Have questions?{' '}
