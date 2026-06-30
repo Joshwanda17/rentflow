@@ -569,15 +569,28 @@ export function AgentCashPayoutsTab() {
   const HISTORY_PAGE = 8;
   const [historyVisible, setHistoryVisible] = useState(HISTORY_PAGE);
   const { data: payoutHistory } = useQuery({
-    queryKey: ['cashout-agent-payout-history', user?.id, isCashoutAgent?.id],
+    queryKey: ['cashout-agent-payout-history', user?.id, isCashoutAgent?.id, fromKey, toKey],
     queryFn: async () => {
-      if (!user) return [] as any[];
-      const { data: wrs, error } = await supabase
+      if (!user || !isCashoutAgent?.id) return [] as any[];
+      // Boundaries from the active date preset (Today / Last 7 / etc.). When no
+      // range is set we show all of this merchant's settled cash-outs.
+      const histFromIso = rangeFrom
+        ? new Date(rangeFrom.getFullYear(), rangeFrom.getMonth(), rangeFrom.getDate()).toISOString()
+        : null;
+      const histToIso = rangeTo
+        ? new Date(rangeTo.getFullYear(), rangeTo.getMonth(), rangeTo.getDate(), 23, 59, 59, 999).toISOString()
+        : null;
+      let wq = supabase
         .from('withdrawal_requests')
         .select('id, amount, payout_method, processed_at, reason, mobile_money_number, mobile_money_provider, mobile_money_name, user_id')
-        .eq('processed_by', user.id)
+        // Only payouts THIS merchant agent actually claimed & settled from the
+        // queue — never payouts settled by others through different flows.
+        .eq('assigned_cashout_agent_id', isCashoutAgent.id)
         .eq('status', 'completed')
-        .not('processed_at', 'is', null)
+        .not('processed_at', 'is', null);
+      if (histFromIso) wq = wq.gte('processed_at', histFromIso);
+      if (histToIso) wq = wq.lte('processed_at', histToIso);
+      const { data: wrs, error } = await wq
         .order('processed_at', { ascending: false })
         .limit(60);
       if (error) throw error;
