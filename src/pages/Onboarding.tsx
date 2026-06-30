@@ -956,10 +956,10 @@ export default function FunderOnboarding() {
       <Toaster position="top-center" />
       <Helmet>
         <title>Become a Welile Funder — Fund the Future of Housing</title>
-        <meta name="description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 20,000." />
+        <meta name="description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 50,000." />
         <link rel="canonical" href="https://welilereceipts.com/funder-onboarding" />
         <meta property="og:title" content="Become a Welile Funder — Fund the Future of Housing" />
-        <meta property="og:description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 20,000." />
+        <meta property="og:description" content="Empower verified tenants and grow your active capital with steady, managed returns. Start funding from as little as UGX 50,000." />
         <meta property="og:url" content="https://welilereceipts.com/funder-onboarding" />
       </Helmet>
 
