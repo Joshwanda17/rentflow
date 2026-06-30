@@ -466,7 +466,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'];
   const CLAIM_WINDOW_MS = 15 * 60 * 1000;
   const COMMISSION_RATE = 0.005;
-  const { data: pendingEarnings } = useQuery({
+  const { data: pendingEarnings, dataUpdatedAt: pendingUpdatedAt, isFetching: pendingFetching } = useQuery({
     queryKey: ['cashout-pending-earnings', user.id],
     enabled: !!isCashoutAgent,
     staleTime: 30_000,
