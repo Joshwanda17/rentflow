@@ -767,19 +767,19 @@ export function AgentCashPayoutsTab() {
   // race-safe operation. If two agents click "Claim" at the same instant, only the
   // first transaction commits; the second matches 0 rows and we surface a clear error.
   const claimWithdrawal = useMutation({
-    mutationFn: async (withdrawalId: string) => {
-      const { data, error } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          assigned_cashout_agent_id: isCashoutAgent?.id,
-          dispatched_at: new Date().toISOString(),
-        } as any)
-        .eq('id', withdrawalId)
-        .is('assigned_cashout_agent_id', null) // race guard
-        .select('id');
+    mutationFn: async (vars: { id: string; momoNumber?: string | null; momoName?: string | null }) => {
+      // Server-side enforcement: the verified RPC checks that the MoMo number
+      // and registered screen name being claimed exactly match the withdrawal's
+      // stored payout details, then performs the race-guarded claim atomically.
+      const { data, error } = await supabase.rpc('claim_withdrawal_verified', {
+        p_withdrawal_id: vars.id,
+        p_momo_number: vars.momoNumber ?? null,
+        p_momo_name: vars.momoName ?? null,
+      });
       if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error('Already claimed by another agent — refreshing queue');
+      const result = data as any;
+      if (!result || result.error) {
+        throw new Error(result?.message || 'Unable to claim this withdrawal');
       }
     },
     onSuccess: () => {
@@ -795,16 +795,17 @@ export function AgentCashPayoutsTab() {
       // Refresh so the lost-race row disappears from this agent's view immediately.
       invalidateQueue();
     },
-    onSettled: (_d, _e, withdrawalId) => {
+    onSettled: (_d, _e, vars) => {
+      const withdrawalId = vars?.id;
       // Send the "merchant agent X is processing your withdrawal" SMS after the
       // claim has committed. Fire-and-forget so telco hiccups never affect the UI.
       if (withdrawalId) {
         supabase.functions
           .invoke('notify-withdrawal-claimed', { body: { withdrawal_id: withdrawalId } })
           .catch((e) => console.warn('[claim] notify SMS failed', e));
+        claimLockRef.current.delete(withdrawalId);
+        setClaimingIds(new Set(claimLockRef.current));
       }
-      claimLockRef.current.delete(withdrawalId);
-      setClaimingIds(new Set(claimLockRef.current));
     },
   });
 
