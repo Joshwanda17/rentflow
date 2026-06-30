@@ -875,9 +875,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                   </p>
                 </div>
                 {pendingEarnings && pendingEarnings.totalCommission > 0 ? (
-                  <div className="shrink-0 relative flex flex-col items-end justify-center rounded-xl bg-white px-3 py-2 shadow-md">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700/80 leading-none">You earn</span>
-                    <span className="text-xl font-extrabold text-emerald-700 leading-tight tabular-nums">
+                  <div className="shrink-0 relative flex flex-col items-end justify-center rounded-2xl bg-white px-4 py-2.5 shadow-lg ring-2 ring-emerald-600/30">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 leading-none">You earn</span>
+                    <span className="text-2xl sm:text-3xl font-black text-emerald-700 leading-tight tabular-nums">
                       {formatUGX(pendingEarnings.totalCommission)}
                     </span>
                   </div>
