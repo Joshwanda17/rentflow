@@ -58,6 +58,7 @@ import { CFOAllocationReturnApprovals } from '@/components/cfo/CFOAllocationRetu
 import { SmsDeliveryLogPanel } from '@/components/cfo/SmsDeliveryLogPanel';
 import { SmsFailureAlertsPanel } from '@/components/cfo/SmsFailureAlertsPanel';
 import { AlreadyFundedLandlordsPanel } from '@/components/cfo/AlreadyFundedLandlordsPanel';
+import { CFOQuickActionsBar } from '@/components/cfo/CFOQuickActionsBar';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 export default function CFODashboardPage() {
@@ -276,6 +277,7 @@ export default function CFODashboardPage() {
 
   return (
     <ExecutiveDashboardLayout role="cfo" activeTab={activeTab} onTabChange={setActiveTab}>
+      <CFOQuickActionsBar activeTab={activeTab} onJump={setActiveTab} />
       {renderContent()}
     </ExecutiveDashboardLayout>
   );
