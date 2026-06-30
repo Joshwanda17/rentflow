@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     // Load the withdrawal and confirm it is claimed by THIS agent.
     const { data: w, error: wErr } = await admin
       .from("withdrawal_requests")
-      .select("id, user_id, amount, assigned_cashout_agent_id")
+      .select("id, user_id, amount, assigned_cashout_agent_id, payout_method, mobile_money_number")
       .eq("id", withdrawalId)
       .maybeSingle();
     if (wErr || !w) {
@@ -124,6 +124,17 @@ Deno.serve(async (req) => {
     const merchantName = (merchant as any)?.full_name?.trim() || "a Welile merchant agent";
     const amount = Number(w.amount) || 0;
 
+    // For mobile-money withdrawals, the SMS must go to the MoMo number the user
+    // entered for the payout (the destination they expect to be paid on), not
+    // necessarily their account profile phone. Fall back to the profile phone.
+    const isMobileMoney = ["mobile_money", "mtn_mobile_money", "airtel_money"].includes(
+      (w as any).payout_method || "",
+    );
+    const enteredMomo = ((w as any).mobile_money_number || "").trim();
+    const smsRecipient = isMobileMoney && enteredMomo
+      ? enteredMomo
+      : (requester as any)?.phone || enteredMomo;
+
     const smsMsg =
       `WELILE: Good news! Welile merchant agent ${merchantName} is now processing ` +
       `your withdrawal request of UGX ${amount.toLocaleString()}. ` +
@@ -131,8 +142,8 @@ Deno.serve(async (req) => {
       `Track it at https://welilereceipts.com/auth`;
 
     let sent = false;
-    if ((requester as any)?.phone) {
-      sent = await sendSMS((requester as any).phone, smsMsg);
+    if (smsRecipient) {
+      sent = await sendSMS(smsRecipient, smsMsg);
     }
 
     // In-app notification center entry so the requester sees that a named
@@ -163,14 +174,14 @@ Deno.serve(async (req) => {
       await admin.from("withdrawal_notification_log").insert({
         withdrawal_id: w.id,
         recipient_id: w.user_id,
-        recipient_email: (requester as any)?.phone ?? null,
+        recipient_email: smsRecipient ?? null,
         amount,
         status: sent ? "sent" : "failed",
         error_message: sent
           ? null
-          : ((requester as any)?.phone
+          : (smsRecipient
               ? "Claim SMS provider rejected or unconfigured"
-              : "No phone on file for the withdrawing user"),
+              : "No phone/MoMo number on file for the withdrawal"),
       });
     } catch (e) {
       console.warn("[notify-withdrawal-claimed] log insert failed:", e);
