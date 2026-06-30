@@ -738,6 +738,11 @@ export default function FunderOnboarding() {
         onOpenChange={(o) => { if (!o) setSignOffPartner(null); }}
         partner={signOffPartner}
       />
+
+      <PartnerCompanyDefaultsDialog
+        open={companyDefaultsOpen}
+        onOpenChange={setCompanyDefaultsOpen}
+      />
     </COODetailLayout>
   );
 }
