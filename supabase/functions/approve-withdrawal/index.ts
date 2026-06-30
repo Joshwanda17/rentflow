@@ -1870,10 +1870,27 @@ Deno.serve(async (req) => {
           ? ` New wallet balance: UGX ${Math.round(newBalance).toLocaleString()}.`
           : "";
 
+      // When a genuine merchant agent settled this payout, name them in the
+      // receipt so the withdrawing user knows exactly who processed it.
+      let merchantLine = "";
+      if (actingAsMerchant) {
+        try {
+          const { data: mp } = await admin
+            .from("profiles")
+            .select("full_name")
+            .eq("id", user.id)
+            .maybeSingle();
+          const mName = (mp as any)?.full_name?.trim();
+          if (mName) merchantLine = ` Processed by Welile merchant agent ${mName}.`;
+        } catch (e) {
+          console.error("[approve-withdrawal] merchant name fetch for SMS failed (non-fatal):", e);
+        }
+      }
+
       const smsMsg =
         `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
         `APPROVED & PAID via ${payment_method}. ${proofLabel}: ${refUpper}.` +
-        `${balanceLine} ` +
+        `${merchantLine}${balanceLine} ` +
         `Log in to view and manage your account at ` +
         `https://welilereceipts.com/auth. Thank you for partnering with us.`;
 
