@@ -27,6 +27,12 @@ export interface AgreementFillData {
   welileRepContact?: string;
   welileSignatureDataUrl?: string;
   partnerSignatureDataUrl?: string;
+  /**
+   * The Welile company stamp is ONLY applied to executed/counter-signed
+   * agreements from Partner Ops. Draft agreements sent from /funder-onboarding
+   * must not carry the stamp.
+   */
+  includeStamp?: boolean;
 }
 
 function ordinal(day: number): string {
@@ -45,14 +51,13 @@ function esc(v: unknown): string {
 // Dynamic e-stamp matching the physical Welile Technologies stamp: a single
 // solid blue rounded rectangle with the company name, a star–date–star row
 // (red date) and the postal address. Injected as inline HTML so html2canvas
-// captures it identically to the on-screen preview. `pos` is the absolute
-// position CSS (e.g. `top:0; right:48px;`) and `scale` shrinks the whole stamp.
-function stampHtml(date: Date, pos: string, scale = 1, origin = 'top right', extraTransform = ''): string {
+// captures it identically to the on-screen preview.
+function stampHtml(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   const month = date.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
   const year = date.getFullYear();
   return `
-  <div style="position:absolute; ${pos} transform:${extraTransform} rotate(-2deg) scale(${scale}); transform-origin:${origin}; opacity:0.85; pointer-events:none; z-index:5;">
+  <div style="position:absolute; top:50%; right:48px; transform:translateY(-50%) rotate(-37deg) scale(0.64); transform-origin:right center; opacity:0.82; pointer-events:none; z-index:5;">
     <div style="width:340px; border:5px solid #1134a6; border-radius:12px; padding:16px 20px; text-align:center; background:transparent; box-sizing:border-box;">
       <div style="color:#1134a6; font-family:'Crimson Text','Times New Roman',serif; font-weight:700; font-size:20px; line-height:1.12; letter-spacing:1px; margin-bottom:12px; white-space:nowrap;">WELILE TECHNOLOGIES<br>LIMITED</div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:0 6px;">
@@ -94,6 +99,7 @@ export function buildAgreementHtml(data: AgreementFillData): string {
   const partnerSig = data.partnerSignatureDataUrl
     ? `<img src="${data.partnerSignatureDataUrl}" alt="Signature" style="max-height:40px; max-width:180px; object-fit:contain;" />`
     : (name ? `<span style="font-style:italic; font-weight:400;">${name.toLowerCase()}</span>` : '');
+  const stamp = data.includeStamp ? stampHtml(date) : '';
 
   const tokens: Record<string, string> = {
     LogoUrl: welileLogo,
@@ -117,12 +123,11 @@ export function buildAgreementHtml(data: AgreementFillData): string {
     KinName: esc(data.kinName?.trim() || ''),
     KinContact: esc(data.kinContact?.trim() || ''),
     KinSignature: '',
-    // Stamp appears on every page; kept inside the content with comfortable
-    // margins so the rotation never clips against the page edge.
-    // Cover stamp: middle-left of the page, ~44px gap from the left edge.
-    CoverStamp: stampHtml(date, 'top:50%; left:44px;', 1, 'left center', 'translateY(-50%)'),
-    StampOverlay: stampHtml(date, 'top:0; right:48px;', 0.85),
-    StampPage: stampHtml(date, 'bottom:24px; right:48px;', 0.7),
+    // Stamp appears only on executed/counter-signed agreements, centered on the
+    // right side of every page with a safe 48px page-edge gap.
+    CoverStamp: stamp,
+    StampOverlay: stamp,
+    StampPage: stamp,
   };
 
   let html = RAW_TEMPLATE;
