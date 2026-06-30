@@ -954,12 +954,21 @@ function isValid(step: number, form: FormState): boolean {
     return amount >= MIN_SUPPORT;
   }
   if (step === 3) {
-    const bankOk = form.bankName.trim().length >= 2;
-    const accNameOk = form.bankAccountName.trim().length >= 2;
-    const accNoOk = form.bankAccountNumber.trim().length >= 4;
+    let payoutOk = false;
+    if (form.payoutMode === 'bank') {
+      payoutOk =
+        form.bankName.trim().length >= 2 &&
+        form.bankAccountName.trim().length >= 2 &&
+        form.bankAccountNumber.trim().length >= 4;
+    } else {
+      payoutOk =
+        form.momoProvider.trim().length >= 2 &&
+        form.momoNumber.trim().length >= 7 &&
+        form.momoName.trim().length >= 2;
+    }
     const kinNameOk = form.kinName.trim().length >= 2;
     const kinContactOk = form.kinContact.trim().length >= 7;
-    return bankOk && accNameOk && accNoOk && kinNameOk && kinContactOk;
+    return payoutOk && kinNameOk && kinContactOk;
   }
   if (step === 4) {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
