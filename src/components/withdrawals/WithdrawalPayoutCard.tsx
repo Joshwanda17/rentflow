@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,6 +47,8 @@ export function WithdrawalPayoutCard({
 }: WithdrawalPayoutCardProps) {
   const [reference, setReference] = useState('');
   const [open, setOpen] = useState(false);
+  const [confirmClaimOpen, setConfirmClaimOpen] = useState(false);
+  const [claimDetailsConfirmed, setClaimDetailsConfirmed] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState<string>('');
   const [rejectNotes, setRejectNotes] = useState('');
