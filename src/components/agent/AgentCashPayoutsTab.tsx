@@ -1667,7 +1667,10 @@ export function AgentCashPayoutsTab() {
                         </div>
                         <Button
                           className="w-full h-12 gap-2 font-semibold text-base"
-                          onClick={() => handleClaim(w.id)}
+                          onClick={() => handleClaim(w.id, {
+                            momoNumber: w.mobile_money_number ?? null,
+                            momoName: w.mobile_money_name ?? null,
+                          })}
                           disabled={claimingIds.has(w.id) || hasActiveClaim}
                           title={
                             claimingIds.has(w.id)
