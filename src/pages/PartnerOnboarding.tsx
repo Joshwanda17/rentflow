@@ -25,6 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import { buildPartnerReference } from '@/lib/partnerReference';
 import { useToast } from '@/hooks/use-toast';
+import PartnerAgreementSignOff, { type SignOffPartner } from '@/components/partner/PartnerAgreementSignOff';
 
 interface FunderProfileRow {
   id: string;
@@ -69,6 +70,7 @@ export default function FunderOnboarding() {
   const [page, setPage] = useState(0);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [selected, setSelected] = useState<FunderProfileRow | null>(null);
+  const [signOffPartner, setSignOffPartner] = useState<SignOffPartner | null>(null);
   const [actionMode, setActionMode] = useState<null | 'approve' | 'reject'>(null);
   const [actionReason, setActionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -511,14 +513,25 @@ export default function FunderOnboarding() {
                           {format(new Date(r.created_at), 'dd MMM yyyy')}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={(e) => { e.stopPropagation(); setSelected(r); }}
-                          >
-                            View
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Review / approve"
+                              onClick={(e) => { e.stopPropagation(); setSelected(r); }}
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={(e) => { e.stopPropagation(); setSignOffPartner(r); }}
+                            >
+                              View
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -710,6 +723,13 @@ export default function FunderOnboarding() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Agreement preview & sign-off */}
+      <PartnerAgreementSignOff
+        open={!!signOffPartner}
+        onOpenChange={(o) => { if (!o) setSignOffPartner(null); }}
+        partner={signOffPartner}
+      />
     </COODetailLayout>
   );
 }

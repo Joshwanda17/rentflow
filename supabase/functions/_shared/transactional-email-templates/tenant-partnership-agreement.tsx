@@ -220,7 +220,7 @@ export function TenantPartnershipAgreement({
                   <Text style={footerDisclaimer}>
                     You are receiving this email because you registered as a partner at {company_name}.<br />
                     Automated Partnership Agreement delivery. If you need assistance, contact us at{' '}
-                    <Link href="mailto:partnership@welile.com" style={{ color: '#a855f7', textDecoration: 'none' }}>
+                    <Link href="mailto:partnership@welile.com" style={{ color: INK, textDecoration: 'none' }}>
                       partnership@welile.com
                     </Link>.
                   </Text>
@@ -263,8 +263,8 @@ const clientOverrides = `
   img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
   table { border-collapse: collapse !important; }
   body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
-  a { color: ${BRAND}; }
-  a:hover { color: ${BRAND_DEEP}; }
+  a { color: ${INK}; }
+  a:hover { color: ${INK}; }
   @media screen and (max-width: 600px) {
     .responsive-table { width: 100% !important; max-width: 100% !important; }
     .padding-mobile { padding: 25px 20px !important; }

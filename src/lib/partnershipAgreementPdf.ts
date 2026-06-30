@@ -19,6 +19,14 @@ export interface PartnershipAgreementData {
   kinName?: string;
   kinContact?: string;
   agreementDate?: Date;
+  // ── Admin counter-signature (filled on the Partner Sign-off screen) ──
+  welileRepName?: string;
+  welileRepPosition?: string;
+  welileRepContact?: string;
+  /** PNG/JPEG data URL of the uploaded Welile representative signature. */
+  welileSignatureDataUrl?: string;
+  /** PNG/JPEG data URL of the uploaded partner signature. */
+  partnerSignatureDataUrl?: string;
 }
 
 const PRIMARY: [number, number, number] = [124, 58, 237];   // violet
@@ -368,13 +376,41 @@ export async function generatePartnershipAgreementPDF(
     y += 6;
   };
 
-  // Welile block — fields intentionally left blank for manual counter-signature
+  // Signature image renderer — draws an uploaded signature above the rule.
+  const sigImage = (label: string, dataUrl: string) => {
+    ensureSpace(20);
+    doc.setFont('times', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...LIGHT);
+    doc.text(label.toUpperCase(), margin, y);
+    y += 4;
+    try {
+      const fmt = dataUrl.includes('image/png') ? 'PNG' : 'JPEG';
+      doc.addImage(dataUrl, fmt, margin, y - 1, 44, 16, undefined, 'FAST');
+    } catch { /* ignore broken image */ }
+    y += 16;
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y + 1, margin + contentW, y + 1);
+    y += 7;
+  };
+
+  // Welile block — prefilled when an admin counter-signs on the Sign-off screen,
+  // otherwise left blank with underline rules for manual completion.
+  const repName = data.welileRepName?.trim();
+  const repPos = data.welileRepPosition?.trim();
+  const repContact = data.welileRepContact?.trim();
+  const repSigned = !!(repName || repPos || repContact || data.welileSignatureDataUrl);
   sigBlockTitle('Signed for and on behalf of Welile Technologies Limited');
-  sigField('Name', BLANK);
-  sigField('Position', BLANK);
-  sigField('Contact', BLANK);
-  sigField('Date', BLANK);
-  sigField('Signature', BLANK);
+  sigField('Name', repName || BLANK);
+  sigField('Position', repPos || BLANK);
+  sigField('Contact', repContact || BLANK);
+  sigField('Date', repSigned ? `${ordinal(day)} ${month} ${year}` : BLANK);
+  if (data.welileSignatureDataUrl) {
+    sigImage('Signature', data.welileSignatureDataUrl);
+  } else {
+    sigField('Signature', BLANK);
+  }
 
   // Partner block
   const partnerPhone = data.partnerPhone?.trim() || UNKNOWN;
@@ -393,7 +429,11 @@ export async function generatePartnershipAgreementPDF(
   sigField('Account Name', accName);
   sigField('Account No', accNo);
   sigField('Date', `${ordinal(day)} ${month} ${year}`);
-  sigField('Signature', partnerName.toLowerCase(), { italic: true });
+  if (data.partnerSignatureDataUrl) {
+    sigImage('Signature', data.partnerSignatureDataUrl);
+  } else {
+    sigField('Signature', partnerName.toLowerCase(), { italic: true });
+  }
 
   // Next of Kin block
   sigBlockTitle('Next of Kin Details');
@@ -404,5 +444,67 @@ export async function generatePartnershipAgreementPDF(
 
   addFooter();
 
+  // ─────────────── E-STAMP ON EVERY PAGE ───────────────
+  // Draw the Welile Technologies e-stamp centred on the right edge of every
+  // page, leaving a margin of clear space at the edge (per spec). Rendered at
+  // reduced opacity so underlying text stays legible.
+  const stampDate = `${String(day).padStart(2, '0')} ${date
+    .toLocaleString('en-GB', { month: 'short' })
+    .toUpperCase()} ${year}`;
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    drawStamp(doc, pageW - margin - 31, pageH / 2, stampDate);
+  }
+
   return doc.output('blob');
+}
+
+/** Draws the Welile Technologies e-stamp (blue border, red date) centred at (cx, cy). */
+function drawStamp(doc: jsPDF, cx: number, cy: number, dateStr: string) {
+  const BLUE: [number, number, number] = [17, 52, 166];   // #1134a6
+  const RED: [number, number, number] = [229, 25, 33];    // #e51921
+  const w = 60;
+  const h = 32;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+
+  let hasGState = false;
+  try {
+    // @ts-ignore — GState exists at runtime in jsPDF
+    const gs = new doc.GState({ opacity: 0.5 });
+    // @ts-ignore
+    doc.setGState(gs);
+    hasGState = true;
+  } catch { /* opacity not supported — draw solid */ }
+
+  doc.setDrawColor(...BLUE);
+  doc.setLineWidth(1.3);
+  doc.roundedRect(x, y, w, h, 2.4, 2.4);
+
+  doc.setFont('times', 'bold');
+  doc.setTextColor(...BLUE);
+  doc.setFontSize(11);
+  doc.text('WELILE TECHNOLOGIES', cx, y + 8, { align: 'center' });
+  doc.text('LIMITED', cx, y + 13, { align: 'center' });
+
+  doc.setFontSize(12);
+  doc.text('*', x + 5, y + 22);
+  doc.text('*', x + w - 5, y + 22, { align: 'right' });
+
+  doc.setTextColor(...RED);
+  doc.setFontSize(14);
+  doc.text(dateStr, cx, y + 22.5, { align: 'center' });
+
+  doc.setFont('times', 'bold');
+  doc.setTextColor(...BLUE);
+  doc.setFontSize(7.5);
+  doc.text('PO Box 167564 Kampala Uganda', cx, y + 28.5, { align: 'center' });
+
+  if (hasGState) {
+    try {
+      // @ts-ignore — restore full opacity for any subsequent drawing
+      doc.setGState(new doc.GState({ opacity: 1 }));
+    } catch { /* noop */ }
+  }
 }
