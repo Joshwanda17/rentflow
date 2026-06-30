@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ExpandableTable, type ExpandableColumn } from '@/components/ui/expandable-table';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { Search, Loader2, X, Receipt, ChevronLeft, ChevronRight } from 'lucide-react';
