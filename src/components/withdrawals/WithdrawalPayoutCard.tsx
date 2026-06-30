@@ -368,6 +368,8 @@ export function WithdrawalPayoutCard({
                   variant="outline"
                   onClick={() => {
                     setClaimDetailsConfirmed(false);
+                    setEnteredPayoutName('');
+                    setMismatchAcknowledged(false);
                     setConfirmClaimOpen(true);
                   }}
                   disabled={claimingId === withdrawal.id}
