@@ -7,8 +7,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Mail, Phone, FileSignature, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Loader2, Mail, Phone, FileSignature, CheckCircle2, ShieldCheck, Upload } from 'lucide-react';
 
 export interface SignOffPartner {
   id: string;
@@ -40,6 +42,12 @@ export default function PartnerAgreementSignOff({
   const [defaults, setDefaults] = useState<any | null>(null);
   const [repSigUrl, setRepSigUrl] = useState<string | undefined>();
   const [missing, setMissing] = useState<string | null>(null);
+
+  // Admin-entered counter-signature details (filled before sending).
+  const [repName, setRepName] = useState('');
+  const [repPosition, setRepPosition] = useState('');
+  const [repContact, setRepContact] = useState('');
+  const [sigDataUrl, setSigDataUrl] = useState<string | undefined>();
 
   useEffect(() => {
     if (!open || !partner) return;
@@ -77,6 +85,13 @@ export default function PartnerAgreementSignOff({
         } else {
           setRepSigUrl(undefined);
         }
+        // Prefill the editable fields from stored defaults (admin can override).
+        if (!cancelled) {
+          setRepName(def?.rep_name || '');
+          setRepPosition(def?.rep_position || '');
+          setRepContact(def?.rep_contact || '');
+          setSigDataUrl(undefined);
+        }
       } catch (e: any) {
         if (!cancelled) setMissing(e?.message || 'Could not load the agreement.');
       } finally {
@@ -105,20 +120,32 @@ export default function PartnerAgreementSignOff({
       kinName: agreement.kin_name || '',
       kinContact: agreement.kin_contact || '',
       agreementDate: agreement.countersigned_at ? new Date(agreement.countersigned_at) : new Date(),
-      welileRepName: defaults?.rep_name || '',
-      welileRepPosition: defaults?.rep_position || '',
-      welileRepContact: defaults?.rep_contact || '',
-      welileSignatureDataUrl: repSigUrl,
+      welileRepName: repName,
+      welileRepPosition: repPosition,
+      welileRepContact: repContact,
+      welileSignatureDataUrl: sigDataUrl || repSigUrl,
       partnerSignatureDataUrl: undefined,
     };
-  }, [agreement, defaults, partner, repSigUrl]);
+  }, [agreement, partner, repSigUrl, repName, repPosition, repContact, sigDataUrl]);
+
+  const onSignatureFile = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Use an image file', description: 'Upload a PNG or JPG of the signature.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setSigDataUrl(typeof reader.result === 'string' ? reader.result : undefined);
+    reader.readAsDataURL(file);
+  };
 
   const handleCountersign = async () => {
     if (!partner) return;
-    if (!defaults?.rep_name || !defaults?.signature_path) {
+    const hasSignature = !!sigDataUrl || !!defaults?.signature_path;
+    if (!repName.trim() || !hasSignature) {
       toast({
-        title: 'Set company defaults first',
-        description: 'Add the Welile representative name and signature in Company Defaults before counter-signing.',
+        title: 'Complete the sign-off details',
+        description: 'Enter the representative name and add a signature image before counter-signing.',
         variant: 'destructive',
       });
       return;
@@ -126,7 +153,16 @@ export default function PartnerAgreementSignOff({
     setBusy(true);
     try {
       const { error } = await supabase.functions.invoke('generate-partner-agreement', {
-        body: { partnerId: partner.id, countersign: true },
+        body: {
+          partnerId: partner.id,
+          countersign: true,
+          rep: {
+            name: repName.trim(),
+            position: repPosition.trim(),
+            contact: repContact.trim(),
+            signatureBase64: sigDataUrl || undefined,
+          },
+        },
       });
       if (error) throw error;
       toast({
