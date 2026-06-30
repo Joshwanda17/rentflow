@@ -243,6 +243,9 @@ export function AgentCashPayoutsTab() {
   // claimed cash-out as soon as the claim commits.
   const claimedSectionRef = useRef<HTMLDivElement | null>(null);
   const scrollToClaimed = useRef(false);
+  // Live clock (1s) used to drive the claim countdown and lock the queue while a
+  // claim is in progress. Only ticks while the agent actually holds a claim.
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
   // ---- Pending Queue advanced filters & sorting ----
   const [queueSearch, setQueueSearch] = useState('');
