@@ -1427,6 +1427,24 @@ export function AgentCashPayoutsTab() {
           )}
         </div>
 
+        {hasActiveClaim && (
+          <button
+            type="button"
+            onClick={() => claimedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="flex w-full items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-left dark:border-amber-500/30 dark:bg-amber-500/10"
+          >
+            <Clock className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                Queue locked — finish your current claim
+              </p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+                Complete it or wait for the timer ({activeClaimCountdown}) before claiming another. Tap to jump to it.
+              </p>
+            </div>
+          </button>
+        )}
+
         {/* Advanced filters & sorting */}
         <div className="rounded-2xl border border-border bg-muted/30 p-3 space-y-3">
           <div className="flex items-center justify-between">
