@@ -455,7 +455,9 @@ export function AgentCashPayoutsTab() {
       const { data: wreqs } = await supabase
         .from('withdrawal_requests')
         .select('amount, created_at, processed_at')
-        .eq('processed_by', user.id)
+        // Scope strictly to cash-outs THIS merchant agent claimed & settled from
+        // the queue, so the metric never counts payouts handled via other flows.
+        .eq('assigned_cashout_agent_id', isCashoutAgent.id)
         .eq('status', 'completed')
         .not('processed_at', 'is', null)
         .gte('processed_at', startIso);
