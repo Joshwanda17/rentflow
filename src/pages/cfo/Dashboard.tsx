@@ -81,7 +81,7 @@ const CFO_TAB_LABELS: Record<string, string> = Object.fromEntries(
 
 export default function CFODashboardPage() {
   const { currency, setCurrency, getCurrencyByCode } = useCurrency();
-  const [activeTab, setActiveTab] = usePersistedActiveTab('cfo');
+  const [activeTab, setActiveTab] = usePersistedActiveTab('cfo', 'overview', CFO_TAB_IDS);
   const isMobile = useIsMobile();
   const { threshold: swipeThreshold, setThreshold: setSwipeThreshold } = useSwipeSensitivity('cfo');
 
