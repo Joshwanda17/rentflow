@@ -38,6 +38,7 @@ export default function PartnerAgreementSignOff({
   const [busy, setBusy] = useState(false);
   const [agreement, setAgreement] = useState<any | null>(null);
   const [defaults, setDefaults] = useState<any | null>(null);
+  const [repSigUrl, setRepSigUrl] = useState<string | undefined>();
   const [missing, setMissing] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,6 +69,14 @@ export default function PartnerAgreementSignOff({
           setAgreement(ag);
         }
         setDefaults(def || null);
+        if (def?.signature_path) {
+          const { data: sig } = await supabase.storage
+            .from('partner-agreements')
+            .createSignedUrl(def.signature_path, 60 * 60);
+          if (!cancelled) setRepSigUrl(sig?.signedUrl || undefined);
+        } else {
+          setRepSigUrl(undefined);
+        }
       } catch (e: any) {
         if (!cancelled) setMissing(e?.message || 'Could not load the agreement.');
       } finally {
@@ -99,14 +108,14 @@ export default function PartnerAgreementSignOff({
       welileRepName: defaults?.rep_name || '',
       welileRepPosition: defaults?.rep_position || '',
       welileRepContact: defaults?.rep_contact || '',
-      welileSignatureDataUrl: defaults?.rep_signature_url || undefined,
+      welileSignatureDataUrl: repSigUrl,
       partnerSignatureDataUrl: undefined,
     };
-  }, [agreement, defaults, partner]);
+  }, [agreement, defaults, partner, repSigUrl]);
 
   const handleCountersign = async () => {
     if (!partner) return;
-    if (!defaults?.rep_name || !defaults?.rep_signature_url) {
+    if (!defaults?.rep_name || !defaults?.signature_path) {
       toast({
         title: 'Set company defaults first',
         description: 'Add the Welile representative name and signature in Company Defaults before counter-signing.',
@@ -197,7 +206,7 @@ export default function PartnerAgreementSignOff({
                     <>
                       <ReadRow label="Representative" value={defaults.rep_name} />
                       <ReadRow label="Position" value={defaults.rep_position || '—'} />
-                      <ReadRow label="Signature" value={defaults.rep_signature_url ? 'On file ✓' : 'Missing'} />
+                      <ReadRow label="Signature" value={defaults.signature_path ? 'On file ✓' : 'Missing'} />
                     </>
                   ) : (
                     <p className="text-xs text-amber-600">
