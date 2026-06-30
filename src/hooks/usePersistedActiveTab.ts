@@ -13,19 +13,41 @@ import { useLocation, useSearchParams } from 'react-router-dom';
  * load: URL param → localStorage → defaultTab.
  *
  * Falls back to `defaultTab` when storage is unavailable or empty.
+ *
+ * Pass `validTabs` to harden against invalid/stale deep links: any `?section=`
+ * value (or stored value) that isn't in the allowlist is silently coerced to
+ * `defaultTab`, so the user always lands on a valid section without errors and
+ * the bad param is scrubbed from the URL.
  */
-export function usePersistedActiveTab(role: string, defaultTab = 'overview') {
+export function usePersistedActiveTab(
+  role: string,
+  defaultTab = 'overview',
+  validTabs?: readonly string[],
+) {
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const storageKey = `dashboard:${role}:${pathname}:activeTab`;
 
+  // When an allowlist is supplied, anything outside it (incl. typos, removed
+  // sections, or hand-edited URLs) resolves to the default section.
+  const isValid = useCallback(
+    (tab: string | null | undefined): tab is string => {
+      if (!tab) return false;
+      if (tab === defaultTab) return true;
+      if (!validTabs) return true; // no allowlist => accept any non-empty value
+      return validTabs.includes(tab);
+    },
+    [defaultTab, validTabs],
+  );
+
   const [activeTab, setActiveTabState] = useState<string>(() => {
     // URL wins so deep links / refresh restore the exact section.
     const fromUrl = searchParams.get('section');
-    if (fromUrl) return fromUrl;
+    if (isValid(fromUrl)) return fromUrl;
     if (typeof window === 'undefined') return defaultTab;
     try {
-      return window.localStorage.getItem(storageKey) || defaultTab;
+      const stored = window.localStorage.getItem(storageKey);
+      return isValid(stored) ? stored : defaultTab;
     } catch {
       return defaultTab;
     }
@@ -33,9 +55,10 @@ export function usePersistedActiveTab(role: string, defaultTab = 'overview') {
 
   const setActiveTab = useCallback(
     (tab: string) => {
-      setActiveTabState(tab);
+      const next = isValid(tab) ? tab : defaultTab;
+      setActiveTabState(next);
       try {
-        window.localStorage.setItem(storageKey, tab);
+        window.localStorage.setItem(storageKey, next);
       } catch {
         /* storage unavailable */
       }
@@ -43,15 +66,15 @@ export function usePersistedActiveTab(role: string, defaultTab = 'overview') {
       // the bare URL with no `section` param.
       setSearchParams(
         (prev) => {
-          const next = new URLSearchParams(prev);
-          if (tab === defaultTab) next.delete('section');
-          else next.set('section', tab);
-          return next;
+          const params = new URLSearchParams(prev);
+          if (next === defaultTab) params.delete('section');
+          else params.set('section', next);
+          return params;
         },
         { replace: true },
       );
     },
-    [storageKey, defaultTab, setSearchParams],
+    [storageKey, defaultTab, setSearchParams, isValid],
   );
 
   /**
@@ -63,7 +86,18 @@ export function usePersistedActiveTab(role: string, defaultTab = 'overview') {
   useEffect(() => {
     if (didInitUrl.current) return;
     didInitUrl.current = true;
-    if (!searchParams.get('section') && activeTab !== defaultTab) {
+    const urlSection = searchParams.get('section');
+    // Scrub an invalid/stale `?section=` value from the URL on first load.
+    if (urlSection && !isValid(urlSection)) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('section');
+          return next;
+        },
+        { replace: true },
+      );
+    } else if (!urlSection && activeTab !== defaultTab) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -81,7 +115,8 @@ export function usePersistedActiveTab(role: string, defaultTab = 'overview') {
    * navigations) by mirroring the `section` param into state + storage.
    */
   useEffect(() => {
-    const fromUrl = searchParams.get('section') || defaultTab;
+    const raw = searchParams.get('section');
+    const fromUrl = isValid(raw) ? (raw as string) : defaultTab;
     setActiveTabState((prev) => {
       if (prev === fromUrl) return prev;
       try {
@@ -91,7 +126,7 @@ export function usePersistedActiveTab(role: string, defaultTab = 'overview') {
       }
       return fromUrl;
     });
-  }, [searchParams, defaultTab, storageKey]);
+  }, [searchParams, defaultTab, storageKey, isValid]);
 
   /**
    * Cross-tab sync: when another tab writes to the same storage key (or the
@@ -103,11 +138,11 @@ export function usePersistedActiveTab(role: string, defaultTab = 'overview') {
     const handler = (e: StorageEvent) => {
       if (e.storageArea !== window.localStorage) return;
       if (e.key !== storageKey) return;
-      setActiveTabState(e.newValue || defaultTab);
+      setActiveTabState(isValid(e.newValue) ? (e.newValue as string) : defaultTab);
     };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
-  }, [storageKey, defaultTab]);
+  }, [storageKey, defaultTab, isValid]);
 
   return [activeTab, setActiveTab] as const;
 }
