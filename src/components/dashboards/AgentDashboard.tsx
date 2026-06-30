@@ -505,6 +505,25 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     setShowMerchantOnboard(false);
   };
 
+  // Live "updated …" indicator for the Merchant Payouts earnings total.
+  // Re-render every 15s so the relative timestamp stays fresh.
+  const [nowTick, setNowTick] = useState(Date.now());
+  useEffect(() => {
+    if (!isCashoutAgent) return;
+    const id = setInterval(() => setNowTick(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, [isCashoutAgent]);
+  const pendingUpdatedLabel = (() => {
+    if (!pendingUpdatedAt) return null;
+    const secs = Math.max(0, Math.round((nowTick - pendingUpdatedAt) / 1000));
+    if (secs < 10) return 'updated just now';
+    if (secs < 60) return `updated ${secs}s ago`;
+    const mins = Math.round(secs / 60);
+    if (mins < 60) return `updated ${mins}m ago`;
+    const hrs = Math.round(mins / 60);
+    return `updated ${hrs}h ago`;
+  })();
+
   // Guided click: scroll to and briefly highlight the Merchant Payouts button
   const merchantBtnRef = useRef<HTMLButtonElement>(null);
   const merchantCloseBtnRef = useRef<HTMLButtonElement>(null);
