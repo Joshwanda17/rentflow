@@ -6,6 +6,7 @@ import { toast, Toaster } from 'sonner';
 import {
   ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
   ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock, MapPin,
+  Building2, CreditCard, User, Hash, Users, Landmark,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { signUp } from '@/hooks/auth/authOperations';
@@ -65,6 +66,11 @@ interface FormState {
   confirmPassword: string;
   phone: string;
   address: string;
+  bankName: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  kinName: string;
+  kinContact: string;
   agreedToTerms: boolean;
 }
 
