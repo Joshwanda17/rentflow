@@ -84,10 +84,10 @@ export function TenantPartnershipAgreement({
                 {/* Greeting + intro */}
                 <tr>
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 25px 40px' }}>
-                    <Text style={greeting}>Dear <b>{partner_name}</b>,</Text>
+                    <Text style={greeting}>Dear {partner_name},</Text>
                     <Text style={introText}>
-                      Thank you for partnering with <b>{company_name}.</b> We have prepared your
-                      personalised <b>Tenant Partnership Agreement</b> using the details you provided
+                      Thank you for partnering with {company_name}. We have prepared your
+                      personalised Tenant Partnership Agreement using the details you provided
                       during onboarding.
                     </Text>
                     <Text style={{ ...introText, marginTop: '15px' }}>
