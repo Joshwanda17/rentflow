@@ -1,38 +1,38 @@
-import { useEffect, useRef } from 'react';
+import { useRef, useMemo } from 'react';
+import type { TouchEvent as ReactTouchEvent } from 'react';
 
 interface SwipeOptions {
-  onSwipeLeft: () => void;
-  onSwipeRight: () => void;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
   /** Minimum horizontal distance (px) to count as a swipe. */
   threshold?: number;
-  /** Disable entirely (e.g. on desktop). */
-  enabled?: boolean;
+  /** Maximum vertical drift (px) before the gesture is treated as a scroll. */
+  maxVertical?: number;
+}
+
+interface SwipeHandlers {
+  onTouchStart: (e: ReactTouchEvent) => void;
+  onTouchEnd: (e: ReactTouchEvent) => void;
 }
 
 /**
- * Attaches left/right swipe detection to a container element.
+ * Returns `onTouchStart` / `onTouchEnd` handlers to spread onto a container for
+ * left/right swipe navigation (e.g. flipping dashboard sections on a phone).
  *
- * Designed for phone tab navigation: a clearly-horizontal drag flips to the
- * next/previous section. Swipes that begin inside a horizontally-scrollable
- * area, a form control, or anything marked `data-swipe-ignore` are skipped so
- * they don't fight the user scrolling a table or chip row.
+ * A swipe must be: mostly horizontal (vertical drift <= maxVertical), longer
+ * than `threshold`, and completed within 600ms — otherwise it's treated as a
+ * scroll or long-press and ignored. Swipes starting inside a horizontally
+ * scrollable area, form control, or `[data-swipe-ignore]` node are skipped.
  */
-export function useHorizontalSwipe<T extends HTMLElement>({
+export function useHorizontalSwipe({
   onSwipeLeft,
   onSwipeRight,
-  threshold = 70,
-  enabled = true,
-}: SwipeOptions) {
-  const ref = useRef<T | null>(null);
+  threshold = 60,
+  maxVertical = 60,
+}: SwipeOptions): SwipeHandlers {
+  const start = useRef<{ x: number; y: number; t: number } | null>(null);
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !enabled) return;
-
-    let startX = 0;
-    let startY = 0;
-    let active = false;
-
+  return useMemo<SwipeHandlers>(() => {
     const shouldIgnore = (target: EventTarget | null) => {
       if (!(target instanceof Element)) return false;
       return !!target.closest(
@@ -40,36 +40,30 @@ export function useHorizontalSwipe<T extends HTMLElement>({
       );
     };
 
-    const onStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1 || shouldIgnore(e.target)) {
-        active = false;
-        return;
-      }
-      active = true;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
+    return {
+      onTouchStart: (e: ReactTouchEvent) => {
+        const touch = e.touches?.[0];
+        if (!touch || shouldIgnore(e.target)) {
+          start.current = null;
+          return;
+        }
+        start.current = { x: touch.clientX, y: touch.clientY, t: Date.now() };
+      },
+      onTouchEnd: (e: ReactTouchEvent) => {
+        const s = start.current;
+        start.current = null;
+        if (!s) return;
+        const touch = e.changedTouches?.[0];
+        if (!touch) return;
+        const dx = touch.clientX - s.x;
+        const dy = touch.clientY - s.y;
+        const dt = Date.now() - s.t;
+        if (dt > 600) return; // too slow — long-press / drift
+        if (Math.abs(dy) > maxVertical) return; // vertical scroll
+        if (Math.abs(dx) < threshold) return; // too short
+        if (dx < 0) onSwipeLeft?.();
+        else onSwipeRight?.();
+      },
     };
-
-    const onEnd = (e: TouchEvent) => {
-      if (!active) return;
-      active = false;
-      const touch = e.changedTouches[0];
-      if (!touch) return;
-      const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
-      // Must be mostly horizontal and exceed the threshold.
-      if (Math.abs(dx) < threshold || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-      if (dx < 0) onSwipeLeft();
-      else onSwipeRight();
-    };
-
-    el.addEventListener('touchstart', onStart, { passive: true });
-    el.addEventListener('touchend', onEnd, { passive: true });
-    return () => {
-      el.removeEventListener('touchstart', onStart);
-      el.removeEventListener('touchend', onEnd);
-    };
-  }, [onSwipeLeft, onSwipeRight, threshold, enabled]);
-
-  return ref;
+  }, [onSwipeLeft, onSwipeRight, threshold, maxVertical]);
 }
