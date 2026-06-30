@@ -1895,8 +1895,8 @@ Deno.serve(async (req) => {
         `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
         `APPROVED & PAID via ${payment_method}. ${proofLabel}: ${refUpper}.` +
         `${merchantLine}${balanceLine} ` +
-        `Log in to view and manage your account at ` +
-        `https://welilereceipts.com/auth. Thank you for partnering with us.`;
+        `\n\nAccess your dashboard to view your wallet, transactions, and account details:\n` +
+        `https://welilereceipts.com/ZQhyGb`;
 
       // In-app notification center entry so the user sees the approval update
       // (merchant agent name + remaining wallet balance) without relying on SMS.
