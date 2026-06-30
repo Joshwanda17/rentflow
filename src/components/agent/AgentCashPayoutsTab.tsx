@@ -1014,7 +1014,7 @@ export function AgentCashPayoutsTab() {
                 withdrawal={w}
                 isClaimed
                 isClaimedByOther={false}
-                onClaim={() => handleClaim(w.id)}
+                onClaim={(confirm) => handleClaim(w.id, confirm)}
                 onComplete={handleComplete}
                 claimingId={claimingIds.has(w.id) ? w.id : null}
                 completingId={completingIds.has(w.id) ? w.id : null}
