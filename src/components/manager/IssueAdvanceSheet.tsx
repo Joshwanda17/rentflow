@@ -96,6 +96,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
 
     setIsSubmitting(true);
     try {
+      let advanceRecordId: string | null = null;
       if (isTopUp && existingAdvance) {
         const { error: topupError } = await supabase.from('agent_advance_topups').insert({
           advance_id: existingAdvance.id,
@@ -120,10 +121,9 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           })
           .eq('id', existingAdvance.id);
         if (updateError) throw updateError;
-
-        toast.success(`Top-up of ${formatUGX(parsedAmount)} added successfully`);
+        advanceRecordId = existingAdvance.id;
       } else {
-        const { error } = await supabase.from('agent_advances').insert({
+        const { data: inserted, error } = await supabase.from('agent_advances').insert({
           agent_id: agentId,
           principal: parsedAmount,
           outstanding_balance: parsedAmount,
@@ -136,11 +136,43 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           access_fee_status: 'unpaid',
           issued_by: user.id,
           expires_at: new Date(Date.now() + cycleDays * 24 * 60 * 60 * 1000).toISOString(),
-        } as any);
+        } as any).select('id').single();
         if (error) throw error;
-
-        toast.success(`Advance of ${formatUGX(parsedAmount)} issued successfully`);
+        advanceRecordId = (inserted as any)?.id ?? null;
       }
+
+      // Disburse the advance principal straight into the agent's wallet.
+      // Agent advances are working-capital float, so the money is routed to the
+      // FLOAT bucket (recipient_type='operational_wallet'). Crediting the
+      // withdrawable bucket would be instantly reclaimed by the auto-advance
+      // recovery sweep, leaving the agent with nothing.
+      const { data: creditRes, error: creditErr } = await supabase.functions.invoke('cfo-direct-credit', {
+        body: {
+          target_user_id: agentId,
+          amount: parsedAmount,
+          operation: 'credit',
+          recipient_type: 'operational_wallet',
+          wallet_category: 'agent_float_deposit',
+          platform_category: 'agent_float_deposit',
+          financial_impact: 'neutral',
+          category_label: isTopUp ? 'Agent Advance Top-Up' : 'Agent Advance Disbursement',
+          reason: `Agent advance ${isTopUp ? 'top-up' : 'issued'} by CFO`,
+          sub_category: advanceRecordId || undefined,
+          manual_credit: true,
+        },
+      });
+      if (creditErr || (creditRes && (creditRes as any).error)) {
+        throw new Error(
+          (creditRes as any)?.error || creditErr?.message ||
+            'Advance recorded but wallet disbursement failed — please retry.',
+        );
+      }
+
+      toast.success(
+        isTopUp
+          ? `Top-up of ${formatUGX(parsedAmount)} added & sent to the agent's wallet`
+          : `Advance of ${formatUGX(parsedAmount)} issued & sent to the agent's wallet`,
+      );
 
       setAmount('');
       setCycleDays(30);
