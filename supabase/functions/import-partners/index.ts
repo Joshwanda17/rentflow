@@ -224,6 +224,12 @@ Deno.serve(async (req) => {
           });
 
           if (authErr || !authData.user) {
+            // Surface the true reason in the function logs so failures are
+            // never silently reduced to a generic "please try again".
+            console.error(
+              `[import-partners] createUser failed for "${partner.partner_name}" (email=${authEmailUsed}, hasPhone=${!!hasPhone}):`,
+              JSON.stringify(authErr ?? { note: "no error but no user returned" }),
+            );
             // If the real email is already reserved by an old/hidden Auth row
             // with no visible profile, do not fail the import. Create the login
             // account with a unique placeholder Auth email and store the real
@@ -250,8 +256,42 @@ Deno.serve(async (req) => {
                   continue;
                 }
               }
+            } else if (realEmail && authEmailUsed === realEmail) {
+              // The account could not be created with the supplied REAL email
+              // for some reason other than "already taken" (e.g. the auth
+              // service rejected the address, or returned an empty result).
+              // Do not block the import: retry once with a guaranteed-unique
+              // placeholder email and keep the real email as the contact
+              // address on the profile. Login is by phone, not this address.
+              authEmailUsed = placeholderEmail;
+              const retry = await adminClient.auth.admin.createUser({
+                email: authEmailUsed,
+                password: tempPassword,
+                email_confirm: true,
+                user_metadata: { full_name: partner.partner_name, phone: hasPhone ? partner.phone : "", contact_email: realEmail, intended_role: 'supporter' },
+              });
+              if (retry.error || !retry.data?.user) {
+                console.error(
+                  `[import-partners] placeholder retry failed for "${partner.partner_name}":`,
+                  JSON.stringify(retry.error ?? { note: "no error but no user returned" }),
+                );
+                pushImportError(
+                  errors,
+                  partner.partner_name,
+                  retry.error ?? authErr,
+                  "Could not create the login account for this partner even with a fallback address. Please try again.",
+                );
+                continue;
+              }
+              authData = retry.data;
+              userId = retry.data.user.id;
             } else {
-              pushImportError(errors, partner.partner_name, authErr, "Could not create the login account for this partner. Please try again.");
+              pushImportError(
+                errors,
+                partner.partner_name,
+                authErr,
+                "Could not create the login account for this partner. Please try again.",
+              );
               continue;
             }
           }
