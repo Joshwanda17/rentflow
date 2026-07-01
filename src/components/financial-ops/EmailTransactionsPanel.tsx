@@ -3598,6 +3598,16 @@ export function EmailTransactionsPanel() {
                 // "Already Credited — No Routing Needed" status.
                 const matchedByTid = credited.some((c) => c.matched_by_tid);
                 const matchedTid = credited.find((c) => c.matched_tid)?.matched_tid ?? null;
+                // Auto-credit provenance: which signal resolved the wallet and
+                // how confident the matcher was. phone_source='body' at ≈0.6 is
+                // the "possible user ≈60%" body-phone signal — surface it plainly
+                // so reviewers know to spot-check those credits.
+                const autoCredit = credited.find((c) => c.auto_confidence || c.auto_phone_source || c.auto_match_method);
+                const autoConfidence = autoCredit?.auto_confidence ?? null;
+                const autoScore = autoCredit?.auto_confidence_score ?? null;
+                const autoPhoneSource = autoCredit?.auto_phone_source ?? null;
+                const autoScorePct = typeof autoScore === 'number' ? Math.round(autoScore * 100) : null;
+                const isBodyPhoneCredit = autoPhoneSource === 'body';
                 // ── "Not Matched Yet" diagnostics ─────────────────────────
                 // For an incoming deposit email that hasn't been credited or
                 // routed, surface WHY it can't auto-map to a wallet: which of
