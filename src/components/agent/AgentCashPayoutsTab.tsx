@@ -835,7 +835,11 @@ export function AgentCashPayoutsTab() {
   const completeWithdrawal = useMutation({
     mutationFn: async ({ id, reference, method }: { id: string; reference: string; method: string }) => {
       const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
-        body: { withdrawal_id: id, reference: reference.trim(), payment_method: method },
+        // `acting_as_merchant` tells the server this payout is being settled by a
+        // merchant agent paying with their OWN MoMo/cash — so they earn the
+        // principal reimbursement + 0.5% commission + confirmation SMS. The
+        // Financial Ops desk never sends this flag.
+        body: { withdrawal_id: id, reference: reference.trim(), payment_method: method, acting_as_merchant: true },
       });
       if (error || data?.error) {
         const msg = await extractEdgeFunctionError({ data, error }, 'Failed to process withdrawal');
@@ -914,6 +918,9 @@ export function AgentCashPayoutsTab() {
           reference,
           payment_method: 'cash',
           payout_code: vp.code,
+          // Merchant is fronting cash for this WPO pickup — credit reimbursement
+          // + 0.5% commission + SMS to their withdrawable wallet.
+          acting_as_merchant: true,
         },
       });
       if (error || data?.error) {
