@@ -83,6 +83,7 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
     if (!q) return allocations;
     return allocations.filter((a) =>
       (a.landlord_name || '').toLowerCase().includes(q) ||
+      (a.tenant_name || '').toLowerCase().includes(q) ||
       (a.landlord_phone || '').toLowerCase().includes(q),
     );
   }, [allocations, search]);
