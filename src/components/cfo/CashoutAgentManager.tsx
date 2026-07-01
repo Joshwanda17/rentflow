@@ -160,6 +160,11 @@ export function CashoutAgentManager() {
         record_id: pickedAgent.id,
         metadata: { agent_name: pickedAgent.full_name || pickedAgent.id, handles_cash: handlesCash, handles_bank: handlesBank, handles_momo: handlesMomo, label: label || 'Merchant Agent' },
       });
+      // Notify the newly assigned merchant agent via SMS (+ in-app). Fire-and-forget:
+      // never let a notification hiccup fail the assignment itself.
+      supabase.functions.invoke('notify-merchant-agent-assigned', {
+        body: { agent_id: pickedAgent.id },
+      }).catch(() => {});
     },
     onSuccess: () => {
       toast({ title: '✅ Merchant Agent assigned' });
