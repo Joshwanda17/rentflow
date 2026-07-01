@@ -90,6 +90,91 @@ function parseFailureReasons(r: {
 }
 
 /**
+ * Client-side mirror of the auto-credit eligibility gates in the
+ * `gmail-poll-transactions` edge function (`_tryAutoCreditOperationalFloat`).
+ * It reproduces — from the stored row columns — exactly which gate the poller
+ * would have failed, so Financial Ops can see WHY an incoming email was not
+ * automatically credited to a wallet without reading edge-function logs.
+ *
+ * Keep in lock-step with the edge function gates:
+ *   1. amount > 0
+ *   2. a transaction id / reference is present
+ *   3. direction === 'in'
+ *   4. channel is MTN MoMo or Airtel Money
+ *   5. receipt is within the last 7 days
+ *   6. exactly one depositing user could be resolved (phone last-9 or unique name)
+ */
+interface AutoCreditGate {
+  label: string;
+  ok: boolean;
+  reason: string;
+}
+
+function autoCreditGateReport(args: {
+  amount: number | null;
+  transactionId: string | null;
+  direction: string | null;
+  channel: string | null;
+  internalDate: string | null;
+  hasUserMatch: boolean;
+  matchCount: number;
+  isConfidentMatch: boolean;
+}): AutoCreditGate[] {
+  const { amount, transactionId, direction, channel, internalDate, hasUserMatch, matchCount, isConfidentMatch } = args;
+  const gates: AutoCreditGate[] = [];
+
+  gates.push({
+    label: 'Amount detected',
+    ok: amount !== null && amount !== undefined && Number.isFinite(amount) && (amount as number) > 0,
+    reason: 'No positive money amount was parsed from the email.',
+  });
+
+  gates.push({
+    label: 'Transaction reference',
+    ok: !!transactionId,
+    reason: 'No transaction ID / reference was found in the email.',
+  });
+
+  gates.push({
+    label: 'Incoming money',
+    ok: direction === 'in',
+    reason: direction
+      ? `Direction is "${direction}" — auto-credit only runs for incoming money.`
+      : 'No direction (money in / out) could be determined.',
+  });
+
+  const okChannel = channel === 'mtn_momo' || channel === 'airtel_money';
+  gates.push({
+    label: 'MoMo / Airtel channel',
+    ok: okChannel,
+    reason: channel && channel !== 'other'
+      ? `Channel is "${channel.replace(/_/g, ' ')}" — auto-credit only runs for MTN MoMo or Airtel Money.`
+      : 'Channel is not MTN MoMo or Airtel Money (as parsed at import).',
+  });
+
+  const ms = internalDate ? new Date(internalDate).getTime() : 0;
+  const fresh = ms > 0 && ms >= Date.now() - 7 * 24 * 3600 * 1000;
+  gates.push({
+    label: 'Within last 7 days',
+    ok: fresh,
+    reason: ms > 0
+      ? 'Email is older than 7 days — outside the auto-credit window.'
+      : 'Email has no reliable date to check the 7-day window.',
+  });
+
+  const uniqueUser = hasUserMatch && (isConfidentMatch || matchCount === 1);
+  gates.push({
+    label: 'Single depositing user',
+    ok: uniqueUser,
+    reason: !hasUserMatch
+      ? "No depositing user could be matched from the sender's phone or name."
+      : `Multiple possible users matched (${matchCount}) with no clear winner — too ambiguous to auto-credit safely.`,
+  });
+
+  return gates;
+}
+
+/**
  * Convert a wall-clock date+time string (e.g. "2026-05-18", "00:00:00") interpreted
  * in the given IANA timezone into a UTC epoch ms. Uses Intl.DateTimeFormat to
  * discover the zone's offset at that instant — no dependency on date-fns-tz.
