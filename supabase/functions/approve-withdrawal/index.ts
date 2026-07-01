@@ -284,6 +284,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // A genuine merchant is the cashout agent who CLAIMED this exact withdrawal
+    // through the merchant queue (claim stamps `assigned_cashout_agent_id`).
+    // They fronted their own MoMo/cash, so they earn the reimbursement + 0.5%
+    // commission + SMS — even if they also hold staff roles. Staff settling from
+    // the Financial Ops desk never claim, and system/bulk auto-settlement never
+    // claims either, so neither wrongly earns merchant compensation.
+    actingAsMerchant =
+      isCashoutAgent &&
+      !isSystemCall &&
+      !!(wr as any).assigned_cashout_agent_id &&
+      (wr as any).assigned_cashout_agent_id === user.id;
+
     // ── WPO pickup-code gate (cash payouts only) ────────────────────────
     // Validated BEFORE the atomic claim/processing flip so a wrong code
     // never locks the request into "processing". System auto-approvals
