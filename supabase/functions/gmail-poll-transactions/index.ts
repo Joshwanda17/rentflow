@@ -698,6 +698,9 @@ Deno.serve(async (req) => {
             fromEmail,
             internalMs,
             gmailMessageId: m.id,
+            subject,
+            snippet,
+            rawBody: body ?? null,
           });
         } catch (e) {
           console.warn('[gmail-poll] auto-credit failed (non-fatal):', e);
@@ -796,6 +799,9 @@ async function tryAutoCreditOperationalFloat(
     fromEmail: string | null;
     internalMs: number;
     gmailMessageId: string;
+    subject?: string | null;
+    snippet?: string | null;
+    rawBody?: string | null;
   },
 ): Promise<void> {
   return await _tryAutoCreditOperationalFloat(supabase, args);
@@ -1191,9 +1197,13 @@ async function _tryAutoCreditOperationalFloat(
     fromEmail: string | null;
     internalMs: number;
     gmailMessageId: string;
+    subject?: string | null;
+    snippet?: string | null;
+    rawBody?: string | null;
   },
 ): Promise<void> {
   const { parsed, internalMs, gmailMessageId } = args;
+  const { subject = null, snippet = null, rawBody = null } = args;
 
   // Eligibility gates
   if (!parsed.amount || parsed.amount <= 0) return;
@@ -1210,6 +1220,13 @@ async function _tryAutoCreditOperationalFloat(
 
   let profile: { id: string; phone: string | null; full_name: string | null; email?: string | null } | null = null;
   let matchMethod: 'phone' | 'name' = 'phone';
+  // Track which last-9 phone actually resolved the user and where it was
+  // found (the sender/counterparty field vs anywhere in the email body).
+  // A body match is the "possible user (≈60%)" signal surfaced in the
+  // Financial-Ops UI — we now auto-credit it too, but only when it points
+  // to exactly ONE known user, to avoid mis-crediting.
+  let matchedPhoneLast9: string | null = null;
+  let phoneSource: 'counterparty' | 'body' | null = null;
   // Audit detail for name-fallback matching: candidate pool, chosen
   // tie-breaker, last-seen timestamps, and confidence breakdown. Surfaced
   // in the Auto-Credit Review queue so ops can judge each best-guess.
@@ -1242,7 +1259,58 @@ async function _tryAutoCreditOperationalFloat(
         .filter('phone', 'ilike', `%${last9}`)
         .limit(1)
         .maybeSingle();
-      if (data?.id) profile = data as any;
+      if (data?.id) {
+        profile = data as any;
+        matchedPhoneLast9 = last9;
+        phoneSource = 'counterparty';
+      }
+    }
+  }
+
+  // ── Body-phone fallback (the UI "possible user ≈60%" signal) ─────────
+  // The counterparty field only carries the sender phone for some providers.
+  // When it didn't resolve a user, scan the WHOLE email (counterparty +
+  // subject + snippet + body) for Ugandan mobile numbers (last-9 begins
+  // with 7) and auto-credit only when every phone found points to the SAME
+  // single known user. Uniqueness is required so an unrelated number printed
+  // elsewhere in the email can never mis-credit someone.
+  if (!profile) {
+    const hay = `${cp}\n${subject ?? ''}\n${snippet ?? ''}\n${rawBody ?? ''}`;
+    const tokens = hay.match(/(?:\+?256|0)?7\d{8}/g) ?? [];
+    const last9Set = new Set<string>();
+    for (const t of tokens) {
+      const d = t.replace(/[^0-9]/g, '');
+      if (d.length >= 9) last9Set.add(d.slice(-9));
+    }
+    if (last9Set.size > 0) {
+      const found = new Map<string, { id: string; phone: string | null; full_name: string | null; email?: string | null; last9: string }>();
+      for (const last9 of last9Set) {
+        const { data: hits } = await supabase
+          .from('profiles')
+          .select('id, phone, full_name, email')
+          .filter('phone', 'ilike', `%${last9}`)
+          .limit(2);
+        for (const p of (hits ?? []) as any[]) {
+          if (p?.id && !found.has(p.id)) found.set(p.id, { ...p, last9 });
+        }
+      }
+      if (found.size === 1) {
+        const only = Array.from(found.values())[0];
+        profile = { id: only.id, phone: only.phone, full_name: only.full_name, email: only.email };
+        matchMethod = 'phone';
+        matchedPhoneLast9 = only.last9;
+        phoneSource = 'body';
+        console.log(`[gmail-poll] body-phone fallback matched last9=${only.last9} → user=${only.id}`);
+      } else if (found.size > 1) {
+        console.log(`[gmail-poll] body-phone fallback ambiguous (${found.size} users) — skipping auto-credit`);
+        await logDepositDecision(supabase, {
+          source: 'matcher',
+          decision: 'skipped',
+          reason: 'body_phone_ambiguous',
+          amount: parsed.amount ?? null,
+          metadata: { gmail_message_id: gmailMessageId, match_count: found.size },
+        });
+      }
     }
   }
 
@@ -1534,7 +1602,8 @@ async function _tryAutoCreditOperationalFloat(
     source: 'gmail_auto_credit',
     gmail_message_id: gmailMessageId,
     match_method: matchMethod,
-    matched_phone_last9: phoneMatch ? phoneMatch[0].replace(/[^0-9]/g, '').slice(-9) : null,
+    matched_phone_last9: matchedPhoneLast9,
+    phone_source: phoneSource,
     matched_name: matchMethod === 'name' ? cp : null,
     provider,
     parsed_amount: parsed.amount,
@@ -1545,8 +1614,13 @@ async function _tryAutoCreditOperationalFloat(
     // name-fallback path. Null when matched on phone (deterministic).
     name_match: nameMatchAudit,
     tiebreaker: nameMatchAudit?.tiebreaker ?? null,
-    confidence: nameMatchAudit?.confidence ?? (matchMethod === 'phone' ? 'high' : null),
-    confidence_score: nameMatchAudit?.confidence_score ?? (matchMethod === 'phone' ? 1 : null),
+    // Counterparty phone = deterministic (high). Body phone = the "possible
+    // user ≈60%" signal, still unique-matched but recorded as medium so ops
+    // can spot-check it in the Auto-Credit Review queue.
+    confidence: nameMatchAudit?.confidence
+      ?? (matchMethod === 'phone' ? (phoneSource === 'body' ? 'medium' : 'high') : null),
+    confidence_score: nameMatchAudit?.confidence_score
+      ?? (matchMethod === 'phone' ? (phoneSource === 'body' ? 0.6 : 1) : null),
   };
 
   // Create the deposit as pending — approve-deposit will flip it.
