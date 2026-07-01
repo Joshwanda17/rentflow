@@ -1259,6 +1259,12 @@ export function EmailTransactionsPanel() {
             if (!d) continue;
             if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
             const p = profById.get(d.user_id);
+            const audit = (d.auto_match_audit ?? {}) as {
+              match_method?: string | null;
+              phone_source?: string | null;
+              confidence?: string | null;
+              confidence_score?: number | null;
+            };
             list.push({
               deposit_id: d.id,
               user_id: d.user_id,
@@ -1271,6 +1277,10 @@ export function EmailTransactionsPanel() {
               credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
               matched_by_tid: tidDepIds.has(depId) && !explicitDepIds.has(depId),
               matched_tid: tidDepIds.has(depId) ? (normTid ?? receiptCode ?? null) : null,
+              auto_match_method: audit.match_method ?? null,
+              auto_phone_source: (audit.phone_source as 'counterparty' | 'body' | null) ?? null,
+              auto_confidence: (audit.confidence as 'high' | 'medium' | 'low' | null) ?? null,
+              auto_confidence_score: typeof audit.confidence_score === 'number' ? audit.confidence_score : null,
             });
           }
           if (list.length) next[r.id] = list;
