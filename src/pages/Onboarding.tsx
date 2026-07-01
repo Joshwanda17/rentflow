@@ -1074,6 +1074,14 @@ function friendlySubmissionError(err: any): string {
   if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timeout') || lower.includes('timed out')) {
     return 'Network error. Please check your internet connection and try again.';
   }
+  if (
+    lower.includes('database error saving new user') ||
+    lower.includes('database error') ||
+    lower.includes('unexpected_failure') ||
+    lower.includes('500')
+  ) {
+    return 'We couldn’t finish setting up your account just now. This is usually temporary — please wait a moment and try again. If it keeps happening, your phone or email may already be linked to an account, so try signing in instead.';
+  }
   return msg || 'We couldn’t create your account. Please review your details and try again.';
 }
 
