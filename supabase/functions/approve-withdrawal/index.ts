@@ -1891,12 +1891,15 @@ Deno.serve(async (req) => {
         }
       }
 
-      const smsMsg =
-        `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
-        `APPROVED & PAID via ${payment_method}. ${proofLabel}: ${refUpper}.` +
-        `${merchantLine}${balanceLine} ` +
-        `\n\nAccess your dashboard to view your wallet, transactions, and account details:\n` +
-        `https://welilereceipts.com/ZQhyGb`;
+      const smsMsg = actingAsMerchant
+        ? `WELILE: Your cash withdrawal of UGX ${amount.toLocaleString()} has been ` +
+          `successfully completed by a Welile merchant agent. Txn ID: ${refUpper}. ` +
+          `View your receipt: https://welilereceipts.com/ZQhyGb`
+        : `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
+          `APPROVED & PAID via ${payment_method}. ${proofLabel}: ${refUpper}.` +
+          `${merchantLine}${balanceLine} ` +
+          `\n\nAccess your dashboard to view your wallet, transactions, and account details:\n` +
+          `https://welilereceipts.com/ZQhyGb`;
 
       // In-app notification center entry so the user sees the approval update
       // (merchant agent name + remaining wallet balance) without relying on SMS.
