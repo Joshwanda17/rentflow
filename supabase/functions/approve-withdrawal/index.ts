@@ -203,12 +203,15 @@ Deno.serve(async (req) => {
 
     // Merchant compensation (principal reimbursement + 0.5% commission + SMS)
     // must ONLY go to a genuine merchant agent who fronted their OWN MTN/Airtel
-    // cash to pay the customer. A staff member settling a payout from the
-    // Financial Ops desk (even if they happen to ALSO hold a cashout_agents
-    // row) is paying with platform funds — there is no cash to reimburse and no
-    // commission to earn. The same applies to system/bulk auto-settlement,
-    // which impersonates a super_admin. Gate all merchant payouts on this flag.
-    const actingAsMerchant = isCashoutAgent && !hasStaffRole && !isSystemCall;
+    // cash to pay the customer. The authoritative signal is that this caller
+    // CLAIMED the specific withdrawal (`assigned_cashout_agent_id === caller`)
+    // via the merchant queue — resolved after the withdrawal row is fetched
+    // below. Role no longer gates this: nearly every merchant also carries staff
+    // roles (manager/super_admin/etc.), and the old `!hasStaffRole` gate was
+    // silently denying them commission + SMS. Staff settling from the Financial
+    // Ops desk never claim, and system/bulk auto-settlement impersonates a
+    // super_admin — neither carries a matching claim, so neither qualifies.
+    let actingAsMerchant = false;
 
     if (!hasStaffRole && !isCashoutAgent) {
       return new Response(JSON.stringify({ error: "Forbidden: insufficient role" }), {
