@@ -38,6 +38,7 @@ const PinAuthProvider = lazyWithRetry(() => import("@/hooks/usePinAuth").then(m 
 const BiometricAuthProvider = lazyWithRetry(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
 const ProfileCompletionGate = optionalLazyWithRetry(() => import("@/components/onboarding/ProfileCompletionGate"), "ProfileCompletionGate");
 const LocationCaptureGate = optionalLazyWithRetry(() => import("@/components/location/LocationCaptureGate"), "LocationCaptureGate");
+const PushNotificationGate = optionalLazyWithRetry(() => import("@/components/notifications/PushNotificationGate"), "PushNotificationGate");
 const SubAgentInviteGate = optionalLazyWithRetry(() => import("@/components/agent/SubAgentInviteGate"), "SubAgentInviteGate");
 
 // Deferred providers - loaded after first paint
@@ -618,6 +619,7 @@ const App = () => {
                           <SonnerToaster />
                           <ProfileCompletionGate />
                           <LocationCaptureGate />
+                          <PushNotificationGate />
                           <SubAgentInviteGate />
                           <CreditLoadingDebugPanel />
                         </Suspense>
