@@ -235,7 +235,11 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerE
               )}
               {entry.linked_party && (
                 <DetailRow
-                  label="Linked Party"
+                  label={
+                    entry.source_table === 'withdrawal_requests' || entry.category === 'wallet_withdrawal'
+                      ? 'Linked Party (Merchant Agent)'
+                      : 'Linked Party'
+                  }
                   value={linkedPartyProfile ? `${linkedPartyProfile.full_name} (${linkedPartyProfile.phone})` : entry.linked_party}
                 />
               )}
