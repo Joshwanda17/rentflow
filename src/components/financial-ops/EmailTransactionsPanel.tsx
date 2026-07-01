@@ -1218,7 +1218,7 @@ export function EmailTransactionsPanel() {
         }
         if (!depIds.size) { if (!cancelled) setCreditedDeposits({}); return; }
         const { data: deps } = await (supabase.from('deposit_requests') as any)
-          .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at')
+          .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at, auto_match_audit')
           .in('id', Array.from(depIds));
         const depById = new Map<string, any>();
         const userIds = new Set<string>();
