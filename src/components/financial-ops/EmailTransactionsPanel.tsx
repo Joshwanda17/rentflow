@@ -4152,6 +4152,56 @@ export function EmailTransactionsPanel() {
                         </Button>
                       </div>
                     )}
+                    {/* "Why auto-credit was skipped" — for every incoming email
+                        the poller did NOT auto-credit, show the exact gate
+                        checklist it evaluated so ops can see which rule failed
+                        (mirrors _tryAutoCreditOperationalFloat in the edge fn). */}
+                    {r.direction === 'in' && !isCredited && !isRouted && (() => {
+                      const gates = autoCreditGateReport({
+                        amount: r.amount,
+                        transactionId: r.transaction_id,
+                        direction: r.direction,
+                        channel: r.channel,
+                        internalDate: r.internal_date,
+                        hasUserMatch,
+                        matchCount: matches.length,
+                        isConfidentMatch: isConfident,
+                      });
+                      const failed = gates.filter((g) => !g.ok);
+                      return (
+                        <div className="mt-1.5 rounded-md border border-sky-500/30 bg-sky-500/5 px-2.5 py-1.5">
+                          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-400">
+                            <HelpCircle className="h-3 w-3" />
+                            Why auto-credit was skipped
+                            {failed.length > 0 && (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-sky-500/40 text-sky-700 dark:text-sky-400">
+                                {failed.length} check{failed.length === 1 ? '' : 's'} failed
+                              </Badge>
+                            )}
+                          </div>
+                          {failed.length === 0 ? (
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              All auto-credit checks passed — if this hasn't landed in a wallet it may still be
+                              processing or was reversed. Use “Send to wallet” to credit it manually.
+                            </p>
+                          ) : (
+                            <ul className="mt-1 space-y-0.5">
+                              {gates.map((g) => (
+                                <li key={g.label} className="flex items-start gap-1.5 text-[11px] leading-snug">
+                                  {g.ok
+                                    ? <Check className="h-3 w-3 mt-0.5 shrink-0 text-emerald-600" />
+                                    : <X className="h-3 w-3 mt-0.5 shrink-0 text-rose-600" />}
+                                  <span className={g.ok ? 'text-muted-foreground' : 'text-foreground'}>
+                                    <span className="font-medium">{g.label}</span>
+                                    {!g.ok && <span className="text-rose-700 dark:text-rose-400"> — {g.reason}</span>}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {isCredited && (
                       <div className="mt-1.5 space-y-1">
                         {credited.map((c, i) => (
