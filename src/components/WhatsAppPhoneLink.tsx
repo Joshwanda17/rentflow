@@ -124,12 +124,14 @@ export function WhatsAppVerificationBadge({
   onMarkVerified
 }: { 
   verified: boolean; 
-  phone: string;
+  phone: string | null | undefined;
   onVerify?: () => void;
   onMarkVerified?: () => void;
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const phoneInfo = parsePhoneNumber(phone);
+  const hasPhone = typeof phone === 'string' && phone.trim().length > 0;
+  if (!verified && !hasPhone) return null;
   
   if (verified) {
     return (
