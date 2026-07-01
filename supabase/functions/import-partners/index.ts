@@ -41,6 +41,16 @@ function partnerImportFallback(partnerName?: string | null): string {
   return `We could not finish importing ${name}. Please check that the phone, email, and portfolio details are valid, then try again.`;
 }
 
+function pushImportError(
+  errors: { partner: string; error: string }[],
+  partner: string | null | undefined,
+  error: unknown,
+  fallback: string,
+) {
+  const partnerName = partner?.trim() || "Unknown partner";
+  errors.push({ partner: partnerName, error: readableImportError(error, fallback) });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -105,7 +115,7 @@ Deno.serve(async (req) => {
       try {
         // Validate
         if (!partner.partner_name?.trim()) {
-          errors.push({ partner: partner.phone || 'Unknown', error: 'Missing name' });
+          pushImportError(errors, partner.phone || 'Unknown partner', 'Missing partner name. Add the Partner Name/Supporter Name column value for this row.', 'Missing partner name.');
           continue;
         }
         // Phone is optional — validate only if provided
@@ -133,7 +143,7 @@ Deno.serve(async (req) => {
           if (!existingRole) {
             const { error: roleErr } = await adminClient.from("user_roles").insert({ user_id: userId, role: "supporter" });
             if (roleErr) {
-              errors.push({ partner: partner.partner_name, error: readableImportError(roleErr, "Could not assign the supporter role to this existing user.") });
+              pushImportError(errors, partner.partner_name, roleErr, "Could not assign the supporter role to this existing user. Please confirm the account is active and try again.");
               continue;
             }
           }
@@ -142,7 +152,7 @@ Deno.serve(async (req) => {
           const tempPwd = `Welile1234!`;
           const { error: passwordErr } = await adminClient.auth.admin.updateUserById(userId, { password: tempPwd });
           if (passwordErr) {
-            errors.push({ partner: partner.partner_name, error: readableImportError(passwordErr, "Could not update the login password for this existing user.") });
+            pushImportError(errors, partner.partner_name, passwordErr, "Could not update the login password for this existing user. Please try again or reset the password manually.");
             continue;
           }
 
@@ -153,7 +163,7 @@ Deno.serve(async (req) => {
               email_confirm: true,
             });
             if (emailErr) {
-              errors.push({ partner: partner.partner_name, error: readableImportError(emailErr, "Could not attach this email address to the existing user account.") });
+              pushImportError(errors, partner.partner_name, emailErr, "Could not attach this email address to the existing user account. The email may already belong to another user.");
               continue;
             }
           }
@@ -175,7 +185,7 @@ Deno.serve(async (req) => {
           });
 
           if (authErr || !authData.user) {
-            errors.push({ partner: partner.partner_name, error: readableImportError(authErr, "Could not create the login account for this partner. Please check the phone/email and try again.") });
+            pushImportError(errors, partner.partner_name, authErr, "Could not create the login account for this partner. Please check for duplicate email/phone details and try again.");
             continue;
           }
 
@@ -189,7 +199,7 @@ Deno.serve(async (req) => {
           if (hasPhone) profileData.phone = partner.phone;
           const { error: profileErr } = await adminClient.from("profiles").upsert(profileData);
           if (profileErr) {
-            errors.push({ partner: partner.partner_name, error: readableImportError(profileErr, "Could not save the partner profile.") });
+            pushImportError(errors, partner.partner_name, profileErr, "Could not save the partner profile. Please check the name and phone number.");
             continue;
           }
 
@@ -199,7 +209,7 @@ Deno.serve(async (req) => {
             role: "supporter",
           });
           if (roleErr) {
-            errors.push({ partner: partner.partner_name, error: readableImportError(roleErr, "Could not assign the supporter role to this partner.") });
+            pushImportError(errors, partner.partner_name, roleErr, "Could not assign the supporter role to this partner. Please try again.");
             continue;
           }
 
@@ -209,7 +219,7 @@ Deno.serve(async (req) => {
             balance: 0,
           }, { onConflict: 'user_id' });
           if (walletErr) {
-            errors.push({ partner: partner.partner_name, error: readableImportError(walletErr, "Could not prepare this partner's wallet record.") });
+            pushImportError(errors, partner.partner_name, walletErr, "Could not prepare this partner's wallet record. Please try again.");
             continue;
           }
 
@@ -220,7 +230,7 @@ Deno.serve(async (req) => {
         for (const pf of partner.portfolios) {
           try {
             if (pf.amount < 50000 || pf.roiPercentage < 1 || pf.durationMonths < 1) {
-              errors.push({ partner: partner.partner_name, error: `Invalid portfolio data: ${pf.amount}` });
+              pushImportError(errors, partner.partner_name, `Invalid portfolio data: amount ${pf.amount}, return ${pf.roiPercentage}%, duration ${pf.durationMonths} months. Amount must be at least UGX 50,000, return must be at least 1%, and duration must be at least 1 month.`, "Invalid portfolio data.");
               continue;
             }
 
@@ -284,13 +294,13 @@ Deno.serve(async (req) => {
             const { error: portfolioErr } = await adminClient.from("investor_portfolios").insert(insertData);
 
             if (portfolioErr) {
-              errors.push({ partner: partner.partner_name, error: `Portfolio could not be created: ${readableImportError(portfolioErr, "Please check the amount, return mode, duration, and contribution date.")}` });
+              pushImportError(errors, partner.partner_name, portfolioErr, "Portfolio could not be created. Please check the amount, return mode, duration, contribution date, and whether the portfolio already exists.");
               continue;
             }
 
             portfoliosCreated++;
           } catch (pfErr: any) {
-            errors.push({ partner: partner.partner_name, error: `Portfolio could not be created: ${readableImportError(pfErr, "Please check the portfolio details and try again.")}` });
+            pushImportError(errors, partner.partner_name, pfErr, "Portfolio could not be created. Please check the portfolio details and try again.");
           }
         }
 
@@ -309,11 +319,11 @@ Deno.serve(async (req) => {
           },
         });
         if (auditErr) {
-          errors.push({ partner: partner.partner_name, error: readableImportError(auditErr, "The partner was imported, but the audit record could not be saved.") });
+          pushImportError(errors, partner.partner_name, auditErr, "The partner was imported, but the audit record could not be saved.");
         }
 
       } catch (partnerErr: any) {
-        errors.push({ partner: partner.partner_name || partner.phone, error: readableImportError(partnerErr, partnerImportFallback(partner.partner_name)) });
+        pushImportError(errors, partner.partner_name || partner.phone, partnerErr, partnerImportFallback(partner.partner_name));
       }
     }
 
