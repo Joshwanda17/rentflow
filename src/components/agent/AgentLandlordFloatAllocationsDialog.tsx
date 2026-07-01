@@ -161,7 +161,13 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate">
+                        {a.tenant_name && (
+                          <div className="flex items-center gap-1.5 text-sm font-bold text-foreground truncate">
+                            <User className="h-3.5 w-3.5 shrink-0 text-[#9234EA]" />
+                            {a.tenant_name}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground truncate mt-0.5">
                           <User className="h-3 w-3 shrink-0 text-muted-foreground" />
                           Landlord: {a.landlord_name}
                         </div>
