@@ -904,47 +904,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                       : `MoMo · Bank${isCashoutAgent.handles_cash ? ' · Cash' : ''}`}
                   </p>
                 </div>
-                {pendingEarnings && pendingEarnings.totalCommission > 0 ? (
-                  <div className="shrink-0 relative flex flex-col items-end justify-center rounded-2xl bg-white px-2.5 sm:px-4 py-2 sm:py-2.5 shadow-lg ring-2 ring-emerald-600/30">
-                    <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800 leading-none">
-                      You earn
-                      <TooltipProvider delayDuration={150}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              aria-label="What is this amount?"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center justify-center text-emerald-700/70 hover:text-emerald-800"
-                            >
-                              <Info className="h-3 w-3" />
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[220px] text-xs">
-                            This is the total 0.5% commission you would earn across all currently unclaimed payout requests.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </span>
-                    <span className="text-lg sm:text-3xl font-black text-emerald-700 leading-tight tabular-nums">
-                      {formatUGX(pendingEarnings.totalCommission)}
-                    </span>
-                    {pendingUpdatedLabel && (
-                      <span className="mt-0.5 flex items-center gap-1 text-[9px] font-medium text-emerald-700/70 leading-none">
-                        <span
-                          className={cn(
-                            'inline-block h-1.5 w-1.5 rounded-full bg-emerald-500',
-                            pendingFetching && 'animate-pulse',
-                          )}
-                        />
-                        {pendingFetching ? 'refreshing…' : pendingUpdatedLabel}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-base font-bold text-white shrink-0 relative">Open →</span>
-                )}
+                <span className="text-base font-bold text-white shrink-0 relative">Open →</span>
               </button>
             )}
 
