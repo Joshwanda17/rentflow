@@ -809,9 +809,11 @@ function _Step3Impl({
             </div>
             <input
               type="tel"
-              placeholder="+256 700 000 000"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="0700 000 000"
               value={form.phone}
-              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+              onChange={e => setForm(p => ({ ...p, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
               className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all"
             />
           </div>
