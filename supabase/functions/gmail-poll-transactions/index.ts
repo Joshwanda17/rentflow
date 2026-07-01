@@ -802,6 +802,51 @@ async function tryAutoCreditOperationalFloat(
 }
 
 // ── Helper: event-driven auto-debit of outgoing payout emails ────────
+// ── Audit helper: record an auto-debit match attempt (incl. near-misses) ─
+// Writes one row to `email_payout_match_attempts` referencing the source
+// email (`email_id`, `email_transaction_id`) and — when known — the matched
+// wallet (via metadata) so Financial Ops has a full attempt trail. Failures
+// to log are swallowed so auditing never blocks a real debit.
+async function logPayoutMatchAttempt(
+  supabase: ReturnType<typeof createClient>,
+  rec: {
+    emailId: string | null;
+    emailTid: string | null;
+    emailAmount: number | null;
+    debitedAmount?: number | null;
+    recipientPhoneEmail?: string | null;
+    recipientPhoneTarget?: string | null;
+    paymentMethod?: string | null;
+    outcome: string;
+    errorMessage?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<void> {
+  try {
+    const emailAmount = rec.emailAmount != null ? Number(rec.emailAmount) : null;
+    const debited = rec.debitedAmount != null ? Number(rec.debitedAmount) : null;
+    await supabase.from('email_payout_match_attempts').insert({
+      operator_id: null, // system auto-debit — no human operator
+      withdrawal_id: null, // email→wallet debit, not tied to a withdrawal_request
+      email_id: rec.emailId,
+      email_transaction_id: rec.emailTid,
+      email_amount: emailAmount,
+      withdrawal_amount: debited,
+      amount_delta:
+        emailAmount != null && debited != null ? emailAmount - debited : null,
+      recipient_phone_email: rec.recipientPhoneEmail ?? null,
+      recipient_phone_target: rec.recipientPhoneTarget ?? null,
+      payment_method: rec.paymentMethod ?? null,
+      outcome: rec.outcome,
+      error_message: rec.errorMessage ?? null,
+      metadata: { source: 'auto_debit_poll', ...(rec.metadata ?? {}) },
+    });
+  } catch (e) {
+    console.warn('[gmail-poll] payout match-attempt log failed (non-fatal):', e);
+  }
+}
+
+// ── Helper: event-driven auto-debit of outgoing payout emails ────────
 // When a parsed OUTGOING payout email (bank "sent to NAME", MTN/Airtel
 // "sent to PHONE") matches exactly one known platform user who has
 // withdrawable balance, debit their wallet automatically via the
