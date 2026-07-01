@@ -203,14 +203,14 @@ Deno.serve(async (req) => {
 
     // Merchant compensation (principal reimbursement + 0.5% commission + SMS)
     // must ONLY go to a genuine merchant agent who fronted their OWN MTN/Airtel
-    // cash to pay the customer. The authoritative signal is that this caller
-    // CLAIMED the specific withdrawal (`assigned_cashout_agent_id === caller`)
-    // via the merchant queue — resolved after the withdrawal row is fetched
-    // below. Role no longer gates this: nearly every merchant also carries staff
-    // roles (manager/super_admin/etc.), and the old `!hasStaffRole` gate was
-    // silently denying them commission + SMS. Staff settling from the Financial
-    // Ops desk never claim, and system/bulk auto-settlement impersonates a
-    // super_admin — neither carries a matching claim, so neither qualifies.
+    // cash to pay the customer. The authoritative signal is the explicit
+    // `acting_as_merchant` intent flag the merchant queue sends (resolved after
+    // the body is parsed below), combined with the caller actually being an
+    // active cashout agent. Role no longer gates this: nearly every merchant
+    // also holds staff roles (manager/super_admin/etc.), and the old
+    // `!hasStaffRole` gate was silently denying them commission + SMS. The
+    // Financial Ops desk never sends the flag, and system/bulk auto-settlement
+    // impersonates a super_admin without the flag — so neither qualifies.
     let actingAsMerchant = false;
 
     if (!hasStaffRole && !isCashoutAgent) {
