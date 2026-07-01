@@ -79,6 +79,27 @@ Deno.serve(async (req) => {
       }),
     };
 
+    // ── Web push: alert every active merchant agent about the claimable request
+    //    (fire-and-forget). This reaches agents even when they have no real
+    //    email on file, so the claim queue surfaces instantly on their device.
+    const amountLabel = `UGX ${(Number(w.amount) || 0).toLocaleString()}`;
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({
+        userIds: agentIds,
+        payload: {
+          title: "💵 New cash-out to claim",
+          body: `${templateData.requesterName} · ${amountLabel} · ${templateData.payoutMethod}. Tap to claim.`,
+          url: "/dashboard/agent?section=cash-payouts",
+          type: "claim",
+        },
+      }),
+    }).catch(() => {});
+
     let sent = 0;
     await Promise.all(
       recipients.map(async (p: any) => {
