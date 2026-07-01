@@ -698,6 +698,9 @@ Deno.serve(async (req) => {
             fromEmail,
             internalMs,
             gmailMessageId: m.id,
+            subject,
+            snippet,
+            rawBody: body ?? null,
           });
         } catch (e) {
           console.warn('[gmail-poll] auto-credit failed (non-fatal):', e);
