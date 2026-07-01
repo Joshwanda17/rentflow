@@ -864,6 +864,18 @@ async function tryAutoDebitPayout(
       console.log(
         `[gmail-poll] auto-debit skip: payout ${parsed.transaction_id ?? gmailMessageId} already settled a withdrawal request — not double-debiting`,
       );
+      await logPayoutMatchAttempt(supabase, {
+        emailId: gmailRow.id,
+        emailTid: parsed.transaction_id ?? null,
+        emailAmount: parsed.amount ?? null,
+        recipientPhoneEmail: (parsed.counterparty ?? '').toString().trim() || null,
+        paymentMethod: parsed.channel ?? null,
+        outcome: 'skipped_double_debit',
+        metadata: {
+          gmail_message_id: gmailMessageId,
+          reason: 'A withdrawal request already consumed this payout email; skipped to avoid double-debit.',
+        },
+      });
       return;
     }
   }
@@ -911,6 +923,20 @@ async function tryAutoDebitPayout(
 
   if (!profile?.id) {
     console.log(`[gmail-poll] auto-debit: no unique recipient for "${cp}" — leaving for manual review`);
+    await logPayoutMatchAttempt(supabase, {
+      emailId: gmailRow.id,
+      emailTid: parsed.transaction_id ?? null,
+      emailAmount: parsed.amount ?? null,
+      recipientPhoneEmail: cp || null,
+      paymentMethod: parsed.channel ?? null,
+      outcome: 'no_recipient_match',
+      metadata: {
+        gmail_message_id: gmailMessageId,
+        counterparty: cp,
+        looks_like_phone: looksLikePhone,
+        reason: 'No unique platform user matched the payout recipient; left for manual review.',
+      },
+    });
     return;
   }
 
@@ -924,6 +950,22 @@ async function tryAutoDebitPayout(
     console.warn(
       `[gmail-poll] auto-debit skip: neither ${profile.full_name} nor any managed proxy has available balance for UGX ${parsed.amount.toLocaleString()}`,
     );
+    await logPayoutMatchAttempt(supabase, {
+      emailId: gmailRow.id,
+      emailTid: parsed.transaction_id ?? null,
+      emailAmount: parsed.amount ?? null,
+      recipientPhoneEmail: cp || null,
+      recipientPhoneTarget: profile.phone ?? null,
+      paymentMethod: parsed.channel ?? null,
+      outcome: 'insufficient_balance',
+      metadata: {
+        gmail_message_id: gmailMessageId,
+        match_method: matchMethod,
+        matched_user_id: profile.id,
+        matched_user_name: profile.full_name,
+        reason: 'Recipient matched but neither the user nor a managed proxy had available balance to cover the payout.',
+      },
+    });
     return;
   }
   const debitAmt = target.debitAmount;
@@ -973,6 +1015,25 @@ async function tryAutoDebitPayout(
     const out = await res.json().catch(() => ({}));
     if (!res.ok || (out as any)?.error) {
       console.warn('[gmail-poll] auto-debit cfo-direct-credit failed:', res.status, JSON.stringify(out).slice(0, 300));
+      await logPayoutMatchAttempt(supabase, {
+        emailId: gmailRow.id,
+        emailTid: parsed.transaction_id ?? null,
+        emailAmount: parsed.amount ?? null,
+        debitedAmount: debitAmt,
+        recipientPhoneEmail: cp || null,
+        recipientPhoneTarget: target.targetPhone ?? null,
+        paymentMethod: parsed.channel ?? null,
+        outcome: 'debit_failed',
+        errorMessage: `cfo-direct-credit ${res.status}: ${JSON.stringify((out as any)?.error ?? out).slice(0, 300)}`,
+        metadata: {
+          gmail_message_id: gmailMessageId,
+          match_method: matchMethod,
+          target_user_id: target.targetUserId,
+          target_user_name: target.targetName,
+          via_proxy: viaProxy,
+          is_partial: isPartial,
+        },
+      });
       return;
     }
     referenceId = (out as any)?.reference_id ?? null;
@@ -982,8 +1043,50 @@ async function tryAutoDebitPayout(
     );
   } catch (e) {
     console.warn('[gmail-poll] auto-debit cfo-direct-credit invoke failed:', e);
+    await logPayoutMatchAttempt(supabase, {
+      emailId: gmailRow.id,
+      emailTid: parsed.transaction_id ?? null,
+      emailAmount: parsed.amount ?? null,
+      debitedAmount: debitAmt,
+      recipientPhoneEmail: cp || null,
+      recipientPhoneTarget: target.targetPhone ?? null,
+      paymentMethod: parsed.channel ?? null,
+      outcome: 'debit_failed',
+      errorMessage: `invoke error: ${e instanceof Error ? e.message : String(e)}`,
+      metadata: {
+        gmail_message_id: gmailMessageId,
+        match_method: matchMethod,
+        target_user_id: target.targetUserId,
+        target_user_name: target.targetName,
+        via_proxy: viaProxy,
+        is_partial: isPartial,
+      },
+    });
     return;
   }
+
+  // ── Success: record the completed auto-debit match ────────────────────
+  await logPayoutMatchAttempt(supabase, {
+    emailId: gmailRow.id,
+    emailTid: parsed.transaction_id ?? null,
+    emailAmount: parsed.amount ?? null,
+    debitedAmount: debitAmt,
+    recipientPhoneEmail: cp || null,
+    recipientPhoneTarget: target.targetPhone ?? null,
+    paymentMethod: parsed.channel ?? null,
+    outcome: isPartial ? 'debited_partial' : 'debited',
+    metadata: {
+      gmail_message_id: gmailMessageId,
+      match_method: matchMethod,
+      target_user_id: target.targetUserId,
+      target_user_name: target.targetName,
+      via_proxy: viaProxy,
+      proxy_for_user_id: target.proxyForUserId ?? null,
+      proxy_for_name: target.proxyForName ?? null,
+      is_partial: isPartial,
+      ledger_reference_id: referenceId,
+    },
+  });
 
   // Record the routing so the panel shows the row as auto-debited and the
   // idempotency guard above blocks any re-run.
