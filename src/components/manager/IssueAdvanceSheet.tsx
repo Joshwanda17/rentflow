@@ -141,22 +141,20 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
         advanceRecordId = (inserted as any)?.id ?? null;
       }
 
-      // Disburse the advance principal straight into the agent's wallet.
-      // Agent advances are working-capital float, so the money is routed to the
-      // FLOAT bucket (recipient_type='operational_wallet'). Crediting the
-      // withdrawable bucket would be instantly reclaimed by the auto-advance
-      // recovery sweep, leaving the agent with nothing.
+      // Disburse the advance principal straight into the agent's WITHDRAWABLE
+      // wallet (recipient_type='user'). Advances are cash the agent must be able
+      // to withdraw and use — routing to the float bucket would trap the money
+      // as company float that the agent can never withdraw.
       const { data: creditRes, error: creditErr } = await supabase.functions.invoke('cfo-direct-credit', {
         body: {
           target_user_id: agentId,
           amount: parsedAmount,
           operation: 'credit',
-          recipient_type: 'operational_wallet',
-          wallet_category: 'agent_float_deposit',
-          platform_category: 'agent_float_deposit',
+          recipient_type: 'user',
+          platform_category: 'system_balance_correction',
           financial_impact: 'neutral',
           category_label: isTopUp ? 'Agent Advance Top-Up' : 'Agent Advance Disbursement',
-          reason: `Agent advance ${isTopUp ? 'top-up' : 'issued'} by CFO`,
+          reason: `Agent cash advance ${isTopUp ? 'top-up' : 'issued'} by CFO to withdrawable wallet`,
           sub_category: advanceRecordId || undefined,
           manual_credit: true,
         },
