@@ -24,6 +24,23 @@ async function readErrorPayload(error: any): Promise<any | null> {
   return null;
 }
 
+// Turn a raw Supabase FunctionsError into a message an agent can act on.
+// A network-level fetch failure ("Failed to send a request to the Edge
+// Function") means the request never reached the server — the OTP is still
+// valid and can simply be re-entered on a stable connection.
+function friendlyOtpError(rawMessage: string | undefined, fallback: string): string {
+  const msg = (rawMessage || '').toLowerCase();
+  if (
+    msg.includes('failed to send a request') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('network') ||
+    msg.includes('load failed')
+  ) {
+    return 'Network issue — the request did not reach our servers. Your code is still valid; check the connection and tap Verify again.';
+  }
+  return rawMessage || fallback;
+}
+
 interface PayoutOtpPayload {
   landlord_id: string;
   landlord_name: string;
