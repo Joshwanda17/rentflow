@@ -83,6 +83,7 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
     if (!q) return allocations;
     return allocations.filter((a) =>
       (a.landlord_name || '').toLowerCase().includes(q) ||
+      (a.tenant_name || '').toLowerCase().includes(q) ||
       (a.landlord_phone || '').toLowerCase().includes(q),
     );
   }, [allocations, search]);
@@ -126,7 +127,10 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search landlord by name or phone…"
+                  placeholder="Search by tenant, landlord or phone…"
+                  // Search now also matches the tenant so agents can find a
+                  // payout by the tenant it belongs to (landlord names can be
+                  // renamed/merged after disbursement).
                   className="pl-9 h-10"
                   autoFocus={false}
                 />
@@ -160,7 +164,13 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate">
+                        {a.tenant_name && (
+                          <div className="flex items-center gap-1.5 text-sm font-bold text-foreground truncate">
+                            <User className="h-3.5 w-3.5 shrink-0 text-[#9234EA]" />
+                            {a.tenant_name}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground truncate mt-0.5">
                           <User className="h-3 w-3 shrink-0 text-muted-foreground" />
                           Landlord: {a.landlord_name}
                         </div>
