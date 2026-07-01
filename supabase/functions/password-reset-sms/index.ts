@@ -530,8 +530,15 @@ Deno.serve(async (req) => {
 
       if (updateError) {
         console.error("[password-reset-sms] Password update error:", updateError);
-        return new Response(JSON.stringify({ error: "Failed to reset password. Please try again." }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        const errAny = updateError as unknown as { code?: string; message?: string };
+        const isWeak =
+          errAny?.code === "weak_password" ||
+          /weak|pwned|known to be weak|easy to guess/i.test(errAny?.message ?? "");
+        const friendly = isWeak
+          ? "This password has appeared in known data breaches, so it can't be used. Please choose a different, more unique password."
+          : "Failed to reset password. Please try again.";
+        return new Response(JSON.stringify({ error: friendly, code: errAny?.code ?? null }), {
+          status: isWeak ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
