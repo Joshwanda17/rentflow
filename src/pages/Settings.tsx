@@ -721,6 +721,22 @@ export default function Settings() {
                 </Card>
                 <LazySection name="PinSecurity"><PinSecuritySection /></LazySection>
                 <LazySection name="BiometricSecurity"><BiometricSecuritySection /></LazySection>
+                <Card className="rounded-2xl">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-primary" />
+                      Push notifications
+                    </CardTitle>
+                    <CardDescription>
+                      Get instant alerts on this device for deposits, withdrawals, payouts and rent updates — even when Welile is closed.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Suspense fallback={<Skeleton className="h-10 w-48 rounded-md" />}>
+                      <PushNotificationButton className="w-full sm:w-auto gap-2" />
+                    </Suspense>
+                  </CardContent>
+                </Card>
                 <LazySection name="DeviceSessions"><DeviceSessionsSection /></LazySection>
                 <LazySection name="TrustPrivacy"><TrustPrivacySection /></LazySection>
               </div>
