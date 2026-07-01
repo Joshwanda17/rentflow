@@ -877,18 +877,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 ref={merchantBtnRef}
                 onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
                 className={cn(
-                  "w-full flex items-center gap-4 p-5 rounded-2xl border border-warning/60 bg-gradient-to-br from-warning to-amber-600 shadow-lg shadow-warning/20 touch-manipulation active:scale-[0.97] transition-all min-h-[72px] relative overflow-hidden",
+                  "w-full flex items-center gap-2.5 sm:gap-4 p-3.5 sm:p-5 rounded-2xl border border-warning/60 bg-gradient-to-br from-warning to-amber-600 shadow-lg shadow-warning/20 touch-manipulation active:scale-[0.97] transition-all min-h-[72px] relative overflow-hidden",
                   highlightMerchant && "ring-4 ring-primary ring-offset-2 ring-offset-background animate-pulse scale-[1.02]"
                 )}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 {/* subtle shimmer strip */}
                 <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-                <div className="p-3 rounded-xl bg-white/20 shrink-0 backdrop-blur-sm">
-                  <Banknote className="h-6 w-6 text-white" />
+                <div className="p-2 sm:p-3 rounded-xl bg-white/20 shrink-0 backdrop-blur-sm">
+                  <Banknote className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <div className="flex-1 text-left min-w-0 relative">
-                  <p className="font-bold text-base text-white truncate">Merchant Payouts</p>
+                  <p className="font-bold text-sm sm:text-base text-white truncate">Merchant Payouts</p>
                   <p className="text-xs text-white/80 truncate">
                     {pendingEarnings && pendingEarnings.count > 0
                       ? `${pendingEarnings.count} unclaimed ${pendingEarnings.count === 1 ? 'request' : 'requests'} waiting`
@@ -896,7 +896,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                   </p>
                 </div>
                 {pendingEarnings && pendingEarnings.totalCommission > 0 ? (
-                  <div className="shrink-0 relative flex flex-col items-end justify-center rounded-2xl bg-white px-4 py-2.5 shadow-lg ring-2 ring-emerald-600/30">
+                  <div className="shrink-0 relative flex flex-col items-end justify-center rounded-2xl bg-white px-2.5 sm:px-4 py-2 sm:py-2.5 shadow-lg ring-2 ring-emerald-600/30">
                     <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-800 leading-none">
                       You earn
                       <TooltipProvider delayDuration={150}>
@@ -918,7 +918,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                         </Tooltip>
                       </TooltipProvider>
                     </span>
-                    <span className="text-2xl sm:text-3xl font-black text-emerald-700 leading-tight tabular-nums">
+                    <span className="text-lg sm:text-3xl font-black text-emerald-700 leading-tight tabular-nums">
                       {formatUGX(pendingEarnings.totalCommission)}
                     </span>
                     {pendingUpdatedLabel && (

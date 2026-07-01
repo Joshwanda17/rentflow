@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock, Wind } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Globe, DollarSign, Zap, Smartphone, Clock, Wind, Bell } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useCurrency, currencies as ALL_CURRENCIES } from '@/hooks/useCurrency';
 import { Language, languageNames, languageFlags } from '@/i18n/translations';
@@ -58,6 +58,7 @@ const CurrencyConverter = lazy(() => import('@/components/CurrencyConverter').th
 const MapKeySettingsCard = lazy(() => import('@/components/manager/MapKeySettingsCard').then(m => ({ default: m.MapKeySettingsCard })));
 const DriveVaultCard = lazy(() => import('@/components/manager/DriveVaultCard').then(m => ({ default: m.DriveVaultCard })));
 const DriveDocumentReviewPanel = lazy(() => import('@/components/manager/DriveDocumentReviewPanel').then(m => ({ default: m.DriveDocumentReviewPanel })));
+const PushNotificationButton = lazy(() => import('@/components/PushNotificationButton').then(m => ({ default: m.PushNotificationButton })));
 
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
   state = { hasError: false };
@@ -720,6 +721,22 @@ export default function Settings() {
                 </Card>
                 <LazySection name="PinSecurity"><PinSecuritySection /></LazySection>
                 <LazySection name="BiometricSecurity"><BiometricSecuritySection /></LazySection>
+                <Card className="rounded-2xl">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-primary" />
+                      Push notifications
+                    </CardTitle>
+                    <CardDescription>
+                      Get instant alerts on this device for deposits, withdrawals, payouts and rent updates — even when Welile is closed.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Suspense fallback={<Skeleton className="h-10 w-48 rounded-md" />}>
+                      <PushNotificationButton className="w-full sm:w-auto gap-2" />
+                    </Suspense>
+                  </CardContent>
+                </Card>
                 <LazySection name="DeviceSessions"><DeviceSessionsSection /></LazySection>
                 <LazySection name="TrustPrivacy"><TrustPrivacySection /></LazySection>
               </div>
