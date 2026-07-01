@@ -1345,7 +1345,9 @@ export default function FunderOnboarding() {
         }, 3000);
       } catch (err: any) {
         console.error('Signup failed:', err);
-        setApiError(friendlySubmissionError(err));
+        const friendly = friendlySubmissionError(err);
+        setApiError(friendly);
+        toast.error(friendly);
         setIsSubmitting(false);
       }
     }
