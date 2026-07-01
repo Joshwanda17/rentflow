@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { archivePdfBlob } from '@/lib/pdfVault';
 import { ArchivedPdfsDrawer } from '@/components/financial-ops/ArchivedPdfsDrawer';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap, Undo2, Wallet, HelpCircle } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, ShieldQuestion, History, LinkIcon, ChevronDown, ChevronUp, FileDown, FileText, AlertTriangle, Search, X, Pencil, Trash2, Star, Users, ArrowRight, Zap, Undo2, Wallet, HelpCircle } from 'lucide-react';
 import { RouteEmailDepositDialog, type EmailRowForRouting, type PrefilledUser } from '@/components/financial-ops/RouteEmailDepositDialog';
 import { BucketTransferLauncher } from '@/components/financial-ops/BucketTransferDialog';
 import { BacklogSweepLauncher } from '@/components/financial-ops/BacklogSweepDialog';
@@ -796,6 +796,14 @@ export function EmailTransactionsPanel() {
     matched_by_tid?: boolean;
     /** The normalized transaction reference that matched, for display. */
     matched_tid?: string | null;
+    /** Auto-credit provenance from deposit_requests.auto_match_audit — lets the
+     *  row show HOW the wallet was resolved and how confident the matcher was.
+     *  phone_source='body' + confidence='medium' is the "possible user ≈60%"
+     *  body-phone signal. */
+    auto_match_method?: string | null;
+    auto_phone_source?: 'counterparty' | 'body' | null;
+    auto_confidence?: 'high' | 'medium' | 'low' | null;
+    auto_confidence_score?: number | null;
   }
   const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
 
@@ -1210,7 +1218,7 @@ export function EmailTransactionsPanel() {
         }
         if (!depIds.size) { if (!cancelled) setCreditedDeposits({}); return; }
         const { data: deps } = await (supabase.from('deposit_requests') as any)
-          .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at')
+          .select('id, user_id, amount, status, auto_approved, deposit_purpose, created_at, updated_at, auto_match_audit')
           .in('id', Array.from(depIds));
         const depById = new Map<string, any>();
         const userIds = new Set<string>();
@@ -1251,6 +1259,12 @@ export function EmailTransactionsPanel() {
             if (!d) continue;
             if (['rejected', 'cancelled', 'failed', 'reversed'].includes(d.status)) continue;
             const p = profById.get(d.user_id);
+            const audit = (d.auto_match_audit ?? {}) as {
+              match_method?: string | null;
+              phone_source?: string | null;
+              confidence?: string | null;
+              confidence_score?: number | null;
+            };
             list.push({
               deposit_id: d.id,
               user_id: d.user_id,
@@ -1263,6 +1277,10 @@ export function EmailTransactionsPanel() {
               credited_at: (d.updated_at as string) ?? (d.created_at as string) ?? null,
               matched_by_tid: tidDepIds.has(depId) && !explicitDepIds.has(depId),
               matched_tid: tidDepIds.has(depId) ? (normTid ?? receiptCode ?? null) : null,
+              auto_match_method: audit.match_method ?? null,
+              auto_phone_source: (audit.phone_source as 'counterparty' | 'body' | null) ?? null,
+              auto_confidence: (audit.confidence as 'high' | 'medium' | 'low' | null) ?? null,
+              auto_confidence_score: typeof audit.confidence_score === 'number' ? audit.confidence_score : null,
             });
           }
           if (list.length) next[r.id] = list;
@@ -3580,6 +3598,16 @@ export function EmailTransactionsPanel() {
                 // "Already Credited — No Routing Needed" status.
                 const matchedByTid = credited.some((c) => c.matched_by_tid);
                 const matchedTid = credited.find((c) => c.matched_tid)?.matched_tid ?? null;
+                // Auto-credit provenance: which signal resolved the wallet and
+                // how confident the matcher was. phone_source='body' at ≈0.6 is
+                // the "possible user ≈60%" body-phone signal — surface it plainly
+                // so reviewers know to spot-check those credits.
+                const autoCredit = credited.find((c) => c.auto_confidence || c.auto_phone_source || c.auto_match_method);
+                const autoConfidence = autoCredit?.auto_confidence ?? null;
+                const autoScore = autoCredit?.auto_confidence_score ?? null;
+                const autoPhoneSource = autoCredit?.auto_phone_source ?? null;
+                const autoScorePct = typeof autoScore === 'number' ? Math.round(autoScore * 100) : null;
+                const isBodyPhoneCredit = autoPhoneSource === 'body';
                 // ── "Not Matched Yet" diagnostics ─────────────────────────
                 // For an incoming deposit email that hasn't been credited or
                 // routed, surface WHY it can't auto-map to a wallet: which of
@@ -3947,6 +3975,41 @@ export function EmailTransactionsPanel() {
                             <ShieldCheck className="h-3 w-3" />
                             Already in a wallet — nothing to do
                             {matchedByTid && <span className="opacity-75">· via TID</span>}
+                          </Badge>
+                        </BadgeTip>
+                      )}
+                      {/* Auto-credit confidence + phone-source provenance. Shown
+                          for any row auto-credited by the Gmail matcher so a
+                          reviewer can instantly see whether it was a deterministic
+                          counterparty-phone match (high) or the "possible user
+                          ≈60%" body-phone signal (medium) that warrants a
+                          spot-check. */}
+                      {isCredited && autoConfidence && (
+                        <BadgeTip
+                          plain={
+                            isBodyPhoneCredit
+                              ? 'Auto-credited from the “possible user ≈60%” signal — a phone found in the email body matched exactly one user. Worth a quick spot-check.'
+                              : 'Auto-credited from a deterministic match — the sender’s own phone number matched a known user.'
+                          }
+                          details={[
+                            `Auto-credit confidence: ${autoConfidence}${autoScorePct != null ? ` (~${autoScorePct}%)` : ''}`,
+                            `Phone source: ${autoPhoneSource === 'body' ? 'body (found inside the email)' : autoPhoneSource === 'counterparty' ? 'counterparty (the sender/recipient field)' : 'n/a'}`,
+                            autoCredit?.auto_match_method ? `Match method: ${autoCredit.auto_match_method}` : null,
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] gap-1 font-semibold ${
+                              autoConfidence === 'high'
+                                ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40'
+                                : autoConfidence === 'medium'
+                                  ? 'bg-amber-500/15 text-amber-700 border-amber-500/40'
+                                  : 'bg-orange-500/15 text-orange-700 border-orange-500/40'
+                            }`}
+                          >
+                            {isBodyPhoneCredit ? <ShieldQuestion className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
+                            {autoConfidence} confidence{autoScorePct != null ? ` · ~${autoScorePct}%` : ''}
+                            <span className="opacity-75">· {autoPhoneSource === 'body' ? 'body phone' : autoPhoneSource === 'counterparty' ? 'sender phone' : autoCredit?.auto_match_method ?? 'auto'}</span>
                           </Badge>
                         </BadgeTip>
                       )}
