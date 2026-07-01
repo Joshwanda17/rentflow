@@ -806,6 +806,10 @@ async function tryAutoCreditOperationalFloat(
 // "sent to PHONE") matches exactly one known platform user who has
 // withdrawable balance, debit their wallet automatically via the
 // cfo-direct-credit system path. No manual click required.
+//
+// Every meaningful decision point below is recorded in
+// `email_payout_match_attempts` (including near-misses) so Financial Ops can
+// audit why a payout email did or did not auto-debit a wallet.
 async function tryAutoDebitPayout(
   supabase: ReturnType<typeof createClient>,
   args: {
