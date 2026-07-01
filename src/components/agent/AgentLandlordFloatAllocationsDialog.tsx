@@ -127,7 +127,7 @@ export function AgentLandlordFloatAllocationsDialog({ open, onOpenChange, onSele
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search landlord by name or phone…"
+                  placeholder="Search by tenant, landlord or phone…"
                   // Search now also matches the tenant so agents can find a
                   // payout by the tenant it belongs to (landlord names can be
                   // renamed/merged after disbursement).
