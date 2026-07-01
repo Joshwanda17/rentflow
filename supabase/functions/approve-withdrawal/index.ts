@@ -1834,8 +1834,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // ── Cashout agent reimbursement + commission SMS (into withdrawable) ──
-      if (merchantReimbursed > 0 || cashoutCommission > 0) {
+      // ── Cashout agent commission SMS (into withdrawable) ──
+      // Confirms the merchant agent's 0.5% payout commission was credited to
+      // their withdrawable wallet, using the exact wording set by the business.
+      if (cashoutCommission > 0) {
         try {
           const { data: agentProfile } = await admin
             .from("profiles")
@@ -1843,23 +1845,17 @@ Deno.serve(async (req) => {
             .eq("id", user.id)
             .maybeSingle();
           if (agentProfile?.phone) {
-            const credited = merchantReimbursed + cashoutCommission;
             const commMsg =
-              `WELILE: UGX ${credited.toLocaleString()} added to your withdrawable wallet for processing a ` +
-              `UGX ${amount.toLocaleString()} payout` +
-              (merchantReimbursed > 0
-                ? ` — UGX ${merchantReimbursed.toLocaleString()} reimburses the cash you paid out`
-                : ``) +
-              (cashoutCommission > 0
-                ? ` plus UGX ${cashoutCommission.toLocaleString()} commission (0.5%)`
-                : ``) +
-              `. Thank you for your service.`;
+              `WELILE: You earned a payout commission of UGX ${cashoutCommission.toLocaleString()} (0.5%) ` +
+              `for processing a UGX ${amount.toLocaleString()} payout. It has been added to your ` +
+              `withdrawable wallet. Thank you for your service.\n` +
+              `Access your dashboard https://welilereceipts.com/ZQhyGb`;
             sendSMS(agentProfile.phone, commMsg).catch((e) =>
-              console.error("[approve-withdrawal] cashout reimbursement/commission SMS failed:", e),
+              console.error("[approve-withdrawal] cashout commission SMS failed:", e),
             );
           }
         } catch (e) {
-          console.error("[approve-withdrawal] cashout reimbursement/commission SMS exception:", e);
+          console.error("[approve-withdrawal] cashout commission SMS exception:", e);
         }
       }
     }
