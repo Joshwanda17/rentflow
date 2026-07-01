@@ -127,15 +127,17 @@ Deno.serve(async (req) => {
           pushImportError(errors, partner.phone || 'Unknown partner', 'Missing partner name. Add the Partner Name/Supporter Name column value for this row.', 'Missing partner name.');
           continue;
         }
-        // Phone is optional — validate only if provided
-        const hasPhone = partner.phone?.trim() && partner.phone.trim().length >= 10;
+        // Phone is optional. If blank/missing, omit it completely so email-only
+        // partner imports are not blocked by phone-specific auth/profile triggers.
+        const suppliedPhone = partner.phone?.trim() || null;
+        const hasPhone = !!suppliedPhone && suppliedPhone.length >= 10;
 
         // Normalise the phone to its Uganda local-9 form so we match an
         // existing profile regardless of the stored format (0780…, 256780…,
         // +256780…, 780…). Matching only the exact string caused false
         // "duplicate" errors: the lookup missed the existing user, then auth
         // creation collided on the generated placeholder email.
-        const digits = (partner.phone || "").replace(/\D/g, "");
+        const digits = (suppliedPhone || "").replace(/\D/g, "");
         const local9 = digits.length >= 9 ? digits.slice(-9) : null;
         const phoneFormats = local9
           ? [local9, `0${local9}`, `256${local9}`, `+256${local9}`]
@@ -220,7 +222,12 @@ Deno.serve(async (req) => {
             email: authEmailUsed,
             password: tempPassword,
             email_confirm: true,
-            user_metadata: { full_name: partner.partner_name, phone: hasPhone ? partner.phone : "", contact_email: realEmail, intended_role: 'supporter' },
+            user_metadata: {
+              full_name: partner.partner_name,
+              ...(hasPhone ? { phone: suppliedPhone } : {}),
+              contact_email: realEmail,
+              intended_role: 'supporter',
+            },
           });
 
           if (authErr || !authData.user) {
@@ -268,7 +275,12 @@ Deno.serve(async (req) => {
                 email: authEmailUsed,
                 password: tempPassword,
                 email_confirm: true,
-                user_metadata: { full_name: partner.partner_name, phone: hasPhone ? partner.phone : "", contact_email: realEmail, intended_role: 'supporter' },
+                user_metadata: {
+                  full_name: partner.partner_name,
+                  ...(hasPhone ? { phone: suppliedPhone } : {}),
+                  contact_email: realEmail,
+                  intended_role: 'supporter',
+                },
               });
               if (retry.error || !retry.data?.user) {
                 console.error(
@@ -301,13 +313,13 @@ Deno.serve(async (req) => {
 
           if (!userId) { continue; }
 
-          // Create/update profile with phone
+          // Create/update profile. Phone is skipped when not supplied.
           const profileData: Record<string, any> = {
             id: userId,
             full_name: partner.partner_name.trim(),
             email: realEmail ?? authEmailUsed,
-            phone: hasPhone ? partner.phone : "",
           };
+          if (hasPhone) profileData.phone = suppliedPhone;
           const { error: profileErr } = await adminClient.from("profiles").upsert(profileData);
           if (profileErr) {
             pushImportError(errors, partner.partner_name, profileErr, "Could not save the partner profile. Please check the name and phone number.");

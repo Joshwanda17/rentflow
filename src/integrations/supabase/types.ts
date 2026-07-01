@@ -13298,7 +13298,7 @@ export type Database = {
           occupation: string | null
           ops_note: string | null
           parish: string | null
-          phone: string
+          phone: string | null
           prefers_easy_read: boolean
           previous_full_name: string | null
           primary_persona: string | null
@@ -13375,7 +13375,7 @@ export type Database = {
           occupation?: string | null
           ops_note?: string | null
           parish?: string | null
-          phone: string
+          phone?: string | null
           prefers_easy_read?: boolean
           previous_full_name?: string | null
           primary_persona?: string | null
@@ -13452,7 +13452,7 @@ export type Database = {
           occupation?: string | null
           ops_note?: string | null
           parish?: string | null
-          phone?: string
+          phone?: string | null
           prefers_easy_read?: boolean
           previous_full_name?: string | null
           primary_persona?: string | null
