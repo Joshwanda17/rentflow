@@ -79,9 +79,11 @@ export interface PhoneInfo {
  * Parse and format a phone number for WhatsApp
  * Assumes Ugandan numbers if no country code is provided
  */
-export function parsePhoneNumber(phone: string): PhoneInfo {
+export function parsePhoneNumber(phone: string | null | undefined): PhoneInfo {
+  // Guard against missing phone numbers (e.g. email-only imported accounts).
+  const safePhone = typeof phone === 'string' ? phone : '';
   // Remove all non-digit characters except +
-  let cleaned = phone.replace(/[^\d+]/g, '');
+  let cleaned = safePhone.replace(/[^\d+]/g, '');
   
   // Remove leading + if present
   if (cleaned.startsWith('+')) {
@@ -135,7 +137,7 @@ export function parsePhoneNumber(phone: string): PhoneInfo {
   const whatsappLink = `https://wa.me/${fullNumber}`;
   
   return {
-    original: phone,
+    original: safePhone,
     formatted,
     whatsappLink,
     countryCode,

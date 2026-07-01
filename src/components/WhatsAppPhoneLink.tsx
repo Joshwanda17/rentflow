@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface WhatsAppPhoneLinkProps {
-  phone: string;
+  phone: string | null | undefined;
   className?: string;
   showFlag?: boolean;
   showIcon?: boolean;
@@ -26,9 +26,20 @@ export default function WhatsAppPhoneLink({
   showVerificationStatus = false,
   onVerifyClick
 }: WhatsAppPhoneLinkProps) {
-  const phoneInfo = parsePhoneNumber(phone);
-  
   const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
+
+  // Email-only / imported accounts may have no phone — render a muted
+  // placeholder instead of crashing on a null phone string.
+  const hasPhone = typeof phone === 'string' && phone.trim().length > 0;
+  if (!hasPhone) {
+    return (
+      <span className={`inline-flex items-center text-muted-foreground ${textSize} ${className}`}>
+        No phone
+      </span>
+    );
+  }
+
+  const phoneInfo = parsePhoneNumber(phone);
   const iconSize = size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5';
   
   return (
@@ -113,12 +124,14 @@ export function WhatsAppVerificationBadge({
   onMarkVerified
 }: { 
   verified: boolean; 
-  phone: string;
+  phone: string | null | undefined;
   onVerify?: () => void;
   onMarkVerified?: () => void;
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const phoneInfo = parsePhoneNumber(phone);
+  const hasPhone = typeof phone === 'string' && phone.trim().length > 0;
+  if (!verified && !hasPhone) return null;
   
   if (verified) {
     return (
