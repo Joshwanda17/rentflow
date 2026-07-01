@@ -186,7 +186,7 @@ export function useLandlordOtp() {
       if (error) {
         const payload = await readErrorPayload(error);
         const errMsg = payload?.error || error.message;
-        setOtpError(errMsg || 'Verification failed');
+        setOtpError(payload?.error ? errMsg : friendlyOtpError(error.message, 'Verification failed'));
         return false;
       }
       if (data?.error) {
@@ -196,7 +196,7 @@ export function useLandlordOtp() {
       setOtpVerified(true);
       return true;
     } catch (e: any) {
-      setOtpError(e?.message || 'Verification failed');
+      setOtpError(friendlyOtpError(e?.message, 'Verification failed'));
       return false;
     } finally {
       setOtpLoading(false);
@@ -321,7 +321,7 @@ export function useLandlordOtp() {
       setOtpVerified(true);
       return data as { success: boolean; challenge_id: string; payout_id?: string | null; verified_at?: string } | null;
     } catch (e: any) {
-      setOtpError(e?.message || 'Verification failed');
+      setOtpError(friendlyOtpError(e?.message, 'Verification failed'));
       return null;
     } finally {
       setOtpLoading(false);
