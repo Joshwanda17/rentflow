@@ -121,13 +121,34 @@ Deno.serve(async (req) => {
         // Phone is optional — validate only if provided
         const hasPhone = partner.phone?.trim() && partner.phone.trim().length >= 10;
 
-        // Check for existing profile by phone (only if phone provided)
+        // Normalise the phone to its Uganda local-9 form so we match an
+        // existing profile regardless of the stored format (0780…, 256780…,
+        // +256780…, 780…). Matching only the exact string caused false
+        // "duplicate" errors: the lookup missed the existing user, then auth
+        // creation collided on the generated placeholder email.
+        const digits = (partner.phone || "").replace(/\D/g, "");
+        const local9 = digits.length >= 9 ? digits.slice(-9) : null;
+        const phoneFormats = local9
+          ? [local9, `0${local9}`, `256${local9}`, `+256${local9}`]
+          : [];
+        const realEmail =
+          partner.email && !partner.email.includes("@noapp.welile") && !partner.email.includes("@welile.user")
+            ? partner.email.trim().toLowerCase()
+            : null;
+
+        // Check for an existing profile by normalised phone, then by real email.
         let existing: { id: string } | null = null;
-        if (hasPhone) {
+        if (hasPhone && phoneFormats.length) {
           const { data: found } = await adminClient
             .from("profiles").select("id")
-            .eq("phone", partner.phone).maybeSingle();
+            .in("phone", phoneFormats).limit(1).maybeSingle();
           existing = found;
+        }
+        if (!existing && realEmail) {
+          const { data: foundByEmail } = await adminClient
+            .from("profiles").select("id")
+            .ilike("email", realEmail).limit(1).maybeSingle();
+          existing = foundByEmail;
         }
 
         let userId: string;
@@ -170,12 +191,14 @@ Deno.serve(async (req) => {
         } else {
           // Create auth user with standard default password
           const tempPassword = `Welile1234!`;
-          // Generate email: use real email > phone-based > random UUID placeholder
-          const emailAddr = partner.email && !partner.email.includes('@noapp.welile') && !partner.email.includes('@welile.user')
-            ? partner.email
-            : hasPhone
-              ? `${partner.phone.replace(/^0/, '')}@noapp.welile.user`
-              : `${crypto.randomUUID().slice(0, 12)}@noapp.welile.user`;
+          // Generate email: use the real email when supplied, otherwise a
+          // GLOBALLY-UNIQUE placeholder. Placeholders always carry a random
+          // suffix so a phone-derived address can never falsely collide with
+          // another placeholder — login is by phone, not by this address.
+          const placeholderLocal = local9 ?? crypto.randomUUID().slice(0, 9);
+          const emailAddr = realEmail
+            ? realEmail
+            : `${placeholderLocal}.${crypto.randomUUID().slice(0, 8)}@noapp.welile.user`;
 
           const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
             email: emailAddr,
@@ -185,13 +208,32 @@ Deno.serve(async (req) => {
           });
 
           if (authErr || !authData.user) {
-            pushImportError(errors, partner.partner_name, authErr, "Could not create the login account for this partner. Please check for duplicate email/phone details and try again.");
-            continue;
+            // A collision here can only come from a REAL email that already
+            // belongs to an account. Recover by attaching portfolios to that
+            // existing account instead of failing with a misleading error.
+            if (realEmail) {
+              const { data: recovered } = await adminClient
+                .from("profiles").select("id")
+                .ilike("email", realEmail).limit(1).maybeSingle();
+              if (recovered?.id) {
+                userId = recovered.id;
+                // fall through to the shared profile/role/wallet upserts below
+              } else {
+                pushImportError(errors, partner.partner_name, authErr, `The email "${realEmail}" is already registered to another account and could not be reused. Remove or correct the email for this partner, then try again.`);
+                continue;
+              }
+            } else {
+              pushImportError(errors, partner.partner_name, authErr, "Could not create the login account for this partner. Please try again.");
+              continue;
+            }
+          }
+          else {
+            userId = authData.user.id;
           }
 
-          userId = authData.user.id;
+          if (!userId) { continue; }
 
-          // Create profile with phone
+          // Create/update profile with phone
           const profileData: Record<string, any> = {
             id: userId,
             full_name: partner.partner_name.trim(),
@@ -204,10 +246,10 @@ Deno.serve(async (req) => {
           }
 
           // Assign supporter role
-          const { error: roleErr } = await adminClient.from("user_roles").insert({
-            user_id: userId,
-            role: "supporter",
-          });
+          const { error: roleErr } = await adminClient.from("user_roles").upsert(
+            { user_id: userId, role: "supporter" },
+            { onConflict: "user_id,role", ignoreDuplicates: true },
+          );
           if (roleErr) {
             pushImportError(errors, partner.partner_name, roleErr, "Could not assign the supporter role to this partner. Please try again.");
             continue;
