@@ -41,6 +41,15 @@ function partnerImportFallback(partnerName?: string | null): string {
   return `We could not finish importing ${name}. Please check that the phone, email, and portfolio details are valid, then try again.`;
 }
 
+function isEmailTakenError(error: unknown): boolean {
+  const msg = readableImportError(error, "").toLowerCase();
+  return msg.includes("already") || msg.includes("registered") || msg.includes("duplicate") || msg.includes("unique");
+}
+
+function isValidEmail(value: string | null): value is string {
+  return !!value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function pushImportError(
   errors: { partner: string; error: string }[],
   partner: string | null | undefined,
@@ -131,10 +140,16 @@ Deno.serve(async (req) => {
         const phoneFormats = local9
           ? [local9, `0${local9}`, `256${local9}`, `+256${local9}`]
           : [];
+        const rawEmail = partner.email?.trim().toLowerCase() || null;
         const realEmail =
-          partner.email && !partner.email.includes("@noapp.welile") && !partner.email.includes("@welile.user")
-            ? partner.email.trim().toLowerCase()
+          rawEmail && !rawEmail.includes("@noapp.welile") && !rawEmail.includes("@welile.user")
+            ? rawEmail
             : null;
+
+        if (realEmail && !isValidEmail(realEmail)) {
+          pushImportError(errors, partner.partner_name, `Invalid email address: ${realEmail}`, "Invalid email address.");
+          continue;
+        }
 
         // Check for an existing profile by normalised phone, then by real email.
         let existing: { id: string } | null = null;
@@ -177,14 +192,16 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // If a real email was provided and user has a placeholder email, update it
-          if (partner.email && !partner.email.includes('@noapp.welile') && !partner.email.includes('@welile.user')) {
-            const { error: emailErr } = await adminClient.auth.admin.updateUserById(userId, {
-              email: partner.email,
-              email_confirm: true,
-            });
-            if (emailErr) {
-              pushImportError(errors, partner.partner_name, emailErr, "Could not attach this email address to the existing user account. The email may already belong to another user.");
+          // Keep the contact email on the profile. Do not force-update Auth email here:
+          // old/imported Auth records can already own the address while the profile is
+          // missing, which caused false "email not in system" import failures.
+          if (realEmail) {
+            const { error: profileEmailErr } = await adminClient
+              .from("profiles")
+              .update({ email: realEmail, full_name: partner.partner_name.trim() })
+              .eq("id", userId);
+            if (profileEmailErr) {
+              pushImportError(errors, partner.partner_name, profileEmailErr, "Could not save this partner's contact email on their profile.");
               continue;
             }
           }
@@ -196,22 +213,22 @@ Deno.serve(async (req) => {
           // suffix so a phone-derived address can never falsely collide with
           // another placeholder — login is by phone, not by this address.
           const placeholderLocal = local9 ?? crypto.randomUUID().slice(0, 9);
-          const emailAddr = realEmail
-            ? realEmail
-            : `${placeholderLocal}.${crypto.randomUUID().slice(0, 8)}@noapp.welile.user`;
+          const placeholderEmail = `${placeholderLocal}.${crypto.randomUUID().slice(0, 8)}@noapp.welile.user`;
+          let authEmailUsed = realEmail ?? placeholderEmail;
 
-          const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
-            email: emailAddr,
+          let { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
+            email: authEmailUsed,
             password: tempPassword,
             email_confirm: true,
-            user_metadata: { full_name: partner.partner_name, phone: partner.phone, intended_role: 'supporter' },
+            user_metadata: { full_name: partner.partner_name, phone: hasPhone ? partner.phone : "", contact_email: realEmail, intended_role: 'supporter' },
           });
 
           if (authErr || !authData.user) {
-            // A collision here can only come from a REAL email that already
-            // belongs to an account. Recover by attaching portfolios to that
-            // existing account instead of failing with a misleading error.
-            if (realEmail) {
+            // If the real email is already reserved by an old/hidden Auth row
+            // with no visible profile, do not fail the import. Create the login
+            // account with a unique placeholder Auth email and store the real
+            // email as the partner contact email on profiles below.
+            if (realEmail && isEmailTakenError(authErr)) {
               const { data: recovered } = await adminClient
                 .from("profiles").select("id")
                 .ilike("email", realEmail).limit(1).maybeSingle();
@@ -219,8 +236,19 @@ Deno.serve(async (req) => {
                 userId = recovered.id;
                 // fall through to the shared profile/role/wallet upserts below
               } else {
-                pushImportError(errors, partner.partner_name, authErr, `The email "${realEmail}" is already registered to another account and could not be reused. Remove or correct the email for this partner, then try again.`);
-                continue;
+                const { data: backfilled, error: backfillErr } = await adminClient.rpc("backfill_missing_profile_by_email", {
+                  _email: realEmail,
+                });
+                const backfilledUserId = typeof backfilled === "object" && backfilled !== null
+                  ? (backfilled as Record<string, unknown>).user_id
+                  : null;
+
+                if (!backfillErr && typeof backfilledUserId === "string" && backfilledUserId) {
+                  userId = backfilledUserId;
+                } else {
+                  pushImportError(errors, partner.partner_name, backfillErr || authErr, `The email "${realEmail}" already exists in login records, but its partner profile could not be linked. Please check this email and try again.`);
+                  continue;
+                }
               }
             } else {
               pushImportError(errors, partner.partner_name, authErr, "Could not create the login account for this partner. Please try again.");
@@ -237,8 +265,9 @@ Deno.serve(async (req) => {
           const profileData: Record<string, any> = {
             id: userId,
             full_name: partner.partner_name.trim(),
+            email: realEmail ?? authEmailUsed,
+            phone: hasPhone ? partner.phone : "",
           };
-          if (hasPhone) profileData.phone = partner.phone;
           const { error: profileErr } = await adminClient.from("profiles").upsert(profileData);
           if (profileErr) {
             pushImportError(errors, partner.partner_name, profileErr, "Could not save the partner profile. Please check the name and phone number.");
