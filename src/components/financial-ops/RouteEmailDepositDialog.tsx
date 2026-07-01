@@ -2018,7 +2018,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               <p className="font-medium text-violet-900 dark:text-violet-200">Managed-proxy partner detected</p>
               {!lowData && (
                 <p className="text-violet-800 dark:text-violet-300">
-                  <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> — the partner's wallet will not be touched.
+                  <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> first — the partner's wallet is not touched. If the proxy agent has no funds but the partner does, we'll offer to debit the partner directly instead.
                 </p>
               )}
             </div>
