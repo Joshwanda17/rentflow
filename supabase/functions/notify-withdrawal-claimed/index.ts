@@ -204,10 +204,9 @@ Deno.serve(async (req) => {
       : (profileValid ? profilePhone : (momoValid ? formattedMomo : ""));
 
     const smsMsg =
-      `WELILE: Good news! Welile merchant agent ${merchantName} is now processing ` +
-      `your withdrawal request of UGX ${amount.toLocaleString()}. ` +
-      `You'll get another SMS once the payout is complete. ` +
-      `Track it at https://welilereceipts.com/auth`;
+      `WELILE: Your Withdraw is being processed by our Merchant Agent, ` +
+      `your withdraw will arrive shortly. Thank you. ` +
+      `https://welilereceipts.com/ZQhyGb`;
 
     let sent = false;
     let smsAttempts = 0;
