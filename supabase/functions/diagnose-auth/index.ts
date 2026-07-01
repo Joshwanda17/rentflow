@@ -43,6 +43,51 @@ serve(async (req) => {
       // and the Supabase gateway already validated the apikey
     }
 
+    // Targeted lookup: if the caller passes specific userIds, return the exact
+    // auth vs profile state for each so we can confirm an account is usable.
+    let requestedIds: string[] = [];
+    try {
+      if (req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        if (Array.isArray(body?.userIds)) {
+          requestedIds = body.userIds.filter((v: unknown) => typeof v === "string");
+        }
+      }
+    } catch { /* no body */ }
+
+    if (requestedIds.length > 0) {
+      const results: Array<Record<string, unknown>> = [];
+      for (const id of requestedIds) {
+        const { data: au, error: auErr } = await supabaseAdmin.auth.admin.getUserById(id);
+        const { data: prof } = await supabaseAdmin
+          .from("profiles")
+          .select("id, email, phone, full_name")
+          .eq("id", id)
+          .maybeSingle();
+        const u = au?.user;
+        results.push({
+          user_id: id,
+          auth_exists: !!u,
+          auth_error: auErr?.message ?? null,
+          auth_email: u?.email ?? null,
+          auth_phone: u?.phone ?? null,
+          email_confirmed: !!u?.email_confirmed_at,
+          last_sign_in_at: u?.last_sign_in_at ?? null,
+          has_password: !!(u as { encrypted_password?: string } | undefined)?.encrypted_password
+            || (Array.isArray(u?.identities) && u!.identities!.some((i) => i.provider === "email")),
+          providers: u?.app_metadata?.providers ?? null,
+          profile_email: prof?.email ?? null,
+          profile_phone: prof?.phone ?? null,
+          full_name: prof?.full_name ?? null,
+          email_matches: !!u && !!prof?.email ? u.email === prof.email : null,
+        });
+      }
+      return new Response(JSON.stringify({ targeted: true, results }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     // Get all auth users (paginated)
     const allAuthUsers: Array<{ id: string; email?: string; phone?: string }> = [];
     let page = 1;
@@ -56,11 +101,22 @@ serve(async (req) => {
     }
 
     // Get all profiles
-    const { data: profiles, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, email, phone, full_name")
-      .limit(5000);
-    if (profileError) throw profileError;
+    const profiles: Array<{ id: string; email: string | null; phone: string | null; full_name: string | null }> = [];
+    {
+      const pageSize = 1000;
+      let from = 0;
+      while (true) {
+        const { data, error: profileError } = await supabaseAdmin
+          .from("profiles")
+          .select("id, email, phone, full_name")
+          .range(from, from + pageSize - 1);
+        if (profileError) throw profileError;
+        if (!data?.length) break;
+        profiles.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+    }
 
     // Find mismatches
     const mismatches: Array<{
