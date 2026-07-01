@@ -284,17 +284,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // A genuine merchant is the cashout agent who CLAIMED this exact withdrawal
-    // through the merchant queue (claim stamps `assigned_cashout_agent_id`).
-    // They fronted their own MoMo/cash, so they earn the reimbursement + 0.5%
-    // commission + SMS — even if they also hold staff roles. Staff settling from
-    // the Financial Ops desk never claim, and system/bulk auto-settlement never
-    // claims either, so neither wrongly earns merchant compensation.
-    actingAsMerchant =
-      isCashoutAgent &&
-      !isSystemCall &&
-      !!(wr as any).assigned_cashout_agent_id &&
-      (wr as any).assigned_cashout_agent_id === user.id;
+    // A genuine merchant is an active cashout agent who completes the payout
+    // FROM THE MERCHANT QUEUE (the only caller that sends `acting_as_merchant`).
+    // They fronted their own MoMo/cash, so they earn the principal reimbursement
+    // + 0.5% commission + SMS — even if they also hold staff roles. Staff
+    // settling from the Financial Ops desk never send the flag, and system/bulk
+    // auto-settlement never sends it either, so neither wrongly earns merchant
+    // compensation. Backward-compatible: if a legacy merchant client omits the
+    // flag but the caller is a cashout agent AND no staff settlement desk is in
+    // play, we still credit them.
+    const bodyActingFlag =
+      (body as any)?.acting_as_merchant === true ||
+      (body as any)?.actingAsMerchant === true;
+    actingAsMerchant = isCashoutAgent && !isSystemCall && bodyActingFlag;
 
     // ── WPO pickup-code gate (cash payouts only) ────────────────────────
     // Validated BEFORE the atomic claim/processing flip so a wrong code
