@@ -203,12 +203,15 @@ Deno.serve(async (req) => {
 
     // Merchant compensation (principal reimbursement + 0.5% commission + SMS)
     // must ONLY go to a genuine merchant agent who fronted their OWN MTN/Airtel
-    // cash to pay the customer. A staff member settling a payout from the
-    // Financial Ops desk (even if they happen to ALSO hold a cashout_agents
-    // row) is paying with platform funds — there is no cash to reimburse and no
-    // commission to earn. The same applies to system/bulk auto-settlement,
-    // which impersonates a super_admin. Gate all merchant payouts on this flag.
-    const actingAsMerchant = isCashoutAgent && !hasStaffRole && !isSystemCall;
+    // cash to pay the customer. The authoritative signal is the explicit
+    // `acting_as_merchant` intent flag the merchant queue sends (resolved after
+    // the body is parsed below), combined with the caller actually being an
+    // active cashout agent. Role no longer gates this: nearly every merchant
+    // also holds staff roles (manager/super_admin/etc.), and the old
+    // `!hasStaffRole` gate was silently denying them commission + SMS. The
+    // Financial Ops desk never sends the flag, and system/bulk auto-settlement
+    // impersonates a super_admin without the flag — so neither qualifies.
+    let actingAsMerchant = false;
 
     if (!hasStaffRole && !isCashoutAgent) {
       return new Response(JSON.stringify({ error: "Forbidden: insufficient role" }), {
@@ -280,6 +283,20 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // A genuine merchant is an active cashout agent who completes the payout
+    // FROM THE MERCHANT QUEUE (the only caller that sends `acting_as_merchant`).
+    // They fronted their own MoMo/cash, so they earn the principal reimbursement
+    // + 0.5% commission + SMS — even if they also hold staff roles. Staff
+    // settling from the Financial Ops desk never send the flag, and system/bulk
+    // auto-settlement never sends it either, so neither wrongly earns merchant
+    // compensation. Backward-compatible: if a legacy merchant client omits the
+    // flag but the caller is a cashout agent AND no staff settlement desk is in
+    // play, we still credit them.
+    const bodyActingFlag =
+      (body as any)?.acting_as_merchant === true ||
+      (body as any)?.actingAsMerchant === true;
+    actingAsMerchant = isCashoutAgent && !isSystemCall && bodyActingFlag;
 
     // ── WPO pickup-code gate (cash payouts only) ────────────────────────
     // Validated BEFORE the atomic claim/processing flip so a wrong code
