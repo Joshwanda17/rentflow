@@ -15,20 +15,47 @@ interface SmsResult {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Single send attempt. Returns { ok, retryable, error } so the retry loop can
-// decide whether another attempt is worthwhile.
-async function sendSMSOnce(
+// Digits-with-country-code (no leading +) form used by Yoola / LANA.
+function toMsisdn(phone: string): string {
+  const intl = formatPhoneInternational(phone); // e.g. +2567...
+  return intl.replace(/^\+/, "");
+}
+
+// ── Yoola (PRIMARY) ── JSON body { phone, message, api_key, sender } ─────
+async function sendViaYoola(
   phone: string,
   message: string,
-): Promise<{ ok: boolean; retryable: boolean; error: string | null }> {
+): Promise<{ ok: boolean; error: string | null } | null> {
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
+  if (!apiKey) return null; // not configured → skip to next provider
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey, sender: "WELILE" }),
+    });
+    const raw = await res.text();
+    let data: any; try { data = JSON.parse(raw); } catch { data = null; }
+    const status = String(data?.status ?? "").toLowerCase();
+    const ok = res.ok &&
+      (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
+        (!data?.error && status === ""));
+    return ok
+      ? { ok: true, error: null }
+      : { ok: false, error: `Yoola rejected (HTTP ${res.status} ${status || "no-status"})` };
+  } catch (err) {
+    return { ok: false, error: `Yoola network error: ${(err as Error)?.message || err}` };
+  }
+}
+
+// ── Africa's Talking (FALLBACK) ─────────────────────────────────────────
+async function sendViaAT(
+  phone: string,
+  message: string,
+): Promise<{ ok: boolean; error: string | null } | null> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
-  if (!apiKey || !username) {
-    return { ok: false, retryable: false, error: "SMS provider not configured" };
-  }
-  if (!isUgandanPhone(phone)) {
-    return { ok: false, retryable: false, error: "Invalid Ugandan phone/MoMo number" };
-  }
+  if (!apiKey || !username) return null; // not configured → skip
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
     ? "https://api.sandbox.africastalking.com/version1/messaging"
@@ -49,32 +76,64 @@ async function sendSMSOnce(
       },
       body: body.toString(),
     });
-    // 5xx / 429 are transient — worth retrying. 4xx (except 429) are permanent.
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      const retryable = res.status >= 500 || res.status === 429;
-      return {
-        ok: false,
-        retryable,
-        error: `Provider HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}`,
-      };
+      return { ok: false, error: `AT HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ""}` };
     }
     const data = await res.json();
     const recipients = data?.SMSMessageData?.Recipients || [];
-    const accepted = recipients.some(
-      (r: any) => r.statusCode === 101 || r.statusCode === 100,
-    );
-    if (accepted) return { ok: true, retryable: false, error: null };
+    const accepted = recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    if (accepted) return { ok: true, error: null };
     const reason = recipients.map((r: any) => `${r.number}:${r.status}`).join(", ");
-    return {
-      ok: false,
-      retryable: false,
-      error: reason ? `Provider rejected (${reason})` : "Provider returned no accepted recipients",
-    };
+    return { ok: false, error: reason ? `AT rejected (${reason})` : "AT no accepted recipients" };
   } catch (err) {
-    // Network/timeout failures are transient.
-    return { ok: false, retryable: true, error: `Network error: ${(err as Error)?.message || err}` };
+    return { ok: false, error: `AT network error: ${(err as Error)?.message || err}` };
   }
+}
+
+// ── LANA (FINAL FALLBACK) ── bare /v1/send, Bearer auth ─────────────────
+async function sendViaLana(
+  phone: string,
+  message: string,
+): Promise<{ ok: boolean; error: string | null } | null> {
+  const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
+  if (!apiKey) return null; // not configured → skip
+  try {
+    const res = await fetch("https://api.lanasms.com/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ phone: toMsisdn(phone), message }),
+    });
+    const raw = await res.text();
+    let data: any; try { data = JSON.parse(raw); } catch { data = null; }
+    const ok = res.ok && data?.status === true;
+    return ok
+      ? { ok: true, error: null }
+      : { ok: false, error: `LANA rejected (${data?.message || `HTTP ${res.status}`})` };
+  } catch (err) {
+    return { ok: false, error: `LANA network error: ${(err as Error)?.message || err}` };
+  }
+}
+
+// Single pass through the provider chain: Yoola → Africa's Talking → LANA.
+// Returns ok on the first provider that accepts. `retryable` stays true so the
+// outer loop re-runs the whole chain (covers transient network failures).
+async function sendSMSOnce(
+  phone: string,
+  message: string,
+): Promise<{ ok: boolean; retryable: boolean; error: string | null }> {
+  if (!isUgandanPhone(phone)) {
+    return { ok: false, retryable: false, error: "Invalid Ugandan phone/MoMo number" };
+  }
+  const errors: string[] = [];
+  for (const send of [sendViaYoola, sendViaAT, sendViaLana]) {
+    const r = await send(phone, message);
+    if (r === null) continue; // provider unconfigured
+    if (r.ok) return { ok: true, retryable: false, error: null };
+    if (r.error) errors.push(r.error);
+  }
+  const combined = errors.length ? errors.join(" | ") : "No SMS provider configured";
+  return { ok: false, retryable: true, error: combined };
 }
 
 // Send with bounded retries + exponential backoff for transient failures.
