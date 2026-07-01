@@ -433,8 +433,8 @@ Deno.serve(async (req) => {
           action_type: "partner_import",
           table_name: "profiles",
           record_id: userId,
-          reason: "Bulk partner portfolio import by authorized staff.",
           metadata: {
+            reason: "Bulk partner portfolio import by authorized staff.",
             partner_name: partner.partner_name,
             phone: partner.phone,
             portfolio_count: partner.portfolios.length,
