@@ -1124,7 +1124,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         //    chosen proxy agent's withdrawable (manual pick OR assignment).
         // 3. Otherwise → debit the picked user as normal.
         const useProxyAgent =
-          (proxyInfo?.isManaged === true) || (debitRoute === 'proxy_agent_wallet' && !!proxyInfo);
+          ((proxyInfo?.isManaged === true) && !debitPartnerDirectlyRef.current) ||
+          (debitRoute === 'proxy_agent_wallet' && !!proxyInfo);
         if (debitRoute === 'proxy_agent_wallet' && !proxyInfo) {
           throw new Error('Pick a proxy agent to charge');
         }
