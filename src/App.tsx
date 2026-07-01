@@ -619,6 +619,7 @@ const App = () => {
                           <SonnerToaster />
                           <ProfileCompletionGate />
                           <LocationCaptureGate />
+                          <PushNotificationGate />
                           <SubAgentInviteGate />
                           <CreditLoadingDebugPanel />
                         </Suspense>
