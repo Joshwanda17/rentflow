@@ -727,6 +727,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // a recoverable obligation (auto_recover=true).
   const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
   const forceReversalRef = useRef(false);
+  // Managed-proxy debit fallback. When a partner has a managed proxy agent
+  // the debit normally redirects to the proxy agent's wallet. If that wallet
+  // is empty but the partner themselves holds the funds, we flip this ref so
+  // the retry debits the partner directly instead of the empty proxy wallet.
+  const debitPartnerDirectlyRef = useRef(false);
   // Structured reason code stamped on every forced-reversal leg so the
   // solvency-guard bypass is audit-grade. Required by both the DB trigger
   // and the cfo-direct-credit edge function whenever allow_overdraw=true.
@@ -881,6 +886,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setDebitRoute('withdrawable');
       setForcePending(null);
       forceReversalRef.current = false;
+      debitPartnerDirectlyRef.current = false;
       solvencyBypassReasonRef.current = '';
       setSolvencyBypassReason('');
       setSourceUser(null);
@@ -1118,7 +1124,8 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
         //    chosen proxy agent's withdrawable (manual pick OR assignment).
         // 3. Otherwise → debit the picked user as normal.
         const useProxyAgent =
-          (proxyInfo?.isManaged === true) || (debitRoute === 'proxy_agent_wallet' && !!proxyInfo);
+          ((proxyInfo?.isManaged === true) && !debitPartnerDirectlyRef.current) ||
+          (debitRoute === 'proxy_agent_wallet' && !!proxyInfo);
         if (debitRoute === 'proxy_agent_wallet' && !proxyInfo) {
           throw new Error('Pick a proxy agent to charge');
         }
@@ -1160,6 +1167,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           // can cover the amount; otherwise prompt for forced reversal
           // (recoverable obligation).
           if (!forceReversalRef.current && String(debitErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
+            // Managed-proxy redirect landed on an EMPTY proxy agent wallet,
+            // but the partner themselves holds enough money → offer a one-tap
+            // switch to debit the partner's own wallet instead of the proxy.
+            if (useProxyAgent && proxyInfo?.isManaged && !debitPartnerDirectlyRef.current) {
+              const pb = destBuckets.data; // partner's own buckets (picked user)
+              if (pb) {
+                const partnerRoute: DebitRoute | null =
+                  pb.withdrawable >= amt ? 'withdrawable'
+                    : pb.float >= amt ? 'landlord_float'
+                      : null;
+                if (partnerRoute) {
+                  debitPartnerDirectlyRef.current = true;
+                  setDebitRoute(partnerRoute);
+                  setPendingAutoSubmit(partnerRoute);
+                  const have = partnerRoute === 'landlord_float' ? pb.float : pb.withdrawable;
+                  throw new Error(`Proxy agent ${proxyInfo.agentName} has no funds. ${user.full_name} has ${formatUGX(have)} in their own ${partnerRoute === 'landlord_float' ? 'Landlord-Payout Float' : 'Withdrawable'} — switched to debit the partner directly. Tap "Confirm & route" again to retry.`);
+                }
+              }
+            }
             if (!useProxyAgent) {
               const b = destBuckets.data;
               if (b) {
@@ -1992,7 +2018,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
               <p className="font-medium text-violet-900 dark:text-violet-200">Managed-proxy partner detected</p>
               {!lowData && (
                 <p className="text-violet-800 dark:text-violet-300">
-                  <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> — the partner's wallet will not be touched.
+                  <span className="font-semibold">{user?.full_name}</span> is managed by proxy agent <span className="font-semibold">{proxy.data.agentName}</span>. The debit will hit the <span className="font-semibold">proxy agent's wallet</span> first — the partner's wallet is not touched. If the proxy agent has no funds but the partner does, we'll offer to debit the partner directly instead.
                 </p>
               )}
             </div>
