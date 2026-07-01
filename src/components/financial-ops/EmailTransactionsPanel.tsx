@@ -796,6 +796,14 @@ export function EmailTransactionsPanel() {
     matched_by_tid?: boolean;
     /** The normalized transaction reference that matched, for display. */
     matched_tid?: string | null;
+    /** Auto-credit provenance from deposit_requests.auto_match_audit — lets the
+     *  row show HOW the wallet was resolved and how confident the matcher was.
+     *  phone_source='body' + confidence='medium' is the "possible user ≈60%"
+     *  body-phone signal. */
+    auto_match_method?: string | null;
+    auto_phone_source?: 'counterparty' | 'body' | null;
+    auto_confidence?: 'high' | 'medium' | 'low' | null;
+    auto_confidence_score?: number | null;
   }
   const [creditedDeposits, setCreditedDeposits] = useState<Record<string, CreditedDeposit[]>>({});
 
