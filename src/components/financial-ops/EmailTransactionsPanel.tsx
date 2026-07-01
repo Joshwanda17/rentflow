@@ -3978,6 +3978,41 @@ export function EmailTransactionsPanel() {
                           </Badge>
                         </BadgeTip>
                       )}
+                      {/* Auto-credit confidence + phone-source provenance. Shown
+                          for any row auto-credited by the Gmail matcher so a
+                          reviewer can instantly see whether it was a deterministic
+                          counterparty-phone match (high) or the "possible user
+                          ≈60%" body-phone signal (medium) that warrants a
+                          spot-check. */}
+                      {isCredited && autoConfidence && (
+                        <BadgeTip
+                          plain={
+                            isBodyPhoneCredit
+                              ? 'Auto-credited from the “possible user ≈60%” signal — a phone found in the email body matched exactly one user. Worth a quick spot-check.'
+                              : 'Auto-credited from a deterministic match — the sender’s own phone number matched a known user.'
+                          }
+                          details={[
+                            `Auto-credit confidence: ${autoConfidence}${autoScorePct != null ? ` (~${autoScorePct}%)` : ''}`,
+                            `Phone source: ${autoPhoneSource === 'body' ? 'body (found inside the email)' : autoPhoneSource === 'counterparty' ? 'counterparty (the sender/recipient field)' : 'n/a'}`,
+                            autoCredit?.auto_match_method ? `Match method: ${autoCredit.auto_match_method}` : null,
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] gap-1 font-semibold ${
+                              autoConfidence === 'high'
+                                ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/40'
+                                : autoConfidence === 'medium'
+                                  ? 'bg-amber-500/15 text-amber-700 border-amber-500/40'
+                                  : 'bg-orange-500/15 text-orange-700 border-orange-500/40'
+                            }`}
+                          >
+                            {isBodyPhoneCredit ? <ShieldQuestion className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
+                            {autoConfidence} confidence{autoScorePct != null ? ` · ~${autoScorePct}%` : ''}
+                            <span className="opacity-75">· {autoPhoneSource === 'body' ? 'body phone' : autoPhoneSource === 'counterparty' ? 'sender phone' : autoCredit?.auto_match_method ?? 'auto'}</span>
+                          </Badge>
+                        </BadgeTip>
+                      )}
                       {/* Incoming deposit whose money never landed in any
                           wallet (no credit + not routed). Flag it clearly and
                           explain which reference fields are missing so the
