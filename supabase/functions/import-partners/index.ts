@@ -236,21 +236,19 @@ Deno.serve(async (req) => {
                 userId = recovered.id;
                 // fall through to the shared profile/role/wallet upserts below
               } else {
-                authEmailUsed = placeholderEmail;
-                const fallbackCreate = await adminClient.auth.admin.createUser({
-                  email: authEmailUsed,
-                  password: tempPassword,
-                  email_confirm: true,
-                  user_metadata: { full_name: partner.partner_name, phone: hasPhone ? partner.phone : "", contact_email: realEmail, intended_role: 'supporter' },
+                const { data: backfilled, error: backfillErr } = await adminClient.rpc("backfill_missing_profile_by_email", {
+                  _email: realEmail,
                 });
-                authData = fallbackCreate.data;
-                authErr = fallbackCreate.error;
+                const backfilledUserId = typeof backfilled === "object" && backfilled !== null
+                  ? (backfilled as Record<string, unknown>).user_id
+                  : null;
 
-                if (authErr || !authData.user) {
-                  pushImportError(errors, partner.partner_name, authErr, "Could not create the login account for this email-only partner. Please try again.");
+                if (!backfillErr && typeof backfilledUserId === "string" && backfilledUserId) {
+                  userId = backfilledUserId;
+                } else {
+                  pushImportError(errors, partner.partner_name, backfillErr || authErr, `The email "${realEmail}" already exists in login records, but its partner profile could not be linked. Please check this email and try again.`);
                   continue;
                 }
-                userId = authData.user.id;
               }
             } else {
               pushImportError(errors, partner.partner_name, authErr, "Could not create the login account for this partner. Please try again.");
