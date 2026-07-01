@@ -1027,7 +1027,7 @@ export function AgentCashPayoutsTab() {
       {/* Today's payouts */}
       <section className="space-y-3">
         <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Today's Payouts</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-border bg-muted/40 p-3.5">
             <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-muted-foreground"><Hash className="h-3.5 w-3.5" /> Done</div>
             <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">{dailyStats?.codesCount ?? 0}</p>
@@ -1035,10 +1035,6 @@ export function AgentCashPayoutsTab() {
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
             <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-primary"><TrendingUp className="h-3.5 w-3.5" /> Paid</div>
             <p className="mt-1.5 text-lg font-bold leading-tight tabular-nums text-primary">{formatUGX(dailyStats?.totalAmount ?? 0)}</p>
-          </div>
-          <div className="rounded-2xl border border-border bg-muted/40 p-3.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Avg</div>
-            <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">{dailyStats?.avgMinutes ? `${Math.round(dailyStats.avgMinutes)}m` : '—'}</p>
           </div>
         </div>
       </section>
