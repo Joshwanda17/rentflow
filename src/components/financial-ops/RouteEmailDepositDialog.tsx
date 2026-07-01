@@ -727,6 +727,11 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
   // a recoverable obligation (auto_recover=true).
   const [forcePending, setForcePending] = useState<null | { amount: number; name: string }>(null);
   const forceReversalRef = useRef(false);
+  // Managed-proxy debit fallback. When a partner has a managed proxy agent
+  // the debit normally redirects to the proxy agent's wallet. If that wallet
+  // is empty but the partner themselves holds the funds, we flip this ref so
+  // the retry debits the partner directly instead of the empty proxy wallet.
+  const debitPartnerDirectlyRef = useRef(false);
   // Structured reason code stamped on every forced-reversal leg so the
   // solvency-guard bypass is audit-grade. Required by both the DB trigger
   // and the cfo-direct-credit edge function whenever allow_overdraw=true.
