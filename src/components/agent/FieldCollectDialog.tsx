@@ -1880,7 +1880,10 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         className={cn(
           'p-0 gap-0 overflow-hidden bg-background',
           // Mobile: full-screen sheet for maximum tap area
-          'w-screen h-[100dvh] max-w-none rounded-none translate-x-0 translate-y-0 left-0 top-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]',
+          // `max-h-none` is required to override the base DialogContent's
+          // `max-h-[85vh]`, otherwise the sheet is capped at 85vh and the
+          // dashboard + bottom nav bleed through below it.
+          'w-screen h-[100dvh] max-h-none max-w-none rounded-none translate-x-0 translate-y-0 left-0 top-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]',
           // Tablet/desktop: roomy modal
           'sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[92vh] sm:rounded-3xl',
           'flex flex-col',
