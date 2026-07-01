@@ -1951,6 +1951,7 @@ Deno.serve(async (req) => {
       const smsMsg =
         `WELILE: Your withdrawal of UGX ${amount.toLocaleString()} has been ` +
         `APPROVED & PAID via ${payment_method}. ${proofLabel}:${refUpper}.` +
+        `${merchantLine}` +
         `${balanceLine} ` +
         `\n\nAccess your dashboard to view your wallet, transactions, and account details:\n` +
         `https://welilereceipts.com/ZQhyGb`;
