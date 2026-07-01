@@ -188,23 +188,46 @@ function groupByPartner(rows: ParsedRow[]): ImportGroup[] {
   return Array.from(map.values());
 }
 
-function formatImportError(error: unknown): string {
-  if (!error) return 'No detailed reason was returned. Please check the partner phone, email, and portfolio fields, then try again.';
+function formatImportError(error: unknown, partnerName?: string): string {
+  const partnerLabel = partnerName?.trim() || 'this partner';
+  const genericMessage = `The backend did not return a readable reason for ${partnerLabel}. Please check for a duplicate phone/email, invalid amount, invalid return mode, missing contribution date, or missing required payout details, then try again.`;
+
+  if (!error) return genericMessage;
   if (typeof error === 'string') {
     const trimmed = error.trim();
     if (!trimmed || trimmed === '{}' || trimmed === '[object Object]') {
-      return 'No detailed reason was returned. Please check the partner phone, email, and portfolio fields, then try again.';
+      return genericMessage;
     }
     return trimmed;
   }
-  if (error instanceof Error) return formatImportError(error.message);
+  if (error instanceof Error) return formatImportError(error.message, partnerName);
   if (typeof error === 'object') {
     const record = error as Record<string, unknown>;
-    const message = record.message ?? record.error ?? record.details ?? record.hint;
-    if (message) return formatImportError(message);
-    return 'The backend rejected this partner, but did not return a readable reason. Please check for duplicate phone/email, invalid portfolio values, or missing required fields.';
+    const message = record.message ?? record.error ?? record.details ?? record.hint ?? record.reason ?? record.description;
+    if (message) return formatImportError(message, partnerName);
+
+    const readableFields = Object.entries(record)
+      .filter(([, value]) => value !== null && value !== undefined && String(value).trim() && String(value).trim() !== '{}')
+      .map(([key, value]) => `${key}: ${formatImportError(value, partnerName)}`);
+    if (readableFields.length > 0) return readableFields.join('; ');
+
+    return genericMessage;
   }
   return String(error);
+}
+
+function normalizeImportResult(data: any): ImportResult {
+  return {
+    partnersCreated: Number(data?.partnersCreated || 0),
+    portfoliosCreated: Number(data?.portfoliosCreated || 0),
+    skippedDuplicates: Number(data?.skippedDuplicates || 0),
+    errors: Array.isArray(data?.errors)
+      ? data.errors.map((item: any) => {
+        const partner = String(item?.partner || 'Unknown partner');
+        return { partner, error: formatImportError(item?.error, partner) };
+      })
+      : [],
+  };
 }
 
 /* ─── Component ─── */
@@ -329,9 +352,10 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
         throw new Error(data.error);
       }
 
-      setImportResult(data);
+      const normalizedResult = normalizeImportResult(data);
+      setImportResult(normalizedResult);
       setStep('results');
-      toast.success(`Import complete! ${data.partnersCreated} partners, ${data.portfoliosCreated} portfolios created.`);
+      toast.success(`Import complete! ${normalizedResult.partnersCreated} partners, ${normalizedResult.portfoliosCreated} portfolios created.`);
       onSuccess?.();
     } catch (e: any) {
       toast.error(e.message || 'Import failed');
@@ -543,7 +567,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                   {importResult.errors.map((e, i) => (
                     <li key={i} className="text-xs text-destructive/80">
                       <span className="font-semibold text-destructive">{e.partner || 'Unknown partner'}:</span>{' '}
-                      {formatImportError(e.error)}
+                      {formatImportError(e.error, e.partner)}
                     </li>
                   ))}
                 </ul>
