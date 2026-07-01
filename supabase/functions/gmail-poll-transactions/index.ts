@@ -1602,7 +1602,8 @@ async function _tryAutoCreditOperationalFloat(
     source: 'gmail_auto_credit',
     gmail_message_id: gmailMessageId,
     match_method: matchMethod,
-    matched_phone_last9: phoneMatch ? phoneMatch[0].replace(/[^0-9]/g, '').slice(-9) : null,
+    matched_phone_last9: matchedPhoneLast9,
+    phone_source: phoneSource,
     matched_name: matchMethod === 'name' ? cp : null,
     provider,
     parsed_amount: parsed.amount,
@@ -1613,8 +1614,13 @@ async function _tryAutoCreditOperationalFloat(
     // name-fallback path. Null when matched on phone (deterministic).
     name_match: nameMatchAudit,
     tiebreaker: nameMatchAudit?.tiebreaker ?? null,
-    confidence: nameMatchAudit?.confidence ?? (matchMethod === 'phone' ? 'high' : null),
-    confidence_score: nameMatchAudit?.confidence_score ?? (matchMethod === 'phone' ? 1 : null),
+    // Counterparty phone = deterministic (high). Body phone = the "possible
+    // user ≈60%" signal, still unique-matched but recorded as medium so ops
+    // can spot-check it in the Auto-Credit Review queue.
+    confidence: nameMatchAudit?.confidence
+      ?? (matchMethod === 'phone' ? (phoneSource === 'body' ? 'medium' : 'high') : null),
+    confidence_score: nameMatchAudit?.confidence_score
+      ?? (matchMethod === 'phone' ? (phoneSource === 'body' ? 0.6 : 1) : null),
   };
 
   // Create the deposit as pending — approve-deposit will flip it.
