@@ -17,6 +17,8 @@ export type LandlordFloatAllocation = {
   status: 'open' | 'partially_paid' | 'fully_paid' | 'cancelled';
   source: string;
   created_at: string;
+  /** Tenant this earmark pays a landlord FOR — used so agents can find the row by tenant. */
+  tenant_name: string | null;
 };
 
 /**
@@ -42,12 +44,48 @@ export function useLandlordFloatAllocations(opts?: { onlyOpen?: boolean }) {
       }
       const { data, error } = await q;
       if (error) throw error;
-      return ((data ?? []) as any[]).map((r) => ({
-        ...r,
-        allocated_amount: Number(r.allocated_amount) || 0,
-        paid_out_amount: Number(r.paid_out_amount) || 0,
-        remaining_amount: Number(r.remaining_amount) || 0,
-      })) as LandlordFloatAllocation[];
+      const rows = (data ?? []) as any[];
+
+      // The allocation row stores a NAME SNAPSHOT taken at disbursement time.
+      // If the landlord record is later edited/merged (name or MoMo number
+      // changed), that snapshot goes stale and the agent sees an unrecognizable
+      // name in the payout list ("why isn't my tenant here?"). Re-hydrate the
+      // landlord name/phone from the live record, and attach the tenant name so
+      // the agent can identify the payout by the tenant it belongs to.
+      const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter(Boolean))];
+      const landlordIds = [...new Set(rows.map((r) => r.landlord_id).filter(Boolean))];
+
+      const [tenantsRes, landlordsRes] = await Promise.all([
+        tenantIds.length
+          ? supabase.from('profiles').select('id, full_name').in('id', tenantIds)
+          : Promise.resolve({ data: [] as any[] }),
+        landlordIds.length
+          ? supabase
+              .from('landlords')
+              .select('id, name, mobile_money_number, phone')
+              .in('id', landlordIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const tenantById = new Map<string, string>(
+        ((tenantsRes as any).data ?? []).map((t: any) => [t.id, t.full_name]),
+      );
+      const landlordById = new Map<string, any>(
+        ((landlordsRes as any).data ?? []).map((l: any) => [l.id, l]),
+      );
+
+      return rows.map((r) => {
+        const live = r.landlord_id ? landlordById.get(r.landlord_id) : null;
+        return {
+          ...r,
+          landlord_name: live?.name || r.landlord_name,
+          landlord_phone: live?.mobile_money_number || live?.phone || r.landlord_phone,
+          tenant_name: r.tenant_id ? tenantById.get(r.tenant_id) ?? null : null,
+          allocated_amount: Number(r.allocated_amount) || 0,
+          paid_out_amount: Number(r.paid_out_amount) || 0,
+          remaining_amount: Number(r.remaining_amount) || 0,
+        };
+      }) as LandlordFloatAllocation[];
     },
     enabled: !!user,
     staleTime: 15_000,
