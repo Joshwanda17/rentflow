@@ -799,6 +799,9 @@ async function tryAutoCreditOperationalFloat(
     fromEmail: string | null;
     internalMs: number;
     gmailMessageId: string;
+    subject?: string | null;
+    snippet?: string | null;
+    rawBody?: string | null;
   },
 ): Promise<void> {
   return await _tryAutoCreditOperationalFloat(supabase, args);
