@@ -10,6 +10,37 @@ function errorResponse(msg: string, status: number) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: JSON_HEADERS });
 }
 
+function readableImportError(error: unknown, fallback = "The import could not complete for this partner."): string {
+  if (!error) return fallback;
+
+  if (typeof error === "string") {
+    const trimmed = error.trim();
+    if (!trimmed || trimmed === "{}" || trimmed === "[object Object]") return fallback;
+    return trimmed;
+  }
+
+  if (error instanceof Error) {
+    return readableImportError(error.message, fallback);
+  }
+
+  const maybeRecord = error as Record<string, unknown>;
+  const knownMessage = maybeRecord.message ?? maybeRecord.error ?? maybeRecord.details ?? maybeRecord.hint;
+  if (knownMessage) return readableImportError(String(knownMessage), fallback);
+
+  try {
+    const json = JSON.stringify(error);
+    if (!json || json === "{}") return fallback;
+    return json;
+  } catch {
+    return fallback;
+  }
+}
+
+function partnerImportFallback(partnerName?: string | null): string {
+  const name = partnerName?.trim() || "this partner";
+  return `We could not finish importing ${name}. Please check that the phone, email, and portfolio details are valid, then try again.`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -100,19 +131,31 @@ Deno.serve(async (req) => {
             .from("user_roles").select("id")
             .eq("user_id", userId).eq("role", "supporter").maybeSingle();
           if (!existingRole) {
-            await adminClient.from("user_roles").insert({ user_id: userId, role: "supporter" });
+            const { error: roleErr } = await adminClient.from("user_roles").insert({ user_id: userId, role: "supporter" });
+            if (roleErr) {
+              errors.push({ partner: partner.partner_name, error: readableImportError(roleErr, "Could not assign the supporter role to this existing user.") });
+              continue;
+            }
           }
 
           // Reset password to the standard default
           const tempPwd = `Welile1234!`;
-          await adminClient.auth.admin.updateUserById(userId, { password: tempPwd });
+          const { error: passwordErr } = await adminClient.auth.admin.updateUserById(userId, { password: tempPwd });
+          if (passwordErr) {
+            errors.push({ partner: partner.partner_name, error: readableImportError(passwordErr, "Could not update the login password for this existing user.") });
+            continue;
+          }
 
           // If a real email was provided and user has a placeholder email, update it
           if (partner.email && !partner.email.includes('@noapp.welile') && !partner.email.includes('@welile.user')) {
-            await adminClient.auth.admin.updateUserById(userId, {
+            const { error: emailErr } = await adminClient.auth.admin.updateUserById(userId, {
               email: partner.email,
               email_confirm: true,
             });
+            if (emailErr) {
+              errors.push({ partner: partner.partner_name, error: readableImportError(emailErr, "Could not attach this email address to the existing user account.") });
+              continue;
+            }
           }
         } else {
           // Create auth user with standard default password
@@ -132,7 +175,7 @@ Deno.serve(async (req) => {
           });
 
           if (authErr || !authData.user) {
-            errors.push({ partner: partner.partner_name, error: authErr?.message || 'Auth creation failed' });
+            errors.push({ partner: partner.partner_name, error: readableImportError(authErr, "Could not create the login account for this partner. Please check the phone/email and try again.") });
             continue;
           }
 
@@ -144,19 +187,31 @@ Deno.serve(async (req) => {
             full_name: partner.partner_name.trim(),
           };
           if (hasPhone) profileData.phone = partner.phone;
-          await adminClient.from("profiles").upsert(profileData);
+          const { error: profileErr } = await adminClient.from("profiles").upsert(profileData);
+          if (profileErr) {
+            errors.push({ partner: partner.partner_name, error: readableImportError(profileErr, "Could not save the partner profile.") });
+            continue;
+          }
 
           // Assign supporter role
-          await adminClient.from("user_roles").insert({
+          const { error: roleErr } = await adminClient.from("user_roles").insert({
             user_id: userId,
             role: "supporter",
           });
+          if (roleErr) {
+            errors.push({ partner: partner.partner_name, error: readableImportError(roleErr, "Could not assign the supporter role to this partner.") });
+            continue;
+          }
 
           // Create wallet
-          await adminClient.from("wallets").upsert({
+          const { error: walletErr } = await adminClient.from("wallets").upsert({
             user_id: userId,
             balance: 0,
           }, { onConflict: 'user_id' });
+          if (walletErr) {
+            errors.push({ partner: partner.partner_name, error: readableImportError(walletErr, "Could not prepare this partner's wallet record.") });
+            continue;
+          }
 
           partnersCreated++;
         }
@@ -229,22 +284,23 @@ Deno.serve(async (req) => {
             const { error: portfolioErr } = await adminClient.from("investor_portfolios").insert(insertData);
 
             if (portfolioErr) {
-              errors.push({ partner: partner.partner_name, error: `Portfolio: ${portfolioErr.message}` });
+              errors.push({ partner: partner.partner_name, error: `Portfolio could not be created: ${readableImportError(portfolioErr, "Please check the amount, return mode, duration, and contribution date.")}` });
               continue;
             }
 
             portfoliosCreated++;
           } catch (pfErr: any) {
-            errors.push({ partner: partner.partner_name, error: `Portfolio error: ${pfErr.message}` });
+            errors.push({ partner: partner.partner_name, error: `Portfolio could not be created: ${readableImportError(pfErr, "Please check the portfolio details and try again.")}` });
           }
         }
 
         // Audit log
-        await adminClient.from("audit_logs").insert({
+        const { error: auditErr } = await adminClient.from("audit_logs").insert({
           user_id: user.id,
           action_type: "partner_import",
           table_name: "profiles",
           record_id: userId,
+          reason: "Bulk partner portfolio import by authorized staff.",
           metadata: {
             partner_name: partner.partner_name,
             phone: partner.phone,
@@ -252,9 +308,12 @@ Deno.serve(async (req) => {
             imported_by: user.id,
           },
         });
+        if (auditErr) {
+          errors.push({ partner: partner.partner_name, error: readableImportError(auditErr, "The partner was imported, but the audit record could not be saved.") });
+        }
 
       } catch (partnerErr: any) {
-        errors.push({ partner: partner.partner_name || partner.phone, error: partnerErr.message });
+        errors.push({ partner: partner.partner_name || partner.phone, error: readableImportError(partnerErr, partnerImportFallback(partner.partner_name)) });
       }
     }
 
