@@ -1167,6 +1167,25 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
           // can cover the amount; otherwise prompt for forced reversal
           // (recoverable obligation).
           if (!forceReversalRef.current && String(debitErrMsg).includes('NEGATIVE_WALLET_BLOCKED')) {
+            // Managed-proxy redirect landed on an EMPTY proxy agent wallet,
+            // but the partner themselves holds enough money → offer a one-tap
+            // switch to debit the partner's own wallet instead of the proxy.
+            if (useProxyAgent && proxyInfo?.isManaged && !debitPartnerDirectlyRef.current) {
+              const pb = destBuckets.data; // partner's own buckets (picked user)
+              if (pb) {
+                const partnerRoute: DebitRoute | null =
+                  pb.withdrawable >= amt ? 'withdrawable'
+                    : pb.float >= amt ? 'landlord_float'
+                      : null;
+                if (partnerRoute) {
+                  debitPartnerDirectlyRef.current = true;
+                  setDebitRoute(partnerRoute);
+                  setPendingAutoSubmit(partnerRoute);
+                  const have = partnerRoute === 'landlord_float' ? pb.float : pb.withdrawable;
+                  throw new Error(`Proxy agent ${proxyInfo.agentName} has no funds. ${user.full_name} has ${formatUGX(have)} in their own ${partnerRoute === 'landlord_float' ? 'Landlord-Payout Float' : 'Withdrawable'} — switched to debit the partner directly. Tap "Confirm & route" again to retry.`);
+                }
+              }
+            }
             if (!useProxyAgent) {
               const b = destBuckets.data;
               if (b) {
