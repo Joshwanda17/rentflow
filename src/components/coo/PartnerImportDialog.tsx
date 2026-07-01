@@ -50,7 +50,7 @@ interface ImportResult {
   partnersCreated: number;
   portfoliosCreated: number;
   skippedDuplicates: number;
-  errors: { partner: string; error: string }[];
+  errors: { partner: string; error: unknown }[];
 }
 
 type Step = 'upload' | 'preview' | 'confirm' | 'processing' | 'results';
@@ -186,6 +186,25 @@ function groupByPartner(rows: ParsedRow[]): ImportGroup[] {
     }
   }
   return Array.from(map.values());
+}
+
+function formatImportError(error: unknown): string {
+  if (!error) return 'No detailed reason was returned. Please check the partner phone, email, and portfolio fields, then try again.';
+  if (typeof error === 'string') {
+    const trimmed = error.trim();
+    if (!trimmed || trimmed === '{}' || trimmed === '[object Object]') {
+      return 'No detailed reason was returned. Please check the partner phone, email, and portfolio fields, then try again.';
+    }
+    return trimmed;
+  }
+  if (error instanceof Error) return formatImportError(error.message);
+  if (typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    const message = record.message ?? record.error ?? record.details ?? record.hint;
+    if (message) return formatImportError(message);
+    return 'The backend rejected this partner, but did not return a readable reason. Please check for duplicate phone/email, invalid portfolio values, or missing required fields.';
+  }
+  return String(error);
 }
 
 /* ─── Component ─── */
@@ -519,10 +538,15 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
 
             {importResult.errors.length > 0 && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 max-h-[150px] overflow-y-auto">
-                <p className="text-xs font-semibold text-destructive mb-1.5">Errors:</p>
-                {importResult.errors.map((e, i) => (
-                  <p key={i} className="text-xs text-destructive/80">{e.partner}: {e.error}</p>
-                ))}
+                <p className="text-xs font-semibold text-destructive mb-1.5">Import issues that need attention:</p>
+                <ul className="space-y-1.5">
+                  {importResult.errors.map((e, i) => (
+                    <li key={i} className="text-xs text-destructive/80">
+                      <span className="font-semibold text-destructive">{e.partner || 'Unknown partner'}:</span>{' '}
+                      {formatImportError(e.error)}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
