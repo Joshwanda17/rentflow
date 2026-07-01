@@ -886,6 +886,7 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       setDebitRoute('withdrawable');
       setForcePending(null);
       forceReversalRef.current = false;
+      debitPartnerDirectlyRef.current = false;
       solvencyBypassReasonRef.current = '';
       setSolvencyBypassReason('');
       setSourceUser(null);
