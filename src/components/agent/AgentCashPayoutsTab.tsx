@@ -1050,9 +1050,9 @@ export function AgentCashPayoutsTab() {
       <section className="space-y-3">
         <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Today's Payouts</h2>
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-border bg-muted/40 p-3.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-muted-foreground"><Hash className="h-3.5 w-3.5" /> Done</div>
-            <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">{dailyStats?.codesCount ?? 0}</p>
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-emerald-700 dark:text-emerald-400"><Coins className="h-3.5 w-3.5" /> Total Commission</div>
+            <p className="mt-1.5 text-lg font-bold leading-tight tabular-nums text-emerald-700 dark:text-emerald-400">{formatUGX(lifetimeCommission ?? 0)}</p>
           </div>
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
             <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase text-primary"><TrendingUp className="h-3.5 w-3.5" /> Paid</div>
