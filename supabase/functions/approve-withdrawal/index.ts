@@ -26,11 +26,38 @@ function isUgandanPhone(phone: string): boolean {
   const f = formatPhoneInternational(phone);
   return f.startsWith("+256") && f.length >= 13;
 }
-async function sendSMS(phone: string, message: string): Promise<boolean> {
+// Provider chain: Yoola (PRIMARY) → Africa's Talking → LANA (final fallback).
+// Each provider is tried only if the previous is unconfigured or rejects, so a
+// single provider running out of credit never blocks delivery.
+function toMsisdn(phone: string): string {
+  return formatPhoneInternational(phone).replace(/^\+/, "");
+}
+async function sendViaYoola(phone: string, message: string): Promise<boolean | null> {
+  const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
+  if (!apiKey) return null;
+  try {
+    const res = await fetch("https://yoolasms.com/api/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ phone: toMsisdn(phone), message, api_key: apiKey, sender: "WELILE" }),
+    });
+    const raw = await res.text();
+    let data: any; try { data = JSON.parse(raw); } catch { data = null; }
+    const status = String(data?.status ?? "").toLowerCase();
+    const ok = res.ok &&
+      (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
+        (!data?.error && status === ""));
+    if (!ok) console.warn(`[approve-withdrawal] Yoola rejected HTTP ${res.status} ${status}`);
+    return ok;
+  } catch (err) {
+    console.error("[approve-withdrawal] Yoola error:", err);
+    return false;
+  }
+}
+async function sendViaAT(phone: string, message: string): Promise<boolean | null> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
-  if (!apiKey || !username) return false;
-  if (!isUgandanPhone(phone)) return false;
+  if (!apiKey || !username) return null;
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
     ? "https://api.sandbox.africastalking.com/version1/messaging"
@@ -51,15 +78,45 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
       },
       body: body.toString(),
     });
+    if (!res.ok) {
+      console.warn(`[approve-withdrawal] AT HTTP ${res.status}`);
+      return false;
+    }
     const data = await res.json();
     const recipients = data?.SMSMessageData?.Recipients || [];
-    return recipients.some(
-      (r: any) => r.statusCode === 101 || r.statusCode === 100,
-    );
+    return recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
   } catch (err) {
-    console.error("[approve-withdrawal] SMS error:", err);
+    console.error("[approve-withdrawal] AT error:", err);
     return false;
   }
+}
+async function sendViaLana(phone: string, message: string): Promise<boolean | null> {
+  const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
+  if (!apiKey) return null;
+  try {
+    const res = await fetch("https://api.lanasms.com/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ phone: toMsisdn(phone), message }),
+    });
+    const raw = await res.text();
+    let data: any; try { data = JSON.parse(raw); } catch { data = null; }
+    const ok = res.ok && data?.status === true;
+    if (!ok) console.warn(`[approve-withdrawal] LANA rejected: ${data?.message ?? res.status}`);
+    return ok;
+  } catch (err) {
+    console.error("[approve-withdrawal] LANA error:", err);
+    return false;
+  }
+}
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  if (!isUgandanPhone(phone)) return false;
+  for (const send of [sendViaYoola, sendViaAT, sendViaLana]) {
+    const r = await send(phone, message);
+    if (r === null) continue; // provider unconfigured → try next
+    if (r) return true; // delivered
+  }
+  return false;
 }
 
 Deno.serve(async (req) => {
