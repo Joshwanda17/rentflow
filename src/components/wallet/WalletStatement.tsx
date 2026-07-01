@@ -729,11 +729,11 @@ export function WalletStatement() {
                 onClick={toggleA11y}
                 aria-pressed={a11yMode}
                 aria-label={a11yMode ? 'Turn off larger text and higher contrast' : 'Turn on larger text and higher contrast'}
-                className="gap-1.5 text-xs font-semibold"
+                className="gap-1.5 text-xs font-semibold min-h-11"
                 title={a11yMode ? 'Easy-read mode: ON' : 'Easy-read mode: OFF'}
               >
                 <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                {a11yMode ? 'A−' : 'A+'}
+                {a11yMode ? 'Easy Read: On' : 'Easy Read'}
               </Button>
               {a11yMode && (
                 <div
