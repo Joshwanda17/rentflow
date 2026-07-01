@@ -46,6 +46,11 @@
     /* Page break indicators (visual helpers on screen, page breaks on print) */
     .page-section {
       position: relative;
+      min-height: 960px; /* keep each on-screen section a full page so the
+                            centered stamp lands center-right and never clips
+                            (the PDF rasterises each section individually) */
+      display: flex;
+      flex-direction: column;
       margin-bottom: 60px;
       padding-bottom: 60px;
     }

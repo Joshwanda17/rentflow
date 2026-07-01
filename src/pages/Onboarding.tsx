@@ -1053,13 +1053,28 @@ function friendlySubmissionError(err: any): string {
   const raw = err?.response?.data?.detail || err?.response?.data?.message || err?.message || '';
   const msg = String(raw || '').trim();
   const lower = msg.toLowerCase();
+  if (lower.includes('phone') && (lower.includes('already') || lower.includes('registered') || lower.includes('taken') || lower.includes('exists'))) {
+    return 'This phone number is already registered. Please sign in instead, or use a different number.';
+  }
+  if (lower.includes('email') && (lower.includes('already') || lower.includes('registered') || lower.includes('taken') || lower.includes('exists'))) {
+    return 'This email is already registered. Please sign in instead, or use a different email address.';
+  }
   if (lower.includes('already registered') || lower.includes('already exists') || lower.includes('duplicate')) {
     return 'An account already exists with these details. Please sign in, or use a different email/phone number.';
   }
-  if (lower.includes('invalid email')) return 'Please enter a valid email address.';
+  if (lower.includes('invalid email') || (lower.includes('email') && lower.includes('invalid'))) return 'Please enter a valid email address.';
+  if (lower.includes('invalid phone') || (lower.includes('phone') && lower.includes('invalid'))) return 'Please enter a valid Ugandan phone number (e.g. 0700 000 000).';
+  if (lower.includes('rate limit') || lower.includes('too many') || lower.includes('429')) {
+    return 'Too many attempts. Please wait a minute and try again.';
+  }
+  if (lower.includes('weak password') || (lower.includes('password') && lower.includes('short')) || lower.includes('at least')) {
+    return 'Your password is too weak. Use at least 8 characters with a mix of letters and numbers.';
+  }
   if (lower.includes('password')) return 'The password could not be accepted. Use at least 8 characters and try again.';
-  if (lower.includes('network') || lower.includes('failed to fetch')) return 'Network error. Please check your internet connection and try again.';
-  return msg || 'Failed to create account. Please review your details and try again.';
+  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timeout') || lower.includes('timed out')) {
+    return 'Network error. Please check your internet connection and try again.';
+  }
+  return msg || 'We couldn’t create your account. Please review your details and try again.';
 }
 
 const STEP_LABELS = ['Welcome', 'Support', 'Bank & Next of Kin', 'Create Account'];
@@ -1330,7 +1345,9 @@ export default function FunderOnboarding() {
         }, 3000);
       } catch (err: any) {
         console.error('Signup failed:', err);
-        setApiError(friendlySubmissionError(err));
+        const friendly = friendlySubmissionError(err);
+        setApiError(friendly);
+        toast.error(friendly);
         setIsSubmitting(false);
       }
     }
