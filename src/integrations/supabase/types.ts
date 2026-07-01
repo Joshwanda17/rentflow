@@ -20436,6 +20436,7 @@ export type Database = {
           new_withdrawable: number
         }[]
       }
+      email_queue_dispatch: { Args: never; Returns: undefined }
       end_ledger_maintenance: {
         Args: { p_reason?: string }
         Returns: undefined
