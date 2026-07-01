@@ -402,6 +402,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [activeTab, setActiveTab] = useState<AgentHubTab>('home');
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
 
+  // Deep-link: a "new cash-out to claim" push notification opens the app at
+  // /dashboard/agent?section=cash-payouts — auto-open the Merchant Payouts sheet.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('section') === 'cash-payouts') {
+      setCashPayoutsOpen(true);
+    }
+  }, []);
+
   // Horizontal swipe → switch hub tabs (mobile gesture)
   const TAB_ORDER: AgentHubTab[] = ['home', 'money', 'tenants', 'grow', 'subagents'];
   const swipeHandlers = useHorizontalSwipe({
