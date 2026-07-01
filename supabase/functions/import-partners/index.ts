@@ -217,14 +217,7 @@ Deno.serve(async (req) => {
                 .ilike("email", realEmail).limit(1).maybeSingle();
               if (recovered?.id) {
                 userId = recovered.id;
-                const { data: hasRole } = await adminClient
-                  .from("user_roles").select("id")
-                  .eq("user_id", userId).eq("role", "supporter").maybeSingle();
-                if (!hasRole) {
-                  await adminClient.from("user_roles").insert({ user_id: userId, role: "supporter" });
-                }
-                await adminClient.from("wallets").upsert({ user_id: userId, balance: 0 }, { onConflict: "user_id" });
-                // fall through to portfolio creation below
+                // fall through to the shared profile/role/wallet upserts below
               } else {
                 pushImportError(errors, partner.partner_name, authErr, `The email "${realEmail}" is already registered to another account and could not be reused. Remove or correct the email for this partner, then try again.`);
                 continue;
@@ -253,10 +246,10 @@ Deno.serve(async (req) => {
           }
 
           // Assign supporter role
-          const { error: roleErr } = await adminClient.from("user_roles").insert({
-            user_id: userId,
-            role: "supporter",
-          });
+          const { error: roleErr } = await adminClient.from("user_roles").upsert(
+            { user_id: userId, role: "supporter" },
+            { onConflict: "user_id,role", ignoreDuplicates: true },
+          );
           if (roleErr) {
             pushImportError(errors, partner.partner_name, roleErr, "Could not assign the supporter role to this partner. Please try again.");
             continue;
