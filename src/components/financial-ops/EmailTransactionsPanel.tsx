@@ -4055,6 +4055,7 @@ export function EmailTransactionsPanel() {
                         icon: <Zap className="h-5 w-5" />,
                         colorClass: 'bg-emerald-600',
                         onAction: () => setPendingSwipe({ row: r, mode: 'credit' }),
+                        ariaLabel: `Send deposit of ${fmtUgx(Number(r.amount ?? 0))}${r.counterparty ? ` from ${r.counterparty}` : ''} to a wallet`,
                       }
                     : isOutgoing && !isRouted && !isAutoDebited && Number(r.amount ?? 0) > 0
                       ? {
@@ -4063,6 +4064,7 @@ export function EmailTransactionsPanel() {
                           icon: <Wallet className="h-5 w-5" />,
                           colorClass: 'bg-rose-600',
                           onAction: () => setPendingSwipe({ row: r, mode: 'debit' }),
+                          ariaLabel: `Charge wallet ${fmtUgx(Number(r.amount ?? 0))}${r.counterparty ? ` for payout to ${r.counterparty}` : ''}`,
                         }
                       : null;
                 return (
