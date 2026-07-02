@@ -4231,8 +4231,8 @@ export function EmailTransactionsPanel() {
                     <BadgeTip
                       plain={outcomeStatus.tip}
                       details={
-                        outcomeWhen
-                          ? 'The time shown is when this outcome was last recorded (routed / charged / credited / reversed).'
+                        outcomeWhenSource
+                          ? `${outcomeWhenSource.label} ${new Date(outcomeWhenSource.when).toLocaleString()} (from ${outcomeWhenSource.field}).`
                           : 'No action has been recorded for this row yet.'
                       }
                     >
