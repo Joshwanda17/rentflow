@@ -260,11 +260,11 @@ export function FundAccountDialog({
               className="gap-2 bg-gradient-to-r from-primary to-violet-500"
             >
               {loading ? (
-                'Processing...'
+                'Submitting...'
               ) : (
                 <>
                   <Wallet className="h-4 w-4" />
-                  Top Up {isValid ? formatUGX(amount) : ''}
+                  Request Transfer {isValid ? formatUGX(amount) : ''}
                 </>
               )}
             </Button>
