@@ -143,6 +143,23 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     ],
   },
   {
+    id: 'school_of_ai',
+    label: '🎓 School of AI',
+    description: 'Welile School of AI expenditures — training programs, curriculum, facilitators, learner stipends, and AI education initiatives. Routes to the R&D expense ledger for reporting consistency.',
+    impact: 'expense',
+    walletCategory: 'research_development_expense',
+    platformCategory: 'research_development_expense',
+    allowedOps: ['credit'],
+    recipientLock: 'either',
+    subCategories: [
+      { id: 'training_programs', label: 'Training Programs' },
+      { id: 'curriculum_content', label: 'Curriculum & Content' },
+      { id: 'facilitators', label: 'Facilitators & Trainers' },
+      { id: 'learner_stipends', label: 'Learner Stipends' },
+      { id: 'equipment_tools', label: 'Equipment & Tools' },
+    ],
+  },
+  {
     id: 'operational_expense',
     label: '🏢 Operational Expenses',
     description: 'Day-to-day operational costs including staff, office, and utilities',
