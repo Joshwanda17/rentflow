@@ -1361,6 +1361,8 @@ export function AgentCashPayoutsTab() {
                   const name = h.profiles?.full_name || 'Customer';
                   const phone = getRecipientPhone(h);
                   const earned = Number(h.commission || 0) + Number(h.reimbursed || 0);
+                  const commission = Number(h.commission || 0) || getCashoutCommission(Number(h.amount || 0));
+                  const sendCharge = getTelecomSendingCharge(Number(h.amount || 0));
                   return (
                     <div key={h.id} className="rounded-xl border border-border bg-muted/30 px-3 py-2.5">
                       <div className="flex items-start justify-between gap-3">
@@ -1376,6 +1378,14 @@ export function AgentCashPayoutsTab() {
                             {h.processed_at ? format(new Date(h.processed_at), 'MMM d, HH:mm') : ''}
                           </p>
                         </div>
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between gap-2 flex-wrap">
+                        <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-600 tabular-nums">
+                          Commission earned: +{formatUGX(commission)}
+                        </span>
+                        <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 tabular-nums">
+                          Telecom charge: {formatUGX(sendCharge)}
+                        </span>
                       </div>
                       <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-border/60 pt-1.5">
                         <span className="text-[11px] text-muted-foreground">
