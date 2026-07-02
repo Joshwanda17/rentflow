@@ -2619,6 +2619,27 @@ export function EmailTransactionsPanel() {
     );
   };
 
+  // Targeted refetch of a single row's routing history after a routing/charging
+  // action completes, so the status pill updates immediately without waiting
+  // for the realtime feed (which may be throttled) or a full reload.
+  const refreshRowStatus = async (rowId: string) => {
+    const target = rows.find((r) => r.id === rowId);
+    const msgId = target?.gmail_message_id ?? null;
+    const filter = msgId
+      ? `gmail_transaction_id.eq.${rowId},gmail_message_id.eq.${msgId}`
+      : `gmail_transaction_id.eq.${rowId}`;
+    const { data, error } = await (supabase.from('email_routing_history') as any)
+      .select('id,created_at,route,reason,target_user_id,target_user_name,target_user_phone,routed_by_name,amount,sms_sent')
+      .or(filter)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) return;
+    setRoutingHistory((cur) => ({
+      ...cur,
+      [rowId]: (data ?? []) as RoutingHistoryEntry[],
+    }));
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
