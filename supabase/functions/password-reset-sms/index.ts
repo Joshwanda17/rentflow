@@ -509,36 +509,71 @@ Deno.serve(async (req) => {
         });
       }
 
-      // OTP verified - find user and reset password
-      const { data: profile } = await adminClient
-        .from("profiles")
-        .select("id")
-        .in("phone", phoneFormats)
-        .limit(1)
-        .maybeSingle();
+      // OTP verified — reset the password on EVERY active account tied to this
+      // phone. A single phone can map to multiple auth UUIDs (placeholder
+      // @welile.user emails, real emails, agent variants). The sign-in flow
+      // resolves candidates by last-9 digits across profiles + auth.users and
+      // races them, so if we only reset one account the user may land on a
+      // different account that still holds the OLD password — surfacing as
+      // "invalid password" right after a successful reset. Resetting all
+      // matching accounts guarantees the new password works whichever one
+      // login lands on.
+      const { data: idRows, error: idErr } = await adminClient.rpc("get_user_ids_by_phone", {
+        phone_variants: phoneFormats,
+      });
+      if (idErr) {
+        console.error("[password-reset-sms] get_user_ids_by_phone error:", idErr);
+      }
 
-      if (!profile) {
+      const userIds = new Set<string>(
+        Array.isArray(idRows) ? (idRows as { user_id: string }[]).map((r) => r.user_id).filter(Boolean) : [],
+      );
+
+      // Fallback: if the RPC returned nothing (e.g. profile phone stored in an
+      // unexpected format), fall back to a direct profiles lookup so we never
+      // regress below the previous single-account behaviour.
+      if (userIds.size === 0) {
+        const { data: profileRows } = await adminClient
+          .from("profiles")
+          .select("id")
+          .in("phone", phoneFormats);
+        (profileRows ?? []).forEach((p: { id: string }) => p?.id && userIds.add(p.id));
+      }
+
+      if (userIds.size === 0) {
         return new Response(JSON.stringify({ error: "User not found" }), {
           status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const { error: updateError } = await adminClient.auth.admin.updateUserById(
-        profile.id,
-        { password: newPassword }
-      );
-
-      if (updateError) {
-        console.error("[password-reset-sms] Password update error:", updateError);
+      let anySuccess = false;
+      let weakPasswordHit = false;
+      let lastErrorMessage: string | null = null;
+      for (const uid of userIds) {
+        const { error: updateError } = await adminClient.auth.admin.updateUserById(uid, {
+          password: newPassword,
+        });
+        if (!updateError) {
+          anySuccess = true;
+          continue;
+        }
         const errAny = updateError as unknown as { code?: string; message?: string };
         const isWeak =
           errAny?.code === "weak_password" ||
           /weak|pwned|known to be weak|easy to guess/i.test(errAny?.message ?? "");
-        const friendly = isWeak
+        if (isWeak) weakPasswordHit = true;
+        lastErrorMessage = errAny?.message ?? "update_failed";
+        console.error(`[password-reset-sms] Password update error for ${uid}:`, updateError);
+      }
+
+      if (!anySuccess) {
+        // A weak-password rejection is user-actionable and applies to every
+        // account, so surface it first.
+        const friendly = weakPasswordHit
           ? "This password has appeared in known data breaches, so it can't be used. Please choose a different, more unique password."
           : "Failed to reset password. Please try again.";
-        return new Response(JSON.stringify({ error: friendly, code: errAny?.code ?? null }), {
-          status: isWeak ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        return new Response(JSON.stringify({ error: friendly, code: weakPasswordHit ? "weak_password" : null }), {
+          status: weakPasswordHit ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
@@ -548,8 +583,8 @@ Deno.serve(async (req) => {
         .update({ verified: true, verified_at: new Date().toISOString() })
         .eq("phone", resetKey);
 
-      console.log(`[password-reset-sms] Password reset successful for ***${phoneKey.slice(-4)}`);
-      return new Response(JSON.stringify({ success: true, message: "Password reset successfully" }), {
+      console.log(`[password-reset-sms] Password reset successful for ***${phoneKey.slice(-4)} across ${userIds.size} account(s)`);
+      return new Response(JSON.stringify({ success: true, message: "Password reset successfully", accounts_updated: userIds.size }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
