@@ -137,7 +137,9 @@ export function FundedTenantsList() {
           'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_disbursed_by, finops_momo_reference, external_reference, created_at, rent_request_id',
         )
         .in('status', FUNDED_STATUSES as unknown as string[])
-        .order('finops_disbursed_at', { ascending: false, nullsFirst: false })
+        // Order by creation so payouts an agent made "today/yesterday" (which
+        // are still `pending_merchant_payout` with a null finops_disbursed_at)
+        // are never pushed past the row limit by older, already-settled rows.
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw error;
