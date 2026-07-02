@@ -342,6 +342,70 @@ export function RoleManagementPanel() {
           </div>
         </div>
       )}
+
+      {/* Audit log */}
+      <div className="pt-2">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-semibold text-foreground">Role change audit log</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={fetchAuditLog} disabled={loadingAudit} className="gap-1.5 h-8">
+            <RefreshCw className={cn('h-3.5 w-3.5', loadingAudit && 'animate-spin')} />
+            Refresh
+          </Button>
+        </div>
+
+        {loadingAudit ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+          </div>
+        ) : auditEntries.length === 0 ? (
+          <Card className="p-6 text-center text-muted-foreground">
+            <History className="h-8 w-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No role changes recorded yet.</p>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {auditEntries.map(e => {
+              const added = e.action_type === 'role_added';
+              return (
+                <Card key={e.id} className="p-3">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Badge
+                        variant="outline"
+                        className={cn('text-[10px] capitalize shrink-0',
+                          added ? 'bg-success/15 text-success border-success/30' : 'bg-destructive/15 text-destructive border-destructive/30')}
+                      >
+                        {added ? 'Added' : 'Removed'} {e.role ? (roleLabels[e.role as AppRole] || e.role) : 'role'}
+                      </Badge>
+                      <span className="text-sm font-medium text-foreground truncate">{e.targetName}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {e.created_at ? format(new Date(e.created_at), 'dd MMM yyyy, HH:mm') : '—'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">By {e.actorName}</p>
+                  {(e.before.length > 0 || e.after.length > 0) && (
+                    <div className="flex items-center gap-2 mt-2 text-[11px] flex-wrap">
+                      <span className="text-muted-foreground">Before:</span>
+                      {e.before.length ? e.before.map(r => (
+                        <span key={`b-${r}`} className={cn('px-1.5 py-0.5 rounded border capitalize', roleColor(r))}>{roleLabels[r as AppRole] || r}</span>
+                      )) : <span className="text-muted-foreground italic">none</span>}
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">After:</span>
+                      {e.after.length ? e.after.map(r => (
+                        <span key={`a-${r}`} className={cn('px-1.5 py-0.5 rounded border capitalize', roleColor(r))}>{roleLabels[r as AppRole] || r}</span>
+                      )) : <span className="text-muted-foreground italic">none</span>}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
