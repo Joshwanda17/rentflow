@@ -291,19 +291,33 @@ Deno.test("LOGIC: Non-wallet payments create NO ledger entry at submission", () 
   }
 });
 
-Deno.test("LOGIC: Wallet payments DO create ledger entry at submission (wallet cash_out + platform cash_in)", () => {
-  // Wallet payment: immediate deduction via ledger
+Deno.test("LOGIC: Wallet self-service transfer creates NO ledger at submission (request-only, awaiting Partner Ops)", () => {
+  // New flow: wallet → portfolio is a REQUEST. No funds move until Partner Ops approves.
+  const topupAmount = 5_000_000;
+
+  // At submission: only a pending_wallet_operations record is created, no ledger call.
+  const ledgerEntriesAtSubmission: unknown[] = [];
+  const pendingOp = {
+    operation_type: "portfolio_topup",
+    status: "awaiting_verification",
+    metadata: { fund_source: "wallet", requires_wallet_debit: true },
+  };
+  assertEquals(ledgerEntriesAtSubmission.length, 0, "No ledger entries at submission — funds stay in wallet");
+  assertEquals(pendingOp.status, "awaiting_verification", "Request awaits Partner Ops approval");
+  assertEquals((pendingOp.metadata as { requires_wallet_debit: boolean }).requires_wallet_debit, true);
+});
+
+Deno.test("LOGIC: On Partner Ops approval, wallet transfer moves funds (wallet cash_out + platform cash_in)", () => {
+  // approve-portfolio-topup performs the deferred wallet debit at approval time.
   const partnerId = "partner-123";
   const topupAmount = 5_000_000;
-  
+
   const ledgerEntries = [
     { user_id: partnerId, direction: "cash_out", category: "partner_funding", ledger_scope: "wallet", amount: topupAmount },
-    { user_id: null, direction: "cash_in", category: "partner_funding", ledger_scope: "platform", amount: topupAmount },
+    { user_id: partnerId, direction: "cash_in", category: "partner_funding", ledger_scope: "platform", amount: topupAmount },
   ];
-  
-  assertEquals(ledgerEntries.length, 2, "Wallet path creates 2 ledger entries");
-  
-  // Verify double-entry balance
+
+  assertEquals(ledgerEntries.length, 2, "Approval path creates 2 ledger entries");
   const totalOut = ledgerEntries.filter(e => e.direction === "cash_out").reduce((s, e) => s + e.amount, 0);
   const totalIn = ledgerEntries.filter(e => e.direction === "cash_in").reduce((s, e) => s + e.amount, 0);
   assertEquals(totalOut, totalIn, "Double-entry must balance");
