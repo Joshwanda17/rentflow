@@ -5,6 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { Search, ShieldCheck, UserCog, Plus, X, Loader2, ArrowLeft, Users, History, RefreshCw, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -47,6 +58,13 @@ interface AuditEntry {
   targetName: string;
 }
 
+interface PendingAction {
+  type: 'add' | 'remove';
+  role: AppRole;
+  before: AppRole[];
+  after: AppRole[];
+}
+
 export function RoleManagementPanel() {
   const { user } = useAuth();
   const [query, setQuery] = useState('');
@@ -58,6 +76,8 @@ export function RoleManagementPanel() {
   const [busyRole, setBusyRole] = useState<AppRole | null>(null);
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [pending, setPending] = useState<PendingAction | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
   const fetchAuditLog = useCallback(async () => {
     setLoadingAudit(true);
