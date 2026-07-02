@@ -4067,6 +4067,62 @@ export function EmailTransactionsPanel() {
                           ariaLabel: `Charge wallet ${fmtUgx(Number(r.amount ?? 0))}${r.counterparty ? ` for payout to ${r.counterparty}` : ''}`,
                         }
                       : null;
+                // ── Consolidated "latest outcome" status ──────────────────
+                // A single, plain-language pill shown at the top of the row so
+                // reviewers can verify what happened to the money WITHOUT
+                // opening the details view. Priority: reversed → credited →
+                // charged/auto-debited → routed → still pending.
+                const latestRouteEntry = history[0] ?? null;
+                const outcomeWhen =
+                  latestRouteEntry?.created_at
+                  || (isCredited ? credited[0]?.credited_at ?? undefined : undefined)
+                  || manualMark?.created_at
+                  || null;
+                const outcomeStatus: {
+                  label: string;
+                  detail: string;
+                  tone: string;
+                } | null = isReversed
+                  ? {
+                      label: 'Reversed',
+                      detail: `Previous routing was reversed${latestRouteEntry?.routed_by_name ? ` by ${latestRouteEntry.routed_by_name}` : ''}.`,
+                      tone: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
+                    }
+                  : isCredited
+                    ? {
+                        label: isFullyCredited ? 'Credited' : 'Partially credited',
+                        detail: isFullyCredited
+                          ? `${fmtUgx(totalCredited)} landed in the wallet.`
+                          : `${fmtUgx(totalCredited)} of ${fmtUgx(emailAmount)} credited — ${fmtUgx(creditShortfall)} still short.`,
+                        tone: isFullyCredited
+                          ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-700 border-amber-500/30',
+                      }
+                    : isAutoDebited
+                      ? {
+                          label: isProxyDebit ? 'Charged (proxy)' : 'Charged',
+                          detail: `${fmtUgx(debitAmountValue)} charged to ${debitedName}'s wallet${debitIsPartial ? ' (partial)' : ''}.`,
+                          tone: 'bg-rose-500/15 text-rose-700 border-rose-500/30',
+                        }
+                      : isRouted && latestRouteEntry
+                        ? {
+                            label: 'Routed',
+                            detail: `${fmtUgx(latestRouteEntry.amount ?? emailAmount)} routed to ${latestRouteEntry.target_user_name || 'a wallet'}${latestRouteEntry.routed_by_name ? ` by ${latestRouteEntry.routed_by_name}` : ''}.`,
+                            tone: 'bg-violet-500/15 text-violet-700 border-violet-500/30',
+                          }
+                        : r.direction === 'in'
+                          ? {
+                              label: 'Awaiting routing',
+                              detail: 'This deposit has not been sent to a wallet yet.',
+                              tone: 'bg-muted text-muted-foreground border-border',
+                            }
+                          : isOutgoing && outAmount > 0
+                            ? {
+                                label: 'Not charged yet',
+                                detail: 'This payout has not been charged to a wallet yet.',
+                                tone: 'bg-muted text-muted-foreground border-border',
+                              }
+                            : null;
                 return (
               <SwipeableEmailRow key={r.id} action={swipeAction}>
               <div
@@ -4106,6 +4162,27 @@ export function EmailTransactionsPanel() {
                 {/* Visually hidden status line — keeps the announcement consistent
                     for SR users even if the visual chips reflow on narrow screens. */}
                 <span className="sr-only">{matchAriaLabel}.</span>
+                {outcomeStatus && (
+                  // Consolidated latest routing/charging outcome, shown at the
+                  // top of the row so reviewers can verify the result without
+                  // opening the details view.
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={`text-[11px] font-semibold ${outcomeStatus.tone}`}
+                    >
+                      {outcomeStatus.label}
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground min-w-0 truncate">
+                      {outcomeStatus.detail}
+                    </span>
+                    {outcomeWhen && (
+                      <span className="text-[10px] text-muted-foreground/80 whitespace-nowrap">
+                        {new Date(outcomeWhen).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {isInsufficientPayout && (
                   // Unignorable banner above the row body. Explains the
                   // exact reason in plain language so reviewers can act
