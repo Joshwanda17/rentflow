@@ -110,20 +110,34 @@ export function RoleManagementPanel() {
 
   useEffect(() => { fetchAuditLog(); }, [fetchAuditLog]);
 
-  const runSearch = useCallback(async () => {
-    const q = query.trim();
-    if (!q) return;
+  const runSearch = useCallback(async (raw?: string, notifyEmpty = false) => {
+    const q = (raw ?? query).trim();
+    if (q.length < 2) { setResults([]); return; }
     setSearching(true);
     setSelected(null);
     try {
+      const filters = [
+        `full_name.ilike.%${q}%`,
+        `email.ilike.%${q}%`,
+        `phone.ilike.%${q}%`,
+      ];
+      // Phone-friendly matching: strip spaces, dashes, +, brackets and also try
+      // the local form (drop a leading country code / leading zero) so "0772…",
+      // "+256772…" and "772…" all find the same user.
+      const digits = q.replace(/[^0-9]/g, '');
+      if (digits.length >= 3) {
+        filters.push(`phone.ilike.%${digits}%`);
+        const local = digits.replace(/^(00?256|256|0)/, '');
+        if (local && local !== digits) filters.push(`phone.ilike.%${local}%`);
+      }
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, phone, avatar_url')
-        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+        .or(filters.join(','))
         .limit(25);
       if (error) throw error;
       setResults(data || []);
-      if ((data || []).length === 0) toast.info('No users match that search');
+      if (notifyEmpty && (data || []).length === 0) toast.info('No users match that search');
     } catch (err: any) {
       console.error('User search error:', err);
       toast.error('Failed to search users');
@@ -131,6 +145,14 @@ export function RoleManagementPanel() {
       setSearching(false);
     }
   }, [query]);
+
+  // Debounced live search as the CEO types (name or phone).
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setResults([]); return; }
+    const t = setTimeout(() => { runSearch(q); }, 300);
+    return () => clearTimeout(t);
+  }, [query, runSearch]);
 
   const loadRoles = useCallback(async (u: FoundUser) => {
     setSelected(u);
@@ -233,17 +255,19 @@ export function RoleManagementPanel() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, email or phone…"
+                placeholder="Search by name or phone number…"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
+                onKeyDown={e => { if (e.key === 'Enter') runSearch(query, true); }}
                 className="pl-9 h-10"
+                autoFocus
               />
             </div>
-            <Button onClick={runSearch} disabled={searching || !query.trim()} className="h-10">
+            <Button onClick={() => runSearch(query, true)} disabled={searching || query.trim().length < 2} className="h-10">
               {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground -mt-1">Type at least 2 characters — results appear as you type.</p>
 
           {searching ? (
             <div className="space-y-2">
@@ -262,7 +286,7 @@ export function RoleManagementPanel() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm text-foreground truncate">{u.full_name || 'Unnamed user'}</p>
-                    <p className="text-xs text-muted-foreground truncate">{u.email || u.phone || u.id}</p>
+                    <p className="text-xs text-muted-foreground truncate">{[u.phone, u.email].filter(Boolean).join(' · ') || u.id}</p>
                   </div>
                 </button>
               ))}
@@ -270,7 +294,11 @@ export function RoleManagementPanel() {
           ) : (
             <Card className="p-8 text-center text-muted-foreground">
               <Users className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">Search for a user to manage their roles.</p>
+              <p className="text-sm">
+                {query.trim().length >= 2
+                  ? `No users match "${query.trim()}".`
+                  : 'Start typing a name or phone number to find a user.'}
+              </p>
             </Card>
           )}
         </>
