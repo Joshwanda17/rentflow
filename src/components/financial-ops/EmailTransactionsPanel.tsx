@@ -3418,11 +3418,26 @@ export function EmailTransactionsPanel() {
               <Mail className="h-4 w-4 text-muted-foreground" />
               Recent emails
             </h3>
-            {searchActive && (
-              <span className="text-xs text-muted-foreground">
-                {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {searchActive && (
+                <span className="text-xs text-muted-foreground">
+                  {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'}
+                </span>
+              )}
+              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                <SelectTrigger className="h-9 w-[160px] text-xs" aria-label="Sort emails">
+                  <span className="text-muted-foreground mr-1">Sort:</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                  <SelectItem value="oldest">Oldest first</SelectItem>
+                  <SelectItem value="amount_high">Amount: high → low</SelectItem>
+                  <SelectItem value="amount_low">Amount: low → high</SelectItem>
+                  <SelectItem value="status">Status (needs routing first)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
