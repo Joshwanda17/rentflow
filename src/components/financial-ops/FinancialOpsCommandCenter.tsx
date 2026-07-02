@@ -31,6 +31,7 @@ import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { UserWalletStatementsPanel } from './UserWalletStatementsPanel';
 import { WithdrawalNotificationLogPanel } from './WithdrawalNotificationLogPanel';
 import { CashoutSettlementTimeline } from './CashoutSettlementTimeline';
+import { MerchantClaimsLog } from './MerchantClaimsLog';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -54,6 +55,7 @@ type Tool =
   | 'topup_audit'
   | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements'
   | 'withdrawal_notif_log' | 'cashout_settlement';
+  // (merchant_claims appended below)
 
 
 /**
