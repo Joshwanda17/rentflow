@@ -2356,6 +2356,23 @@ export function EmailTransactionsPanel() {
   }, [routingHistory, creditedDeposits, manualMarks]);
 
   /**
+   * Settlement status for a single row, used by the Status filter chips.
+   *   'unparsed'     → the parser could not read the email (no amount / not parsed)
+   *   'needs_routing'→ incoming money not yet credited or routed to a wallet
+   *   'credited'     → incoming money already credited or routed to a wallet
+   *   'other'        → outgoing / charge rows (not a settlement candidate)
+   */
+  const getRowStatus = useCallback((r: GmailTx): 'unparsed' | 'needs_routing' | 'credited' | 'other' => {
+    if (isUnparsedRow(r)) return 'unparsed';
+    if (r.direction !== 'in') return 'other';
+    const isRouted = (routingHistory[r.id] ?? []).length > 0;
+    const credited = creditedDeposits[r.id] ?? [];
+    const manualMark = manualMarks[r.id];
+    const isCredited = manualMark ? manualMark.mark === 'credited' : credited.length > 0;
+    return isCredited || isRouted ? 'credited' : 'needs_routing';
+  }, [routingHistory, creditedDeposits, manualMarks]);
+
+  /**
    * Compute debit metadata for a single row. Reused in filtering, sorting,
    * and rendering so the breakdown logic is defined in one place.
    */
