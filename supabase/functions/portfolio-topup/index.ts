@@ -155,11 +155,11 @@ Deno.serve(async (req) => {
     logSystemEvent(supabase, 'portfolio_topup', user.id, 'investor_portfolios', portfolio_id, { amount: topupAmount, portfolio_code: portfolio.portfolio_code });
 
 
-    // Notify managers (fire-and-forget)
+    // Notify Partner Ops / managers that a transfer request needs approval (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "📊 Portfolio Top-Up", body: "Activity: portfolio top-up", url: "/dashboard/manager" }),
+      body: JSON.stringify({ title: "📥 Portfolio Transfer Request", body: `A wallet→portfolio transfer of UGX ${topupAmount.toLocaleString()} needs Partner Ops approval`, url: "/dashboard/manager" }),
     }).catch(() => {});
 
     // Push notification to partner (fire-and-forget)
@@ -168,62 +168,23 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [user.id],
-        payload: { title: "✅ Portfolio Top-Up Confirmed", body: `UGX ${topupAmount.toLocaleString()} portfolio top-up submitted`, url: "/dashboard/funder", type: "success" },
+        payload: { title: "📤 Transfer Request Submitted", body: `Your UGX ${topupAmount.toLocaleString()} wallet→portfolio transfer is awaiting Partner Ops approval. No funds have left your wallet yet.`, url: "/dashboard/funder", type: "info" },
       }),
     }).catch(() => {});
 
 
-    // Partnership Top-Up Confirmation email (fire-and-forget)
-    // Sent on every successful self-service top-up: existing partner adding funds
-    // to an existing portfolio. Distinct from the partnership-agreement email,
-    // which fires only on brand-new portfolio creation in fund-rent-pool.
-    try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email, full_name")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (profile?.email) {
-        const previousPortfolioValue = Number(portfolio.investment_amount) || 0;
-        const newTotalPartnershipValue = previousPortfolioValue + topupAmount;
-
-        const emailRequest = {
-          templateName: "partnership-topup",
-          recipientEmail: profile.email,
-          idempotencyKey: `partnership-topup-${user.id}-${txGroupId}`,
-          templateData: {
-            partner_name: profile.full_name || "Partner",
-            topup_amount: topupAmount,
-            previous_portfolio_value: previousPortfolioValue,
-            new_total_partnership_value: newTotalPartnershipValue,
-            currency: "UGX",
-            company_name: "Welile",
-            logo_url: "https://welilereceipts.com/welile-logo.png",
-            unsubscribe_url: "https://welile.com/unsubscribe",
-            dashboard_url: "https://welilereceipts.com/auth",
-          },
-        };
-
-        fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify(emailRequest),
-        }).catch((err) => console.warn("[portfolio-topup] Top-up email enqueue failed:", err));
-      }
-    } catch (emailErr) {
-      console.warn("[portfolio-topup] Top-up email lookup failed (non-blocking):", emailErr);
-    }
+    // NOTE: The partnership top-up CONFIRMATION email is intentionally NOT sent
+    // here. Funds have not moved yet — the confirmation email is dispatched by
+    // `approve-portfolio-topup` once Partner Ops approves the transfer.
 
     return new Response(JSON.stringify({
       success: true,
       amount: topupAmount,
-      status: "pending",
+      status: "awaiting_approval",
+      requested: true,
       current_capital: Number(portfolio.investment_amount),
       portfolio_code: portfolio.portfolio_code,
+      message: "Transfer request submitted to Partner Ops. Funds stay in your wallet until approved.",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
