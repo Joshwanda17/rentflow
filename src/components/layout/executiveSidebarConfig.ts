@@ -40,6 +40,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'OTP / SMS Logs', icon: MessageSquare, id: 'sms-delivery' },
         { label: 'SMS Exceptions', icon: ShieldCheck, id: 'sms-exceptions' },
         { label: 'Security Logs', icon: Lock, id: 'security' },
+        { label: 'Platform Controls', icon: SlidersHorizontal, id: 'platform-controls' },
         { label: 'Reset Password', icon: KeyRound, id: 'password-reset' },
         { label: 'Developer Tools', icon: Wrench, id: 'tools' },
         { label: 'System Logs', icon: FileText, id: 'system-logs' },
