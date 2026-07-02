@@ -204,9 +204,26 @@ function ClaimDetailDrawer({ claim, onClose }: { claim: ClaimRow | null; onClose
 
               {/* Audit trail — every claim/payout state change */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  Audit trail
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Audit trail
+                  </p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 gap-1.5" disabled={events.length === 0}>
+                        <Download className="h-3.5 w-3.5" /> Export
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={exportCsv}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2" /> Download CSV
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={exportPdf}>
+                        <FileText className="h-4 w-4 mr-2" /> Download PDF
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                 {isLoading ? (
                   <div className="flex items-center py-4 text-muted-foreground text-sm">
                     <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading trail…
