@@ -104,6 +104,57 @@ function ClaimDetailDrawer({ claim, onClose }: { claim: ClaimRow | null; onClose
     ? Object.entries(record).filter(([, v]) => v !== null && v !== '' && typeof v !== 'object')
     : [];
 
+  const trailRows = () =>
+    events.map(e => ({
+      step: e.label,
+      timestamp: format(new Date(e.ts), 'dd MMM yyyy, HH:mm'),
+      actor: e.actorId ? (actorMap?.[e.actorId] || 'Unknown user') : 'System / automated',
+    }));
+
+  const fileBase = () =>
+    `claim-${(claim?.id || '').slice(0, 8)}-audit-trail`;
+
+  const exportCsv = () => {
+    if (!claim) return;
+    const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+    const header = ['Amount', 'Merchant agent', 'Customer', 'Withdrawal ID'];
+    const meta = [formatUGX(claim.amount), claim.merchantName, claim.customerName, claim.id];
+    const lines = [
+      header.map(esc).join(','),
+      meta.map(esc).join(','),
+      '',
+      ['Step', 'Timestamp', 'Actor'].map(esc).join(','),
+      ...trailRows().map(r => [r.step, r.timestamp, r.actor].map(esc).join(',')),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${fileBase()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = async () => {
+    if (!claim) return;
+    const { default: jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('Merchant Claim Audit Trail', 14, 18);
+    doc.setFontSize(10);
+    doc.text(`Amount: ${formatUGX(claim.amount)}`, 14, 28);
+    doc.text(`Merchant agent: ${claim.merchantName}`, 14, 34);
+    doc.text(`Customer: ${claim.customerName}`, 14, 40);
+    doc.text(`Withdrawal ID: ${claim.id}`, 14, 46);
+    autoTable(doc, {
+      startY: 54,
+      head: [['Step', 'Timestamp', 'Actor']],
+      body: trailRows().map(r => [r.step, r.timestamp, r.actor]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+    doc.save(`${fileBase()}.pdf`);
+  };
+
   return (
     <Sheet open={!!claim} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
