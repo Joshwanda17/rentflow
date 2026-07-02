@@ -4054,7 +4054,7 @@ export function EmailTransactionsPanel() {
                         hint: 'Route deposit',
                         icon: <Zap className="h-5 w-5" />,
                         colorClass: 'bg-emerald-600',
-                        onAction: () => swipeNavigate(r, 'credit'),
+                        onAction: () => setPendingSwipe({ row: r, mode: 'credit' }),
                       }
                     : isOutgoing && !isRouted && !isAutoDebited && Number(r.amount ?? 0) > 0
                       ? {
@@ -4062,7 +4062,7 @@ export function EmailTransactionsPanel() {
                           hint: 'Debit user',
                           icon: <Wallet className="h-5 w-5" />,
                           colorClass: 'bg-rose-600',
-                          onAction: () => swipeNavigate(r, 'debit'),
+                          onAction: () => setPendingSwipe({ row: r, mode: 'debit' }),
                         }
                       : null;
                 return (
