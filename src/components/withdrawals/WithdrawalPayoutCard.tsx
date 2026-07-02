@@ -196,6 +196,28 @@ export function WithdrawalPayoutCard({
   const platformServiceFee = 0; // Welile takes no cut from the agent commission
   const agentEarning = Math.max(0, grossCommission - platformServiceFee);
 
+  // ── What is the user actually withdrawing? ────────────────────────────────
+  // Mirror the classification used by the approve-withdrawal SMS so the merchant
+  // agent sees the same purpose the recipient is told about. NOT every payout is
+  // a partnership (ROI) return — it can be a landlord float payout or a plain
+  // wallet cash-out.
+  const _reasonLc = (typeof withdrawal.reason === 'string' ? withdrawal.reason : '').toLowerCase();
+  const isProxyReason = _reasonLc.includes('proxy');
+  const purpose: { label: string; className: string } = (() => {
+    if (_reasonLc.startsWith('landlord float payout') || _reasonLc.includes('landlord float')) {
+      return { label: 'Landlord payout', className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' };
+    }
+    if (
+      _reasonLc.includes('portfolio') ||
+      _reasonLc.includes('partnership') ||
+      _reasonLc.includes('roi') ||
+      _reasonLc.includes('return')
+    ) {
+      return { label: 'Partnership return', className: 'bg-purple-500/15 text-purple-600 dark:text-purple-400' };
+    }
+    return { label: 'Wallet withdrawal', className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' };
+  })();
+
   // Record exactly what the agent confirmed at claim time so it can be
   // reviewed later (which number / which registered name they accepted,
   // whether the typed name mismatched, and if they acknowledged it).
@@ -255,6 +277,11 @@ export function WithdrawalPayoutCard({
                 <Badge variant="secondary" className="text-xs gap-1 h-5 px-2">
                   <MethodIcon className="h-3 w-3" />
                   {methodLabel}
+                </Badge>
+                {/* What the user is withdrawing — visible before claiming */}
+                <Badge className={`text-xs h-5 px-2 font-semibold border-0 ${purpose.className}`}>
+                  {purpose.label}
+                  {isProxyReason ? ' · on behalf' : ''}
                 </Badge>
                 {/* AWAITING PAYMENT — shown to claiming agent AND to read-only viewers (CFO)
                     so a stuck/sitting claim is always visible, no matter how long ago. */}
