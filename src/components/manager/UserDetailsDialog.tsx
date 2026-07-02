@@ -689,7 +689,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
           },
         });
         if (resp.error) {
-          const msg = await extractEdgeFunctionError(resp, 'Failed to update login identity');
+          const msg = await extractFromErrorObject(resp.error, 'Failed to update login identity');
           throw new Error(msg);
         }
         toast.success('Profile + login credentials updated');
