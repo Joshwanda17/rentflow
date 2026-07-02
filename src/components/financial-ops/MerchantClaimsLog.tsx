@@ -379,18 +379,47 @@ export function MerchantClaimsLog() {
 
   const rows = data || [];
 
+  // The activity timestamp used for the tab + date-range filters:
+  // "paid" claims filter on completedAt, "claimed" on claimedAt.
+  const activityTs = (r: ClaimRow) => r.completedAt || r.claimedAt;
+
+  const statuses = useMemo(
+    () => Array.from(new Set(rows.map(r => r.status))).sort(),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      r.merchantName.toLowerCase().includes(q) ||
-      r.customerName.toLowerCase().includes(q) ||
-      (r.customerPhone || '').toLowerCase().includes(q) ||
-      (r.merchantPhone || '').toLowerCase().includes(q) ||
-      String(r.amount).includes(q) ||
-      r.id.toLowerCase().includes(q),
-    );
-  }, [rows, search]);
+    const from = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
+    const to = toDate ? new Date(`${toDate}T23:59:59`).getTime() : null;
+    return rows.filter(r => {
+      if (tab !== 'all' && r.state !== tab) return false;
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (from || to) {
+        const ts = activityTs(r);
+        const t = ts ? new Date(ts).getTime() : null;
+        if (t === null) return false;
+        if (from && t < from) return false;
+        if (to && t > to) return false;
+      }
+      if (q) {
+        const hit =
+          r.merchantName.toLowerCase().includes(q) ||
+          r.customerName.toLowerCase().includes(q) ||
+          (r.customerPhone || '').toLowerCase().includes(q) ||
+          (r.merchantPhone || '').toLowerCase().includes(q) ||
+          String(r.amount).includes(q) ||
+          r.id.toLowerCase().includes(q);
+        if (!hit) return false;
+      }
+      return true;
+    });
+  }, [rows, search, tab, statusFilter, fromDate, toDate]);
+
+  const hasActiveFilters = tab !== 'all' || statusFilter !== 'all' || !!fromDate || !!toDate || !!search;
+  const clearFilters = () => {
+    setTab('all'); setStatusFilter('all'); setFromDate(''); setToDate(''); setSearch('');
+  };
 
   const inProgressCount = rows.filter(r => r.state === 'in_progress').length;
   const completedCount = rows.filter(r => r.state === 'completed').length;
