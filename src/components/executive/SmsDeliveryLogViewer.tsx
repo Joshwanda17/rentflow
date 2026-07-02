@@ -193,11 +193,11 @@ export function SmsDeliveryLogViewer() {
     if (generating) return;
     setGenerating(true);
     try {
-      // Server-aggregated rollup (last 90 days) — avoids the Data API 1,000-row cap.
-      const since = subDays(startOfDay(new Date()), 89).toISOString();
-      const { data, error } = await supabase.rpc('get_sms_traffic_daily', { p_days: 90 });
+      // Server-aggregated rollup — reaches back far enough to cover the
+      // selected month, avoiding the Data API 1,000-row cap.
+      const { data, error } = await supabase.rpc('get_sms_traffic_daily', { p_days: rollupDays });
       if (error) throw error;
-      const report = ((data || []) as any[]).map((r) => ({
+      let report = ((data || []) as any[]).map((r) => ({
         day: String(r.day),
         total: Number(r.total) || 0,
         delivered: Number(r.delivered) || 0,
@@ -206,39 +206,39 @@ export function SmsDeliveryLogViewer() {
         at: Number(r.africastalking) || 0,
         other: Number(r.other) || 0,
       }));
+      // Scope the report to the selected month when a past month is chosen.
+      if (isPastMonth) {
+        const startKey = format(selectedMonthStart, 'yyyy-MM-dd');
+        const endKey = format(selectedMonthEnd, 'yyyy-MM-dd');
+        report = report.filter((r) => r.day >= startKey && r.day <= endKey);
+      }
       if (report.length === 0) {
-        toast.error('No SMS traffic in the last 90 days to report.');
+        toast.error('No SMS traffic in the selected window to report.');
         return;
       }
       const reportRows = [...report]
         .sort((a, b) => (a.day < b.day ? 1 : -1))
-        .map((a) => [
-          format(new Date(`${a.day}T00:00:00`), 'dd MMM yyyy'),
-          a.total,
-          a.delivered,
-          a.failed,
-          a.total ? `${Math.round((a.delivered / a.total) * 100)}%` : '—',
-          a.yoola,
-          a.at,
-          a.other,
-        ]);
-      const totalAll = report.reduce((s, r) => s + r.total, 0);
-      const deliveredAll = report.reduce((s, r) => s + r.delivered, 0);
-      await downloadAuditPdf(
-        `sms-otp-traffic-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`,
-        ['Date', 'Total', 'Delivered', 'Failed', 'Success %', 'Yoola', "Africa's Talking", 'Other'],
+        .map((a) => ({
+          day: format(new Date(`${a.day}T00:00:00`), 'dd MMM yyyy'),
+          total: a.total,
+          delivered: a.delivered,
+          failed: a.failed,
+          yoola: a.yoola,
+          at: a.at,
+          other: a.other,
+        }));
+      const windowLabel = isPastMonth
+        ? format(selectedMonthDate, 'MMMM yyyy')
+        : `Last ${rollupDays} days`;
+      const rangeLabel = isPastMonth
+        ? `${format(selectedMonthStart, 'dd MMM yyyy')} → ${format(selectedMonthEnd, 'dd MMM yyyy')}`
+        : `${format(subDays(startOfDay(new Date()), rollupDays - 1), 'dd MMM yyyy')} → ${format(new Date(), 'dd MMM yyyy')}`;
+      const contextLabel = `Today: ${today.total.toLocaleString()}  ·  This week: ${thisWeek.total.toLocaleString()}  ·  ${isPastMonth ? windowLabel : 'This month'}: ${thisMonth.total.toLocaleString()}`;
+      const fileTag = isPastMonth ? format(selectedMonthDate, 'yyyy-MM') : format(new Date(), 'yyyy-MM-dd');
+      await downloadSmsTrafficPdf(
+        `sms-otp-traffic-report-${fileTag}.pdf`,
         reportRows,
-        {
-          title: 'SMS / OTP Traffic Report',
-          subtitle: 'Welile Technologies — CTO Communications',
-          filters: [
-            `Window: last 90 days (since ${format(new Date(since), 'dd MMM yyyy')})`,
-            `Total messages: ${totalAll.toLocaleString()}`,
-            `Delivered: ${deliveredAll.toLocaleString()} (${totalAll ? Math.round((deliveredAll / totalAll) * 100) : 0}%)`,
-            `Today: ${today.total} · This week: ${thisWeek.total} · This month: ${thisMonth.total}`,
-          ],
-          footerLabel: 'Welile SMS/OTP Traffic',
-        },
+        { windowLabel, rangeLabel, contextLabel },
       );
       toast.success('SMS traffic report generated.');
     } catch (e: any) {
