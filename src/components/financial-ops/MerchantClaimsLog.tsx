@@ -8,11 +8,15 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Loader2, Search, HandCoins, Clock, CheckCircle2, User, RefreshCw, ArrowRight, Download, FileText, FileSpreadsheet,
+  Loader2, Search, HandCoins, Clock, CheckCircle2, User, RefreshCw, ArrowRight, Download, FileText, FileSpreadsheet, X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -281,6 +285,10 @@ function ClaimDetailDrawer({ claim, onClose }: { claim: ClaimRow | null; onClose
 export function MerchantClaimsLog() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<ClaimRow | null>(null);
+  const [tab, setTab] = useState<'all' | 'in_progress' | 'completed'>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['merchant-claims-log'],
@@ -375,18 +383,47 @@ export function MerchantClaimsLog() {
 
   const rows = data || [];
 
+  // The activity timestamp used for the tab + date-range filters:
+  // "paid" claims filter on completedAt, "claimed" on claimedAt.
+  const activityTs = (r: ClaimRow) => r.completedAt || r.claimedAt;
+
+  const statuses = useMemo(
+    () => Array.from(new Set(rows.map(r => r.status))).sort(),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      r.merchantName.toLowerCase().includes(q) ||
-      r.customerName.toLowerCase().includes(q) ||
-      (r.customerPhone || '').toLowerCase().includes(q) ||
-      (r.merchantPhone || '').toLowerCase().includes(q) ||
-      String(r.amount).includes(q) ||
-      r.id.toLowerCase().includes(q),
-    );
-  }, [rows, search]);
+    const from = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
+    const to = toDate ? new Date(`${toDate}T23:59:59`).getTime() : null;
+    return rows.filter(r => {
+      if (tab !== 'all' && r.state !== tab) return false;
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (from || to) {
+        const ts = activityTs(r);
+        const t = ts ? new Date(ts).getTime() : null;
+        if (t === null) return false;
+        if (from && t < from) return false;
+        if (to && t > to) return false;
+      }
+      if (q) {
+        const hit =
+          r.merchantName.toLowerCase().includes(q) ||
+          r.customerName.toLowerCase().includes(q) ||
+          (r.customerPhone || '').toLowerCase().includes(q) ||
+          (r.merchantPhone || '').toLowerCase().includes(q) ||
+          String(r.amount).includes(q) ||
+          r.id.toLowerCase().includes(q);
+        if (!hit) return false;
+      }
+      return true;
+    });
+  }, [rows, search, tab, statusFilter, fromDate, toDate]);
+
+  const hasActiveFilters = tab !== 'all' || statusFilter !== 'all' || !!fromDate || !!toDate || !!search;
+  const clearFilters = () => {
+    setTab('all'); setStatusFilter('all'); setFromDate(''); setToDate(''); setSearch('');
+  };
 
   const inProgressCount = rows.filter(r => r.state === 'in_progress').length;
   const completedCount = rows.filter(r => r.state === 'completed').length;
@@ -437,6 +474,61 @@ export function MerchantClaimsLog() {
         />
       </div>
 
+      {/* Quick tabs: Claimed (in progress) vs Paid (completed) */}
+      <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+        {([
+          { id: 'all', label: `All (${rows.length})` },
+          { id: 'in_progress', label: `Claimed (${inProgressCount})` },
+          { id: 'completed', label: `Paid (${completedCount})` },
+        ] as const).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={cn(
+              'flex-1 h-8 rounded-md text-xs font-medium transition-colors',
+              tab === t.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Status + date-range filters */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">Status</Label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {statuses.map(s => (
+                <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">From</Label>
+          <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="h-9" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] text-muted-foreground">To</Label>
+          <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="h-9" />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{filtered.length} {filtered.length === 1 ? 'claim' : 'claims'} shown</span>
+        {hasActiveFilters && (
+          <button onClick={clearFilters} className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
+            <X className="h-3.5 w-3.5" /> Clear filters
+          </button>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading claims…
@@ -444,7 +536,7 @@ export function MerchantClaimsLog() {
       ) : filtered.length === 0 ? (
         <Card className="p-10 text-center text-muted-foreground">
           <HandCoins className="h-10 w-10 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">{search ? 'No claims match your search.' : 'No merchant claims recorded yet.'}</p>
+          <p className="text-sm">{hasActiveFilters ? 'No claims match your filters.' : 'No merchant claims recorded yet.'}</p>
         </Card>
       ) : (
         <div className="space-y-2">
