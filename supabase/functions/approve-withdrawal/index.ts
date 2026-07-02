@@ -5,7 +5,12 @@ import {
   dispatchTransactionalEmail,
   buildWithdrawalPaidReceiptRequest,
 } from "../_shared/partnership-emails.ts";
-import { logSmsDelivery, type SmsAttemptRecord } from "../_shared/smsDeliveryLog.ts";
+import {
+  logSmsDelivery,
+  reserveSmsIdempotency,
+  finalizeSmsDelivery,
+  type SmsAttemptRecord,
+} from "../_shared/smsDeliveryLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -142,12 +147,39 @@ interface SmsLogCtx {
   reference_id?: string | null;
   recipient_user_id?: string | null;
   recipient_name?: string | null;
+  // When set, the SMS is reserved before sending so a retried approval can
+  // never send the same text twice.
+  idempotencyKey?: string | null;
 }
 async function sendSMS(
   phone: string,
   message: string,
   logCtx?: SmsLogCtx,
 ): Promise<boolean> {
+  // Idempotency guard: reserve the send slot up front. If a prior attempt
+  // already delivered this SMS (or one is in flight), skip sending entirely.
+  let reservedLogId: string | null = null;
+  if (logCtx?.admin && logCtx.idempotencyKey) {
+    const reservation = await reserveSmsIdempotency(logCtx.admin, {
+      idempotency_key: logCtx.idempotencyKey,
+      recipient_phone: phone || "unknown",
+      recipient_user_id: logCtx.recipient_user_id ?? null,
+      recipient_name: logCtx.recipient_name ?? null,
+      message,
+      reference_id: logCtx.reference_id ?? null,
+      source: logCtx.source,
+    });
+    if (!reservation.proceed) {
+      console.log(
+        `[approve-withdrawal] SMS skipped (${logCtx.source} / ${logCtx.idempotencyKey}): ${reservation.reason}`,
+      );
+      // Treat an already-delivered SMS as success so callers don't fall back
+      // to a duplicate email receipt.
+      return reservation.alreadySent;
+    }
+    reservedLogId = reservation.logId;
+  }
+
   const providerNames: Record<string, string> = {
     sendViaYoola: "yoola",
     sendViaAT: "africastalking",
@@ -168,7 +200,21 @@ async function sendSMS(
     }
   }
 
-  if (logCtx?.admin) {
+  const errorText = delivered
+    ? null
+    : invalid
+    ? "Invalid Ugandan phone/MoMo number"
+    : (trail.filter((t) => !t.ok && t.error).map((t) => `${t.provider}: ${t.error}`).join(" | ") || "No SMS provider configured");
+
+  if (reservedLogId) {
+    // Finalize the reserved audit row with the real outcome.
+    await finalizeSmsDelivery(logCtx!.admin, reservedLogId, {
+      status: delivered ? "sent" : "failed",
+      attempts: trail,
+      retries: 0,
+      error: errorText,
+    });
+  } else if (logCtx?.admin) {
     await logSmsDelivery(logCtx.admin, {
       recipient_phone: phone || "unknown",
       recipient_user_id: logCtx.recipient_user_id ?? null,
@@ -179,11 +225,7 @@ async function sendSMS(
       retries: 0,
       reference_id: logCtx.reference_id ?? null,
       source: logCtx.source,
-      error: delivered
-        ? null
-        : invalid
-        ? "Invalid Ugandan phone/MoMo number"
-        : (trail.filter((t) => !t.ok && t.error).map((t) => `${t.provider}: ${t.error}`).join(" | ") || "No SMS provider configured"),
+      error: errorText,
     });
   }
 
@@ -1944,6 +1986,7 @@ Deno.serve(async (req) => {
               reference_id: withdrawal_id,
               recipient_user_id: user.id,
               recipient_name: (agentProfile as any)?.full_name ?? null,
+              idempotencyKey: `merchant_commission:${withdrawal_id}`,
             }).catch((e) =>
               console.error("[approve-withdrawal] cashout commission SMS failed:", e),
             );
@@ -2149,6 +2192,7 @@ Deno.serve(async (req) => {
               reference_id: withdrawal_id,
               recipient_user_id: beneficiaryUserId,
               recipient_name: (profile as any)?.full_name ?? null,
+              idempotencyKey: `withdrawal_payout:${withdrawal_id}`,
             })
               .then((ok) => {
                 if (!ok) sendFallbackReceiptEmail("provider rejected");
@@ -2184,6 +2228,7 @@ Deno.serve(async (req) => {
               reference_id: withdrawal_id,
               recipient_user_id: beneficiaryUserId,
               recipient_name: (profile as any)?.full_name ?? null,
+              idempotencyKey: `withdrawal_payout:${withdrawal_id}`,
             })
               .then((ok) => {
                 if (!ok) sendFallbackReceiptEmail("provider rejected (log insert failed)");
@@ -2255,6 +2300,7 @@ Deno.serve(async (req) => {
           reference_id: withdrawal_id,
           recipient_user_id: partnerId,
           recipient_name: (partnerProfile as any)?.full_name ?? null,
+          idempotencyKey: `proxy_payout:${withdrawal_id}`,
         }).catch((e) =>
           console.error("[approve-withdrawal] proxy partner SMS failed:", e),
         );

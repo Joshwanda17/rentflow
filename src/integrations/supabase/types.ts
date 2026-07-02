@@ -15670,6 +15670,7 @@ export type Database = {
           created_at: string
           error: string | null
           id: string
+          idempotency_key: string | null
           message: string | null
           provider: string
           provider_message_id: string | null
@@ -15686,6 +15687,7 @@ export type Database = {
           created_at?: string
           error?: string | null
           id?: string
+          idempotency_key?: string | null
           message?: string | null
           provider?: string
           provider_message_id?: string | null
@@ -15702,6 +15704,7 @@ export type Database = {
           created_at?: string
           error?: string | null
           id?: string
+          idempotency_key?: string | null
           message?: string | null
           provider?: string
           provider_message_id?: string | null

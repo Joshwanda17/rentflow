@@ -1,6 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { formatPhoneInternational, isUgandanPhone } from "./phone.ts";
-import { logSmsDelivery, type SmsAttemptRecord } from "../_shared/smsDeliveryLog.ts";
+import {
+  logSmsDelivery,
+  reserveSmsIdempotency,
+  finalizeSmsDelivery,
+  type SmsAttemptRecord,
+} from "../_shared/smsDeliveryLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -285,33 +290,82 @@ Deno.serve(async (req) => {
     let smsError: string | null = smsRecipient
       ? null
       : "No valid Ugandan phone/MoMo number on file for the withdrawal";
+    let smsSkipped = false;
     if (smsRecipient) {
-      const result = await sendSMSWithRetry(smsRecipient, smsMsg);
-      sent = result.sent;
-      smsAttempts = result.attempts;
-      smsError = result.error;
-      smsTrail = result.trail;
-      if (!sent) {
-        console.error(
-          `[notify-withdrawal-claimed] Claim SMS FAILED after ${smsAttempts} attempt(s) ` +
-            `for withdrawal ${w.id} → ${smsRecipient}: ${smsError}`,
-        );
-      }
-    }
+      // Idempotency: reserve the claim SMS before sending so a retried claim
+      // action can never text the requester twice.
+      const reservation = await reserveSmsIdempotency(admin, {
+        idempotency_key: `withdrawal_claim:${w.id}`,
+        recipient_phone: smsRecipient,
+        recipient_user_id: w.user_id,
+        recipient_name: (requester as any)?.full_name ?? null,
+        message: smsMsg,
+        reference_id: w.id,
+        source: "withdrawal_claim",
+      });
 
-    // Full delivery-status audit: provider response, retries, and failures.
-    await logSmsDelivery(admin, {
-      recipient_phone: smsRecipient || "unknown",
-      recipient_user_id: w.user_id,
-      recipient_name: (requester as any)?.full_name ?? null,
-      message: smsMsg,
-      status: sent ? "sent" : "failed",
-      attempts: smsTrail,
-      retries: smsAttempts > 0 ? smsAttempts - 1 : 0,
-      reference_id: w.id,
-      source: "withdrawal_claim",
-      error: sent ? null : smsError,
-    });
+      if (!reservation.proceed) {
+        // Already sent (or another send is in flight) → do NOT resend.
+        smsSkipped = true;
+        sent = reservation.alreadySent;
+        smsError = reservation.alreadySent
+          ? null
+          : "Claim SMS send already in progress (idempotency guard)";
+        console.log(
+          `[notify-withdrawal-claimed] Claim SMS skipped for withdrawal ${w.id}: ${reservation.reason}`,
+        );
+      } else {
+        const result = await sendSMSWithRetry(smsRecipient, smsMsg);
+        sent = result.sent;
+        smsAttempts = result.attempts;
+        smsError = result.error;
+        smsTrail = result.trail;
+        if (!sent) {
+          console.error(
+            `[notify-withdrawal-claimed] Claim SMS FAILED after ${smsAttempts} attempt(s) ` +
+              `for withdrawal ${w.id} → ${smsRecipient}: ${smsError}`,
+          );
+        }
+
+        // Finalize the reserved audit row with the real outcome, or write a
+        // fresh audit row if reservation fell back (no logId).
+        if (reservation.logId) {
+          await finalizeSmsDelivery(admin, reservation.logId, {
+            status: sent ? "sent" : "failed",
+            attempts: smsTrail,
+            retries: smsAttempts > 0 ? smsAttempts - 1 : 0,
+            error: sent ? null : smsError,
+          });
+        } else {
+          await logSmsDelivery(admin, {
+            recipient_phone: smsRecipient,
+            recipient_user_id: w.user_id,
+            recipient_name: (requester as any)?.full_name ?? null,
+            message: smsMsg,
+            status: sent ? "sent" : "failed",
+            attempts: smsTrail,
+            retries: smsAttempts > 0 ? smsAttempts - 1 : 0,
+            reference_id: w.id,
+            source: "withdrawal_claim",
+            error: sent ? null : smsError,
+          });
+        }
+      }
+    } else {
+      // No valid destination — record the failed attempt (not idempotency-keyed).
+      await logSmsDelivery(admin, {
+        recipient_phone: "unknown",
+        recipient_user_id: w.user_id,
+        recipient_name: (requester as any)?.full_name ?? null,
+        message: smsMsg,
+        status: "failed",
+        attempts: [],
+        retries: 0,
+        reference_id: w.id,
+        source: "withdrawal_claim",
+        error: smsError,
+      });
+    }
 
     // In-app notification center entry so the requester sees that a named
     // merchant agent is now processing their withdrawal — independent of SMS.
@@ -352,7 +406,7 @@ Deno.serve(async (req) => {
       console.warn("[notify-withdrawal-claimed] log insert failed:", e);
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, attempts: smsAttempts, error: smsError, merchant: merchantName }), {
+    return new Response(JSON.stringify({ ok: true, sent, skipped: smsSkipped, attempts: smsAttempts, error: smsError, merchant: merchantName }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
