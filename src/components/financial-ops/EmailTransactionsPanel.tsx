@@ -672,11 +672,25 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_sort_debit', debitSort); } catch {} }, [debitSort]);
 
+  // Status filter for the Recent emails list — lets Financial Ops slice the
+  // captured traffic by settlement state without reading each row. Persisted.
+  //   all          → no status filter
+  //   credited     → incoming money already credited or routed to a wallet
+  //   needs_routing→ incoming money not yet credited / routed (triage)
+  //   unparsed     → rows the parser could not read (no amount / not parsed)
+  type StatusFilter = 'all' | 'credited' | 'needs_routing' | 'unparsed';
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const v = localStorage.getItem('gmail_filter_status') as StatusFilter | null;
+    return v && ['all', 'credited', 'needs_routing', 'unparsed'].includes(v) ? v : 'all';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_filter_status', statusFilter); } catch {} }, [statusFilter]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
   useEffect(() => {
     setCurrentPage(1);
     setInfiniteCount(pageSize);
-  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort]);
+  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter]);
   // Reset the infinite window back to one page whenever the operator switches
   // into infinite mode, so it never starts mid-list.
   useEffect(() => {
