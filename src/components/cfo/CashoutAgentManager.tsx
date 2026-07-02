@@ -23,6 +23,7 @@ import {
 import { UserSearchPicker } from './UserSearchPicker';
 import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
 import { formatUGX } from '@/lib/rentCalculations';
+import { getTelecomSendingCharge, getCashoutCommission } from '@/lib/cashoutCharges';
 
 // A payout only counts as "processed" once the Merchant Agent has executed disbursement.
 // `approved` / `cfo_approved` / `manager_approved` are pipeline sign-off stages — NOT execution.
