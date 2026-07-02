@@ -4099,11 +4099,35 @@ export function EmailTransactionsPanel() {
                 // opening the details view. Priority: reversed → credited →
                 // charged/auto-debited → routed → still pending.
                 const latestRouteEntry = history[0] ?? null;
-                const outcomeWhen =
+                // Resolve the timestamp AND the exact underlying field it came
+                // from, so the tooltip can label it precisely (e.g. the routing
+                // history `created_at` vs a deposit's `credited_at` vs a manual
+                // mark's `created_at`).
+                const outcomeWhenSource: { when: string; label: string; field: string } | null =
                   latestRouteEntry?.created_at
-                  || (isCredited ? credited[0]?.credited_at ?? undefined : undefined)
-                  || manualMark?.created_at
-                  || null;
+                    ? {
+                        when: latestRouteEntry.created_at,
+                        label: isReversed
+                          ? 'Reversed at'
+                          : (latestRouteEntry.route === 'withdrawable_debit' || /^DEBIT\b/i.test(latestRouteEntry.reason || ''))
+                            ? 'Charged at'
+                            : 'Routed at',
+                        field: 'email_routing_history.created_at',
+                      }
+                    : isCredited && credited[0]?.credited_at
+                      ? {
+                          when: credited[0].credited_at,
+                          label: 'Credited at',
+                          field: 'deposit_requests.credited_at',
+                        }
+                      : manualMark?.created_at
+                        ? {
+                            when: manualMark.created_at,
+                            label: `Manually marked ${manualMark.mark === 'credited' ? 'paid in' : 'not paid in'} at`,
+                            field: 'email_credit_manual_marks.created_at',
+                          }
+                        : null;
+                const outcomeWhen = outcomeWhenSource?.when ?? null;
                 const outcomeStatus: {
                   label: string;
                   detail: string;
