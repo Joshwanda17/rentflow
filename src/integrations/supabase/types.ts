@@ -21574,6 +21574,12 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      get_user_ids_by_phone: {
+        Args: { phone_variants: string[] }
+        Returns: {
+          user_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
