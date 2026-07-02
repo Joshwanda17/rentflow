@@ -1938,7 +1938,13 @@ Deno.serve(async (req) => {
               `for processing a UGX ${amount.toLocaleString()} payout. It has been added to your ` +
               `withdrawable wallet. Thank you for your service.\n` +
               `Access your dashboard https://welilereceipts.com/ZQhyGb`;
-            sendSMS(agentProfile.phone, commMsg).catch((e) =>
+            sendSMS(agentProfile.phone, commMsg, {
+              admin,
+              source: "merchant_commission",
+              reference_id: withdrawal_id,
+              recipient_user_id: user.id,
+              recipient_name: (agentProfile as any)?.full_name ?? null,
+            }).catch((e) =>
               console.error("[approve-withdrawal] cashout commission SMS failed:", e),
             );
           }
