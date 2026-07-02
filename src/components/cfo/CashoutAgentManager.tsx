@@ -23,6 +23,7 @@ import {
 import { UserSearchPicker } from './UserSearchPicker';
 import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
 import { formatUGX } from '@/lib/rentCalculations';
+import { getTelecomSendingCharge, getCashoutCommission } from '@/lib/cashoutCharges';
 
 // A payout only counts as "processed" once the Merchant Agent has executed disbursement.
 // `approved` / `cfo_approved` / `manager_approved` are pipeline sign-off stages — NOT execution.
@@ -412,6 +413,34 @@ export function CashoutAgentManager() {
     return payouts.filter((p: any) => p.assigned_cashout_agent_id === selectedAgent.id);
   }, [selectedAgent, payouts]);
 
+  // Commission the merchant actually earned on each settled payout — read from
+  // their own wallet ledger legs (`<withdrawal_id>-cashout-commission`) so the
+  // drill-down reconciles 1:1 with what landed in their withdrawable wallet.
+  const { data: commissionByWithdrawal = {} } = useQuery({
+    queryKey: ['cashout-agent-commission-legs', selectedAgent?.agent_id, selectedAgentPayouts.map((p: any) => p.id).join(',')],
+    queryFn: async () => {
+      const map: Record<string, number> = {};
+      if (!selectedAgent?.agent_id) return map;
+      const ids = selectedAgentPayouts.map((p: any) => String(p.id));
+      if (ids.length === 0) return map;
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount, reference_id')
+        .eq('user_id', selectedAgent.agent_id)
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_in')
+        .eq('category', 'agent_commission_earned')
+        .in('reference_id', ids.map((id) => `${id}-cashout-commission`));
+      if (error) throw error;
+      for (const l of (data || []) as any[]) {
+        map[String(l.reference_id || '').replace('-cashout-commission', '')] = Number(l.amount || 0);
+      }
+      return map;
+    },
+    enabled: !!selectedAgent?.agent_id && selectedAgentPayouts.length > 0,
+    staleTime: 30_000,
+  });
+
   const selectedAgentStats = selectedAgent ? agentStats.get(selectedAgent.id) || { count: 0, volume: 0, bank: 0, momo: 0, cash: 0, bankCount: 0, momoCount: 0, cashCount: 0, lastAt: null, todayCount: 0 } : null;
 
   const methodBadges = (a: any) => {
@@ -466,6 +495,22 @@ export function CashoutAgentManager() {
           <KpiTile icon={<CheckCircle2 className="h-4 w-4" />} label="Completed Payouts" value={String(selectedAgentStats?.count || 0)} tone="primary" sub={`${selectedAgentStats?.todayCount || 0} today`} />
           <KpiTile icon={<TrendingUp className="h-4 w-4" />} label="Volume Total" value={formatUGX(selectedAgentStats?.volume || 0)} tone="primary" />
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          <KpiTile
+            icon={<Wallet className="h-4 w-4" />}
+            label="Commission Earned"
+            value={formatUGX(selectedAgentPayouts.reduce((s: number, py: any) => s + ((commissionByWithdrawal as Record<string, number>)[String(py.id)] ?? getCashoutCommission(Number(py.amount || 0))), 0))}
+            tone="primary"
+            sub="0.5% per payout"
+          />
+          <KpiTile
+            icon={<Banknote className="h-4 w-4" />}
+            label="Telecom Charges"
+            value={formatUGX(selectedAgentPayouts.reduce((s: number, py: any) => s + getTelecomSendingCharge(Number(py.amount || 0)), 0))}
+            tone="muted"
+            sub="sending fees"
+          />
+        </div>
         <div className="grid grid-cols-3 gap-2">
           <KpiTile icon={<Smartphone className="h-4 w-4" />} label="MoMo" value={formatUGX(selectedAgentStats?.momo || 0)} tone="muted" sub={`${selectedAgentStats?.momoCount || 0}`} compact />
           <KpiTile icon={<Building2 className="h-4 w-4" />} label="Bank" value={formatUGX(selectedAgentStats?.bank || 0)} tone="muted" sub={`${selectedAgentStats?.bankCount || 0}`} compact />
@@ -483,7 +528,7 @@ export function CashoutAgentManager() {
               <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No completed payouts yet</CardContent></Card>
             ) : (
               selectedAgentPayouts.map((py: any) => (
-                <Card key={py.id}>
+              <Card key={py.id}>
                   <CardContent className="p-3 space-y-1.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -492,6 +537,14 @@ export function CashoutAgentManager() {
                       </div>
                       <p className="font-bold text-sm shrink-0">{formatUGX(py.amount)}</p>
                     </div>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600">
+                      Commission: +{formatUGX((commissionByWithdrawal as Record<string, number>)[String(py.id)] ?? getCashoutCommission(Number(py.amount || 0)))}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] gap-1 border-amber-500/40 text-amber-600">
+                      Telecom charge: {formatUGX(getTelecomSendingCharge(Number(py.amount || 0)))}
+                    </Badge>
+                  </div>
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <Badge variant="secondary" className="text-[10px] gap-1">
