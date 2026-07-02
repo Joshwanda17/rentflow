@@ -32,6 +32,10 @@ import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
 import { EmailPeriodComparison } from './EmailPeriodComparison';
 import { SwipeableEmailRow, type SwipeAction } from './SwipeableEmailRow';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface GmailTx {
   id: string;
