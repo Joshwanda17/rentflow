@@ -30,6 +30,7 @@ import { DebitBucketAuditSearch } from './DebitBucketAuditSearch';
 import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
 import { EmailPeriodComparison } from './EmailPeriodComparison';
+import { SwipeableEmailRow, type SwipeAction } from './SwipeableEmailRow';
 
 interface GmailTx {
   id: string;
