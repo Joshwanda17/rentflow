@@ -915,6 +915,9 @@ export function EmailTransactionsPanel() {
   const [routingRow, setRoutingRow] = useState<GmailTx | null>(null);
   const [routingSuggestedUser, setRoutingSuggestedUser] = useState<PrefilledUser | null>(null);
   const [routingMode, setRoutingMode] = useState<'credit' | 'debit'>('credit');
+  // A swipe queues a confirmation step before actually opening the
+  // routing/charging dialog, so an accidental swipe can't fire the action.
+  const [pendingSwipe, setPendingSwipe] = useState<{ row: GmailTx; mode: 'credit' | 'debit' } | null>(null);
   // Batch auto-debit state. `autoDebitBusy` disables the banner button while
   // a batch run is in flight; `autoDebitProgress` drives the inline counter.
   const [autoDebitBusy, setAutoDebitBusy] = useState(false);
