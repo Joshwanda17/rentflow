@@ -495,6 +495,22 @@ export function CashoutAgentManager() {
           <KpiTile icon={<CheckCircle2 className="h-4 w-4" />} label="Completed Payouts" value={String(selectedAgentStats?.count || 0)} tone="primary" sub={`${selectedAgentStats?.todayCount || 0} today`} />
           <KpiTile icon={<TrendingUp className="h-4 w-4" />} label="Volume Total" value={formatUGX(selectedAgentStats?.volume || 0)} tone="primary" />
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          <KpiTile
+            icon={<Wallet className="h-4 w-4" />}
+            label="Commission Earned"
+            value={formatUGX(selectedAgentPayouts.reduce((s: number, py: any) => s + ((commissionByWithdrawal as Record<string, number>)[String(py.id)] ?? getCashoutCommission(Number(py.amount || 0))), 0))}
+            tone="primary"
+            sub="0.5% per payout"
+          />
+          <KpiTile
+            icon={<Banknote className="h-4 w-4" />}
+            label="Telecom Charges"
+            value={formatUGX(selectedAgentPayouts.reduce((s: number, py: any) => s + getTelecomSendingCharge(Number(py.amount || 0)), 0))}
+            tone="muted"
+            sub="sending fees"
+          />
+        </div>
         <div className="grid grid-cols-3 gap-2">
           <KpiTile icon={<Smartphone className="h-4 w-4" />} label="MoMo" value={formatUGX(selectedAgentStats?.momo || 0)} tone="muted" sub={`${selectedAgentStats?.momoCount || 0}`} compact />
           <KpiTile icon={<Building2 className="h-4 w-4" />} label="Bank" value={formatUGX(selectedAgentStats?.bank || 0)} tone="muted" sub={`${selectedAgentStats?.bankCount || 0}`} compact />
