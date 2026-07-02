@@ -686,11 +686,24 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_status', statusFilter); } catch {} }, [statusFilter]);
 
+  // Primary sort for the Recent emails list — lets Financial Ops reorder
+  // results without touching the filters. Persisted so it survives reload.
+  //   newest / oldest      → by email date
+  //   amount_high / amount_low → by parsed amount
+  //   status               → group by settlement state (needs routing first)
+  type SortMode = 'newest' | 'oldest' | 'amount_high' | 'amount_low' | 'status';
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    if (typeof window === 'undefined') return 'newest';
+    const v = localStorage.getItem('gmail_sort_mode') as SortMode | null;
+    return v && ['newest', 'oldest', 'amount_high', 'amount_low', 'status'].includes(v) ? v : 'newest';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_sort_mode', sortMode); } catch {} }, [sortMode]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
   useEffect(() => {
     setCurrentPage(1);
     setInfiniteCount(pageSize);
-  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter]);
+  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter, sortMode]);
   // Reset the infinite window back to one page whenever the operator switches
   // into infinite mode, so it never starts mid-list.
   useEffect(() => {
@@ -2456,9 +2469,29 @@ export function EmailTransactionsPanel() {
         }
         return 0;
       });
+    } else if (sortMode !== 'newest') {
+      // Primary sort dropdown — only applies when the specialized debit sort
+      // is off (debitSort === 'none'). 'newest' is the natural DB order, so we
+      // only re-sort for the other modes.
+      const ts = (r: GmailTx) => {
+        const v = r.internal_date ? new Date(r.internal_date).getTime() : 0;
+        return Number.isFinite(v) ? v : 0;
+      };
+      const amt = (r: GmailTx) => (r.amount !== null && Number.isFinite(r.amount) ? (r.amount as number) : -1);
+      const statusRank = (r: GmailTx) => {
+        const s = getRowStatus(r);
+        return s === 'needs_routing' ? 0 : s === 'unparsed' ? 1 : s === 'credited' ? 2 : 3;
+      };
+      list = [...list].sort((a, b) => {
+        if (sortMode === 'oldest') return ts(a) - ts(b);
+        if (sortMode === 'amount_high') return amt(b) - amt(a) || ts(b) - ts(a);
+        if (sortMode === 'amount_low') return amt(a) - amt(b) || ts(b) - ts(a);
+        if (sortMode === 'status') return statusRank(a) - statusRank(b) || ts(b) - ts(a);
+        return 0;
+      });
     }
     return list;
-  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, statusFilter, getRowStatus, debitFilter, debitSort, getDebitMeta]);
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, statusFilter, getRowStatus, debitFilter, debitSort, sortMode, getDebitMeta]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
   const canPrevNav = navIndex > 0;
@@ -3385,11 +3418,26 @@ export function EmailTransactionsPanel() {
               <Mail className="h-4 w-4 text-muted-foreground" />
               Recent emails
             </h3>
-            {searchActive && (
-              <span className="text-xs text-muted-foreground">
-                {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {searchActive && (
+                <span className="text-xs text-muted-foreground">
+                  {filteredRows.length} match{filteredRows.length === 1 ? '' : 'es'}
+                </span>
+              )}
+              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                <SelectTrigger className="h-9 w-[160px] text-xs" aria-label="Sort emails">
+                  <span className="text-muted-foreground mr-1">Sort:</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                  <SelectItem value="oldest">Oldest first</SelectItem>
+                  <SelectItem value="amount_high">Amount: high → low</SelectItem>
+                  <SelectItem value="amount_low">Amount: low → high</SelectItem>
+                  <SelectItem value="status">Status (needs routing first)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
