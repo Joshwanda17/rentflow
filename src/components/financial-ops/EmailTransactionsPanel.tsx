@@ -589,6 +589,14 @@ export function EmailTransactionsPanel() {
     typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_search') || '')
   );
   useEffect(() => { try { localStorage.setItem('gmail_filter_search', searchQuery); } catch {} }, [searchQuery]);
+  // Dedicated depositor-phone filter — narrows the list to a single phone
+  // number in any printed format (0…, 256…, +256…, 7…). Matched against the
+  // email counterparty / sender / body and the resolved depositing user's
+  // phone. Persisted so the filter survives a refresh.
+  const [phoneQuery, setPhoneQuery] = useState<string>(() =>
+    typeof window === 'undefined' ? '' : (localStorage.getItem('gmail_filter_phone') || '')
+  );
+  useEffect(() => { try { localStorage.setItem('gmail_filter_phone', phoneQuery); } catch {} }, [phoneQuery]);
   // Pagination for the Recent emails list. Page size is user-selectable and
   // persisted; current page resets to 1 whenever any filter changes.
   const [pageSize, setPageSize] = useState<number>(() => {
