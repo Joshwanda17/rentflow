@@ -2256,10 +2256,31 @@ export function EmailTransactionsPanel() {
       variants.some((v) => hay.includes(v)),
     );
   };
+  // Dedicated depositor-phone match. Compares the trailing 9 digits (the part
+  // that's stable across 0…, 256…, +256… and bare 7… formats) so a search like
+  // "0783673998" also matches "+256783673998" printed in the email body.
+  const phoneDigits = phoneQuery.replace(/\D/g, '');
+  const phoneNeedle = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : phoneDigits;
+  const phoneActive = phoneNeedle.length >= 6;
+  const matchesPhone = (r: GmailTx): boolean => {
+    if (!phoneActive) return true;
+    const matched = userMatches[r.id] ?? [];
+    const hay = [
+      r.counterparty ?? '',
+      r.from_name ?? '',
+      r.from_email ?? '',
+      r.subject ?? '',
+      r.snippet ?? '',
+      ...matched.map((u) => u.phone ?? ''),
+    ]
+      .join(' ')
+      .replace(/\D/g, '');
+    return hay.includes(phoneNeedle);
+  };
   // `filteredRows` reflects BOTH the date range and the search box, so every
   // downstream consumer (stats, breakdown, chart, exports, list) stays in sync.
-  const filteredRows = dateRows.filter(matchesSearch);
-  const searchActive = searchTokens.length > 0;
+  const filteredRows = dateRows.filter((r) => matchesSearch(r) && matchesPhone(r));
+  const searchActive = searchTokens.length > 0 || phoneActive;
   // Resolve & memoize the channel for every row once per render. Calling
   // deriveChannel with the cache may write back new entries; we flush to
   // localStorage at the end if anything changed.
