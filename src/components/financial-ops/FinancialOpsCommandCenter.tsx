@@ -188,7 +188,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   // Sub-view: Active tool
   if (activeTool) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 pb-24 sm:pb-16">
         <SubBack onClick={() => setActiveTool(null)} />
         {activeTool === 'ops' && <ScaleDashboard />}
         {activeTool === 'email_tx' && <EmailTransactionsPanel />}
