@@ -5150,6 +5150,7 @@ export function EmailTransactionsPanel() {
                   </div>
                 </div>
               </div>
+              </SwipeableEmailRow>
                 );
               });
             })()}
