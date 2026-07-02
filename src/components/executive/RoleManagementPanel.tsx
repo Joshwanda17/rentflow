@@ -1,14 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
-import { Search, ShieldCheck, UserCog, Plus, X, Loader2, ArrowLeft, Users } from 'lucide-react';
+import { Search, ShieldCheck, UserCog, Plus, X, Loader2, ArrowLeft, Users, History, RefreshCw, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 import type { AppRole } from '@/hooks/auth/types';
 import { roleLabels } from '@/components/layout/executiveSidebarConfig';
 
@@ -33,6 +34,19 @@ interface FoundUser {
   avatar_url: string | null;
 }
 
+interface AuditEntry {
+  id: string;
+  action_type: string;
+  created_at: string | null;
+  actor_id: string | null;
+  target_id: string | null;
+  role: string | null;
+  before: string[];
+  after: string[];
+  actorName: string;
+  targetName: string;
+}
+
 export function RoleManagementPanel() {
   const { user } = useAuth();
   const [query, setQuery] = useState('');
@@ -42,6 +56,59 @@ export function RoleManagementPanel() {
   const [userRoles, setUserRoles] = useState<AppRole[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [busyRole, setBusyRole] = useState<AppRole | null>(null);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+
+  const fetchAuditLog = useCallback(async () => {
+    setLoadingAudit(true);
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('id, action_type, created_at, user_id, record_id, metadata')
+        .in('action_type', ['role_added', 'role_removed'])
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const rows = data || [];
+
+      const ids = new Set<string>();
+      rows.forEach(r => {
+        if (r.user_id) ids.add(r.user_id);
+        if (r.record_id) ids.add(r.record_id);
+      });
+      const nameMap = new Map<string, string>();
+      if (ids.size > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', Array.from(ids));
+        profs?.forEach(p => nameMap.set(p.id, p.full_name || 'Unnamed user'));
+      }
+
+      const entries: AuditEntry[] = rows.map(r => {
+        const m = (r.metadata || {}) as Record<string, any>;
+        return {
+          id: r.id,
+          action_type: r.action_type,
+          created_at: r.created_at,
+          actor_id: r.user_id,
+          target_id: r.record_id,
+          role: m.role ?? null,
+          before: Array.isArray(m.before) ? m.before : [],
+          after: Array.isArray(m.after) ? m.after : [],
+          actorName: (r.user_id && nameMap.get(r.user_id)) || 'System',
+          targetName: (r.record_id && nameMap.get(r.record_id)) || m.target_user || 'Unknown user',
+        };
+      });
+      setAuditEntries(entries);
+    } catch (err: any) {
+      console.error('Fetch audit log error:', err);
+    } finally {
+      setLoadingAudit(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAuditLog(); }, [fetchAuditLog]);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
