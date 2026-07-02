@@ -2584,6 +2584,34 @@ export function EmailTransactionsPanel() {
     setRoutingRow(nextRow);
   };
 
+  // Swipe-triggered routing/charging. Because a swipe can easily be the wrong
+  // gesture, we snapshot the routing dialog state *before* opening it and show
+  // an "Undo" toast that instantly reverts to the previous state (usually
+  // closing the just-opened dialog), so a mistaken swipe can be undone quickly.
+  const swipeNavigate = (nextRow: GmailTx, mode: 'credit' | 'debit') => {
+    const prev = {
+      row: routingRow,
+      mode: routingMode,
+      suggestedUser: routingSuggestedUser,
+    };
+    navigateToRow(nextRow, mode);
+    sonnerToast(
+      mode === 'credit' ? 'Opened deposit routing' : 'Opened wallet charge',
+      {
+        description: 'Swiped by mistake? Undo to go back.',
+        duration: 6000,
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            setRoutingRow(prev.row);
+            setRoutingMode(prev.mode);
+            setRoutingSuggestedUser(prev.suggestedUser);
+          },
+        },
+      },
+    );
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3">
