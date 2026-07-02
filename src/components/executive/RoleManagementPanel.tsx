@@ -110,20 +110,34 @@ export function RoleManagementPanel() {
 
   useEffect(() => { fetchAuditLog(); }, [fetchAuditLog]);
 
-  const runSearch = useCallback(async () => {
-    const q = query.trim();
-    if (!q) return;
+  const runSearch = useCallback(async (raw?: string, notifyEmpty = false) => {
+    const q = (raw ?? query).trim();
+    if (q.length < 2) { setResults([]); return; }
     setSearching(true);
     setSelected(null);
     try {
+      const filters = [
+        `full_name.ilike.%${q}%`,
+        `email.ilike.%${q}%`,
+        `phone.ilike.%${q}%`,
+      ];
+      // Phone-friendly matching: strip spaces, dashes, +, brackets and also try
+      // the local form (drop a leading country code / leading zero) so "0772…",
+      // "+256772…" and "772…" all find the same user.
+      const digits = q.replace(/[^0-9]/g, '');
+      if (digits.length >= 3) {
+        filters.push(`phone.ilike.%${digits}%`);
+        const local = digits.replace(/^(00?256|256|0)/, '');
+        if (local && local !== digits) filters.push(`phone.ilike.%${local}%`);
+      }
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, phone, avatar_url')
-        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+        .or(filters.join(','))
         .limit(25);
       if (error) throw error;
       setResults(data || []);
-      if ((data || []).length === 0) toast.info('No users match that search');
+      if (notifyEmpty && (data || []).length === 0) toast.info('No users match that search');
     } catch (err: any) {
       console.error('User search error:', err);
       toast.error('Failed to search users');
@@ -131,6 +145,14 @@ export function RoleManagementPanel() {
       setSearching(false);
     }
   }, [query]);
+
+  // Debounced live search as the CEO types (name or phone).
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setResults([]); return; }
+    const t = setTimeout(() => { runSearch(q); }, 300);
+    return () => clearTimeout(t);
+  }, [query, runSearch]);
 
   const loadRoles = useCallback(async (u: FoundUser) => {
     setSelected(u);
