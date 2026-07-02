@@ -4082,11 +4082,13 @@ export function EmailTransactionsPanel() {
                   label: string;
                   detail: string;
                   tone: string;
+                  tip: string;
                 } | null = isReversed
                   ? {
                       label: 'Reversed',
                       detail: `Previous routing was reversed${latestRouteEntry?.routed_by_name ? ` by ${latestRouteEntry.routed_by_name}` : ''}.`,
                       tone: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
+                      tip: 'A previous credit or charge was undone. The money is back where it started — re-route it to the correct wallet if needed.',
                     }
                   : isCredited
                     ? {
@@ -4097,30 +4099,39 @@ export function EmailTransactionsPanel() {
                         tone: isFullyCredited
                           ? 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'
                           : 'bg-amber-500/15 text-amber-700 border-amber-500/30',
+                        tip: isFullyCredited
+                          ? 'The full email amount has already reached a user wallet. Nothing more to do — do not route it again.'
+                          : 'Only part of the email amount has reached a wallet. Route the remaining shortfall to complete it.',
                       }
                     : isAutoDebited
                       ? {
                           label: isProxyDebit ? 'Charged (proxy)' : 'Charged',
                           detail: `${fmtUgx(debitAmountValue)} charged to ${debitedName}'s wallet${debitIsPartial ? ' (partial)' : ''}.`,
                           tone: 'bg-rose-500/15 text-rose-700 border-rose-500/30',
+                          tip: isProxyDebit
+                            ? "The user had insufficient balance, so this payout was charged to their managed proxy agent's wallet."
+                            : "This payout was charged from the matched user's wallet. The money has left their balance.",
                         }
                       : isRouted && latestRouteEntry
                         ? {
                             label: 'Routed',
                             detail: `${fmtUgx(latestRouteEntry.amount ?? emailAmount)} routed to ${latestRouteEntry.target_user_name || 'a wallet'}${latestRouteEntry.routed_by_name ? ` by ${latestRouteEntry.routed_by_name}` : ''}.`,
                             tone: 'bg-violet-500/15 text-violet-700 border-violet-500/30',
+                            tip: 'A staff member manually sent this money to a wallet. The recipient and who routed it are shown in the detail.',
                           }
                         : r.direction === 'in'
                           ? {
                               label: 'Awaiting routing',
                               detail: 'This deposit has not been sent to a wallet yet.',
                               tone: 'bg-muted text-muted-foreground border-border',
+                              tip: 'Incoming money that has not reached any wallet. It still needs action — route it to the correct user.',
                             }
                           : isOutgoing && outAmount > 0
                             ? {
                                 label: 'Not charged yet',
                                 detail: 'This payout has not been charged to a wallet yet.',
                                 tone: 'bg-muted text-muted-foreground border-border',
+                                tip: "Outgoing money that has not been charged to any wallet yet. Charge it to the payer's wallet when ready.",
                               }
                             : null;
                 return (
