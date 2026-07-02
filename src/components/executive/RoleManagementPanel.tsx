@@ -474,6 +474,73 @@ export function RoleManagementPanel() {
           </div>
         )}
       </div>
+
+      {/* Confirmation dialog */}
+      <AlertDialog open={!!pending} onOpenChange={(o) => { if (!o) { setPending(null); setConfirmed(false); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pending?.type === 'add' ? 'Add role' : 'Remove role'}
+              {pending ? ` — ${roleLabels[pending.role] || pending.role}` : ''}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pending?.type === 'add'
+                ? `Grant the "${pending ? (roleLabels[pending.role] || pending.role) : ''}" role to ${selected?.full_name || 'this user'}.`
+                : `Revoke the "${pending ? (roleLabels[pending.role] || pending.role) : ''}" role from ${selected?.full_name || 'this user'}.`}
+              {' '}Review the exact before/after roles below and confirm they are correct.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pending && (
+            <div className="space-y-3 py-1">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5">Before</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {pending.before.length ? pending.before.map(r => (
+                    <span key={`pb-${r}`} className={cn('px-2 py-0.5 rounded-full border text-xs capitalize', roleColor(r))}>{roleLabels[r] || r}</span>
+                  )) : <span className="text-xs text-muted-foreground italic">none</span>}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <ArrowRight className="h-4 w-4" />
+                <span className="text-xs">changes to</span>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5">After</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {pending.after.length ? pending.after.map(r => (
+                    <span
+                      key={`pa-${r}`}
+                      className={cn('px-2 py-0.5 rounded-full border text-xs capitalize', roleColor(r),
+                        pending.type === 'add' && r === pending.role && 'ring-2 ring-success/50')}
+                    >
+                      {roleLabels[r] || r}
+                    </span>
+                  )) : <span className="text-xs text-muted-foreground italic">none</span>}
+                </div>
+              </div>
+
+              <label className="flex items-start gap-2 pt-1 cursor-pointer">
+                <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} className="mt-0.5" />
+                <span className="text-xs text-muted-foreground">
+                  I confirm the before/after roles shown above are correct.
+                </span>
+              </label>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!confirmed}
+              onClick={confirmPending}
+              className={cn(pending?.type === 'remove' && 'bg-destructive text-destructive-foreground hover:bg-destructive/90')}
+            >
+              {pending?.type === 'add' ? 'Add role' : 'Remove role'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
