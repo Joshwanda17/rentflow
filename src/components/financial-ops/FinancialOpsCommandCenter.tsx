@@ -54,8 +54,7 @@ type Tool =
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics'
   | 'topup_audit'
   | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements'
-  | 'withdrawal_notif_log' | 'cashout_settlement';
-  // (merchant_claims appended below)
+  | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims';
 
 
 /**
