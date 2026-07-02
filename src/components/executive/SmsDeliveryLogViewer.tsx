@@ -279,10 +279,24 @@ export function SmsDeliveryLogViewer() {
 
       <SmsFailoverAlerts />
 
+      {/* Month scope selector */}
+      <div className="flex items-center gap-2">
+        <Calendar className="h-4 w-4 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">Viewing:</span>
+        <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <SelectTrigger className="w-[170px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {monthOptions.map((m) => (
+              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Traffic metrics — daily / weekly / monthly */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
         <KPICard
-          title="Sent Today"
+          title={isPastMonth ? 'Sent Today' : 'Sent Today'}
           value={today.total.toLocaleString()}
           icon={CalendarDays}
           color="bg-primary/10 text-primary"
@@ -298,7 +312,7 @@ export function SmsDeliveryLogViewer() {
           subtitle={`${thisWeek.sent} delivered · ${thisWeek.fail} failed`}
         />
         <KPICard
-          title="This Month"
+          title={isPastMonth ? format(selectedMonthDate, 'MMMM yyyy') : 'This Month'}
           value={thisMonth.total.toLocaleString()}
           icon={Calendar}
           color="bg-teal-500/10 text-teal-600"
@@ -312,7 +326,7 @@ export function SmsDeliveryLogViewer() {
         <CardHeader className="pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-primary" /> Daily Traffic (30d)
+              <MessageSquare className="h-4 w-4 text-primary" /> {isPastMonth ? `Daily Traffic — ${format(selectedMonthDate, 'MMM yyyy')}` : 'Daily Traffic (30d)'}
             </CardTitle>
             <Button size="sm" variant="outline" onClick={handleGenerateReport} disabled={generating} className="h-8 text-xs gap-1.5">
               {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
