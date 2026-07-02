@@ -1,14 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
-import { Search, ShieldCheck, UserCog, Plus, X, Loader2, ArrowLeft, Users } from 'lucide-react';
+import { Search, ShieldCheck, UserCog, Plus, X, Loader2, ArrowLeft, Users, History, RefreshCw, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 import type { AppRole } from '@/hooks/auth/types';
 import { roleLabels } from '@/components/layout/executiveSidebarConfig';
 
@@ -33,6 +34,19 @@ interface FoundUser {
   avatar_url: string | null;
 }
 
+interface AuditEntry {
+  id: string;
+  action_type: string;
+  created_at: string | null;
+  actor_id: string | null;
+  target_id: string | null;
+  role: string | null;
+  before: string[];
+  after: string[];
+  actorName: string;
+  targetName: string;
+}
+
 export function RoleManagementPanel() {
   const { user } = useAuth();
   const [query, setQuery] = useState('');
@@ -42,6 +56,59 @@ export function RoleManagementPanel() {
   const [userRoles, setUserRoles] = useState<AppRole[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [busyRole, setBusyRole] = useState<AppRole | null>(null);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+
+  const fetchAuditLog = useCallback(async () => {
+    setLoadingAudit(true);
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('id, action_type, created_at, user_id, record_id, metadata')
+        .in('action_type', ['role_added', 'role_removed'])
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const rows = data || [];
+
+      const ids = new Set<string>();
+      rows.forEach(r => {
+        if (r.user_id) ids.add(r.user_id);
+        if (r.record_id) ids.add(r.record_id);
+      });
+      const nameMap = new Map<string, string>();
+      if (ids.size > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', Array.from(ids));
+        profs?.forEach(p => nameMap.set(p.id, p.full_name || 'Unnamed user'));
+      }
+
+      const entries: AuditEntry[] = rows.map(r => {
+        const m = (r.metadata || {}) as Record<string, any>;
+        return {
+          id: r.id,
+          action_type: r.action_type,
+          created_at: r.created_at,
+          actor_id: r.user_id,
+          target_id: r.record_id,
+          role: m.role ?? null,
+          before: Array.isArray(m.before) ? m.before : [],
+          after: Array.isArray(m.after) ? m.after : [],
+          actorName: (r.user_id && nameMap.get(r.user_id)) || 'System',
+          targetName: (r.record_id && nameMap.get(r.record_id)) || m.target_user || 'Unknown user',
+        };
+      });
+      setAuditEntries(entries);
+    } catch (err: any) {
+      console.error('Fetch audit log error:', err);
+    } finally {
+      setLoadingAudit(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAuditLog(); }, [fetchAuditLog]);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -88,6 +155,8 @@ export function RoleManagementPanel() {
     if (!selected) return;
     setBusyRole(role);
     try {
+      const before = [...userRoles];
+      const after = [...userRoles, role];
       const { error } = await supabase
         .from('user_roles')
         .insert({ user_id: selected.id, role });
@@ -101,9 +170,10 @@ export function RoleManagementPanel() {
         action_type: 'role_added',
         table_name: 'user_roles',
         record_id: selected.id,
-        metadata: { role, target_user: selected.full_name, reason: 'CEO role grant' },
+        metadata: { role, target_user: selected.full_name, before, after, reason: 'CEO role grant' },
       });
       toast.success(`Added "${roleLabels[role]}" to ${selected.full_name || 'user'}`);
+      fetchAuditLog();
     } catch (err: any) {
       console.error('Add role error:', err);
       toast.error('Failed to add role');
@@ -117,6 +187,8 @@ export function RoleManagementPanel() {
     if (userRoles.length <= 1) { toast.error('User must keep at least one role'); return; }
     setBusyRole(role);
     try {
+      const before = [...userRoles];
+      const after = userRoles.filter(r => r !== role);
       const { error } = await supabase
         .from('user_roles')
         .delete()
@@ -129,9 +201,10 @@ export function RoleManagementPanel() {
         action_type: 'role_removed',
         table_name: 'user_roles',
         record_id: selected.id,
-        metadata: { role, target_user: selected.full_name, reason: 'CEO role revoke' },
+        metadata: { role, target_user: selected.full_name, before, after, reason: 'CEO role revoke' },
       });
       toast.success(`Removed "${roleLabels[role]}" from ${selected.full_name || 'user'}`);
+      fetchAuditLog();
     } catch (err: any) {
       console.error('Remove role error:', err);
       toast.error('Failed to remove role');
@@ -269,6 +342,70 @@ export function RoleManagementPanel() {
           </div>
         </div>
       )}
+
+      {/* Audit log */}
+      <div className="pt-2">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-semibold text-foreground">Role change audit log</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={fetchAuditLog} disabled={loadingAudit} className="gap-1.5 h-8">
+            <RefreshCw className={cn('h-3.5 w-3.5', loadingAudit && 'animate-spin')} />
+            Refresh
+          </Button>
+        </div>
+
+        {loadingAudit ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+          </div>
+        ) : auditEntries.length === 0 ? (
+          <Card className="p-6 text-center text-muted-foreground">
+            <History className="h-8 w-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No role changes recorded yet.</p>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {auditEntries.map(e => {
+              const added = e.action_type === 'role_added';
+              return (
+                <Card key={e.id} className="p-3">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Badge
+                        variant="outline"
+                        className={cn('text-[10px] capitalize shrink-0',
+                          added ? 'bg-success/15 text-success border-success/30' : 'bg-destructive/15 text-destructive border-destructive/30')}
+                      >
+                        {added ? 'Added' : 'Removed'} {e.role ? (roleLabels[e.role as AppRole] || e.role) : 'role'}
+                      </Badge>
+                      <span className="text-sm font-medium text-foreground truncate">{e.targetName}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {e.created_at ? format(new Date(e.created_at), 'dd MMM yyyy, HH:mm') : '—'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">By {e.actorName}</p>
+                  {(e.before.length > 0 || e.after.length > 0) && (
+                    <div className="flex items-center gap-2 mt-2 text-[11px] flex-wrap">
+                      <span className="text-muted-foreground">Before:</span>
+                      {e.before.length ? e.before.map(r => (
+                        <span key={`b-${r}`} className={cn('px-1.5 py-0.5 rounded border capitalize', roleColor(r))}>{roleLabels[r as AppRole] || r}</span>
+                      )) : <span className="text-muted-foreground italic">none</span>}
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">After:</span>
+                      {e.after.length ? e.after.map(r => (
+                        <span key={`a-${r}`} className={cn('px-1.5 py-0.5 rounded border capitalize', roleColor(r))}>{roleLabels[r as AppRole] || r}</span>
+                      )) : <span className="text-muted-foreground italic">none</span>}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
