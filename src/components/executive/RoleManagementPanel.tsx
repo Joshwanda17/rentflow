@@ -5,6 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { Search, ShieldCheck, UserCog, Plus, X, Loader2, ArrowLeft, Users, History, RefreshCw, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -47,6 +58,13 @@ interface AuditEntry {
   targetName: string;
 }
 
+interface PendingAction {
+  type: 'add' | 'remove';
+  role: AppRole;
+  before: AppRole[];
+  after: AppRole[];
+}
+
 export function RoleManagementPanel() {
   const { user } = useAuth();
   const [query, setQuery] = useState('');
@@ -58,6 +76,8 @@ export function RoleManagementPanel() {
   const [busyRole, setBusyRole] = useState<AppRole | null>(null);
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [pending, setPending] = useState<PendingAction | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
   const fetchAuditLog = useCallback(async () => {
     setLoadingAudit(true);
@@ -237,6 +257,26 @@ export function RoleManagementPanel() {
 
   const availableToAdd = ALL_ROLES.filter(r => !userRoles.includes(r));
 
+  const requestAdd = (role: AppRole) => {
+    setConfirmed(false);
+    setPending({ type: 'add', role, before: [...userRoles], after: [...userRoles, role] });
+  };
+
+  const requestRemove = (role: AppRole) => {
+    if (userRoles.length <= 1) { toast.error('User must keep at least one role'); return; }
+    setConfirmed(false);
+    setPending({ type: 'remove', role, before: [...userRoles], after: userRoles.filter(r => r !== role) });
+  };
+
+  const confirmPending = async () => {
+    if (!pending) return;
+    const { type, role } = pending;
+    setPending(null);
+    setConfirmed(false);
+    if (type === 'add') await addRole(role);
+    else await removeRole(role);
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-4">
       <div className="flex items-center gap-2">
@@ -334,7 +374,7 @@ export function RoleManagementPanel() {
                   <span key={r} className={cn('inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full border text-xs font-medium capitalize', roleColor(r))}>
                     {roleLabels[r] || r}
                     <button
-                      onClick={() => removeRole(r)}
+                      onClick={() => requestRemove(r)}
                       disabled={busyRole === r || userRoles.length <= 1}
                       title="Remove role"
                       className="h-5 w-5 rounded-full inline-flex items-center justify-center hover:bg-background/60 disabled:opacity-40"
@@ -355,7 +395,7 @@ export function RoleManagementPanel() {
                   key={r}
                   variant="outline"
                   size="sm"
-                  onClick={() => addRole(r)}
+                  onClick={() => requestAdd(r)}
                   disabled={busyRole === r}
                   className="gap-1.5 h-8"
                 >
@@ -434,6 +474,73 @@ export function RoleManagementPanel() {
           </div>
         )}
       </div>
+
+      {/* Confirmation dialog */}
+      <AlertDialog open={!!pending} onOpenChange={(o) => { if (!o) { setPending(null); setConfirmed(false); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pending?.type === 'add' ? 'Add role' : 'Remove role'}
+              {pending ? ` — ${roleLabels[pending.role] || pending.role}` : ''}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pending?.type === 'add'
+                ? `Grant the "${pending ? (roleLabels[pending.role] || pending.role) : ''}" role to ${selected?.full_name || 'this user'}.`
+                : `Revoke the "${pending ? (roleLabels[pending.role] || pending.role) : ''}" role from ${selected?.full_name || 'this user'}.`}
+              {' '}Review the exact before/after roles below and confirm they are correct.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pending && (
+            <div className="space-y-3 py-1">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5">Before</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {pending.before.length ? pending.before.map(r => (
+                    <span key={`pb-${r}`} className={cn('px-2 py-0.5 rounded-full border text-xs capitalize', roleColor(r))}>{roleLabels[r] || r}</span>
+                  )) : <span className="text-xs text-muted-foreground italic">none</span>}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <ArrowRight className="h-4 w-4" />
+                <span className="text-xs">changes to</span>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5">After</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {pending.after.length ? pending.after.map(r => (
+                    <span
+                      key={`pa-${r}`}
+                      className={cn('px-2 py-0.5 rounded-full border text-xs capitalize', roleColor(r),
+                        pending.type === 'add' && r === pending.role && 'ring-2 ring-success/50')}
+                    >
+                      {roleLabels[r] || r}
+                    </span>
+                  )) : <span className="text-xs text-muted-foreground italic">none</span>}
+                </div>
+              </div>
+
+              <label className="flex items-start gap-2 pt-1 cursor-pointer">
+                <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} className="mt-0.5" />
+                <span className="text-xs text-muted-foreground">
+                  I confirm the before/after roles shown above are correct.
+                </span>
+              </label>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!confirmed}
+              onClick={confirmPending}
+              className={cn(pending?.type === 'remove' && 'bg-destructive text-destructive-foreground hover:bg-destructive/90')}
+            >
+              {pending?.type === 'add' ? 'Add role' : 'Remove role'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
