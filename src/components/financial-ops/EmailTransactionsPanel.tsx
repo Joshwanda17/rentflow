@@ -3950,6 +3950,33 @@ export function EmailTransactionsPanel() {
                           <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>
                         </BadgeTip>
                       )}
+                      {r.direction === 'in' && inviteSms[r.id] && (
+                        <BadgeTip
+                          plain={
+                            inviteSms[r.id].status === 'sent'
+                              ? 'The depositor was texted a link to sign up / log in to Welile.'
+                              : 'We tried to text the depositor a sign-up / log-in link but it failed to send.'
+                          }
+                          details={[
+                            `To: ${inviteSms[r.id].phone}`,
+                            `Status: ${inviteSms[r.id].status}`,
+                            `When: ${new Date(inviteSms[r.id].created_at).toLocaleString()}`,
+                            inviteSms[r.id].error ? `Error: ${inviteSms[r.id].error}` : null,
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] gap-1 ${
+                              inviteSms[r.id].status === 'sent'
+                                ? 'bg-sky-500/10 text-sky-700 border-sky-500/30'
+                                : 'bg-rose-500/10 text-rose-700 border-rose-500/30'
+                            }`}
+                          >
+                            <Smartphone className="h-3 w-3" />
+                            {inviteSms[r.id].status === 'sent' ? 'invite SMS sent' : 'invite SMS failed'}
+                          </Badge>
+                        </BadgeTip>
+                      )}
                       {isRouted && (
                         <BadgeTip
                           plain={
