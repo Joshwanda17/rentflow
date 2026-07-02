@@ -4178,12 +4178,21 @@ export function EmailTransactionsPanel() {
                   // top of the row so reviewers can verify the result without
                   // opening the details view.
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={`text-[11px] font-semibold ${outcomeStatus.tone}`}
+                    <BadgeTip
+                      plain={outcomeStatus.tip}
+                      details={
+                        outcomeWhen
+                          ? 'The time shown is when this outcome was last recorded (routed / charged / credited / reversed).'
+                          : 'No action has been recorded for this row yet.'
+                      }
                     >
-                      {outcomeStatus.label}
-                    </Badge>
+                      <Badge
+                        variant="outline"
+                        className={`text-[11px] font-semibold ${outcomeStatus.tone}`}
+                      >
+                        {outcomeStatus.label}
+                      </Badge>
+                    </BadgeTip>
                     <span className="text-[11px] text-muted-foreground min-w-0 truncate">
                       {outcomeStatus.detail}
                     </span>
