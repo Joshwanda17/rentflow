@@ -75,7 +75,6 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
   { kind: 'tool', id: 'withdrawal_notif_log', label: 'Withdrawal Notification Log', desc: 'Every merchant withdrawal-alert email — search by recipient, amount & date', icon: Bell },
   { kind: 'tool', id: 'cashout_settlement', label: 'Cash-Out Settlement Timeline', desc: 'Each withdrawal with the merchant principal reimbursement & 0.5% commission in one ledger trail', icon: ArrowRightLeft },
-  { kind: 'tool', id: 'merchant_claims', label: 'Merchant Claims Log', desc: 'Every withdrawal claimed by a merchant (cash-out) agent — in-progress & completed, who claimed it and when', icon: HandCoins },
   { kind: 'tool', id: 'topup_audit', label: 'Top-Up Audit Log', desc: 'Each partnership top-up: fund source, recipient routing & both ledger legs', icon: ScrollText },
   { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
   { kind: 'tool', id: 'ops', label: 'Ops Center', desc: 'Automation & monitoring', icon: Gauge },
@@ -401,7 +400,23 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             </div>
           </button>
 
-          {/* 4. More — everything else */}
+          {/* 4. Merchant Claims — quick access to cash-out agent claim activity */}
+          <button
+            onClick={() => openTool('merchant_claims')}
+            className="w-full max-w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-all text-left min-h-[88px] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
+              <HandCoins className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base sm:text-lg break-words">Merchant Claims</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 break-words">
+                Every withdrawal claimed by a cash-out agent — in-progress & completed
+              </p>
+            </div>
+          </button>
+
+          {/* 5. More — everything else */}
           <button
             onClick={() => setMoreSheet(true)}
             className="w-full max-w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl border border-border bg-card hover:bg-accent/40 transition-all text-left min-h-[88px] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
