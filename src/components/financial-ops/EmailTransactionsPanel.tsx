@@ -5126,9 +5126,18 @@ export function EmailTransactionsPanel() {
                     ) : null}
                     {isRouted && (
                       <div className="mt-2 rounded-md border border-violet-500/20 bg-violet-500/5 p-2">
-                        <p className="text-[10px] uppercase tracking-wider text-violet-700 font-semibold flex items-center gap-1 mb-1">
-                          <History className="h-3 w-3" /> Routing history ({history.length})
-                        </p>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-[10px] uppercase tracking-wider text-violet-700 font-semibold flex items-center gap-1">
+                            <History className="h-3 w-3" /> Routing history ({history.length})
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setHistoryDrawerRow(r)}
+                            className="text-[10px] font-medium text-violet-700 underline underline-offset-2 hover:text-violet-800 min-h-11 sm:min-h-0 px-1"
+                          >
+                            View full history
+                          </button>
+                        </div>
                         <ul className="space-y-1">
                           {history.slice(0, 4).map((h) => {
                             const reversal = /revers/i.test(h.reason || '');
@@ -5185,8 +5194,14 @@ export function EmailTransactionsPanel() {
                             );
                           })}
                           {history.length > 4 && (
-                            <li className="text-[10px] text-muted-foreground pl-3">
-                              + {history.length - 4} more
+                            <li className="pl-3">
+                              <button
+                                type="button"
+                                onClick={() => setHistoryDrawerRow(r)}
+                                className="text-[10px] font-medium text-violet-700 underline underline-offset-2 hover:text-violet-800"
+                              >
+                                + {history.length - 4} more — view full history
+                              </button>
                             </li>
                           )}
                         </ul>
