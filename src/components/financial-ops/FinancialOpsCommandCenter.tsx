@@ -131,6 +131,15 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     setMoreSheet(false);
   };
 
+  // Navigation scroll handling — whenever we switch into a tool or sub-view,
+  // reset scroll to the top so the target view (e.g. Merchant Claims) is fully
+  // visible and never left behind a floating widget or half-scrolled overlay.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [activeTool, view]);
+
   // Persist expand/collapse per user across sessions
   useEffect(() => {
     if (userId) setStoredOpen(userId, walletBreakdownOpen);
@@ -179,7 +188,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   // Sub-view: Active tool
   if (activeTool) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 pb-24 sm:pb-16">
         <SubBack onClick={() => setActiveTool(null)} />
         {activeTool === 'ops' && <ScaleDashboard />}
         {activeTool === 'email_tx' && <EmailTransactionsPanel />}
@@ -351,7 +360,10 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
           What do you want to do?
         </h2>
-        <div className="grid grid-cols-1 gap-3 min-w-0">
+        {/* relative z-10 keeps these tap targets above decorative floating
+            widgets (share/WhatsApp bubbles). Bottom padding guarantees the last
+            button (More) is never covered by a fixed bottom-anchored element. */}
+        <div className="grid grid-cols-1 gap-3 min-w-0 relative z-10 pb-24 sm:pb-16">
           {/* 1. Verify ALL Deposits (user TIDs + field/agent cash → float) */}
           <button
             onClick={() => setView('deposits')}
