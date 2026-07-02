@@ -41,7 +41,7 @@ import {
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, AlertCircle, ScanLine, Receipt, Mail, Home as HomeIcon,
   ArrowRightLeft, ScrollText, KeyRound, ReceiptText
-  , Bell
+  , Bell, HandCoins
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
