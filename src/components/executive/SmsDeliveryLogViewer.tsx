@@ -15,6 +15,7 @@ import { SmsFailoverAlerts } from './SmsFailoverAlerts';
 import { MessageSquare, Search, Loader2, CheckCircle2, XCircle, Radio, CalendarDays, CalendarRange, Calendar, FileDown } from 'lucide-react';
 import { format, formatDistanceToNow, subDays, startOfWeek, startOfMonth, endOfMonth, startOfDay, subMonths, differenceInCalendarDays } from 'date-fns';
 import { downloadAuditPdf } from '@/lib/pdfAuditReport';
+import { downloadSmsTrafficPdf } from '@/lib/smsTrafficReportPdf';
 import { toast } from 'sonner';
 
 type SmsLog = {
