@@ -244,6 +244,15 @@ export function FundAccountDialog({
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Approval notice — funds only move after Partner Ops approves */}
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-snug text-foreground">
+                  This sends a <span className="font-bold">transfer request to Partner Ops</span>. No money
+                  leaves your wallet now — the funds stay in your wallet until the request is approved.
+                </p>
+              </div>
             </>
           )}
         </div>
