@@ -110,14 +110,13 @@ export function SwipeableEmailRow({
       <button
         type="button"
         onClick={action.onAction}
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:inline-flex focus:items-center focus:gap-1.5 focus:rounded-md focus:px-3 focus:py-2 focus:text-xs focus:font-semibold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 min-h-11"
-        style={dx === 0 ? undefined : undefined}
+        aria-label={action.ariaLabel ?? action.label}
+        className={`sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:inline-flex focus:items-center focus:gap-1.5 focus:rounded-md focus:px-3 focus:py-2 focus:text-xs focus:font-semibold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 min-h-11 ${action.colorClass}`}
       >
-        <span aria-hidden className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 ${action.colorClass}`}>
+        <span aria-hidden className="inline-flex items-center gap-1.5">
           {action.icon}
           {action.label}
         </span>
-        <span className="sr-only">{action.ariaLabel ?? action.label}</span>
       </button>
       {/* Revealed action panel behind the row. */}
       <div
