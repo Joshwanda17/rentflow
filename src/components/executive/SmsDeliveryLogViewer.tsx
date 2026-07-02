@@ -230,8 +230,8 @@ export function SmsDeliveryLogViewer() {
         ? format(selectedMonthDate, 'MMMM yyyy')
         : `Last ${rollupDays} days`;
       const rangeLabel = isPastMonth
-        ? `${format(selectedMonthStart, 'dd MMM yyyy')} → ${format(selectedMonthEnd, 'dd MMM yyyy')}`
-        : `${format(subDays(startOfDay(new Date()), rollupDays - 1), 'dd MMM yyyy')} → ${format(new Date(), 'dd MMM yyyy')}`;
+        ? `${format(selectedMonthStart, 'dd MMM yyyy')} to ${format(selectedMonthEnd, 'dd MMM yyyy')}`
+        : `${format(subDays(startOfDay(new Date()), rollupDays - 1), 'dd MMM yyyy')} to ${format(new Date(), 'dd MMM yyyy')}`;
       const contextLabel = `Today: ${today.total.toLocaleString()}  ·  This week: ${thisWeek.total.toLocaleString()}  ·  ${isPastMonth ? windowLabel : 'This month'}: ${thisMonth.total.toLocaleString()}`;
       const fileTag = isPastMonth ? format(selectedMonthDate, 'yyyy-MM') : format(new Date(), 'yyyy-MM-dd');
       await downloadSmsTrafficPdf(
