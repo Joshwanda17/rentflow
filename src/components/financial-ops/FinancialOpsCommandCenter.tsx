@@ -360,7 +360,10 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
           What do you want to do?
         </h2>
-        <div className="grid grid-cols-1 gap-3 min-w-0">
+        {/* relative z-10 keeps these tap targets above decorative floating
+            widgets (share/WhatsApp bubbles). Bottom padding guarantees the last
+            button (More) is never covered by a fixed bottom-anchored element. */}
+        <div className="grid grid-cols-1 gap-3 min-w-0 relative z-10 pb-24 sm:pb-16">
           {/* 1. Verify ALL Deposits (user TIDs + field/agent cash → float) */}
           <button
             onClick={() => setView('deposits')}
