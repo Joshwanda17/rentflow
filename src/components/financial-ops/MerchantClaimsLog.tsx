@@ -428,6 +428,21 @@ export function MerchantClaimsLog() {
   const inProgressCount = rows.filter(r => r.state === 'in_progress').length;
   const completedCount = rows.filter(r => r.state === 'completed').length;
 
+  // Money totals so Financial Ops can read paid / in-progress value at a glance.
+  const inProgressTotal = useMemo(
+    () => rows.filter(r => r.state === 'in_progress').reduce((s, r) => s + r.amount, 0),
+    [rows],
+  );
+  const completedTotal = useMemo(
+    () => rows.filter(r => r.state === 'completed').reduce((s, r) => s + r.amount, 0),
+    [rows],
+  );
+  // Total of whatever is currently filtered/shown (respects tab, status, date, search).
+  const filteredTotal = useMemo(
+    () => filtered.reduce((s, r) => s + r.amount, 0),
+    [filtered],
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -454,6 +469,7 @@ export function MerchantClaimsLog() {
             <span className="text-xs font-medium text-muted-foreground">In progress</span>
           </div>
           <p className="text-2xl font-bold mt-1">{inProgressCount}</p>
+          <p className="text-xs font-medium text-warning mt-0.5">{formatUGX(inProgressTotal)}</p>
         </Card>
         <Card className="p-3">
           <div className="flex items-center gap-2 text-success">
@@ -461,6 +477,7 @@ export function MerchantClaimsLog() {
             <span className="text-xs font-medium text-muted-foreground">Completed</span>
           </div>
           <p className="text-2xl font-bold mt-1">{completedCount}</p>
+          <p className="text-xs font-medium text-success mt-0.5">{formatUGX(completedTotal)}</p>
         </Card>
       </div>
 
@@ -520,8 +537,12 @@ export function MerchantClaimsLog() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{filtered.length} {filtered.length === 1 ? 'claim' : 'claims'} shown</span>
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground flex-wrap">
+        <span className="flex items-center gap-1.5">
+          {filtered.length} {filtered.length === 1 ? 'claim' : 'claims'} shown
+          <span className="text-muted-foreground/60">·</span>
+          <span className="font-semibold text-foreground">{formatUGX(filteredTotal)} total</span>
+        </span>
         {hasActiveFilters && (
           <button onClick={clearFilters} className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
             <X className="h-3.5 w-3.5" /> Clear filters
