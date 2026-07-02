@@ -1733,6 +1733,9 @@ export function RouteEmailDepositDialog({ open, onOpenChange, row, suggestedUser
       return { ...(data as any), smsSent, smsError, reversed: mustReverse, forcedReversal: forceReversalRef.current, transferredFrom: transferFromUser ? sourceUser?.full_name ?? null : null };
     },
     onSuccess: (res: any) => {
+      // Notify the parent list so it can refetch this row's routing history
+      // and update the status pill immediately (no reload needed).
+      if (row?.id) onRouted?.(row.id);
       if (mode === 'debit') {
         if (user) {
           const attempted = debitRoute === 'landlord_float' ? 'float' : debitRoute === 'proxy_agent_wallet' ? 'proxy_withdrawable' : 'withdrawable';
