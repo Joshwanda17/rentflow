@@ -1837,19 +1837,38 @@ async function tryThankSenderMomoSignupSms(
   const last9 = digits.length >= 9 ? digits.slice(-9) : null;
   if (!last9) return;
 
-  // Skip senders who are already Welile users — they get the credit SMS and
-  // an invite to "sign up" would look wrong.
+  // Resolve whether this sender is already a Welile user so we can tailor the
+  // call-to-action: existing users get a "log in" nudge, new senders get a
+  // "sign up" invite. Either way, every depositor phone seen in the extracted
+  // emails gets a link back to the platform.
+  let existingUser: { id: string; full_name: string | null } | null = null;
   try {
     const { data: existing } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, full_name')
       .or(`phone.ilike.%${last9},mobile_money_number.ilike.%${last9}`)
       .limit(1)
       .maybeSingle();
-    if (existing) return;
+    existingUser = (existing as any) ?? null;
   } catch (_e) {
-    // If the lookup fails, err on the side of NOT texting to avoid spamming users.
-    return;
+    existingUser = null;
+  }
+
+  // Dedup: never text the same phone this invite more than once per 24h, so a
+  // depositor who sends several receipts in a day is not spammed.
+  try {
+    const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { data: recent } = await supabase
+      .from('sms_delivery_log')
+      .select('id')
+      .eq('source', 'momo_deposit_invite')
+      .ilike('recipient_phone', `%${last9}`)
+      .gte('created_at', dayAgo)
+      .limit(1)
+      .maybeSingle();
+    if (recent) return;
+  } catch (_e) {
+    // Non-fatal — if the dedup check fails, still allow the send.
   }
 
   const providerLabel = parsed.channel === 'mtn_momo' ? 'MTN MoMo' : 'Airtel Money';
@@ -1857,14 +1876,36 @@ async function tryThankSenderMomoSignupSms(
   const thankYou = tpl.thank_you_text
     .replace(/\{amount\}/gi, amount)
     .replace(/\{provider\}/gi, providerLabel);
+  // Existing users → log in; new senders → sign up.
+  const cta = existingUser
+    ? 'Log in to view your wallet, transactions and balance:'
+    : tpl.signup_prompt;
   const msg = [
     `WELILE: ${thankYou}`.trim(),
-    `${tpl.signup_prompt} ${tpl.signup_link}`.trim(),
+    `${cta} ${tpl.signup_link}`.trim(),
     tpl.address.trim(),
     [tpl.support_email, tpl.website].filter(Boolean).join(' | ').trim(),
   ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
-  await sendSmsViaAfricasTalking(rawPhone, msg);
+  const sent = await sendSmsViaAfricasTalking(rawPhone, msg);
+
+  // Log every invite send so Financial Ops can audit which depositor phones
+  // were nudged (and catch silent failures).
+  try {
+    await supabase.from('sms_delivery_log').insert({
+      recipient_phone: formatPhoneIntl(rawPhone),
+      recipient_user_id: existingUser?.id ?? null,
+      recipient_name: existingUser?.full_name ?? null,
+      message: msg,
+      status: sent ? 'sent' : 'failed',
+      provider: 'africastalking',
+      source: 'momo_deposit_invite',
+      reference_id: parsed.transaction_id ?? null,
+      error: sent ? null : 'africastalking send returned not-ok',
+    });
+  } catch (e) {
+    console.warn('[gmail-poll] deposit-invite SMS log failed (non-fatal):', e);
+  }
 }
 
 // Default thank-you SMS template — mirrors the system_config seed so the SMS
