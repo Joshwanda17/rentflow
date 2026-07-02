@@ -1312,7 +1312,12 @@ Deno.serve(async (req) => {
                   `${fmtUGX(newBucketBalance)}.` +
                   `\n\nAccess your dashboard to view your wallet, transactions, and account details:\n` +
                   `https://welilereceipts.com/ZQhyGb`;
-                await sendSmsViaAfricasTalking(depProfile.phone, smsMsg);
+               await sendSmsViaAfricasTalking(depProfile.phone, smsMsg, {
+                 admin: supabaseAdmin,
+                 recipientUserId: depositRequest.user_id,
+                 recipientName: depProfile?.full_name ?? null,
+                 referenceId: String(depositRequest.id),
+               });
               } else {
                 console.warn(
                   `[approve-deposit] no phone for user ${depositRequest.user_id}; skipping auto-approval SMS`,
