@@ -3415,6 +3415,83 @@ export function EmailTransactionsPanel() {
           <p className="text-[11px] text-muted-foreground">
             Searches the <strong>full email history</strong> — the date range above is ignored while you type. Combine words (e.g. <code className="px-1 rounded bg-muted">john 150000</code>); phone numbers work in any format.
           </p>
+          {/* Mobile-friendly quick filters: date, direction & status in one
+              horizontally-scrollable strip so ops can narrow results on a phone
+              without scrolling back up to the full filter panel. */}
+          <div className="sm:hidden -mx-1 overflow-x-auto">
+            <div className="flex items-center gap-1.5 px-1 pb-1 w-max">
+              {([
+                { label: 'Today', days: 1, offset: 0 },
+                { label: '7d', days: 7, offset: 0 },
+                { label: '30d', days: 30, offset: 0 },
+              ] as Array<{ label: string; days: number; offset: number }>).map((p) => {
+                const applyPreset = () => {
+                  const todayKey = dateKeyInTz(new Date(), tz);
+                  const [y, m, d] = todayKey.split('-').map(Number);
+                  const toUtc = Date.UTC(y, m - 1, d) - p.offset * 86_400_000;
+                  const fromUtc = toUtc - (p.days - 1) * 86_400_000;
+                  const fmtKey = (ms: number) => {
+                    const dt = new Date(ms);
+                    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+                  };
+                  setSearchQuery('');
+                  setFromDate(fmtKey(fromUtc));
+                  setToDate(fmtKey(toUtc));
+                };
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={applyPreset}
+                    className="shrink-0 text-[11px] px-2.5 py-1 rounded-full border bg-background hover:bg-muted text-muted-foreground border-border"
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+              <span className="shrink-0 mx-0.5 h-4 w-px bg-border" aria-hidden />
+              {([
+                { key: 'all', label: 'All' },
+                { key: 'in', label: 'In' },
+                { key: 'out', label: 'Out' },
+              ] as Array<{ key: DirectionFilter; label: string }>).map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setDirectionFilter(c.key)}
+                  aria-pressed={directionFilter === c.key}
+                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                    directionFilter === c.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+              <span className="shrink-0 mx-0.5 h-4 w-px bg-border" aria-hidden />
+              {([
+                { key: 'all', label: 'Any' },
+                { key: 'credited', label: 'Credited' },
+                { key: 'needs_routing', label: 'Needs routing' },
+                { key: 'unparsed', label: 'Unparsed' },
+              ] as Array<{ key: StatusFilter; label: string }>).map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setStatusFilter(c.key)}
+                  aria-pressed={statusFilter === c.key}
+                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                    statusFilter === c.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <RecentEmailsLegend />
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
