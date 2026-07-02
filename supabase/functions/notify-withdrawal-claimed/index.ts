@@ -281,6 +281,7 @@ Deno.serve(async (req) => {
 
     let sent = false;
     let smsAttempts = 0;
+    let smsTrail: SmsAttemptRecord[] = [];
     let smsError: string | null = smsRecipient
       ? null
       : "No valid Ugandan phone/MoMo number on file for the withdrawal";
@@ -289,6 +290,7 @@ Deno.serve(async (req) => {
       sent = result.sent;
       smsAttempts = result.attempts;
       smsError = result.error;
+      smsTrail = result.trail;
       if (!sent) {
         console.error(
           `[notify-withdrawal-claimed] Claim SMS FAILED after ${smsAttempts} attempt(s) ` +
@@ -296,6 +298,20 @@ Deno.serve(async (req) => {
         );
       }
     }
+
+    // Full delivery-status audit: provider response, retries, and failures.
+    await logSmsDelivery(admin, {
+      recipient_phone: smsRecipient || "unknown",
+      recipient_user_id: w.user_id,
+      recipient_name: (requester as any)?.full_name ?? null,
+      message: smsMsg,
+      status: sent ? "sent" : "failed",
+      attempts: smsTrail,
+      retries: smsAttempts > 0 ? smsAttempts - 1 : 0,
+      reference_id: w.id,
+      source: "withdrawal_claim",
+      error: sent ? null : smsError,
+    });
 
     // In-app notification center entry so the requester sees that a named
     // merchant agent is now processing their withdrawal — independent of SMS.
