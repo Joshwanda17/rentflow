@@ -4162,6 +4162,27 @@ export function EmailTransactionsPanel() {
                 {/* Visually hidden status line — keeps the announcement consistent
                     for SR users even if the visual chips reflow on narrow screens. */}
                 <span className="sr-only">{matchAriaLabel}.</span>
+                {outcomeStatus && (
+                  // Consolidated latest routing/charging outcome, shown at the
+                  // top of the row so reviewers can verify the result without
+                  // opening the details view.
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={`text-[11px] font-semibold ${outcomeStatus.tone}`}
+                    >
+                      {outcomeStatus.label}
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground min-w-0 truncate">
+                      {outcomeStatus.detail}
+                    </span>
+                    {outcomeWhen && (
+                      <span className="text-[10px] text-muted-foreground/80 whitespace-nowrap">
+                        {new Date(outcomeWhen).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {isInsufficientPayout && (
                   // Unignorable banner above the row body. Explains the
                   // exact reason in plain language so reviewers can act
