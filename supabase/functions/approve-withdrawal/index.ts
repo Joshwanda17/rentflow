@@ -1986,6 +1986,7 @@ Deno.serve(async (req) => {
               reference_id: withdrawal_id,
               recipient_user_id: user.id,
               recipient_name: (agentProfile as any)?.full_name ?? null,
+              idempotencyKey: `merchant_commission:${withdrawal_id}`,
             }).catch((e) =>
               console.error("[approve-withdrawal] cashout commission SMS failed:", e),
             );
@@ -2191,6 +2192,7 @@ Deno.serve(async (req) => {
               reference_id: withdrawal_id,
               recipient_user_id: beneficiaryUserId,
               recipient_name: (profile as any)?.full_name ?? null,
+              idempotencyKey: `withdrawal_payout:${withdrawal_id}`,
             })
               .then((ok) => {
                 if (!ok) sendFallbackReceiptEmail("provider rejected");
@@ -2226,6 +2228,7 @@ Deno.serve(async (req) => {
               reference_id: withdrawal_id,
               recipient_user_id: beneficiaryUserId,
               recipient_name: (profile as any)?.full_name ?? null,
+              idempotencyKey: `withdrawal_payout:${withdrawal_id}`,
             })
               .then((ok) => {
                 if (!ok) sendFallbackReceiptEmail("provider rejected (log insert failed)");
@@ -2297,6 +2300,7 @@ Deno.serve(async (req) => {
           reference_id: withdrawal_id,
           recipient_user_id: partnerId,
           recipient_name: (partnerProfile as any)?.full_name ?? null,
+          idempotencyKey: `proxy_payout:${withdrawal_id}`,
         }).catch((e) =>
           console.error("[approve-withdrawal] proxy partner SMS failed:", e),
         );
