@@ -923,6 +923,11 @@ export function EmailTransactionsPanel() {
   // Search + route-type filter for the status-history drawer.
   const [historyDrawerQuery, setHistoryDrawerQuery] = useState('');
   const [historyDrawerType, setHistoryDrawerType] = useState<'all' | 'routed' | 'charged' | 'reversed'>('all');
+  // Reset drawer filters whenever a different row's history is opened.
+  useEffect(() => {
+    setHistoryDrawerQuery('');
+    setHistoryDrawerType('all');
+  }, [historyDrawerRow?.id]);
   // A swipe queues a confirmation step before actually opening the
   // routing/charging dialog, so an accidental swipe can't fire the action.
   const [pendingSwipe, setPendingSwipe] = useState<{ row: GmailTx; mode: 'credit' | 'debit' } | null>(null);
