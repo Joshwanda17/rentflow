@@ -1565,11 +1565,31 @@ function formatPhoneIntl(phone: string): string {
 async function sendSmsViaAfricasTalking(
   phone: string,
   message: string,
+  logCtx?: {
+    admin: ReturnType<typeof createClient>;
+    recipientUserId?: string | null;
+    recipientName?: string | null;
+    referenceId?: string | null;
+  },
 ): Promise<boolean> {
   const apiKey = Deno.env.get('AFRICASTALKING_API_KEY');
   const username = Deno.env.get('AFRICASTALKING_USERNAME');
   if (!apiKey || !username) {
     console.warn('[approve-deposit] AT credentials missing — skipping SMS');
+    if (logCtx?.admin) {
+      try {
+        await logCtx.admin.from('sms_delivery_log').insert({
+          recipient_phone: formatPhoneIntl(phone),
+          recipient_user_id: logCtx.recipientUserId ?? null,
+          recipient_name: logCtx.recipientName ?? null,
+          message,
+          status: 'failed',
+          source: 'approve-deposit',
+          reference_id: logCtx.referenceId ?? null,
+          error: 'AT credentials missing',
+        });
+      } catch (_) { /* non-fatal */ }
+    }
     return false;
   }
   const isSandbox = username.toLowerCase() === 'sandbox';
@@ -1601,9 +1621,41 @@ async function sendSmsViaAfricasTalking(
     console.log(
       `[approve-deposit] SMS ${ok ? 'sent' : 'failed'} to ${formatPhoneIntl(phone)} (status ${res.status})`,
     );
+    if (logCtx?.admin) {
+      const recip = recipients[0] ?? {};
+      try {
+        await logCtx.admin.from('sms_delivery_log').insert({
+          recipient_phone: formatPhoneIntl(phone),
+          recipient_user_id: logCtx.recipientUserId ?? null,
+          recipient_name: logCtx.recipientName ?? null,
+          message,
+          status: ok ? 'sent' : 'failed',
+          source: 'approve-deposit',
+          reference_id: logCtx.referenceId ?? null,
+          provider_message_id: recip?.messageId ?? null,
+          provider_response: data ?? { raw: txt.slice(0, 500) },
+          cost: recip?.cost ?? null,
+          error: ok ? null : (recip?.status ?? `HTTP ${res.status}`),
+        });
+      } catch (_) { /* non-fatal */ }
+    }
     return ok;
   } catch (e) {
     console.warn('[approve-deposit] SMS send error:', e);
+    if (logCtx?.admin) {
+      try {
+        await logCtx.admin.from('sms_delivery_log').insert({
+          recipient_phone: formatPhoneIntl(phone),
+          recipient_user_id: logCtx.recipientUserId ?? null,
+          recipient_name: logCtx.recipientName ?? null,
+          message,
+          status: 'failed',
+          source: 'approve-deposit',
+          reference_id: logCtx.referenceId ?? null,
+          error: String(e).slice(0, 500),
+        });
+      } catch (_) { /* non-fatal */ }
+    }
     return false;
   }
 }
