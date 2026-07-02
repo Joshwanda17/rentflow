@@ -257,6 +257,26 @@ export function RoleManagementPanel() {
 
   const availableToAdd = ALL_ROLES.filter(r => !userRoles.includes(r));
 
+  const requestAdd = (role: AppRole) => {
+    setConfirmed(false);
+    setPending({ type: 'add', role, before: [...userRoles], after: [...userRoles, role] });
+  };
+
+  const requestRemove = (role: AppRole) => {
+    if (userRoles.length <= 1) { toast.error('User must keep at least one role'); return; }
+    setConfirmed(false);
+    setPending({ type: 'remove', role, before: [...userRoles], after: userRoles.filter(r => r !== role) });
+  };
+
+  const confirmPending = async () => {
+    if (!pending) return;
+    const { type, role } = pending;
+    setPending(null);
+    setConfirmed(false);
+    if (type === 'add') await addRole(role);
+    else await removeRole(role);
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-4">
       <div className="flex items-center gap-2">
