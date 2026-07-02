@@ -3505,6 +3505,43 @@ export function EmailTransactionsPanel() {
             );
           })()}
           {(() => {
+            // Status chips — slice the list by settlement state (credited,
+            // still needs routing, or unreadable/unparsed) in one tap. Counts
+            // respect the active date/search/direction filters above.
+            const credited = filteredRows.filter((r) => getRowStatus(r) === 'credited').length;
+            const needs = filteredRows.filter((r) => getRowStatus(r) === 'needs_routing').length;
+            const unparsed = filteredRows.filter((r) => getRowStatus(r) === 'unparsed').length;
+            const chips: Array<{ key: StatusFilter; label: string; count: number; tone: string }> = [
+              { key: 'all', label: 'Any status', count: filteredRows.length, tone: 'bg-primary text-primary-foreground border-primary' },
+              { key: 'credited', label: 'Credited', count: credited, tone: 'bg-emerald-600 text-white border-emerald-600' },
+              { key: 'needs_routing', label: 'Needs routing', count: needs, tone: 'bg-orange-600 text-white border-orange-600' },
+              { key: 'unparsed', label: 'Unparsed', count: unparsed, tone: 'bg-slate-600 text-white border-slate-600' },
+            ];
+            return (
+              <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Filter by status">
+                {chips.map((c) => {
+                  const active = statusFilter === c.key;
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setStatusFilter(c.key)}
+                      aria-pressed={active}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                        active ? c.tone : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                      }`}
+                    >
+                      {c.label}
+                      <span className={`ml-1.5 font-mono tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>
+                        {c.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {(() => {
             // "Needs Routing" toggle — narrows the list to uncredited, unrouted
             // incoming deposits so ops can triage exactly what still needs action.
             const needsCount = filteredRows.filter(isNeedsRouting).length;
