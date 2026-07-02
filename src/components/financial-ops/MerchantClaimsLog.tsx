@@ -281,6 +281,10 @@ function ClaimDetailDrawer({ claim, onClose }: { claim: ClaimRow | null; onClose
 export function MerchantClaimsLog() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<ClaimRow | null>(null);
+  const [tab, setTab] = useState<'all' | 'in_progress' | 'completed'>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['merchant-claims-log'],
