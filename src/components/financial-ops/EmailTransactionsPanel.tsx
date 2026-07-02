@@ -851,6 +851,22 @@ export function EmailTransactionsPanel() {
   const [withdrawalMatches, setWithdrawalMatches] = useState<Record<string, WithdrawalMatch[]>>({});
   const [autoApproving, setAutoApproving] = useState<Record<string, boolean>>({});
 
+  // ── Invite / login SMS delivery status ────────────────────────────────
+  // The gmail poller texts every depositor's phone a link back to the
+  // platform (a "sign up" invite for new numbers, a "log in" nudge for
+  // existing users) and logs each attempt to `sms_delivery_log` with
+  // source='momo_deposit_invite'. We surface that per-row so Financial Ops
+  // can see whether the invite/login SMS was sent or failed for each
+  // extracted deposit. Keyed by gmail_transactions.id.
+  interface InviteSms {
+    status: string;
+    created_at: string;
+    phone: string;
+    message: string | null;
+    error: string | null;
+  }
+  const [inviteSms, setInviteSms] = useState<Record<string, InviteSms>>({});
+
   // Manual channel correction UI. `editingRow` controls the dialog; bumping
   // `rulesVersion` re-renders the list so newly-saved rules / cache overrides
   // take effect immediately on every visible row.
@@ -1044,6 +1060,75 @@ export function EmailTransactionsPanel() {
         if (!rid) return;
         setRoutingHistory((cur) => ({ ...cur, [rid]: [h, ...(cur[rid] ?? [])] }));
       })
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(sub); };
+  }, [rows]);
+
+  // Background load of invite/login SMS delivery status for the currently
+  // visible incoming rows. The poller logs each depositor invite to
+  // sms_delivery_log (source='momo_deposit_invite') with reference_id set to
+  // the email's transaction reference and recipient_phone in international
+  // format. We match back to a row by (1) transaction reference, then
+  // (2) sender phone last-9. Realtime inserts keep the badge fresh.
+  useEffect(() => {
+    const incoming = rows.filter((r) => r.direction === 'in');
+    if (!incoming.length) { setInviteSms({}); return; }
+    let cancelled = false;
+    const last9 = (s: string | null | undefined): string | null => {
+      const d = (s ?? '').replace(/[^0-9]/g, '');
+      return d.length >= 9 ? d.slice(-9) : null;
+    };
+    const applyLogs = (
+      logs: Array<{ status: string; created_at: string; recipient_phone: string; message: string | null; error: string | null; reference_id: string | null }>,
+    ) => {
+      const byTid = new Map<string, GmailTx>();
+      const byPhone = new Map<string, GmailTx>();
+      for (const r of incoming) {
+        if (r.transaction_id) byTid.set(r.transaction_id, r);
+        const p = last9(r.counterparty);
+        if (p && !byPhone.has(p)) byPhone.set(p, r);
+      }
+      const next: Record<string, InviteSms> = {};
+      for (const log of logs) {
+        let row: GmailTx | undefined;
+        if (log.reference_id && byTid.has(log.reference_id)) row = byTid.get(log.reference_id);
+        if (!row) {
+          const p = last9(log.recipient_phone);
+          if (p && byPhone.has(p)) row = byPhone.get(p);
+        }
+        if (!row) continue;
+        // Keep only the most recent attempt per row (logs are newest-first).
+        if (!next[row.id]) {
+          next[row.id] = {
+            status: log.status,
+            created_at: log.created_at,
+            phone: log.recipient_phone,
+            message: log.message,
+            error: log.error,
+          };
+        }
+      }
+      return next;
+    };
+    (async () => {
+      const { data, error } = await (supabase.from('sms_delivery_log') as any)
+        .select('status,created_at,recipient_phone,message,error,reference_id')
+        .eq('source', 'momo_deposit_invite')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (cancelled || error) return;
+      setInviteSms(applyLogs((data ?? []) as any));
+    })();
+    const sub = supabase
+      .channel('momo_deposit_invite_sms_feed')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sms_delivery_log', filter: 'source=eq.momo_deposit_invite' },
+        (payload) => {
+          const log = payload.new as any;
+          setInviteSms((cur) => ({ ...cur, ...applyLogs([log]) }));
+        },
+      )
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(sub); };
   }, [rows]);
@@ -3863,6 +3948,33 @@ export function EmailTransactionsPanel() {
                       {r.transaction_id && (
                         <BadgeTip plain="The transaction / receipt code taken from this email. We use it to match the payment.">
                           <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>
+                        </BadgeTip>
+                      )}
+                      {r.direction === 'in' && inviteSms[r.id] && (
+                        <BadgeTip
+                          plain={
+                            inviteSms[r.id].status === 'sent'
+                              ? 'The depositor was texted a link to sign up / log in to Welile.'
+                              : 'We tried to text the depositor a sign-up / log-in link but it failed to send.'
+                          }
+                          details={[
+                            `To: ${inviteSms[r.id].phone}`,
+                            `Status: ${inviteSms[r.id].status}`,
+                            `When: ${new Date(inviteSms[r.id].created_at).toLocaleString()}`,
+                            inviteSms[r.id].error ? `Error: ${inviteSms[r.id].error}` : null,
+                          ].filter(Boolean).join('\n')}
+                        >
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] gap-1 ${
+                              inviteSms[r.id].status === 'sent'
+                                ? 'bg-sky-500/10 text-sky-700 border-sky-500/30'
+                                : 'bg-rose-500/10 text-rose-700 border-rose-500/30'
+                            }`}
+                          >
+                            <Smartphone className="h-3 w-3" />
+                            {inviteSms[r.id].status === 'sent' ? 'invite SMS sent' : 'invite SMS failed'}
+                          </Badge>
                         </BadgeTip>
                       )}
                       {isRouted && (
