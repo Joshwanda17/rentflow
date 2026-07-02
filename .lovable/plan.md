@@ -1,56 +1,41 @@
-# Partner Agreement — Database-Driven Flow
+# CTO Temporary-Password Reset + Forced Reset-on-Login
 
 ## Goal
-The partner supplies every contract field once, at onboarding. The admin never types partner data and never re-enters the Welile countersignature. The contract template lives server-side (never public) and is rendered by looping the database row.
+Give the CTO a dashboard tab to look up a user by **phone or email**, issue a **temporary password**, and deliver it (SMS + on-screen link the CTO can share). When that user next opens their dashboard, they are **forced** to set a new password before they can do anything else.
 
-## The problem today
-- Onboarding collects amount, address, payout method, next-of-kin — but only address (`profiles.landmark`) and payout (`saved_payout_methods`) are persisted. Amount, next-of-kin, and **National ID** are lost (National ID isn't even collected for funders).
-- The admin sign-off screen blanks those fields and forces the admin to re-type partner data, plus re-enter the rep name and re-upload the rep signature every time.
+## What already exists (reused)
+- `profiles.must_change_password` boolean column already exists but is currently unused — this becomes the "force reset" flag.
+- `admin-reset-password` edge function pattern (role gate + `admin.updateUserById`) — mirrored for the new function.
+- `ForcePasswordChange.tsx` portal pattern — reused as the visual model for the blocking gate.
+- CTO sidebar config in `executiveSidebarConfig.ts` and tab routing in `CTODashboard.tsx`.
 
-## Target flow
+## Changes
 
-```text
-Partner onboarding (fills once)
-        │  writes
-        ▼
-partner_agreements  ◄── single source of truth (one row per partner)
-        │
-        │  admin opens read-only review → clicks "Countersign & Send"
-        ▼
-generate-partner-agreement (edge fn, template lives here)
-   • reads partner_agreements row
-   • reads company defaults (rep + signature + stamp)
-   • renders contract → PDF
-   • stores PDF in private partner-agreements bucket
-   • emails partner a signed download link
-```
+### 1. Backend (migration)
+- No new table. Add a partial index on `profiles(must_change_password) where must_change_password = true` for fast gate checks. Confirm `must_change_password` defaults to `false`.
 
-## Work items
+### 2. Edge function: `cto-issue-temp-password`
+- Verify caller JWT and require an authorised role (`cto`, `manager`, `super_admin`).
+- Input: `{ identifier }` (phone OR email). Normalise phone via Uganda phone rules; resolve the target `user_id` + auth email from `profiles`. Clear, specific errors when not found / ambiguous.
+- Generate a human-readable temp password (e.g. `Welile-7F3K`).
+- `admin.updateUserById(user_id, { password: temp })`, then set `profiles.must_change_password = true`.
+- Deliver: send an SMS (when a phone exists) containing the temp password + login link `https://welilereceipts.com`; always return `{ temp_password, login_url, delivered_via, masked_target }` so the CTO sees it on screen and can share the link/password manually.
+- Write an `audit_logs` row (`action_type: 'cto_temp_password_issued'`, reason ≥ 10 chars).
 
-### 1. New source-of-truth table `partner_agreements`
-One row per partner. Fields: partner_id (FK profiles), name/phone/email snapshot, national_id, address, partnership_amount, payout_mode + bank_*/momo_* fields, kin_name, kin_contact, reference, agreement_date, status (`pending` → `countersigned`), countersigned_by, countersigned_at, generated_pdf_path.
-RLS: partner reads own row; ops/manager read+update all; service_role full. GRANTs included.
+### 3. CTO dashboard tab: "Reset Password"
+- Add sidebar item `{ label: 'Reset Password', id: 'password-reset' }` to the `cto` section in `executiveSidebarConfig.ts`.
+- New component `src/components/cto/CTOPasswordResetPanel.tsx`: input for phone/email, "Issue temporary password" button, and a result card showing the generated temp password (copy button), the shareable login link, and delivery status.
+- Branch in `CTODashboard.tsx`: `if (activeTab === 'password-reset') return <CTOPasswordResetPanel />;`.
 
-### 2. Collect + persist all partner data at onboarding
-- Add a required **National ID / Passport** field to the funder onboarding step (currently missing).
-- On submit, upsert the full `partner_agreements` row from what the partner typed (amount, national ID, address, payout, next-of-kin). Keep the existing `profiles`/`saved_payout_methods` writes for compatibility.
+### 4. Forced reset-on-login gate (must-do)
+- New page `src/pages/ForceResetPassword.tsx` + route `/force-reset-password`: password + confirm fields with strength rules; calls `supabase.auth.updateUser({ password })`, then sets `profiles.must_change_password = false`, then routes to the user's dashboard.
+- New global gate `src/components/auth/ForceResetPasswordGate.tsx`: for any logged-in user, reads `profiles.must_change_password`; while `true` it renders a **full-screen blocking portal** (same pattern as `ForcePasswordChange`) that forces the reset and cannot be dismissed. Mounted alongside the other authenticated gates in `App.tsx` so it intercepts every route immediately after login.
 
-### 3. Company countersignature defaults (set once)
-- New singleton table `partner_agreement_company_defaults`: rep_name, rep_position, rep_contact, signature_path (image in a private bucket). Manager-editable from a small settings panel.
-- The e-stamp is generated automatically by the renderer (no upload needed).
+## Technical notes
+- Temp password respects the platform's leaked-password (HIBP) protection; the generator avoids common/breached patterns by including random entropy.
+- The gate uses a fresh DB read of `must_change_password` (not React Query cache) per the high-stakes-mutation rule.
+- All amounts/text follow existing UGX + terminology conventions (none financial here).
+- SMS uses the existing SMS-sending infrastructure already used by `password-reset-sms`.
 
-### 4. Server-side renderer `generate-partner-agreement`
-- The contract body (all numbered sections, header, signature block) moves out of the client component into this edge function — private, never in `public/`.
-- Generates the PDF with `pdf-lib`, fed strictly from the `partner_agreements` row + company defaults. Applies rep details, rep signature, and stamp automatically.
-- Uploads to the private `partner-agreements` bucket, stores the path on the row, returns a signed URL, and emails the partner via the existing `tenant-partnership-agreement` template.
-
-### 5. Admin screen becomes read-only review
-- `PartnerAgreementSignOff` stops editing partner data. It displays the partner's submitted fields straight from `partner_agreements` (read-only).
-- Single action: **Countersign & Send** → invokes the edge function. No rep typing, no signature upload, no partner-field entry.
-- Live preview stays, but is driven by the DB row, not local inputs.
-
-## Notes / technical details
-- The existing client `partnershipAgreementPdf.ts` + `AgreementHtmlPreview` are retained only for the on-screen preview; the authoritative PDF is produced server-side so the template is not publicly shippable.
-- `partner-agreements` bucket is already private with authenticated RLS — reused as-is; signatures live in a separate private path.
-- National ID added to onboarding is the only new partner-facing input; everything else already exists in the funder step.
-- Backfill: existing partners without a `partner_agreements` row get one lazily (admin "Countersign & Send" creates it from current profile + payout data) so the dashboard keeps working for historical sign-ups.
+## Out of scope
+- No changes to normal login, OTP, or PIN flows beyond the new gate check.

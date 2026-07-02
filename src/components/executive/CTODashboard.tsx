@@ -16,6 +16,7 @@ import { CTOLedgerExport } from './CTOLedgerExport';
 import MaintenanceToggleCard from '@/components/cto/MaintenanceToggleCard';
 import ExtractSchemaCard from '@/components/cto/ExtractSchemaCard';
 import ExportUsersWithHashesCard from '@/components/cto/ExportUsersWithHashesCard';
+import { CTOPasswordResetPanel } from '@/components/cto/CTOPasswordResetPanel';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -29,6 +30,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   }
   if (activeTab === 'emails' || activeTab === 'communication') {
     return <CTOCommunicationOverview />;
+  }
+  if (activeTab === 'password-reset') {
+    return <CTOPasswordResetPanel />;
   }
 
   // Real: active users in last 7 days
