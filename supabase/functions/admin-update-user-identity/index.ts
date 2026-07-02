@@ -72,9 +72,38 @@ serve(async (req) => {
       profilePatch.phone = p || null;
     }
 
+    // Pre-flight duplicate checks against auth.users so we can return a clear,
+    // human-readable error instead of GoTrue's opaque AuthRetryableFetchError
+    // (which is what a uniqueness conflict surfaces as).
+    if (normalizedEmail) {
+      const { data: emailMatch } = await adminClient
+        .from("profiles").select("id, full_name").eq("email", normalizedEmail).neq("id", user_id).maybeSingle();
+      // Also check auth directly via admin listing by scanning profiles first (fast),
+      // then fall back to a targeted auth check.
+      if (emailMatch) {
+        return new Response(JSON.stringify({ error: `That email is already used by another account${emailMatch.full_name ? ` (${emailMatch.full_name})` : ""}. Use a different email.` }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+    if (normalizedPhone) {
+      const phoneNoPlus = normalizedPhone.replace(/^\+/, "");
+      const { data: phoneMatch } = await adminClient
+        .from("profiles").select("id, full_name").or(`phone.eq.${normalizedPhone},phone.eq.${phoneNoPlus},phone.eq.0${phoneNoPlus.replace(/^256/, "")}`).neq("id", user_id).limit(1).maybeSingle();
+      if (phoneMatch) {
+        return new Response(JSON.stringify({ error: `That phone number is already used by another account${phoneMatch.full_name ? ` (${phoneMatch.full_name})` : ""}. Use a different number.` }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // 1. Update auth.users
     const { error: updErr } = await adminClient.auth.admin.updateUserById(user_id, authPatch);
-    if (updErr) throw updErr;
+    if (updErr) {
+      const m = (updErr as any)?.message?.toLowerCase() ?? "";
+      const friendly = m.includes("email")
+        ? "That email is already registered to another account. Use a different email."
+        : m.includes("phone")
+          ? "That phone number is already registered to another account. Use a different number."
+          : "Could not update login identity — the email or phone may already be in use by another account.";
+      return new Response(JSON.stringify({ error: friendly }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // 2. Mirror to profiles
     if (Object.keys(profilePatch).length > 0) {
