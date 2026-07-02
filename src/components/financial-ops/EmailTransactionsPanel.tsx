@@ -686,11 +686,24 @@ export function EmailTransactionsPanel() {
   });
   useEffect(() => { try { localStorage.setItem('gmail_filter_status', statusFilter); } catch {} }, [statusFilter]);
 
+  // Primary sort for the Recent emails list — lets Financial Ops reorder
+  // results without touching the filters. Persisted so it survives reload.
+  //   newest / oldest      → by email date
+  //   amount_high / amount_low → by parsed amount
+  //   status               → group by settlement state (needs routing first)
+  type SortMode = 'newest' | 'oldest' | 'amount_high' | 'amount_low' | 'status';
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    if (typeof window === 'undefined') return 'newest';
+    const v = localStorage.getItem('gmail_sort_mode') as SortMode | null;
+    return v && ['newest', 'oldest', 'amount_high', 'amount_low', 'status'].includes(v) ? v : 'newest';
+  });
+  useEffect(() => { try { localStorage.setItem('gmail_sort_mode', sortMode); } catch {} }, [sortMode]);
+
   // Reset pagination whenever any filter that affects the visible list changes.
   useEffect(() => {
     setCurrentPage(1);
     setInfiniteCount(pageSize);
-  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter]);
+  }, [searchQuery, fromDate, toDate, tz, pageSize, directionFilter, matchFilter, needsRoutingOnly, debitFilter, debitSort, statusFilter, sortMode]);
   // Reset the infinite window back to one page whenever the operator switches
   // into infinite mode, so it never starts mid-list.
   useEffect(() => {
