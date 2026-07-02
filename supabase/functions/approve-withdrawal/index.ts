@@ -5,6 +5,7 @@ import {
   dispatchTransactionalEmail,
   buildWithdrawalPaidReceiptRequest,
 } from "../_shared/partnership-emails.ts";
+import { logSmsDelivery, type SmsAttemptRecord } from "../_shared/smsDeliveryLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,7 +33,10 @@ function isUgandanPhone(phone: string): boolean {
 function toMsisdn(phone: string): string {
   return formatPhoneInternational(phone).replace(/^\+/, "");
 }
-async function sendViaYoola(phone: string, message: string): Promise<boolean | null> {
+async function sendViaYoola(
+  phone: string,
+  message: string,
+): Promise<{ ok: boolean; error: string | null; response?: unknown } | null> {
   const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) return null;
   try {
@@ -48,13 +52,20 @@ async function sendViaYoola(phone: string, message: string): Promise<boolean | n
       (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
         (!data?.error && status === ""));
     if (!ok) console.warn(`[approve-withdrawal] Yoola rejected HTTP ${res.status} ${status}`);
-    return ok;
+    return {
+      ok,
+      error: ok ? null : `Yoola rejected (HTTP ${res.status} ${status || "no-status"})`,
+      response: data ?? raw?.slice(0, 300),
+    };
   } catch (err) {
     console.error("[approve-withdrawal] Yoola error:", err);
-    return false;
+    return { ok: false, error: `Yoola network error: ${(err as Error)?.message || err}`, response: null };
   }
 }
-async function sendViaAT(phone: string, message: string): Promise<boolean | null> {
+async function sendViaAT(
+  phone: string,
+  message: string,
+): Promise<{ ok: boolean; error: string | null; response?: unknown } | null> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) return null;
@@ -80,17 +91,27 @@ async function sendViaAT(phone: string, message: string): Promise<boolean | null
     });
     if (!res.ok) {
       console.warn(`[approve-withdrawal] AT HTTP ${res.status}`);
-      return false;
+      const text = await res.text().catch(() => "");
+      return { ok: false, error: `AT HTTP ${res.status}`, response: text?.slice(0, 300) || null };
     }
     const data = await res.json();
     const recipients = data?.SMSMessageData?.Recipients || [];
-    return recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    const accepted = recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    const reason = recipients.map((r: any) => `${r.number}:${r.status}`).join(", ");
+    return {
+      ok: accepted,
+      error: accepted ? null : (reason ? `AT rejected (${reason})` : "AT no accepted recipients"),
+      response: data,
+    };
   } catch (err) {
     console.error("[approve-withdrawal] AT error:", err);
-    return false;
+    return { ok: false, error: `AT network error: ${(err as Error)?.message || err}`, response: null };
   }
 }
-async function sendViaLana(phone: string, message: string): Promise<boolean | null> {
+async function sendViaLana(
+  phone: string,
+  message: string,
+): Promise<{ ok: boolean; error: string | null; response?: unknown } | null> {
   const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
   if (!apiKey) return null;
   try {
@@ -103,20 +124,70 @@ async function sendViaLana(phone: string, message: string): Promise<boolean | nu
     let data: any; try { data = JSON.parse(raw); } catch { data = null; }
     const ok = res.ok && data?.status === true;
     if (!ok) console.warn(`[approve-withdrawal] LANA rejected: ${data?.message ?? res.status}`);
-    return ok;
+    return {
+      ok,
+      error: ok ? null : `LANA rejected (${data?.message || `HTTP ${res.status}`})`,
+      response: data ?? raw?.slice(0, 300),
+    };
   } catch (err) {
     console.error("[approve-withdrawal] LANA error:", err);
-    return false;
+    return { ok: false, error: `LANA network error: ${(err as Error)?.message || err}`, response: null };
   }
 }
-async function sendSMS(phone: string, message: string): Promise<boolean> {
-  if (!isUgandanPhone(phone)) return false;
-  for (const send of [sendViaYoola, sendViaAT, sendViaLana]) {
-    const r = await send(phone, message);
-    if (r === null) continue; // provider unconfigured → try next
-    if (r) return true; // delivered
+// Optional delivery-status logging context. When supplied, sendSMS records a
+// full audit row (provider response, attempts, failures) to `sms_delivery_log`.
+interface SmsLogCtx {
+  admin: any;
+  source: string; // 'withdrawal_payout' | 'merchant_commission' | 'proxy_payout'
+  reference_id?: string | null;
+  recipient_user_id?: string | null;
+  recipient_name?: string | null;
+}
+async function sendSMS(
+  phone: string,
+  message: string,
+  logCtx?: SmsLogCtx,
+): Promise<boolean> {
+  const providerNames: Record<string, string> = {
+    sendViaYoola: "yoola",
+    sendViaAT: "africastalking",
+    sendViaLana: "lana",
+  };
+  const trail: SmsAttemptRecord[] = [];
+  let delivered = false;
+  let invalid = false;
+
+  if (!isUgandanPhone(phone)) {
+    invalid = true;
+  } else {
+    for (const send of [sendViaYoola, sendViaAT, sendViaLana]) {
+      const r = await send(phone, message);
+      if (r === null) continue; // provider unconfigured → try next
+      trail.push({ provider: providerNames[send.name] || send.name, ok: r.ok, error: r.error, response: (r as any).response, attempt: 1 });
+      if (r.ok) { delivered = true; break; } // delivered
+    }
   }
-  return false;
+
+  if (logCtx?.admin) {
+    await logSmsDelivery(logCtx.admin, {
+      recipient_phone: phone || "unknown",
+      recipient_user_id: logCtx.recipient_user_id ?? null,
+      recipient_name: logCtx.recipient_name ?? null,
+      message,
+      status: delivered ? "sent" : "failed",
+      attempts: trail,
+      retries: 0,
+      reference_id: logCtx.reference_id ?? null,
+      source: logCtx.source,
+      error: delivered
+        ? null
+        : invalid
+        ? "Invalid Ugandan phone/MoMo number"
+        : (trail.filter((t) => !t.ok && t.error).map((t) => `${t.provider}: ${t.error}`).join(" | ") || "No SMS provider configured"),
+    });
+  }
+
+  return delivered;
 }
 
 Deno.serve(async (req) => {
@@ -1867,7 +1938,13 @@ Deno.serve(async (req) => {
               `for processing a UGX ${amount.toLocaleString()} payout. It has been added to your ` +
               `withdrawable wallet. Thank you for your service.\n` +
               `Access your dashboard https://welilereceipts.com/ZQhyGb`;
-            sendSMS(agentProfile.phone, commMsg).catch((e) =>
+            sendSMS(agentProfile.phone, commMsg, {
+              admin,
+              source: "merchant_commission",
+              reference_id: withdrawal_id,
+              recipient_user_id: user.id,
+              recipient_name: (agentProfile as any)?.full_name ?? null,
+            }).catch((e) =>
               console.error("[approve-withdrawal] cashout commission SMS failed:", e),
             );
           }
@@ -2066,7 +2143,13 @@ Deno.serve(async (req) => {
           .single()
           .then(({ data: logRow }) => {
             const logId = (logRow as any)?.id ?? null;
-            sendSMS(profile.phone, smsMsg)
+            sendSMS(profile.phone, smsMsg, {
+              admin,
+              source: "withdrawal_payout",
+              reference_id: withdrawal_id,
+              recipient_user_id: beneficiaryUserId,
+              recipient_name: (profile as any)?.full_name ?? null,
+            })
               .then((ok) => {
                 if (!ok) sendFallbackReceiptEmail("provider rejected");
                 if (!logId) return;
@@ -2095,7 +2178,13 @@ Deno.serve(async (req) => {
           }, (e) => {
             console.error("[approve-withdrawal] notification log insert failed:", e);
             // Still attempt the SMS even if logging failed.
-            sendSMS(profile.phone, smsMsg)
+            sendSMS(profile.phone, smsMsg, {
+              admin,
+              source: "withdrawal_payout",
+              reference_id: withdrawal_id,
+              recipient_user_id: beneficiaryUserId,
+              recipient_name: (profile as any)?.full_name ?? null,
+            })
               .then((ok) => {
                 if (!ok) sendFallbackReceiptEmail("provider rejected (log insert failed)");
               })
@@ -2160,7 +2249,13 @@ Deno.serve(async (req) => {
           `We encourage you to log in to your Welile dashboard to monitor your partnership performance, track payouts, and manage your account directly: https://welilereceipts.com/auth\n\n` +
           `Thank you for partnering with Welile Technologies Limited.\n\n` +
           `"Welile is Turning Rent into an Asset."`;
-        sendSMS(partnerProfile.phone, proxySmsMsg).catch((e) =>
+        sendSMS(partnerProfile.phone, proxySmsMsg, {
+          admin,
+          source: "proxy_payout",
+          reference_id: withdrawal_id,
+          recipient_user_id: partnerId,
+          recipient_name: (partnerProfile as any)?.full_name ?? null,
+        }).catch((e) =>
           console.error("[approve-withdrawal] proxy partner SMS failed:", e),
         );
       }

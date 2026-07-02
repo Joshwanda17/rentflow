@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { formatPhoneInternational, isUgandanPhone } from "./phone.ts";
+import { logSmsDelivery, type SmsAttemptRecord } from "../_shared/smsDeliveryLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,7 @@ interface SmsResult {
   sent: boolean;
   attempts: number;
   error: string | null;
+  trail: SmsAttemptRecord[];
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -25,7 +27,7 @@ function toMsisdn(phone: string): string {
 async function sendViaYoola(
   phone: string,
   message: string,
-): Promise<{ ok: boolean; error: string | null } | null> {
+): Promise<{ ok: boolean; error: string | null; response?: unknown } | null> {
   const apiKey = Deno.env.get("YOOLA_SMS_API_KEY")?.trim();
   if (!apiKey) return null; // not configured → skip to next provider
   try {
@@ -41,10 +43,10 @@ async function sendViaYoola(
       (status === "success" || status === "ok" || status === "sent" || status === "queued" ||
         (!data?.error && status === ""));
     return ok
-      ? { ok: true, error: null }
-      : { ok: false, error: `Yoola rejected (HTTP ${res.status} ${status || "no-status"})` };
+      ? { ok: true, error: null, response: data ?? raw?.slice(0, 300) }
+      : { ok: false, error: `Yoola rejected (HTTP ${res.status} ${status || "no-status"})`, response: data ?? raw?.slice(0, 300) };
   } catch (err) {
-    return { ok: false, error: `Yoola network error: ${(err as Error)?.message || err}` };
+    return { ok: false, error: `Yoola network error: ${(err as Error)?.message || err}`, response: null };
   }
 }
 
@@ -52,7 +54,7 @@ async function sendViaYoola(
 async function sendViaAT(
   phone: string,
   message: string,
-): Promise<{ ok: boolean; error: string | null } | null> {
+): Promise<{ ok: boolean; error: string | null; response?: unknown } | null> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) return null; // not configured → skip
@@ -78,16 +80,16 @@ async function sendViaAT(
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      return { ok: false, error: `AT HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ""}` };
+      return { ok: false, error: `AT HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ""}`, response: text?.slice(0, 300) || null };
     }
     const data = await res.json();
     const recipients = data?.SMSMessageData?.Recipients || [];
     const accepted = recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
-    if (accepted) return { ok: true, error: null };
+    if (accepted) return { ok: true, error: null, response: data };
     const reason = recipients.map((r: any) => `${r.number}:${r.status}`).join(", ");
-    return { ok: false, error: reason ? `AT rejected (${reason})` : "AT no accepted recipients" };
+    return { ok: false, error: reason ? `AT rejected (${reason})` : "AT no accepted recipients", response: data };
   } catch (err) {
-    return { ok: false, error: `AT network error: ${(err as Error)?.message || err}` };
+    return { ok: false, error: `AT network error: ${(err as Error)?.message || err}`, response: null };
   }
 }
 
@@ -95,7 +97,7 @@ async function sendViaAT(
 async function sendViaLana(
   phone: string,
   message: string,
-): Promise<{ ok: boolean; error: string | null } | null> {
+): Promise<{ ok: boolean; error: string | null; response?: unknown } | null> {
   const apiKey = Deno.env.get("LANA_SMS_API_KEY")?.trim();
   if (!apiKey) return null; // not configured → skip
   try {
@@ -108,10 +110,10 @@ async function sendViaLana(
     let data: any; try { data = JSON.parse(raw); } catch { data = null; }
     const ok = res.ok && data?.status === true;
     return ok
-      ? { ok: true, error: null }
-      : { ok: false, error: `LANA rejected (${data?.message || `HTTP ${res.status}`})` };
+      ? { ok: true, error: null, response: data ?? raw?.slice(0, 300) }
+      : { ok: false, error: `LANA rejected (${data?.message || `HTTP ${res.status}`})`, response: data ?? raw?.slice(0, 300) };
   } catch (err) {
-    return { ok: false, error: `LANA network error: ${(err as Error)?.message || err}` };
+    return { ok: false, error: `LANA network error: ${(err as Error)?.message || err}`, response: null };
   }
 }
 
@@ -121,19 +123,27 @@ async function sendViaLana(
 async function sendSMSOnce(
   phone: string,
   message: string,
-): Promise<{ ok: boolean; retryable: boolean; error: string | null }> {
+): Promise<{ ok: boolean; retryable: boolean; error: string | null; trail: SmsAttemptRecord[] }> {
   if (!isUgandanPhone(phone)) {
-    return { ok: false, retryable: false, error: "Invalid Ugandan phone/MoMo number" };
+    return { ok: false, retryable: false, error: "Invalid Ugandan phone/MoMo number", trail: [] };
   }
   const errors: string[] = [];
+  const trail: SmsAttemptRecord[] = [];
+  const providerNames: Record<string, string> = {
+    sendViaYoola: "yoola",
+    sendViaAT: "africastalking",
+    sendViaLana: "lana",
+  };
   for (const send of [sendViaYoola, sendViaAT, sendViaLana]) {
     const r = await send(phone, message);
     if (r === null) continue; // provider unconfigured
-    if (r.ok) return { ok: true, retryable: false, error: null };
+    const providerName = providerNames[send.name] || send.name;
+    trail.push({ provider: providerName, ok: r.ok, error: r.error, response: (r as any).response });
+    if (r.ok) return { ok: true, retryable: false, error: null, trail };
     if (r.error) errors.push(r.error);
   }
   const combined = errors.length ? errors.join(" | ") : "No SMS provider configured";
-  return { ok: false, retryable: true, error: combined };
+  return { ok: false, retryable: true, error: combined, trail };
 }
 
 // Send with bounded retries + exponential backoff for transient failures.
@@ -143,24 +153,26 @@ async function sendSMSWithRetry(
   maxAttempts = 3,
 ): Promise<SmsResult> {
   let lastError: string | null = null;
+  const trail: SmsAttemptRecord[] = [];
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const r = await sendSMSOnce(phone, message);
+    for (const t of r.trail) trail.push({ ...t, attempt });
     if (r.ok) {
       if (attempt > 1) {
         console.log(`[notify-withdrawal-claimed] SMS delivered on attempt ${attempt}`);
       }
-      return { sent: true, attempts: attempt, error: null };
+      return { sent: true, attempts: attempt, error: null, trail };
     }
     lastError = r.error;
     console.warn(
       `[notify-withdrawal-claimed] SMS attempt ${attempt}/${maxAttempts} failed: ${r.error}`,
     );
     if (!r.retryable || attempt === maxAttempts) {
-      return { sent: false, attempts: attempt, error: lastError };
+      return { sent: false, attempts: attempt, error: lastError, trail };
     }
     await sleep(500 * 2 ** (attempt - 1)); // 500ms, 1s, 2s …
   }
-  return { sent: false, attempts: maxAttempts, error: lastError };
+  return { sent: false, attempts: maxAttempts, error: lastError, trail };
 }
 
 Deno.serve(async (req) => {
@@ -269,6 +281,7 @@ Deno.serve(async (req) => {
 
     let sent = false;
     let smsAttempts = 0;
+    let smsTrail: SmsAttemptRecord[] = [];
     let smsError: string | null = smsRecipient
       ? null
       : "No valid Ugandan phone/MoMo number on file for the withdrawal";
@@ -277,6 +290,7 @@ Deno.serve(async (req) => {
       sent = result.sent;
       smsAttempts = result.attempts;
       smsError = result.error;
+      smsTrail = result.trail;
       if (!sent) {
         console.error(
           `[notify-withdrawal-claimed] Claim SMS FAILED after ${smsAttempts} attempt(s) ` +
@@ -284,6 +298,20 @@ Deno.serve(async (req) => {
         );
       }
     }
+
+    // Full delivery-status audit: provider response, retries, and failures.
+    await logSmsDelivery(admin, {
+      recipient_phone: smsRecipient || "unknown",
+      recipient_user_id: w.user_id,
+      recipient_name: (requester as any)?.full_name ?? null,
+      message: smsMsg,
+      status: sent ? "sent" : "failed",
+      attempts: smsTrail,
+      retries: smsAttempts > 0 ? smsAttempts - 1 : 0,
+      reference_id: w.id,
+      source: "withdrawal_claim",
+      error: sent ? null : smsError,
+    });
 
     // In-app notification center entry so the requester sees that a named
     // merchant agent is now processing their withdrawal — independent of SMS.
