@@ -8,11 +8,15 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Loader2, Search, HandCoins, Clock, CheckCircle2, User, RefreshCw, ArrowRight, Download, FileText, FileSpreadsheet,
+  Loader2, Search, HandCoins, Clock, CheckCircle2, User, RefreshCw, ArrowRight, Download, FileText, FileSpreadsheet, X,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
