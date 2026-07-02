@@ -374,7 +374,7 @@ export function RoleManagementPanel() {
                   <span key={r} className={cn('inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full border text-xs font-medium capitalize', roleColor(r))}>
                     {roleLabels[r] || r}
                     <button
-                      onClick={() => removeRole(r)}
+                      onClick={() => requestRemove(r)}
                       disabled={busyRole === r || userRoles.length <= 1}
                       title="Remove role"
                       className="h-5 w-5 rounded-full inline-flex items-center justify-center hover:bg-background/60 disabled:opacity-40"
@@ -395,7 +395,7 @@ export function RoleManagementPanel() {
                   key={r}
                   variant="outline"
                   size="sm"
-                  onClick={() => addRole(r)}
+                  onClick={() => requestAdd(r)}
                   disabled={busyRole === r}
                   className="gap-1.5 h-8"
                 >
