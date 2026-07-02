@@ -920,6 +920,9 @@ export function EmailTransactionsPanel() {
   const [routingMode, setRoutingMode] = useState<'credit' | 'debit'>('credit');
   // Row whose full status-history drawer is open (null = closed).
   const [historyDrawerRow, setHistoryDrawerRow] = useState<GmailTx | null>(null);
+  // Search + route-type filter for the status-history drawer.
+  const [historyDrawerQuery, setHistoryDrawerQuery] = useState('');
+  const [historyDrawerType, setHistoryDrawerType] = useState<'all' | 'routed' | 'charged' | 'reversed'>('all');
   // A swipe queues a confirmation step before actually opening the
   // routing/charging dialog, so an accidental swipe can't fire the action.
   const [pendingSwipe, setPendingSwipe] = useState<{ row: GmailTx; mode: 'credit' | 'debit' } | null>(null);
