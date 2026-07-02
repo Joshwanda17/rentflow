@@ -32,6 +32,10 @@ import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
 import { EmailPeriodComparison } from './EmailPeriodComparison';
 import { SwipeableEmailRow, type SwipeAction } from './SwipeableEmailRow';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface GmailTx {
   id: string;
@@ -911,6 +915,9 @@ export function EmailTransactionsPanel() {
   const [routingRow, setRoutingRow] = useState<GmailTx | null>(null);
   const [routingSuggestedUser, setRoutingSuggestedUser] = useState<PrefilledUser | null>(null);
   const [routingMode, setRoutingMode] = useState<'credit' | 'debit'>('credit');
+  // A swipe queues a confirmation step before actually opening the
+  // routing/charging dialog, so an accidental swipe can't fire the action.
+  const [pendingSwipe, setPendingSwipe] = useState<{ row: GmailTx; mode: 'credit' | 'debit' } | null>(null);
   // Batch auto-debit state. `autoDebitBusy` disables the banner button while
   // a batch run is in flight; `autoDebitProgress` drives the inline counter.
   const [autoDebitBusy, setAutoDebitBusy] = useState(false);
@@ -4047,7 +4054,7 @@ export function EmailTransactionsPanel() {
                         hint: 'Route deposit',
                         icon: <Zap className="h-5 w-5" />,
                         colorClass: 'bg-emerald-600',
-                        onAction: () => swipeNavigate(r, 'credit'),
+                        onAction: () => setPendingSwipe({ row: r, mode: 'credit' }),
                       }
                     : isOutgoing && !isRouted && !isAutoDebited && Number(r.amount ?? 0) > 0
                       ? {
@@ -4055,7 +4062,7 @@ export function EmailTransactionsPanel() {
                           hint: 'Debit user',
                           icon: <Wallet className="h-5 w-5" />,
                           colorClass: 'bg-rose-600',
-                          onAction: () => swipeNavigate(r, 'debit'),
+                          onAction: () => setPendingSwipe({ row: r, mode: 'debit' }),
                         }
                       : null;
                 return (
@@ -5263,6 +5270,33 @@ export function EmailTransactionsPanel() {
       </div>
 
       <DedupAuditPanel />
+
+      <AlertDialog open={!!pendingSwipe} onOpenChange={(o) => { if (!o) setPendingSwipe(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingSwipe?.mode === 'credit' ? 'Send to wallet?' : 'Charge wallet?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSwipe?.mode === 'credit'
+                ? `Route this deposit of ${fmtUgx(Number(pendingSwipe?.row.amount ?? 0))} to a user's wallet.`
+                : `Charge ${fmtUgx(Number(pendingSwipe?.row.amount ?? 0))} to a user's wallet for this payout.`}
+              {' '}You'll confirm the recipient and details on the next screen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingSwipe) swipeNavigate(pendingSwipe.row, pendingSwipe.mode);
+                setPendingSwipe(null);
+              }}
+            >
+              {pendingSwipe?.mode === 'credit' ? 'Send to wallet' : 'Charge wallet'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <RouteEmailDepositDialog
         open={!!routingRow}
