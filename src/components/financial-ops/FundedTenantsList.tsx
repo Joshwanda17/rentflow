@@ -98,7 +98,13 @@ type Row = {
 type DateFilter = 'all' | '7d' | '30d' | 'custom';
 
 
-const FUNDED_STATUSES = ['awaiting_agent_receipt', 'completed', 'disbursed'] as const;
+const FUNDED_STATUSES = [
+  'pending_finops_disbursement',
+  'pending_merchant_payout',
+  'awaiting_agent_receipt',
+  'completed',
+  'disbursed',
+] as const;
 
 function formatUGX(n: number) {
   return `UGX ${Number(n).toLocaleString()}`;
