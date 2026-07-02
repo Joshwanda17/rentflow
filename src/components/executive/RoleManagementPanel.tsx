@@ -255,17 +255,19 @@ export function RoleManagementPanel() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, email or phone…"
+                placeholder="Search by name or phone number…"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
+                onKeyDown={e => { if (e.key === 'Enter') runSearch(query, true); }}
                 className="pl-9 h-10"
+                autoFocus
               />
             </div>
-            <Button onClick={runSearch} disabled={searching || !query.trim()} className="h-10">
+            <Button onClick={() => runSearch(query, true)} disabled={searching || query.trim().length < 2} className="h-10">
               {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground -mt-1">Type at least 2 characters — results appear as you type.</p>
 
           {searching ? (
             <div className="space-y-2">
