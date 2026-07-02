@@ -2469,9 +2469,29 @@ export function EmailTransactionsPanel() {
         }
         return 0;
       });
+    } else if (sortMode !== 'newest') {
+      // Primary sort dropdown — only applies when the specialized debit sort
+      // is off (debitSort === 'none'). 'newest' is the natural DB order, so we
+      // only re-sort for the other modes.
+      const ts = (r: GmailTx) => {
+        const v = r.internal_date ? new Date(r.internal_date).getTime() : 0;
+        return Number.isFinite(v) ? v : 0;
+      };
+      const amt = (r: GmailTx) => (r.amount !== null && Number.isFinite(r.amount) ? (r.amount as number) : -1);
+      const statusRank = (r: GmailTx) => {
+        const s = getRowStatus(r);
+        return s === 'needs_routing' ? 0 : s === 'unparsed' ? 1 : s === 'credited' ? 2 : 3;
+      };
+      list = [...list].sort((a, b) => {
+        if (sortMode === 'oldest') return ts(a) - ts(b);
+        if (sortMode === 'amount_high') return amt(b) - amt(a) || ts(b) - ts(a);
+        if (sortMode === 'amount_low') return amt(a) - amt(b) || ts(b) - ts(a);
+        if (sortMode === 'status') return statusRank(a) - statusRank(b) || ts(b) - ts(a);
+        return 0;
+      });
     }
     return list;
-  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, statusFilter, getRowStatus, debitFilter, debitSort, getDebitMeta]);
+  }, [filteredRows, directionFilter, matchFilter, userMatches, needsRoutingOnly, isNeedsRouting, statusFilter, getRowStatus, debitFilter, debitSort, sortMode, getDebitMeta]);
 
   const navIndex = routingRow ? visibleRows.findIndex((r) => r.id === routingRow.id) : -1;
   const canPrevNav = navIndex > 0;
