@@ -155,6 +155,8 @@ export function RoleManagementPanel() {
     if (!selected) return;
     setBusyRole(role);
     try {
+      const before = [...userRoles];
+      const after = [...userRoles, role];
       const { error } = await supabase
         .from('user_roles')
         .insert({ user_id: selected.id, role });
@@ -168,9 +170,10 @@ export function RoleManagementPanel() {
         action_type: 'role_added',
         table_name: 'user_roles',
         record_id: selected.id,
-        metadata: { role, target_user: selected.full_name, reason: 'CEO role grant' },
+        metadata: { role, target_user: selected.full_name, before, after, reason: 'CEO role grant' },
       });
       toast.success(`Added "${roleLabels[role]}" to ${selected.full_name || 'user'}`);
+      fetchAuditLog();
     } catch (err: any) {
       console.error('Add role error:', err);
       toast.error('Failed to add role');
@@ -184,6 +187,8 @@ export function RoleManagementPanel() {
     if (userRoles.length <= 1) { toast.error('User must keep at least one role'); return; }
     setBusyRole(role);
     try {
+      const before = [...userRoles];
+      const after = userRoles.filter(r => r !== role);
       const { error } = await supabase
         .from('user_roles')
         .delete()
@@ -196,9 +201,10 @@ export function RoleManagementPanel() {
         action_type: 'role_removed',
         table_name: 'user_roles',
         record_id: selected.id,
-        metadata: { role, target_user: selected.full_name, reason: 'CEO role revoke' },
+        metadata: { role, target_user: selected.full_name, before, after, reason: 'CEO role revoke' },
       });
       toast.success(`Removed "${roleLabels[role]}" from ${selected.full_name || 'user'}`);
+      fetchAuditLog();
     } catch (err: any) {
       console.error('Remove role error:', err);
       toast.error('Failed to remove role');
