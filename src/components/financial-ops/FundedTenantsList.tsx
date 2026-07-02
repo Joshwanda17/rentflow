@@ -98,7 +98,13 @@ type Row = {
 type DateFilter = 'all' | '7d' | '30d' | 'custom';
 
 
-const FUNDED_STATUSES = ['awaiting_agent_receipt', 'completed', 'disbursed'] as const;
+const FUNDED_STATUSES = [
+  'pending_finops_disbursement',
+  'pending_merchant_payout',
+  'awaiting_agent_receipt',
+  'completed',
+  'disbursed',
+] as const;
 
 function formatUGX(n: number) {
   return `UGX ${Number(n).toLocaleString()}`;
@@ -131,7 +137,9 @@ export function FundedTenantsList() {
           'id, agent_id, tenant_id, landlord_id, landlord_name, landlord_phone, mobile_money_provider, amount, status, finops_disbursed_at, finops_disbursed_by, finops_momo_reference, external_reference, created_at, rent_request_id',
         )
         .in('status', FUNDED_STATUSES as unknown as string[])
-        .order('finops_disbursed_at', { ascending: false, nullsFirst: false })
+        // Order by creation so payouts an agent made "today/yesterday" (which
+        // are still `pending_merchant_payout` with a null finops_disbursed_at)
+        // are never pushed past the row limit by older, already-settled rows.
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -850,6 +858,14 @@ export function FundedTenantsList() {
                     {r.status === 'completed' ? (
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">
                         Completed
+                      </Badge>
+                    ) : r.status === 'pending_merchant_payout' ? (
+                      <Badge className="text-[10px] bg-blue-100 text-blue-700 border-blue-200">
+                        Merchant paying out
+                      </Badge>
+                    ) : r.status === 'pending_finops_disbursement' ? (
+                      <Badge className="text-[10px] bg-violet-100 text-violet-700 border-violet-200">
+                        Pending Fin Ops
                       </Badge>
                     ) : (
                       <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">
