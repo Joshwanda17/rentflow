@@ -3225,7 +3225,8 @@ export function EmailTransactionsPanel() {
         };
 
         return (
-          <div className={`rounded-xl border p-3 flex items-start gap-3 ${unrouted.length > 0 ? 'border-rose-300 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/30' : 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-900/60 dark:bg-emerald-950/30'}`}>
+          <div className={`rounded-xl border p-3 flex flex-col gap-3 sm:flex-row sm:items-start ${unrouted.length > 0 ? 'border-rose-300 bg-rose-50/60 dark:border-rose-900/60 dark:bg-rose-950/30' : 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-900/60 dark:bg-emerald-950/30'}`}>
+            <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${unrouted.length > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'}`}>
               {unrouted.length > 0 ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
             </div>
@@ -3261,11 +3262,12 @@ export function EmailTransactionsPanel() {
                 </span>
               )}
             </div>
+            </div>
             {highConf.length > 0 && (
               <Button
                 size="sm"
                 variant="default"
-                className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
+                className="w-full sm:w-auto shrink-0 bg-rose-600 hover:bg-rose-700 text-white gap-1.5"
                 disabled={autoDebitBusy}
                 onClick={runAutoDebit}
                 title={`Posts a withdrawable debit via CFO Direct Debit for each of the ${highConf.length} payout(s) with a possible recipient.`}
