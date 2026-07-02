@@ -920,6 +920,14 @@ export function EmailTransactionsPanel() {
   const [routingMode, setRoutingMode] = useState<'credit' | 'debit'>('credit');
   // Row whose full status-history drawer is open (null = closed).
   const [historyDrawerRow, setHistoryDrawerRow] = useState<GmailTx | null>(null);
+  // Search + route-type filter for the status-history drawer.
+  const [historyDrawerQuery, setHistoryDrawerQuery] = useState('');
+  const [historyDrawerType, setHistoryDrawerType] = useState<'all' | 'routed' | 'charged' | 'reversed'>('all');
+  // Reset drawer filters whenever a different row's history is opened.
+  useEffect(() => {
+    setHistoryDrawerQuery('');
+    setHistoryDrawerType('all');
+  }, [historyDrawerRow?.id]);
   // A swipe queues a confirmation step before actually opening the
   // routing/charging dialog, so an accidental swipe can't fire the action.
   const [pendingSwipe, setPendingSwipe] = useState<{ row: GmailTx; mode: 'credit' | 'debit' } | null>(null);
@@ -5479,19 +5487,86 @@ export function EmailTransactionsPanel() {
             if (!drawerHistory.length) {
               return <p className="mt-6 text-sm text-muted-foreground">No routing or charging transitions recorded yet.</p>;
             }
+            // Classify + label each entry once, so both the filter and the
+            // rendered timeline share the same route-type logic.
+            const classify = (h: RoutingHistoryEntry) => {
+              const reversal = /revers/i.test(h.reason || '');
+              const isDebit = h.route === 'withdrawable_debit' || /^DEBIT\b/i.test(h.reason || '');
+              const type: 'routed' | 'charged' | 'reversed' = reversal ? 'reversed' : isDebit ? 'charged' : 'routed';
+              const routeLabel = reversal
+                ? 'Reversal'
+                : isDebit
+                  ? 'Wallet charged'
+                  : h.route === 'operational_float'
+                    ? 'Routed → Operational Float'
+                    : 'Routed → Personal Deposit';
+              return { reversal, isDebit, type, routeLabel };
+            };
+            const q = historyDrawerQuery.trim().toLowerCase();
+            const filtered = drawerHistory.filter((h) => {
+              const { type, routeLabel } = classify(h);
+              if (historyDrawerType !== 'all' && type !== historyDrawerType) return false;
+              if (!q) return true;
+              const haystack = [
+                h.routed_by_name,
+                h.target_user_name,
+                h.target_user_phone,
+                h.reason,
+                routeLabel,
+                String(h.amount ?? ''),
+                format(new Date(h.created_at), 'MMM d, yyyy HH:mm'),
+              ].filter(Boolean).join(' ').toLowerCase();
+              return haystack.includes(q);
+            });
             return (
-              <ol className="mt-6 relative border-l border-border pl-5 space-y-5">
-                {drawerHistory.map((h) => {
-                  const reversal = /revers/i.test(h.reason || '');
-                  const isDebit = h.route === 'withdrawable_debit' || /^DEBIT\b/i.test(h.reason || '');
+              <>
+                <div className="mt-4 space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      value={historyDrawerQuery}
+                      onChange={(e) => setHistoryDrawerQuery(e.target.value)}
+                      placeholder="Search actor, user, reason, time…"
+                      className="pl-8 h-9 text-sm"
+                    />
+                    {historyDrawerQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setHistoryDrawerQuery('')}
+                        aria-label="Clear search"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(['all', 'routed', 'charged', 'reversed'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setHistoryDrawerType(t)}
+                        className={`text-xs px-2.5 py-1 rounded-full border capitalize min-h-8 ${
+                          historyDrawerType === t
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Showing {filtered.length} of {drawerHistory.length} transition{drawerHistory.length === 1 ? '' : 's'}
+                  </p>
+                </div>
+                {filtered.length === 0 ? (
+                  <p className="mt-6 text-sm text-muted-foreground">No transitions match your search or filter.</p>
+                ) : (
+                <ol className="mt-4 relative border-l border-border pl-5 space-y-5">
+                {filtered.map((h) => {
+                  const { reversal, isDebit, routeLabel } = classify(h);
                   const busy = !!reverseBusy[h.id];
-                  const routeLabel = reversal
-                    ? 'Reversal'
-                    : isDebit
-                      ? 'Wallet charged'
-                      : h.route === 'operational_float'
-                        ? 'Routed → Operational Float'
-                        : 'Routed → Personal Deposit';
                   const dotClass = reversal ? 'bg-rose-500' : isDebit ? 'bg-rose-500' : 'bg-violet-500';
                   return (
                     <li key={h.id} className="relative">
@@ -5529,7 +5604,9 @@ export function EmailTransactionsPanel() {
                     </li>
                   );
                 })}
-              </ol>
+                </ol>
+                )}
+              </>
             );
           })()}
         </SheetContent>
