@@ -5660,15 +5660,25 @@ function BadgeTip({
   details?: string;
   children: ReactNode;
 }) {
+  // Stable id for an always-rendered, visually-hidden description. Radix only
+  // mounts TooltipContent while open, so its auto aria-describedby vanishes on
+  // blur. Pairing the trigger with a persistent sr-only element guarantees a
+  // screen reader announces the explanation whenever the badge is focused.
+  const descId = useId();
   return (
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>
           <span
             tabIndex={0}
+            role="note"
+            aria-describedby={descId}
             className="inline-flex cursor-help rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {children}
+            <span id={descId} className="sr-only">
+              {plain}{details ? ` ${details}` : ''}
+            </span>
           </span>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
