@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { PartnerOpsWithdrawalQueue } from './PartnerOpsWithdrawalQueue';
 import { ApprovedPartnerWithdrawals } from '@/components/coo/ApprovedPartnerWithdrawals';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
+import { PortfolioTopUpVerification } from '@/components/financial-ops/PortfolioTopUpVerification';
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { PartnerFinancialActivity } from './PartnerFinancialActivity';
 import { PendingFunderApprovals } from './PendingFunderApprovals';
