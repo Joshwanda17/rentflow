@@ -30,6 +30,7 @@ import { DebitBucketAuditSearch } from './DebitBucketAuditSearch';
 import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { ProxyDebitBreakdownDialog } from './ProxyDebitBreakdownDialog';
 import { EmailPeriodComparison } from './EmailPeriodComparison';
+import { SwipeableEmailRow, type SwipeAction } from './SwipeableEmailRow';
 
 interface GmailTx {
   id: string;
@@ -4006,9 +4007,31 @@ export function EmailTransactionsPanel() {
                     : matches.length
                       ? `Possible user match (low confidence): ${matches.map((u) => u.full_name).slice(0, 3).join(', ')}`
                       : 'No depositing user matched';
+                // Primary swipe action for this row — mirrors the on-row CTA:
+                // incoming uncredited deposits go to a wallet (credit), outgoing
+                // unrouted payouts charge a wallet (debit). Anything already
+                // settled has no swipe action.
+                const swipeAction: SwipeAction | null =
+                  r.direction === 'in' && !isCredited && !isRouted
+                    ? {
+                        label: 'Send to wallet',
+                        hint: 'Route deposit',
+                        icon: <Zap className="h-5 w-5" />,
+                        colorClass: 'bg-emerald-600',
+                        onAction: () => navigateToRow(r, 'credit'),
+                      }
+                    : isOutgoing && !isRouted && !isAutoDebited && Number(r.amount ?? 0) > 0
+                      ? {
+                          label: 'Charge wallet',
+                          hint: 'Debit user',
+                          icon: <Wallet className="h-5 w-5" />,
+                          colorClass: 'bg-rose-600',
+                          onAction: () => navigateToRow(r, 'debit'),
+                        }
+                      : null;
                 return (
+              <SwipeableEmailRow key={r.id} action={swipeAction}>
               <div
-                key={r.id}
                 role="article"
                 aria-label={matchAriaLabel}
                 data-match-status={isConfident ? 'confident' : isFlagged ? 'flagged' : 'none'}
@@ -5127,6 +5150,7 @@ export function EmailTransactionsPanel() {
                   </div>
                 </div>
               </div>
+              </SwipeableEmailRow>
                 );
               });
             })()}
