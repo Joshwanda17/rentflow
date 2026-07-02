@@ -1,0 +1,274 @@
+import { useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card } from '@/components/ui/card';
+import { Search, ShieldCheck, UserCog, Plus, X, Loader2, ArrowLeft, Users } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import type { AppRole } from '@/hooks/auth/types';
+import { roleLabels } from '@/components/layout/executiveSidebarConfig';
+
+const ALL_ROLES: AppRole[] = [
+  'tenant', 'agent', 'landlord', 'supporter',
+  'manager', 'super_admin', 'employee', 'operations',
+  'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr',
+];
+
+const roleColor = (r: string) => {
+  if (r === 'super_admin' || r === 'ceo') return 'bg-destructive/15 text-destructive border-destructive/30';
+  if (['manager', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr', 'operations', 'employee'].includes(r))
+    return 'bg-primary/15 text-primary border-primary/30';
+  return 'bg-muted text-muted-foreground border-border';
+};
+
+interface FoundUser {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+}
+
+export function RoleManagementPanel() {
+  const { user } = useAuth();
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<FoundUser[]>([]);
+  const [selected, setSelected] = useState<FoundUser | null>(null);
+  const [userRoles, setUserRoles] = useState<AppRole[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  const [busyRole, setBusyRole] = useState<AppRole | null>(null);
+
+  const runSearch = useCallback(async () => {
+    const q = query.trim();
+    if (!q) return;
+    setSearching(true);
+    setSelected(null);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, phone, avatar_url')
+        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+        .limit(25);
+      if (error) throw error;
+      setResults(data || []);
+      if ((data || []).length === 0) toast.info('No users match that search');
+    } catch (err: any) {
+      console.error('User search error:', err);
+      toast.error('Failed to search users');
+    } finally {
+      setSearching(false);
+    }
+  }, [query]);
+
+  const loadRoles = useCallback(async (u: FoundUser) => {
+    setSelected(u);
+    setLoadingRoles(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', u.id);
+      if (error) throw error;
+      setUserRoles(((data || []).map(r => r.role)) as AppRole[]);
+    } catch (err: any) {
+      console.error('Load roles error:', err);
+      toast.error('Failed to load roles');
+      setUserRoles([]);
+    } finally {
+      setLoadingRoles(false);
+    }
+  }, []);
+
+  const addRole = async (role: AppRole) => {
+    if (!selected) return;
+    setBusyRole(role);
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: selected.id, role });
+      if (error) {
+        if (error.code === '23505') { toast.error('User already has this role'); return; }
+        throw error;
+      }
+      setUserRoles(prev => [...prev, role]);
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'role_added',
+        table_name: 'user_roles',
+        record_id: selected.id,
+        metadata: { role, target_user: selected.full_name, reason: 'CEO role grant' },
+      });
+      toast.success(`Added "${roleLabels[role]}" to ${selected.full_name || 'user'}`);
+    } catch (err: any) {
+      console.error('Add role error:', err);
+      toast.error('Failed to add role');
+    } finally {
+      setBusyRole(null);
+    }
+  };
+
+  const removeRole = async (role: AppRole) => {
+    if (!selected) return;
+    if (userRoles.length <= 1) { toast.error('User must keep at least one role'); return; }
+    setBusyRole(role);
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', selected.id)
+        .eq('role', role);
+      if (error) throw error;
+      setUserRoles(prev => prev.filter(r => r !== role));
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'role_removed',
+        table_name: 'user_roles',
+        record_id: selected.id,
+        metadata: { role, target_user: selected.full_name, reason: 'CEO role revoke' },
+      });
+      toast.success(`Removed "${roleLabels[role]}" from ${selected.full_name || 'user'}`);
+    } catch (err: any) {
+      console.error('Remove role error:', err);
+      toast.error('Failed to remove role');
+    } finally {
+      setBusyRole(null);
+    }
+  };
+
+  const availableToAdd = ALL_ROLES.filter(r => !userRoles.includes(r));
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="p-2 rounded-lg bg-primary/10">
+          <ShieldCheck className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-foreground">Role Management</h2>
+          <p className="text-xs text-muted-foreground">Search any user, then add or remove their roles.</p>
+        </div>
+      </div>
+
+      {!selected && (
+        <>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email or phone…"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') runSearch(); }}
+                className="pl-9 h-10"
+              />
+            </div>
+            <Button onClick={runSearch} disabled={searching || !query.trim()} className="h-10">
+              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Search'}
+            </Button>
+          </div>
+
+          {searching ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+            </div>
+          ) : results.length > 0 ? (
+            <div className="space-y-2">
+              {results.map(u => (
+                <button
+                  key={u.id}
+                  onClick={() => loadRoles(u)}
+                  className="w-full text-left border border-border rounded-xl p-3 bg-card hover:border-primary hover:bg-primary/5 transition-colors flex items-center gap-3"
+                >
+                  <div className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                    <UserCog className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm text-foreground truncate">{u.full_name || 'Unnamed user'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.email || u.phone || u.id}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-8 text-center text-muted-foreground">
+              <Users className="h-10 w-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">Search for a user to manage their roles.</p>
+            </Card>
+          )}
+        </>
+      )}
+
+      {selected && (
+        <div className="space-y-4">
+          <Button variant="ghost" size="sm" onClick={() => setSelected(null)} className="gap-1.5 -ml-2">
+            <ArrowLeft className="h-4 w-4" /> Back to results
+          </Button>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                <UserCog className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground truncate">{selected.full_name || 'Unnamed user'}</p>
+                <p className="text-xs text-muted-foreground truncate">{selected.email || selected.phone || selected.id}</p>
+              </div>
+            </div>
+          </Card>
+
+          <div>
+            <p className="text-sm font-semibold text-foreground mb-2">Current roles</p>
+            {loadingRoles ? (
+              <Skeleton className="h-8 w-full rounded-lg" />
+            ) : userRoles.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No roles assigned.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {userRoles.map(r => (
+                  <span key={r} className={cn('inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full border text-xs font-medium capitalize', roleColor(r))}>
+                    {roleLabels[r] || r}
+                    <button
+                      onClick={() => removeRole(r)}
+                      disabled={busyRole === r || userRoles.length <= 1}
+                      title="Remove role"
+                      className="h-5 w-5 rounded-full inline-flex items-center justify-center hover:bg-background/60 disabled:opacity-40"
+                    >
+                      {busyRole === r ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-foreground mb-2">Add a role</p>
+            <div className="flex flex-wrap gap-2">
+              {availableToAdd.map(r => (
+                <Button
+                  key={r}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addRole(r)}
+                  disabled={busyRole === r}
+                  className="gap-1.5 h-8"
+                >
+                  {busyRole === r ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  {roleLabels[r] || r}
+                </Button>
+              ))}
+              {availableToAdd.length === 0 && (
+                <p className="text-sm text-muted-foreground">User already has every role.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
