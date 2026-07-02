@@ -111,12 +111,13 @@ Deno.serve(async (req) => {
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
     const now = new Date().toISOString();
 
-    // 1. Record the operation as `approved` — wallet-funded top-ups skip
-    //    Financial Ops verification (funds already on-platform), but the
-    //    principal is NOT applied instantly. The merge-pending-topups cron
-    //    picks up `approved` rows and merges them into investment_amount
-    //    on the portfolio's next payout date. Until then the partner sees
-    //    a "Pending — applies on next payout" banner on the portfolio.
+    // ── REQUEST-ONLY FLOW ──
+    // Wallet → portfolio transfers no longer move real funds instantly.
+    // We record a REQUEST for Partner Ops in `awaiting_verification` and
+    // create NO ledger entry here, so the partner's wallet is NOT debited.
+    // The funds only leave the wallet when Partner Ops approves via
+    // `approve-portfolio-topup`, which performs the actual wallet debit
+    // at approval time (re-validating the balance first).
     const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
       user_id: user.id,
       amount: topupAmount,
@@ -125,122 +126,40 @@ Deno.serve(async (req) => {
       source_table: "investor_portfolios",
       source_id: portfolio_id,
       transaction_group_id: txGroupId,
-      description: `Wallet-funded top-up for ${accountLabel} — applies on next payout`,
+      description: `Wallet-to-portfolio transfer request for ${accountLabel} — awaiting Partner Ops approval`,
       linked_party: "platform",
-      // `approved` — skips FinOps queue, eligible for merge-pending-topups
-      // engine on the next payout date.
-      status: "approved",
-      reviewed_at: now,
-      reviewed_by: user.id,
+      // `awaiting_verification` — surfaces in the Partner Ops / Financial Ops
+      // verification queue. NO money has moved yet.
+      status: "awaiting_verification",
       operation_type: "portfolio_topup",
+      metadata: {
+        fund_source: "wallet",
+        requires_wallet_debit: true,
+        requested_at: now,
+        requested_wallet_balance: currentBalance,
+      },
     });
 
     if (pendingErr) {
-      return new Response(JSON.stringify({ error: "Failed to record pending top-up." }), {
+      console.error("[portfolio-topup] Failed to record request:", pendingErr);
+      return new Response(JSON.stringify({ error: "Failed to submit transfer request." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // 2. Record ledger entry via RPC — the sync_wallet_from_ledger trigger handles wallet deduction
-    const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
-      entries: [
-        {
-          user_id: user.id,
-          amount: topupAmount,
-          direction: "cash_out",
-          category: "partner_funding",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          description: `Pending portfolio top-up: ${accountLabel}`,
-          currency: 'UGX',
-          ledger_scope: "wallet",
-          transaction_date: now,
-        },
-        {
-          user_id: user.id,
-          amount: topupAmount,
-          direction: "cash_in",
-          category: "partner_funding",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          description: `Pending capital for ${accountLabel} — applied at maturity`,
-          currency: 'UGX',
-          ledger_scope: "platform",
-          transaction_date: now,
-        },
-      ],
-    });
-
-    if (ledgerErr) {
-      console.error("[portfolio-topup] Ledger RPC failed:", ledgerErr);
-      return new Response(JSON.stringify({ error: "Failed to record ledger entry" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 3. Post-ledger verification: ensure wallet didn't go negative (race condition guard)
-    const { data: postWallet } = await supabase
-      .from("wallets")
-      .select("balance")
-      .eq("user_id", user.id)
-      .single();
-
-    if (postWallet && Number(postWallet.balance) < 0) {
-      // Race condition: rollback via RPC
-      await supabase.rpc('create_ledger_transaction', {
-        entries: [
-          {
-            user_id: user.id,
-            amount: topupAmount,
-            direction: "cash_in",
-            category: "system_balance_correction",
-            source_table: "investor_portfolios",
-            source_id: portfolio_id,
-            description: `Reversal: insufficient balance for ${accountLabel} top-up`,
-            currency: 'UGX',
-            ledger_scope: "wallet",
-            transaction_date: new Date().toISOString(),
-          },
-          {
-            user_id: user.id,
-            amount: topupAmount,
-            direction: "cash_out",
-            category: "system_balance_correction",
-            source_table: "investor_portfolios",
-            source_id: portfolio_id,
-            description: `Reversal: platform return for failed ${accountLabel} top-up`,
-            currency: 'UGX',
-            ledger_scope: "platform",
-            transaction_date: new Date().toISOString(),
-          },
-        ],
-      });
-
-      // Cancel pending op
-      await supabase.from("pending_wallet_operations")
-        .update({ status: "cancelled" })
-        .eq("transaction_group_id", txGroupId);
-
-      return new Response(JSON.stringify({ error: "Insufficient wallet balance" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 4. DO NOT bump investment_amount here. The top-up is parked in
-    //    pending_wallet_operations (status=approved) and the
-    //    merge-pending-topups cron applies it to the portfolio principal
-    //    on the next payout date. Until then UI shows pending banner.
-    console.log(`[portfolio-topup] User ${user.id} parked wallet-funded top-up of ${topupAmount} for ${portfolio_id} — merges on next payout`);
+    // NO ledger entry, NO wallet deduction, NO principal bump here.
+    // Real funds stay in the partner's wallet until Partner Ops approves.
+    console.log(`[portfolio-topup] User ${user.id} submitted wallet→portfolio transfer request of ${topupAmount} for ${portfolio_id} — awaiting Partner Ops approval (no funds moved)`);
 
     // Log system event
     logSystemEvent(supabase, 'portfolio_topup', user.id, 'investor_portfolios', portfolio_id, { amount: topupAmount, portfolio_code: portfolio.portfolio_code });
 
 
-    // Notify managers (fire-and-forget)
+    // Notify Partner Ops / managers that a transfer request needs approval (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "📊 Portfolio Top-Up", body: "Activity: portfolio top-up", url: "/dashboard/manager" }),
+      body: JSON.stringify({ title: "📥 Portfolio Transfer Request", body: `A wallet→portfolio transfer of UGX ${topupAmount.toLocaleString()} needs Partner Ops approval`, url: "/dashboard/manager" }),
     }).catch(() => {});
 
     // Push notification to partner (fire-and-forget)
@@ -249,62 +168,23 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [user.id],
-        payload: { title: "✅ Portfolio Top-Up Confirmed", body: `UGX ${topupAmount.toLocaleString()} portfolio top-up submitted`, url: "/dashboard/funder", type: "success" },
+        payload: { title: "📤 Transfer Request Submitted", body: `Your UGX ${topupAmount.toLocaleString()} wallet→portfolio transfer is awaiting Partner Ops approval. No funds have left your wallet yet.`, url: "/dashboard/funder", type: "info" },
       }),
     }).catch(() => {});
 
 
-    // Partnership Top-Up Confirmation email (fire-and-forget)
-    // Sent on every successful self-service top-up: existing partner adding funds
-    // to an existing portfolio. Distinct from the partnership-agreement email,
-    // which fires only on brand-new portfolio creation in fund-rent-pool.
-    try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email, full_name")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (profile?.email) {
-        const previousPortfolioValue = Number(portfolio.investment_amount) || 0;
-        const newTotalPartnershipValue = previousPortfolioValue + topupAmount;
-
-        const emailRequest = {
-          templateName: "partnership-topup",
-          recipientEmail: profile.email,
-          idempotencyKey: `partnership-topup-${user.id}-${txGroupId}`,
-          templateData: {
-            partner_name: profile.full_name || "Partner",
-            topup_amount: topupAmount,
-            previous_portfolio_value: previousPortfolioValue,
-            new_total_partnership_value: newTotalPartnershipValue,
-            currency: "UGX",
-            company_name: "Welile",
-            logo_url: "https://welilereceipts.com/welile-logo.png",
-            unsubscribe_url: "https://welile.com/unsubscribe",
-            dashboard_url: "https://welilereceipts.com/auth",
-          },
-        };
-
-        fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify(emailRequest),
-        }).catch((err) => console.warn("[portfolio-topup] Top-up email enqueue failed:", err));
-      }
-    } catch (emailErr) {
-      console.warn("[portfolio-topup] Top-up email lookup failed (non-blocking):", emailErr);
-    }
+    // NOTE: The partnership top-up CONFIRMATION email is intentionally NOT sent
+    // here. Funds have not moved yet — the confirmation email is dispatched by
+    // `approve-portfolio-topup` once Partner Ops approves the transfer.
 
     return new Response(JSON.stringify({
       success: true,
       amount: topupAmount,
-      status: "pending",
+      status: "awaiting_approval",
+      requested: true,
       current_capital: Number(portfolio.investment_amount),
       portfolio_code: portfolio.portfolio_code,
+      message: "Transfer request submitted to Partner Ops. Funds stay in your wallet until approved.",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

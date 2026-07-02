@@ -80,23 +80,23 @@ export function FundAccountDialog({
         </DialogHeader>
 
         {confirmedAmount !== null ? (
-          /* ---- Success state: top-up captured, applies on next payout ---- */
+          /* ---- Success state: transfer request submitted, pending Partner Ops ---- */
           <div className="space-y-4 py-4">
             <div className="flex flex-col items-center text-center gap-2">
               <div className="h-14 w-14 rounded-full bg-success/15 flex items-center justify-center">
                 <CheckCircle2 className="h-7 w-7 text-success" />
               </div>
-              <p className="text-lg font-black">{formatUGX(confirmedAmount)} received</p>
+              <p className="text-lg font-black">Request for {formatUGX(confirmedAmount)} submitted</p>
               <p className="text-sm text-muted-foreground">
-                Deducted from your wallet and added to <span className="font-semibold">{accountName}</span>.
+                Your transfer to <span className="font-semibold">{accountName}</span> is now awaiting Partner Ops approval.
               </p>
             </div>
 
             <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
               <CalendarClock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <p className="text-xs text-foreground">
-                This top-up will <span className="font-bold">apply on your next payout</span>. Your projected
-                returns update automatically — no further action needed.
+                No funds have left your wallet yet. The money stays in your wallet and is only
+                moved <span className="font-bold">once Partner Ops approves</span> this transfer.
               </p>
             </div>
 
@@ -244,6 +244,15 @@ export function FundAccountDialog({
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Approval notice — funds only move after Partner Ops approves */}
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-snug text-foreground">
+                  This sends a <span className="font-bold">transfer request to Partner Ops</span>. No money
+                  leaves your wallet now — the funds stay in your wallet until the request is approved.
+                </p>
+              </div>
             </>
           )}
         </div>
@@ -260,11 +269,11 @@ export function FundAccountDialog({
               className="gap-2 bg-gradient-to-r from-primary to-violet-500"
             >
               {loading ? (
-                'Processing...'
+                'Submitting...'
               ) : (
                 <>
                   <Wallet className="h-4 w-4" />
-                  Top Up {isValid ? formatUGX(amount) : ''}
+                  Request Transfer {isValid ? formatUGX(amount) : ''}
                 </>
               )}
             </Button>

@@ -578,7 +578,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
               toast.error(data?.error || error?.message || 'Top-up failed');
               throw new Error(data?.error || 'Failed');
             }
-            toast.success(`Successfully topped up ${topUpTarget.name}`);
+            toast.success('Transfer request submitted', { description: `Your transfer to ${topUpTarget.name} is awaiting Partner Ops approval. No funds have left your wallet yet.` });
             refreshWallet();
             fetchAll();
           }}

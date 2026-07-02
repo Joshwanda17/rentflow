@@ -612,7 +612,7 @@ export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'acc
               toast.error(data?.error || error?.message || 'Top-up failed');
               throw new Error(data?.error || 'Failed');
             }
-            toast.success(`Successfully topped up ${topUpTarget.account_name || topUpTarget.portfolio_code}`);
+            toast.success('Transfer request submitted', { description: `Your transfer to ${topUpTarget.account_name || topUpTarget.portfolio_code} is awaiting Partner Ops approval. No funds have left your wallet yet.` });
             refreshWallet();
             refetch();
           }}

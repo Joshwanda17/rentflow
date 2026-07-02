@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { PartnerOpsWithdrawalQueue } from './PartnerOpsWithdrawalQueue';
 import { ApprovedPartnerWithdrawals } from '@/components/coo/ApprovedPartnerWithdrawals';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
+import { PortfolioTopUpVerification } from '@/components/financial-ops/PortfolioTopUpVerification';
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { PartnerFinancialActivity } from './PartnerFinancialActivity';
 import { PendingFunderApprovals } from './PendingFunderApprovals';
@@ -182,7 +183,14 @@ export function PartnersOpsDashboard() {
           <ROIPaymentHistory />
         </div>
       );
-      case 'topups': return <PendingPortfolioTopUps />;
+      case 'topups': return (
+        <div className="space-y-6">
+          {/* Actionable queue: wallet→portfolio transfer requests awaiting Partner Ops approval.
+              Funds only leave the partner's wallet when approved here. */}
+          <PortfolioTopUpVerification />
+          <PendingPortfolioTopUps />
+        </div>
+      );
       case 'activity': return <PartnerFinancialActivity />;
       case 'promissory': return <PromissoryNotesQueue />;
       case 'maturity': return <MaturityRequestsQueue />;

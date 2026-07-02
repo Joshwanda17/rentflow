@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     // Fetch all awaiting_verification top-ups for this portfolio
     const { data: awaitingOps, error: fetchErr } = await supabase
       .from("pending_wallet_operations")
-      .select("id, amount, user_id, transaction_group_id")
+      .select("id, amount, user_id, transaction_group_id, metadata")
       .eq("source_id", portfolio_id)
       .eq("source_table", "investor_portfolios")
       .eq("operation_type", "portfolio_topup")
@@ -158,6 +158,87 @@ Deno.serve(async (req) => {
 
     // ── APPROVE: Park funds with ledger entry until next ROI cycle ──
 
+    // Split ops by funding source. Wallet-funded transfer requests (created by
+    // `portfolio-topup`) carry metadata.requires_wallet_debit and have NOT moved
+    // any money yet — the real wallet debit happens HERE, at approval time.
+    // External / off-platform deposits are simply parked (money already arrived).
+    const walletOps = (awaitingOps || []).filter(
+      (op: any) => op?.metadata && op.metadata.requires_wallet_debit === true,
+    );
+    const externalOps = (awaitingOps || []).filter(
+      (op: any) => !(op?.metadata && op.metadata.requires_wallet_debit === true),
+    );
+    const walletTotal = walletOps.reduce((s: number, op: any) => s + Number(op.amount), 0);
+    const externalTotal = externalOps.reduce((s: number, op: any) => s + Number(op.amount), 0);
+
+    // 0. For wallet-funded requests: re-validate the partner's balance and debit
+    //    the wallet NOW. This is the deferred money movement the partner agreed to.
+    if (walletTotal > 0) {
+      const walletUserId = walletOps[0]?.user_id || partnerId;
+      if (!walletUserId) {
+        return new Response(JSON.stringify({ error: "Cannot resolve wallet owner for this transfer request" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // STRICT withdrawable check — funds must still be available at approval time.
+      const { data: availRaw, error: availErr } = await supabase.rpc(
+        "get_user_available_balance",
+        { p_user_id: walletUserId },
+      );
+      if (availErr) {
+        console.error("[approve-portfolio-topup] balance lookup failed:", availErr);
+        return new Response(JSON.stringify({ error: "Could not verify partner wallet balance. Please retry." }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const avail = Number(availRaw ?? 0);
+      if (avail < walletTotal) {
+        return new Response(JSON.stringify({
+          error: `Partner wallet no longer has enough funds for this transfer. Needs UGX ${walletTotal.toLocaleString()}, but only UGX ${avail.toLocaleString()} is available. Ask the partner to top up their wallet or reject the request.`,
+        }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Real money movement: wallet → platform. sync_wallet_from_ledger deducts the wallet.
+      const { error: debitErr } = await supabase.rpc("create_ledger_transaction", {
+        entries: [
+          {
+            user_id: walletUserId,
+            amount: walletTotal,
+            direction: "cash_out",
+            category: "partner_funding",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            description: `Approved wallet→portfolio transfer: ${accountLabel} (${portfolio.portfolio_code})`,
+            currency: "UGX",
+            ledger_scope: "wallet",
+            transaction_date: now,
+          },
+          {
+            user_id: walletUserId,
+            amount: walletTotal,
+            direction: "cash_in",
+            category: "partner_funding",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            description: `Pending capital for ${accountLabel} — applied on next payout`,
+            currency: "UGX",
+            ledger_scope: "platform",
+            transaction_date: now,
+          },
+        ],
+      });
+
+      if (debitErr) {
+        console.error("[approve-portfolio-topup] Wallet debit failed:", debitErr);
+        return new Response(JSON.stringify({ error: "Failed to debit partner wallet. No changes were made." }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // 1. Mark all ops as approved (parked)
     const { error: approveErr } = await supabase
       .from("pending_wallet_operations")
@@ -170,29 +251,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Create ledger entry for parked capital (pending_portfolio_topup)
-    //    This is the critical step that was missing for external payments.
+    // 2. Create ledger entry for parked capital (pending_portfolio_topup) for
+    //    EXTERNAL / off-platform deposits only. Wallet-funded transfers were
+    //    already moved above via partner_funding legs, matching the legacy flow.
     //    The process-supporter-roi engine will later reverse this with a cash_out
     //    and create a partner_funding cash_in when merging into active capital.
-    if (partnerId) {
+    if (partnerId && externalTotal > 0) {
       try {
         const { error: ledgerErr } = await supabase.rpc("create_ledger_transaction", {
           entries: [
             {
               user_id: partnerId,
-              amount: totalAmount,
+              amount: externalTotal,
               direction: "cash_in",
               category: "pending_portfolio_topup",
               source_table: "investor_portfolios",
               source_id: portfolio_id,
-              description: `Verified deposit of UGX ${totalAmount.toLocaleString()} for "${accountLabel}" (${portfolio.portfolio_code}). Parked until next ROI cycle.`,
+              description: `Verified deposit of UGX ${externalTotal.toLocaleString()} for "${accountLabel}" (${portfolio.portfolio_code}). Parked until next ROI cycle.`,
               currency: "UGX",
               ledger_scope: "platform",
               transaction_date: now,
             },
             {
               user_id: partnerId,
-              amount: totalAmount,
+              amount: externalTotal,
               direction: "cash_out",
               category: "pending_portfolio_topup",
               source_table: "investor_portfolios",
@@ -209,7 +291,7 @@ Deno.serve(async (req) => {
           console.error("[approve-portfolio-topup] Ledger entry failed:", ledgerErr);
           // Non-blocking — the approval is already recorded in pending_wallet_operations
         } else {
-          console.log(`[approve-portfolio-topup] Ledger entry created for ${totalAmount} parked in ${portfolio.portfolio_code}`);
+          console.log(`[approve-portfolio-topup] Ledger entry created for ${externalTotal} parked in ${portfolio.portfolio_code}`);
         }
       } catch (ledgerEx) {
         console.error("[approve-portfolio-topup] Ledger exception:", ledgerEx);
