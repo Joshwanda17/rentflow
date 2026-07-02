@@ -1,12 +1,13 @@
 // Merchant (cash-out) agent economics — shared across the agent dashboard and
 // the CFO Cash-Out Agents drill-down so both views show identical figures.
 
-// Telecom sending charge tiers (MTN / Airtel), by amount sent (UGX).
+// Telecom sending charge tiers (Airtel to Airtel), by amount sent (UGX).
 export const TELECOM_CHARGE_TIERS: { min: number; max: number; charge: number }[] = [
-  { min: 500, max: 60_000, charge: 500 },
+  { min: 0, max: 5_000, charge: 100 },
+  { min: 5_001, max: 60_000, charge: 500 },
   { min: 60_001, max: 500_000, charge: 1_000 },
-  { min: 500_001, max: 2_000_000, charge: 1_500 },
-  { min: 2_000_001, max: 4_000_000, charge: 2_000 },
+  { min: 500_001, max: 1_000_000, charge: 1_500 },
+  { min: 1_000_001, max: 5_000_000, charge: 2_000 },
 ];
 
 // Sending charge levied by the telecom house for a given amount.
