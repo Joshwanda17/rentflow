@@ -30,6 +30,7 @@ import { MomoSignupSmsTemplatePanel } from './MomoSignupSmsTemplatePanel';
 import { CashDepositCodesPanel } from './CashDepositCodesPanel';
 import { UserWalletStatementsPanel } from './UserWalletStatementsPanel';
 import { WithdrawalNotificationLogPanel } from './WithdrawalNotificationLogPanel';
+import { SmsDeliveryLogPanel } from './SmsDeliveryLogPanel';
 import { CashoutSettlementTimeline } from './CashoutSettlementTimeline';
 import { MerchantClaimsLog } from './MerchantClaimsLog';
 
@@ -54,7 +55,7 @@ type Tool =
   | 'email_tx' | 'funded_tenants' | 'auto_credit_review' | 'proxy_diagnostics'
   | 'topup_audit'
   | 'float_to_withdrawable' | 'momo_sms_template' | 'cash_codes' | 'user_statements'
-  | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims';
+  | 'withdrawal_notif_log' | 'cashout_settlement' | 'merchant_claims' | 'sms_delivery_log';
 
 
 /**
@@ -74,6 +75,7 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'funded_tenants', label: 'Funded Landlords & Tenants', desc: 'Tenants whose landlords have been paid — share to agent on WhatsApp', icon: HomeIcon },
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
   { kind: 'tool', id: 'withdrawal_notif_log', label: 'Withdrawal Notification Log', desc: 'Every merchant withdrawal-alert email — search by recipient, amount & date', icon: Bell },
+  { kind: 'tool', id: 'sms_delivery_log', label: 'SMS Delivery Log', desc: 'Delivery-status audit of every claim & payout SMS — provider response, retries & failures', icon: MessageSquare },
   { kind: 'tool', id: 'cashout_settlement', label: 'Cash-Out Settlement Timeline', desc: 'Each withdrawal with the merchant principal reimbursement & 0.5% commission in one ledger trail', icon: ArrowRightLeft },
   { kind: 'tool', id: 'topup_audit', label: 'Top-Up Audit Log', desc: 'Each partnership top-up: fund source, recipient routing & both ledger legs', icon: ScrollText },
   { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
@@ -259,6 +261,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'cash_codes' && <CashDepositCodesPanel />}
         {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
         {activeTool === 'withdrawal_notif_log' && <WithdrawalNotificationLogPanel />}
+        {activeTool === 'sms_delivery_log' && <SmsDeliveryLogPanel />}
         {activeTool === 'cashout_settlement' && <CashoutSettlementTimeline />}
         {activeTool === 'merchant_claims' && <MerchantClaimsLog />}
       </div>
