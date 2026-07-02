@@ -859,6 +859,14 @@ export function FundedTenantsList() {
                       <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">
                         Completed
                       </Badge>
+                    ) : r.status === 'pending_merchant_payout' ? (
+                      <Badge className="text-[10px] bg-blue-100 text-blue-700 border-blue-200">
+                        Merchant paying out
+                      </Badge>
+                    ) : r.status === 'pending_finops_disbursement' ? (
+                      <Badge className="text-[10px] bg-violet-100 text-violet-700 border-violet-200">
+                        Pending Fin Ops
+                      </Badge>
                     ) : (
                       <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">
                         Awaiting receipt
