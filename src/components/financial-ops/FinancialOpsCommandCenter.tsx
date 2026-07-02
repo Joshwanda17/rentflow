@@ -252,6 +252,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'user_statements' && <UserWalletStatementsPanel />}
         {activeTool === 'withdrawal_notif_log' && <WithdrawalNotificationLogPanel />}
         {activeTool === 'cashout_settlement' && <CashoutSettlementTimeline />}
+        {activeTool === 'merchant_claims' && <MerchantClaimsLog />}
       </div>
     );
   }
